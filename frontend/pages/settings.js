@@ -131,11 +131,36 @@ export default function Settings() {
     }
   };
 
+  const [setupModal, setSetupModal] = useState(null);
+  const [manualToken, setManualToken] = useState('');
+  const [manualPageId, setManualPageId] = useState('');
+  const [manualName, setManualName] = useState('');
+  const [manualSaving, setManualSaving] = useState(false);
+  
   const handleConnect = (platform) => {
-    const config = PLATFORM_CONFIG[platform];
-    if (!config) return;
-    const token = localStorage.getItem('token');
-    window.location.href = `/api/social/connect/${config.connectKey}?token=${token}`;
+    setManualToken('');
+    setManualPageId('');
+    setManualName('');
+    setSetupModal(platform);
+  };
+  
+  const handleManualSave = async () => {
+    if (!manualToken.trim()) { showToast('Access token is required', 'error'); return; }
+    setManualSaving(true);
+    try {
+      await fetch('/api/social/connect/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ platform: setupModal, accessToken: manualToken.trim(), pageId: manualPageId.trim(), accountName: manualName.trim() }),
+      });
+      showToast(`${PLATFORM_CONFIG[setupModal]?.label} connected!`);
+      setSetupModal(null);
+      loadSocialAccounts();
+    } catch {
+      showToast('Failed to save token', 'error');
+    } finally {
+      setManualSaving(false);
+    }
   };
 
   const handleDisconnect = async (platform) => {
@@ -251,9 +276,64 @@ export default function Settings() {
             })}
           </div>
         </Card>
+        </div>
+
+{setupModal && (
+  <div onClick={() => setSetupModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <div onClick={(e) => e.stopPropagation()} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 24, maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+      <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 4 }}>Connect {PLATFORM_CONFIG[setupModal]?.label}</h3>
+      <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Follow the steps below to get your access token.</p>
+      {(setupModal === 'facebook' || setupModal === 'instagram') && (
+        <div style={{ marginBottom: 20, padding: 16, background: t.input, borderRadius: 10, border: `1px solid ${t.border}` }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>How to get your token:</div>
+          <ol style={{ fontSize: 12, color: t.textMuted, paddingLeft: 16, lineHeight: 2 }}>
+            <li>Go to <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noreferrer" style={{ color: t.primary }}>developers.facebook.com/tools/explorer</a></li>
+            <li>Select your <strong style={{ color: t.text }}>Facebook App</strong> from the dropdown</li>
+            <li>Click <strong style={{ color: t.text }}>"Generate Access Token"</strong></li>
+            <li>Select your <strong style={{ color: t.text }}>Facebook Page</strong></li>
+            <li>Grant all requested permissions</li>
+            <li>Copy the <strong style={{ color: t.text }}>Page Access Token</strong></li>
+            <li>Paste it below</li>
+          </ol>
+        </div>
+      )}
+      {setupModal === 'google_business' && (
+        <div style={{ marginBottom: 20, padding: 16, background: t.input, borderRadius: 10, border: `1px solid ${t.border}` }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>How to get your token:</div>
+          <ol style={{ fontSize: 12, color: t.textMuted, paddingLeft: 16, lineHeight: 2 }}>
+            <li>Go to <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noreferrer" style={{ color: t.primary }}>developers.google.com/oauthplayground</a></li>
+            <li>Find <strong style={{ color: t.text }}>"Google My Business API v4"</strong></li>
+            <li>Select scope: <strong style={{ color: t.text }}>https://www.googleapis.com/auth/business.manage</strong></li>
+            <li>Click <strong style={{ color: t.text }}>"Authorize APIs"</strong> and sign in</li>
+            <li>Click <strong style={{ color: t.text }}>"Exchange authorization code for tokens"</strong></li>
+            <li>Copy the <strong style={{ color: t.text }}>Access Token</strong></li>
+            <li>Find your <strong style={{ color: t.text }}>Business Account ID</strong> from your GMB dashboard</li>
+          </ol>
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 6 }}>Access Token *</label>
+          <textarea value={manualToken} onChange={(e) => setManualToken(e.target.value)} placeholder="Paste your access token here..." rows={3} style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 12, fontFamily: 'monospace', resize: 'vertical' }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 6 }}>{setupModal === 'google_business' ? 'Business Account ID' : 'Page ID'} (optional)</label>
+          <input type="text" value={manualPageId} onChange={(e) => setManualPageId(e.target.value)} placeholder="e.g. 123456789" style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13 }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 6 }}>Account Name (optional)</label>
+          <input type="text" value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="e.g. My Business Page" style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13 }} />
+        </div>
       </div>
-    </Layout>
-  );
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+        <button onClick={() => setSetupModal(null)} style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+        <button onClick={handleManualSave} disabled={manualSaving || !manualToken.trim()} style={{ padding: '8px 16px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: manualSaving || !manualToken.trim() ? 0.6 : 1 }}>{manualSaving ? 'Saving...' : 'Save & Connect'}</button>
+      </div>
+    </div>
+  </div>
+)}
+</Layout>
+);
 }
 
 export async function getServerSideProps() { return { props: {} }; }
