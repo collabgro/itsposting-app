@@ -289,7 +289,7 @@ export default function Settings() {
           <ol style={{ fontSize: 12, color: t.textMuted, paddingLeft: 16, lineHeight: 2 }}>
             <li>Go to <a href="https://developers.facebook.com/tools/explorer" target="_blank" rel="noreferrer" style={{ color: t.primary }}>developers.facebook.com/tools/explorer</a></li>
             <li>Select your <strong style={{ color: t.text }}>Facebook App</strong> from the dropdown</li>
-            <li>Click <strong style={{ color: t.text }}>"Generate Access Token"</strong></li>
+            <li>Click <strong style={{ color: t.text }}>&quot;Generate Access Token&quot;</strong></li>
             <li>Select your <strong style={{ color: t.text }}>Facebook Page</strong></li>
             <li>Grant all requested permissions</li>
             <li>Copy the <strong style={{ color: t.text }}>Page Access Token</strong></li>
@@ -302,10 +302,10 @@ export default function Settings() {
           <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>How to get your token:</div>
           <ol style={{ fontSize: 12, color: t.textMuted, paddingLeft: 16, lineHeight: 2 }}>
             <li>Go to <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noreferrer" style={{ color: t.primary }}>developers.google.com/oauthplayground</a></li>
-            <li>Find <strong style={{ color: t.text }}>"Google My Business API v4"</strong></li>
+            <li>Find <strong style={{ color: t.text }}>&quot;Google My Business API v4&quot;</strong></li>
             <li>Select scope: <strong style={{ color: t.text }}>https://www.googleapis.com/auth/business.manage</strong></li>
-            <li>Click <strong style={{ color: t.text }}>"Authorize APIs"</strong> and sign in</li>
-            <li>Click <strong style={{ color: t.text }}>"Exchange authorization code for tokens"</strong></li>
+            <li>Click <strong style={{ color: t.text }}>&quot;Authorize APIs&quot;</strong> and sign in</li>
+            <li>Click <strong style={{ color: t.text }}>&quot;Exchange authorization code for tokens&quot;</strong></li>
             <li>Copy the <strong style={{ color: t.text }}>Access Token</strong></li>
             <li>Find your <strong style={{ color: t.text }}>Business Account ID</strong> from your GMB dashboard</li>
           </ol>
