@@ -19,9 +19,6 @@ function getBaseUrl(req) {
 module.exports = (pool) => {
   const router = express.Router();
 
-  /**
-   * GET /api/social/accounts
-   */
   router.get('/accounts', authenticate, async (req, res) => {
     try {
       const result = await pool.query(
@@ -37,22 +34,15 @@ module.exports = (pool) => {
     }
   });
 
-  /**
-   * GET /api/social/status
-   * Returns which providers are configured (have app credentials)
-   */
   router.get('/status', authenticate, (req, res) => {
     res.json({
-      facebook: { configured: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
-      instagram: { configured: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
+      facebook:        { configured: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
+      instagram:       { configured: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
       google_business: { configured: !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) },
+      manual:          { configured: true },
     });
   });
 
-  /**
-   * GET /api/social/connect/facebook
-   * Initiates Facebook OAuth flow (also covers Instagram via Graph API)
-   */
   router.get('/connect/facebook', authenticate, (req, res) => {
     if (!FACEBOOK_APP_ID || !FACEBOOK_APP_SECRET) {
       return res.status(503).json({
@@ -60,11 +50,9 @@ module.exports = (pool) => {
         setup: 'Add FACEBOOK_APP_ID and FACEBOOK_APP_SECRET to your secrets',
       });
     }
-
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/social/callback/facebook`;
     const state = Buffer.from(JSON.stringify({ customerId: req.customerId })).toString('base64');
-
     const scope = [
       'pages_show_list',
       'pages_read_engagement',
@@ -73,7 +61,6 @@ module.exports = (pool) => {
       'instagram_content_publish',
       'public_profile',
     ].join(',');
-
     const authUrl =
       `https://www.facebook.com/v18.0/dialog/oauth` +
       `?client_id=${FACEBOOK_APP_ID}` +
@@ -81,25 +68,15 @@ module.exports = (pool) => {
       `&scope=${encodeURIComponent(scope)}` +
       `&state=${encodeURIComponent(state)}` +
       `&response_type=code`;
-
     res.redirect(authUrl);
   });
 
-  /**
-   * GET /api/social/callback/facebook
-   */
   router.get('/callback/facebook', async (req, res) => {
     const { code, state, error: oauthError } = req.query;
-
     const frontendBase = process.env.FRONTEND_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
 
-    if (oauthError) {
-      return res.redirect(`${frontendBase}/settings?error=facebook_denied`);
-    }
-
-    if (!code || !state) {
-      return res.redirect(`${frontendBase}/settings?error=facebook_invalid`);
-    }
+    if (oauthError) return res.redirect(`${frontendBase}/settings?error=facebook_denied`);
+    if (!code || !state) return res.redirect(`${frontendBase}/settings?error=facebook_invalid`);
 
     let customerId;
     try {
@@ -121,29 +98,23 @@ module.exports = (pool) => {
         },
       });
 
-      const { access_token, expires_in } = tokenRes.data;
-
       const longTokenRes = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
         params: {
           grant_type: 'fb_exchange_token',
           client_id: FACEBOOK_APP_ID,
           client_secret: FACEBOOK_APP_SECRET,
-          fb_exchange_token: access_token,
+          fb_exchange_token: tokenRes.data.access_token,
         },
       });
 
       const longAccessToken = longTokenRes.data.access_token;
+      const expiresAt = new Date(Date.now() + (longTokenRes.data.expires_in || 5184000) * 1000);
 
       const profileRes = await axios.get('https://graph.facebook.com/v18.0/me', {
-        params: {
-          fields: 'id,name,picture',
-          access_token: longAccessToken,
-        },
+        params: { fields: 'id,name,picture', access_token: longAccessToken },
       });
 
       const { id: fbUserId, name: fbName, picture } = profileRes.data;
-
-      const expiresAt = new Date(Date.now() + (longTokenRes.data.expires_in || 5184000) * 1000);
 
       await pool.query(
         `INSERT INTO social_accounts
@@ -156,14 +127,7 @@ module.exports = (pool) => {
            account_name = EXCLUDED.account_name,
            profile_image_url = EXCLUDED.profile_image_url,
            updated_at = NOW()`,
-        [
-          customerId,
-          longAccessToken,
-          expiresAt,
-          fbUserId,
-          fbName,
-          picture?.data?.url || null,
-        ]
+        [customerId, longAccessToken, expiresAt, fbUserId, fbName, picture?.data?.url || null]
       );
 
       const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
@@ -173,8 +137,6 @@ module.exports = (pool) => {
       const pages = pagesRes.data?.data || [];
       if (pages.length > 0) {
         const page = pages[0];
-        const pageExpiresAt = new Date(Date.now() + 5184000 * 1000);
-
         await pool.query(
           `INSERT INTO social_accounts
              (customer_id, platform, access_token, token_expires_at, account_id, account_username, account_name, enabled, auto_post)
@@ -186,14 +148,7 @@ module.exports = (pool) => {
              account_username = EXCLUDED.account_username,
              account_name = EXCLUDED.account_name,
              updated_at = NOW()`,
-          [
-            customerId,
-            page.access_token,
-            pageExpiresAt,
-            page.id,
-            page.name,
-            page.name,
-          ]
+          [customerId, page.access_token, new Date(Date.now() + 5184000 * 1000), page.id, page.name, page.name]
         );
       }
 
@@ -204,9 +159,6 @@ module.exports = (pool) => {
     }
   });
 
-  /**
-   * GET /api/social/connect/google
-   */
   router.get('/connect/google', authenticate, (req, res) => {
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
       return res.status(503).json({
@@ -214,16 +166,13 @@ module.exports = (pool) => {
         setup: 'Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your secrets',
       });
     }
-
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/social/callback/google`;
     const state = Buffer.from(JSON.stringify({ customerId: req.customerId })).toString('base64');
-
     const scope = [
       'https://www.googleapis.com/auth/business.manage',
       'https://www.googleapis.com/auth/userinfo.profile',
     ].join(' ');
-
     const authUrl =
       `https://accounts.google.com/o/oauth2/v2/auth` +
       `?client_id=${GOOGLE_CLIENT_ID}` +
@@ -233,25 +182,15 @@ module.exports = (pool) => {
       `&response_type=code` +
       `&access_type=offline` +
       `&prompt=consent`;
-
     res.redirect(authUrl);
   });
 
-  /**
-   * GET /api/social/callback/google
-   */
   router.get('/callback/google', async (req, res) => {
     const { code, state, error: oauthError } = req.query;
-
     const frontendBase = process.env.FRONTEND_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
 
-    if (oauthError) {
-      return res.redirect(`${frontendBase}/settings?error=google_denied`);
-    }
-
-    if (!code || !state) {
-      return res.redirect(`${frontendBase}/settings?error=google_invalid`);
-    }
+    if (oauthError) return res.redirect(`${frontendBase}/settings?error=google_denied`);
+    if (!code || !state) return res.redirect(`${frontendBase}/settings?error=google_invalid`);
 
     let customerId;
     try {
@@ -303,14 +242,9 @@ module.exports = (pool) => {
     }
   });
 
-  /**
-   * PATCH /api/social/accounts/:id
-   * Toggle enabled/auto_post
-   */
   router.patch('/accounts/:id', authenticate, async (req, res) => {
     try {
       const { enabled, autoPost } = req.body;
-
       const result = await pool.query(
         `UPDATE social_accounts SET
            enabled = COALESCE($1, enabled),
@@ -320,80 +254,83 @@ module.exports = (pool) => {
          RETURNING id, platform, account_name, enabled, auto_post`,
         [enabled, autoPost, req.params.id, req.customerId]
       );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Account not found' });
-      }
-
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Account not found' });
       res.json(result.rows[0]);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  /**
-   * DELETE /api/social/accounts/:platform
-   * Disconnect a social account
-   */
   router.delete('/accounts/:platform', authenticate, async (req, res) => {
     try {
       const { platform } = req.params;
-
       const result = await pool.query(
         `DELETE FROM social_accounts
          WHERE customer_id = $1 AND platform = $2
          RETURNING id, platform`,
         [req.customerId, platform]
       );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Account not found' });
-      }
-
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Account not found' });
       res.json({ success: true, disconnected: platform });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
   });
-/**
- * POST /api/social/connect/manual
- * Save a manually provided access token
- */
-router.post('/connect/manual', authenticate, async (req, res) => {
-  try {
-    const { platform, accessToken, pageId, accountName } = req.body;
 
-    if (!platform || !accessToken) {
-      return res.status(400).json({ error: 'platform and accessToken are required' });
+  /**
+   * POST /api/social/connect/manual
+   * Always available regardless of OAuth credentials
+   */
+  router.post('/connect/manual', authenticate, async (req, res) => {
+    try {
+      const { platform, accessToken, pageId, accountName } = req.body;
+
+      if (!platform || !accessToken) {
+        return res.status(400).json({ error: 'platform and accessToken are required' });
+      }
+
+      const validPlatforms = ['facebook', 'instagram', 'google_business'];
+      if (!validPlatforms.includes(platform)) {
+        return res.status(400).json({
+          error: `Invalid platform. Must be one of: ${validPlatforms.join(', ')}`,
+        });
+      }
+
+      if (accessToken.trim().length < 10) {
+        return res.status(400).json({
+          error: 'Access token appears too short. Please check and try again.',
+        });
+      }
+
+      // 7 days for all manual tokens
+      const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+
+      await pool.query(
+        `INSERT INTO social_accounts
+           (customer_id, platform, access_token, token_expires_at, account_id, account_name, enabled, auto_post)
+         VALUES ($1, $2, $3, $4, $5, $6, true, true)
+         ON CONFLICT (customer_id, platform) DO UPDATE SET
+           access_token = EXCLUDED.access_token,
+           token_expires_at = EXCLUDED.token_expires_at,
+           account_id = EXCLUDED.account_id,
+           account_name = EXCLUDED.account_name,
+           updated_at = NOW()`,
+        [
+          req.customerId,
+          platform,
+          accessToken.trim(),
+          expiresAt,
+          pageId?.trim() || null,
+          accountName?.trim() || platform,
+        ]
+      );
+
+      res.json({ success: true, platform, message: `${platform} connected successfully` });
+    } catch (error) {
+      console.error('Manual connect error:', error.message);
+      res.status(500).json({ error: error.message });
     }
+  });
 
-    const validPlatforms = ['facebook', 'instagram', 'google_business'];
-    if (!validPlatforms.includes(platform)) {
-      return res.status(400).json({ error: 'Invalid platform' });
-    }
-
-    // Set expiry to 60 days for Facebook tokens, 1 hour for Google
-    const expiresAt = platform === 'google_business'
-      ? new Date(Date.now() + 3600 * 1000)
-      : new Date(Date.now() + 60 * 24 * 3600 * 1000);
-
-    await pool.query(
-      `INSERT INTO social_accounts
-         (customer_id, platform, access_token, token_expires_at, account_id, account_name, enabled, auto_post)
-       VALUES ($1, $2, $3, $4, $5, $6, true, true)
-       ON CONFLICT (customer_id, platform) DO UPDATE SET
-         access_token = EXCLUDED.access_token,
-         token_expires_at = EXCLUDED.token_expires_at,
-         account_id = EXCLUDED.account_id,
-         account_name = EXCLUDED.account_name,
-         updated_at = NOW()`,
-      [req.customerId, platform, accessToken, expiresAt, pageId || null, accountName || platform]
-    );
-
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
   return router;
 };
