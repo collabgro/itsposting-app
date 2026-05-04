@@ -164,7 +164,7 @@ export default function Layout({ children, title, subtitle, action }) {
         </nav>
 
         {/* TRIAL CARD */}
-        {!isMobile && user?.status === 'trial' && !user?.is_admin && (
+        {!isMobile && user?.status === 'trial' && (
           <div style={{ padding: '12px', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
             <div style={{ padding: '12px 14px', background: t.card, borderRadius: 10, border: `1px solid ${t.border}` }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 2 }}>Free trial version</div>
