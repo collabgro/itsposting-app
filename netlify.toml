@@ -1,0 +1,26 @@
+# Next.js app lives in /frontend. Deploy the Express API separately (Railway, Render, Fly.io, etc.).
+[build]
+  base = "frontend"
+  command = "npm ci && npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Required in Netlify UI or netlify.toml [build.environment]:
+#   BACKEND_URL = https://your-api.example.com   (no trailing slash; your deployed Node/Express API)
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

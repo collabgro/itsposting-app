@@ -1,0 +1,1443 @@
+Here's a comprehensive prompt to redesign PostFlow to match the Figma reference aesthetic. This is structured to give Replit precise design tokens, layout specs, and component-by-component instructions:
+
+---
+
+```
+Completely redesign PostFlow's UI to match a professional SaaS dashboard aesthetic. The current UI is broken/inconsistent — replace it entirely. The reference design uses a dark-first theme with purple accents, a fixed left sidebar, and modern card-based layouts.
+
+Follow this prompt EXACTLY. Do NOT improvise, do NOT add features. Only modify the files listed below.
+
+═══════════════════════════════════════════
+DESIGN SYSTEM (MEMORIZE THESE TOKENS)
+═══════════════════════════════════════════
+
+COLOR PALETTE (Dark theme is default):
+
+Backgrounds:
+- App background:       #0B0B0F  (almost black)
+- Sidebar background:   #13131A  (slightly lighter)
+- Card background:      #16161D  (elevated surface)
+- Card hover:           #1C1C25
+- Border:               #26262F  (subtle dividers)
+- Border strong:        #2E2E3A  (form inputs)
+- Input background:     #1A1A22
+
+Text:
+- Primary text:         #F4F4F5  (white-ish, headings)
+- Secondary text:       #A1A1AA  (body text)
+- Muted text:           #71717A  (labels, captions)
+- Disabled text:        #52525B
+
+Accents:
+- Primary purple:       #7C5CFC  (buttons, active states)
+- Primary purple hover: #6D4DF0
+- Primary purple light: #9277FD
+- Purple background:    rgba(124, 92, 252, 0.1)  (active sidebar item bg)
+- Purple border:        rgba(124, 92, 252, 0.3)
+
+Status:
+- Success green:        #22C55E
+- Warning yellow:       #EAB308
+- Error red:            #EF4444
+- Info blue:            #3B82F6
+
+LIGHT THEME (toggle support):
+- App background:       #FAFAFA
+- Sidebar background:   #FFFFFF
+- Card background:      #FFFFFF
+- Border:               #E4E4E7
+- Primary text:         #18181B
+- Secondary text:       #52525B
+- Muted text:           #71717A
+
+TYPOGRAPHY:
+- Font family: 'Inter', -apple-system, system-ui, sans-serif
+- Headings:   font-weight 700, letter-spacing -0.02em
+- Body:       font-weight 400-500
+- Sizes: 11px (micro), 13px (small), 14px (body), 16px (lg), 20px (h3), 24px (h2), 28px (h1)
+
+SPACING:
+- Use 4px increments: 4, 8, 12, 16, 20, 24, 32, 40, 48
+- Card padding: 24px
+- Sidebar width: 240px (collapsed: 64px)
+
+BORDERS & SHADOWS:
+- Border radius: 8px (small), 12px (cards), 16px (large cards), 9999px (pills)
+- Shadow (dark): 0 4px 12px rgba(0, 0, 0, 0.4)
+- Shadow (light): 0 1px 3px rgba(0, 0, 0, 0.08)
+
+ANIMATIONS:
+- All transitions: 150ms ease
+- Hover state: subtle background lightening + 1px translateY(-1px) on cards
+- Active button: scale(0.98)
+
+═══════════════════════════════════════════
+PHASE 1: CREATE THEME CONTEXT
+═══════════════════════════════════════════
+
+Create new file: frontend/lib/theme.js
+
+```javascript
+import { createContext, useContext, useEffect, useState } from 'react';
+
+const ThemeContext = createContext({ theme: 'dark', toggleTheme: () => {} });
+
+export const tokens = {
+  dark: {
+    bg: '#0B0B0F',
+    sidebar: '#13131A',
+    card: '#16161D',
+    cardHover: '#1C1C25',
+    border: '#26262F',
+    borderStrong: '#2E2E3A',
+    input: '#1A1A22',
+    text: '#F4F4F5',
+    textSecondary: '#A1A1AA',
+    textMuted: '#71717A',
+    textDisabled: '#52525B',
+    primary: '#7C5CFC',
+    primaryHover: '#6D4DF0',
+    primaryLight: '#9277FD',
+    primaryBg: 'rgba(124, 92, 252, 0.1)',
+    primaryBorder: 'rgba(124, 92, 252, 0.3)',
+    success: '#22C55E',
+    warning: '#EAB308',
+    error: '#EF4444',
+    info: '#3B82F6',
+    shadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+  },
+  light: {
+    bg: '#FAFAFA',
+    sidebar: '#FFFFFF',
+    card: '#FFFFFF',
+    cardHover: '#F4F4F5',
+    border: '#E4E4E7',
+    borderStrong: '#D4D4D8',
+    input: '#FFFFFF',
+    text: '#18181B',
+    textSecondary: '#52525B',
+    textMuted: '#71717A',
+    textDisabled: '#A1A1AA',
+    primary: '#7C5CFC',
+    primaryHover: '#6D4DF0',
+    primaryLight: '#9277FD',
+    primaryBg: 'rgba(124, 92, 252, 0.08)',
+    primaryBorder: 'rgba(124, 92, 252, 0.2)',
+    success: '#16A34A',
+    warning: '#CA8A04',
+    error: '#DC2626',
+    info: '#2563EB',
+    shadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+  },
+};
+
+export function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState('dark');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) setTheme(saved);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    localStorage.setItem('theme', next);
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme, t: tokens[theme] }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export const useTheme = () => useContext(ThemeContext);
+```
+
+═══════════════════════════════════════════
+PHASE 2: REPLACE GLOBAL STYLES
+═══════════════════════════════════════════
+
+REPLACE the entire contents of frontend/styles/globals.css with:
+
+```css
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.011em;
+  background: #0B0B0F;
+  color: #F4F4F5;
+}
+
+body[data-theme="light"] {
+  background: #FAFAFA;
+  color: #18181B;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2E2E3A;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3F3F4D;
+}
+
+body[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #D4D4D8;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 200ms ease;
+}
+
+/* Reusable shimmer loading state */
+.shimmer {
+  background: linear-gradient(90deg, #16161D 0%, #1C1C25 50%, #16161D 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+```
+
+═══════════════════════════════════════════
+PHASE 3: REPLACE _app.js
+═══════════════════════════════════════════
+
+REPLACE frontend/pages/_app.js entirely:
+
+```javascript
+import '../styles/globals.css';
+import { useEffect } from 'react';
+import { ThemeProvider, useTheme } from '../lib/theme';
+
+function ThemeBody({ children }) {
+  const { theme } = useTheme();
+  useEffect(() => {
+    document.body.dataset.theme = theme;
+  }, [theme]);
+  return children;
+}
+
+export default function App({ Component, pageProps }) {
+  return (
+    <ThemeProvider>
+      <ThemeBody>
+        <Component {...pageProps} />
+      </ThemeBody>
+    </ThemeProvider>
+  );
+}
+```
+
+═══════════════════════════════════════════
+PHASE 4: REDESIGN LAYOUT (THE MAIN COMPONENT)
+═══════════════════════════════════════════
+
+REPLACE frontend/components/Layout.js entirely. This is the most important file — match the spec EXACTLY.
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import { useTheme } from '../lib/theme';
+
+const NAV_ITEMS = [
+  { name: 'Dashboard', href: '/dashboard', icon: '⌂' },
+  { name: 'Create Post', href: '/upload', icon: '✎' },
+  { name: 'Calendar', href: '/calendar', icon: '◳' },
+  { name: 'Drafts', href: '/history', icon: '◫' },
+  { name: 'Analytics', href: '/analytics', icon: '◈' },
+  { name: 'Billing', href: '/billing', icon: '◰' },
+  { name: 'Settings', href: '/settings', icon: '⚙' },
+];
+
+export default function Layout({ children, title, subtitle, action }) {
+  const router = useRouter();
+  const { theme, toggleTheme, t } = useTheme();
+  const [user, setUser] = useState(null);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch('/api/auth/verify', { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.json())
+        .then((d) => d.customer && setUser(d.customer))
+        .catch(() => {});
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/login');
+  };
+
+  const sidebarWidth = collapsed ? 64 : 240;
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: t.bg, color: t.text }}>
+      {/* SIDEBAR */}
+      <aside
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: sidebarWidth,
+          background: t.sidebar,
+          borderRight: `1px solid ${t.border}`,
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'width 200ms ease',
+          zIndex: 50,
+        }}
+      >
+        {/* LOGO */}
+        <div
+          style={{
+            height: 64,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'space-between',
+            padding: collapsed ? 0 : '0 20px',
+            borderBottom: `1px solid ${t.border}`,
+          }}
+        >
+          {!collapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: 14,
+                  color: '#fff',
+                }}
+              >
+                P
+              </div>
+              <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em' }}>PostFlow</span>
+            </div>
+          )}
+          {collapsed && (
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+                color: '#fff',
+              }}
+            >
+              P
+            </div>
+          )}
+          {!collapsed && (
+            <button
+              onClick={() => setCollapsed(true)}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 6,
+                color: t.textMuted,
+                fontSize: 14,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              ←
+            </button>
+          )}
+        </div>
+
+        {/* WORKSPACE SWITCHER (when expanded) */}
+        {!collapsed && user && (
+          <div style={{ padding: '16px 12px', borderBottom: `1px solid ${t.border}` }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: 8,
+                borderRadius: 8,
+                background: t.card,
+                border: `1px solid ${t.border}`,
+                cursor: 'pointer',
+              }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 6,
+                  background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: '#fff',
+                  flexShrink: 0,
+                }}
+              >
+                {(user.business_name || 'W').charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: t.text,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {user.business_name || 'Workspace'}
+                </div>
+                <div style={{ fontSize: 11, color: t.textMuted }}>{user.industry || 'Group'}</div>
+              </div>
+              <span style={{ color: t.textMuted, fontSize: 14 }}>⇅</span>
+            </div>
+          </div>
+        )}
+
+        {/* CREATE NEW POST CTA */}
+        {!collapsed && (
+          <div style={{ padding: '12px' }}>
+            <button
+              onClick={() => router.push('/upload')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 14px',
+                background: t.card,
+                border: `1px solid ${t.border}`,
+                borderRadius: 8,
+                color: t.text,
+                fontSize: 13,
+                fontWeight: 500,
+                transition: 'all 150ms ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = t.cardHover;
+                e.currentTarget.style.borderColor = t.primaryBorder;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = t.card;
+                e.currentTarget.style.borderColor = t.border;
+              }}
+            >
+              <span style={{ color: t.primary, fontSize: 16 }}>+</span>
+              <span>Create new post</span>
+            </button>
+          </div>
+        )}
+
+        {/* NAVIGATION */}
+        <nav style={{ flex: 1, padding: '4px 12px', overflowY: 'auto' }}>
+          {NAV_ITEMS.map((item) => {
+            const active = router.pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: collapsed ? '10px 0' : '10px 14px',
+                  marginBottom: 2,
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: active ? 600 : 500,
+                  color: active ? t.text : t.textSecondary,
+                  background: active ? t.primaryBg : 'transparent',
+                  border: active ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  transition: 'all 150ms ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) e.currentTarget.style.background = t.cardHover;
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <span style={{ fontSize: 16, color: active ? t.primary : t.textMuted, width: 16, textAlign: 'center' }}>
+                  {item.icon}
+                </span>
+                {!collapsed && <span>{item.name}</span>}
+                {!collapsed && active && <span style={{ marginLeft: 'auto', color: t.textMuted, fontSize: 12 }}>›</span>}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* TRIAL CARD */}
+        {!collapsed && user?.status === 'trial' && (
+          <div style={{ padding: '12px', borderTop: `1px solid ${t.border}` }}>
+            <div style={{ padding: '12px 14px', background: t.card, borderRadius: 10, border: `1px solid ${t.border}` }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 2 }}>Free trial version</div>
+              <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8 }}>7 days left</div>
+              <div style={{ height: 4, background: t.input, borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
+                <div style={{ height: '100%', width: '60%', background: t.primary, borderRadius: 2 }} />
+              </div>
+              <Link
+                href="/billing"
+                style={{ fontSize: 12, fontWeight: 600, color: t.primary }}
+              >
+                Upgrade now →
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* USER PROFILE */}
+        {!collapsed && user && (
+          <div style={{ padding: '12px', borderTop: `1px solid ${t.border}` }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: 8,
+                borderRadius: 8,
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              onClick={handleLogout}
+              title="Click to logout"
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #FB923C 0%, #F97316 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  color: '#fff',
+                  flexShrink: 0,
+                }}
+              >
+                {(user.business_name || user.email || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: t.text,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {user.business_name || 'User'}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: t.textMuted,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {user.email}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* COLLAPSE TOGGLE WHEN COLLAPSED */}
+        {collapsed && (
+          <button
+            onClick={() => setCollapsed(false)}
+            style={{
+              padding: 16,
+              color: t.textMuted,
+              borderTop: `1px solid ${t.border}`,
+            }}
+          >
+            →
+          </button>
+        )}
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <main style={{ flex: 1, marginLeft: sidebarWidth, transition: 'margin-left 200ms ease' }}>
+        {/* TOP BAR */}
+        <header
+          style={{
+            height: 64,
+            background: t.bg,
+            borderBottom: `1px solid ${t.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 32px',
+            position: 'sticky',
+            top: 0,
+            zIndex: 40,
+          }}
+        >
+          <div>
+            {title && <h1 style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>{title}</h1>}
+            {subtitle && <p style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{subtitle}</p>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                background: t.card,
+                border: `1px solid ${t.border}`,
+                color: t.textSecondary,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 14,
+                transition: 'all 150ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = t.card)}
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {theme === 'dark' ? '☀' : '☾'}
+            </button>
+            {/* Credits pill */}
+            {user && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  background: t.card,
+                  border: `1px solid ${t.border}`,
+                  borderRadius: 8,
+                  fontSize: 13,
+                }}
+              >
+                <span style={{ color: t.textMuted }}>Credits:</span>
+                <span style={{ color: t.primary, fontWeight: 700, fontFamily: 'monospace' }}>
+                  {user.credits_balance ?? 0}
+                </span>
+              </div>
+            )}
+            {action}
+          </div>
+        </header>
+
+        {/* PAGE CONTENT */}
+        <div style={{ padding: 32, minHeight: 'calc(100vh - 64px)' }}>{children}</div>
+      </main>
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════════════
+PHASE 5: REUSABLE UI PRIMITIVES
+═══════════════════════════════════════════
+
+Create new file: frontend/components/ui.js
+
+```javascript
+import { useTheme } from '../lib/theme';
+
+export function Card({ children, padding = 24, style = {}, hoverable = false, ...rest }) {
+  const { t } = useTheme();
+  return (
+    <div
+      style={{
+        background: t.card,
+        border: `1px solid ${t.border}`,
+        borderRadius: 12,
+        padding,
+        transition: 'all 150ms ease',
+        ...style,
+      }}
+      onMouseEnter={hoverable ? (e) => (e.currentTarget.style.borderColor = t.primaryBorder) : undefined}
+      onMouseLeave={hoverable ? (e) => (e.currentTarget.style.borderColor = t.border) : undefined}
+      {...rest}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function Button({ variant = 'primary', size = 'md', children, style = {}, ...rest }) {
+  const { t } = useTheme();
+  const sizes = {
+    sm: { padding: '6px 12px', fontSize: 12 },
+    md: { padding: '8px 16px', fontSize: 13 },
+    lg: { padding: '12px 20px', fontSize: 14 },
+  };
+  const variants = {
+    primary: { background: t.primary, color: '#fff', border: '1px solid transparent' },
+    secondary: { background: t.card, color: t.text, border: `1px solid ${t.border}` },
+    ghost: { background: 'transparent', color: t.textSecondary, border: '1px solid transparent' },
+    danger: { background: t.error, color: '#fff', border: '1px solid transparent' },
+  };
+  return (
+    <button
+      style={{
+        ...sizes[size],
+        ...variants[variant],
+        borderRadius: 8,
+        fontWeight: 600,
+        letterSpacing: '-0.01em',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        transition: 'all 150ms ease',
+        ...style,
+      }}
+      onMouseEnter={(e) => {
+        if (variant === 'primary') e.currentTarget.style.background = t.primaryHover;
+        if (variant === 'secondary' || variant === 'ghost') e.currentTarget.style.background = t.cardHover;
+      }}
+      onMouseLeave={(e) => {
+        if (variant === 'primary') e.currentTarget.style.background = t.primary;
+        if (variant === 'secondary') e.currentTarget.style.background = t.card;
+        if (variant === 'ghost') e.currentTarget.style.background = 'transparent';
+      }}
+      onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.98)')}
+      onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function Input({ style = {}, ...rest }) {
+  const { t } = useTheme();
+  return (
+    <input
+      style={{
+        width: '100%',
+        padding: '10px 14px',
+        background: t.input,
+        border: `1px solid ${t.borderStrong}`,
+        borderRadius: 8,
+        color: t.text,
+        fontSize: 13,
+        transition: 'border-color 150ms ease',
+        ...style,
+      }}
+      onFocus={(e) => (e.currentTarget.style.borderColor = t.primary)}
+      onBlur={(e) => (e.currentTarget.style.borderColor = t.borderStrong)}
+      {...rest}
+    />
+  );
+}
+
+export function Textarea({ style = {}, ...rest }) {
+  const { t } = useTheme();
+  return (
+    <textarea
+      style={{
+        width: '100%',
+        padding: '10px 14px',
+        background: t.input,
+        border: `1px solid ${t.borderStrong}`,
+        borderRadius: 8,
+        color: t.text,
+        fontSize: 13,
+        fontFamily: 'inherit',
+        resize: 'vertical',
+        minHeight: 80,
+        ...style,
+      }}
+      onFocus={(e) => (e.currentTarget.style.borderColor = t.primary)}
+      onBlur={(e) => (e.currentTarget.style.borderColor = t.borderStrong)}
+      {...rest}
+    />
+  );
+}
+
+export function Badge({ variant = 'default', children }) {
+  const { t } = useTheme();
+  const variants = {
+    default: { bg: t.card, color: t.textSecondary, border: t.border },
+    primary: { bg: t.primaryBg, color: t.primary, border: t.primaryBorder },
+    success: { bg: 'rgba(34, 197, 94, 0.1)', color: t.success, border: 'rgba(34, 197, 94, 0.3)' },
+    warning: { bg: 'rgba(234, 179, 8, 0.1)', color: t.warning, border: 'rgba(234, 179, 8, 0.3)' },
+    error: { bg: 'rgba(239, 68, 68, 0.1)', color: t.error, border: 'rgba(239, 68, 68, 0.3)' },
+  };
+  const v = variants[variant];
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '3px 10px',
+        background: v.bg,
+        color: v.color,
+        border: `1px solid ${v.border}`,
+        borderRadius: 9999,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: '-0.01em',
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+export function StatCard({ label, value, hint, accent = 'primary' }) {
+  const { t } = useTheme();
+  const accents = {
+    primary: t.primary,
+    success: t.success,
+    warning: t.warning,
+    info: t.info,
+  };
+  return (
+    <Card>
+      <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, letterSpacing: '-0.01em' }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 800, color: t.text, marginTop: 8, letterSpacing: '-0.03em' }}>{value}</div>
+      {hint && (
+        <div style={{ fontSize: 12, color: accents[accent], marginTop: 4, fontWeight: 500 }}>{hint}</div>
+      )}
+    </Card>
+  );
+}
+
+export function SectionHeader({ title, subtitle, icon, action }) {
+  const { t } = useTheme();
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        {icon && (
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              background: t.primaryBg,
+              border: `1px solid ${t.primaryBorder}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: t.primary,
+              fontSize: 16,
+              flexShrink: 0,
+            }}
+          >
+            {icon}
+          </div>
+        )}
+        <div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>{title}</h2>
+          {subtitle && <p style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>{subtitle}</p>}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export function EmptyState({ icon = '◯', title, subtitle, action }) {
+  const { t } = useTheme();
+  return (
+    <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 14,
+          background: t.card,
+          border: `1px solid ${t.border}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 16px',
+          fontSize: 24,
+          color: t.textMuted,
+        }}
+      >
+        {icon}
+      </div>
+      <h3 style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 6 }}>{title}</h3>
+      {subtitle && <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>{subtitle}</p>}
+      {action}
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════════════
+PHASE 6: REDESIGN DASHBOARD
+═══════════════════════════════════════════
+
+REPLACE frontend/pages/dashboard.js entirely:
+
+```javascript
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../components/Layout';
+import { Card, Button, Badge, StatCard, SectionHeader, EmptyState } from '../components/ui';
+import { useTheme } from '../lib/theme';
+
+export default function Dashboard() {
+  const router = useRouter();
+  const { t } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeMetric, setActiveMetric] = useState('views');
+
+  useEffect(() => {
+    setMounted(true);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.replace('/login');
+      return;
+    }
+    const headers = { Authorization: `Bearer ${token}` };
+    Promise.all([
+      fetch('/api/posts/analytics/summary', { headers }).then((r) => r.json()).catch(() => ({})),
+      fetch('/api/posts?limit=5', { headers }).then((r) => r.json()).catch(() => []),
+    ]).then(([s, p]) => {
+      setStats(s);
+      setPosts(Array.isArray(p) ? p : []);
+      setLoading(false);
+    });
+  }, []);
+
+  if (!mounted) return null;
+
+  const today = new Date();
+  const monthName = today.toLocaleString('default', { month: 'long' });
+  const year = today.getFullYear();
+
+  // Calendar grid for current month
+  const firstDay = new Date(year, today.getMonth(), 1);
+  const lastDay = new Date(year, today.getMonth() + 1, 0);
+  const calendarDays = [];
+  const startPadding = firstDay.getDay();
+  for (let i = 0; i < startPadding; i++) calendarDays.push(null);
+  for (let d = 1; d <= lastDay.getDate(); d++) calendarDays.push(d);
+
+  return (
+    <Layout
+      title="Dashboard"
+      subtitle="Welcome back"
+      action={
+        <Button variant="primary" onClick={() => router.push('/upload')}>
+          <span>+</span> Create new post
+        </Button>
+      }
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        {/* MONTH OVERVIEW */}
+        <Card>
+          <SectionHeader
+            icon="◳"
+            title={`${monthName} overview`}
+            action={
+              <Button variant="secondary" size="sm" onClick={() => router.push('/calendar')}>
+                Calendar
+              </Button>
+            }
+          />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+            {['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((d) => (
+              <div
+                key={d}
+                style={{
+                  fontSize: 11,
+                  color: t.textMuted,
+                  textTransform: 'lowercase',
+                  textAlign: 'center',
+                  padding: '6px 0',
+                  fontWeight: 500,
+                }}
+              >
+                {d}
+              </div>
+            ))}
+            {calendarDays.map((day, idx) => {
+              const isToday = day === today.getDate();
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    aspectRatio: '1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12,
+                    color: day ? (isToday ? t.text : t.textSecondary) : 'transparent',
+                    background: isToday ? t.primaryBg : 'transparent',
+                    border: isToday ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
+                    borderRadius: 6,
+                    fontWeight: isToday ? 600 : 400,
+                  }}
+                >
+                  {day || ''}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* BEST REACH */}
+        <Card>
+          <SectionHeader
+            icon="◈"
+            title="Best reach"
+            action={
+              <div style={{ display: 'flex', gap: 4, background: t.input, padding: 3, borderRadius: 8 }}>
+                {['week', 'month'].map((p) => (
+                  <button
+                    key={p}
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: p === 'month' ? t.text : t.textMuted,
+                      background: p === 'month' ? t.card : 'transparent',
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            }
+          />
+          <div style={{ display: 'flex', gap: 24, marginBottom: 24, paddingBottom: 16, borderBottom: `1px solid ${t.border}` }}>
+            {[
+              { id: 'views', label: 'Views', icon: '◉' },
+              { id: 'likes', label: 'Likes', icon: '♥' },
+              { id: 'replies', label: 'Replies', icon: '◯' },
+              { id: 'shares', label: 'Shares', icon: '↗' },
+            ].map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setActiveMetric(m.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  color: activeMetric === m.id ? t.text : t.textMuted,
+                  fontWeight: activeMetric === m.id ? 600 : 500,
+                  paddingBottom: 8,
+                  borderBottom: activeMetric === m.id ? `2px solid ${t.primary}` : '2px solid transparent',
+                  marginBottom: -17,
+                }}
+              >
+                <span style={{ color: activeMetric === m.id ? t.primary : t.textMuted }}>{m.icon}</span>
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <EmptyState
+            icon="◯"
+            title="No posts this month"
+            subtitle="Schedule and publish your first post"
+            action={
+              <Button variant="secondary" size="sm" onClick={() => router.push('/upload')}>
+                Schedule first post
+              </Button>
+            }
+          />
+        </Card>
+      </div>
+
+      {/* STATS ROW */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+        <StatCard label="Total posts" value={stats?.total_posts || 0} />
+        <StatCard label="Scheduled" value={stats?.scheduled_count || 0} accent="warning" />
+        <StatCard label="Published" value={stats?.posted_count || 0} accent="success" />
+        <StatCard label="Engagement" value={stats?.total_likes || 0} accent="primary" />
+      </div>
+
+      {/* BOTTOM ROW */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <Card>
+          <SectionHeader icon="◫" title="Post details" />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 14px',
+              background: t.input,
+              borderRadius: 8,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: t.card,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: t.primary,
+                }}
+              >
+                ⏱
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Scheduled groups</div>
+                <div style={{ fontSize: 11, color: t.textMuted }}>Scheduled posts</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 13, color: t.textSecondary, fontFamily: 'monospace' }}>
+                {stats?.scheduled_count || 0}
+              </span>
+              <span style={{ color: t.textMuted }}>›</span>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <SectionHeader icon="⏱" title="Upcoming posts" />
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${t.border}`, marginBottom: 12 }}>
+            <span style={{ fontSize: 11, fontWeight: 500, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheduled date</span>
+            <span style={{ fontSize: 11, fontWeight: 500, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Social accounts</span>
+          </div>
+          {posts.length === 0 ? (
+            <EmptyState icon="◯" title="No upcoming posts" subtitle="Create and schedule your first post" />
+          ) : (
+            <div>
+              {posts.slice(0, 4).map((p) => (
+                <div
+                  key={p.id}
+                  style={{
+                    padding: '10px 0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderBottom: `1px solid ${t.border}`,
+                  }}
+                >
+                  <div style={{ fontSize: 13, color: t.text }}>
+                    {p.scheduled_date ? new Date(p.scheduled_date).toLocaleDateString() : 'Draft'}
+                  </div>
+                  <Badge variant={p.status === 'posted' ? 'success' : p.status === 'scheduled' ? 'warning' : 'default'}>
+                    {p.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+    </Layout>
+  );
+}
+```
+
+═══════════════════════════════════════════
+PHASE 7: REDESIGN LOGIN & SIGNUP
+═══════════════════════════════════════════
+
+REPLACE frontend/pages/login.js entirely:
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import { useTheme } from '../lib/theme';
+import { Button, Input } from '../components/ui';
+
+export default function Login() {
+  const router = useRouter();
+  const { t } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setMounted(true);
+    if (localStorage.getItem('token')) router.replace('/dashboard');
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Login failed');
+        setLoading(false);
+        return;
+      }
+      localStorage.setItem('token', data.token);
+      router.push('/dashboard');
+    } catch (err) {
+      setError('Connection failed');
+      setLoading(false);
+    }
+  };
+
+  if (!mounted) return null;
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: t.bg,
+        padding: 20,
+      }}
+    >
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              fontSize: 20,
+              color: '#fff',
+              marginBottom: 16,
+            }}
+          >
+            P
+          </div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>Welcome back</h1>
+          <p style={{ fontSize: 13, color: t.textMuted, marginTop: 6 }}>Sign in to continue to PostFlow</p>
+        </div>
+
+        <div
+          style={{
+            background: t.card,
+            border: `1px solid ${t.border}`,
+            borderRadius: 12,
+            padding: 28,
+          }}
+        >
+          {error && (
+            <div
+              style={{
+                padding: '10px 14px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: t.error,
+                borderRadius: 8,
+                marginBottom: 16,
+                fontSize: 13,
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>
+                Email
+              </label>
+              <Input
+                type="email"
+                required
+                placeholder="you@company.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>
+                Password
+              </label>
+              <Input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              />
+            </div>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={loading}
+              style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: 14 }}
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </Button>
+          </form>
+
+          <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: t.textMuted }}>
+            Don't have an account?{' '}
+            <Link href="/signup" style={{ color: t.primary, fontWeight: 600 }}>
+              Start free trial
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+Apply the same dark-theme treatment to frontend/pages/signup.js — keep the existing 2-step logic, but wrap all inputs with the new `Input` component, all buttons with `Button`, and use the same card/background styling as login.js. Use the theme tokens from useTheme().
+
+═══════════════════════════════════════════
+PHASE 8: APPLY THEME TO REMAINING PAGES
+═══════════════════════════════════════════
+
+For each of these pages, REPLACE all hardcoded colors and inline styles with theme tokens:
+
+- frontend/pages/upload.js
+- frontend/pages/calendar.js
+- frontend/pages/history.js
+- frontend/pages/billing.js
+- frontend/pages/settings.js
+
+Pattern to follow:
+1. Import: `import { useTheme } from '../lib/theme';` and `import { Card, Button, Input, Badge, SectionHeader, EmptyState } from '../components/ui';`
+2. At top of component: `const { t } = useTheme();`
+3. Replace background: '#fff' with background: t.card
+4. Replace background: '#f9fafb' with background: t.bg
+5. Replace color: '#111827' with color: t.text
+6. Replace color: '#6b7280' with color: t.textMuted
+7. Replace border: '1px solid #e5e7eb' with border: `1px solid ${t.border}`
+8. Wrap pages with <Layout title="..." subtitle="..." action={<Button>...</Button>} />
+9. Replace raw <button> with <Button variant="primary|secondary|ghost">
+10. Replace raw <input> with <Input />
+11. Wrap content sections in <Card> components
+
+═══════════════════════════════════════════
+PHASE 9: TEST
+═══════════════════════════════════════════
+
+1. Stop the workflow and Run again
+2. Hard refresh preview (Ctrl+Shift+R)
+3. Verify:
+   [ ] Login page renders with dark theme + purple gradient logo
+   [ ] After login, sidebar appears on left with PostFlow logo
+   [ ] Top bar has theme toggle (sun/moon icon)
+   [ ] Click theme toggle — entire UI smoothly switches dark↔light
+   [ ] Theme persists on page refresh
+   [ ] Dashboard shows month calendar + Best Reach card side by side
+   [ ] Sidebar shows "Free trial version" card with "Upgrade now" link
+   [ ] Active nav item has purple-tinted background + border
+   [ ] All cards have consistent border-radius (12px) and padding (24px)
+   [ ] All buttons have proper hover states
+
+═══════════════════════════════════════════
+WHAT NOT TO DO
+═══════════════════════════════════════════
+
+- Do NOT install new packages — use only what's already installed
+- Do NOT change any backend code or API contracts
+- Do NOT remove existing functionality (uploads, billing, scraper still work)
+- Do NOT use Tailwind classes — this design uses inline styles + theme tokens for full control
+- Do NOT add a third theme — only dark and light
+
+The final result should look like a polished SaaS product (think Linear, Vercel, Supabase aesthetic).
+```
+
+---
+
+## Why this prompt is structured this way
+
+**It's design-first, not code-first.** The opening DESIGN SYSTEM block gives Replit the exact color values, spacing scale, and typography rules — so even when it has to make small decisions, they stay consistent.
+
+**The theme system is centralized.** Phase 1 creates a single source of truth (`lib/theme.js`) with both dark and light tokens. Every component reads from this — change one value, the whole app updates.
+
+**Reusable primitives in Phase 5** (Card, Button, Input, Badge, StatCard, etc.) mean the rest of the work is just composition. Once these are right, every page using them looks correct automatically.
+
+**Phase 8 is intentionally short.** Once the Layout + theme + UI primitives exist, refactoring the remaining pages is a search-and-replace job, not a rebuild.
+
+Once Replit finishes, your dashboard will look like the reference — dark sidebar, purple accents, calendar overview, theme toggle in the top bar. If anything ends up off (wrong shade, broken layout), tell me which page/section and I'll send a targeted fix.

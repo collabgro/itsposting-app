@@ -1,0 +1,23 @@
+{
+  "name": "postflow-saas",
+  "version": "2.0.0",
+  "private": true,
+  "description": "AI-powered social media automation for local businesses",
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"cd backend && node ./node_modules/nodemon/bin/nodemon.js server.js\" \"cd frontend && node ./node_modules/next/dist/bin/next dev -p 5000 -H 0.0.0.0\"",
+    "dev:backend": "cd backend && node ./node_modules/nodemon/bin/nodemon.js server.js",
+    "dev:frontend": "cd frontend && node ./node_modules/next/dist/bin/next dev -p 5000 -H 0.0.0.0",
+    "start": "concurrently -n backend,frontend -c blue,green \"cd backend && node server.js\" \"cd frontend && node ./node_modules/next/dist/bin/next start -p 5000 -H 0.0.0.0\"",
+    "start:backend": "cd backend && node server.js",
+    "start:frontend": "cd frontend && node ./node_modules/next/dist/bin/next start -p 5000 -H 0.0.0.0",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "db:init": "psql -d socialmedia -f backend/db/schema.sql"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

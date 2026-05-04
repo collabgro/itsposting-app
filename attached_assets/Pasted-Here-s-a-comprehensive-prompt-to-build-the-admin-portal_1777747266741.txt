@@ -1,0 +1,2608 @@
+Here's a comprehensive prompt to build the admin portal and post performance detail view, plus close all the production gaps:
+
+---
+
+```
+Build a complete admin portal for managing customer accounts AND a per-post performance detail view. Then close all production-readiness gaps. This is the final production push — everything must be solid.
+
+Follow these phases IN ORDER. Report back after each phase before moving to the next.
+
+═══════════════════════════════════════════
+OVERVIEW OF WHAT WE'RE BUILDING
+═══════════════════════════════════════════
+
+1. ADMIN PORTAL — separate authenticated area at /admin
+   - Admins log in with elevated role
+   - View all customers, search, filter by plan/status
+   - Edit customer details, adjust credits manually, change plans
+   - Suspend/reactivate accounts
+   - View platform-wide stats (total users, MRR, posts generated)
+   - View audit log of all admin actions
+
+2. POST PERFORMANCE DETAIL VIEW
+   - Click any post in Analytics → opens detail page at /analytics/posts/[id]
+   - Shows per-platform breakdown (Facebook vs Instagram vs Google Business)
+   - Engagement timeline (hourly/daily chart)
+   - Comparison to account average
+   - Best-performing element callouts (caption length, hashtag count, time of day)
+
+3. PRODUCTION HARDENING
+   - Database performance indexes
+   - Better error handling + structured logging
+   - Health monitoring endpoints
+   - Email verification flow
+   - Password reset flow
+   - Rate limiting on sensitive endpoints
+   - Input sanitization
+   - SQL transaction safety audit
+
+═══════════════════════════════════════════
+PHASE 1: DATABASE MIGRATIONS
+═══════════════════════════════════════════
+
+Run this ENTIRE migration in the Shell:
+
+```bash
+psql $DATABASE_URL << 'EOF'
+
+-- =============================================
+-- ADMIN ROLES & AUDIT
+-- =============================================
+
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'customer',
+  ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS suspended BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS suspension_reason TEXT,
+  ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS email_verification_token VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS notes TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_customers_role ON customers(role);
+CREATE INDEX IF NOT EXISTS idx_customers_suspended ON customers(suspended) WHERE suspended = true;
+CREATE INDEX IF NOT EXISTS idx_customers_email_verified ON customers(email_verified);
+
+-- Admin audit log
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id SERIAL PRIMARY KEY,
+  admin_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+  admin_email VARCHAR(255),
+  action VARCHAR(100) NOT NULL,
+  target_type VARCHAR(50),
+  target_id INTEGER,
+  details JSONB DEFAULT '{}'::jsonb,
+  ip_address VARCHAR(45),
+  user_agent TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_admin ON admin_audit_log(admin_id);
+CREATE INDEX IF NOT EXISTS idx_audit_target ON admin_audit_log(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON admin_audit_log(created_at DESC);
+
+-- =============================================
+-- POST PERFORMANCE TRACKING
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS post_engagement_snapshots (
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+  platform VARCHAR(50) NOT NULL,
+  
+  likes INTEGER DEFAULT 0,
+  comments INTEGER DEFAULT 0,
+  shares INTEGER DEFAULT 0,
+  saves INTEGER DEFAULT 0,
+  reach INTEGER DEFAULT 0,
+  impressions INTEGER DEFAULT 0,
+  clicks INTEGER DEFAULT 0,
+  video_views INTEGER DEFAULT 0,
+  video_completion_rate NUMERIC(5,2),
+  
+  snapshot_at TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_post ON post_engagement_snapshots(post_id);
+CREATE INDEX IF NOT EXISTS idx_snapshots_platform ON post_engagement_snapshots(platform);
+CREATE INDEX IF NOT EXISTS idx_snapshots_time ON post_engagement_snapshots(snapshot_at DESC);
+
+-- Per-platform engagement totals (always reflects latest)
+ALTER TABLE posts
+  ADD COLUMN IF NOT EXISTS engagement_by_platform JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS performance_score NUMERIC(5,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS last_metrics_sync TIMESTAMP;
+
+CREATE INDEX IF NOT EXISTS idx_posts_performance ON posts(performance_score DESC);
+
+-- =============================================
+-- SYSTEM HEALTH
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS system_metrics (
+  id SERIAL PRIMARY KEY,
+  metric_name VARCHAR(100) NOT NULL,
+  metric_value NUMERIC,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  recorded_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_metrics_name_time ON system_metrics(metric_name, recorded_at DESC);
+
+-- =============================================
+-- EMAIL/NOTIFICATION QUEUE (for production reliability)
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS email_queue (
+  id SERIAL PRIMARY KEY,
+  to_email VARCHAR(255) NOT NULL,
+  subject VARCHAR(500),
+  body_html TEXT,
+  body_text TEXT,
+  template_name VARCHAR(100),
+  template_data JSONB,
+  status VARCHAR(50) DEFAULT 'pending',
+  attempts INTEGER DEFAULT 0,
+  last_error TEXT,
+  scheduled_at TIMESTAMP DEFAULT NOW(),
+  sent_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_queue_status ON email_queue(status, scheduled_at);
+
+-- =============================================
+-- PERFORMANCE INDEXES (production critical)
+-- =============================================
+
+CREATE INDEX IF NOT EXISTS idx_posts_customer_status ON posts(customer_id, status);
+CREATE INDEX IF NOT EXISTS idx_posts_customer_created ON posts(customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_credit_tx_customer_date ON credit_transactions(customer_id, created_at DESC);
+
+-- =============================================
+-- PROMOTE FIRST USER TO ADMIN
+-- (you can run this manually after creating your first account)
+-- =============================================
+
+-- Find lowest customer ID and make them admin if no admin exists
+DO $$
+DECLARE
+  has_admin BOOLEAN;
+  first_id INTEGER;
+BEGIN
+  SELECT EXISTS(SELECT 1 FROM customers WHERE is_admin = true) INTO has_admin;
+  
+  IF NOT has_admin THEN
+    SELECT id INTO first_id FROM customers ORDER BY id ASC LIMIT 1;
+    
+    IF first_id IS NOT NULL THEN
+      UPDATE customers SET is_admin = true, role = 'admin', email_verified = true WHERE id = first_id;
+      RAISE NOTICE 'Promoted customer % to admin', first_id;
+    END IF;
+  END IF;
+END $$;
+
+SELECT 'Migration complete' AS status;
+SELECT id, email, business_name, is_admin, role FROM customers ORDER BY id LIMIT 5;
+EOF
+```
+
+Verify:
+
+```bash
+psql $DATABASE_URL -c "\dt"
+psql $DATABASE_URL -c "SELECT id, email, is_admin, role FROM customers ORDER BY id LIMIT 5;"
+```
+
+You should see the first customer marked as `is_admin = t`.
+
+═══════════════════════════════════════════
+PHASE 2: ADMIN MIDDLEWARE
+═══════════════════════════════════════════
+
+Edit backend/middleware/auth.js. ADD this new middleware AFTER the existing `authenticate` function:
+
+```javascript
+/**
+ * Require admin role. Use AFTER authenticate.
+ * Usage: router.get('/admin/foo', authenticate, requireAdmin, handler);
+ */
+function requireAdmin(req, res, next) {
+  // Pool reference comes from the route file
+  if (!req.customerId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  // The actual admin check happens in the route handler with the pool
+  next();
+}
+
+module.exports = { authenticate, generateToken, requireAdmin };
+```
+
+ALSO update backend/middleware/auth.js to add a helper for verifying admin status with DB. Append:
+
+```javascript
+/**
+ * Helper to verify admin status from database
+ * Returns the customer record if admin, throws otherwise
+ */
+async function verifyAdmin(pool, customerId) {
+  const result = await pool.query(
+    'SELECT id, email, is_admin, role, suspended FROM customers WHERE id = $1',
+    [customerId]
+  );
+  
+  if (result.rows.length === 0) {
+    throw new Error('User not found');
+  }
+  
+  const user = result.rows[0];
+  if (user.suspended) {
+    throw new Error('Account suspended');
+  }
+  if (!user.is_admin) {
+    throw new Error('Admin access required');
+  }
+  
+  return user;
+}
+
+module.exports = { authenticate, generateToken, requireAdmin, verifyAdmin };
+```
+
+═══════════════════════════════════════════
+PHASE 3: AUDIT LOG SERVICE
+═══════════════════════════════════════════
+
+Create new file: backend/services/AuditLog.js
+
+```javascript
+class AuditLog {
+  constructor(pool) {
+    this.pool = pool;
+  }
+
+  /**
+   * Log an admin action
+   */
+  async log(adminId, adminEmail, action, targetType, targetId, details = {}, req = null) {
+    try {
+      const ip = req?.ip || req?.headers?.['x-forwarded-for']?.split(',')[0] || null;
+      const userAgent = req?.headers?.['user-agent'] || null;
+
+      await this.pool.query(
+        `INSERT INTO admin_audit_log 
+         (admin_id, admin_email, action, target_type, target_id, details, ip_address, user_agent)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [adminId, adminEmail, action, targetType, targetId, JSON.stringify(details), ip, userAgent]
+      );
+    } catch (err) {
+      console.error('Audit log error (non-fatal):', err.message);
+      // Don't throw — audit failures shouldn't break the action
+    }
+  }
+
+  async getRecent(limit = 50) {
+    const result = await this.pool.query(
+      `SELECT * FROM admin_audit_log ORDER BY created_at DESC LIMIT $1`,
+      [limit]
+    );
+    return result.rows;
+  }
+
+  async getForTarget(targetType, targetId) {
+    const result = await this.pool.query(
+      `SELECT * FROM admin_audit_log 
+       WHERE target_type = $1 AND target_id = $2 
+       ORDER BY created_at DESC LIMIT 100`,
+      [targetType, targetId]
+    );
+    return result.rows;
+  }
+}
+
+module.exports = AuditLog;
+```
+
+═══════════════════════════════════════════
+PHASE 4: ADMIN ROUTES
+═══════════════════════════════════════════
+
+Create new file: backend/routes/admin.js
+
+```javascript
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const { authenticate, verifyAdmin } = require('../middleware/auth');
+const AuditLog = require('../services/AuditLog');
+
+module.exports = (pool) => {
+  const router = express.Router();
+  const audit = new AuditLog(pool);
+
+  // Wrap all admin routes with admin verification
+  const adminOnly = async (req, res, next) => {
+    try {
+      const admin = await verifyAdmin(pool, req.customerId);
+      req.admin = admin;
+      next();
+    } catch (err) {
+      const status = err.message === 'Admin access required' ? 403 : 401;
+      res.status(status).json({ error: err.message });
+    }
+  };
+
+  // Apply auth + admin check to all routes below
+  router.use(authenticate, adminOnly);
+
+  /**
+   * GET /api/admin/stats — Platform-wide stats
+   */
+  router.get('/stats', async (req, res) => {
+    try {
+      const [users, posts, revenue, recent] = await Promise.all([
+        pool.query(`
+          SELECT 
+            COUNT(*) AS total,
+            COUNT(*) FILTER (WHERE status = 'trial') AS trial,
+            COUNT(*) FILTER (WHERE status = 'active') AS active,
+            COUNT(*) FILTER (WHERE suspended = true) AS suspended,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS new_this_week,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') AS new_this_month,
+            COUNT(*) FILTER (WHERE last_login_at > NOW() - INTERVAL '7 days') AS active_this_week
+          FROM customers
+        `),
+        pool.query(`
+          SELECT 
+            COUNT(*) AS total_posts,
+            COUNT(*) FILTER (WHERE status = 'posted') AS posted,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') AS today,
+            SUM(credits_used) AS credits_consumed
+          FROM posts
+        `),
+        pool.query(`
+          SELECT 
+            plan,
+            COUNT(*) AS count,
+            SUM(CASE 
+              WHEN plan = 'starter' THEN 99
+              WHEN plan = 'professional' THEN 199
+              WHEN plan = 'premium' THEN 349
+              ELSE 0
+            END) AS mrr
+          FROM customers 
+          WHERE status = 'active' AND suspended = false
+          GROUP BY plan
+        `),
+        pool.query(`
+          SELECT id, email, business_name, plan, status, created_at, suspended
+          FROM customers 
+          ORDER BY created_at DESC LIMIT 10
+        `),
+      ]);
+
+      const totalMRR = revenue.rows.reduce((sum, r) => sum + parseInt(r.mrr || 0), 0);
+
+      res.json({
+        users: users.rows[0],
+        posts: posts.rows[0],
+        revenue: {
+          mrr: totalMRR,
+          arr: totalMRR * 12,
+          breakdown: revenue.rows,
+        },
+        recentSignups: recent.rows,
+      });
+    } catch (err) {
+      console.error('Admin stats error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/admin/customers — List all customers (paginated, searchable)
+   */
+  router.get('/customers', async (req, res) => {
+    try {
+      const { search, plan, status, suspended, limit = 50, offset = 0 } = req.query;
+
+      let query = `
+        SELECT id, email, business_name, industry, location, plan, status, 
+               credits_balance, credits_used_this_month, suspended, suspension_reason,
+               is_admin, role, email_verified, created_at, last_login_at, trial_ends_at
+        FROM customers WHERE 1=1
+      `;
+      const params = [];
+      let p = 0;
+
+      if (search) {
+        p++;
+        query += ` AND (email ILIKE $${p} OR business_name ILIKE $${p})`;
+        params.push(`%${search}%`);
+      }
+      if (plan) {
+        p++;
+        query += ` AND plan = $${p}`;
+        params.push(plan);
+      }
+      if (status) {
+        p++;
+        query += ` AND status = $${p}`;
+        params.push(status);
+      }
+      if (suspended !== undefined) {
+        p++;
+        query += ` AND suspended = $${p}`;
+        params.push(suspended === 'true');
+      }
+
+      query += ` ORDER BY created_at DESC LIMIT $${p + 1} OFFSET $${p + 2}`;
+      params.push(parseInt(limit), parseInt(offset));
+
+      const countQuery = query
+        .replace(/SELECT[\s\S]+?FROM/, 'SELECT COUNT(*) FROM')
+        .replace(/ORDER BY[\s\S]+$/, '');
+
+      const [data, count] = await Promise.all([
+        pool.query(query, params),
+        pool.query(countQuery, params.slice(0, -2)),
+      ]);
+
+      res.json({
+        customers: data.rows,
+        total: parseInt(count.rows[0].count),
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      });
+    } catch (err) {
+      console.error('Admin customers list error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/admin/customers/:id — Customer detail
+   */
+  router.get('/customers/:id', async (req, res) => {
+    try {
+      const [customer, posts, transactions, snapshots] = await Promise.all([
+        pool.query('SELECT * FROM customers WHERE id = $1', [req.params.id]),
+        pool.query(
+          'SELECT id, content_type, status, caption, created_at, credits_used FROM posts WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 20',
+          [req.params.id]
+        ),
+        pool.query(
+          'SELECT * FROM credit_transactions WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 30',
+          [req.params.id]
+        ),
+        pool.query(
+          'SELECT * FROM admin_audit_log WHERE target_type = $1 AND target_id = $2 ORDER BY created_at DESC LIMIT 30',
+          ['customer', req.params.id]
+        ),
+      ]);
+
+      if (customer.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+      const c = customer.rows[0];
+      delete c.password_hash;
+      delete c.email_verification_token;
+      delete c.password_reset_token;
+
+      res.json({
+        customer: c,
+        recentPosts: posts.rows,
+        creditHistory: transactions.rows,
+        adminActions: snapshots.rows,
+      });
+    } catch (err) {
+      console.error('Admin customer detail error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * PATCH /api/admin/customers/:id — Update customer fields
+   */
+  router.patch('/customers/:id', async (req, res) => {
+    try {
+      const { businessName, industry, plan, status, notes } = req.body;
+      const id = req.params.id;
+
+      const result = await pool.query(
+        `UPDATE customers SET
+          business_name = COALESCE($1, business_name),
+          industry = COALESCE($2, industry),
+          plan = COALESCE($3, plan),
+          status = COALESCE($4, status),
+          notes = COALESCE($5, notes),
+          updated_at = NOW()
+         WHERE id = $6 RETURNING *`,
+        [businessName, industry, plan, status, notes, id]
+      );
+
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+      await audit.log(req.admin.id, req.admin.email, 'update_customer', 'customer', id,
+        { changes: req.body }, req);
+
+      delete result.rows[0].password_hash;
+      res.json(result.rows[0]);
+    } catch (err) {
+      console.error('Admin update error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/admin/customers/:id/credits — Adjust credits
+   */
+  router.post('/customers/:id/credits', async (req, res) => {
+    const client = await pool.connect();
+    try {
+      const { amount, reason } = req.body;
+      const id = req.params.id;
+
+      if (typeof amount !== 'number' || amount === 0) {
+        return res.status(400).json({ error: 'Amount must be a non-zero number' });
+      }
+      if (!reason || reason.length < 3) {
+        return res.status(400).json({ error: 'Reason required (min 3 chars)' });
+      }
+
+      await client.query('BEGIN');
+
+      const cur = await client.query('SELECT credits_balance FROM customers WHERE id = $1', [id]);
+      if (cur.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Not found' });
+      }
+
+      const newBalance = Math.max(0, parseInt(cur.rows[0].credits_balance) + amount);
+
+      await client.query(
+        'UPDATE customers SET credits_balance = $1 WHERE id = $2',
+        [newBalance, id]
+      );
+
+      await client.query(
+        `INSERT INTO credit_transactions 
+         (customer_id, transaction_type, amount, balance_after, description)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, amount > 0 ? 'admin_grant' : 'admin_deduction', amount, newBalance, `[ADMIN] ${reason}`]
+      );
+
+      await client.query('COMMIT');
+
+      await audit.log(req.admin.id, req.admin.email, 'adjust_credits', 'customer', id,
+        { amount, reason, newBalance }, req);
+
+      res.json({ success: true, newBalance });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('Credit adjust error:', err);
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
+  });
+
+  /**
+   * POST /api/admin/customers/:id/suspend — Suspend account
+   */
+  router.post('/customers/:id/suspend', async (req, res) => {
+    try {
+      const { reason } = req.body;
+      const id = req.params.id;
+
+      if (!reason) return res.status(400).json({ error: 'Suspension reason required' });
+
+      const result = await pool.query(
+        `UPDATE customers SET suspended = true, suspension_reason = $1, updated_at = NOW()
+         WHERE id = $2 RETURNING email`,
+        [reason, id]
+      );
+
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+      await audit.log(req.admin.id, req.admin.email, 'suspend_customer', 'customer', id,
+        { reason }, req);
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/admin/customers/:id/reactivate
+   */
+  router.post('/customers/:id/reactivate', async (req, res) => {
+    try {
+      const id = req.params.id;
+      const result = await pool.query(
+        `UPDATE customers SET suspended = false, suspension_reason = NULL, updated_at = NOW()
+         WHERE id = $1 RETURNING email`,
+        [id]
+      );
+
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+      await audit.log(req.admin.id, req.admin.email, 'reactivate_customer', 'customer', id, {}, req);
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/admin/customers/:id/reset-password — Force password reset
+   */
+  router.post('/customers/:id/reset-password', async (req, res) => {
+    try {
+      const { newPassword } = req.body;
+      const id = req.params.id;
+
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ error: 'Password must be 8+ chars' });
+      }
+
+      const hash = await bcrypt.hash(newPassword, 10);
+      const result = await pool.query(
+        'UPDATE customers SET password_hash = $1 WHERE id = $2 RETURNING email',
+        [hash, id]
+      );
+
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+      await audit.log(req.admin.id, req.admin.email, 'reset_password', 'customer', id, {}, req);
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/admin/customers/:id/promote — Make user an admin
+   */
+  router.post('/customers/:id/promote', async (req, res) => {
+    try {
+      const result = await pool.query(
+        `UPDATE customers SET is_admin = true, role = 'admin' WHERE id = $1 RETURNING email`,
+        [req.params.id]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+      await audit.log(req.admin.id, req.admin.email, 'promote_admin', 'customer', req.params.id, {}, req);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/admin/customers/:id/demote — Remove admin role
+   */
+  router.post('/customers/:id/demote', async (req, res) => {
+    try {
+      // Don't allow demoting yourself
+      if (parseInt(req.params.id) === req.admin.id) {
+        return res.status(400).json({ error: 'Cannot demote yourself' });
+      }
+
+      const result = await pool.query(
+        `UPDATE customers SET is_admin = false, role = 'customer' WHERE id = $1 RETURNING email`,
+        [req.params.id]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+      await audit.log(req.admin.id, req.admin.email, 'demote_admin', 'customer', req.params.id, {}, req);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/admin/audit — Get audit log
+   */
+  router.get('/audit', async (req, res) => {
+    try {
+      const { limit = 100, offset = 0 } = req.query;
+      const result = await pool.query(
+        'SELECT * FROM admin_audit_log ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+        [parseInt(limit), parseInt(offset)]
+      );
+      res.json(result.rows);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/admin/health — Detailed system health
+   */
+  router.get('/health', async (req, res) => {
+    try {
+      const [dbCheck, recentErrors] = await Promise.all([
+        pool.query('SELECT NOW(), version()'),
+        pool.query(`
+          SELECT COUNT(*) FROM posts WHERE status = 'failed' AND created_at > NOW() - INTERVAL '24 hours'
+        `),
+      ]);
+
+      res.json({
+        status: 'healthy',
+        database: {
+          connected: true,
+          version: dbCheck.rows[0].version.split(' ').slice(0, 2).join(' '),
+          time: dbCheck.rows[0].now,
+        },
+        services: {
+          anthropic: !!process.env.ANTHROPIC_API_KEY,
+          nanobanana: !!process.env.GOOGLE_AI_API_KEY,
+          midjourney: !!process.env.REPLICATE_API_TOKEN,
+          heygen: !!process.env.HEYGEN_API_KEY,
+          cloudinary: !!process.env.CLOUDINARY_CLOUD_NAME,
+        },
+        errors24h: parseInt(recentErrors.rows[0].count),
+      });
+    } catch (err) {
+      res.status(500).json({ status: 'error', error: err.message });
+    }
+  });
+
+  return router;
+};
+```
+
+═══════════════════════════════════════════
+PHASE 5: POST PERFORMANCE ROUTES
+═══════════════════════════════════════════
+
+Create new file: backend/routes/analytics.js
+
+```javascript
+const express = require('express');
+const { authenticate } = require('../middleware/auth');
+
+module.exports = (pool) => {
+  const router = express.Router();
+  router.use(authenticate);
+
+  /**
+   * GET /api/analytics/posts — List posts with performance metrics
+   */
+  router.get('/posts', async (req, res) => {
+    try {
+      const { sort = 'recent', platform, contentType, limit = 50 } = req.query;
+
+      let orderBy = 'created_at DESC';
+      if (sort === 'best') orderBy = 'performance_score DESC NULLS LAST';
+      if (sort === 'engagement') orderBy = `((engagement->>'likes')::int + (engagement->>'comments')::int + (engagement->>'shares')::int) DESC`;
+
+      let query = `
+        SELECT id, content_type, caption, media_url, status, scheduled_date, posted_at,
+               engagement, engagement_by_platform, performance_score, platforms,
+               image_provider, created_at
+        FROM posts 
+        WHERE customer_id = $1 AND status = 'posted'
+      `;
+      const params = [req.customerId];
+      let p = 1;
+
+      if (platform) {
+        p++;
+        query += ` AND $${p} = ANY(SELECT jsonb_array_elements_text(platforms))`;
+        params.push(platform);
+      }
+      if (contentType) {
+        p++;
+        query += ` AND content_type = $${p}`;
+        params.push(contentType);
+      }
+
+      query += ` ORDER BY ${orderBy} LIMIT $${p + 1}`;
+      params.push(parseInt(limit));
+
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/analytics/posts/:id — Detailed performance for one post
+   */
+  router.get('/posts/:id', async (req, res) => {
+    try {
+      // Get the post
+      const postRes = await pool.query(
+        `SELECT * FROM posts WHERE id = $1 AND customer_id = $2`,
+        [req.params.id, req.customerId]
+      );
+
+      if (postRes.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+      const post = postRes.rows[0];
+
+      // Get engagement snapshots (timeline)
+      const snapshotsRes = await pool.query(
+        `SELECT platform, likes, comments, shares, saves, reach, impressions, 
+                clicks, video_views, snapshot_at
+         FROM post_engagement_snapshots 
+         WHERE post_id = $1 
+         ORDER BY snapshot_at ASC`,
+        [req.params.id]
+      );
+
+      // Compute account averages for comparison
+      const avgRes = await pool.query(
+        `SELECT 
+          COALESCE(AVG((engagement->>'likes')::int), 0) AS avg_likes,
+          COALESCE(AVG((engagement->>'comments')::int), 0) AS avg_comments,
+          COALESCE(AVG((engagement->>'shares')::int), 0) AS avg_shares,
+          COALESCE(AVG(performance_score), 0) AS avg_score
+         FROM posts 
+         WHERE customer_id = $1 AND status = 'posted' AND id != $2`,
+        [req.customerId, req.params.id]
+      );
+
+      // Get carousel slides if applicable
+      let slides = [];
+      if (post.content_type === 'carousel') {
+        const slidesRes = await pool.query(
+          'SELECT * FROM post_carousel_slides WHERE post_id = $1 ORDER BY slide_number',
+          [post.id]
+        );
+        slides = slidesRes.rows;
+      }
+
+      // Build per-platform breakdown
+      const platforms = post.platforms || [];
+      const platformMetrics = {};
+
+      // If we have snapshots, use latest per platform
+      if (snapshotsRes.rows.length > 0) {
+        const latestByPlatform = {};
+        for (const snap of snapshotsRes.rows) {
+          if (!latestByPlatform[snap.platform] || new Date(snap.snapshot_at) > new Date(latestByPlatform[snap.platform].snapshot_at)) {
+            latestByPlatform[snap.platform] = snap;
+          }
+        }
+        Object.assign(platformMetrics, latestByPlatform);
+      } else {
+        // Fallback: distribute total engagement evenly across platforms (placeholder until real platform sync exists)
+        const total = post.engagement || {};
+        const platformList = Array.isArray(platforms) ? platforms : [];
+        for (const p of platformList) {
+          platformMetrics[p] = {
+            platform: p,
+            likes: 0,
+            comments: 0,
+            shares: 0,
+            reach: 0,
+            impressions: 0,
+            note: 'No platform-level data yet. Connect your social accounts.',
+          };
+        }
+      }
+
+      // Calculate total engagement
+      const eng = post.engagement || {};
+      const totalEngagement =
+        (parseInt(eng.likes) || 0) +
+        (parseInt(eng.comments) || 0) +
+        (parseInt(eng.shares) || 0);
+
+      // Compare to average
+      const avg = avgRes.rows[0];
+      const comparison = {
+        likes: { value: eng.likes || 0, avg: Math.round(avg.avg_likes), diff: ((eng.likes || 0) - avg.avg_likes) / Math.max(1, avg.avg_likes) * 100 },
+        comments: { value: eng.comments || 0, avg: Math.round(avg.avg_comments), diff: ((eng.comments || 0) - avg.avg_comments) / Math.max(1, avg.avg_comments) * 100 },
+        shares: { value: eng.shares || 0, avg: Math.round(avg.avg_shares), diff: ((eng.shares || 0) - avg.avg_shares) / Math.max(1, avg.avg_shares) * 100 },
+      };
+
+      // Insights — caption length, hashtag count, time of day
+      const captionLen = (post.caption || '').length;
+      const hashtagCount = (post.hashtags || []).length;
+      const postHour = post.posted_at ? new Date(post.posted_at).getHours() : null;
+
+      const insights = [];
+      if (captionLen > 0) {
+        insights.push({
+          type: 'caption_length',
+          label: 'Caption length',
+          value: `${captionLen} characters`,
+          assessment: captionLen >= 80 && captionLen <= 200 ? 'good' : captionLen < 80 ? 'short' : 'long',
+        });
+      }
+      if (hashtagCount > 0) {
+        insights.push({
+          type: 'hashtag_count',
+          label: 'Hashtags used',
+          value: `${hashtagCount} tags`,
+          assessment: hashtagCount >= 3 && hashtagCount <= 8 ? 'good' : hashtagCount < 3 ? 'few' : 'many',
+        });
+      }
+      if (postHour !== null) {
+        insights.push({
+          type: 'time',
+          label: 'Posted at',
+          value: `${postHour}:00 (${postHour >= 9 && postHour <= 18 ? 'business hours' : 'off-hours'})`,
+          assessment: postHour >= 9 && postHour <= 21 ? 'good' : 'consider_better_time',
+        });
+      }
+
+      res.json({
+        post: { ...post, slides },
+        platformMetrics: Object.values(platformMetrics),
+        timeline: snapshotsRes.rows,
+        totalEngagement,
+        comparison,
+        insights,
+        accountAverage: {
+          likes: Math.round(avg.avg_likes),
+          comments: Math.round(avg.avg_comments),
+          shares: Math.round(avg.avg_shares),
+          performanceScore: parseFloat(avg.avg_score),
+        },
+      });
+    } catch (err) {
+      console.error('Post analytics error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/analytics/posts/:id/snapshot — Manually record engagement (for testing)
+   * In production, this would be called by a webhook or scheduled job
+   */
+  router.post('/posts/:id/snapshot', async (req, res) => {
+    try {
+      const { platform, likes = 0, comments = 0, shares = 0, reach = 0, impressions = 0 } = req.body;
+
+      if (!platform) return res.status(400).json({ error: 'platform required' });
+
+      // Verify ownership
+      const ownerCheck = await pool.query(
+        'SELECT id FROM posts WHERE id = $1 AND customer_id = $2',
+        [req.params.id, req.customerId]
+      );
+      if (ownerCheck.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+      await pool.query(
+        `INSERT INTO post_engagement_snapshots 
+         (post_id, platform, likes, comments, shares, reach, impressions)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [req.params.id, platform, likes, comments, shares, reach, impressions]
+      );
+
+      // Update post's aggregate engagement
+      const newTotal = parseInt(likes) + parseInt(comments) + parseInt(shares);
+      await pool.query(
+        `UPDATE posts SET 
+          engagement = $1::jsonb,
+          performance_score = $2,
+          last_metrics_sync = NOW()
+         WHERE id = $3`,
+        [JSON.stringify({ likes, comments, shares }), newTotal, req.params.id]
+      );
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/analytics/overview — Dashboard analytics summary
+   */
+  router.get('/overview', async (req, res) => {
+    try {
+      const { period = '30' } = req.query;
+
+      const result = await pool.query(`
+        SELECT 
+          COUNT(*) AS total_posts,
+          COUNT(*) FILTER (WHERE status = 'posted') AS posted,
+          COUNT(*) FILTER (WHERE status = 'scheduled') AS scheduled,
+          COALESCE(SUM((engagement->>'likes')::int), 0) AS total_likes,
+          COALESCE(SUM((engagement->>'comments')::int), 0) AS total_comments,
+          COALESCE(SUM((engagement->>'shares')::int), 0) AS total_shares,
+          COALESCE(AVG(performance_score), 0) AS avg_performance,
+          COUNT(DISTINCT DATE(posted_at)) AS active_days
+        FROM posts 
+        WHERE customer_id = $1 
+        AND created_at > NOW() - INTERVAL '${parseInt(period)} days'
+      `, [req.customerId]);
+
+      const topPosts = await pool.query(`
+        SELECT id, caption, media_url, content_type, performance_score, engagement, posted_at
+        FROM posts 
+        WHERE customer_id = $1 AND status = 'posted'
+        ORDER BY performance_score DESC NULLS LAST 
+        LIMIT 5
+      `, [req.customerId]);
+
+      res.json({
+        summary: result.rows[0],
+        topPosts: topPosts.rows,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  return router;
+};
+```
+
+═══════════════════════════════════════════
+PHASE 6: PASSWORD RESET ROUTES
+═══════════════════════════════════════════
+
+Append to backend/routes/auth.js (BEFORE the `return router;` line):
+
+```javascript
+  const crypto = require('crypto');
+
+  /**
+   * POST /api/auth/forgot-password — Request password reset
+   */
+  router.post('/forgot-password', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: 'Email required' });
+
+      // Always return success even if email doesn't exist (prevents enumeration)
+      const customer = await pool.query('SELECT id FROM customers WHERE email = $1', [email]);
+
+      if (customer.rows.length > 0) {
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+        await pool.query(
+          `UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE email = $3`,
+          [token, expires, email]
+        );
+
+        // Queue email (in production, would be sent by email worker)
+        await pool.query(
+          `INSERT INTO email_queue (to_email, subject, template_name, template_data)
+           VALUES ($1, $2, $3, $4)`,
+          [
+            email,
+            'Reset your PostFlow password',
+            'password_reset',
+            JSON.stringify({ token, resetUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}` }),
+          ]
+        );
+
+        console.log(`[DEV] Password reset link for ${email}: /reset-password?token=${token}`);
+      }
+
+      res.json({ success: true, message: 'If an account exists, a reset link was sent.' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/auth/reset-password — Use reset token to set new password
+   */
+  router.post('/reset-password', async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+      if (!token || !newPassword) return res.status(400).json({ error: 'Token and new password required' });
+      if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be 8+ chars' });
+
+      const result = await pool.query(
+        `SELECT id, email FROM customers 
+         WHERE password_reset_token = $1 AND password_reset_expires > NOW()`,
+        [token]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid or expired token' });
+      }
+
+      const hash = await bcrypt.hash(newPassword, 10);
+      await pool.query(
+        `UPDATE customers SET 
+          password_hash = $1, 
+          password_reset_token = NULL, 
+          password_reset_expires = NULL
+         WHERE id = $2`,
+        [hash, result.rows[0].id]
+      );
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+```
+
+═══════════════════════════════════════════
+PHASE 7: SECURITY HARDENING
+═══════════════════════════════════════════
+
+Edit backend/server.js.
+
+Find the existing rate limiter:
+
+```javascript
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests, please try again later.',
+});
+app.use('/api/', limiter);
+```
+
+REPLACE it with tiered rate limiting:
+
+```javascript
+const rateLimit = require('express-rate-limit');
+
+// General API rate limit
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: 'Too many requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Stricter limit for auth endpoints (prevent brute force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many authentication attempts. Try again in 15 minutes.',
+  skipSuccessfulRequests: true,
+});
+
+// Strict limit for password reset (prevent abuse)
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: 'Too many password reset attempts. Try again in 1 hour.',
+});
+
+app.use('/api/', apiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', passwordResetLimiter);
+```
+
+ADD a request logging + error handling middleware. Find this block:
+
+```javascript
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  });
+});
+```
+
+REPLACE it with structured logging:
+
+```javascript
+// Request logger
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (res.statusCode >= 400 || duration > 1000) {
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        durationMs: duration,
+        ip: req.ip,
+        userId: req.customerId || null,
+      }));
+    }
+  });
+  next();
+});
+
+// Global error handler with structured logging
+app.use((err, req, res, next) => {
+  const errorId = Math.random().toString(36).substring(7);
+  
+  console.error(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level: 'error',
+    errorId,
+    message: err.message,
+    stack: err.stack,
+    method: req.method,
+    path: req.path,
+    userId: req.customerId || null,
+  }));
+
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+    errorId,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  });
+});
+```
+
+═══════════════════════════════════════════
+PHASE 8: REGISTER NEW ROUTES
+═══════════════════════════════════════════
+
+Edit backend/server.js. Find existing route imports:
+
+```javascript
+const authRoutes = require('./routes/auth');
+const customerRoutes = require('./routes/customers');
+const postRoutes = require('./routes/posts');
+const contentRoutes = require('./routes/content');
+const uploadRoutes = require('./routes/upload');
+const billingRoutes = require('./routes/billing');
+const mediaRoutes = require('./routes/media');
+```
+
+ADD:
+
+```javascript
+const adminRoutes = require('./routes/admin');
+const analyticsRoutes = require('./routes/analytics');
+```
+
+Find existing route mounts and ADD:
+
+```javascript
+app.use('/api/admin', adminRoutes(pool));
+app.use('/api/analytics', analyticsRoutes(pool));
+```
+
+═══════════════════════════════════════════
+PHASE 9: FRONTEND API CLIENT UPDATES
+═══════════════════════════════════════════
+
+Edit frontend/lib/api.js. ADD before `export default api;`:
+
+```javascript
+// Admin
+export const adminAPI = {
+  getStats: () => api.get('/api/admin/stats'),
+  listCustomers: (params) => api.get('/api/admin/customers', { params }),
+  getCustomer: (id) => api.get(`/api/admin/customers/${id}`),
+  updateCustomer: (id, data) => api.patch(`/api/admin/customers/${id}`, data),
+  adjustCredits: (id, amount, reason) => api.post(`/api/admin/customers/${id}/credits`, { amount, reason }),
+  suspend: (id, reason) => api.post(`/api/admin/customers/${id}/suspend`, { reason }),
+  reactivate: (id) => api.post(`/api/admin/customers/${id}/reactivate`),
+  resetPassword: (id, newPassword) => api.post(`/api/admin/customers/${id}/reset-password`, { newPassword }),
+  promote: (id) => api.post(`/api/admin/customers/${id}/promote`),
+  demote: (id) => api.post(`/api/admin/customers/${id}/demote`),
+  getAuditLog: (params) => api.get('/api/admin/audit', { params }),
+  getHealth: () => api.get('/api/admin/health'),
+};
+
+// Analytics
+export const analyticsAPI = {
+  listPosts: (params) => api.get('/api/analytics/posts', { params }),
+  getPostDetail: (id) => api.get(`/api/analytics/posts/${id}`),
+  getOverview: (params) => api.get('/api/analytics/overview', { params }),
+  recordSnapshot: (id, data) => api.post(`/api/analytics/posts/${id}/snapshot`, data),
+};
+
+// Auth - password reset
+export const authAPI_extended = {
+  forgotPassword: (email) => api.post('/api/auth/forgot-password', { email }),
+  resetPassword: (token, newPassword) => api.post('/api/auth/reset-password', { token, newPassword }),
+};
+```
+
+═══════════════════════════════════════════
+PHASE 10: ADMIN DASHBOARD PAGE
+═══════════════════════════════════════════
+
+Create frontend/pages/admin/index.js:
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../../components/Layout';
+import { Card, Button, Badge, StatCard, SectionHeader, EmptyState } from '../../components/ui';
+import { useTheme } from '../../lib/theme';
+import { adminAPI } from '../../lib/api';
+import {
+  Users,
+  TrendingUp,
+  DollarSign,
+  AlertCircle,
+  Activity,
+  Search,
+  Shield,
+  ChevronRight,
+} from 'lucide-react';
+
+export default function AdminDashboard() {
+  const router = useRouter();
+  const { t } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setMounted(true);
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      const res = await adminAPI.getStats();
+      setStats(res.data);
+    } catch (err) {
+      if (err.response?.status === 403) {
+        setError('Admin access required');
+        setTimeout(() => router.replace('/dashboard'), 2000);
+      } else {
+        setError(err.response?.data?.error || 'Failed to load');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!mounted) return null;
+
+  if (error) {
+    return (
+      <Layout title="Admin">
+        <Card>
+          <EmptyState
+            icon={Shield}
+            title="Access Denied"
+            subtitle={error}
+          />
+        </Card>
+      </Layout>
+    );
+  }
+
+  if (loading || !stats) {
+    return (
+      <Layout title="Admin">
+        <Card>
+          <div style={{ padding: 60, textAlign: 'center', color: t.textMuted }}>Loading admin stats…</div>
+        </Card>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout
+      title="Admin Portal"
+      subtitle="Platform overview and customer management"
+      action={
+        <Button variant="primary" onClick={() => router.push('/admin/customers')}>
+          <Users size={14} />
+          Manage Customers
+        </Button>
+      }
+    >
+      {/* Top stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+        <StatCard
+          label="Total customers"
+          value={stats.users.total}
+          hint={`+${stats.users.new_this_week} this week`}
+          accent="primary"
+        />
+        <StatCard
+          label="Active subscribers"
+          value={stats.users.active}
+          hint={`${stats.users.active_this_week} active this week`}
+          accent="success"
+        />
+        <StatCard
+          label="MRR"
+          value={`$${stats.revenue.mrr.toLocaleString()}`}
+          hint={`$${stats.revenue.arr.toLocaleString()} ARR`}
+          accent="success"
+        />
+        <StatCard
+          label="Total posts"
+          value={stats.posts.total_posts || 0}
+          hint={`${stats.posts.today || 0} today`}
+          accent="primary"
+        />
+      </div>
+
+      {/* Two-column lower */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <Card>
+          <SectionHeader icon={DollarSign} title="Revenue breakdown" />
+          {stats.revenue.breakdown.length === 0 ? (
+            <EmptyState icon={DollarSign} title="No paying customers yet" />
+          ) : (
+            stats.revenue.breakdown.map((row) => (
+              <div
+                key={row.plan}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px 0',
+                  borderBottom: `1px solid ${t.border}`,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text, textTransform: 'capitalize' }}>{row.plan}</div>
+                  <div style={{ fontSize: 11, color: t.textMuted }}>{row.count} customer{row.count > 1 ? 's' : ''}</div>
+                </div>
+                <div style={{ fontFamily: 'monospace', color: t.primary, fontWeight: 700 }}>
+                  ${parseInt(row.mrr).toLocaleString()}/mo
+                </div>
+              </div>
+            ))
+          )}
+        </Card>
+
+        <Card>
+          <SectionHeader
+            icon={Activity}
+            title="Recent signups"
+            action={
+              <Button variant="ghost" size="sm" onClick={() => router.push('/admin/customers')}>
+                View all <ChevronRight size={14} />
+              </Button>
+            }
+          />
+          {stats.recentSignups.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => router.push(`/admin/customers/${c.id}`)}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 12px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                transition: 'background 150ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{c.business_name}</div>
+                <div style={{ fontSize: 11, color: t.textMuted }}>{c.email}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Badge variant={c.suspended ? 'error' : c.status === 'active' ? 'success' : 'warning'}>
+                  {c.suspended ? 'Suspended' : c.plan}
+                </Badge>
+                <ChevronRight size={14} style={{ color: t.textMuted }} />
+              </div>
+            </div>
+          ))}
+        </Card>
+      </div>
+
+      {/* Suspended alert */}
+      {stats.users.suspended > 0 && (
+        <Card style={{ marginTop: 20, borderColor: 'rgba(234, 179, 8, 0.3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <AlertCircle size={18} style={{ color: t.warning }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
+                {stats.users.suspended} suspended account{stats.users.suspended > 1 ? 's' : ''}
+              </div>
+              <div style={{ fontSize: 12, color: t.textMuted }}>Review and reactivate as needed</div>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => router.push('/admin/customers?suspended=true')}>
+              Review
+            </Button>
+          </div>
+        </Card>
+      )}
+    </Layout>
+  );
+}
+```
+
+═══════════════════════════════════════════
+PHASE 11: ADMIN CUSTOMERS LIST PAGE
+═══════════════════════════════════════════
+
+Create frontend/pages/admin/customers.js:
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../../components/Layout';
+import { Card, Button, Badge, EmptyState } from '../../components/ui';
+import { useTheme } from '../../lib/theme';
+import { adminAPI } from '../../lib/api';
+import { Search, ChevronRight, Users, Filter } from 'lucide-react';
+
+export default function AdminCustomers() {
+  const router = useRouter();
+  const { t } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [data, setData] = useState({ customers: [], total: 0 });
+  const [search, setSearch] = useState('');
+  const [filterPlan, setFilterPlan] = useState('');
+  const [filterSuspended, setFilterSuspended] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setMounted(true);
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      const t = setTimeout(load, 300);
+      return () => clearTimeout(t);
+    }
+  }, [search, filterPlan, filterSuspended]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const params = { limit: 100 };
+      if (search) params.search = search;
+      if (filterPlan) params.plan = filterPlan;
+      if (filterSuspended) params.suspended = filterSuspended;
+      const res = await adminAPI.listCustomers(params);
+      setData(res.data);
+    } catch (err) {
+      if (err.response?.status === 403) router.replace('/dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!mounted) return null;
+
+  return (
+    <Layout title="Customers" subtitle={`${data.total} total`}>
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
+          <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted }} />
+          <input
+            type="text"
+            placeholder="Search by email or business name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px 10px 36px',
+              background: t.input,
+              border: `1px solid ${t.borderStrong}`,
+              borderRadius: 8,
+              color: t.text,
+              fontSize: 13,
+            }}
+          />
+        </div>
+
+        <select
+          value={filterPlan}
+          onChange={(e) => setFilterPlan(e.target.value)}
+          style={{
+            padding: '10px 12px',
+            background: t.input,
+            border: `1px solid ${t.borderStrong}`,
+            borderRadius: 8,
+            color: t.text,
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          <option value="">All plans</option>
+          <option value="trial">Trial</option>
+          <option value="starter">Starter</option>
+          <option value="professional">Professional</option>
+          <option value="premium">Premium</option>
+        </select>
+
+        <select
+          value={filterSuspended}
+          onChange={(e) => setFilterSuspended(e.target.value)}
+          style={{
+            padding: '10px 12px',
+            background: t.input,
+            border: `1px solid ${t.borderStrong}`,
+            borderRadius: 8,
+            color: t.text,
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          <option value="">All</option>
+          <option value="false">Active only</option>
+          <option value="true">Suspended only</option>
+        </select>
+      </div>
+
+      <Card padding={0}>
+        {loading ? (
+          <div style={{ padding: 60, textAlign: 'center', color: t.textMuted }}>Loading...</div>
+        ) : data.customers.length === 0 ? (
+          <EmptyState icon={Users} title="No customers found" />
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${t.border}` }}>
+                {['Customer', 'Plan', 'Status', 'Credits', 'Joined', ''].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      textAlign: 'left',
+                      padding: '12px 20px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: t.textMuted,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.customers.map((c) => (
+                <tr
+                  key={c.id}
+                  onClick={() => router.push(`/admin/customers/${c.id}`)}
+                  style={{
+                    cursor: 'pointer',
+                    borderBottom: `1px solid ${t.border}`,
+                    transition: 'background 150ms ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
+                      {c.business_name}
+                      {c.is_admin && (
+                        <Badge variant="primary" style={{ marginLeft: 8 }}>ADMIN</Badge>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: t.textMuted }}>{c.email}</div>
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <Badge variant={c.plan === 'trial' ? 'warning' : 'primary'}>{c.plan}</Badge>
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <Badge variant={c.suspended ? 'error' : c.status === 'active' ? 'success' : 'default'}>
+                      {c.suspended ? 'Suspended' : c.status}
+                    </Badge>
+                  </td>
+                  <td style={{ padding: '14px 20px', fontFamily: 'monospace', fontSize: 13, color: t.text }}>
+                    {c.credits_balance}
+                  </td>
+                  <td style={{ padding: '14px 20px', fontSize: 12, color: t.textMuted }}>
+                    {new Date(c.created_at).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                    <ChevronRight size={14} style={{ color: t.textMuted }} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+    </Layout>
+  );
+}
+```
+
+═══════════════════════════════════════════
+PHASE 12: ADMIN CUSTOMER DETAIL PAGE
+═══════════════════════════════════════════
+
+Create frontend/pages/admin/customers/[id].js:
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../../../components/Layout';
+import { Card, Button, Badge, SectionHeader } from '../../../components/ui';
+import { useTheme } from '../../../lib/theme';
+import { adminAPI } from '../../../lib/api';
+import {
+  ArrowLeft, AlertTriangle, Plus, Minus, Lock, Power,
+  CheckCircle, History, User, CreditCard, FileText,
+} from 'lucide-react';
+
+export default function CustomerDetail() {
+  const router = useRouter();
+  const { id } = router.query;
+  const { t } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [data, setData] = useState(null);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mounted && id) load();
+  }, [mounted, id]);
+
+  const load = async () => {
+    try {
+      const res = await adminAPI.getCustomer(id);
+      setData(res.data);
+    } catch (err) {
+      if (err.response?.status === 403) router.replace('/dashboard');
+    }
+  };
+
+  const handleAdjustCredits = async (amount, reason) => {
+    try {
+      await adminAPI.adjustCredits(id, amount, reason);
+      await load();
+      setShowCreditsModal(false);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed');
+    }
+  };
+
+  const handleSuspend = async (reason) => {
+    try {
+      await adminAPI.suspend(id, reason);
+      await load();
+      setShowSuspendModal(false);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed');
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!confirm('Reactivate this account?')) return;
+    try {
+      await adminAPI.reactivate(id);
+      await load();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed');
+    }
+  };
+
+  if (!mounted || !data) {
+    return (
+      <Layout title="Customer">
+        <Card>
+          <div style={{ padding: 60, textAlign: 'center', color: t.textMuted }}>Loading...</div>
+        </Card>
+      </Layout>
+    );
+  }
+
+  const c = data.customer;
+
+  return (
+    <Layout
+      title={c.business_name}
+      subtitle={c.email}
+      action={
+        <Button variant="ghost" onClick={() => router.push('/admin/customers')}>
+          <ArrowLeft size={14} /> Back to list
+        </Button>
+      }
+    >
+      {/* Header strip with status + actions */}
+      <Card style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Badge variant={c.suspended ? 'error' : c.status === 'active' ? 'success' : 'warning'}>
+              {c.suspended ? 'Suspended' : c.status}
+            </Badge>
+            <Badge variant="primary">{c.plan}</Badge>
+            {c.is_admin && <Badge variant="primary">ADMIN</Badge>}
+            <span style={{ fontSize: 12, color: t.textMuted }}>
+              Member since {new Date(c.created_at).toLocaleDateString()}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="secondary" onClick={() => setShowCreditsModal(true)}>
+              <Plus size={14} /> Adjust Credits
+            </Button>
+            {c.suspended ? (
+              <Button variant="primary" onClick={handleReactivate}>
+                <CheckCircle size={14} /> Reactivate
+              </Button>
+            ) : (
+              <Button variant="danger" onClick={() => setShowSuspendModal(true)}>
+                <Power size={14} /> Suspend
+              </Button>
+            )}
+          </div>
+        </div>
+        {c.suspended && c.suspension_reason && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: 12,
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: 8,
+              display: 'flex',
+              gap: 10,
+              alignItems: 'flex-start',
+            }}
+          >
+            <AlertTriangle size={16} style={{ color: t.error, flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.error }}>Suspended</div>
+              <div style={{ fontSize: 12, color: t.text, marginTop: 2 }}>{c.suspension_reason}</div>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+        <Card>
+          <div style={{ fontSize: 12, color: t.textMuted, fontWeight: 500 }}>Credits</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: t.text, marginTop: 6, fontFamily: 'monospace' }}>
+            {c.credits_balance}
+          </div>
+          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
+            {c.credits_used_this_month} used this month
+          </div>
+        </Card>
+        <Card>
+          <div style={{ fontSize: 12, color: t.textMuted, fontWeight: 500 }}>Industry</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: t.text, marginTop: 6 }}>
+            {c.industry || 'Not set'}
+          </div>
+          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>{c.location || 'No location'}</div>
+        </Card>
+        <Card>
+          <div style={{ fontSize: 12, color: t.textMuted, fontWeight: 500 }}>Last login</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: t.text, marginTop: 6 }}>
+            {c.last_login_at ? new Date(c.last_login_at).toLocaleDateString() : 'Never'}
+          </div>
+          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
+            {c.email_verified ? 'Email verified' : 'Email unverified'}
+          </div>
+        </Card>
+        <Card>
+          <div style={{ fontSize: 12, color: t.textMuted, fontWeight: 500 }}>Posts created</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: t.text, marginTop: 6 }}>
+            {data.recentPosts.length}+
+          </div>
+          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>recent</div>
+        </Card>
+      </div>
+
+      {/* Two-column data */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <Card>
+          <SectionHeader icon={CreditCard} title="Recent credit history" />
+          {data.creditHistory.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: t.textMuted, fontSize: 13 }}>No transactions</div>
+          ) : (
+            data.creditHistory.slice(0, 8).map((tx) => (
+              <div
+                key={tx.id}
+                style={{
+                  padding: '8px 0',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderBottom: `1px solid ${t.border}`,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: t.text }}>{tx.description || tx.transaction_type}</div>
+                  <div style={{ fontSize: 11, color: t.textMuted }}>
+                    {new Date(tx.created_at).toLocaleString()}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    color: tx.amount > 0 ? t.success : t.error,
+                  }}
+                >
+                  {tx.amount > 0 ? '+' : ''}{tx.amount}
+                </div>
+              </div>
+            ))
+          )}
+        </Card>
+
+        <Card>
+          <SectionHeader icon={History} title="Admin actions" />
+          {data.adminActions.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: t.textMuted, fontSize: 13 }}>No admin actions yet</div>
+          ) : (
+            data.adminActions.slice(0, 8).map((log) => (
+              <div
+                key={log.id}
+                style={{
+                  padding: '8px 0',
+                  borderBottom: `1px solid ${t.border}`,
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 500, color: t.text, textTransform: 'capitalize' }}>
+                  {log.action.replace(/_/g, ' ')}
+                </div>
+                <div style={{ fontSize: 11, color: t.textMuted }}>
+                  by {log.admin_email} • {new Date(log.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))
+          )}
+        </Card>
+      </div>
+
+      {/* Modals */}
+      {showCreditsModal && <CreditsModal onClose={() => setShowCreditsModal(false)} onSubmit={handleAdjustCredits} t={t} />}
+      {showSuspendModal && <SuspendModal onClose={() => setShowSuspendModal(false)} onSubmit={handleSuspend} t={t} />}
+    </Layout>
+  );
+}
+
+function CreditsModal({ onClose, onSubmit, t }) {
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+
+  const submit = () => {
+    const n = parseInt(amount);
+    if (!n || isNaN(n)) return alert('Enter a valid number (use negative to deduct)');
+    if (!reason || reason.length < 3) return alert('Reason required');
+    onSubmit(n, reason);
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: t.card, borderRadius: 12, padding: 24, maxWidth: 440, width: '100%' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 16 }}>Adjust credits</h3>
+        <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16 }}>
+          Use a negative number to deduct credits. Positive to grant.
+        </p>
+        <input
+          type="number"
+          placeholder="e.g. 50 or -10"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, marginBottom: 12 }}
+        />
+        <textarea
+          placeholder="Reason (visible in audit log)"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, marginBottom: 16, fontFamily: 'inherit', resize: 'vertical' }}
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={submit} style={{ padding: '8px 16px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Apply</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SuspendModal({ onClose, onSubmit, t }) {
+  const [reason, setReason] = useState('');
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: t.card, borderRadius: 12, padding: 24, maxWidth: 440, width: '100%' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 16 }}>Suspend account</h3>
+        <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16 }}>
+          The customer will be blocked from logging in until reactivated.
+        </p>
+        <textarea
+          placeholder="Reason for suspension..."
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, marginBottom: 16, fontFamily: 'inherit', resize: 'vertical' }}
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => reason && onSubmit(reason)} style={{ padding: '8px 16px', background: t.error, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Suspend</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════════════
+PHASE 13: POST PERFORMANCE DETAIL PAGE
+═══════════════════════════════════════════
+
+Create frontend/pages/analytics/index.js:
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../../components/Layout';
+import { Card, Button, Badge, StatCard, SectionHeader, EmptyState } from '../../components/ui';
+import { useTheme } from '../../lib/theme';
+import { analyticsAPI } from '../../lib/api';
+import { TrendingUp, Heart, MessageCircle, Share2, Eye, ChevronRight, BarChart3 } from 'lucide-react';
+
+export default function Analytics() {
+  const router = useRouter();
+  const { t } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [overview, setOverview] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [sort, setSort] = useState('recent');
+
+  useEffect(() => {
+    setMounted(true);
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (mounted) loadPosts();
+  }, [sort]);
+
+  const load = async () => {
+    try {
+      const [o, p] = await Promise.all([
+        analyticsAPI.getOverview(),
+        analyticsAPI.listPosts({ sort: 'recent' }),
+      ]);
+      setOverview(o.data);
+      setPosts(p.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadPosts = async () => {
+    try {
+      const p = await analyticsAPI.listPosts({ sort });
+      setPosts(p.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (!mounted) return null;
+
+  return (
+    <Layout title="Analytics" subtitle="Track post performance and engagement">
+      {overview && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+          <StatCard label="Total likes" value={overview.summary.total_likes} accent="primary" />
+          <StatCard label="Comments" value={overview.summary.total_comments} accent="success" />
+          <StatCard label="Shares" value={overview.summary.total_shares} accent="warning" />
+          <StatCard
+            label="Avg performance"
+            value={parseFloat(overview.summary.avg_performance || 0).toFixed(0)}
+            accent="primary"
+          />
+        </div>
+      )}
+
+      <Card>
+        <SectionHeader
+          icon={BarChart3}
+          title="All posts"
+          action={
+            <div style={{ display: 'flex', gap: 4, background: t.input, padding: 3, borderRadius: 8 }}>
+              {[
+                { id: 'recent', label: 'Recent' },
+                { id: 'best', label: 'Best performing' },
+                { id: 'engagement', label: 'Most engaged' },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSort(s.id)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: sort === s.id ? t.text : t.textMuted,
+                    background: sort === s.id ? t.card : 'transparent',
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          }
+        />
+
+        {posts.length === 0 ? (
+          <EmptyState icon={BarChart3} title="No published posts yet" subtitle="Once you start posting, analytics will appear here" />
+        ) : (
+          <div>
+            {posts.map((p) => {
+              const eng = p.engagement || {};
+              const total = (parseInt(eng.likes) || 0) + (parseInt(eng.comments) || 0) + (parseInt(eng.shares) || 0);
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => router.push(`/analytics/posts/${p.id}`)}
+                  style={{
+                    display: 'flex',
+                    gap: 14,
+                    padding: '14px 0',
+                    cursor: 'pointer',
+                    borderBottom: `1px solid ${t.border}`,
+                    alignItems: 'center',
+                    transition: 'background 150ms ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  {p.media_url && (
+                    <img
+                      src={p.media_url}
+                      alt=""
+                      style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                    />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.caption}
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+                      <span style={{ fontSize: 11, color: t.textMuted }}>
+                        <Heart size={11} style={{ display: 'inline', marginRight: 3, verticalAlign: 'middle' }} />
+                        {eng.likes || 0}
+                      </span>
+                      <span style={{ fontSize: 11, color: t.textMuted }}>
+                        <MessageCircle size={11} style={{ display: 'inline', marginRight: 3, verticalAlign: 'middle' }} />
+                        {eng.comments || 0}
+                      </span>
+                      <span style={{ fontSize: 11, color: t.textMuted }}>
+                        <Share2 size={11} style={{ display: 'inline', marginRight: 3, verticalAlign: 'middle' }} />
+                        {eng.shares || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: t.primary, fontFamily: 'monospace' }}>{total}</div>
+                    <div style={{ fontSize: 10, color: t.textMuted }}>total engagement</div>
+                  </div>
+                  <ChevronRight size={16} style={{ color: t.textMuted }} />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    </Layout>
+  );
+}
+```
+
+Create frontend/pages/analytics/posts/[id].js:
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../../../components/Layout';
+import { Card, Button, Badge, SectionHeader, EmptyState } from '../../../components/ui';
+import { useTheme } from '../../../lib/theme';
+import { analyticsAPI } from '../../../lib/api';
+import {
+  ArrowLeft, Heart, MessageCircle, Share2, Eye, TrendingUp,
+  TrendingDown, Facebook, Instagram, Globe, Lightbulb,
+} from 'lucide-react';
+
+const PLATFORM_META = {
+  facebook: { name: 'Facebook', icon: Facebook, color: '#1877F2' },
+  instagram: { name: 'Instagram', icon: Instagram, color: '#E1306C' },
+  google_business: { name: 'Google Business', icon: Globe, color: '#4285F4' },
+};
+
+export default function PostPerformance() {
+  const router = useRouter();
+  const { id } = router.query;
+  const { t } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    setMounted(true);
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mounted && id) load();
+  }, [mounted, id]);
+
+  const load = async () => {
+    try {
+      const res = await analyticsAPI.getPostDetail(id);
+      setData(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (!mounted || !data) {
+    return (
+      <Layout title="Post performance">
+        <Card>
+          <div style={{ padding: 60, textAlign: 'center', color: t.textMuted }}>Loading...</div>
+        </Card>
+      </Layout>
+    );
+  }
+
+  const { post, platformMetrics, comparison, insights, accountAverage } = data;
+  const eng = post.engagement || {};
+
+  return (
+    <Layout
+      title="Post Performance"
+      subtitle={post.posted_at ? `Posted ${new Date(post.posted_at).toLocaleDateString()}` : 'Not yet posted'}
+      action={
+        <Button variant="ghost" onClick={() => router.push('/analytics')}>
+          <ArrowLeft size={14} /> Back to analytics
+        </Button>
+      }
+    >
+      {/* Post preview + summary */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 20, marginBottom: 20 }}>
+        <Card>
+          {post.media_url && (
+            <img
+              src={post.media_url}
+              alt=""
+              style={{ width: '100%', borderRadius: 8, marginBottom: 14, aspectRatio: '1/1', objectFit: 'cover' }}
+            />
+          )}
+          <Badge variant="primary">{post.content_type}</Badge>
+          <p style={{ fontSize: 13, color: t.text, marginTop: 12, lineHeight: 1.5 }}>{post.caption}</p>
+          {post.hashtags && post.hashtags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 10 }}>
+              {post.hashtags.slice(0, 6).map((h, i) => (
+                <span key={i} style={{ fontSize: 11, color: t.primary }}>
+                  #{h}
+                </span>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          <ComparisonCard t={t} icon={Heart} label="Likes" {...comparison.likes} />
+          <ComparisonCard t={t} icon={MessageCircle} label="Comments" {...comparison.comments} />
+          <ComparisonCard t={t} icon={Share2} label="Shares" {...comparison.shares} />
+        </div>
+      </div>
+
+      {/* Per-platform breakdown */}
+      <Card style={{ marginBottom: 20 }}>
+        <SectionHeader icon={TrendingUp} title="Performance by platform" />
+        {platformMetrics.length === 0 ? (
+          <EmptyState
+            icon={Globe}
+            title="No platform data yet"
+            subtitle="Connect your social accounts to see per-platform engagement"
+          />
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, platformMetrics.length)}, 1fr)`, gap: 16 }}>
+            {platformMetrics.map((m) => {
+              const meta = PLATFORM_META[m.platform] || { name: m.platform, icon: Globe, color: t.primary };
+              const Icon = meta.icon;
+              return (
+                <div
+                  key={m.platform}
+                  style={{
+                    background: t.input,
+                    borderRadius: 12,
+                    padding: 16,
+                    border: `1px solid ${t.border}`,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        background: meta.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Icon size={16} color="#fff" />
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{meta.name}</div>
+                  </div>
+
+                  {m.note ? (
+                    <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic' }}>{m.note}</div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                      <Metric icon={Heart} label="Likes" value={m.likes || 0} t={t} />
+                      <Metric icon={MessageCircle} label="Comments" value={m.comments || 0} t={t} />
+                      <Metric icon={Share2} label="Shares" value={m.shares || 0} t={t} />
+                      <Metric icon={Eye} label="Reach" value={m.reach || 0} t={t} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* Insights */}
+      {insights.length > 0 && (
+        <Card>
+          <SectionHeader icon={Lightbulb} title="Post insights" />
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${insights.length}, 1fr)`, gap: 16 }}>
+            {insights.map((ins, i) => {
+              const isGood = ins.assessment === 'good';
+              return (
+                <div
+                  key={i}
+                  style={{
+                    padding: 14,
+                    background: t.input,
+                    borderRadius: 10,
+                    border: `1px solid ${isGood ? 'rgba(34, 197, 94, 0.3)' : t.border}`,
+                  }}
+                >
+                  <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {ins.label}
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginTop: 6 }}>{ins.value}</div>
+                  <Badge
+                    variant={isGood ? 'success' : 'warning'}
+                    style={{ marginTop: 8 }}
+                  >
+                    {isGood ? '✓ optimal' : ins.assessment.replace(/_/g, ' ')}
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+    </Layout>
+  );
+}
+
+function ComparisonCard({ t, icon: Icon, label, value, avg, diff }) {
+  const isUp = diff > 0;
+  const isDown = diff < 0;
+  return (
+    <Card>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: t.textMuted, fontSize: 12, fontWeight: 500 }}>
+        <Icon size={14} />
+        {label}
+      </div>
+      <div style={{ fontSize: 32, fontWeight: 800, color: t.text, marginTop: 8, fontFamily: 'monospace' }}>{value}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+        {isUp && <TrendingUp size={12} style={{ color: t.success }} />}
+        {isDown && <TrendingDown size={12} style={{ color: t.error }} />}
+        <span style={{ fontSize: 11, color: isUp ? t.success : isDown ? t.error : t.textMuted, fontWeight: 600 }}>
+          {diff > 0 ? '+' : ''}{Math.round(diff)}% vs avg ({avg})
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+function Metric({ icon: Icon, label, value, t }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: t.textMuted, textTransform: 'uppercase' }}>
+        <Icon size={10} /> {label}
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: t.text, fontFamily: 'monospace', marginTop: 2 }}>{value}</div>
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════════════
+PHASE 14: ADD ADMIN LINK TO SIDEBAR (CONDITIONAL)
+═══════════════════════════════════════════
+
+Edit frontend/components/Layout.js.
+
+ADD `Shield` to the Lucide imports:
+
+```javascript
+import { Shield } from 'lucide-react';
+```
+
+Find the NAV_ITEMS array. After it, ADD this logic to conditionally include admin nav for admins.
+
+Find the line where NAV_ITEMS is mapped (something like `NAV_ITEMS.map(...)`).
+
+REPLACE the section that renders nav items. Use this pattern:
+
+```javascript
+// Build dynamic nav based on user role
+const navigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Create Post', href: '/upload', icon: PenSquare },
+  { name: 'Calendar', href: '/calendar', icon: Calendar },
+  { name: 'Drafts', href: '/history', icon: FileText },
+  { name: 'Media Library', href: '/media', icon: FolderOpen },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Billing', href: '/billing', icon: CreditCard },
+  { name: 'Settings', href: '/settings', icon: Settings },
+];
+
+// Add admin link if user is admin
+if (user?.is_admin) {
+  navigation.push({ name: 'Admin', href: '/admin', icon: Shield, isAdmin: true });
+}
+```
+
+Then in the rendering code, use `navigation` instead of `NAV_ITEMS`.
+
+═══════════════════════════════════════════
+PHASE 15: VERIFY EVERYTHING
+═══════════════════════════════════════════
+
+1. Stop the workflow → Run again
+
+2. Hard refresh preview
+
+3. Test the admin portal:
+   - Log in as your account (the first one, auto-promoted to admin)
+   - "Admin" should appear in sidebar
+   - Click Admin → see stats dashboard
+   - Click "Manage Customers" → see customer list
+   - Search for yourself → click row → detail page loads
+   - Click "Adjust Credits" → add 50 credits → confirm → balance updates
+   - Audit log shows the action
+
+4. Test post performance detail:
+   - Go to Analytics
+   - Create a test snapshot to populate data:
+   ```bash
+   psql $DATABASE_URL -c "UPDATE posts SET status='posted', posted_at=NOW(), engagement='{\"likes\":47,\"comments\":12,\"shares\":8}' WHERE customer_id=1 LIMIT 1;"
+   ```
+   - Refresh /analytics → click any post
+   - Detail page shows comparison cards, platform metrics, and insights
+
+5. Test password reset:
+   ```bash
+   curl -X POST http://localhost:3001/api/auth/forgot-password \
+     -H "Content-Type: application/json" \
+     -d '{"email":"YOUR_EMAIL"}'
+   ```
+   - Check console logs for the reset link
+   - Visit the link in browser
+   - Set new password → log in with it
+
+6. Test rate limiting:
+   - Try logging in with wrong password 11 times
+   - 11th attempt should be blocked
+
+7. Verify health endpoint:
+   ```bash
+   curl http://localhost:3001/api/admin/health -H "Authorization: Bearer YOUR_TOKEN" | jq
+   ```
+
+═══════════════════════════════════════════
+PHASE 16: PRODUCTION CHECKLIST
+═══════════════════════════════════════════
+
+After all phases pass, verify these production requirements:
+
+- [ ] First user auto-promoted to admin (check DB)
+- [ ] Admin can adjust any customer's credits with audit trail
+- [ ] Admin can suspend/reactivate accounts
+- [ ] Suspended users get blocked from logging in (verifyAdmin checks suspended flag — propagate this to authenticate too — IMPORTANT FIX BELOW)
+- [ ] Password reset flow works end-to-end (queue email, validate token, set password)
+- [ ] Rate limits stop brute force attempts
+- [ ] All admin actions logged to admin_audit_log
+- [ ] Post performance page shows real comparison vs account average
+- [ ] Per-platform metrics display when available, with helpful empty state when not
+
+CRITICAL FIX: To block suspended users from logging in, also update the login route. In backend/routes/auth.js, find the login handler. After verifying password, ADD this check:
+
+```javascript
+if (customer.suspended) {
+  return res.status(403).json({ 
+    error: `Account suspended: ${customer.suspension_reason || 'Contact support.'}` 
+  });
+}
+```
+
+Place this AFTER `bcrypt.compare` returns true and BEFORE generating the JWT.
+
+═══════════════════════════════════════════
+WHAT YOU JUST BUILT
+═══════════════════════════════════════════
+
+🛡️ ADMIN PORTAL
+- Stats dashboard (MRR, ARR, signup velocity)
+- Customer search + filter (by plan, status, suspended)
+- Customer detail with credit adjustment + suspension + role management
+- Full audit log of all admin actions
+- Health monitoring endpoint
+
+📊 POST PERFORMANCE
+- Per-post detail view with platform breakdown
+- Comparison vs account average (% diff with up/down indicators)
+- Smart insights (caption length, hashtag count, post timing)
+- Engagement timeline (snapshot table ready for real data sync)
+- Sortable analytics (recent / best performing / most engaged)
+
+🔒 PRODUCTION HARDENING
+- Tiered rate limiting (general, auth, password reset)
+- Structured JSON logging for errors + slow requests
+- Email queue table (ready for SendGrid/Postmark/etc)
+- Password reset flow with secure tokens
+- Suspended user enforcement
+- Database indexes for fast queries
+- System metrics + audit log tables
+
+🎯 NEXT STEPS (not in this prompt — separate sessions if needed)
+1. Hook email_queue to actual email sender (SendGrid/Postmark/Resend)
+2. Real social platform sync (Facebook Graph API, Instagram API, GBP API) → populates post_engagement_snapshots
+3. Stripe billing (currently grants credits manually — wrap with Stripe Checkout)
+4. Background job runner for scheduled posts (move cron logic into BullMQ if scaling)
+5. CDN + asset optimization for production deploy
+
+DO NOT change auth flow, model logic, or any AI services in this round.
+DO NOT remove existing functionality.
+DO NOT skip phases — each one builds on the previous.
+```
+
+---
+
+## What this completes
+
+This prompt closes the loop on production readiness. Three things stand out:
+
+**The admin portal works because of the audit log.** Every credit adjustment, suspension, and role change writes to `admin_audit_log` with the admin's email, the action, and the IP — so when something goes wrong (or a customer disputes a charge), you can trace exactly what happened. That's the difference between a toy admin panel and a production-grade one.
+
+**Post performance uses real comparison.** Instead of just showing raw numbers, the detail page contextualizes each post against the account's own average — so a customer with 50 likes per post sees their 80-like post as "+60% vs avg" and feels the win, while a customer averaging 200 sees their 80-like post as a flag to investigate. The `post_engagement_snapshots` table is ready to receive real data when you wire up the platform APIs (Facebook Graph, Instagram, GBP).
+
+**The hidden production gaps are addressed.** Suspended users were previously a security hole (the flag existed but nothing checked it on login). Email reset existed only as a stub. Rate limits were lenient enough to allow brute force. All three are now closed in this round.
+
+The "next steps" at the bottom are intentionally outside this prompt — they're each a focused 1-2 hour add-on that can be done independently. When you want to tackle Stripe payments or real platform sync, just ask and I'll send a separate prompt for that one piece.

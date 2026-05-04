@@ -1,0 +1,1275 @@
+Here's a complete prompt to add manual upload posting + Pro plan upgrades. It's structured the same way as the previous successful prompts:
+
+---
+
+```
+I need to add TWO major features to PostFlow:
+
+FEATURE 1: Manual Upload Posting — clients upload their own images/videos/carousels (no AI), add a caption, and schedule or post immediately. NO credits used (they're using their own content).
+
+FEATURE 2: Plan Upgrade Flow — clients can upgrade from Trial → Starter → Professional → Premium, see plan details, and (for now) request upgrade via a button that updates their plan in the database. Stripe integration can come later.
+
+Follow these phases IN ORDER. Report back after each phase.
+
+═══════════════════════════════════════════
+PHASE 1: INSTALL UPLOAD DEPENDENCY
+═══════════════════════════════════════════
+
+Run in Shell:
+
+cd backend && npm install multer@1.4.5-lts.1 && cd ..
+
+Verify:
+
+cd backend && npm list multer && cd ..
+
+═══════════════════════════════════════════
+PHASE 2: ADD DATABASE COLUMNS
+═══════════════════════════════════════════
+
+Run this migration:
+
+```bash
+psql $DATABASE_URL << 'EOF'
+ALTER TABLE posts
+  ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'ai_generated',
+  ADD COLUMN IF NOT EXISTS uploaded_by_user BOOLEAN DEFAULT false;
+
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS plan_changed_at TIMESTAMP DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS upgrade_requested_at TIMESTAMP DEFAULT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_posts_source ON posts(source);
+
+SELECT 'Migration complete' AS status;
+EOF
+```
+
+Verify:
+
+```bash
+psql $DATABASE_URL -c "\d posts" | grep -E "source|uploaded_by_user"
+psql $DATABASE_URL -c "\d customers" | grep -E "plan_changed_at|upgrade_requested_at"
+```
+
+═══════════════════════════════════════════
+PHASE 3: CREATE UPLOAD ROUTE
+═══════════════════════════════════════════
+
+Create new file: backend/routes/upload.js
+
+```javascript
+const express = require('express');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { authenticate } = require('../middleware/auth');
+
+// Configure multer for memory storage (we upload to Cloudinary, no disk needed)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max (for videos)
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|webp|mp4|mov|webm/;
+    const ext = allowed.test(file.originalname.toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext && mime) cb(null, true);
+    else cb(new Error('Only images and videos allowed (jpg, png, gif, webp, mp4, mov, webm)'));
+  },
+});
+
+module.exports = (pool) => {
+  const router = express.Router();
+
+  // Configure Cloudinary
+  if (process.env.CLOUDINARY_CLOUD_NAME) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+  }
+
+  /**
+   * Helper: Upload buffer to Cloudinary
+   */
+  const uploadToCloudinary = (buffer, mimetype) => {
+    const isVideo = mimetype.startsWith('video/');
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: isVideo ? 'video' : 'image',
+          folder: 'postflow/uploads',
+          quality: 'auto:best',
+        },
+        (err, result) => (err ? reject(err) : resolve(result))
+      );
+      uploadStream.end(buffer);
+    });
+  };
+
+  /**
+   * POST /api/upload/media
+   * Upload single file (photo or video) — returns Cloudinary URL
+   * NO CREDITS used — this is just file storage
+   */
+  router.post('/media', authenticate, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+      const result = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
+
+      res.json({
+        url: result.secure_url,
+        publicId: result.public_id,
+        type: req.file.mimetype.startsWith('video/') ? 'video' : 'image',
+        width: result.width,
+        height: result.height,
+        duration: result.duration || null,
+        size: req.file.size,
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/upload/carousel
+   * Upload multiple files (2-10) for a carousel
+   */
+  router.post('/carousel', authenticate, upload.array('files', 10), async (req, res) => {
+    try {
+      if (!req.files || req.files.length < 2) {
+        return res.status(400).json({ error: 'Carousel requires at least 2 files' });
+      }
+
+      const uploads = await Promise.all(
+        req.files.map((f) => uploadToCloudinary(f.buffer, f.mimetype))
+      );
+
+      res.json({
+        slides: uploads.map((u, idx) => ({
+          slideNumber: idx + 1,
+          url: u.secure_url,
+          publicId: u.public_id,
+        })),
+        count: uploads.length,
+      });
+    } catch (error) {
+      console.error('Carousel upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/upload/post
+   * Create a post from uploaded media (NO CREDITS USED)
+   */
+  router.post('/post', authenticate, async (req, res) => {
+    const client = await pool.connect();
+    try {
+      const {
+        contentType,    // 'photo', 'carousel', 'video'
+        mediaUrl,       // single URL for photo/video
+        mediaUrls,      // array of URLs for carousel slides
+        caption,
+        hashtags,
+        platforms,      // ['facebook', 'instagram', 'google_business']
+        scheduledDate,  // ISO string or null for "post now"
+        timezone,
+      } = req.body;
+
+      if (!contentType || !caption) {
+        return res.status(400).json({ error: 'contentType and caption required' });
+      }
+      if (contentType !== 'carousel' && !mediaUrl) {
+        return res.status(400).json({ error: 'mediaUrl required' });
+      }
+      if (contentType === 'carousel' && (!mediaUrls || mediaUrls.length < 2)) {
+        return res.status(400).json({ error: 'Carousel requires at least 2 mediaUrls' });
+      }
+
+      await client.query('BEGIN');
+
+      // Insert post
+      const status = scheduledDate ? 'scheduled' : 'draft';
+      const postResult = await client.query(
+        `INSERT INTO posts (
+          customer_id, content_type, caption, hashtags, media_url, media_urls,
+          platforms, scheduled_date, timezone, status, source, uploaded_by_user,
+          credits_used, generation_method
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        RETURNING *`,
+        [
+          req.customerId,
+          contentType,
+          caption,
+          JSON.stringify(hashtags || []),
+          contentType !== 'carousel' ? mediaUrl : (mediaUrls?.[0] || null),
+          JSON.stringify(contentType === 'carousel' ? mediaUrls : [mediaUrl]),
+          JSON.stringify(platforms || []),
+          scheduledDate || null,
+          timezone || 'America/New_York',
+          status,
+          'manual_upload',
+          true,
+          0,  // ZERO credits — user uploaded their own content
+          'manual_upload',
+        ]
+      );
+
+      const post = postResult.rows[0];
+
+      // If carousel, save slides
+      if (contentType === 'carousel' && mediaUrls?.length > 0) {
+        for (let i = 0; i < mediaUrls.length; i++) {
+          await client.query(
+            `INSERT INTO post_carousel_slides (post_id, slide_number, media_url, caption)
+             VALUES ($1, $2, $3, $4)`,
+            [post.id, i + 1, mediaUrls[i], null]
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        post,
+        message: scheduledDate
+          ? `Scheduled for ${new Date(scheduledDate).toLocaleString()}`
+          : 'Saved as draft (ready to post)',
+        creditsUsed: 0,
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Manual post error:', error);
+      res.status(500).json({ error: error.message });
+    } finally {
+      client.release();
+    }
+  });
+
+  return router;
+};
+```
+
+═══════════════════════════════════════════
+PHASE 4: CREATE BILLING/PLAN ROUTE
+═══════════════════════════════════════════
+
+Create new file: backend/routes/billing.js
+
+```javascript
+const express = require('express');
+const { authenticate } = require('../middleware/auth');
+
+const PLANS = {
+  trial: {
+    id: 'trial',
+    name: 'Free Trial',
+    price: 0,
+    credits: 10,
+    duration: '7 days',
+    features: [
+      '10 free credits',
+      'All content types',
+      '1 social account',
+      'Basic analytics',
+    ],
+  },
+  starter: {
+    id: 'starter',
+    name: 'Starter',
+    price: 99,
+    credits: 50,
+    duration: 'per month',
+    features: [
+      '50 credits/month',
+      '~3 posts per week',
+      '1 platform (FB, IG, or GBP)',
+      'Manual uploads (unlimited)',
+      'Email support',
+    ],
+  },
+  professional: {
+    id: 'professional',
+    name: 'Professional',
+    price: 199,
+    credits: 150,
+    duration: 'per month',
+    popular: true,
+    features: [
+      '150 credits/month',
+      'Daily posting (~7/week)',
+      'All 3 platforms',
+      'Manual uploads (unlimited)',
+      'Website scraping',
+      'Priority support',
+      'Custom branding',
+    ],
+  },
+  premium: {
+    id: 'premium',
+    name: 'Premium',
+    price: 349,
+    credits: 500,
+    duration: 'per month',
+    features: [
+      '500 credits/month',
+      '2x daily posting (~14/week)',
+      'All platforms + Stories',
+      'Manual uploads (unlimited)',
+      'Website scraping',
+      'Dedicated account manager',
+      'Advanced analytics',
+      'API access',
+    ],
+  },
+};
+
+module.exports = (pool) => {
+  const router = express.Router();
+
+  /**
+   * GET /api/billing/plans
+   * Returns all available plans
+   */
+  router.get('/plans', authenticate, async (req, res) => {
+    res.json(Object.values(PLANS));
+  });
+
+  /**
+   * GET /api/billing/current
+   * Returns the customer's current plan + usage
+   */
+  router.get('/current', authenticate, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT plan, status, credits_balance, credits_used_this_month,
+                trial_ends_at, plan_changed_at, upgrade_requested_at
+         FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+
+      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+      const customer = result.rows[0];
+      const planDetails = PLANS[customer.plan] || PLANS.trial;
+
+      res.json({
+        currentPlan: planDetails,
+        status: customer.status,
+        creditsBalance: customer.credits_balance,
+        creditsUsedThisMonth: customer.credits_used_this_month,
+        trialEndsAt: customer.trial_ends_at,
+        planChangedAt: customer.plan_changed_at,
+        upgradeRequestedAt: customer.upgrade_requested_at,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/billing/upgrade
+   * Upgrade to a new plan
+   * 
+   * NOTE: This is a placeholder for Stripe integration.
+   * For now, it just updates the DB and grants credits immediately.
+   * In production, this should redirect to Stripe Checkout first.
+   */
+  router.post('/upgrade', authenticate, async (req, res) => {
+    const client = await pool.connect();
+    try {
+      const { planId } = req.body;
+
+      if (!PLANS[planId]) {
+        return res.status(400).json({ error: 'Invalid plan' });
+      }
+      if (planId === 'trial') {
+        return res.status(400).json({ error: 'Cannot downgrade to trial' });
+      }
+
+      const newPlan = PLANS[planId];
+
+      await client.query('BEGIN');
+
+      // Get current state
+      const current = await client.query(
+        'SELECT plan, credits_balance FROM customers WHERE id = $1',
+        [req.customerId]
+      );
+      const currentPlan = current.rows[0].plan;
+      const currentBalance = current.rows[0].credits_balance;
+
+      // Upgrade: add new plan's credits to balance
+      const newBalance = currentBalance + newPlan.credits;
+
+      await client.query(
+        `UPDATE customers SET
+          plan = $1,
+          status = 'active',
+          credits_balance = $2,
+          credits_used_this_month = 0,
+          plan_changed_at = NOW(),
+          updated_at = NOW()
+         WHERE id = $3`,
+        [planId, newBalance, req.customerId]
+      );
+
+      // Log credit grant
+      await client.query(
+        `INSERT INTO credit_transactions
+          (customer_id, transaction_type, amount, balance_after, description)
+         VALUES ($1, 'bonus', $2, $3, $4)`,
+        [
+          req.customerId,
+          newPlan.credits,
+          newBalance,
+          `Plan upgrade: ${currentPlan} → ${planId} (+${newPlan.credits} credits)`,
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: `Upgraded to ${newPlan.name}! +${newPlan.credits} credits added.`,
+        plan: newPlan,
+        newBalance,
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Upgrade error:', error);
+      res.status(500).json({ error: error.message });
+    } finally {
+      client.release();
+    }
+  });
+
+  return router;
+};
+```
+
+═══════════════════════════════════════════
+PHASE 5: REGISTER NEW ROUTES IN server.js
+═══════════════════════════════════════════
+
+Edit backend/server.js.
+
+Find the existing route imports near the top:
+
+```javascript
+const authRoutes = require('./routes/auth');
+const customerRoutes = require('./routes/customers');
+const postRoutes = require('./routes/posts');
+const contentRoutes = require('./routes/content');
+```
+
+ADD these two lines below them:
+
+```javascript
+const uploadRoutes = require('./routes/upload');
+const billingRoutes = require('./routes/billing');
+```
+
+Find the existing route mounts:
+
+```javascript
+app.use('/api/auth', authRoutes(pool));
+app.use('/api/customers', customerRoutes(pool));
+app.use('/api/posts', postRoutes(pool));
+app.use('/api/content', contentRoutes(pool));
+```
+
+ADD these two lines below them:
+
+```javascript
+app.use('/api/upload', uploadRoutes(pool));
+app.use('/api/billing', billingRoutes(pool));
+```
+
+═══════════════════════════════════════════
+PHASE 6: ADD FRONTEND API METHODS
+═══════════════════════════════════════════
+
+Edit frontend/lib/api.js. ADD these new exports at the bottom (before `export default api;`):
+
+```javascript
+// Upload
+export const uploadAPI = {
+  uploadMedia: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/api/upload/media', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  uploadCarousel: (files) => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('files', f));
+    return api.post('/api/upload/carousel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  createPost: (data) => api.post('/api/upload/post', data),
+};
+
+// Billing
+export const billingAPI = {
+  getPlans: () => api.get('/api/billing/plans'),
+  getCurrent: () => api.get('/api/billing/current'),
+  upgrade: (planId) => api.post('/api/billing/upgrade', { planId }),
+};
+```
+
+═══════════════════════════════════════════
+PHASE 7: CREATE MANUAL UPLOAD PAGE
+═══════════════════════════════════════════
+
+Create new file: frontend/pages/upload.js
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../components/Layout';
+
+const PLATFORMS = [
+  { id: 'facebook', name: 'Facebook', emoji: '📘' },
+  { id: 'instagram', name: 'Instagram', emoji: '📷' },
+  { id: 'google_business', name: 'Google Business', emoji: '🏢' },
+];
+
+export default function Upload() {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [contentType, setContentType] = useState('photo');
+  const [files, setFiles] = useState([]);
+  const [previews, setPreviews] = useState([]);
+  const [caption, setCaption] = useState('');
+  const [hashtags, setHashtags] = useState('');
+  const [platforms, setPlatforms] = useState(['facebook', 'instagram']);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduleMode, setScheduleMode] = useState('now');
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  useEffect(() => {
+    setMounted(true);
+    if (!localStorage.getItem('token')) router.replace('/login');
+  }, []);
+
+  const handleFileSelect = (e) => {
+    const selected = Array.from(e.target.files);
+    if (selected.length === 0) return;
+
+    // Validate based on content type
+    if (contentType === 'photo' && selected.length > 1) {
+      setMessage({ type: 'error', text: 'Photo posts allow only 1 image' });
+      return;
+    }
+    if (contentType === 'video' && selected.length > 1) {
+      setMessage({ type: 'error', text: 'Video posts allow only 1 video' });
+      return;
+    }
+    if (contentType === 'carousel' && (selected.length < 2 || selected.length > 10)) {
+      setMessage({ type: 'error', text: 'Carousel needs 2-10 images' });
+      return;
+    }
+
+    setFiles(selected);
+    setPreviews(selected.map((f) => URL.createObjectURL(f)));
+    setMessage({ type: '', text: '' });
+  };
+
+  const togglePlatform = (id) => {
+    setPlatforms((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (files.length === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one file' });
+      return;
+    }
+    if (!caption.trim()) {
+      setMessage({ type: 'error', text: 'Caption is required' });
+      return;
+    }
+    if (platforms.length === 0) {
+      setMessage({ type: 'error', text: 'Select at least one platform' });
+      return;
+    }
+    if (scheduleMode === 'later' && !scheduledDate) {
+      setMessage({ type: 'error', text: 'Pick a date and time to schedule' });
+      return;
+    }
+
+    setUploading(true);
+    setMessage({ type: 'info', text: 'Uploading files...' });
+
+    const token = localStorage.getItem('token');
+
+    try {
+      // Step 1: Upload media to Cloudinary
+      let mediaUrl = null;
+      let mediaUrls = null;
+
+      if (contentType === 'carousel') {
+        const formData = new FormData();
+        files.forEach((f) => formData.append('files', f));
+        const res = await fetch('/api/upload/carousel', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Upload failed');
+        const data = await res.json();
+        mediaUrls = data.slides.map((s) => s.url);
+      } else {
+        const formData = new FormData();
+        formData.append('file', files[0]);
+        const res = await fetch('/api/upload/media', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        if (!res.ok) throw new Error((await res.json()).error || 'Upload failed');
+        const data = await res.json();
+        mediaUrl = data.url;
+      }
+
+      // Step 2: Create post
+      setMessage({ type: 'info', text: 'Creating post...' });
+
+      const hashtagArr = hashtags
+        .split(/[\s,]+/)
+        .map((h) => h.trim().replace(/^#/, ''))
+        .filter(Boolean);
+
+      const postRes = await fetch('/api/upload/post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          contentType,
+          mediaUrl,
+          mediaUrls,
+          caption,
+          hashtags: hashtagArr,
+          platforms,
+          scheduledDate: scheduleMode === 'later' ? scheduledDate : null,
+        }),
+      });
+
+      const postData = await postRes.json();
+      if (!postRes.ok) throw new Error(postData.error || 'Post creation failed');
+
+      setMessage({ type: 'success', text: postData.message + ' (0 credits used!)' });
+
+      // Reset form after 2 seconds
+      setTimeout(() => {
+        setFiles([]);
+        setPreviews([]);
+        setCaption('');
+        setHashtags('');
+        setScheduledDate('');
+        setMessage({ type: '', text: '' });
+        router.push('/calendar');
+      }, 2000);
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (!mounted) return null;
+
+  return (
+    <Layout>
+      <div style={{ maxWidth: 800, margin: '0 auto' }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#111827' }}>
+            📤 Upload Your Content
+          </h1>
+          <p style={{ color: '#6b7280', marginTop: 4 }}>
+            Post your own photos, videos, or carousels.{' '}
+            <strong style={{ color: '#10b981' }}>FREE — no credits used!</strong>
+          </p>
+        </div>
+
+        {message.text && (
+          <div
+            style={{
+              padding: '12px 16px',
+              borderRadius: 8,
+              marginBottom: 16,
+              fontSize: 14,
+              background:
+                message.type === 'error'
+                  ? '#fef2f2'
+                  : message.type === 'success'
+                  ? '#f0fdf4'
+                  : '#eff6ff',
+              border: `1px solid ${
+                message.type === 'error'
+                  ? '#fecaca'
+                  : message.type === 'success'
+                  ? '#bbf7d0'
+                  : '#bfdbfe'
+              }`,
+              color:
+                message.type === 'error'
+                  ? '#dc2626'
+                  : message.type === 'success'
+                  ? '#15803d'
+                  : '#1e40af',
+            }}
+          >
+            {message.text}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {/* Content Type */}
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 12 }}>1. Content Type</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              {[
+                { id: 'photo', label: 'Photo', emoji: '📷', desc: '1 image' },
+                { id: 'carousel', label: 'Carousel', emoji: '📊', desc: '2-10 images' },
+                { id: 'video', label: 'Video', emoji: '🎥', desc: '1 video' },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setContentType(opt.id);
+                    setFiles([]);
+                    setPreviews([]);
+                  }}
+                  style={{
+                    padding: 16,
+                    border: `2px solid ${contentType === opt.id ? '#3b82f6' : '#e5e7eb'}`,
+                    background: contentType === opt.id ? '#eff6ff' : '#fff',
+                    borderRadius: 10,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: 24 }}>{opt.emoji}</div>
+                  <div style={{ fontWeight: 600, fontSize: 14, marginTop: 4 }}>{opt.label}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* File Upload */}
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
+              2. Upload {contentType === 'carousel' ? 'Files (2-10)' : 'File'}
+            </h3>
+            <input
+              type="file"
+              accept={contentType === 'video' ? 'video/*' : 'image/*'}
+              multiple={contentType === 'carousel'}
+              onChange={handleFileSelect}
+              style={{
+                width: '100%',
+                padding: 12,
+                border: '2px dashed #d1d5db',
+                borderRadius: 8,
+                cursor: 'pointer',
+              }}
+            />
+
+            {previews.length > 0 && (
+              <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+                {previews.map((url, idx) => (
+                  <div key={idx} style={{ position: 'relative', aspectRatio: '1/1', borderRadius: 8, overflow: 'hidden', background: '#f3f4f6' }}>
+                    {contentType === 'video' ? (
+                      <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls />
+                    ) : (
+                      <img src={url} alt={`preview ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Caption */}
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 12 }}>3. Caption & Hashtags</h3>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Write your caption here..."
+              rows={4}
+              style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', marginBottom: 12 }}
+            />
+            <input
+              type="text"
+              value={hashtags}
+              onChange={(e) => setHashtags(e.target.value)}
+              placeholder="hashtags separated by spaces (e.g., concrete austin construction)"
+              style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+            />
+          </div>
+
+          {/* Platforms */}
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 12 }}>4. Platforms</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              {PLATFORMS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => togglePlatform(p.id)}
+                  style={{
+                    padding: 12,
+                    border: `2px solid ${platforms.includes(p.id) ? '#3b82f6' : '#e5e7eb'}`,
+                    background: platforms.includes(p.id) ? '#eff6ff' : '#fff',
+                    borderRadius: 10,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: 20 }}>{p.emoji}</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginTop: 4 }}>{p.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Schedule */}
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 12 }}>5. Schedule</h3>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+              <button
+                type="button"
+                onClick={() => setScheduleMode('now')}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  border: `2px solid ${scheduleMode === 'now' ? '#3b82f6' : '#e5e7eb'}`,
+                  background: scheduleMode === 'now' ? '#eff6ff' : '#fff',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                ⚡ Save as Draft
+              </button>
+              <button
+                type="button"
+                onClick={() => setScheduleMode('later')}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  border: `2px solid ${scheduleMode === 'later' ? '#3b82f6' : '#e5e7eb'}`,
+                  background: scheduleMode === 'later' ? '#eff6ff' : '#fff',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                📅 Schedule
+              </button>
+            </div>
+            {scheduleMode === 'later' && (
+              <input
+                type="datetime-local"
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+                min={new Date().toISOString().slice(0, 16)}
+                style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+              />
+            )}
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={uploading || files.length === 0}
+            style={{
+              width: '100%',
+              padding: 16,
+              background: uploading || files.length === 0 ? '#93c5fd' : '#3b82f6',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              fontSize: 16,
+              fontWeight: 700,
+              cursor: uploading || files.length === 0 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {uploading ? 'Uploading...' : scheduleMode === 'now' ? '💾 Save Post' : '📅 Schedule Post'}
+          </button>
+        </form>
+      </div>
+    </Layout>
+  );
+}
+```
+
+═══════════════════════════════════════════
+PHASE 8: CREATE BILLING/UPGRADE PAGE
+═══════════════════════════════════════════
+
+Create new file: frontend/pages/billing.js
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../components/Layout';
+
+export default function Billing() {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [plans, setPlans] = useState([]);
+  const [current, setCurrent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [upgrading, setUpgrading] = useState(null);
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  useEffect(() => {
+    setMounted(true);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.replace('/login');
+      return;
+    }
+    loadData(token);
+  }, []);
+
+  const loadData = async (token) => {
+    const headers = { Authorization: `Bearer ${token}` };
+    try {
+      const [plansRes, currentRes] = await Promise.all([
+        fetch('/api/billing/plans', { headers }).then((r) => r.json()),
+        fetch('/api/billing/current', { headers }).then((r) => r.json()),
+      ]);
+      setPlans(plansRes);
+      setCurrent(currentRes);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpgrade = async (planId) => {
+    if (!confirm(`Upgrade to ${plans.find((p) => p.id === planId)?.name}? Your credits will be added immediately.`)) {
+      return;
+    }
+
+    setUpgrading(planId);
+    const token = localStorage.getItem('token');
+
+    try {
+      const res = await fetch('/api/billing/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ planId }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error);
+
+      setMessage({ type: 'success', text: data.message });
+      await loadData(token);
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setUpgrading(null);
+    }
+  };
+
+  if (!mounted) return null;
+
+  if (loading) {
+    return (
+      <Layout>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
+          <div style={{ width: 48, height: 48, border: '4px solid #e5e7eb', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontSize: 32, fontWeight: 800, color: '#111827' }}>💳 Plans & Billing</h1>
+          <p style={{ color: '#6b7280', marginTop: 4 }}>
+            Choose the plan that fits your business
+          </p>
+        </div>
+
+        {/* Current Plan */}
+        {current && (
+          <div style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', color: '#fff', borderRadius: 16, padding: 24, marginBottom: 32 }}>
+            <div style={{ fontSize: 13, opacity: 0.85, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Plan</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, flexWrap: 'wrap', gap: 16 }}>
+              <div>
+                <h2 style={{ fontSize: 28, fontWeight: 800 }}>{current.currentPlan.name}</h2>
+                <p style={{ opacity: 0.9, marginTop: 4 }}>
+                  {current.creditsBalance} credits available • {current.creditsUsedThisMonth} used this month
+                </p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 36, fontWeight: 800 }}>${current.currentPlan.price}</div>
+                <div style={{ opacity: 0.85, fontSize: 13 }}>{current.currentPlan.duration}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {message.text && (
+          <div style={{
+            padding: '12px 16px',
+            borderRadius: 8,
+            marginBottom: 24,
+            background: message.type === 'success' ? '#f0fdf4' : '#fef2f2',
+            border: `1px solid ${message.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+            color: message.type === 'success' ? '#15803d' : '#dc2626',
+          }}>
+            {message.text}
+          </div>
+        )}
+
+        {/* Plans Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
+          {plans.filter((p) => p.id !== 'trial').map((plan) => {
+            const isCurrent = current?.currentPlan?.id === plan.id;
+            return (
+              <div
+                key={plan.id}
+                style={{
+                  background: '#fff',
+                  border: `2px solid ${plan.popular ? '#3b82f6' : '#e5e7eb'}`,
+                  borderRadius: 16,
+                  padding: 24,
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                {plan.popular && (
+                  <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: '#3b82f6', color: '#fff', padding: '4px 12px', borderRadius: 99, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Most Popular
+                  </div>
+                )}
+
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: '#111827' }}>{plan.name}</h3>
+                <div style={{ marginTop: 8, marginBottom: 16 }}>
+                  <span style={{ fontSize: 36, fontWeight: 800, color: '#111827' }}>${plan.price}</span>
+                  <span style={{ color: '#6b7280', fontSize: 14 }}> / month</span>
+                </div>
+
+                <div style={{ background: '#f3f4f6', padding: 12, borderRadius: 8, marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Credits per month</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: '#3b82f6', fontFamily: 'monospace' }}>{plan.credits}</div>
+                </div>
+
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, marginBottom: 24, flex: 1 }}>
+                  {plan.features.map((f, idx) => (
+                    <li key={idx} style={{ padding: '6px 0', fontSize: 14, color: '#374151', display: 'flex', gap: 8 }}>
+                      <span style={{ color: '#10b981', fontWeight: 700 }}>✓</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => handleUpgrade(plan.id)}
+                  disabled={isCurrent || upgrading === plan.id}
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    background: isCurrent ? '#e5e7eb' : plan.popular ? '#3b82f6' : '#111827',
+                    color: isCurrent ? '#6b7280' : '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: isCurrent ? 'default' : 'pointer',
+                  }}
+                >
+                  {isCurrent ? '✓ Current Plan' : upgrading === plan.id ? 'Upgrading...' : `Upgrade to ${plan.name}`}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: 32, padding: 16, background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, fontSize: 13, color: '#92400e' }}>
+          ℹ️ <strong>Note:</strong> Stripe payment integration coming soon. For now, upgrades are processed manually and credits are granted immediately.
+        </div>
+      </div>
+    </Layout>
+  );
+}
+```
+
+═══════════════════════════════════════════
+PHASE 9: ADD SIDEBAR LINKS
+═══════════════════════════════════════════
+
+Edit frontend/components/Layout.js.
+
+Find the navigation array (looks like `const navigation = [...]`).
+
+REPLACE the navigation array with this expanded version that includes Upload and Billing:
+
+```javascript
+  const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: '📊' },
+    { name: 'Upload', href: '/upload', icon: '📤' },
+    { name: 'Calendar', href: '/calendar', icon: '📅' },
+    { name: 'History', href: '/history', icon: '📜' },
+    { name: 'Billing', href: '/billing', icon: '💳' },
+    { name: 'Settings', href: '/settings', icon: '⚙️' },
+  ];
+```
+
+If the existing Layout uses lucide-react icons (the imports look like `import { LayoutDashboard, Calendar... } from 'lucide-react'`), then update the navigation to use those instead. Use whatever icon style already exists in the file — DO NOT mix emoji and lucide icons.
+
+═══════════════════════════════════════════
+PHASE 10: ADD QUICK-LINK ON DASHBOARD
+═══════════════════════════════════════════
+
+Edit frontend/pages/dashboard.js.
+
+Find the "Quick Create" or "Create Content" section that has the 4 content type cards (static/photo/carousel/video).
+
+ADD a new prominent section ABOVE that, like this:
+
+```jsx
+{/* Manual Upload Section */}
+<div style={{
+  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+  borderRadius: 12,
+  padding: 24,
+  marginBottom: 24,
+  color: '#fff',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 16,
+}}>
+  <div>
+    <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>📤 Already have content?</h2>
+    <p style={{ opacity: 0.9, fontSize: 14 }}>
+      Upload your own photos, videos, or carousels — <strong>no credits used!</strong>
+    </p>
+  </div>
+  <button
+    onClick={() => router.push('/upload')}
+    style={{
+      background: '#fff',
+      color: '#059669',
+      border: 'none',
+      padding: '12px 24px',
+      borderRadius: 8,
+      fontWeight: 700,
+      fontSize: 14,
+      cursor: 'pointer',
+    }}
+  >
+    Upload Now →
+  </button>
+</div>
+```
+
+Place this right after the stats grid and before the "Create Content" / "Quick Create" section.
+
+═══════════════════════════════════════════
+PHASE 11: TEST EVERYTHING
+═══════════════════════════════════════════
+
+1. Restart the workflow (Stop → Run)
+
+2. Wait for both backend and frontend to start
+
+3. Test upload flow:
+   - Navigate to /upload (or click "Upload" in sidebar)
+   - Choose "Photo"
+   - Upload an image from your computer
+   - Add a caption
+   - Select platforms
+   - Click "Save Post"
+   - Verify message says "0 credits used"
+
+4. Test billing flow:
+   - Navigate to /billing (or click "Billing" in sidebar)
+   - See current plan card at top
+   - See 3 plan options below
+   - Click "Upgrade to Starter" or "Professional"
+   - Confirm prompt
+   - See credits balance jump up in the top header
+   - Reload page — current plan should now show as "Starter" or whatever you picked
+
+5. Verify in DB:
+
+```bash
+psql $DATABASE_URL -c "SELECT id, content_type, source, credits_used, status FROM posts ORDER BY id DESC LIMIT 5;"
+psql $DATABASE_URL -c "SELECT id, plan, credits_balance, plan_changed_at FROM customers;"
+```
+
+You should see:
+- Upload posts have source='manual_upload' and credits_used=0
+- Customer plan column reflects the upgrade
+
+═══════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════
+
+If "Upload failed" with 413 error: File too large. The 100MB limit in multer should handle most files, but check Cloudinary's free tier limits.
+
+If "Cloudinary error": Verify CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET are set in Secrets.
+
+If sidebar doesn't show new links: Hard refresh the browser (Ctrl+Shift+R). Layout.js change requires a fresh client bundle.
+
+If /upload route 404s: Verify the file is at frontend/pages/upload.js (not frontend/pages/Upload.js — case matters).
+
+If /billing returns 404 from API: Verify both routes were registered in server.js (Phase 5). Run `curl http://localhost:3001/api/billing/plans` to test directly.
+
+═══════════════════════════════════════════
+SUMMARY OF WHAT YOU JUST BUILT
+═══════════════════════════════════════════
+
+✅ Manual upload page (/upload) — clients upload photos/videos/carousels
+✅ Upload API routes (multer + Cloudinary)
+✅ Posts created from uploads use 0 credits
+✅ Billing page (/billing) — shows current plan + upgrade options
+✅ 4 plan tiers (Trial / Starter / Professional / Premium)
+✅ Upgrade flow grants credits immediately
+✅ Sidebar links added for both pages
+✅ Dashboard banner promoting manual uploads
+
+DO NOT add Stripe integration in this round — that's a separate task.
+DO NOT modify any AI generation services.
+ONLY touch the files listed in this prompt.
+```
+
+---
+
+This is everything Replit needs to build both features cleanly. The structure is the same as the prompts that worked before — phases in order, exact file paths, complete code blocks, verification steps, and explicit boundaries on what NOT to touch.
+
+When you're ready for **real Stripe payments** instead of the placeholder upgrade button, just ask — that's a focused 1-phase addition that wraps the existing `/api/billing/upgrade` endpoint with Stripe Checkout sessions.

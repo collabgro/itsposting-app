@@ -1,0 +1,1566 @@
+Here's a complete prompt for adding a Media Library with a 10GB storage cap:
+
+---
+
+```
+Add a Media Library feature where users can upload up to 10GB of media files (images and videos), browse them, and pick from the library when creating posts. Files are stored in Cloudinary (already configured) and indexed in our PostgreSQL database for fast browsing and quota tracking.
+
+Follow this prompt EXACTLY. Do not improvise. Report back after each phase.
+
+═══════════════════════════════════════════
+PHASE 1: DATABASE MIGRATION
+═══════════════════════════════════════════
+
+Run this in the Shell:
+
+```bash
+psql $DATABASE_URL << 'EOF'
+CREATE TABLE IF NOT EXISTS media_library (
+  id SERIAL PRIMARY KEY,
+  customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+  
+  -- Cloudinary references
+  cloudinary_public_id VARCHAR(500) NOT NULL,
+  url TEXT NOT NULL,
+  thumbnail_url TEXT,
+  
+  -- File info
+  file_name VARCHAR(500),
+  file_type VARCHAR(50),    -- 'image' or 'video'
+  mime_type VARCHAR(100),
+  file_size_bytes BIGINT NOT NULL,
+  
+  -- Media dimensions
+  width INTEGER,
+  height INTEGER,
+  duration_seconds NUMERIC(10,2),
+  
+  -- Organization
+  folder VARCHAR(100) DEFAULT 'all',
+  tags JSONB DEFAULT '[]'::jsonb,
+  
+  -- Usage tracking
+  used_in_posts INTEGER DEFAULT 0,
+  last_used_at TIMESTAMP,
+  
+  -- Metadata
+  uploaded_at TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_customer ON media_library(customer_id);
+CREATE INDEX IF NOT EXISTS idx_media_type ON media_library(file_type);
+CREATE INDEX IF NOT EXISTS idx_media_folder ON media_library(folder);
+CREATE INDEX IF NOT EXISTS idx_media_uploaded ON media_library(uploaded_at DESC);
+
+-- Add storage quota to customers
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS storage_used_bytes BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS storage_quota_bytes BIGINT DEFAULT 10737418240;
+-- 10737418240 = 10 GB
+
+SELECT 'Media library schema ready' AS status;
+EOF
+```
+
+Verify:
+
+```bash
+psql $DATABASE_URL -c "\dt media_library"
+psql $DATABASE_URL -c "\d media_library"
+psql $DATABASE_URL -c "\d customers" | grep storage
+```
+
+═══════════════════════════════════════════
+PHASE 2: CREATE MEDIA LIBRARY ROUTE
+═══════════════════════════════════════════
+
+Create new file: backend/routes/media.js
+
+```javascript
+const express = require('express');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { authenticate } = require('../middleware/auth');
+
+const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024 * 1024; // 10 GB
+
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB per file
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|webp|mp4|mov|webm|avi/;
+    const ext = allowed.test(file.originalname.toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext && mime) cb(null, true);
+    else cb(new Error('Unsupported file type. Allowed: JPG, PNG, GIF, WebP, MP4, MOV, WebM, AVI'));
+  },
+});
+
+module.exports = (pool) => {
+  const router = express.Router();
+
+  if (process.env.CLOUDINARY_CLOUD_NAME) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+  }
+
+  const uploadToCloudinary = (buffer, mimetype, originalname) => {
+    const isVideo = mimetype.startsWith('video/');
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: isVideo ? 'video' : 'image',
+          folder: 'postflow/media-library',
+          quality: 'auto:best',
+          public_id: `${Date.now()}-${originalname.replace(/\.[^.]+$/, '').replace(/[^a-z0-9]/gi, '_').slice(0, 50)}`,
+        },
+        (err, result) => (err ? reject(err) : resolve(result))
+      );
+      uploadStream.end(buffer);
+    });
+  };
+
+  /**
+   * GET /api/media/quota — Get storage usage info
+   */
+  router.get('/quota', authenticate, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT 
+          storage_used_bytes,
+          storage_quota_bytes,
+          (SELECT COUNT(*) FROM media_library WHERE customer_id = $1) AS file_count
+         FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+
+      const row = result.rows[0];
+      const used = parseInt(row.storage_used_bytes) || 0;
+      const quota = parseInt(row.storage_quota_bytes) || STORAGE_QUOTA_BYTES;
+
+      res.json({
+        usedBytes: used,
+        quotaBytes: quota,
+        availableBytes: quota - used,
+        usedFormatted: formatBytes(used),
+        quotaFormatted: formatBytes(quota),
+        percentUsed: (used / quota * 100).toFixed(1),
+        fileCount: parseInt(row.file_count),
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/media — List media files (paginated, filterable)
+   */
+  router.get('/', authenticate, async (req, res) => {
+    try {
+      const { type, folder, search, limit = 50, offset = 0 } = req.query;
+
+      let query = 'SELECT * FROM media_library WHERE customer_id = $1';
+      const params = [req.customerId];
+      let p = 1;
+
+      if (type && type !== 'all') {
+        p++;
+        query += ` AND file_type = $${p}`;
+        params.push(type);
+      }
+      if (folder && folder !== 'all') {
+        p++;
+        query += ` AND folder = $${p}`;
+        params.push(folder);
+      }
+      if (search) {
+        p++;
+        query += ` AND file_name ILIKE $${p}`;
+        params.push(`%${search}%`);
+      }
+
+      query += ` ORDER BY uploaded_at DESC LIMIT $${p + 1} OFFSET $${p + 2}`;
+      params.push(parseInt(limit), parseInt(offset));
+
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/media/folders — List folders with counts
+   */
+  router.get('/folders', authenticate, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT folder, COUNT(*) as count 
+         FROM media_library 
+         WHERE customer_id = $1 
+         GROUP BY folder 
+         ORDER BY folder`,
+        [req.customerId]
+      );
+
+      // Always include 'all' first
+      const total = result.rows.reduce((sum, r) => sum + parseInt(r.count), 0);
+      res.json([
+        { folder: 'all', count: total },
+        ...result.rows.filter((r) => r.folder !== 'all'),
+      ]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/media/upload — Upload one or more files to library
+   */
+  router.post('/upload', authenticate, upload.array('files', 20), async (req, res) => {
+    const client = await pool.connect();
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'No files uploaded' });
+      }
+
+      const folder = req.body.folder || 'all';
+
+      // Check quota BEFORE upload
+      const totalUploadSize = req.files.reduce((sum, f) => sum + f.size, 0);
+
+      const quotaResult = await client.query(
+        'SELECT storage_used_bytes, storage_quota_bytes FROM customers WHERE id = $1',
+        [req.customerId]
+      );
+      const used = parseInt(quotaResult.rows[0].storage_used_bytes) || 0;
+      const quota = parseInt(quotaResult.rows[0].storage_quota_bytes) || STORAGE_QUOTA_BYTES;
+
+      if (used + totalUploadSize > quota) {
+        return res.status(413).json({
+          error: 'Storage quota exceeded',
+          available: formatBytes(quota - used),
+          required: formatBytes(totalUploadSize),
+        });
+      }
+
+      await client.query('BEGIN');
+
+      const uploaded = [];
+
+      for (const file of req.files) {
+        try {
+          const result = await uploadToCloudinary(file.buffer, file.mimetype, file.originalname);
+          const isVideo = file.mimetype.startsWith('video/');
+
+          // Generate thumbnail URL for videos
+          let thumbnailUrl = null;
+          if (isVideo) {
+            thumbnailUrl = result.secure_url
+              .replace('/video/upload/', '/video/upload/so_0/')
+              .replace(/\.[^.]+$/, '.jpg');
+          }
+
+          const dbResult = await client.query(
+            `INSERT INTO media_library (
+              customer_id, cloudinary_public_id, url, thumbnail_url,
+              file_name, file_type, mime_type, file_size_bytes,
+              width, height, duration_seconds, folder
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            RETURNING *`,
+            [
+              req.customerId,
+              result.public_id,
+              result.secure_url,
+              thumbnailUrl || result.secure_url,
+              file.originalname,
+              isVideo ? 'video' : 'image',
+              file.mimetype,
+              file.size,
+              result.width || null,
+              result.height || null,
+              result.duration || null,
+              folder,
+            ]
+          );
+
+          uploaded.push(dbResult.rows[0]);
+        } catch (uploadErr) {
+          console.error(`Failed to upload ${file.originalname}:`, uploadErr.message);
+          // Continue with other files
+        }
+      }
+
+      // Update storage_used_bytes
+      const totalUploaded = uploaded.reduce((sum, f) => sum + parseInt(f.file_size_bytes), 0);
+      await client.query(
+        'UPDATE customers SET storage_used_bytes = storage_used_bytes + $1 WHERE id = $2',
+        [totalUploaded, req.customerId]
+      );
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        uploaded: uploaded.length,
+        files: uploaded,
+        totalSizeUploaded: formatBytes(totalUploaded),
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Upload error:', error);
+      res.status(500).json({ error: error.message });
+    } finally {
+      client.release();
+    }
+  });
+
+  /**
+   * DELETE /api/media/:id — Delete a media file
+   */
+  router.delete('/:id', authenticate, async (req, res) => {
+    const client = await pool.connect();
+    try {
+      // Get file info first
+      const fileResult = await client.query(
+        'SELECT * FROM media_library WHERE id = $1 AND customer_id = $2',
+        [req.params.id, req.customerId]
+      );
+
+      if (fileResult.rows.length === 0) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      const file = fileResult.rows[0];
+
+      // Delete from Cloudinary
+      try {
+        await cloudinary.uploader.destroy(file.cloudinary_public_id, {
+          resource_type: file.file_type === 'video' ? 'video' : 'image',
+        });
+      } catch (cloudErr) {
+        console.error('Cloudinary delete error (continuing):', cloudErr.message);
+      }
+
+      await client.query('BEGIN');
+
+      // Delete from DB
+      await client.query('DELETE FROM media_library WHERE id = $1', [req.params.id]);
+
+      // Update storage usage
+      await client.query(
+        'UPDATE customers SET storage_used_bytes = GREATEST(0, storage_used_bytes - $1) WHERE id = $2',
+        [file.file_size_bytes, req.customerId]
+      );
+
+      await client.query('COMMIT');
+
+      res.json({ success: true, freedBytes: parseInt(file.file_size_bytes) });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      res.status(500).json({ error: error.message });
+    } finally {
+      client.release();
+    }
+  });
+
+  /**
+   * POST /api/media/:id/use — Mark file as used in a post (increments counter)
+   */
+  router.post('/:id/use', authenticate, async (req, res) => {
+    try {
+      await pool.query(
+        `UPDATE media_library 
+         SET used_in_posts = used_in_posts + 1, last_used_at = NOW()
+         WHERE id = $1 AND customer_id = $2`,
+        [req.params.id, req.customerId]
+      );
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  return router;
+};
+
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+```
+
+═══════════════════════════════════════════
+PHASE 3: REGISTER ROUTE IN server.js
+═══════════════════════════════════════════
+
+Edit backend/server.js.
+
+Find the existing route imports near the top:
+
+```javascript
+const uploadRoutes = require('./routes/upload');
+const billingRoutes = require('./routes/billing');
+```
+
+ADD this line below them:
+
+```javascript
+const mediaRoutes = require('./routes/media');
+```
+
+Find the existing route mounts:
+
+```javascript
+app.use('/api/upload', uploadRoutes(pool));
+app.use('/api/billing', billingRoutes(pool));
+```
+
+ADD this line below them:
+
+```javascript
+app.use('/api/media', mediaRoutes(pool));
+```
+
+═══════════════════════════════════════════
+PHASE 4: ADD FRONTEND API CLIENT
+═══════════════════════════════════════════
+
+Edit frontend/lib/api.js. ADD these exports before `export default api;`:
+
+```javascript
+// Media Library
+export const mediaAPI = {
+  getQuota: () => api.get('/api/media/quota'),
+  list: (params) => api.get('/api/media', { params }),
+  getFolders: () => api.get('/api/media/folders'),
+  upload: (files, folder = 'all', onProgress) => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('files', f));
+    formData.append('folder', folder);
+    return api.post('/api/media/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) {
+          onProgress(Math.round((e.loaded * 100) / e.total));
+        }
+      },
+    });
+  },
+  delete: (id) => api.delete(`/api/media/${id}`),
+  markUsed: (id) => api.post(`/api/media/${id}/use`),
+};
+```
+
+═══════════════════════════════════════════
+PHASE 5: ADD MEDIA LIBRARY TO SIDEBAR
+═══════════════════════════════════════════
+
+Edit frontend/components/Layout.js.
+
+ADD these icon imports (with the existing Lucide imports):
+
+```javascript
+import { FolderOpen } from 'lucide-react';
+```
+
+In the NAV_ITEMS array, ADD a new entry BETWEEN "Drafts" and "Analytics":
+
+```javascript
+const NAV_ITEMS = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Create Post', href: '/upload', icon: PenSquare },
+  { name: 'Calendar', href: '/calendar', icon: Calendar },
+  { name: 'Drafts', href: '/history', icon: FileText },
+  { name: 'Media Library', href: '/media', icon: FolderOpen },  // ← NEW
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Billing', href: '/billing', icon: CreditCard },
+  { name: 'Settings', href: '/settings', icon: Settings },
+];
+```
+
+═══════════════════════════════════════════
+PHASE 6: CREATE THE MEDIA LIBRARY PAGE
+═══════════════════════════════════════════
+
+Create new file: frontend/pages/media.js
+
+```javascript
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../components/Layout';
+import { Card, Button, Badge, EmptyState } from '../components/ui';
+import { useTheme } from '../lib/theme';
+import { mediaAPI } from '../lib/api';
+import {
+  Upload,
+  Image as ImageIcon,
+  Video,
+  Trash2,
+  Search,
+  FolderOpen,
+  Plus,
+  X,
+  Check,
+  Loader2,
+  Filter,
+  HardDrive,
+} from 'lucide-react';
+
+export default function MediaLibrary() {
+  const router = useRouter();
+  const { t } = useTheme();
+  const fileInputRef = useRef(null);
+
+  const [mounted, setMounted] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [folders, setFolders] = useState([]);
+  const [quota, setQuota] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const [filterType, setFilterType] = useState('all');
+  const [filterFolder, setFilterFolder] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [previewFile, setPreviewFile] = useState(null);
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  useEffect(() => {
+    setMounted(true);
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+    loadAll();
+  }, []);
+
+  useEffect(() => {
+    if (mounted) loadFiles();
+  }, [filterType, filterFolder, search]);
+
+  const loadAll = async () => {
+    setLoading(true);
+    try {
+      const [filesRes, foldersRes, quotaRes] = await Promise.all([
+        mediaAPI.list({ type: filterType, folder: filterFolder }),
+        mediaAPI.getFolders(),
+        mediaAPI.getQuota(),
+      ]);
+      setFiles(filesRes.data);
+      setFolders(foldersRes.data);
+      setQuota(quotaRes.data);
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to load media library' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadFiles = async () => {
+    try {
+      const params = {};
+      if (filterType !== 'all') params.type = filterType;
+      if (filterFolder !== 'all') params.folder = filterFolder;
+      if (search) params.search = search;
+      const res = await mediaAPI.list(params);
+      setFiles(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleFileSelect = async (e) => {
+    const selected = Array.from(e.target.files);
+    if (selected.length === 0) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+    setMessage({ type: 'info', text: `Uploading ${selected.length} file(s)...` });
+
+    try {
+      const res = await mediaAPI.upload(selected, filterFolder, setUploadProgress);
+      setMessage({
+        type: 'success',
+        text: `Uploaded ${res.data.uploaded} file(s) (${res.data.totalSizeUploaded})`,
+      });
+      await loadAll();
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Upload failed';
+      const available = err.response?.data?.available;
+      setMessage({
+        type: 'error',
+        text: available ? `${msg}. Available: ${available}` : msg,
+      });
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this file? This cannot be undone.')) return;
+    try {
+      await mediaAPI.delete(id);
+      setMessage({ type: 'success', text: 'File deleted' });
+      await loadAll();
+      setTimeout(() => setMessage({ type: '', text: '' }), 2000);
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Delete failed' });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} file(s)?`)) return;
+    try {
+      await Promise.all(Array.from(selectedIds).map((id) => mediaAPI.delete(id)));
+      setMessage({ type: 'success', text: `Deleted ${selectedIds.size} file(s)` });
+      setSelectedIds(new Set());
+      await loadAll();
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Some deletions failed' });
+    }
+  };
+
+  const toggleSelect = (id) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  if (!mounted) return null;
+
+  return (
+    <Layout
+      title="Media Library"
+      subtitle={quota ? `${quota.usedFormatted} / ${quota.quotaFormatted} used` : 'Loading...'}
+      action={
+        <div style={{ display: 'flex', gap: 8 }}>
+          {selectedIds.size > 0 && (
+            <Button variant="danger" onClick={handleBulkDelete}>
+              <Trash2 size={14} />
+              Delete ({selectedIds.size})
+            </Button>
+          )}
+          <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            {uploading ? <Loader2 size={14} className="spin" /> : <Upload size={14} strokeWidth={2.5} />}
+            {uploading ? `Uploading ${uploadProgress}%` : 'Upload'}
+          </Button>
+        </div>
+      }
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/*,video/*"
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
+      />
+
+      {message.text && (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderRadius: 8,
+            marginBottom: 16,
+            fontSize: 13,
+            background:
+              message.type === 'error'
+                ? 'rgba(239, 68, 68, 0.1)'
+                : message.type === 'success'
+                ? 'rgba(34, 197, 94, 0.1)'
+                : t.primaryBg,
+            border: `1px solid ${
+              message.type === 'error'
+                ? 'rgba(239, 68, 68, 0.3)'
+                : message.type === 'success'
+                ? 'rgba(34, 197, 94, 0.3)'
+                : t.primaryBorder
+            }`,
+            color:
+              message.type === 'error'
+                ? t.error
+                : message.type === 'success'
+                ? t.success
+                : t.primary,
+          }}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {/* QUOTA BAR */}
+      {quota && (
+        <Card style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <HardDrive size={18} style={{ color: t.primary }} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Storage</div>
+                <div style={{ fontSize: 12, color: t.textMuted }}>
+                  {quota.fileCount} {quota.fileCount === 1 ? 'file' : 'files'} • {quota.usedFormatted} of {quota.quotaFormatted}
+                </div>
+              </div>
+            </div>
+            <Badge variant={parseFloat(quota.percentUsed) > 90 ? 'error' : parseFloat(quota.percentUsed) > 70 ? 'warning' : 'primary'}>
+              {quota.percentUsed}%
+            </Badge>
+          </div>
+          <div style={{ height: 6, background: t.input, borderRadius: 3, overflow: 'hidden' }}>
+            <div
+              style={{
+                height: '100%',
+                width: `${Math.min(100, parseFloat(quota.percentUsed))}%`,
+                background:
+                  parseFloat(quota.percentUsed) > 90
+                    ? t.error
+                    : parseFloat(quota.percentUsed) > 70
+                    ? t.warning
+                    : t.primary,
+                borderRadius: 3,
+                transition: 'width 300ms ease',
+              }}
+            />
+          </div>
+        </Card>
+      )}
+
+      {/* FILTERS */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Search */}
+        <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 320 }}>
+          <Search
+            size={14}
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: t.textMuted,
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Search files..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px 8px 34px',
+              background: t.input,
+              border: `1px solid ${t.borderStrong}`,
+              borderRadius: 8,
+              color: t.text,
+              fontSize: 13,
+            }}
+          />
+        </div>
+
+        {/* Type filter */}
+        <div style={{ display: 'flex', gap: 4, background: t.input, padding: 3, borderRadius: 8 }}>
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'image', label: 'Images' },
+            { id: 'video', label: 'Videos' },
+          ].map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => setFilterType(opt.id)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 500,
+                color: filterType === opt.id ? t.text : t.textMuted,
+                background: filterType === opt.id ? t.card : 'transparent',
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Folder filter */}
+        {folders.length > 0 && (
+          <select
+            value={filterFolder}
+            onChange={(e) => setFilterFolder(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              background: t.input,
+              border: `1px solid ${t.borderStrong}`,
+              borderRadius: 8,
+              color: t.text,
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            {folders.map((f) => (
+              <option key={f.folder} value={f.folder}>
+                {f.folder} ({f.count})
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* FILE GRID */}
+      {loading ? (
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+            <Loader2 size={28} style={{ color: t.primary, animation: 'spin 1s linear infinite' }} />
+          </div>
+        </Card>
+      ) : files.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={FolderOpen}
+            title="No media yet"
+            subtitle="Upload images and videos to use in your posts"
+            action={
+              <Button variant="primary" onClick={() => fileInputRef.current?.click()}>
+                <Upload size={14} strokeWidth={2.5} />
+                Upload your first file
+              </Button>
+            }
+          />
+        </Card>
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: 12,
+          }}
+        >
+          {files.map((file) => {
+            const isSelected = selectedIds.has(file.id);
+            return (
+              <div
+                key={file.id}
+                onClick={() => setPreviewFile(file)}
+                style={{
+                  background: t.card,
+                  border: `2px solid ${isSelected ? t.primary : t.border}`,
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  transition: 'all 150ms ease',
+                  position: 'relative',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) e.currentTarget.style.borderColor = t.primaryBorder;
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) e.currentTarget.style.borderColor = t.border;
+                }}
+              >
+                {/* Selection checkbox */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSelect(file.id);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    left: 8,
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
+                    background: isSelected ? t.primary : 'rgba(0, 0, 0, 0.5)',
+                    border: `1px solid ${isSelected ? t.primary : '#fff'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    zIndex: 2,
+                  }}
+                >
+                  {isSelected && <Check size={14} strokeWidth={3} />}
+                </button>
+
+                {/* Type badge */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    padding: '3px 8px',
+                    background: 'rgba(0, 0, 0, 0.7)',
+                    color: '#fff',
+                    borderRadius: 6,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    zIndex: 2,
+                  }}
+                >
+                  {file.file_type === 'video' ? <Video size={10} /> : <ImageIcon size={10} />}
+                  {file.file_type}
+                </div>
+
+                {/* Thumbnail */}
+                <div
+                  style={{
+                    aspectRatio: '1/1',
+                    background: t.input,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {file.file_type === 'video' ? (
+                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                      <img
+                        src={file.thumbnail_url}
+                        alt={file.file_name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: 'rgba(0, 0, 0, 0.3)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#000',
+                            paddingLeft: 4,
+                          }}
+                        >
+                          ▶
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <img
+                      src={file.url}
+                      alt={file.file_name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  )}
+                </div>
+
+                {/* Info */}
+                <div style={{ padding: 10 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: t.text,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={file.file_name}
+                  >
+                    {file.file_name}
+                  </div>
+                  <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>
+                    {formatBytes(file.file_size_bytes)}
+                    {file.used_in_posts > 0 && ` • Used ${file.used_in_posts}x`}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* PREVIEW MODAL */}
+      {previewFile && (
+        <PreviewModal file={previewFile} onClose={() => setPreviewFile(null)} onDelete={handleDelete} t={t} />
+      )}
+
+      <style jsx>{`
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+      `}</style>
+    </Layout>
+  );
+}
+
+function PreviewModal({ file, onClose, onDelete, t }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.85)',
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 32,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: t.card,
+          borderRadius: 16,
+          maxWidth: 900,
+          width: '100%',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '14px 20px',
+            borderBottom: `1px solid ${t.border}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{file.file_name}</div>
+            <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
+              {formatBytes(file.file_size_bytes)} • {file.width}×{file.height}
+              {file.duration_seconds && ` • ${Math.round(file.duration_seconds)}s`}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              color: t.textMuted,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Media */}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: t.bg,
+            padding: 16,
+            overflow: 'hidden',
+          }}
+        >
+          {file.file_type === 'video' ? (
+            <video src={file.url} controls style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: 8 }} />
+          ) : (
+            <img src={file.url} alt={file.file_name} style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: 8 }} />
+          )}
+        </div>
+
+        {/* Actions */}
+        <div
+          style={{
+            padding: '14px 20px',
+            borderTop: `1px solid ${t.border}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <button
+            onClick={() => {
+              onDelete(file.id);
+              onClose();
+            }}
+            style={{
+              padding: '8px 14px',
+              background: 'transparent',
+              border: `1px solid ${t.border}`,
+              borderRadius: 8,
+              color: t.error,
+              fontSize: 13,
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(file.url);
+                alert('URL copied to clipboard');
+              }}
+              style={{
+                padding: '8px 14px',
+                background: t.input,
+                border: `1px solid ${t.border}`,
+                borderRadius: 8,
+                color: t.text,
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              Copy URL
+            </button>
+            <button
+              onClick={() => {
+                // Store selected file in sessionStorage and redirect to upload page
+                sessionStorage.setItem('selectedMediaFile', JSON.stringify(file));
+                window.location.href = '/upload';
+              }}
+              style={{
+                padding: '8px 14px',
+                background: t.primary,
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              Use in Post
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const b = parseInt(bytes);
+  if (b === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(b) / Math.log(k));
+  return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+```
+
+═══════════════════════════════════════════
+PHASE 7: HOOK MEDIA LIBRARY INTO UPLOAD PAGE
+═══════════════════════════════════════════
+
+Edit frontend/pages/upload.js.
+
+ADD this import near the top:
+
+```javascript
+import { useState, useEffect, useRef } from 'react';
+import { mediaAPI } from '../lib/api';
+import { FolderOpen } from 'lucide-react';
+```
+
+ADD these state variables inside the Upload component (with the other useState lines):
+
+```javascript
+const [showLibrary, setShowLibrary] = useState(false);
+const [libraryFiles, setLibraryFiles] = useState([]);
+const [libraryLoading, setLibraryLoading] = useState(false);
+```
+
+ADD this useEffect to handle pre-selected files coming from the Media Library "Use in Post" button:
+
+```javascript
+useEffect(() => {
+  setMounted(true);
+  if (!localStorage.getItem('token')) {
+    router.replace('/login');
+    return;
+  }
+  
+  // Check if a file was pre-selected from media library
+  const preSelected = sessionStorage.getItem('selectedMediaFile');
+  if (preSelected) {
+    try {
+      const file = JSON.parse(preSelected);
+      // Pre-fill the form using the library file
+      setContentType(file.file_type === 'video' ? 'video' : 'photo');
+      setPreviews([file.url]);
+      // Store as a special "library file" reference (no need to re-upload)
+      setFiles([{ libraryFileId: file.id, url: file.url, type: file.file_type, name: file.file_name }]);
+      sessionStorage.removeItem('selectedMediaFile');
+    } catch (e) {
+      console.error('Invalid preselected file', e);
+    }
+  }
+}, []);
+```
+
+ADD a handler to open the library picker:
+
+```javascript
+const openLibrary = async () => {
+  setShowLibrary(true);
+  setLibraryLoading(true);
+  try {
+    const res = await mediaAPI.list({ type: contentType === 'video' ? 'video' : 'image' });
+    setLibraryFiles(res.data);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLibraryLoading(false);
+  }
+};
+
+const selectFromLibrary = (file) => {
+  if (contentType === 'carousel') {
+    // Add to existing carousel selection (max 10)
+    if (files.length >= 10) {
+      setMessage({ type: 'error', text: 'Carousel max is 10 files' });
+      return;
+    }
+    setFiles([...files, { libraryFileId: file.id, url: file.url, type: file.file_type, name: file.file_name }]);
+    setPreviews([...previews, file.url]);
+  } else {
+    // Replace single file
+    setFiles([{ libraryFileId: file.id, url: file.url, type: file.file_type, name: file.file_name }]);
+    setPreviews([file.url]);
+  }
+  setShowLibrary(false);
+};
+```
+
+Now find the FILE UPLOAD section in the form (the one with the dashed-border `<input type="file">`).
+
+REPLACE the file input wrapper with this:
+
+```jsx
+<div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 24, marginBottom: 16 }}>
+  <h3 style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 12 }}>
+    2. Upload {contentType === 'carousel' ? 'Files (2-10)' : 'File'}
+  </h3>
+
+  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+    <button
+      type="button"
+      onClick={() => fileInputRef.current?.click()}
+      style={{
+        flex: 1,
+        padding: 14,
+        background: t.input,
+        border: `1px dashed ${t.borderStrong}`,
+        borderRadius: 8,
+        color: t.text,
+        fontSize: 13,
+        fontWeight: 500,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+      }}
+    >
+      <Upload size={16} strokeWidth={2} />
+      Upload from device
+    </button>
+    <button
+      type="button"
+      onClick={openLibrary}
+      style={{
+        flex: 1,
+        padding: 14,
+        background: t.primaryBg,
+        border: `1px solid ${t.primaryBorder}`,
+        borderRadius: 8,
+        color: t.primary,
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+      }}
+    >
+      <FolderOpen size={16} strokeWidth={2} />
+      Choose from library
+    </button>
+  </div>
+
+  <input
+    ref={fileInputRef}
+    type="file"
+    accept={contentType === 'video' ? 'video/*' : 'image/*'}
+    multiple={contentType === 'carousel'}
+    onChange={handleFileSelect}
+    style={{ display: 'none' }}
+  />
+
+  {/* Existing previews block stays as-is below */}
+  {previews.length > 0 && (
+    <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+      {previews.map((url, idx) => (
+        <div key={idx} style={{ position: 'relative', aspectRatio: '1/1', borderRadius: 8, overflow: 'hidden', background: t.input }}>
+          {contentType === 'video' ? (
+            <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls />
+          ) : (
+            <img src={url} alt={`preview ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          )}
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+```
+
+NOTE: Make sure you have a `fileInputRef = useRef(null)` declared at the top of the component, and that your existing `handleFileSelect` still works.
+
+ADD a fileInputRef declaration if missing:
+
+```javascript
+import { useRef } from 'react';
+// ... in component:
+const fileInputRef = useRef(null);
+```
+
+NOW update handleSubmit to handle library files (no re-upload needed). Find the code that uploads to /api/upload/media — add a check at the start:
+
+```javascript
+// If file is a library file (already in Cloudinary), skip the upload step
+const isLibraryFile = files[0]?.libraryFileId !== undefined;
+
+if (isLibraryFile) {
+  if (contentType === 'carousel') {
+    mediaUrls = files.map((f) => f.url);
+  } else {
+    mediaUrl = files[0].url;
+  }
+  // Mark library files as used
+  await Promise.all(
+    files.filter((f) => f.libraryFileId).map((f) => mediaAPI.markUsed(f.libraryFileId))
+  );
+} else {
+  // ... existing upload code stays here
+}
+```
+
+ADD the library picker modal at the bottom of the JSX (just before the closing `</Layout>`):
+
+```jsx
+{showLibrary && (
+  <div
+    onClick={() => setShowLibrary(false)}
+    style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0, 0, 0, 0.7)',
+      zIndex: 100,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 32,
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: t.card,
+        borderRadius: 16,
+        maxWidth: 1000,
+        width: '100%',
+        maxHeight: '85vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          padding: '16px 24px',
+          borderBottom: `1px solid ${t.border}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <div>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Choose from Media Library</h2>
+          <p style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>Click any file to use it</p>
+        </div>
+        <button
+          onClick={() => setShowLibrary(false)}
+          style={{ width: 32, height: 32, borderRadius: 8, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div style={{ flex: 1, padding: 20, overflowY: 'auto' }}>
+        {libraryLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+            <Loader2 size={28} style={{ color: t.primary, animation: 'spin 1s linear infinite' }} />
+          </div>
+        ) : libraryFiles.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, color: t.textMuted }}>
+            <FolderOpen size={32} style={{ color: t.textMuted, marginBottom: 12 }} />
+            <p style={{ fontSize: 14 }}>No media files yet.</p>
+            <p style={{ fontSize: 12, marginTop: 4 }}>Visit the Media Library to upload files.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+            {libraryFiles.map((file) => (
+              <button
+                key={file.id}
+                onClick={() => selectFromLibrary(file)}
+                style={{
+                  background: t.input,
+                  border: `2px solid ${t.border}`,
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  padding: 0,
+                  transition: 'all 150ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = t.primary)}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = t.border)}
+              >
+                <div style={{ aspectRatio: '1/1', overflow: 'hidden' }}>
+                  <img src={file.thumbnail_url || file.url} alt={file.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+                <div style={{ padding: 6, fontSize: 11, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file.file_name}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+```
+
+Make sure these icons are imported at the top of upload.js:
+
+```javascript
+import { Upload, FolderOpen, X, Loader2, Image as ImageIcon, Video, Layers, Calendar as CalendarIcon, Save, Facebook, Instagram, Globe, Zap } from 'lucide-react';
+```
+
+═══════════════════════════════════════════
+PHASE 8: TEST EVERYTHING
+═══════════════════════════════════════════
+
+1. Restart the workflow (Stop → Run)
+
+2. Hard refresh the preview (Ctrl+Shift+R)
+
+3. Verify:
+   - [ ] "Media Library" appears in the sidebar (between Drafts and Analytics)
+   - [ ] Click it — page loads with empty state
+   - [ ] Storage card at top shows "0 B / 10 GB used"
+   - [ ] Click "Upload your first file" → file picker opens
+   - [ ] Upload 2-3 images
+   - [ ] Files appear in the grid as thumbnails
+   - [ ] Storage bar updates with new percentage
+   - [ ] Upload a video → shows video badge + play icon overlay
+   - [ ] Click any file → preview modal opens with full image/video
+   - [ ] Modal has "Use in Post" button
+   - [ ] Click "Use in Post" → redirects to /upload page with file pre-selected
+   - [ ] Caption + posting flow works (file is NOT re-uploaded)
+   - [ ] On /upload page, click "Choose from library" → modal shows existing files
+   - [ ] Pick one → it pre-fills the form
+   - [ ] Test deletion (single file + bulk select → delete)
+   - [ ] Storage bar updates when deleting
+
+4. Verify in DB:
+
+```bash
+psql $DATABASE_URL -c "SELECT id, file_name, file_type, file_size_bytes, used_in_posts FROM media_library ORDER BY id DESC LIMIT 10;"
+psql $DATABASE_URL -c "SELECT id, business_name, pg_size_pretty(storage_used_bytes::bigint) AS used, pg_size_pretty(storage_quota_bytes::bigint) AS quota FROM customers;"
+```
+
+═══════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════
+
+If "Storage quota exceeded" happens too early:
+- Check the customer's storage_used_bytes in DB. Reset with:
+  `psql $DATABASE_URL -c "UPDATE customers SET storage_used_bytes = 0 WHERE id = YOUR_ID;"`
+
+If video thumbnails don't show:
+- Cloudinary auto-generates them. The URL substitution in the route may need a tiny tweak depending on your Cloudinary account region. Open one in the browser — if it 404s, change `/so_0/` to `/so_2/` in the thumbnail generation line.
+
+If "Use in Post" doesn't pre-fill upload page:
+- Check browser console for sessionStorage errors. Make sure both pages run on the same origin (which they do via Next.js rewrites).
+
+If big videos fail to upload:
+- The 500MB-per-file limit is in `multer({ limits: { fileSize: 500 * 1024 * 1024 } })`. Cloudinary free tier may also limit file size — check their dashboard. Upgrade Cloudinary if needed.
+
+═══════════════════════════════════════════
+WHAT YOU JUST BUILT
+═══════════════════════════════════════════
+
+✅ Media Library page with file grid, search, type filter, folder filter
+✅ Upload up to 10GB total (configurable per-customer in DB)
+✅ Visual storage quota bar with color-coded thresholds (green / yellow / red)
+✅ File preview modal with full image/video display
+✅ Bulk select + bulk delete
+✅ "Use in Post" flow — picks from library, no re-upload needed
+✅ Library picker modal inside the Create Post page
+✅ Usage tracking — see how many times each file was used
+✅ Per-file metadata: dimensions, duration, file size, type
+
+DO NOT modify any other files beyond what's listed.
+DO NOT change quotas without explicit instruction.
+The 10GB cap is set in the database default — to change it later, run: `UPDATE customers SET storage_quota_bytes = NEW_VALUE;`
+```
+
+---
+
+## What this builds
+
+A real media asset management system, not just a file picker:
+
+- **Quota enforcement** happens server-side **before** the upload starts, so big files don't waste bandwidth before failing.
+- **Cloudinary handles storage**, the database just indexes — fast browsing, fast deletes, no double-storage.
+- **Library files don't re-upload** when used in posts. The Cloudinary URL gets reused, which is the right architecture and saves bandwidth.
+- **Bulk operations** (multi-select + delete) work like proper desktop apps.
+- **Visual quota bar** turns yellow at 70% and red at 90% — gives users honest feedback before they hit the limit.
+
+Once Replit applies it, the Media Library tab will work just like the screenshot you shared from the existing tools. If you want to bump the quota above 10GB later, it's a one-line SQL update — no code changes needed.
