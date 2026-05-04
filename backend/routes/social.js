@@ -355,6 +355,45 @@ module.exports = (pool) => {
       res.status(500).json({ error: error.message });
     }
   });
+/**
+ * POST /api/social/connect/manual
+ * Save a manually provided access token
+ */
+router.post('/connect/manual', authenticate, async (req, res) => {
+  try {
+    const { platform, accessToken, pageId, accountName } = req.body;
 
+    if (!platform || !accessToken) {
+      return res.status(400).json({ error: 'platform and accessToken are required' });
+    }
+
+    const validPlatforms = ['facebook', 'instagram', 'google_business'];
+    if (!validPlatforms.includes(platform)) {
+      return res.status(400).json({ error: 'Invalid platform' });
+    }
+
+    // Set expiry to 60 days for Facebook tokens, 1 hour for Google
+    const expiresAt = platform === 'google_business'
+      ? new Date(Date.now() + 3600 * 1000)
+      : new Date(Date.now() + 60 * 24 * 3600 * 1000);
+
+    await pool.query(
+      `INSERT INTO social_accounts
+         (customer_id, platform, access_token, token_expires_at, account_id, account_name, enabled, auto_post)
+       VALUES ($1, $2, $3, $4, $5, $6, true, true)
+       ON CONFLICT (customer_id, platform) DO UPDATE SET
+         access_token = EXCLUDED.access_token,
+         token_expires_at = EXCLUDED.token_expires_at,
+         account_id = EXCLUDED.account_id,
+         account_name = EXCLUDED.account_name,
+         updated_at = NOW()`,
+      [req.customerId, platform, accessToken, expiresAt, pageId || null, accountName || platform]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
   return router;
 };
