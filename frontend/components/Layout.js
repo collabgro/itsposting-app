@@ -178,25 +178,29 @@ export default function Layout({ children, title, subtitle, action }) {
         )}
 
         {/* USER PROFILE */}
-        {!isMobile && user && (
-          <div style={{ padding: '12px', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
-            <div
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8, cursor: 'pointer', transition: 'background 150ms' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              onClick={handleLogout}
-              title="Click to logout"
-            >
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #FB923C 0%, #F97316 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, color: '#fff', flexShrink: 0 }}>
-                {(user.business_name || user.email || 'U').charAt(0).toUpperCase()}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.business_name || 'User'}</div>
-                <div style={{ fontSize: 11, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
-              </div>
-            </div>
-          </div>
-        )}
+{!isMobile && user && (
+  <div style={{ padding: '12px', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
+    <div
+      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8, transition: 'background 150ms' }}
+    >
+      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #FB923C 0%, #F97316 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, color: '#fff', flexShrink: 0 }}>
+        {(user.business_name || user.email || 'U').charAt(0).toUpperCase()}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.business_name || 'User'}</div>
+        <div style={{ fontSize: 11, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+      </div>
+    </div>
+    <button
+      onClick={handleLogout}
+      style={{ width: '100%', marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.textMuted, fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 150ms ease' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#ef4444'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted; e.currentTarget.style.borderColor = t.border; }}
+    >
+      Log out
+    </button>
+  </div>
+)}
 
         {/* EXPAND BUTTON WHEN COLLAPSED */}
       </aside>
