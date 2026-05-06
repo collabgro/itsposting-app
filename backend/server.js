@@ -18,6 +18,7 @@ const mediaRoutes = require('./routes/media');
 const adminRoutes = require('./routes/admin');
 const analyticsRoutes = require('./routes/analytics');
 const notificationRoutes = require('./routes/notifications');
+const suggestionsRoutes = require('./routes/suggestions');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
 const EmailWorker = require('./services/EmailWorker');
 
@@ -77,6 +78,7 @@ app.use('/api/media', mediaRoutes(pool));
 app.use('/api/admin', adminRoutes(pool));
 app.use('/api/analytics', analyticsRoutes(pool));
 app.use('/api/notifications', notificationRoutes(pool));
+app.use('/api/suggestions', suggestionsRoutes(pool));
 
 app.get('/health', async (req, res) => {
   try {
@@ -164,7 +166,8 @@ app.listen(PORT, '0.0.0.0', () => {
 ║   Routes: auth, customers, posts,         ║
 ║           content, social, scraper,       ║
 ║           upload, billing, media,         ║
-║           admin, analytics                ║
+║           admin, analytics,               ║
+║           suggestions                     ║
 ║                                           ║
 ║   Services:                               ║
 ║   ${process.env.GOOGLE_AI_API_KEY ? '✅' : '⚠️ '} Image One                           ║

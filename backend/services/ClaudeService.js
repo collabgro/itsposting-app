@@ -1,213 +1,293 @@
 /**
- * Claude Service - Anthropic Claude AI
- * Used for: caption generation, carousel planning, video scripts, hashtag generation
+ * ItsPosting — Claude Service (v2 — upgraded with SystemPromptBuilder)
+ * backend/services/ClaudeService.js
+ *
+ * Key upgrades:
+ *  - Uses SystemPromptBuilder for rich, industry-aware prompts
+ *  - Always generates 3 variations (A, B, C) — never just 1
+ *  - Saves variations to post_variations table
+ *  - Correct model: claude-sonnet-4-20250514 (not haiku)
+ *  - Every post ends with an engagement question
+ *  - Pulls business_knowledge for few-shot context
  */
 
 const Anthropic = require('@anthropic-ai/sdk');
+const SystemPromptBuilder = require('./SystemPromptBuilder');
 
 class ClaudeService {
-  constructor() {
+  constructor(pool) {
+    this.pool = pool;
     this.apiKey = process.env.ANTHROPIC_API_KEY;
-    
+
     if (!this.apiKey) {
-      console.warn('⚠️  ANTHROPIC_API_KEY not set');
+      console.warn('[ClaudeService] ⚠️  ANTHROPIC_API_KEY not set');
     }
-    
+
     this.client = this.apiKey ? new Anthropic({ apiKey: this.apiKey }) : null;
-    this.model = 'claude-haiku-4-5';
+
+    // ALWAYS use sonnet — never haiku for production post generation
+    this.model = 'claude-sonnet-4-20250514';
   }
 
+  // ── Main: generate 3 variations for a post ───────────────────────────────
   /**
-   * Generate a caption for a social media post
+   * @param {number} customerId
+   * @param {string} contentType  — 'static' | 'photo' | 'carousel' | 'video'
+   * @param {string} wizardTrigger — from Step 1 of the wizard
+   * @param {string} platform     — 'facebook' | 'instagram' | 'google_business' | 'all'
+   * @param {Object} counterAnswers — answers from counter-query step
+   * @returns {Object} { variation_a, variation_b, variation_c }
    */
+  async generateVariations(customerId, contentType, wizardTrigger, platform = 'all', counterAnswers = {}) {
+    if (!this.client) throw new Error('Claude not configured. Set ANTHROPIC_API_KEY.');
+
+    const [customerResult, knowledgeResult] = await Promise.all([
+      this.pool.query('SELECT * FROM customers WHERE id = $1', [customerId]),
+      this.pool.query(
+        'SELECT * FROM business_knowledge WHERE customer_id = $1 AND is_active = true ORDER BY knowledge_type, created_at DESC',
+        [customerId]
+      ),
+    ]);
+
+    if (customerResult.rows.length === 0) throw new Error('Customer not found');
+
+    const customer = customerResult.rows[0];
+    const businessKnowledge = knowledgeResult.rows;
+
+    const builder = new SystemPromptBuilder(customer, {
+      platform,
+      contentType,
+      wizardTrigger,
+      counterAnswers,
+      businessKnowledge,
+    });
+
+    const { systemPrompt, userPrompt } = builder.build();
+
+    let rawText = '';
+    try {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 3000,
+        temperature: 0.8,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      });
+
+      rawText = response.content[0].text;
+      const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+
+      if (!parsed.variation_a || !parsed.variation_b || !parsed.variation_c) {
+        throw new Error('Claude returned incomplete variations — missing A, B, or C');
+      }
+
+      console.log(`[ClaudeService] Generated 3 variations for customer ${customerId} (${contentType} / ${platform})`);
+      return parsed;
+
+    } catch (err) {
+      console.error('[ClaudeService] generateVariations error:', err.message);
+      if (rawText) console.error('[ClaudeService] Raw response:', rawText.substring(0, 500));
+      throw new Error(`Post generation failed: ${err.message}`);
+    }
+  }
+
+  // ── Save variations to DB ─────────────────────────────────────────────────
+  /**
+   * After a post is created, save the A/B/C variations to post_variations.
+   * @param {number} postId
+   * @param {Object} variations — { variation_a, variation_b, variation_c }
+   */
+  async saveVariations(postId, variations) {
+    const labels = { variation_a: 'A', variation_b: 'B', variation_c: 'C' };
+    const platformMap = { variation_a: 'facebook', variation_b: 'instagram', variation_c: 'google_business' };
+    const results = [];
+
+    for (const [key, label] of Object.entries(labels)) {
+      const v = variations[key];
+      if (!v) continue;
+
+      try {
+        const result = await this.pool.query(
+          `INSERT INTO post_variations
+             (post_id, variation_label, caption, hashtags,
+              image_prompt, engagement_question, hook_formula_used, engagement_score, platform)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (post_id, variation_label)
+           DO UPDATE SET
+             caption = EXCLUDED.caption,
+             hashtags = EXCLUDED.hashtags,
+             image_prompt = EXCLUDED.image_prompt,
+             engagement_question = EXCLUDED.engagement_question,
+             hook_formula_used = EXCLUDED.hook_formula_used,
+             engagement_score = EXCLUDED.engagement_score
+           RETURNING *`,
+          [
+            postId,
+            label,
+            v.caption,
+            JSON.stringify(v.hashtags || []),
+            v.imagePrompt || null,
+            v.engagementQuestion || null,
+            v.hookFormulaUsed || null,
+            v.engagementScore || 0,
+            platformMap[key],
+          ]
+        );
+        results.push(result.rows[0]);
+      } catch (err) {
+        console.error(`[ClaudeService] saveVariations error for ${label}:`, err.message);
+      }
+    }
+
+    return results;
+  }
+
+  // ── Legacy: generateCaption (kept for backward compatibility) ─────────────
+  // New code should use generateVariations() instead.
   async generateCaption(customer, prompt, contentType = 'photo', platform = 'instagram') {
-    if (!this.client) {
-      throw new Error('Claude not configured. Set ANTHROPIC_API_KEY in .env');
-    }
+    if (!this.client) throw new Error('Claude not configured. Set ANTHROPIC_API_KEY.');
 
-    let websiteContext = '';
-    if (customer.website_services) {
-      const services = Array.isArray(customer.website_services)
-        ? customer.website_services
-        : JSON.parse(customer.website_services);
-      if (services.length > 0)
-        websiteContext += `\n\nActual services this business offers (from their website):\n${services.slice(0, 10).map((s) => `- ${s}`).join('\n')}`;
-    }
-    if (customer.website_about)
-      websiteContext += `\n\nAbout this business:\n${customer.website_about.substring(0, 500)}`;
+    const builder = new SystemPromptBuilder(customer, { platform, contentType });
+    const { systemPrompt } = builder.build();
 
-    const systemPrompt = `You are a social media copywriter for ${customer.business_name || 'a local business'}, 
-a ${customer.industry || 'service'} business located in ${customer.location || 'the local area'}.
+    const userPrompt = `Generate ONE social media post (not 3 variations) about: ${prompt}
 
-Brand tone: ${customer.tone || 'professional'}
-Visual style: ${customer.visual_style || 'modern'}${websiteContext}
-
-Write captions that are:
-- Authentic and engaging
-- Reference the ACTUAL services/details above when relevant (don't invent things)
-- Appropriate for ${platform}
-- Include 1-2 relevant emojis
-- End with a call-to-action when appropriate
-- Match the ${customer.tone || 'professional'} tone
-
-Respond with JSON:
+Return ONLY valid JSON:
 {
   "caption": "the caption text",
-  "hashtags": ["hashtag1", "hashtag2", ...],
-  "overlay_text": "short text for image overlay (only for static cards, max 8 words)"
+  "hashtags": ["tag1", "tag2", "tag3"],
+  "overlay_text": "short text for image overlay (max 8 words, static cards only)",
+  "imagePrompt": "detailed image generation prompt"
 }`;
-
-    const userPrompt = `Create a ${contentType} post about: ${prompt}
-
-Platform: ${platform}
-Caption length: ${this.getCaptionLength(platform)}
-
-Return ONLY valid JSON.`;
 
     try {
       const response = await this.client.messages.create({
         model: this.model,
-        max_tokens: 1024,
+        max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       });
 
       const text = response.content[0].text;
-      const cleaned = text.replace(/```json\n?/g, '').replace(/```/g, '').trim();
+      const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
       return {
         caption: parsed.caption,
         hashtags: parsed.hashtags || [],
         overlay_text: parsed.overlay_text || '',
+        imagePrompt: parsed.imagePrompt || '',
         model: this.model,
       };
-    } catch (error) {
-      console.error('Claude caption error:', error.message);
-      throw new Error(`Caption generation failed: ${error.message}`);
+    } catch (err) {
+      console.error('[ClaudeService] generateCaption error:', err.message);
+      throw new Error(`Caption generation failed: ${err.message}`);
     }
   }
 
-  /**
-   * Plan a 5-slide carousel
-   */
-  async planCarousel(customer, prompt) {
-    if (!this.client) {
-      throw new Error('Claude not configured');
-    }
+  // ── Plan a 5-slide carousel ───────────────────────────────────────────────
+  async planCarousel(customer, prompt, counterAnswers = {}) {
+    if (!this.client) throw new Error('Claude not configured');
 
-    const systemPrompt = `You are a social media strategist for ${customer.business_name || 'a local business'}.
-Plan engaging 5-slide carousel posts that educate or entertain.`;
+    const builder = new SystemPromptBuilder(customer, {
+      platform: 'instagram',
+      contentType: 'carousel',
+      counterAnswers,
+    });
+    const { systemPrompt } = builder.build();
 
-    const userPrompt = `Plan a 5-slide carousel about: ${prompt}
-
-Industry: ${customer.industry}
-Tone: ${customer.tone}
+    const userPrompt = `Create a 5-slide carousel post about: ${prompt}
 
 Return ONLY valid JSON:
 {
   "main_caption": "the post caption",
-  "hashtags": ["tag1", "tag2", ...],
+  "hashtags": ["tag1", "tag2"],
   "slides": [
-    { "slide_number": 1, "title": "Hook", "image_prompt": "image description", "overlay_text": "short overlay" },
-    { "slide_number": 2, "title": "Point 1", "image_prompt": "...", "overlay_text": "..." },
-    { "slide_number": 3, "title": "Point 2", "image_prompt": "...", "overlay_text": "..." },
-    { "slide_number": 4, "title": "Point 3", "image_prompt": "...", "overlay_text": "..." },
-    { "slide_number": 5, "title": "CTA", "image_prompt": "...", "overlay_text": "..." }
+    { "slide_number": 1, "title": "Hook", "overlay_text": "max 8 words", "image_prompt": "description" },
+    { "slide_number": 2, "title": "Point 1", "overlay_text": "max 8 words", "image_prompt": "description" },
+    { "slide_number": 3, "title": "Point 2", "overlay_text": "max 8 words", "image_prompt": "description" },
+    { "slide_number": 4, "title": "Point 3", "overlay_text": "max 8 words", "image_prompt": "description" },
+    { "slide_number": 5, "title": "CTA", "overlay_text": "max 8 words", "image_prompt": "description" }
   ]
 }`;
 
     try {
       const response = await this.client.messages.create({
         model: this.model,
-        max_tokens: 2048,
+        max_tokens: 2000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       });
-
       const text = response.content[0].text;
-      const cleaned = text.replace(/```json\n?/g, '').replace(/```/g, '').trim();
-      return JSON.parse(cleaned);
-    } catch (error) {
-      console.error('Claude carousel error:', error.message);
-      throw new Error(`Carousel planning failed: ${error.message}`);
+      return JSON.parse(text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+    } catch (err) {
+      console.error('[ClaudeService] planCarousel error:', err.message);
+      throw new Error(`Carousel planning failed: ${err.message}`);
     }
   }
 
-  /**
-   * Generate video script
-   */
+  // ── Generate video script ─────────────────────────────────────────────────
   async generateVideoScript(customer, prompt, durationSeconds = 30) {
-    if (!this.client) {
-      throw new Error('Claude not configured');
-    }
+    if (!this.client) throw new Error('Claude not configured');
 
-    const wordCount = Math.floor((durationSeconds * 2.5) - 5); // ~2.5 words per second
-
-    const systemPrompt = `You are a video script writer for ${customer.business_name}, a ${customer.industry} business.`;
+    const wordCount = Math.floor((durationSeconds * 2.5) - 5);
+    const builder = new SystemPromptBuilder(customer, { platform: 'all', contentType: 'video' });
+    const { systemPrompt } = builder.build();
 
     const userPrompt = `Write a ${durationSeconds}-second video script about: ${prompt}
-
 Target word count: ${wordCount} words
-Tone: ${customer.tone}
 
 Return ONLY valid JSON:
 {
   "script": "the spoken script",
   "caption": "post caption when sharing",
-  "hashtags": ["tag1", "tag2", ...]
+  "hashtags": ["tag1", "tag2"]
 }`;
 
     try {
       const response = await this.client.messages.create({
         model: this.model,
-        max_tokens: 1024,
+        max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       });
-
       const text = response.content[0].text;
-      const cleaned = text.replace(/```json\n?/g, '').replace(/```/g, '').trim();
-      return JSON.parse(cleaned);
-    } catch (error) {
-      console.error('Claude script error:', error.message);
-      throw new Error(`Script generation failed: ${error.message}`);
+      return JSON.parse(text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+    } catch (err) {
+      console.error('[ClaudeService] generateVideoScript error:', err.message);
+      throw new Error(`Script generation failed: ${err.message}`);
     }
   }
 
-  /**
-   * Generate weekly content plan (batched)
-   */
+  // ── Generate weekly content plan ──────────────────────────────────────────
   async generateWeekPlan(customer) {
-    if (!this.client) {
-      throw new Error('Claude not configured');
-    }
+    if (!this.client) throw new Error('Claude not configured');
 
-    const systemPrompt = `You are a social media strategist for ${customer.business_name || 'a local business'}.`;
+    const industryKnowledge = require('../data/industryKnowledge');
+    const knowledge = industryKnowledge[customer.industry] || industryKnowledge.general_contractor || {};
+    const currentMonth = new Date().getMonth() + 1;
+    const seasonal = knowledge.seasonalContent?.[currentMonth] || null;
 
-    const userPrompt = `Create a 7-day social media content plan for:
-- Business: ${customer.business_name}
-- Industry: ${customer.industry}
-- Location: ${customer.location}
-- Tone: ${customer.tone}
+    const systemPrompt = `You are a social media strategist for ${customer.business_name || 'a local business'}.
+Industry: ${customer.industry}. Location: ${customer.location}.
+${seasonal ? `This month's seasonal topic: ${seasonal.urgencyTopic}` : ''}
+Enforce the 70/20/10 rule: 70% educational, 20% social proof, 10% promotional.`;
 
-Return ONLY valid JSON with 7 posts (one per day):
+    const userPrompt = `Create a 7-day social media content plan.
+Daily themes: Mon=educational_tip, Tue=project_showcase, Wed=educational_tip, Thu=before_after, Fri=customer_value, Sat=seasonal, Sun=faq
+
+Return ONLY valid JSON:
 {
   "week_plan": [
     {
-      "day": 1,
-      "day_name": "Monday",
-      "theme": "local_highlight",
-      "content_type": "photo",
-      "caption": "...",
-      "image_prompt": "...",
-      "hashtags": ["...", "..."]
-    },
-    ...
+      "day": 1, "day_name": "Monday", "theme": "educational_tip",
+      "content_type": "photo", "wizard_trigger": "share_tip",
+      "caption": "...", "image_prompt": "...", "hashtags": ["..."],
+      "engagement_question": "..."
+    }
   ]
-}
-
-Daily themes: Mon=local_highlight, Tue=service_feature, Wed=maintenance_tip, Thu=project_showcase, Fri=customer_value, Sat=seasonal, Sun=faq`;
+}`;
 
     try {
       const response = await this.client.messages.create({
@@ -216,27 +296,21 @@ Daily themes: Mon=local_highlight, Tue=service_feature, Wed=maintenance_tip, Thu
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       });
-
       const text = response.content[0].text;
-      const cleaned = text.replace(/```json\n?/g, '').replace(/```/g, '').trim();
-      return JSON.parse(cleaned);
-    } catch (error) {
-      console.error('Claude week plan error:', error.message);
-      throw new Error(`Week plan generation failed: ${error.message}`);
+      return JSON.parse(text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+    } catch (err) {
+      console.error('[ClaudeService] generateWeekPlan error:', err.message);
+      throw new Error(`Week plan generation failed: ${err.message}`);
     }
   }
 
-  /**
-   * Get appropriate caption length per platform
-   */
   getCaptionLength(platform) {
     const lengths = {
-      instagram: '125-150 words',
-      facebook: '40-80 words',
-      google_business: '100-150 words',
-      twitter: '20-25 words',
+      instagram: '100-150 words',
+      facebook: '150-300 words',
+      google_business: '100-200 words',
     };
-    return lengths[platform] || '100 words';
+    return lengths[platform] || '100-150 words';
   }
 }
 
