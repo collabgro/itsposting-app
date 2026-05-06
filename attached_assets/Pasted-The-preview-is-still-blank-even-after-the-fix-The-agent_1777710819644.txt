@@ -1,0 +1,123 @@
+The preview is still blank even after the fix. The agent says it ran `curl` and pages "serve correctly" — but that just means the HTML loads. The actual rendering is still broken in the browser. There's a deeper issue we need to diagnose directly.
+
+Give Replit this exact prompt — it's a diagnostic + nuclear-option fix:
+
+---
+
+```
+The preview is still blank/white. Stop guessing — run these diagnostics in order and SHOW ME THE OUTPUT of each one before fixing anything.
+
+═══════════════════════════════════
+DIAGNOSTIC 1: Get the actual HTML
+═══════════════════════════════════
+
+Run this and show me the FULL output:
+
+curl -s http://localhost:3000/login | head -100
+
+I need to see what HTML is actually being served. If it's empty, broken, or missing the React root, that tells us the problem.
+
+═══════════════════════════════════
+DIAGNOSTIC 2: Check for runtime errors
+═══════════════════════════════════
+
+Show me the LAST 80 LINES of the workflow logs:
+
+Look at the "Console" tab or run:
+tail -80 /tmp/replit-startup.log 2>/dev/null || pm2 logs --lines 80 --nostream 2>/dev/null || echo "Check the Console tab manually"
+
+Also check if Next.js had a compile error:
+ls frontend/.next/ 2>/dev/null
+cat frontend/.next/build-manifest.json 2>/dev/null | head -20
+
+═══════════════════════════════════
+DIAGNOSTIC 3: Test backend reachable from frontend
+═══════════════════════════════════
+
+curl -v http://localhost:3000/api/auth/login -X POST -H "Content-Type: application/json" -d '{"email":"x","password":"x"}' 2>&1 | head -30
+
+I need to see if the rewrite proxy is working.
+
+═══════════════════════════════════
+DIAGNOSTIC 4: Check what's actually running
+═══════════════════════════════════
+
+ps aux | grep -E "node|next" | grep -v grep
+netstat -tlnp 2>/dev/null | grep -E "3000|3001" || ss -tlnp | grep -E "3000|3001"
+
+═══════════════════════════════════
+NUCLEAR FIX: Bypass Next.js entirely
+═══════════════════════════════════
+
+If diagnostics show Next.js is broken, replace frontend/pages/login.js with this MINIMAL test page that has ZERO dependencies:
+
+```javascript
+export default function Login() {
+  return (
+    <div style={{padding:40,fontFamily:'sans-serif'}}>
+      <h1 style={{color:'#3b82f6',fontSize:32}}>✅ PostFlow Login Page</h1>
+      <p>If you see this, Next.js is rendering correctly.</p>
+      <p>Time: {new Date().toString()}</p>
+      <hr style={{margin:'20px 0'}} />
+      <p>The white screen issue was caused by something else. Now we can fix the real login form.</p>
+    </div>
+  );
+}
+
+export async function getServerSideProps() {
+  return { props: {} };
+}
+```
+
+The `getServerSideProps` forces this page to render server-side EVERY time, with no caching. If THIS page is also blank, the problem isn't the code — it's the Replit preview iframe or workflow.
+
+═══════════════════════════════════
+THE LIKELY ACTUAL ISSUE
+═══════════════════════════════════
+
+Based on the symptoms (blank preview, no errors, multiple "fixes" not working), the issue is probably ONE of these:
+
+A) Frontend never actually started — only backend is running on port 3001, nothing is on port 3000. The preview shows blank because there's no server responding.
+
+B) Next.js compile failed silently — the .next directory is missing or corrupted. Need to delete it and rebuild.
+
+C) Replit is caching the old broken bundle — need to hard restart workflow.
+
+D) The preview iframe URL is wrong — pointing to `/__replco/workspace_iframe.html` instead of the actual app.
+
+To FORCE-FIX all of these:
+
+1. Stop the workflow
+2. Delete the build cache:
+   rm -rf frontend/.next frontend/node_modules/.cache
+
+3. Verify port 3000 is set to listen on 0.0.0.0:
+   cat frontend/package.json | grep "next dev"
+
+   It MUST be: "dev": "next dev -p 3000 -H 0.0.0.0"
+   
+   If it doesn't have "-H 0.0.0.0", edit package.json and add it. Replit requires this — localhost only listens on the loopback, but the preview iframe needs 0.0.0.0.
+
+4. Restart the workflow
+
+5. Once running, open the preview and HARD REFRESH (Ctrl+Shift+R or Cmd+Shift+R) to bypass any iframe caching.
+
+═══════════════════════════════════
+WHAT I NEED FROM YOU
+═══════════════════════════════════
+
+1. Run all 4 diagnostics and paste the output
+2. Apply the package.json fix (add -H 0.0.0.0)
+3. Clear the .next cache
+4. Restart
+5. Hard refresh the preview
+6. Tell me EXACTLY what you see (white? error? logo? text?)
+
+Do NOT add features. Do NOT continue building. Just diagnose and fix THIS issue first.
+```
+
+---
+
+**The most likely culprit is #A or the missing `-H 0.0.0.0` flag.** Replit's preview iframe runs in a different network context than `localhost`, and Next.js by default only binds to `localhost` which the iframe can't reach. That would perfectly explain: HTML "serves correctly" via curl (because curl on the same container reaches localhost fine) but the browser preview shows blank (because the iframe can't).
+
+The diagnostics force the agent to actually look at what's running instead of guessing. **Paste the diagnostic outputs back to me when you have them** and I can pinpoint the exact issue from there.

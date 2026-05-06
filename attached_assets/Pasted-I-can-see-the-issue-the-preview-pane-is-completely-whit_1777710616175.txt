@@ -1,0 +1,509 @@
+I can see the issue — the preview pane is completely white/blank. This is the classic Next.js + Replit problem where the `index.js` page tries to redirect based on auth state but fails during SSR (server-side rendering).
+
+Give this prompt to Replit's AI agent — it's a focused, surgical fix:
+
+---
+
+```
+The preview shows a blank white screen. This is caused by two issues:
+1. The index.js page uses useAuthStore (Zustand with localStorage) during SSR, which fails silently
+2. The login page may also fail due to SSR hydration mismatch
+
+Fix BOTH issues. Here are the exact changes:
+
+═══════════════════════════════════
+FIX 1: Replace frontend/pages/index.js
+═══════════════════════════════════
+
+Replace the ENTIRE contents of frontend/pages/index.js with:
+
+```javascript
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+
+export default function Home() {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const token = localStorage.getItem('token');
+    if (token) {
+      router.replace('/dashboard');
+    } else {
+      router.replace('/login');
+    }
+  }, []);
+
+  if (!mounted) return null;
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f9fafb'}}>
+      <div style={{width:48,height:48,border:'4px solid #e5e7eb',borderTopColor:'#3b82f6',borderRadius:'50%',animation:'spin 1s linear infinite'}}></div>
+      <style jsx>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════
+FIX 2: Replace frontend/pages/login.js
+═══════════════════════════════════
+
+Replace the ENTIRE contents of frontend/pages/login.js with:
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+
+export default function Login() {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setMounted(true);
+    const token = localStorage.getItem('token');
+    if (token) router.replace('/dashboard');
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Login failed');
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem('token', data.token);
+      router.push('/dashboard');
+    } catch (err) {
+      setError('Connection failed. Is the backend running?');
+      setLoading(false);
+    }
+  };
+
+  if (!mounted) return null;
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f9fafb',fontFamily:'Inter,system-ui,sans-serif',padding:16}}>
+      <div style={{width:'100%',maxWidth:420,background:'#fff',borderRadius:12,boxShadow:'0 1px 3px rgba(0,0,0,0.1)',padding:40}}>
+        <div style={{textAlign:'center',marginBottom:32}}>
+          <h1 style={{fontSize:28,fontWeight:800,color:'#3b82f6',marginBottom:4}}>✨ PostFlow</h1>
+          <p style={{color:'#6b7280',fontSize:14}}>AI Social Media for Local Businesses</p>
+        </div>
+
+        <h2 style={{fontSize:22,fontWeight:700,color:'#111827',marginBottom:24}}>Sign in</h2>
+
+        {error && (
+          <div style={{background:'#fef2f2',border:'1px solid #fecaca',color:'#dc2626',padding:'10px 14px',borderRadius:8,marginBottom:16,fontSize:14}}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div style={{marginBottom:16}}>
+            <label style={{display:'block',fontSize:14,fontWeight:500,color:'#374151',marginBottom:6}}>Email</label>
+            <input
+              type="email"
+              required
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              placeholder="you@company.com"
+              style={{width:'100%',padding:'10px 14px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,outline:'none',boxSizing:'border-box'}}
+            />
+          </div>
+
+          <div style={{marginBottom:24}}>
+            <label style={{display:'block',fontSize:14,fontWeight:500,color:'#374151',marginBottom:6}}>Password</label>
+            <input
+              type="password"
+              required
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              placeholder="••••••••"
+              style={{width:'100%',padding:'10px 14px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,outline:'none',boxSizing:'border-box'}}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{width:'100%',padding:'12px',background:loading?'#93c5fd':'#3b82f6',color:'#fff',border:'none',borderRadius:8,fontSize:15,fontWeight:600,cursor:loading?'not-allowed':'pointer'}}
+          >
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
+
+        <p style={{textAlign:'center',marginTop:24,color:'#6b7280',fontSize:14}}>
+          No account?{' '}
+          <Link href="/signup" style={{color:'#3b82f6',fontWeight:600,textDecoration:'none'}}>
+            Start free trial
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════
+FIX 3: Replace frontend/pages/signup.js
+═══════════════════════════════════
+
+Replace the ENTIRE contents of frontend/pages/signup.js with:
+
+```javascript
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+
+const INDUSTRIES = [
+  'Concrete & Masonry', 'Plumbing', 'HVAC', 'Landscaping',
+  'Roofing', 'Electrical', 'Painting', 'Carpentry',
+  'General Contracting', 'Other',
+];
+
+export default function Signup() {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    businessName: '', industry: '', location: '', email: '', password: '',
+  });
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (step === 1) {
+      if (!formData.businessName || !formData.industry || !formData.location) {
+        setError('Please fill in all fields');
+        return;
+      }
+      setError('');
+      setStep(2);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          businessName: formData.businessName,
+          industry: formData.industry.toLowerCase().replace(/\s+&\s+/g, '_'),
+          location: formData.location,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Signup failed');
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem('token', data.token);
+      router.push('/dashboard');
+    } catch (err) {
+      setError('Connection failed');
+      setLoading(false);
+    }
+  };
+
+  if (!mounted) return null;
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#f9fafb',fontFamily:'Inter,system-ui,sans-serif',padding:16}}>
+      <div style={{width:'100%',maxWidth:500,background:'#fff',borderRadius:12,boxShadow:'0 1px 3px rgba(0,0,0,0.1)',padding:40}}>
+        <div style={{textAlign:'center',marginBottom:24}}>
+          <h1 style={{fontSize:28,fontWeight:800,color:'#3b82f6',marginBottom:4}}>✨ PostFlow</h1>
+          <div style={{display:'flex',justifyContent:'center',gap:8,marginTop:12}}>
+            <div style={{height:4,width:60,borderRadius:4,background:step>=1?'#3b82f6':'#e5e7eb'}}></div>
+            <div style={{height:4,width:60,borderRadius:4,background:step>=2?'#3b82f6':'#e5e7eb'}}></div>
+          </div>
+        </div>
+
+        {error && (
+          <div style={{background:'#fef2f2',border:'1px solid #fecaca',color:'#dc2626',padding:'10px 14px',borderRadius:8,marginBottom:16,fontSize:14}}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {step === 1 && (
+            <>
+              <h2 style={{fontSize:20,fontWeight:700,color:'#111827',marginBottom:4}}>Your Business</h2>
+              <p style={{color:'#6b7280',fontSize:14,marginBottom:20}}>We'll customize content for you</p>
+
+              <div style={{marginBottom:16}}>
+                <label style={{display:'block',fontSize:14,fontWeight:500,color:'#374151',marginBottom:6}}>Business Name</label>
+                <input type="text" required value={formData.businessName}
+                  onChange={(e) => setFormData({...formData, businessName: e.target.value})}
+                  placeholder="ABC Plumbing"
+                  style={{width:'100%',padding:'10px 14px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <label style={{display:'block',fontSize:14,fontWeight:500,color:'#374151',marginBottom:6}}>Industry</label>
+                <select required value={formData.industry}
+                  onChange={(e) => setFormData({...formData, industry: e.target.value})}
+                  style={{width:'100%',padding:'10px 14px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,boxSizing:'border-box',background:'#fff'}}>
+                  <option value="">Select industry</option>
+                  {INDUSTRIES.map((ind) => <option key={ind} value={ind}>{ind}</option>)}
+                </select>
+              </div>
+
+              <div style={{marginBottom:24}}>
+                <label style={{display:'block',fontSize:14,fontWeight:500,color:'#374151',marginBottom:6}}>Location</label>
+                <input type="text" required value={formData.location}
+                  onChange={(e) => setFormData({...formData, location: e.target.value})}
+                  placeholder="Austin, TX"
+                  style={{width:'100%',padding:'10px 14px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
+              </div>
+
+              <button type="submit"
+                style={{width:'100%',padding:'12px',background:'#3b82f6',color:'#fff',border:'none',borderRadius:8,fontSize:15,fontWeight:600,cursor:'pointer'}}>
+                Continue
+              </button>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <h2 style={{fontSize:20,fontWeight:700,color:'#111827',marginBottom:4}}>Create Account</h2>
+              <p style={{color:'#6b7280',fontSize:14,marginBottom:20}}>Start your 7-day free trial</p>
+
+              <div style={{marginBottom:16}}>
+                <label style={{display:'block',fontSize:14,fontWeight:500,color:'#374151',marginBottom:6}}>Email</label>
+                <input type="email" required value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  placeholder="you@company.com"
+                  style={{width:'100%',padding:'10px 14px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
+              </div>
+
+              <div style={{marginBottom:16}}>
+                <label style={{display:'block',fontSize:14,fontWeight:500,color:'#374151',marginBottom:6}}>Password</label>
+                <input type="password" required minLength={8} value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  placeholder="At least 8 characters"
+                  style={{width:'100%',padding:'10px 14px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,boxSizing:'border-box'}} />
+              </div>
+
+              <div style={{background:'#eff6ff',border:'1px solid #bfdbfe',padding:'12px 16px',borderRadius:8,marginBottom:24,fontSize:14,color:'#1e40af'}}>
+                ✅ <strong>10 free credits</strong> — generate posts immediately with NanoBanana AI
+              </div>
+
+              <div style={{display:'flex',gap:12}}>
+                <button type="button" onClick={() => setStep(1)}
+                  style={{padding:'12px 20px',background:'#fff',color:'#374151',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,fontWeight:600,cursor:'pointer'}}>
+                  Back
+                </button>
+                <button type="submit" disabled={loading}
+                  style={{flex:1,padding:'12px',background:loading?'#93c5fd':'#3b82f6',color:'#fff',border:'none',borderRadius:8,fontSize:15,fontWeight:600,cursor:loading?'not-allowed':'pointer'}}>
+                  {loading ? 'Creating...' : 'Create Account'}
+                </button>
+              </div>
+            </>
+          )}
+        </form>
+
+        {step === 1 && (
+          <p style={{textAlign:'center',marginTop:24,color:'#6b7280',fontSize:14}}>
+            Have an account?{' '}
+            <Link href="/login" style={{color:'#3b82f6',fontWeight:600,textDecoration:'none'}}>Sign in</Link>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════
+FIX 4: Replace frontend/pages/dashboard.js
+═══════════════════════════════════
+
+Replace the ENTIRE contents of frontend/pages/dashboard.js with:
+
+```javascript
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import Layout from '../components/Layout';
+
+export default function Dashboard() {
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setMounted(true);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.replace('/login');
+      return;
+    }
+    loadData(token);
+  }, []);
+
+  const loadData = async (token) => {
+    const headers = { Authorization: `Bearer ${token}` };
+
+    try {
+      const [profileRes, statsRes, postsRes] = await Promise.all([
+        fetch('/api/auth/verify', { headers }).then(r => r.json()).catch(() => null),
+        fetch('/api/posts/analytics/summary', { headers }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/posts?limit=10', { headers }).then(r => r.json()).catch(() => []),
+      ]);
+
+      if (profileRes?.customer) setUser(profileRes.customer);
+      setStats(statsRes);
+      setPosts(Array.isArray(postsRes) ? postsRes : []);
+    } catch (err) {
+      console.error('Dashboard load error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!mounted) return null;
+
+  if (loading) {
+    return (
+      <Layout>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:400}}>
+          <div style={{width:48,height:48,border:'4px solid #e5e7eb',borderTopColor:'#3b82f6',borderRadius:'50%',animation:'spin 1s linear infinite'}}></div>
+          <style jsx>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div style={{maxWidth:1100,margin:'0 auto'}}>
+        <div style={{marginBottom:24}}>
+          <h1 style={{fontSize:28,fontWeight:800,color:'#111827'}}>
+            Welcome back, {user?.business_name || 'there'}!
+          </h1>
+          <p style={{color:'#6b7280',marginTop:4}}>Your social media command center</p>
+        </div>
+
+        {/* Stats */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:16,marginBottom:24}}>
+          <StatCard label="Total Posts" value={stats?.total_posts || 0} color="#3b82f6" />
+          <StatCard label="Scheduled" value={stats?.scheduled_count || 0} color="#f59e0b" />
+          <StatCard label="Published" value={stats?.posted_count || 0} color="#10b981" />
+          <StatCard label="Engagement" value={stats?.total_likes || 0} color="#8b5cf6" />
+        </div>
+
+        {/* Quick Create */}
+        <div style={{background:'#fff',border:'1px solid #e5e7eb',borderRadius:12,padding:24,marginBottom:24}}>
+          <h2 style={{fontSize:20,fontWeight:700,color:'#111827',marginBottom:16}}>🎨 Create Content</h2>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))',gap:12}}>
+            {[
+              { type:'static', label:'Text Card', credits:1, emoji:'💬' },
+              { type:'photo', label:'Photo', credits:3, emoji:'📷' },
+              { type:'carousel', label:'Carousel', credits:5, emoji:'📊' },
+              { type:'video', label:'Video', credits:10, emoji:'🎥' },
+            ].map(item => (
+              <div key={item.type} style={{padding:16,border:'2px solid #e5e7eb',borderRadius:10,textAlign:'center',cursor:'pointer',transition:'all 0.2s'}}
+                onMouseOver={e => e.currentTarget.style.borderColor='#3b82f6'}
+                onMouseOut={e => e.currentTarget.style.borderColor='#e5e7eb'}>
+                <div style={{fontSize:28,marginBottom:4}}>{item.emoji}</div>
+                <div style={{fontWeight:600,fontSize:14}}>{item.label}</div>
+                <div style={{fontSize:12,color:'#6b7280',fontFamily:'monospace'}}>{item.credits} credits</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Posts */}
+        <div style={{background:'#fff',border:'1px solid #e5e7eb',borderRadius:12}}>
+          <div style={{padding:'16px 24px',borderBottom:'1px solid #e5e7eb'}}>
+            <h2 style={{fontSize:20,fontWeight:700,color:'#111827'}}>Recent Posts</h2>
+          </div>
+          {posts.length === 0 ? (
+            <div style={{padding:48,textAlign:'center',color:'#6b7280'}}>
+              <p style={{fontSize:16,marginBottom:8}}>No posts yet</p>
+              <p style={{fontSize:14}}>Create your first AI-powered post above!</p>
+            </div>
+          ) : (
+            <div>
+              {posts.map(post => (
+                <div key={post.id} style={{padding:'16px 24px',borderBottom:'1px solid #f3f4f6',display:'flex',gap:16,alignItems:'center'}}>
+                  <div style={{width:48,height:48,background:'#f3f4f6',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}}>
+                    {post.content_type === 'video' ? '🎥' : post.content_type === 'carousel' ? '📊' : post.content_type === 'photo' ? '📷' : '💬'}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:4}}>
+                      <span style={{fontSize:13,fontWeight:600,textTransform:'capitalize'}}>{post.content_type}</span>
+                      <span style={{fontSize:11,padding:'2px 8px',borderRadius:99,fontWeight:600,
+                        background: post.status==='posted'?'#d1fae5':post.status==='scheduled'?'#fef3c7':'#f3f4f6',
+                        color: post.status==='posted'?'#065f46':post.status==='scheduled'?'#92400e':'#374151',
+                      }}>{post.status}</span>
+                      {post.image_provider && <span style={{fontSize:11,color:'#9ca3af'}}>{post.image_provider}</span>}
+                    </div>
+                    <p style={{fontSize:13,color:'#4b5563',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{post.caption}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Layout>
+  );
+}
+
+function StatCard({ label, value, color }) {
+  return (
+    <div style={{background:'#fff',border:'1px solid #e5e7eb',borderLeft:`4px solid ${color}`,borderRadius:10,padding:16}}>
+      <p style={{fontSize:11,fontWeight:600,textTransform:'uppercase',color:'#6b7280',letterSpacing:'0.05em'}}>{label}</p>
+      <p style={{fontSize:28,fontWeight:800,color:'#111827',marginTop:4}}>{value}</p>
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════
+AFTER ALL 4 FIXES: Restart the app
+═══════════════════════════════════
+
+Stop the current run and click Run again. The preview should now show the login page.
+
+THE ROOT CAUSE: All 4 pages were using Zustand's persist middleware which accesses localStorage during server-side rendering (SSR). On Replit, this causes silent failures that result in a blank white screen. The fix adds `mounted` state guards — the component returns null during SSR and only renders after useEffect fires on the client side. The pages also now use direct fetch() calls instead of the axios client to eliminate import chain issues.
+
+Do NOT modify any backend files. Only touch these 4 frontend files.
+```
+
+---
+
+**Why this fixes it:** The root cause is that Zustand with `persist` (localStorage) runs during Next.js server-side rendering where `localStorage` doesn't exist. The component silently crashes and renders nothing — hence white screen. Every page now has a `mounted` guard that returns `null` until client-side `useEffect` fires, plus uses direct `fetch()` instead of the axios/zustand chain to eliminate all SSR dependencies.

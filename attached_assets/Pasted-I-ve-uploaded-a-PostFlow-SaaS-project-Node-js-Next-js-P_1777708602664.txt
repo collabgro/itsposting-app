@@ -1,0 +1,195 @@
+I've uploaded a PostFlow SaaS project (Node.js + Next.js + PostgreSQL). Please set it up completely by following these exact steps in order. Do not skip steps. Report back after each phase.
+
+═══════════════════════════════════════════
+PHASE 1: VERIFY PROJECT STRUCTURE
+═══════════════════════════════════════════
+
+Run these commands and confirm the output:
+
+ls -la
+ls backend/
+ls frontend/
+cat package.json
+
+Expected: Should see backend/, frontend/, package.json, README.md, install.sh, .replit
+
+═══════════════════════════════════════════
+PHASE 2: ENABLE POSTGRESQL DATABASE
+═══════════════════════════════════════════
+
+1. Open the Replit "Database" tab in the left sidebar
+2. Click "Create a database" and select PostgreSQL
+3. Wait for it to provision (about 30 seconds)
+4. Verify $DATABASE_URL environment variable is set:
+
+echo $DATABASE_URL
+
+If empty, the database isn't ready yet — wait and retry.
+
+═══════════════════════════════════════════
+PHASE 3: INSTALL DEPENDENCIES
+═══════════════════════════════════════════
+
+Run these in order, confirming each completes successfully:
+
+npm install
+cd backend && npm install && cd ..
+cd frontend && npm install && cd ..
+
+If any command fails, show me the error and stop.
+
+═══════════════════════════════════════════
+PHASE 4: INITIALIZE DATABASE SCHEMA
+═══════════════════════════════════════════
+
+Run the schema file against the PostgreSQL database:
+
+psql $DATABASE_URL -f backend/db/schema.sql
+
+Then verify all 7 tables exist:
+
+psql $DATABASE_URL -c "\dt"
+
+Expected tables: customers, social_accounts, posts, post_carousel_slides, content_templates, credit_transactions, industry_templates
+
+Also verify seed data loaded:
+
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM industry_templates;"
+
+Expected: count = 35 (5 industries × 7 themes)
+
+═══════════════════════════════════════════
+PHASE 5: SET UP SECRETS (ENVIRONMENT VARIABLES)
+═══════════════════════════════════════════
+
+Open the Secrets tab (lock icon in left sidebar) and add these keys.
+
+Tell me which secrets need values from the user. Mark required vs optional:
+
+REQUIRED:
+- JWT_SECRET = (generate a random 32+ char string, e.g., use: openssl rand -hex 32)
+- ANTHROPIC_API_KEY = (user must provide from https://console.anthropic.com)
+- GOOGLE_AI_API_KEY = (user must provide from https://aistudio.google.com/app/apikey — this is for NanoBanana)
+- CLOUDINARY_CLOUD_NAME = (user must provide from https://cloudinary.com)
+- CLOUDINARY_API_KEY = (user must provide)
+- CLOUDINARY_API_SECRET = (user must provide)
+
+PRESET (you set these automatically):
+- IMAGE_PROVIDER = nanobanana
+- NODE_ENV = development
+- PORT = 3001
+- FRONTEND_URL = (set to the Replit preview URL once known, e.g., https://xxx.replit.dev)
+
+OPTIONAL (skip if user doesn't have them):
+- REPLICATE_API_TOKEN (for Midjourney fallback)
+- HEYGEN_API_KEY (for video generation)
+
+For JWT_SECRET, run this and use the output:
+openssl rand -hex 32
+
+DATABASE_URL is already auto-set by Replit's PostgreSQL — do NOT override it.
+
+═══════════════════════════════════════════
+PHASE 6: CONFIGURE PORTS & .replit
+═══════════════════════════════════════════
+
+Show me the current .replit file:
+
+cat .replit
+
+The frontend should run on port 3000 (mapped to external 80) and backend on port 3001. If the file doesn't already have this, update it to:
+
+run = "npm run dev"
+modules = ["nodejs-20", "postgresql-15"]
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "npm run start"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+
+[[ports]]
+localPort = 3001
+externalPort = 3001
+
+═══════════════════════════════════════════
+PHASE 7: TEST BACKEND
+═══════════════════════════════════════════
+
+Start ONLY the backend first to verify it works:
+
+cd backend && npm start
+
+Wait for the startup banner. Then in a NEW shell tab, test:
+
+curl http://localhost:3001/health
+
+Expected response: JSON with status:"ok", database:"connected", and a "services" object showing which AI providers are configured.
+
+If health check fails, show me the error logs.
+
+Stop the backend (Ctrl+C) before moving to the next phase.
+
+═══════════════════════════════════════════
+PHASE 8: RUN FULL APPLICATION
+═══════════════════════════════════════════
+
+Click the green "Run" button in Replit. This executes "npm run dev" which starts both backend (port 3001) and frontend (port 3000) concurrently.
+
+Watch the console for:
+- "✅ Database connected at..."
+- "🚀 PostFlow API Server" banner
+- "ready started server on 0.0.0.0:3000" (Next.js)
+
+Open the webview/preview pane. You should see the PostFlow login page.
+
+═══════════════════════════════════════════
+PHASE 9: SMOKE TEST
+═══════════════════════════════════════════
+
+In the preview:
+1. Click "Start free trial"
+2. Fill the 2-step signup form (any test email + password 8+ chars)
+3. After signup, you should land on the dashboard
+4. Verify the credits counter shows "10" in the top right
+5. Go to Settings → confirm NanoBanana shows as "Active" (green badge)
+
+If the user provided GOOGLE_AI_API_KEY, NanoBanana should be Active.
+If not, the badge will say "Not configured".
+
+═══════════════════════════════════════════
+PHASE 10: FINAL CHECKLIST
+═══════════════════════════════════════════
+
+Confirm these all work:
+[ ] Database has 7 tables with seed data
+[ ] Backend /health endpoint returns "ok"
+[ ] Frontend loads at the Replit preview URL
+[ ] Login/signup flow works
+[ ] Dashboard renders with stats
+[ ] Settings page shows AI provider status
+
+If everything passes, the app is live. Tell the user the public URL of their Replit (the .replit.dev domain).
+
+═══════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════
+
+If "DATABASE_URL not set": Re-create the PostgreSQL database in Replit Database tab.
+
+If "ANTHROPIC_API_KEY missing": Backend will start but content generation will fail. User must add this secret.
+
+If frontend shows blank/error: Check browser console + look for "Module not found" — usually means cd frontend && npm install didn't complete.
+
+If port already in use:
+lsof -ti:3000 | xargs kill -9 2>/dev/null
+lsof -ti:3001 | xargs kill -9 2>/dev/null
+
+If schema.sql fails with "relation already exists": That's fine — the schema starts with DROP TABLE IF EXISTS, so it's idempotent. Re-run it.
+
+DO NOT modify any source files. The project is complete as uploaded — just configure and run it.

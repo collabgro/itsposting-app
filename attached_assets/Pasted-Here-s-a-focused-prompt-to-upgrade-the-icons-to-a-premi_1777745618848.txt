@@ -1,0 +1,546 @@
+Here's a focused prompt to upgrade the icons to a premium feel using Lucide React (the same icon library Linear, Vercel, and Supabase use):
+
+---
+
+```
+Replace all the placeholder unicode/emoji icons throughout the app with proper Lucide React icons. The current icons (⌂, ✎, ◳, etc.) look amateur — Lucide gives a polished, consistent line-icon aesthetic that matches premium SaaS products like Linear, Vercel, and Notion.
+
+Lucide React is already installed in the project (check frontend/package.json — version ^0.292.0). Just import and use it.
+
+Follow this prompt EXACTLY. Do NOT change layouts, colors, or spacing — only swap the icons.
+
+═══════════════════════════════════════════
+ICON DESIGN RULES
+═══════════════════════════════════════════
+
+- Default size: 16px (sidebar nav, small contexts)
+- Medium size: 18px (section headers, top bar)
+- Large size: 20px (empty states, large cards)
+- Stroke width: 2 (Lucide default — DO NOT change)
+- Color: inherit from parent via `color` CSS prop
+- Never wrap icons in spans — pass them directly to JSX
+
+═══════════════════════════════════════════
+PHASE 1: UPDATE LAYOUT.JS NAVIGATION
+═══════════════════════════════════════════
+
+Edit frontend/components/Layout.js.
+
+At the top of the file, ADD this import (with the existing imports):
+
+```javascript
+import {
+  LayoutDashboard,
+  PenSquare,
+  Calendar,
+  FileText,
+  BarChart3,
+  CreditCard,
+  Settings,
+  ChevronsUpDown,
+  ChevronRight,
+  ChevronLeft,
+  Plus,
+  Sun,
+  Moon,
+  Sparkles,
+  ArrowLeft,
+  ArrowRight,
+} from 'lucide-react';
+```
+
+REPLACE the entire NAV_ITEMS array with:
+
+```javascript
+const NAV_ITEMS = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Create Post', href: '/upload', icon: PenSquare },
+  { name: 'Calendar', href: '/calendar', icon: Calendar },
+  { name: 'Drafts', href: '/history', icon: FileText },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Billing', href: '/billing', icon: CreditCard },
+  { name: 'Settings', href: '/settings', icon: Settings },
+];
+```
+
+Now find the navigation rendering section (where it does `NAV_ITEMS.map(...)`).
+
+REPLACE the icon rendering — currently it's something like:
+
+```javascript
+<span style={{ fontSize: 16, ... }}>{item.icon}</span>
+```
+
+WITH this:
+
+```javascript
+<item.icon size={16} strokeWidth={2} style={{ color: active ? t.primary : t.textMuted, flexShrink: 0 }} />
+```
+
+Also, in the same Layout.js file:
+
+1. REPLACE the workspace switcher chevron icon `⇅` with:
+   ```javascript
+   <ChevronsUpDown size={14} style={{ color: t.textMuted, flexShrink: 0 }} />
+   ```
+
+2. REPLACE the active-item arrow `›` with:
+   ```javascript
+   <ChevronRight size={14} style={{ marginLeft: 'auto', color: t.textMuted }} />
+   ```
+
+3. REPLACE the "Create new post" button + icon `<span style={{ color: t.primary, fontSize: 16 }}>+</span>` with:
+   ```javascript
+   <Plus size={16} strokeWidth={2.5} style={{ color: t.primary }} />
+   ```
+
+4. REPLACE the sidebar collapse arrows `←` and `→` with:
+   ```javascript
+   {/* When expanded — shows left arrow */}
+   <ArrowLeft size={14} />
+   
+   {/* When collapsed — shows right arrow */}
+   <ArrowRight size={14} />
+   ```
+
+5. REPLACE the theme toggle icons `☀` / `☾` with:
+   ```javascript
+   {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+   ```
+
+6. REPLACE the logo letter "P" inside the gradient box. Find this section:
+   ```javascript
+   <div style={{ ... gradient ...}}>P</div>
+   ```
+   Replace the inner "P" with:
+   ```javascript
+   <Sparkles size={16} color="#fff" strokeWidth={2.5} />
+   ```
+   (Apply this to BOTH instances — the expanded sidebar logo AND the collapsed sidebar logo.)
+
+═══════════════════════════════════════════
+PHASE 2: UPDATE UI.JS COMPONENTS
+═══════════════════════════════════════════
+
+Edit frontend/components/ui.js.
+
+At the top, ADD imports (or update existing):
+
+```javascript
+import { Inbox } from 'lucide-react';
+```
+
+Find the EmptyState component. REPLACE the icon prop default:
+
+Current:
+```javascript
+export function EmptyState({ icon = '◯', title, subtitle, action }) {
+```
+
+Change to accept a Lucide component:
+```javascript
+export function EmptyState({ icon: Icon = Inbox, title, subtitle, action }) {
+```
+
+REPLACE the icon rendering inside EmptyState:
+
+Current:
+```javascript
+<div style={{ ... }}>{icon}</div>
+```
+
+WITH:
+```javascript
+<div
+  style={{
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    background: t.card,
+    border: `1px solid ${t.border}`,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 16px',
+    color: t.textMuted,
+  }}
+>
+  <Icon size={22} strokeWidth={1.75} />
+</div>
+```
+
+Find the SectionHeader component. UPDATE it the same way — accept `icon: Icon` as a Lucide component instead of a string, and render with:
+
+```javascript
+{Icon && (
+  <div
+    style={{
+      width: 36,
+      height: 36,
+      borderRadius: 8,
+      background: t.primaryBg,
+      border: `1px solid ${t.primaryBorder}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: t.primary,
+      flexShrink: 0,
+    }}
+  >
+    <Icon size={18} strokeWidth={2} />
+  </div>
+)}
+```
+
+═══════════════════════════════════════════
+PHASE 3: UPDATE DASHBOARD.JS
+═══════════════════════════════════════════
+
+Edit frontend/pages/dashboard.js.
+
+ADD these imports at the top:
+
+```javascript
+import {
+  Calendar as CalendarIcon,
+  TrendingUp,
+  Eye,
+  Heart,
+  MessageCircle,
+  Share2,
+  Plus,
+  Clock,
+  FileText,
+  Inbox,
+} from 'lucide-react';
+```
+
+REPLACE all the unicode/emoji icons in the dashboard:
+
+1. Month overview SectionHeader icon `"◳"` → `CalendarIcon`
+   ```javascript
+   <SectionHeader icon={CalendarIcon} title={`${monthName} overview`} ... />
+   ```
+
+2. Best reach SectionHeader icon `"◈"` → `TrendingUp`
+   ```javascript
+   <SectionHeader icon={TrendingUp} title="Best reach" ... />
+   ```
+
+3. The Best Reach metric tabs — REPLACE the icon strings with Lucide components:
+   ```javascript
+   const METRICS = [
+     { id: 'views', label: 'Views', icon: Eye },
+     { id: 'likes', label: 'Likes', icon: Heart },
+     { id: 'replies', label: 'Replies', icon: MessageCircle },
+     { id: 'shares', label: 'Shares', icon: Share2 },
+   ];
+   ```
+   Then in the rendering:
+   ```javascript
+   <m.icon size={14} strokeWidth={2} style={{ color: activeMetric === m.id ? t.primary : t.textMuted }} />
+   ```
+
+4. EmptyState icons `"◯"` → `Inbox`:
+   ```javascript
+   <EmptyState icon={Inbox} title="No posts this month" ... />
+   ```
+
+5. Post details section — REPLACE the clock emoji `"⏱"`:
+   ```javascript
+   <SectionHeader icon={Clock} title="Post details" />
+   ```
+   And inside the scheduled-groups card box where there's another `⏱` icon:
+   ```javascript
+   <Clock size={16} style={{ color: t.primary }} />
+   ```
+
+6. Upcoming posts SectionHeader `"⏱"` → `Clock`:
+   ```javascript
+   <SectionHeader icon={Clock} title="Upcoming posts" />
+   ```
+
+7. The trailing chevron in the scheduled groups row `"›"` → ChevronRight:
+   ```javascript
+   import { ChevronRight } from 'lucide-react';
+   // then:
+   <ChevronRight size={14} style={{ color: t.textMuted }} />
+   ```
+
+8. The "Create new post" button in the action prop:
+   ```javascript
+   action={
+     <Button variant="primary" onClick={() => router.push('/upload')}>
+       <Plus size={14} strokeWidth={2.5} />
+       Create new post
+     </Button>
+   }
+   ```
+
+═══════════════════════════════════════════
+PHASE 4: UPDATE LOGIN.JS & SIGNUP.JS
+═══════════════════════════════════════════
+
+Edit frontend/pages/login.js.
+
+ADD import:
+```javascript
+import { Sparkles } from 'lucide-react';
+```
+
+REPLACE the gradient logo box content. Find this:
+```javascript
+<div style={{ ... gradient ... }}>P</div>
+```
+
+Replace inner content with:
+```javascript
+<Sparkles size={20} color="#fff" strokeWidth={2.5} />
+```
+
+Do the SAME thing in frontend/pages/signup.js — find the "P" inside the gradient logo and replace with the same Sparkles icon.
+
+═══════════════════════════════════════════
+PHASE 5: UPDATE UPLOAD.JS PAGE
+═══════════════════════════════════════════
+
+Edit frontend/pages/upload.js.
+
+ADD imports:
+
+```javascript
+import {
+  Upload as UploadIcon,
+  Image as ImageIcon,
+  Layers,
+  Video,
+  Calendar as CalendarIcon,
+  Save,
+  Facebook,
+  Instagram,
+  Globe,
+  Zap,
+} from 'lucide-react';
+```
+
+REPLACE all the emoji icons:
+
+1. Page header icon `"📤"` → `UploadIcon`:
+   In the page heading area:
+   ```javascript
+   <UploadIcon size={20} style={{ color: t.primary }} />
+   ```
+
+2. Content type buttons — REPLACE the emoji icons:
+   ```javascript
+   const CONTENT_TYPES = [
+     { id: 'photo', label: 'Photo', icon: ImageIcon, desc: '1 image' },
+     { id: 'carousel', label: 'Carousel', icon: Layers, desc: '2-10 images' },
+     { id: 'video', label: 'Video', icon: Video, desc: '1 video' },
+   ];
+   ```
+   
+   Inside the button render:
+   ```javascript
+   <opt.icon size={20} strokeWidth={2} style={{ color: contentType === opt.id ? t.primary : t.textMuted }} />
+   ```
+
+3. Platform buttons — REPLACE platform emojis:
+   ```javascript
+   const PLATFORMS = [
+     { id: 'facebook', name: 'Facebook', icon: Facebook },
+     { id: 'instagram', name: 'Instagram', icon: Instagram },
+     { id: 'google_business', name: 'Google Business', icon: Globe },
+   ];
+   ```
+   Inside the platform button:
+   ```javascript
+   <p.icon size={18} strokeWidth={2} style={{ color: platforms.includes(p.id) ? t.primary : t.textMuted }} />
+   ```
+
+4. Schedule mode buttons — REPLACE emojis:
+   - "⚡ Save as Draft" — replace `⚡` with `<Zap size={14} />`
+   - "📅 Schedule" — replace `📅` with `<CalendarIcon size={14} />`
+
+5. Submit button — REPLACE emoji icons:
+   - "💾 Save Post" — replace with `<Save size={16} />`
+   - "📅 Schedule Post" — replace with `<CalendarIcon size={16} />`
+
+═══════════════════════════════════════════
+PHASE 6: UPDATE BILLING.JS
+═══════════════════════════════════════════
+
+Edit frontend/pages/billing.js.
+
+ADD imports:
+```javascript
+import { Check, CreditCard, Sparkles, Crown, Zap } from 'lucide-react';
+```
+
+1. REPLACE the page heading emoji `"💳"`:
+   ```javascript
+   <CreditCard size={20} style={{ color: t.primary }} />
+   ```
+
+2. REPLACE the checkmark `"✓"` in feature lists with:
+   ```javascript
+   <Check size={14} strokeWidth={2.5} style={{ color: t.success, flexShrink: 0, marginTop: 2 }} />
+   ```
+
+3. REPLACE the current plan badge `"✓ Current Plan"` with:
+   ```javascript
+   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+     <Check size={14} strokeWidth={3} />
+     Current Plan
+   </span>
+   ```
+
+4. ADD plan-tier visual icons. Above the plans grid, ADD per-plan icons in the plan card header:
+   ```javascript
+   const PLAN_ICONS = {
+     starter: Zap,
+     professional: Sparkles,
+     premium: Crown,
+   };
+   ```
+   Then in each plan card, before the plan name:
+   ```javascript
+   {(() => {
+     const PlanIcon = PLAN_ICONS[plan.id] || Zap;
+     return <PlanIcon size={20} style={{ color: t.primary, marginBottom: 8 }} />;
+   })()}
+   ```
+
+═══════════════════════════════════════════
+PHASE 7: UPDATE SETTINGS.JS
+═══════════════════════════════════════════
+
+Edit frontend/pages/settings.js.
+
+ADD imports:
+```javascript
+import {
+  Save,
+  Loader2,
+  Zap,
+  Palette,
+  Globe,
+  Trash2,
+  RefreshCw,
+  User,
+  Bell,
+  Key,
+  Building,
+  Users,
+  CheckSquare,
+  Share2,
+  Tag,
+  CreditCard,
+  Sliders,
+} from 'lucide-react';
+```
+
+These imports may already exist. Make sure ALL emoji/unicode icons in this page use Lucide equivalents. The most common replacements:
+
+- `⚡` → `<Zap size={16} />`
+- `🎨` → `<Palette size={16} />`
+- `🌐` → `<Globe size={16} />`
+- `🔄` → `<RefreshCw size={16} />`
+- `🗑` → `<Trash2 size={14} />`
+- `💾` → `<Save size={14} />`
+- `✓` → `<Check size={14} strokeWidth={2.5} />`
+
+═══════════════════════════════════════════
+PHASE 8: UPDATE CALENDAR.JS & HISTORY.JS
+═══════════════════════════════════════════
+
+Edit frontend/pages/calendar.js.
+
+ADD imports:
+```javascript
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
+```
+
+REPLACE the `<` and `>` text arrows in calendar navigation with:
+```javascript
+<ChevronLeft size={16} />
+<ChevronRight size={16} />
+```
+
+REPLACE the "+" in any "New post" button with:
+```javascript
+<Plus size={14} strokeWidth={2.5} />
+```
+
+Edit frontend/pages/history.js.
+
+ADD imports:
+```javascript
+import { Heart, MessageCircle, Share2, FileText, Calendar as CalendarIcon, CheckCircle, Clock } from 'lucide-react';
+```
+
+REPLACE the engagement icons (`Heart`, `MessageCircle`, `Share2`) — they may already use Lucide; just make sure they're size={14} for consistency with the rest of the design.
+
+REPLACE any content-type emoji indicators (📷, 🎥, 📊, 💬) with their Lucide equivalents using the same imports from upload.js (ImageIcon, Video, Layers, FileText).
+
+═══════════════════════════════════════════
+PHASE 9: UPDATE CONTENT CREATOR MODAL (IF EXISTS)
+═══════════════════════════════════════════
+
+Edit frontend/components/ContentCreatorModal.js (if you still use it).
+
+Replace ALL emoji content-type icons (📝, 📷, 📊, 🎥) with Lucide equivalents:
+```javascript
+import { FileText, Image as ImageIcon, Layers, Video } from 'lucide-react';
+
+const CONTENT_TYPES = [
+  { id: 'static', label: 'Text Card', icon: FileText, credits: 1 },
+  { id: 'photo', label: 'Photo', icon: ImageIcon, credits: 3 },
+  { id: 'carousel', label: 'Carousel', icon: Layers, credits: 5 },
+  { id: 'video', label: 'Video', icon: Video, credits: 10 },
+];
+```
+
+═══════════════════════════════════════════
+PHASE 10: VERIFY
+═══════════════════════════════════════════
+
+1. Stop the workflow → Run again
+2. Hard refresh preview (Ctrl+Shift+R)
+3. Check every page:
+   - [ ] Sidebar — all 7 nav items have crisp line icons (no emoji, no unicode shapes)
+   - [ ] Logo — gradient box contains a Sparkles icon (not letter P)
+   - [ ] Top bar — sun/moon toggle uses real Lucide icons
+   - [ ] Dashboard — calendar/trending/clock icons all Lucide, NOT unicode
+   - [ ] Best Reach metric tabs — eye/heart/comment/share icons render cleanly
+   - [ ] Upload page — content type cards show camera/layers/video icons
+   - [ ] Platform buttons show Facebook/Instagram/Globe Lucide icons
+   - [ ] Billing page — feature checkmarks are Lucide Check icons (thin, crisp)
+   - [ ] Settings page — all section icons are Lucide
+   - [ ] No remaining emoji/unicode icons anywhere except inside actual content (captions are fine)
+
+═══════════════════════════════════════════
+WHAT NOT TO DO
+═══════════════════════════════════════════
+
+- Do NOT install any new packages — Lucide React is already installed
+- Do NOT change colors, layouts, or spacing — only swap icons
+- Do NOT use icon libraries other than Lucide (no FontAwesome, no Heroicons, no React Icons)
+- Do NOT change icon sizes mid-context — keep 14/16/18/20px hierarchy consistent
+- Do NOT add icons where there weren't any before — only replace existing ones
+- Do NOT keep ANY emoji icons in UI chrome (sidebar, buttons, headers). Emojis in user-generated content captions are fine.
+
+The result: icons will look clean, consistent, and premium — matching the line-icon aesthetic used by Linear, Vercel, Notion, and Stripe.
+```
+
+---
+
+## Why this works
+
+**Lucide is the SaaS standard.** It's what Linear, Vercel, Supabase, Cal.com, Notion, and most modern dashboards use — clean 2px stroke line icons with consistent metrics across the entire set. Lucide React was already installed in your `package.json`, so this prompt costs nothing in dependencies.
+
+**Size hierarchy creates polish.** The prompt enforces 14/16/18/20px sizes by context — small for nav, medium for headers, larger for empty states. Inconsistent icon sizes are the #1 thing that makes UIs look amateur.
+
+**Icons inherit color from theme tokens** (via `style={{ color: t.primary }}`) so they automatically adapt when users toggle dark/light mode — no manual swapping needed.
+
+After Replit applies this, every icon will feel intentional and crisp instead of looking like AI-generated unicode shapes. If any specific icon ends up looking off after the swap, tell me which one and I'll send a one-line fix.

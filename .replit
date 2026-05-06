@@ -1,0 +1,58 @@
+run = "npm run dev"
+modules = ["nodejs-20", "postgresql-15", "python-3.11"]
+
+  [nix]
+  channel = "stable-24_05"
+
+  [deployment]
+run = ["bash", "-c", "npm run start"]
+deploymentTarget = "autoscale"
+build = ["bash", "-c", "cd backend && npm install && cd ../frontend && npm install && npm run build"]
+
+[[ports]]
+localPort = 3001
+externalPort = 3001
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+  [env]
+  NODE_ENV = "development"
+
+  [agent]
+expertMode = true
+
+  [userenv]
+
+  [userenv.shared]
+  IMAGE_PROVIDER = "nanobanana"
+  PORT = "3001"
+  FRONTEND_URL = "https://95c51616-8d2a-4b90-bce9-7bb9005a8e28-00-99iwda12jhkv.pike.replit.dev"
+  NEXT_PUBLIC_API_URL = "http://0.0.0.0:3001"
+EMAIL_PROVIDER = "resend"
+
+  [workflows]
+  runButton = "Project"
+
+  [[workflows.workflow]]
+  name = "Project"
+  mode = "parallel"
+  author = "agent"
+
+  [[workflows.workflow.tasks]]
+  task = "workflow.run"
+  args = "Start application"
+
+  [[workflows.workflow]]
+  name = "Start application"
+  author = "agent"
+
+  [workflows.workflow.metadata]
+  outputType = "webview"
+
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "npm run dev"
+  waitForPort = 5000
+  
