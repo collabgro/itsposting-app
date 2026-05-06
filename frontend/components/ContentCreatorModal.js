@@ -27,11 +27,11 @@ const GEN_STEPS = [
 
 const STEP_DELAYS = [800, 2200, 5000, 9000];
 
-export default function ContentCreatorModal({ onClose, onSuccess, defaultDate = '', defaultScheduleMode = 'now' }) {
+export default function ContentCreatorModal({ onClose, onSuccess, defaultDate = '', defaultScheduleMode = 'now', initialPrompt = '', initialContentType = '' }) {
   const { t } = useTheme();
-  const [step, setStep] = useState(1);
-  const [contentType, setContentType] = useState('');
-  const [prompt, setPrompt] = useState('');
+  const [step, setStep] = useState(initialPrompt && initialContentType ? 2 : 1);
+  const [contentType, setContentType] = useState(initialContentType || '');
+  const [prompt, setPrompt] = useState(initialPrompt || '');
   const [generating, setGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState(null);
   const [credits, setCredits] = useState(null);
@@ -151,6 +151,12 @@ export default function ContentCreatorModal({ onClose, onSuccess, defaultDate = 
           )}
           {step === 2 && (
             <div>
+              {initialPrompt && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, marginBottom: 14, fontSize: 12, color: t.primary }}>
+                  <Sparkles size={13} style={{ flexShrink: 0 }} />
+                  <span><strong>PostCore draft loaded</strong> — edit the caption or generate something new</span>
+                </div>
+              )}
               <button onClick={() => setStep(1)} style={{ fontSize: 12, color: t.primary, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 20, cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}><ChevronLeft size={14} /> Back</button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, marginBottom: 20, flexWrap: 'wrap' }}>
                 {(() => { const t2 = CONTENT_TYPES.find(tp => tp.id === contentType); return t2 ? <><t2.icon size={16} style={{ color: t.primary, flexShrink: 0 }} /><span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{t2.name}</span><span style={{ fontSize: 12, color: t.textMuted }}>·</span><span style={{ fontSize: 12, color: t.textMuted }}>{t2.credits} credits</span></> : null; })()}

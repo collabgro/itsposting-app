@@ -19,8 +19,11 @@ const adminRoutes = require('./routes/admin');
 const analyticsRoutes = require('./routes/analytics');
 const notificationRoutes = require('./routes/notifications');
 const suggestionsRoutes = require('./routes/suggestions');
+const wizardRoutes = require('./routes/wizard');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
 const EmailWorker = require('./services/EmailWorker');
+const SuggestionsEngine = require('./services/SuggestionsEngine');
+const cron = require('node-cron');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -79,6 +82,7 @@ app.use('/api/admin', adminRoutes(pool));
 app.use('/api/analytics', analyticsRoutes(pool));
 app.use('/api/notifications', notificationRoutes(pool));
 app.use('/api/suggestions', suggestionsRoutes(pool));
+app.use('/api/wizard', wizardRoutes(pool));
 
 app.get('/health', async (req, res) => {
   try {
@@ -154,6 +158,16 @@ scheduler.start();
 
 const emailWorker = new EmailWorker(pool);
 emailWorker.start();
+
+const suggestionsEngine = new SuggestionsEngine(pool);
+cron.schedule('0 8 * * *', async () => {
+  console.log('[SuggestionsEngine] 8am daily run starting...');
+  await suggestionsEngine.generateForAllCustomers();
+});
+cron.schedule('5 0 * * *', async () => {
+  await suggestionsEngine.cleanupExpired();
+});
+console.log('💡 SuggestionsEngine cron scheduled (8am daily + midnight cleanup)');
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`

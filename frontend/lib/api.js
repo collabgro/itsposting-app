@@ -80,6 +80,15 @@ export const suggestionsAPI = {
   dismiss: (id) => api.post(`/api/suggestions/${id}/dismiss`),
 };
 
+export const wizardAPI = {
+  start: (data) => api.post('/api/wizard/start', data),
+  step: (data) => api.post('/api/wizard/step', data),
+  generate: (data) => api.post('/api/wizard/generate', data),
+  quick: (data) => api.post('/api/wizard/quick', data),
+  refresh: (data) => api.post('/api/wizard/refresh', data),
+  getSteps: (industry, contentType) => api.get(`/api/wizard/steps/${industry}/${contentType}`),
+};
+
 export const uploadAPI = {
   uploadMedia: (file) => {
     const formData = new FormData();

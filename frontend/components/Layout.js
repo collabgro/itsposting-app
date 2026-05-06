@@ -11,6 +11,7 @@ import NotificationBell from './NotificationBell';
 
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Post Wizard', href: '/wizard', icon: Sparkles },
   { name: 'Create Post', href: '/upload', icon: PenSquare },
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Drafts', href: '/history', icon: FileText },

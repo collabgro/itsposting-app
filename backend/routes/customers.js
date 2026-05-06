@@ -12,9 +12,11 @@ module.exports = (pool) => {
       const result = await pool.query(
         `SELECT id, email, business_name, industry, location, phone, website,
                 logo_url, brand_colors, visual_style, tone, avatar_id, voice_id,
-                preferred_image_provider, plan, status, credits_balance, 
+                preferred_image_provider, plan, status, credits_balance,
                 credits_used_this_month, trial_ends_at, auto_post_enabled,
-                auto_post_frequency, posting_times, timezone
+                auto_post_frequency, posting_times, timezone,
+                is_admin, role, suspended, posting_streak,
+                last_posted_at, total_posts_this_month
          FROM customers WHERE id = $1`,
         [req.customerId]
       );

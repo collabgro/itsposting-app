@@ -1,41 +1,26 @@
-/**
- * ItsPosting — PostCore Dashboard Banner
- * frontend/components/PostCoreBanner.js
- *
- * The "Today from PostCore" section shown at the top of the dashboard.
- * Shows active suggestions. Generates them if none exist.
- *
- * Usage in dashboard.js:
- *   import PostCoreBanner from '../components/PostCoreBanner';
- *   <PostCoreBanner onUseCaption={(caption) => openWizardWithCaption(caption)} />
- */
-
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
 import { useTheme } from '../lib/theme';
 import { suggestionsAPI } from '../lib/api';
 import SuggestionCard from './SuggestionCard';
 import { Sparkles, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 
-export default function PostCoreBanner({ onUseCaption }) {
+// onUsePost(caption)      — open ContentCreatorModal with caption pre-filled
+// onCustomizePost(caption) — open ContentCreatorModal with caption, let user pick type
+export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
   const { t } = useTheme();
-  const router = useRouter();
-
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  useEffect(() => {
-    loadSuggestions();
-  }, []);
+  useEffect(() => { loadSuggestions(); }, []);
 
   const loadSuggestions = async () => {
     setLoading(true);
     try {
       const res = await suggestionsAPI.getAll();
-      const data = res.data;
-
+      // API returns { suggestions: [...], generated: bool }
+      const data = res.data?.suggestions || [];
       if (data.length === 0) {
         await generateFresh();
       } else {
@@ -52,7 +37,7 @@ export default function PostCoreBanner({ onUseCaption }) {
     setGenerating(true);
     try {
       const res = await suggestionsAPI.generate();
-      setSuggestions(res.data.suggestions || []);
+      setSuggestions(res.data?.suggestions || []);
     } catch (err) {
       console.error('[PostCoreBanner] generate error:', err.message);
     } finally {
@@ -61,32 +46,22 @@ export default function PostCoreBanner({ onUseCaption }) {
   };
 
   const handleUse = async (id) => {
-    try {
-      await suggestionsAPI.use(id);
-      const suggestion = suggestions.find(s => s.id === id);
-      if (suggestion && onUseCaption) {
-        sessionStorage.setItem('postcore_caption', suggestion.pre_generated_caption);
-        sessionStorage.setItem('postcore_hashtags', JSON.stringify(suggestion.pre_generated_hashtags || []));
-        router.push('/upload?source=postcore');
-      }
-      setSuggestions(prev => prev.filter(s => s.id !== id));
-    } catch (err) {
-      console.error('[PostCoreBanner] use error:', err.message);
+    const suggestion = suggestions.find(s => s.id === id);
+    try { await suggestionsAPI.use(id); } catch { /* non-critical */ }
+    setSuggestions(prev => prev.filter(s => s.id !== id));
+    if (suggestion && onUsePost) {
+      // preGeneratedCaption is { caption, hashtags, imagePrompt }
+      onUsePost(suggestion.preGeneratedCaption?.caption || '');
     }
   };
 
   const handleCustomize = (id, caption) => {
-    sessionStorage.setItem('postcore_caption', caption);
-    router.push('/upload?source=postcore&mode=customize');
+    if (onCustomizePost) onCustomizePost(caption);
   };
 
   const handleDismiss = async (id) => {
-    try {
-      await suggestionsAPI.dismiss(id);
-      setSuggestions(prev => prev.filter(s => s.id !== id));
-    } catch (err) {
-      console.error('[PostCoreBanner] dismiss error:', err.message);
-    }
+    try { await suggestionsAPI.dismiss(id); } catch { /* non-critical */ }
+    setSuggestions(prev => prev.filter(s => s.id !== id));
   };
 
   if (!loading && !generating && suggestions.length === 0) {
@@ -106,9 +81,7 @@ export default function PostCoreBanner({ onUseCaption }) {
       {/* Header */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '16px 20px',
           borderBottom: collapsed ? 'none' : `1px solid ${t.border}`,
           cursor: 'pointer',
@@ -118,13 +91,9 @@ export default function PostCoreBanner({ onUseCaption }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
+              width: 32, height: 32, borderRadius: 8,
               background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
             <Sparkles size={16} color="#fff" strokeWidth={2.5} />
@@ -144,16 +113,10 @@ export default function PostCoreBanner({ onUseCaption }) {
             onClick={(e) => { e.stopPropagation(); generateFresh(); }}
             disabled={generating}
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: t.input,
-              border: `1px solid ${t.border}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: t.textMuted,
-              cursor: generating ? 'not-allowed' : 'pointer',
+              width: 32, height: 32, borderRadius: 8,
+              background: t.input, border: `1px solid ${t.border}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: t.textMuted, cursor: generating ? 'not-allowed' : 'pointer',
             }}
             title="Refresh suggestions"
           >
@@ -162,16 +125,10 @@ export default function PostCoreBanner({ onUseCaption }) {
 
           <button
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: 'transparent',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: t.textMuted,
-              cursor: 'pointer',
+              width: 32, height: 32, borderRadius: 8,
+              background: 'transparent', border: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: t.textMuted, cursor: 'pointer',
             }}
           >
             {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
@@ -187,12 +144,7 @@ export default function PostCoreBanner({ onUseCaption }) {
               {[1, 2].map(i => (
                 <div
                   key={i}
-                  style={{
-                    height: 120,
-                    borderRadius: 12,
-                    background: t.input,
-                    animation: 'pulse 1.5s ease-in-out infinite',
-                  }}
+                  style={{ height: 120, borderRadius: 12, background: t.input, animation: 'pulse 1.5s ease-in-out infinite' }}
                 />
               ))}
             </div>
@@ -212,10 +164,7 @@ export default function PostCoreBanner({ onUseCaption }) {
 
       <style jsx>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
       `}</style>
     </div>
   );
