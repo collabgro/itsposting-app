@@ -477,7 +477,7 @@ module.exports = (pool) => {
       try {
         claudeResponse = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 1200,
+          max_tokens: 2500,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         });
