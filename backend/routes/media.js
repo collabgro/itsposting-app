@@ -1,13 +1,26 @@
 const express = require('express');
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
+const path = require('path');
+const fs = require('fs');
 const { authenticate } = require('../middleware/auth');
 
 const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024 * 1024; // 10 GB
+const MEDIA_DIR = process.env.MEDIA_STORAGE_PATH || '/data/media';
 
-const storage = multer.memoryStorage();
+// Ensure the media directory exists at startup
+try { fs.mkdirSync(MEDIA_DIR, { recursive: true }); } catch (_) {}
+
+const diskStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, MEDIA_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const safe = file.originalname.replace(/\.[^.]+$/, '').replace(/[^a-z0-9]/gi, '_').slice(0, 40);
+    cb(null, `${Date.now()}-${safe}${ext}`);
+  },
+});
+
 const upload = multer({
-  storage,
+  storage: diskStorage,
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = /jpeg|jpg|png|gif|webp|mp4|mov|webm|avi/;
@@ -21,28 +34,10 @@ const upload = multer({
 module.exports = (pool) => {
   const router = express.Router();
 
-  if (process.env.CLOUDINARY_CLOUD_NAME) {
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-    });
-  }
-
-  const uploadToCloudinary = (buffer, mimetype, originalname) => {
-    const isVideo = mimetype.startsWith('video/');
-    return new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: isVideo ? 'video' : 'image',
-          folder: 'itsposting/media-library',
-          quality: 'auto:best',
-          public_id: `${Date.now()}-${originalname.replace(/\.[^.]+$/, '').replace(/[^a-z0-9]/gi, '_').slice(0, 50)}`,
-        },
-        (err, result) => (err ? reject(err) : resolve(result))
-      );
-      stream.end(buffer);
-    });
+  // Build the public-facing URL for a stored filename
+  const getPublicUrl = (filename) => {
+    const base = (process.env.BACKEND_URL || '').replace(/\/$/, '');
+    return `${base}/media-files/${filename}`;
   };
 
   // GET /api/media/quota
@@ -106,53 +101,77 @@ module.exports = (pool) => {
 
   // POST /api/media/upload
   router.post('/upload', authenticate, upload.array('files', 20), async (req, res) => {
-    if (!process.env.CLOUDINARY_CLOUD_NAME) {
-      return res.status(503).json({ error: 'Media storage is not configured. Please contact support.' });
-    }
     const client = await pool.connect();
     try {
       if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
+
       const folder = req.body.folder || 'all';
       const totalUploadSize = req.files.reduce((sum, f) => sum + f.size, 0);
+
       const quotaResult = await client.query(
         'SELECT storage_used_bytes, storage_quota_bytes FROM customers WHERE id = $1',
         [req.customerId]
       );
       const used = parseInt(quotaResult.rows[0].storage_used_bytes) || 0;
       const quota = parseInt(quotaResult.rows[0].storage_quota_bytes) || STORAGE_QUOTA_BYTES;
+
       if (used + totalUploadSize > quota) {
-        return res.status(413).json({ error: 'Storage quota exceeded', available: formatBytes(quota - used), required: formatBytes(totalUploadSize) });
+        // Clean up files already written by multer
+        for (const f of req.files) {
+          try { fs.unlinkSync(f.path); } catch (_) {}
+        }
+        return res.status(413).json({
+          error: 'Storage quota exceeded',
+          available: formatBytes(quota - used),
+          required: formatBytes(totalUploadSize),
+        });
       }
+
       await client.query('BEGIN');
       const uploaded = [];
+
       for (const file of req.files) {
-        try {
-          const result = await uploadToCloudinary(file.buffer, file.mimetype, file.originalname);
-          const isVideo = file.mimetype.startsWith('video/');
-          let thumbnailUrl = null;
-          if (isVideo) {
-            thumbnailUrl = result.secure_url.replace('/video/upload/', '/video/upload/so_0/').replace(/\.[^.]+$/, '.jpg');
-          }
-          const dbResult = await client.query(
-            `INSERT INTO media_library (customer_id, cloudinary_public_id, url, thumbnail_url, file_name, file_type, mime_type, file_size_bytes, width, height, duration_seconds, folder)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-            [req.customerId, result.public_id, result.secure_url, thumbnailUrl || result.secure_url, file.originalname, isVideo ? 'video' : 'image', file.mimetype, file.size, result.width || null, result.height || null, result.duration || null, folder]
-          );
-          uploaded.push(dbResult.rows[0]);
-        } catch (uploadErr) {
-          console.error(`Failed to upload ${file.originalname}:`, uploadErr.message);
-        }
+        const isVideo = file.mimetype.startsWith('video/');
+        const publicUrl = getPublicUrl(file.filename);
+
+        const dbResult = await client.query(
+          `INSERT INTO media_library
+            (customer_id, cloudinary_public_id, url, thumbnail_url, file_name, file_type,
+             mime_type, file_size_bytes, folder)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+          [
+            req.customerId,
+            file.filename,          // reuse this column to store the filename for deletion
+            publicUrl,
+            publicUrl,              // thumbnail = same URL (no transform service)
+            file.originalname,
+            isVideo ? 'video' : 'image',
+            file.mimetype,
+            file.size,
+            folder,
+          ]
+        );
+        uploaded.push(dbResult.rows[0]);
       }
-      if (uploaded.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(500).json({ error: 'All files failed to upload. Check your Cloudinary configuration.' });
-      }
+
       const totalUploaded = uploaded.reduce((sum, f) => sum + parseInt(f.file_size_bytes), 0);
-      await client.query('UPDATE customers SET storage_used_bytes = storage_used_bytes + $1 WHERE id = $2', [totalUploaded, req.customerId]);
+      await client.query(
+        'UPDATE customers SET storage_used_bytes = storage_used_bytes + $1 WHERE id = $2',
+        [totalUploaded, req.customerId]
+      );
       await client.query('COMMIT');
+
+      console.log(`[Media] ${req.customerId} uploaded ${uploaded.length} file(s) (${formatBytes(totalUploaded)})`);
       res.json({ success: true, uploaded: uploaded.length, files: uploaded, totalSizeUploaded: formatBytes(totalUploaded) });
     } catch (error) {
       await client.query('ROLLBACK');
+      // Clean up any files written before the error
+      if (req.files) {
+        for (const f of req.files) {
+          try { fs.unlinkSync(f.path); } catch (_) {}
+        }
+      }
+      console.error('[Media] Upload error:', error.message);
       res.status(500).json({ error: error.message });
     } finally {
       client.release();
@@ -163,16 +182,26 @@ module.exports = (pool) => {
   router.delete('/:id', authenticate, async (req, res) => {
     const client = await pool.connect();
     try {
-      const fileResult = await client.query('SELECT * FROM media_library WHERE id = $1 AND customer_id = $2', [req.params.id, req.customerId]);
+      const fileResult = await client.query(
+        'SELECT * FROM media_library WHERE id = $1 AND customer_id = $2',
+        [req.params.id, req.customerId]
+      );
       if (fileResult.rows.length === 0) return res.status(404).json({ error: 'File not found' });
+
       const file = fileResult.rows[0];
-      try {
-        await cloudinary.uploader.destroy(file.cloudinary_public_id, { resource_type: file.file_type === 'video' ? 'video' : 'image' });
-      } catch (e) { console.error('Cloudinary delete error:', e.message); }
+      const filePath = path.join(MEDIA_DIR, file.cloudinary_public_id);
+
       await client.query('BEGIN');
       await client.query('DELETE FROM media_library WHERE id = $1', [req.params.id]);
-      await client.query('UPDATE customers SET storage_used_bytes = GREATEST(0, storage_used_bytes - $1) WHERE id = $2', [file.file_size_bytes, req.customerId]);
+      await client.query(
+        'UPDATE customers SET storage_used_bytes = GREATEST(0, storage_used_bytes - $1) WHERE id = $2',
+        [file.file_size_bytes, req.customerId]
+      );
       await client.query('COMMIT');
+
+      // Delete file from disk after DB commit (non-fatal if missing)
+      try { fs.unlinkSync(filePath); } catch (_) {}
+
       res.json({ success: true, freedBytes: parseInt(file.file_size_bytes) });
     } catch (error) {
       await client.query('ROLLBACK');

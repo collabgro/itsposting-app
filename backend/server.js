@@ -35,6 +35,12 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
+// ── Railway Volume: serve uploaded media files publicly ───────────────────────
+const MEDIA_DIR = process.env.MEDIA_STORAGE_PATH || '/data/media';
+const fsSync = require('fs');
+try { fsSync.mkdirSync(MEDIA_DIR, { recursive: true }); } catch (_) {}
+app.use('/media-files', express.static(MEDIA_DIR, { maxAge: '7d' }));
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/socialmedia',
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -107,7 +113,7 @@ app.get('/health', async (req, res) => {
         imageOne: !!process.env.GOOGLE_AI_API_KEY,
         imageTwo: !!process.env.REPLICATE_API_TOKEN,
         video: !!process.env.HEYGEN_API_KEY,
-        cloudinary: !!process.env.CLOUDINARY_CLOUD_NAME,
+        mediaStorage: !!process.env.BACKEND_URL,
       },
     });
   } catch (error) {
@@ -219,7 +225,7 @@ app.listen(PORT, '0.0.0.0', () => {
 ║   ${process.env.GOOGLE_AI_API_KEY ? '✅' : '⚠️ '} Image One                           ║
 ║   ${process.env.REPLICATE_API_TOKEN ? '✅' : '⚠️ '} Image Two                           ║
 ║   ${process.env.HEYGEN_API_KEY ? '✅' : '⚠️ '} Video                               ║
-║   ${process.env.CLOUDINARY_CLOUD_NAME ? '✅' : '⚠️ '} Storage                             ║
+║   ${process.env.BACKEND_URL ? '✅' : '⚠️ '} Media (Railway Volume)              ║
 ║   ${process.env.RESEND_API_KEY ? '✅' : '⚠️ '} Email                               ║
 ║                                           ║
 ╚═══════════════════════════════════════════╝
