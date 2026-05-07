@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
-  ArrowLeft, Plus, Power, CheckCircle, CreditCard, History,
-  AlertTriangle, Shield, Edit, X, Save,
-} from 'lucide-react';
+  IpArrowLeft, IpPlus, IpPower, IpCheckCircle, IpBilling, IpHistory,
+  IpWarning, IpAdmin, IpEdit, IpClose, IpSave,
+} from '../../../components/icons';
 import Layout from '../../../components/Layout';
 import { Card, Button, Badge, SectionHeader, EmptyState } from '../../../components/ui';
 import { useTheme } from '../../../lib/theme';
@@ -144,7 +144,7 @@ export default function AdminCustomerDetail() {
     <Layout
       title={c.business_name || c.email}
       subtitle={c.email}
-      action={<Button variant="ghost" onClick={() => router.push('/admin/customers')}><ArrowLeft size={14} /> Back</Button>}
+      action={<Button variant="ghost" onClick={() => router.push('/admin/customers')}><IpArrowLeft size={14} /> Back</Button>}
     >
       {message.text && (
         <div style={{ padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontSize: 13, background: msgStyle[message.type]?.bg, border: `1px solid ${msgStyle[message.type]?.border}`, color: msgStyle[message.type]?.color }}>
@@ -166,25 +166,25 @@ export default function AdminCustomerDetail() {
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button variant="secondary" size="sm" onClick={() => setShowEditModal(true)}>
-              <Edit size={13} /> Edit
+              <IpEdit size={13} /> Edit
             </Button>
             <Button variant="secondary" size="sm" onClick={() => setShowCreditsModal(true)}>
-              <Plus size={13} /> Credits
+              <IpPlus size={13} /> Credits
             </Button>
             <Button variant="secondary" size="sm" onClick={handleResetPassword}>Reset Password</Button>
             {!c.is_admin
-              ? <Button variant="secondary" size="sm" onClick={handlePromote}><Shield size={13} /> Make Admin</Button>
+              ? <Button variant="secondary" size="sm" onClick={handlePromote}><IpAdmin size={13} /> Make Admin</Button>
               : <Button variant="secondary" size="sm" onClick={handleDemote}>Remove Admin</Button>
             }
             {c.suspended
-              ? <Button variant="primary" size="sm" onClick={handleReactivate}><CheckCircle size={13} /> Reactivate</Button>
-              : <Button variant="danger" size="sm" onClick={() => setShowSuspendModal(true)}><Power size={13} /> Suspend</Button>
+              ? <Button variant="primary" size="sm" onClick={handleReactivate}><IpCheckCircle size={13} /> Reactivate</Button>
+              : <Button variant="danger" size="sm" onClick={() => setShowSuspendModal(true)}><IpPower size={13} /> Suspend</Button>
             }
           </div>
         </div>
         {c.suspended && c.suspension_reason && (
           <div style={{ marginTop: 14, padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, display: 'flex', gap: 10 }}>
-            <AlertTriangle size={16} style={{ color: t.error, flexShrink: 0, marginTop: 2 }} />
+            <IpWarning size={16} style={{ color: t.error, flexShrink: 0, marginTop: 2 }} />
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: t.error }}>Suspended</div>
               <div style={{ fontSize: 12, color: t.text, marginTop: 2 }}>{c.suspension_reason}</div>
@@ -223,7 +223,7 @@ export default function AdminCustomerDetail() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {/* CREDIT HISTORY */}
         <Card>
-          <SectionHeader icon={CreditCard} title="Credit history" />
+          <SectionHeader icon={IpBilling} title="Credit history" />
           {data.creditHistory.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: t.textMuted, fontSize: 13 }}>No transactions yet</div>
           ) : (
@@ -243,7 +243,7 @@ export default function AdminCustomerDetail() {
 
         {/* ADMIN ACTIONS LOG */}
         <Card>
-          <SectionHeader icon={History} title="Admin actions" />
+          <SectionHeader icon={IpHistory} title="Admin actions" />
           {data.adminActions.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: t.textMuted, fontSize: 13 }}>No admin actions yet</div>
           ) : (
@@ -260,7 +260,7 @@ export default function AdminCustomerDetail() {
       {/* RECENT POSTS */}
       {data.recentPosts.length > 0 && (
         <Card style={{ marginTop: 20 }}>
-          <SectionHeader icon={History} title="Recent posts" />
+          <SectionHeader icon={IpHistory} title="Recent posts" />
           {data.recentPosts.slice(0, 5).map((p) => (
             <div key={p.id} style={{ padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${t.border}` }}>
               <div style={{ flex: 1, minWidth: 0 }}>

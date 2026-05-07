@@ -153,4 +153,28 @@ export const analyticsAPI = {
   getContentPerformance: () => api.get('/api/analytics/content-performance'),
 };
 
+export const dmsAPI = {
+  getStats: () => api.get('/api/dms/stats'),
+  sync: () => api.post('/api/dms/sync'),
+  list: (params) => api.get('/api/dms', { params }),
+  getConversation: (id) => api.get(`/api/dms/${id}`),
+  reply: (id, message) => api.post(`/api/dms/${id}/reply`, { message }),
+  aiReply: (id, tone) => api.post(`/api/dms/${id}/ai-reply`, { tone }),
+  markRead: (id) => api.patch(`/api/dms/${id}/read`),
+  toggleStar: (id) => api.patch(`/api/dms/${id}/star`),
+  setStatus: (id, status) => api.patch(`/api/dms/${id}/status`, { status }),
+  getAutoReplies: () => api.get('/api/dms/auto-replies'),
+  createAutoReply: (data) => api.post('/api/dms/auto-replies', data),
+  updateAutoReply: (id, data) => api.patch(`/api/dms/auto-replies/${id}`, data),
+  deleteAutoReply: (id) => api.delete(`/api/dms/auto-replies/${id}`),
+};
+
+export const contactsAPI = {
+  list: (params) => api.get('/api/contacts', { params }),
+  create: (data) => api.post('/api/contacts', data),
+  get: (id) => api.get(`/api/contacts/${id}`),
+  update: (id, data) => api.patch(`/api/contacts/${id}`, data),
+  delete: (id) => api.delete(`/api/contacts/${id}`),
+};
+
 export default api;

@@ -1,36 +1,36 @@
 import { useState } from 'react';
 import { useTheme } from '../lib/theme';
 import {
-  Sparkles, TrendingUp, AlertCircle, Flame,
-  CheckCircle, Edit3, X, ChevronDown, ChevronUp,
-} from 'lucide-react';
+  IpSparkle, IpTrendingUp, IpWarning, IpFlame,
+  IpCheckCircle, IpEdit, IpClose, IpChevronDown, IpChevronUp,
+} from './icons';
 
 // Colour coding per suggestion type — matches CLAUDE.md spec
 // Keys must match backend type values: seasonal, streak, content_gap, milestone
 const TYPE_CONFIG = {
   seasonal: {
-    icon: TrendingUp,
+    icon: IpTrendingUp,
     label: 'Seasonal',
     accentColor: '#3B82F6',
     bgColor: 'rgba(59, 130, 246, 0.08)',
     borderColor: 'rgba(59, 130, 246, 0.25)',
   },
   streak: {
-    icon: Flame,
+    icon: IpFlame,
     label: 'Streak',
     accentColor: '#22C55E',
     bgColor: 'rgba(34, 197, 94, 0.08)',
     borderColor: 'rgba(34, 197, 94, 0.25)',
   },
   content_gap: {
-    icon: AlertCircle,
+    icon: IpWarning,
     label: 'Content Balance',
     accentColor: '#EAB308',
     bgColor: 'rgba(234, 179, 8, 0.08)',
     borderColor: 'rgba(234, 179, 8, 0.25)',
   },
   milestone: {
-    icon: Sparkles,
+    icon: IpSparkle,
     label: 'Milestone',
     accentColor: '#7C5CFC',
     bgColor: 'rgba(124, 92, 252, 0.08)',
@@ -114,7 +114,7 @@ export default function SuggestionCard({ suggestion, onUse, onCustomize, onDismi
           }}
           title="Skip this suggestion"
         >
-          <X size={14} />
+          <IpClose size={14} />
         </button>
       </div>
 
@@ -144,7 +144,7 @@ export default function SuggestionCard({ suggestion, onUse, onCustomize, onDismi
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
               }}
             >
-              {expanded ? <><ChevronUp size={12} /> Show less</> : <><ChevronDown size={12} /> Show full post</>}
+              {expanded ? <><IpChevronUp size={12} /> Show less</> : <><IpChevronDown size={12} /> Show full post</>}
             </button>
           )}
 
@@ -178,7 +178,7 @@ export default function SuggestionCard({ suggestion, onUse, onCustomize, onDismi
             cursor: acting ? 'not-allowed' : 'pointer', transition: 'opacity 150ms ease',
           }}
         >
-          <CheckCircle size={14} strokeWidth={2.5} />
+          <IpCheckCircle size={14} strokeWidth={2.5} />
           Use This
         </button>
 
@@ -192,7 +192,7 @@ export default function SuggestionCard({ suggestion, onUse, onCustomize, onDismi
             cursor: acting ? 'not-allowed' : 'pointer',
           }}
         >
-          <Edit3 size={14} />
+          <IpEdit size={14} />
           Customize
         </button>
 

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
-  Users, TrendingUp, DollarSign, AlertCircle, Activity,
-  Shield, ChevronRight, BarChart3, CheckCircle, XCircle,
-} from 'lucide-react';
+  IpTeam, IpTrendingUp, IpDollar, IpWarning, IpActivity,
+  IpAdmin, IpChevronRight, IpAnalytics, IpCheckCircle, IpCloseCircle,
+} from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Card, Button, Badge, StatCard, SectionHeader, EmptyState } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
@@ -50,7 +50,7 @@ export default function AdminDashboard() {
     return (
       <Layout title="Admin Portal">
         <Card>
-          <EmptyState icon={Shield} title="Access Denied" subtitle={error} />
+          <EmptyState icon={IpAdmin} title="Access Denied" subtitle={error} />
         </Card>
       </Layout>
     );
@@ -76,7 +76,7 @@ export default function AdminDashboard() {
         <div style={{ display: 'flex', gap: 8 }}>
           <Button variant="secondary" onClick={() => router.push('/admin/audit')}>Audit Log</Button>
           <Button variant="primary" onClick={() => router.push('/admin/customers')}>
-            <Users size={14} /> Manage Customers
+            <IpTeam size={14} /> Manage Customers
           </Button>
         </div>
       }
@@ -84,7 +84,7 @@ export default function AdminDashboard() {
       {/* Health banner */}
       {health && (
         <div style={{ padding: '12px 16px', background: health.status === 'healthy' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${health.status === 'healthy' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: 10, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-          {health.status === 'healthy' ? <CheckCircle size={16} style={{ color: t.success }} /> : <XCircle size={16} style={{ color: t.error }} />}
+          {health.status === 'healthy' ? <IpCheckCircle size={16} style={{ color: t.success }} /> : <IpCloseCircle size={16} style={{ color: t.error }} />}
           <div>
             <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{health.status === 'healthy' ? 'All systems operational' : 'System issues detected'}</span>
             <span style={{ fontSize: 12, color: t.textMuted, marginLeft: 12 }}>DB: {health.database?.version?.split(' ').slice(0, 2).join(' ')}</span>
@@ -107,9 +107,9 @@ export default function AdminDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
         {/* REVENUE BREAKDOWN */}
         <Card>
-          <SectionHeader icon={DollarSign} title="Revenue breakdown" />
+          <SectionHeader icon={IpDollar} title="Revenue breakdown" />
           {stats.revenue.breakdown.length === 0 ? (
-            <EmptyState icon={DollarSign} title="No paying customers yet" subtitle="Revenue will appear once customers upgrade" />
+            <EmptyState icon={IpDollar} title="No paying customers yet" subtitle="Revenue will appear once customers upgrade" />
           ) : (
             stats.revenue.breakdown.map((row) => (
               <div key={row.plan} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${t.border}` }}>
@@ -128,9 +128,9 @@ export default function AdminDashboard() {
         {/* RECENT SIGNUPS */}
         <Card>
           <SectionHeader
-            icon={Activity}
+            icon={IpActivity}
             title="Recent signups"
-            action={<Button variant="ghost" size="sm" onClick={() => router.push('/admin/customers')}>View all <ChevronRight size={12} /></Button>}
+            action={<Button variant="ghost" size="sm" onClick={() => router.push('/admin/customers')}>View all <IpChevronRight size={12} /></Button>}
           />
           {stats.recentSignups.map((c) => (
             <div
@@ -148,7 +148,7 @@ export default function AdminDashboard() {
                 <Badge variant={c.suspended ? 'error' : c.status === 'active' ? 'success' : 'warning'}>
                   {c.suspended ? 'Suspended' : c.plan || c.status}
                 </Badge>
-                <ChevronRight size={14} style={{ color: t.textMuted }} />
+                <IpChevronRight size={14} style={{ color: t.textMuted }} />
               </div>
             </div>
           ))}
@@ -178,7 +178,7 @@ export default function AdminDashboard() {
       {stats.users.suspended > 0 && (
         <Card style={{ borderColor: 'rgba(234,179,8,0.3)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <AlertCircle size={18} style={{ color: t.warning }} />
+            <IpWarning size={18} style={{ color: t.warning }} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{stats.users.suspended} suspended account{stats.users.suspended > 1 ? 's' : ''}</div>
               <div style={{ fontSize: 12, color: t.textMuted }}>Review and reactivate as needed</div>

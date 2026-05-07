@@ -2,23 +2,26 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import {
-  LayoutDashboard, PenSquare, Calendar, FileText, BarChart3,
-  CreditCard, Settings, ChevronsUpDown, ChevronRight, Plus,
-  Sun, Moon, Sparkles, FolderOpen, Shield, Mail, Menu, X,
-} from 'lucide-react';
+  IpDashboard, IpWizard, IpSparkle, IpCreatePost, IpCalendar, IpDrafts,
+  IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
+  IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon,
+  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam,
+} from './icons';
 import { useTheme } from '../lib/theme';
 import NotificationBell from './NotificationBell';
 
 const NAV_ITEMS = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Post Wizard', href: '/wizard', icon: Sparkles },
-  { name: 'Create Post', href: '/upload', icon: PenSquare },
-  { name: 'Calendar', href: '/calendar', icon: Calendar },
-  { name: 'Drafts', href: '/history', icon: FileText },
-  { name: 'Media Library', href: '/media', icon: FolderOpen },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Billing', href: '/billing', icon: CreditCard },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/dashboard', icon: IpDashboard },
+  { name: 'Post Wizard', href: '/wizard', icon: IpWizard },
+  { name: 'Create Post', href: '/upload', icon: IpCreatePost },
+  { name: 'Calendar', href: '/calendar', icon: IpCalendar },
+  { name: 'Drafts', href: '/history', icon: IpDrafts },
+  { name: 'Media Library', href: '/media', icon: IpMediaLibrary },
+  { name: 'Analytics', href: '/analytics', icon: IpAnalytics },
+  { name: 'Inbox', href: '/inbox', icon: IpInbox, badgeKey: 'dmUnread' },
+  { name: 'Contacts', href: '/contacts', icon: IpTeam },
+  { name: 'Billing', href: '/billing', icon: IpBilling },
+  { name: 'Settings', href: '/settings', icon: IpSettings },
 ];
 
 export default function Layout({ children, title, subtitle, action }) {
@@ -27,6 +30,7 @@ export default function Layout({ children, title, subtitle, action }) {
   const [user, setUser] = useState(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [dmUnread, setDmUnread] = useState(0);
 
   useEffect(() => {
     const updateMobile = () => setIsMobile(window.innerWidth < 900);
@@ -38,9 +42,15 @@ export default function Layout({ children, title, subtitle, action }) {
         .then((r) => r.json())
         .then((d) => d.customer && setUser(d.customer))
         .catch(() => {});
+      fetch('/api/dms/stats', { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => d && setDmUnread(d.unreadCount || 0))
+        .catch(() => {});
     }
     return () => window.removeEventListener('resize', updateMobile);
   }, []);
+
+  const badges = { dmUnread };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -52,8 +62,8 @@ export default function Layout({ children, title, subtitle, action }) {
   // Nav items + conditionally add admin link for admins
   const navItems = user?.is_admin
     ? [...NAV_ITEMS,
-        { name: 'Admin Portal', href: '/admin', icon: Shield, isAdmin: true },
-        { name: 'Email Queue', href: '/admin/email-queue', icon: Mail, isAdmin: true },
+        { name: 'Admin Portal', href: '/admin', icon: IpAdmin, isAdmin: true },
+        { name: 'Email Queue', href: '/admin/email-queue', icon: IpMail, isAdmin: true },
       ]
     : NAV_ITEMS;
 
@@ -89,7 +99,7 @@ export default function Layout({ children, title, subtitle, action }) {
           {!isMobile && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Sparkles size={16} color="#fff" strokeWidth={2.5} />
+                <IpSparkle size={16} color="#fff" strokeWidth={2.5} />
               </div>
               <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>Its Posting</span>
             </div>
@@ -99,7 +109,7 @@ export default function Layout({ children, title, subtitle, action }) {
               onClick={() => setMobileNavOpen(false)}
               style={{ width: 32, height: 32, borderRadius: 8, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', cursor: 'pointer' }}
             >
-              <X size={16} />
+              <IpClose size={16} />
             </button>
           )}
         </div>
@@ -115,7 +125,7 @@ export default function Layout({ children, title, subtitle, action }) {
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.business_name || 'Workspace'}</div>
                 <div style={{ fontSize: 11, color: t.textMuted }}>{user.industry || 'Business'}</div>
               </div>
-              <ChevronsUpDown size={14} style={{ color: t.textMuted, flexShrink: 0 }} />
+              <IpChevronsUpDown size={14} style={{ color: t.textMuted, flexShrink: 0 }} />
             </div>
           </div>
         )}
@@ -129,7 +139,7 @@ export default function Layout({ children, title, subtitle, action }) {
               onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.primaryBorder; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}
             >
-              <Plus size={16} strokeWidth={2.5} style={{ color: t.primary }} />
+              <IpPlus size={16} strokeWidth={2.5} style={{ color: t.primary }} />
               <span>Create new post</span>
             </button>
           </div>
@@ -157,8 +167,18 @@ export default function Layout({ children, title, subtitle, action }) {
                 onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
               >
                 <item.icon size={16} strokeWidth={2} style={{ color: active ? t.primary : (item.isAdmin ? t.primary : t.textMuted), flexShrink: 0 }} />
-                <span>{item.name}</span>
-                {active && <ChevronRight size={14} style={{ marginLeft: 'auto', color: t.textMuted }} />}
+                <span style={{ flex: 1 }}>{item.name}</span>
+                {item.badgeKey && badges[item.badgeKey] > 0 && (
+                  <span style={{
+                    minWidth: 18, height: 18, borderRadius: 9, background: '#EF4444',
+                    color: '#fff', fontSize: 10, fontWeight: 700,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '0 4px', flexShrink: 0,
+                  }}>
+                    {badges[item.badgeKey] > 99 ? '99+' : badges[item.badgeKey]}
+                  </span>
+                )}
+                {active && !item.badgeKey && <IpChevronRight size={14} style={{ color: t.textMuted }} />}
               </Link>
             );
           })}
@@ -223,7 +243,7 @@ export default function Layout({ children, title, subtitle, action }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {isMobile && (
               <button onClick={() => setMobileNavOpen(true)} style={{ width: 36, height: 36, borderRadius: 8, background: t.card, border: `1px solid ${t.border}`, color: t.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <Menu size={16} />
+                <IpMenu size={16} />
               </button>
             )}
             <NotificationBell />
@@ -234,7 +254,7 @@ export default function Layout({ children, title, subtitle, action }) {
               onMouseLeave={(e) => (e.currentTarget.style.background = t.card)}
               title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              {theme === 'dark' ? <IpSun size={16} /> : <IpMoon size={16} />}
             </button>
             {user && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 13 }}>

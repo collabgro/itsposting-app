@@ -20,9 +20,12 @@ const analyticsRoutes = require('./routes/analytics');
 const notificationRoutes = require('./routes/notifications');
 const suggestionsRoutes = require('./routes/suggestions');
 const wizardRoutes = require('./routes/wizard');
+const dmsRoutes = require('./routes/dms');
+const contactsRoutes = require('./routes/contacts');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
 const EmailWorker = require('./services/EmailWorker');
 const SuggestionsEngine = require('./services/SuggestionsEngine');
+const DMPollingService = require('./services/DMPollingService');
 const cron = require('node-cron');
 
 const app = express();
@@ -83,6 +86,8 @@ app.use('/api/analytics', analyticsRoutes(pool));
 app.use('/api/notifications', notificationRoutes(pool));
 app.use('/api/suggestions', suggestionsRoutes(pool));
 app.use('/api/wizard', wizardRoutes(pool));
+app.use('/api/dms', dmsRoutes(pool));
+app.use('/api/contacts', contactsRoutes(pool));
 
 app.get('/health', async (req, res) => {
   try {
@@ -169,6 +174,9 @@ cron.schedule('5 0 * * *', async () => {
 });
 console.log('💡 SuggestionsEngine cron scheduled (8am daily + midnight cleanup)');
 
+const dmPollingService = new DMPollingService(pool);
+dmPollingService.start();
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔═══════════════════════════════════════════╗
@@ -181,7 +189,7 @@ app.listen(PORT, '0.0.0.0', () => {
 ║           content, social, scraper,       ║
 ║           upload, billing, media,         ║
 ║           admin, analytics,               ║
-║           suggestions                     ║
+║           suggestions, dms, contacts      ║
 ║                                           ║
 ║   Services:                               ║
 ║   ${process.env.GOOGLE_AI_API_KEY ? '✅' : '⚠️ '} Image One                           ║

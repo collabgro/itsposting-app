@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { Search, ChevronRight, Users, Shield } from 'lucide-react';
+import { IpSearch, IpChevronRight, IpTeam, IpAdmin } from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Card, Button, Badge, EmptyState } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
@@ -60,7 +60,7 @@ export default function AdminCustomers() {
       {/* FILTERS */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 240 }}>
-          <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted }} />
+          <IpSearch size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted }} />
           <input
             type="text" placeholder="Search by email or business name..."
             value={search} onChange={(e) => setSearch(e.target.value)}
@@ -85,7 +85,7 @@ export default function AdminCustomers() {
         {loading ? (
           <div style={{ padding: 60, textAlign: 'center', color: t.textMuted }}>Loading customers...</div>
         ) : data.customers.length === 0 ? (
-          <EmptyState icon={Users} title="No customers found" subtitle="Try adjusting your search or filters" />
+          <EmptyState icon={IpTeam} title="No customers found" subtitle="Try adjusting your search or filters" />
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -133,7 +133,7 @@ export default function AdminCustomers() {
                     {new Date(c.created_at).toLocaleDateString()}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <ChevronRight size={14} style={{ color: t.textMuted }} />
+                    <IpChevronRight size={14} style={{ color: t.textMuted }} />
                   </td>
                 </tr>
               ))}

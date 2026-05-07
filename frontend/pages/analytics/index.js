@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
-  TrendingUp, Heart, MessageCircle, Share2, BarChart3, ChevronRight,
-  Clock, Sparkles, FileText, Image as ImageIcon, Layers, Video,
-  Star, Calendar, Info, BarChart2,
-} from 'lucide-react';
+  IpTrendingUp, IpHeart, IpComment, IpShare, IpAnalytics, IpChevronRight,
+  IpSchedule, IpSparkle, IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
+  IpReview, IpCalendar, IpInfo,
+} from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Card, Button, Badge, StatCard, SectionHeader, EmptyState } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
@@ -18,10 +18,10 @@ const HOURS    = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
 const FMT_HOUR = h => { const a = h >= 12 ? 'pm' : 'am'; const h12 = h % 12 === 0 ? 12 : h % 12; return `${h12}${a}`; };
 
 const TYPE_META = {
-  static:   { label: 'Text Card',  icon: FileText,   color: '#60A5FA' },
+  static:   { label: 'Text Card',  icon: IpDrafts,   color: '#60A5FA' },
   photo:    { label: 'Photo Post', icon: ImageIcon,  color: '#A78BFA' },
-  carousel: { label: 'Carousel',   icon: Layers,     color: '#F472B6' },
-  video:    { label: 'Video',      icon: Video,      color: '#FB923C' },
+  carousel: { label: 'Carousel',   icon: IpCarousel, color: '#F472B6' },
+  video:    { label: 'Video',      icon: IpVideo,    color: '#FB923C' },
 };
 
 /* ─── helpers ────────────────────────────────────────────── */
@@ -120,7 +120,7 @@ export default function Analytics() {
               ))}
             </div>
             <Button variant="primary" onClick={() => setShowAI(true)}>
-              <Sparkles size={13} /> Generate Post
+              <IpSparkle size={13} /> Generate Post
             </Button>
           </div>
         }
@@ -145,7 +145,7 @@ export default function Analytics() {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ width: 38, height: 38, borderRadius: 10, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Clock size={18} style={{ color: t.primary }} />
+                    <IpSchedule size={18} style={{ color: t.primary }} />
                   </div>
                   <div>
                     <h2 style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: '-0.02em', marginBottom: 3 }}>Scheduling Optimizer</h2>
@@ -158,7 +158,7 @@ export default function Analytics() {
                 </div>
                 {!optTimes?.hasRealData && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 8, fontSize: 12, color: t.warning, flexShrink: 0 }}>
-                    <Info size={12} /> Industry defaults
+                    <IpInfo size={12} /> Industry defaults
                   </div>
                 )}
               </div>
@@ -200,7 +200,7 @@ export default function Analytics() {
                       onMouseEnter={e => { e.currentTarget.style.background = idx === 0 ? '#6849e0' : t.primaryBg; e.currentTarget.style.borderColor = idx === 0 ? 'transparent' : t.primaryBorder; }}
                       onMouseLeave={e => { e.currentTarget.style.background = idx === 0 ? t.primary : t.card; e.currentTarget.style.borderColor = idx === 0 ? 'transparent' : t.border; }}
                     >
-                      <Sparkles size={12} /> Schedule for this slot
+                      <IpSparkle size={12} /> Schedule for this slot
                     </button>
                   </div>
                 ))}
@@ -293,7 +293,7 @@ export default function Analytics() {
                         onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.input; }}
                       >
-                        <Clock size={11} style={{ color: t.primary }} /> {slot.label}
+                        <IpSchedule size={11} style={{ color: t.primary }} /> {slot.label}
                       </button>
                     ))}
                   </div>
@@ -306,13 +306,13 @@ export default function Analytics() {
 
               {/* Content type performance */}
               <Card>
-                <SectionHeader icon={BarChart2} title="Content type performance" subtitle="Avg engagement by type" />
+                <SectionHeader icon={IpAnalytics} title="Content type performance" subtitle="Avg engagement by type" />
                 {!contentPerf?.byType?.length ? (
-                  <EmptyState icon={BarChart2} title="No data yet" subtitle="Publish posts to see performance by type" />
+                  <EmptyState icon={IpAnalytics} title="No data yet" subtitle="Publish posts to see performance by type" />
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {contentPerf.byType.map(row => {
-                      const meta   = TYPE_META[row.content_type] || { label: row.content_type, color: t.primary, icon: FileText };
+                      const meta   = TYPE_META[row.content_type] || { label: row.content_type, color: t.primary, icon: IpDrafts };
                       const Icon   = meta.icon;
                       const score  = parseFloat(row.avg_score) || 0;
                       const barPct = maxCpScore > 0 ? (score / maxCpScore) * 100 : 0;
@@ -325,9 +325,9 @@ export default function Analytics() {
                               <span style={{ fontSize: 11, color: t.textMuted }}>· {row.total}</span>
                             </div>
                             <div style={{ display: 'flex', gap: 10, fontSize: 11, color: t.textMuted }}>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Heart size={10} /> {Math.round(parseFloat(row.avg_likes) || 0)}</span>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><MessageCircle size={10} /> {Math.round(parseFloat(row.avg_comments) || 0)}</span>
-                              <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Share2 size={10} /> {Math.round(parseFloat(row.avg_shares) || 0)}</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpHeart size={10} /> {Math.round(parseFloat(row.avg_likes) || 0)}</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpComment size={10} /> {Math.round(parseFloat(row.avg_comments) || 0)}</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpShare size={10} /> {Math.round(parseFloat(row.avg_shares) || 0)}</span>
                             </div>
                           </div>
                           <div style={{ height: 8, borderRadius: 4, background: t.input, overflow: 'hidden' }}>
@@ -342,9 +342,9 @@ export default function Analytics() {
 
               {/* Posting day distribution */}
               <Card>
-                <SectionHeader icon={Calendar} title="Your posting days" subtitle="How you spread content across the week" />
+                <SectionHeader icon={IpCalendar} title="Your posting days" subtitle="How you spread content across the week" />
                 {!contentPerf?.byDow?.length ? (
-                  <EmptyState icon={Calendar} title="No data yet" subtitle="Create posts to see your posting patterns" />
+                  <EmptyState icon={IpCalendar} title="No data yet" subtitle="Create posts to see your posting patterns" />
                 ) : (
                   <div>
                     {(() => {
@@ -388,7 +388,7 @@ export default function Analytics() {
             {/* ── ALL POSTS TABLE ─────────────────────────────── */}
             <Card>
               <SectionHeader
-                icon={BarChart3}
+                icon={IpAnalytics}
                 title="All posts"
                 action={
                   <div style={{ display: 'flex', gap: 4, background: t.input, padding: 3, borderRadius: 8 }}>
@@ -403,7 +403,7 @@ export default function Analytics() {
               />
 
               {posts.length === 0 ? (
-                <EmptyState icon={BarChart3} title="No published posts yet" subtitle="Once you start posting, performance data will appear here" />
+                <EmptyState icon={IpAnalytics} title="No published posts yet" subtitle="Once you start posting, performance data will appear here" />
               ) : (
                 <div>
                   {posts.map(p => {
@@ -431,9 +431,9 @@ export default function Analytics() {
                             {p.caption || '(no caption)'}
                           </div>
                           <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: 11, color: t.textMuted }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Heart size={10} /> {eng.likes || 0}</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><MessageCircle size={10} /> {eng.comments || 0}</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Share2 size={10} /> {eng.shares || 0}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpHeart size={10} /> {eng.likes || 0}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpComment size={10} /> {eng.comments || 0}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpShare size={10} /> {eng.shares || 0}</span>
                             <span style={{ color: meta.color, fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>{p.content_type}</span>
                             {p.posted_at && <span>{format(new Date(p.posted_at), 'MMM d, yyyy')}</span>}
                           </div>
@@ -450,7 +450,7 @@ export default function Analytics() {
                               <div style={{ fontSize: 10, color: t.textMuted }}>score</div>
                             </div>
                           )}
-                          <ChevronRight size={16} style={{ color: t.textMuted }} />
+                          <IpChevronRight size={16} style={{ color: t.textMuted }} />
                         </div>
                       </div>
                     );

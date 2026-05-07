@@ -1,42 +1,42 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
-  Hammer, Lightbulb, Star, Tag, Sun, Home,
-  HelpCircle, Users, Smile, Briefcase, Laugh,
-  BookOpen, Zap, Facebook, Instagram, Globe,
-  ArrowLeft, ArrowRight, RotateCcw, Copy,
-  Check, Edit3, Sparkles, ChevronRight,
-} from 'lucide-react';
+  IpJobDone, IpTip, IpReview, IpPromotion, IpSeasonal, IpCommunity,
+  IpFAQ, IpTeam, IpBriefcase,
+  IpCredits, IpFacebook, IpInstagram, IpGoogle,
+  IpArrowLeft, IpArrowRight, IpRefresh, IpCopy,
+  IpCheck, IpEdit, IpSparkle, IpChevronRight,
+} from '../components/icons';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
 
 // ── Step 1 data ──────────────────────────────────────────────────────────────
 const CONTENT_THEMES = [
-  { id: 'just_finished_job',      emoji: '🔨', icon: Hammer,      label: 'Just finished a job',     desc: 'Show off a completed project' },
-  { id: 'share_tip',              emoji: '💡', icon: Lightbulb,   label: 'Want to share a tip',      desc: 'Teach your audience something' },
-  { id: 'got_review',             emoji: '⭐', icon: Star,        label: 'Got a great review',       desc: 'Showcase customer love' },
-  { id: 'running_promo',          emoji: '📅', icon: Tag,         label: 'Running a promotion',      desc: 'Announce an offer or deal' },
-  { id: 'seasonal',               emoji: '🌤️', icon: Sun,         label: 'Seasonal content',         desc: null },
-  { id: 'community',              emoji: '🏘️', icon: Home,        label: 'Community / local event',  desc: 'Connect with your neighborhood' },
-  { id: 'faq',                    emoji: '❓', icon: HelpCircle,  label: 'FAQ or myth-busting',      desc: 'Answer what customers always ask' },
-  { id: 'team_spotlight',         emoji: '🎉', icon: Users,       label: 'Team spotlight',           desc: 'Put a face to your business' },
+  { id: 'just_finished_job',      emoji: '🔨', label: 'Just finished a job',     desc: 'Show off a completed project' },
+  { id: 'share_tip',              emoji: '💡', label: 'Want to share a tip',      desc: 'Teach your audience something' },
+  { id: 'got_review',             emoji: '⭐', label: 'Got a great review',       desc: 'Showcase customer love' },
+  { id: 'running_promo',          emoji: '📅', label: 'Running a promotion',      desc: 'Announce an offer or deal' },
+  { id: 'seasonal',               emoji: '🌤️', label: 'Seasonal content',         desc: null },
+  { id: 'community',              emoji: '🏘️', label: 'Community / local event',  desc: 'Connect with your neighborhood' },
+  { id: 'faq',                    emoji: '❓', label: 'FAQ or myth-busting',      desc: 'Answer what customers always ask' },
+  { id: 'team_spotlight',         emoji: '🎉', label: 'Team spotlight',           desc: 'Put a face to your business' },
 ];
 
 // ── Step 2 data ──────────────────────────────────────────────────────────────
 const TONES = [
-  { id: 'friendly',     emoji: '😊', icon: Smile,     label: 'Friendly & casual',         desc: 'Warm, approachable, conversational' },
-  { id: 'professional', emoji: '💼', icon: Briefcase, label: 'Professional & trustworthy', desc: 'Polished, credible, authoritative' },
-  { id: 'funny',        emoji: '😄', icon: Laugh,     label: 'Funny & relatable',         desc: 'Light-hearted, witty, human' },
-  { id: 'educational',  emoji: '📚', icon: BookOpen,  label: 'Educational & expert',      desc: 'Informative, detailed, insightful' },
-  { id: 'urgent',       emoji: '🔥', icon: Zap,       label: 'Urgent & must-act-now',     desc: 'Compelling, time-sensitive, direct' },
+  { id: 'friendly',     emoji: '😊', label: 'Friendly & casual',         desc: 'Warm, approachable, conversational' },
+  { id: 'professional', emoji: '💼', label: 'Professional & trustworthy', desc: 'Polished, credible, authoritative' },
+  { id: 'funny',        emoji: '😄', label: 'Funny & relatable',         desc: 'Light-hearted, witty, human' },
+  { id: 'educational',  emoji: '📚', label: 'Educational & expert',      desc: 'Informative, detailed, insightful' },
+  { id: 'urgent',       emoji: '🔥', label: 'Urgent & must-act-now',     desc: 'Compelling, time-sensitive, direct' },
 ];
 
 // ── Step 3 data ──────────────────────────────────────────────────────────────
 const PLATFORMS = [
-  { id: 'facebook',       icon: Facebook,  label: 'Facebook',        color: '#1877F2', bg: 'rgba(24,119,242,0.1)',  border: 'rgba(24,119,242,0.3)',  desc: 'Best for longer posts & community' },
-  { id: 'instagram',      icon: Instagram, label: 'Instagram',       color: '#E1306C', bg: 'rgba(225,48,108,0.1)', border: 'rgba(225,48,108,0.3)', desc: 'Visual-first, hashtag-rich content' },
-  { id: 'google_business',icon: Globe,     label: 'Google Business', color: '#4285F4', bg: 'rgba(66,133,244,0.1)', border: 'rgba(66,133,244,0.3)', desc: 'Local search visibility & reviews' },
-  { id: 'all',            icon: Sparkles,  label: 'All Three',       color: '#7C5CFC', bg: 'rgba(124,92,252,0.1)', border: 'rgba(124,92,252,0.3)', desc: 'Auto-adapted for each platform' },
+  { id: 'facebook',       icon: IpFacebook,  label: 'Facebook',        color: '#1877F2', bg: 'rgba(24,119,242,0.1)',  border: 'rgba(24,119,242,0.3)',  desc: 'Best for longer posts & community' },
+  { id: 'instagram',      icon: IpInstagram, label: 'Instagram',       color: '#E1306C', bg: 'rgba(225,48,108,0.1)', border: 'rgba(225,48,108,0.3)', desc: 'Visual-first, hashtag-rich content' },
+  { id: 'google_business',icon: IpGoogle,    label: 'Google Business', color: '#4285F4', bg: 'rgba(66,133,244,0.1)', border: 'rgba(66,133,244,0.3)', desc: 'Local search visibility & reviews' },
+  { id: 'all',            icon: IpSparkle,   label: 'All Three',       color: '#7C5CFC', bg: 'rgba(124,92,252,0.1)', border: 'rgba(124,92,252,0.3)', desc: 'Auto-adapted for each platform' },
 ];
 
 // ── Loading messages ──────────────────────────────────────────────────────────
@@ -224,7 +224,7 @@ export default function Wizard() {
                     color: step >= i + 1 ? '#fff' : t.textMuted,
                     transition: 'all 250ms ease',
                   }}>
-                    {step > i + 1 ? <Check size={12} strokeWidth={3} /> : i + 1}
+                    {step > i + 1 ? <IpCheck size={12} strokeWidth={3} /> : i + 1}
                   </div>
                   <div style={{ fontSize: 11, color: step === i + 1 ? t.primary : t.textMuted, fontWeight: step === i + 1 ? 600 : 400 }}>
                     {label}
@@ -298,7 +298,7 @@ export default function Wizard() {
                     </div>
                     {selected && (
                       <div style={{ width: 22, height: 22, borderRadius: '50%', background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Check size={12} color="#fff" strokeWidth={3} />
+                        <IpCheck size={12} color="#fff" strokeWidth={3} />
                       </div>
                     )}
                   </button>
@@ -340,7 +340,7 @@ export default function Wizard() {
                     </div>
                     {selected && (
                       <div style={{ width: 20, height: 20, borderRadius: '50%', background: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Check size={11} color="#fff" strokeWidth={3} />
+                        <IpCheck size={11} color="#fff" strokeWidth={3} />
                       </div>
                     )}
                   </button>
@@ -418,7 +418,7 @@ export default function Wizard() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 32 }}>
             <div style={{ position: 'relative' }}>
               <div style={{ width: 80, height: 80, borderRadius: 20, background: `linear-gradient(135deg, ${t.primary}, ${t.primaryLight})`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pulse 2s ease-in-out infinite' }}>
-                <Sparkles size={36} color="#fff" />
+                <IpSparkle size={36} color="#fff" />
               </div>
               <div style={{ position: 'absolute', inset: -8, borderRadius: 28, border: '3px solid transparent', borderTopColor: t.primary, borderRightColor: t.primaryLight, animation: 'spin 1.2s linear infinite' }} />
             </div>
@@ -488,12 +488,12 @@ export default function Wizard() {
               <button onClick={handleTryDifferentTone} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms' }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.primaryBorder; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}>
-                <RotateCcw size={14} /> Try Different Tone
+                <IpRefresh size={14} /> Try Different Tone
               </button>
               <button onClick={handleReset} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms' }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.primaryBorder; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}>
-                <ArrowLeft size={14} /> Start Over
+                <IpArrowLeft size={14} /> Start Over
               </button>
             </div>
           </div>
@@ -533,7 +533,7 @@ function ThemeCard({ selected, onClick, t, children }) {
     >
       {selected && (
         <div style={{ position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: '50%', background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Check size={10} color="#fff" strokeWidth={3} />
+          <IpCheck size={10} color="#fff" strokeWidth={3} />
         </div>
       )}
       {children}
@@ -568,7 +568,7 @@ function WizardNav({ t, onBack, onNext, canNext, nextLabel = 'Next →', nextSty
         onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
-        <ArrowLeft size={14} /> Back
+        <IpArrowLeft size={14} /> Back
       </button>
       <button onClick={onNext} disabled={!canNext}
         style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 24px', background: canNext ? t.primary : t.textDisabled, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: canNext ? 'pointer' : 'not-allowed', transition: 'all 150ms', opacity: canNext ? 1 : 0.5, ...nextStyle }}
@@ -654,17 +654,17 @@ function VariationCard({ label, variation, t, copiedId, onCopy, onUse, selected,
         <button onClick={onUse} style={{ flex: 1, minWidth: 120, padding: '10px 16px', background: color, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 150ms', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>
-          <ChevronRight size={14} /> Use This Post
+          <IpChevronRight size={14} /> Use This Post
         </button>
         <button onClick={() => onCopy(captionText, copyId)} style={{ padding: '10px 16px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 150ms' }}
           onMouseEnter={(e) => (e.currentTarget.style.borderColor = t.primaryBorder)}
           onMouseLeave={(e) => (e.currentTarget.style.borderColor = t.border)}>
-          {copiedId === copyId ? <><Check size={13} color="#22C55E" /> Copied!</> : <><Copy size={13} /> Copy</>}
+          {copiedId === copyId ? <><IpCheck size={13} color="#22C55E" /> Copied!</> : <><IpCopy size={13} /> Copy</>}
         </button>
         <button onClick={onUse} style={{ padding: '10px 16px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 150ms' }}
           onMouseEnter={(e) => (e.currentTarget.style.borderColor = t.primaryBorder)}
           onMouseLeave={(e) => (e.currentTarget.style.borderColor = t.border)}>
-          <Edit3 size={13} /> Edit
+          <IpEdit size={13} /> Edit
         </button>
       </div>
     </div>

@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
-  Check, Zap, Sparkles, Crown, CreditCard, Clock,
-  TrendingUp, ArrowUpRight, ArrowDownRight, AlertCircle, Gift,
-  Mail, X, Copy, ExternalLink,
-} from 'lucide-react';
+  IpCheck, IpCredits, IpSparkle, IpCrown, IpBilling, IpSchedule,
+  IpTrendingUp, IpArrowUpRight, IpArrowDownRight, IpWarning, IpGift,
+  IpMail, IpClose, IpCopy, IpExternalLink,
+} from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Badge } from '../components/ui';
 import { useTheme } from '../lib/theme';
 
-const PLAN_ICONS = { trial: Gift, starter: Zap, professional: Sparkles, premium: Crown };
+const PLAN_ICONS = { trial: IpGift, starter: IpCredits, professional: IpSparkle, premium: IpCrown };
 
 const TX_META = {
   bonus:           { label: 'Bonus',           color: '#22C55E', dir: 1 },
@@ -135,7 +135,7 @@ export default function Billing() {
             {/* Trial countdown */}
             {isTrial && trialDaysLeft !== null && (
               <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(255,255,255,0.15)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Clock size={14} />
+                <IpSchedule size={14} />
                 <span style={{ fontSize: 13, fontWeight: 600 }}>
                   {trialDaysLeft === 0 ? 'Trial ends today' : `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left on trial`}
                 </span>
@@ -179,7 +179,7 @@ export default function Billing() {
               </div>
               {usagePct >= 80 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: t.warning, fontSize: 12, fontWeight: 600 }}>
-                  <AlertCircle size={12} /> Running low
+                  <IpWarning size={12} /> Running low
                 </div>
               )}
             </div>
@@ -249,7 +249,7 @@ export default function Billing() {
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', flex: 1 }}>
                   {plan.features.map((f, i) => (
                     <li key={i} style={{ padding: '4px 0', fontSize: 13, color: t.textSecondary, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                      <Check size={13} strokeWidth={3} style={{ color: t.success, flexShrink: 0, marginTop: 2 }} />
+                      <IpCheck size={13} strokeWidth={3} style={{ color: t.success, flexShrink: 0, marginTop: 2 }} />
                       {f}
                     </li>
                   ))}
@@ -262,10 +262,10 @@ export default function Billing() {
                   style={{ width: '100%', justifyContent: 'center', padding: '11px' }}
                 >
                   {isCurrent
-                    ? <><Check size={13} strokeWidth={3} /> Current plan</>
+                    ? <><IpCheck size={13} strokeWidth={3} /> Current plan</>
                     : isDowngrade
                     ? 'Contact us to downgrade'
-                    : <><Mail size={13} /> Request upgrade</>}
+                    : <><IpMail size={13} /> Request upgrade</>}
                 </Button>
               </div>
             );
@@ -275,14 +275,14 @@ export default function Billing() {
         {/* ── CREDIT HISTORY ─────────────────────────────────────────── */}
         <Card style={{ padding: 0 }}>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <TrendingUp size={16} style={{ color: t.primary }} />
+            <IpTrendingUp size={16} style={{ color: t.primary }} />
             <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Credit history</span>
             <span style={{ fontSize: 12, color: t.textMuted, marginLeft: 'auto' }}>Last 50 transactions</span>
           </div>
 
           {history.length === 0 ? (
             <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-              <CreditCard size={28} style={{ color: t.textMuted, margin: '0 auto 10px', display: 'block' }} />
+              <IpBilling size={28} style={{ color: t.textMuted, margin: '0 auto 10px', display: 'block' }} />
               <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>No transactions yet</p>
             </div>
           ) : (
@@ -290,7 +290,7 @@ export default function Billing() {
               {history.map(tx => {
                 const meta = TX_META[tx.transaction_type] || { label: tx.transaction_type, color: t.textMuted, dir: 1 };
                 const positive = meta.dir > 0 || tx.amount > 0;
-                const Icon = positive ? ArrowUpRight : ArrowDownRight;
+                const Icon = positive ? IpArrowUpRight : IpArrowDownRight;
                 return (
                   <div
                     key={tx.id}
@@ -333,7 +333,7 @@ export default function Billing() {
 
         {/* Footer note */}
         <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(124,92,252,0.06)', border: '1px solid rgba(124,92,252,0.2)', borderRadius: 8, fontSize: 12, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Mail size={13} style={{ color: t.primary, flexShrink: 0 }} />
+          <IpMail size={13} style={{ color: t.primary, flexShrink: 0 }} />
           Upgrades are activated manually within 1-2 hours after you email us at <strong style={{ color: t.primary, margin: '0 4px' }}>{CONTACT_EMAIL}</strong>
         </div>
       </div>
@@ -355,7 +355,7 @@ export default function Billing() {
                 <p style={{ fontSize: 13, color: t.textMuted, margin: '4px 0 0' }}>${upgradeModal.price}/month · {upgradeModal.credits} credits</p>
               </div>
               <button onClick={() => setUpgradeModal(null)} style={{ width: 32, height: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textMuted }}>
-                <X size={16} />
+                <IpClose size={16} />
               </button>
             </div>
 
@@ -363,7 +363,7 @@ export default function Billing() {
             <div style={{ padding: 24 }}>
               <div style={{ padding: 16, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, marginBottom: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <Mail size={16} style={{ color: t.primary }} />
+                  <IpMail size={16} style={{ color: t.primary }} />
                   <span style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Send an email to activate</span>
                 </div>
                 <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 12px', lineHeight: 1.6 }}>
@@ -381,13 +381,13 @@ export default function Billing() {
                   href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`}
                   style={{ flex: 1, padding: '11px 0', background: t.primary, color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 700, textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 >
-                  <ExternalLink size={13} /> Open Email App
+                  <IpExternalLink size={13} /> Open Email App
                 </a>
                 <button
                   onClick={() => handleCopy(CONTACT_EMAIL, 'email')}
                   style={{ padding: '11px 16px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, color: t.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
                 >
-                  <Copy size={13} />
+                  <IpCopy size={13} />
                   {copied === 'email' ? 'Copied!' : 'Copy Email'}
                 </button>
               </div>

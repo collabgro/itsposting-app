@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
-  Save, Zap, Palette, Globe, Trash2,
-  Building, Share2, Check, Facebook, Instagram,
-} from 'lucide-react';
+  IpSave, IpCredits, IpPalette, IpGlobe, IpDelete,
+  IpBusiness, IpShare, IpCheck, IpFacebook, IpInstagram,
+} from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Input, Badge, SectionHeader } from '../components/ui';
 import { useTheme } from '../lib/theme';
@@ -26,7 +26,7 @@ const TONES = [
 const PLATFORM_CONFIG = {
   facebook: {
     label: 'Facebook',
-    Icon: Facebook,
+    Icon: IpFacebook,
     color: '#1877F2',
     description: 'Post to your page',
     tokenHelp: {
@@ -44,7 +44,7 @@ const PLATFORM_CONFIG = {
   },
   instagram: {
     label: 'Instagram',
-    Icon: Instagram,
+    Icon: IpInstagram,
     color: '#E1306C',
     description: 'Share to your profile',
     tokenHelp: {
@@ -61,7 +61,7 @@ const PLATFORM_CONFIG = {
   },
   google_business: {
     label: 'Business Profile',
-    Icon: Globe,
+    Icon: IpGoogle,
     color: '#4285F4',
     description: 'Post to your business listing',
     tokenHelp: {
@@ -312,7 +312,7 @@ export default function Settings() {
       subtitle="Manage your profile and preferences"
       action={
         <Button variant="primary" onClick={handleSave} disabled={saving}>
-          <Save size={14} /> {saving ? 'Saving...' : 'Save Changes'}
+          <IpSave size={14} /> {saving ? 'Saving...' : 'Save Changes'}
         </Button>
       }
     >
@@ -334,7 +334,7 @@ export default function Settings() {
 
         {/* Business Info */}
         <Card>
-          <SectionHeader icon={Building} title="Business Information" />
+          <SectionHeader icon={IpBusiness} title="Business Information" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
             {[
               { label: 'Business Name', key: 'business_name', type: 'text' },
@@ -356,7 +356,7 @@ export default function Settings() {
 
         {/* Website Intelligence */}
         <Card>
-          <SectionHeader icon={Globe} title="Website Intelligence" action={<Badge variant="success">FREE</Badge>} />
+          <SectionHeader icon={IpGlobe} title="Website Intelligence" action={<Badge variant="success">FREE</Badge>} />
           <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16, marginTop: -12 }}>
             Scrape your website to extract services and improve content accuracy.
           </p>
@@ -383,10 +383,10 @@ export default function Settings() {
             <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: t.success, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Check size={14} strokeWidth={2.5} /> {scrapedData.services?.length || 0} services extracted
+                  <IpCheck size={14} strokeWidth={2.5} /> {scrapedData.services?.length || 0} services extracted
                 </span>
                 <button onClick={handleClearScrape} style={{ fontSize: 12, color: t.error, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0 }}>
-                  <Trash2 size={14} /> Clear
+                  <IpDelete size={14} /> Clear
                 </button>
               </div>
               {scrapedData.services?.length > 0 && (
@@ -405,7 +405,7 @@ export default function Settings() {
 
         {/* Image Source */}
         <Card>
-          <SectionHeader icon={Zap} title="Image Source" />
+          <SectionHeader icon={IpSparkle} title="Image Source" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
             {[
               { id: 'nanobanana', name: 'Image One', desc: 'Fast, affordable image generation', speed: providers?.nanobanana?.speed || '3-8 seconds', cost: '~$0.039/image', note: 'Recommended — cheaper & faster', noteColor: t.success },
@@ -433,7 +433,7 @@ export default function Settings() {
 
         {/* Branding */}
         <Card>
-          <SectionHeader icon={Palette} title="Branding" />
+          <SectionHeader icon={IpPalette} title="Branding" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
               {['primary', 'secondary', 'accent'].map((key) => {
@@ -482,7 +482,7 @@ export default function Settings() {
 
         {/* Connected Accounts */}
         <Card>
-          <SectionHeader icon={Share2} title="Connected Accounts" subtitle="Connect social media accounts to enable publishing" />
+          <SectionHeader icon={IpShare} title="Connected Accounts" subtitle="Connect social media accounts to enable publishing" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {Object.entries(PLATFORM_CONFIG).map(([platform, config]) => {
               const connected = socialAccounts.find((a) => a.platform === platform);

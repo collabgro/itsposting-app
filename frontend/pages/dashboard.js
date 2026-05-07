@@ -1,10 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import {
-  Calendar as CalendarIcon, Clock, Sparkles, Plus,
-  FileText, Image as ImageIcon, Layers, Video,
-  Facebook, Instagram, Globe, ArrowRight, Flame,
-} from 'lucide-react';
+  IpCalendar as CalendarIcon, IpSchedule, IpSparkle, IpPlus,
+  IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
+  IpFacebook, IpInstagram, IpGoogle, IpArrowRight, IpFlame,
+} from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, StatCard, SectionHeader, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
@@ -12,12 +12,12 @@ import ContentCreatorModal from '../components/ContentCreatorModal';
 import PostCoreBanner from '../components/PostCoreBanner';
 import { format } from 'date-fns';
 
-const TYPE_ICON  = { static: FileText, photo: ImageIcon, carousel: Layers, video: Video };
+const TYPE_ICON  = { static: IpDrafts, photo: ImageIcon, carousel: IpCarousel, video: IpVideo };
 const TYPE_COLOR = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
 const PLATFORM_ICONS = {
-  facebook:        { icon: Facebook,  color: '#1877F2' },
-  instagram:       { icon: Instagram, color: '#E1306C' },
-  google_business: { icon: Globe,     color: '#4285F4' },
+  facebook:        { icon: IpFacebook,  color: '#1877F2' },
+  instagram:       { icon: IpInstagram, color: '#E1306C' },
+  google_business: { icon: IpGoogle,    color: '#4285F4' },
 };
 
 function parsePlatforms(raw) {
@@ -147,10 +147,10 @@ export default function Dashboard() {
         action={
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button variant="secondary" onClick={() => setShowAIModal(true)}>
-              <Sparkles size={14} style={{ color: t.primary }} /> Create
+              <IpSparkle size={14} style={{ color: t.primary }} /> Create
             </Button>
             <Button variant="primary" onClick={() => router.push('/upload')}>
-              <Plus size={14} strokeWidth={2.5} /> Create Post
+              <IpPlus size={14} strokeWidth={2.5} /> Create Post
             </Button>
           </div>
         }
@@ -174,7 +174,7 @@ export default function Dashboard() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Sparkles size={18} style={{ color: t.primary }} />
+              <IpSparkle size={18} style={{ color: t.primary }} />
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Create content</div>
@@ -183,7 +183,7 @@ export default function Dashboard() {
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button variant="secondary" size="sm" onClick={() => router.push('/upload')}>Manual upload</Button>
-            <Button variant="primary" size="sm" onClick={() => setShowAIModal(true)}><Sparkles size={13} /> Create</Button>
+            <Button variant="primary" size="sm" onClick={() => setShowAIModal(true)}><IpSparkle size={13} /> Create</Button>
           </div>
         </div>
 
@@ -212,7 +212,7 @@ export default function Dashboard() {
           >
             <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 4 }}>Posting streak</div>
             <div style={{ fontSize: 26, fontWeight: 800, color: streak >= 3 ? '#EAB308' : t.text, letterSpacing: '-0.03em', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {streak > 0 && <Flame size={20} style={{ color: '#EAB308' }} />}
+              {streak > 0 && <IpFlame size={20} style={{ color: '#EAB308' }} />}
               {streak > 0 ? `${streak} days` : '--'}
             </div>
             <div style={{ fontSize: 11, color: streak >= 3 ? '#EAB308' : t.textMuted }}>
@@ -270,7 +270,7 @@ export default function Dashboard() {
           <Card padding={0} style={{ overflow: 'hidden' }}>
             <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Clock size={15} style={{ color: t.primary }} /></div>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IpSchedule size={15} style={{ color: t.primary }} /></div>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Upcoming posts</div>
                   <div style={{ fontSize: 12, color: t.textMuted }}>Next 30 days</div>
@@ -278,22 +278,22 @@ export default function Dashboard() {
               </div>
               {upcoming.length > 0 && (
                 <button onClick={() => router.push('/history?filter=scheduled')} style={{ fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  View all <ArrowRight size={12} />
+                  View all <IpArrowRight size={12} />
                 </button>
               )}
             </div>
 
             {upcoming.length === 0 ? (
               <EmptyState
-                icon={Clock}
+                icon={IpSchedule}
                 title="No scheduled posts"
                 subtitle="Schedule your next post"
-                action={<Button variant="secondary" size="sm" onClick={() => setShowAIModal(true)}><Sparkles size={12} /> Create</Button>}
+                action={<Button variant="secondary" size="sm" onClick={() => setShowAIModal(true)}><IpSparkle size={12} /> Create</Button>}
               />
             ) : (
               <div>
                 {upcoming.slice(0, 4).map(post => {
-                  const TypeIcon = TYPE_ICON[post.content_type] || FileText;
+                  const TypeIcon = TYPE_ICON[post.content_type] || IpDrafts;
                   const typeColor = TYPE_COLOR[post.content_type] || t.primary;
                   const postPlatforms = parsePlatforms(post.platforms);
                   return (

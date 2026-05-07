@@ -22,7 +22,7 @@ const CREDIT_COSTS = {
 class ManualContentGenerator {
   constructor(pool) {
     this.pool = pool;
-    this.claude = new ClaudeService();
+    this.claude = new ClaudeService(pool);
     this.nanobanana = new NanoBananaService();
     this.midjourney = new MidjourneyService();
     this.heygen = new HeyGenService();
@@ -65,27 +65,41 @@ class ManualContentGenerator {
       throw new Error(`Insufficient credits. Need ${creditCost}, have ${customer.credits_balance}`);
     }
 
+    // Resolve platforms — frontend may send platforms[] or platform string
+    const platformsArr = Array.isArray(options.platforms)
+      ? options.platforms
+      : (options.platform ? [options.platform] : ['facebook']);
+    const primaryPlatform = platformsArr[0] || 'facebook';
+    const opts = { ...options, platform: primaryPlatform };
+
     // 2. Generate based on type
     let result;
     switch (contentType) {
       case 'static':
-        result = await this.generateStatic(customer, prompt);
+        result = await this.generateStatic(customer, prompt, opts);
         break;
       case 'photo':
-        result = await this.generatePhoto(customer, prompt, options);
+        result = await this.generatePhoto(customer, prompt, opts);
         break;
       case 'carousel':
-        result = await this.generateCarousel(customer, prompt, options);
+        result = await this.generateCarousel(customer, prompt, opts);
         break;
       case 'video':
-        result = await this.generateVideo(customer, prompt, options);
+        result = await this.generateVideo(customer, prompt, opts);
         break;
       default:
         throw new Error(`Unsupported content type: ${contentType}`);
     }
 
     // 3. Save to database & deduct credits
-    const post = await this.savePost(customer, contentType, prompt, result, creditCost);
+    const post = await this.savePost(customer, contentType, prompt, result, creditCost, platformsArr, primaryPlatform);
+
+    // 4. Persist A/B/C variations to post_variations table (non-fatal if fails)
+    if (result.variations && post.id) {
+      this.claude.saveVariations(post.id, result.variations).catch((err) => {
+        console.error('[ManualContentGenerator] saveVariations failed (non-fatal):', err.message);
+      });
+    }
 
     return {
       ...result,
@@ -98,15 +112,16 @@ class ManualContentGenerator {
   /**
    * Generate static text card (with overlay text on color background)
    */
-  async generateStatic(customer, prompt) {
-    const captionData = await this.claude.generateCaption(customer, prompt, 'static', 'instagram');
+  async generateStatic(customer, prompt, options = {}) {
+    const captionData = await this.claude.generateCaption(
+      customer, prompt, 'static', options.platform || 'instagram'
+    );
 
-    // For static cards, we use NanoBanana to create a styled background
-    // OR we could use a simple HTML-to-image render (puppeteer)
     const imageService = this.getImageService(customer);
-    
-    const backgroundPrompt = `Beautiful gradient background using brand colors ${customer.brand_colors?.primary || 'blue'} and ${customer.brand_colors?.secondary || 'green'}, abstract elegant design, 1080x1080 square, no text, professional`;
-    
+
+    const backgroundPrompt = captionData.imagePrompt
+      || `Beautiful gradient background using brand colors ${customer.brand_colors?.primary || 'blue'} and ${customer.brand_colors?.secondary || 'green'}, abstract elegant design, 1080x1080 square, no text, professional`;
+
     const imageResult = await imageService.service.generateFromPrompt(customer, backgroundPrompt);
 
     return {
@@ -117,21 +132,25 @@ class ManualContentGenerator {
       mediaUrl: imageResult.url,
       provider: imageResult.provider,
       model: imageResult.model,
+      variations: captionData.variations || null,
+      imagePrompt: backgroundPrompt,
     };
   }
 
   /**
    * Generate photo post
    */
-  async generatePhoto(customer, prompt, options) {
+  async generatePhoto(customer, prompt, options = {}) {
     const imageService = this.getImageService(customer);
     console.log(`📷 Using ${imageService.name} for photo generation`);
 
-    // Generate caption and image in parallel
-    const [captionData, imageResult] = await Promise.all([
-      this.claude.generateCaption(customer, prompt, 'photo', 'instagram'),
-      imageService.service.generateFromPrompt(customer, prompt, options),
-    ]);
+    // Caption first — Claude's imagePrompt is richer than the raw user prompt
+    const captionData = await this.claude.generateCaption(
+      customer, prompt, 'photo', options.platform || 'instagram'
+    );
+
+    const imageGenPrompt = captionData.imagePrompt || prompt;
+    const imageResult = await imageService.service.generateFromPrompt(customer, imageGenPrompt, options);
 
     return {
       contentType: 'photo',
@@ -140,6 +159,9 @@ class ManualContentGenerator {
       mediaUrl: imageResult.url,
       provider: imageResult.provider,
       model: imageResult.model,
+      variations: captionData.variations || null,
+      imagePrompt: imageGenPrompt,
+      engagementQuestion: captionData.engagementQuestion || '',
     };
   }
 
@@ -208,19 +230,19 @@ class ManualContentGenerator {
   /**
    * Save post to database & deduct credits
    */
-  async savePost(customer, contentType, prompt, result, creditCost) {
+  async savePost(customer, contentType, prompt, result, creditCost, platforms = ['facebook'], primaryPlatform = 'facebook') {
     const client = await this.pool.connect();
-    
+
     try {
       await client.query('BEGIN');
 
       // Insert post
       const postResult = await client.query(
         `INSERT INTO posts (
-          customer_id, content_type, caption, hashtags, media_url, 
+          customer_id, content_type, caption, hashtags, media_url,
           overlay_text, prompt, generation_method, ai_model_used,
-          image_provider, status, credits_used
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          image_provider, platform, platforms, status, credits_used
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING *`,
         [
           customer.id,
@@ -231,8 +253,10 @@ class ManualContentGenerator {
           result.overlayText || null,
           prompt,
           'manual',
-          result.model || 'unknown',
+          result.model || 'claude-sonnet-4-20250514',
           result.provider || 'unknown',
+          primaryPlatform,
+          JSON.stringify(platforms),
           'draft',
           creditCost,
         ]

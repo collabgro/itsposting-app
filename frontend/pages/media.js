@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
-  Upload, Image as ImageIcon, Video, Trash2, Search,
-  FolderOpen, X, Check, Loader2, HardDrive, FolderPlus,
-} from 'lucide-react';
+  IpPublish, IpPhoto as ImageIcon, IpVideo, IpDelete, IpSearch,
+  IpFolderOpen, IpClose, IpCheck, IpLoader, IpHardDrive, IpFolderPlus,
+} from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Badge, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
@@ -180,14 +180,14 @@ export default function MediaLibrary() {
         <div style={{ display: 'flex', gap: 8 }}>
           {selectedIds.size > 0 && (
             <Button variant="danger" onClick={handleBulkDelete}>
-              <Trash2 size={14} /> Delete ({selectedIds.size})
+              <IpDelete size={14} /> Delete ({selectedIds.size})
             </Button>
           )}
           <Button variant="secondary" onClick={() => setShowFolderModal(true)}>
-            <FolderPlus size={14} /> New Folder
+            <IpFolderPlus size={14} /> New Folder
           </Button>
           <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-            {uploading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Upload size={14} strokeWidth={2.5} />}
+            {uploading ? <IpLoader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <IpPublish size={14} strokeWidth={2.5} />}
             {uploading ? `Uploading ${uploadProgress}%` : 'Upload Files'}
           </Button>
         </div>
@@ -206,7 +206,7 @@ export default function MediaLibrary() {
         <Card style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <HardDrive size={18} style={{ color: t.primary }} />
+              <IpHardDrive size={18} style={{ color: t.primary }} />
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Storage</div>
                 <div style={{ fontSize: 12, color: t.textMuted }}>
@@ -248,7 +248,7 @@ export default function MediaLibrary() {
                   onMouseLeave={e => { if (filterFolder !== f.folder) e.currentTarget.style.background = 'transparent'; }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <FolderOpen size={13} />
+                    <IpFolderOpen size={13} />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 100 }}>
                       {f.folder === 'all' ? 'All Files' : f.folder}
                     </span>
@@ -265,7 +265,7 @@ export default function MediaLibrary() {
         {/* Search + type filter */}
         <div style={{ flex: 1, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 320 }}>
-            <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted }} />
+            <IpSearch size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted }} />
             <input
               type="text" placeholder="Search files..." value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -286,18 +286,18 @@ export default function MediaLibrary() {
       {loading ? (
         <Card>
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-            <Loader2 size={28} style={{ color: t.primary, animation: 'spin 1s linear infinite' }} />
+            <IpLoader size={28} style={{ color: t.primary, animation: 'spin 1s linear infinite' }} />
           </div>
         </Card>
       ) : files.length === 0 ? (
         <Card>
           <EmptyState
-            icon={FolderOpen}
+            icon={IpFolderOpen}
             title={filterFolder !== 'all' ? `No files in "${filterFolder}"` : 'No media yet'}
             subtitle={filterFolder !== 'all' ? 'Upload files to this folder using the Upload button above' : 'Upload images and videos to use in your posts'}
             action={
               <Button variant="primary" onClick={() => fileInputRef.current?.click()}>
-                <Upload size={14} strokeWidth={2.5} /> Upload files{filterFolder !== 'all' ? ` to "${filterFolder}"` : ''}
+                <IpPublish size={14} strokeWidth={2.5} /> Upload files{filterFolder !== 'all' ? ` to "${filterFolder}"` : ''}
               </Button>
             }
           />
@@ -319,12 +319,12 @@ export default function MediaLibrary() {
                   onClick={(e) => { e.stopPropagation(); toggleSelect(file.id); }}
                   style={{ position: 'absolute', top: 8, left: 8, width: 22, height: 22, borderRadius: 6, background: isSelected ? t.primary : 'rgba(0,0,0,0.5)', border: `1px solid ${isSelected ? t.primary : '#fff'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', zIndex: 2 }}
                 >
-                  {isSelected && <Check size={14} strokeWidth={3} />}
+                  {isSelected && <IpCheck size={14} strokeWidth={3} />}
                 </button>
 
                 {/* TYPE BADGE */}
                 <div style={{ position: 'absolute', top: 8, right: 8, padding: '3px 8px', background: 'rgba(0,0,0,0.7)', color: '#fff', borderRadius: 6, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, zIndex: 2 }}>
-                  {file.file_type === 'video' ? <Video size={10} /> : <ImageIcon size={10} />}
+                  {file.file_type === 'video' ? <IpVideo size={10} /> : <ImageIcon size={10} />}
                   {file.file_type}
                 </div>
 
@@ -352,7 +352,7 @@ export default function MediaLibrary() {
                   </div>
                   {file.folder && file.folder !== 'all' && (
                     <div style={{ fontSize: 10, color: t.primary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <FolderOpen size={9} /> {file.folder}
+                      <IpFolderOpen size={9} /> {file.folder}
                     </div>
                   )}
                 </div>
@@ -375,7 +375,7 @@ export default function MediaLibrary() {
                 </div>
               </div>
               <button onClick={() => setPreviewFile(null)} style={{ width: 32, height: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <X size={16} />
+                <IpClose size={16} />
               </button>
             </div>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.bg, padding: 16, overflow: 'hidden' }}>
@@ -389,7 +389,7 @@ export default function MediaLibrary() {
                 onClick={() => { handleDelete(previewFile.id); setPreviewFile(null); }}
                 style={{ padding: '8px 14px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.error, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
               >
-                <Trash2 size={14} /> Delete
+                <IpDelete size={14} /> Delete
               </button>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
@@ -417,7 +417,7 @@ export default function MediaLibrary() {
             <div style={{ padding: '18px 22px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: t.text, margin: 0 }}>Create New Folder</h3>
               <button onClick={() => { setShowFolderModal(false); setNewFolderName(''); }} style={{ width: 30, height: 30, borderRadius: 7, background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textMuted }}>
-                <X size={15} />
+                <IpClose size={15} />
               </button>
             </div>
             <div style={{ padding: 22 }}>
@@ -440,7 +440,7 @@ export default function MediaLibrary() {
                   disabled={!newFolderName.trim()}
                   style={{ flex: 2, padding: '10px 0', background: !newFolderName.trim() ? t.textDisabled : t.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: !newFolderName.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 >
-                  <FolderPlus size={13} /> Create Folder
+                  <IpFolderPlus size={13} /> Create Folder
                 </button>
               </div>
             </div>

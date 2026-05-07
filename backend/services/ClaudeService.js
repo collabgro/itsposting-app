@@ -143,45 +143,54 @@ class ClaudeService {
     return results;
   }
 
-  // ── Legacy: generateCaption (kept for backward compatibility) ─────────────
-  // New code should use generateVariations() instead.
+  // ── generateCaption: prompt-driven 3-variation generation ────────────────
+  // Used by ManualContentGenerator for the content API (/api/content/generate).
+  // Routes the user's typed prompt through counterAnswers.custom so
+  // SystemPromptBuilder includes it as "additional context" in the user message.
+  // Returns variation_a as primary + full `variations` object for saving.
   async generateCaption(customer, prompt, contentType = 'photo', platform = 'instagram') {
     if (!this.client) throw new Error('Claude not configured. Set ANTHROPIC_API_KEY.');
 
-    const builder = new SystemPromptBuilder(customer, { platform, contentType });
-    const { systemPrompt } = builder.build();
+    const builder = new SystemPromptBuilder(customer, {
+      platform,
+      contentType,
+      counterAnswers: { custom: prompt }, // user's typed prompt flows as context
+    });
+    const { systemPrompt, userPrompt } = builder.build(); // 3-variation format from section 6
 
-    const userPrompt = `Generate ONE social media post (not 3 variations) about: ${prompt}
-
-Return ONLY valid JSON:
-{
-  "caption": "the caption text",
-  "hashtags": ["tag1", "tag2", "tag3"],
-  "overlay_text": "short text for image overlay (max 8 words, static cards only)",
-  "imagePrompt": "detailed image generation prompt"
-}`;
-
+    let rawText = '';
     try {
       const response = await this.client.messages.create({
         model: this.model,
-        max_tokens: 1500,
+        max_tokens: 2500, // 3 full variations need more tokens than 1
+        temperature: 0.8,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       });
 
-      const text = response.content[0].text;
-      const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      rawText = response.content[0].text;
+      const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
+      // variation_a = Facebook-optimised per SystemPromptBuilder section 6
+      const best = parsed.variation_a || parsed.variation_b || parsed.variation_c || {};
+
+      console.log(`[ClaudeService] generateCaption generated 3 variations for ${customer.business_name || 'customer'} (${contentType}/${platform})`);
+
       return {
-        caption: parsed.caption,
-        hashtags: parsed.hashtags || [],
-        overlay_text: parsed.overlay_text || '',
-        imagePrompt: parsed.imagePrompt || '',
+        caption: best.caption || '',
+        hashtags: best.hashtags || [],
+        overlay_text: best.caption
+          ? best.caption.split(/[.!?]/)[0].split(/\s+/).slice(0, 8).join(' ')
+          : '',
+        imagePrompt: best.imagePrompt || '',
+        engagementQuestion: best.engagementQuestion || '',
         model: this.model,
+        variations: parsed, // all 3 returned — ManualContentGenerator saves them
       };
     } catch (err) {
       console.error('[ClaudeService] generateCaption error:', err.message);
+      if (rawText) console.error('[ClaudeService] Raw (first 500):', rawText.substring(0, 500));
       throw new Error(`Caption generation failed: ${err.message}`);
     }
   }

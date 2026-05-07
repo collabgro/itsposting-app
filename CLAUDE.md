@@ -57,6 +57,11 @@ AI:           Anthropic Claude API (@anthropic-ai/sdk)
               Model: claude-sonnet-4-20250514 (ALWAYS this exact string)
 Styling:      Inline styles using theme object from frontend/lib/theme.js
               Use (t) from useTheme() — NEVER hardcode colors
+Icons:        Custom SVG icon system — frontend/components/icons/index.js
+              ALL icons are Ip-prefixed (IpSparkle, IpPlus, IpClose, etc.)
+              Import: import { IpSparkle, IpPlus } from '../components/icons'
+              NEVER use lucide-react — it is permanently banned from this project
+              NEVER import from 'lucide-react' under any circumstances
 Image gen:    NanoBanana (Google Gemini 2.5 Flash Image) — default
               Midjourney via Replicate — premium fallback
               Sharp.js for image processing (backend)
@@ -266,6 +271,18 @@ RESEND_API_KEY
 - Always handle loading + error states in every frontend component
 - Use theme (t) from useTheme() for ALL styling — never hardcode colors
 - Frontend API calls go ONLY through frontend/lib/api.js — never fetch directly
+
+### Icons (ABSOLUTE — lucide-react IS BANNED)
+- NEVER import from 'lucide-react' — it is completely removed from this project
+- ALL icons come from: import { IpXxx } from '../components/icons' (adjust relative path)
+- Every icon is prefixed Ip (IpSparkle, IpPlus, IpClose, IpChevronRight, etc.)
+- Icon component reference: frontend/components/icons/index.js (~80 icons available)
+- Platform icons: IpFacebook, IpInstagram, IpGoogle (abstract geometric shapes)
+- Common mappings: Sparkles→IpSparkle, Plus→IpPlus, X→IpClose, Clock→IpSchedule,
+  ChevronRight→IpChevronRight, Search→IpSearch, Trash2→IpDelete, RefreshCw→IpRefresh,
+  AlertCircle/AlertTriangle→IpWarning, CheckCircle→IpCheckCircle, XCircle→IpCloseCircle,
+  Users→IpTeam, Building→IpBusiness, Shield→IpAdmin, DollarSign→IpDollar,
+  TrendingUp→IpTrendingUp, Heart→IpHeart, MessageCircle→IpComment, Share2→IpShare
 
 ### Database
 - Always parameterized queries ($1, $2) — NEVER string concatenation

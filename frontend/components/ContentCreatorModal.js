@@ -1,21 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Sparkles, Loader2, Image as ImageIcon, Video, Layers, FileText, Zap, Check, ChevronLeft, ChevronRight, Calendar, Clock, Facebook, Instagram, Globe, Hash, AlertCircle, RefreshCw, Lightbulb } from 'lucide-react';
+import {
+  IpClose, IpSparkle, IpLoader, IpPhoto as ImageIcon, IpVideo, IpCarousel, IpDrafts,
+  IpCredits, IpCheck, IpChevronLeft, IpChevronRight, IpCalendar, IpSchedule,
+  IpFacebook, IpInstagram, IpGoogle, IpHash, IpWarning, IpRefresh, IpTip,
+} from './icons';
 import { contentAPI, postsAPI, analyticsAPI } from '../lib/api';
 import toast from 'react-hot-toast';
 import { useTheme } from '../lib/theme';
 import { Button } from './ui';
 
 const CONTENT_TYPES = [
-  { id: 'static', name: 'Text Card', icon: FileText, credits: 1, desc: 'Styled quote or tip on a branded background', example: 'Share a quick maintenance tip' },
+  { id: 'static', name: 'Text Card', icon: IpDrafts, credits: 1, desc: 'Styled quote or tip on a branded background', example: 'Share a quick maintenance tip' },
   { id: 'photo', name: 'Photo Post', icon: ImageIcon, credits: 3, desc: 'Generated image with matching caption', example: 'A freshly sealed concrete driveway' },
-  { id: 'carousel', name: 'Carousel', icon: Layers, credits: 5, desc: '5-slide educational series with visuals', example: '5 tips for spring garden prep' },
-  { id: 'video', name: 'Video Post', icon: Video, credits: 10, desc: '30-second avatar explainer video', example: 'Explain your top service offering' },
+  { id: 'carousel', name: 'Carousel', icon: IpCarousel, credits: 5, desc: '5-slide educational series with visuals', example: '5 tips for spring garden prep' },
+  { id: 'video', name: 'Video Post', icon: IpVideo, credits: 10, desc: '30-second avatar explainer video', example: 'Explain your top service offering' },
 ];
 
 const PLATFORMS = [
-  { id: 'facebook', label: 'Facebook', icon: Facebook, charLimit: 63206 },
-  { id: 'instagram', label: 'Instagram', icon: Instagram, charLimit: 2200 },
-  { id: 'google_business', label: 'Business Profile', icon: Globe, charLimit: 1500 },
+  { id: 'facebook', label: 'Facebook', icon: IpFacebook, charLimit: 63206 },
+  { id: 'instagram', label: 'Instagram', icon: IpInstagram, charLimit: 2200 },
+  { id: 'google_business', label: 'Business Profile', icon: IpGoogle, charLimit: 1500 },
 ];
 
 const GEN_STEPS = [
@@ -110,14 +114,14 @@ export default function ContentCreatorModal({ onClose, onSuccess, defaultDate = 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: `1px solid ${t.border}`, flexShrink: 0, gap: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
             <div style={{ width: 34, height: 34, borderRadius: 9, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Sparkles size={16} style={{ color: t.primary }} />
+              <IpSparkle size={16} style={{ color: t.primary }} />
             </div>
             <div style={{ minWidth: 0 }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Content Creator</h2>
               {credits && <p style={{ fontSize: 12, color: t.textMuted }}><span style={{ color: t.primary, fontWeight: 700, fontFamily: 'monospace' }}>{credits.balance}</span> credits available</p>}
             </div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textSecondary, cursor: 'pointer', flexShrink: 0 }}><X size={16} /></button>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textSecondary, cursor: 'pointer', flexShrink: 0 }}><IpClose size={16} /></button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
           {step === 1 && (
@@ -125,7 +129,7 @@ export default function ContentCreatorModal({ onClose, onSuccess, defaultDate = 
               <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>What would you like to create today?</p>
               {providers && (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 20, padding: '10px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Zap size={13} style={{ color: t.warning, flexShrink: 0 }} />
+                  <IpCredits size={13} style={{ color: t.warning, flexShrink: 0 }} />
                   <span style={{ fontSize: 12, color: t.textMuted }}>Image sources:</span>
                   <span style={{ fontSize: 12, color: providers.nanobanana?.available ? t.success : t.textMuted, fontWeight: 600 }}>{providers.nanobanana?.available ? '✓' : '○'} Image One</span>
                   <span style={{ fontSize: 12, color: providers.midjourney?.available ? t.success : t.textMuted, fontWeight: 600 }}>{providers.midjourney?.available ? '✓' : '○'} Image Two</span>
@@ -153,11 +157,11 @@ export default function ContentCreatorModal({ onClose, onSuccess, defaultDate = 
             <div>
               {initialPrompt && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, marginBottom: 14, fontSize: 12, color: t.primary }}>
-                  <Sparkles size={13} style={{ flexShrink: 0 }} />
+                  <IpSparkle size={13} style={{ flexShrink: 0 }} />
                   <span><strong>PostCore draft loaded</strong> — edit the caption or generate something new</span>
                 </div>
               )}
-              <button onClick={() => setStep(1)} style={{ fontSize: 12, color: t.primary, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 20, cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}><ChevronLeft size={14} /> Back</button>
+              <button onClick={() => setStep(1)} style={{ fontSize: 12, color: t.primary, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 20, cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}><IpChevronLeft size={14} /> Back</button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, marginBottom: 20, flexWrap: 'wrap' }}>
                 {(() => { const t2 = CONTENT_TYPES.find(tp => tp.id === contentType); return t2 ? <><t2.icon size={16} style={{ color: t.primary, flexShrink: 0 }} /><span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{t2.name}</span><span style={{ fontSize: 12, color: t.textMuted }}>·</span><span style={{ fontSize: 12, color: t.textMuted }}>{t2.credits} credits</span></> : null; })()}
               </div>
@@ -168,13 +172,13 @@ export default function ContentCreatorModal({ onClose, onSuccess, defaultDate = 
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: `1px solid ${t.border}`, gap: 12, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, color: t.textMuted }}>Cost: <strong style={{ color: t.text, fontFamily: 'monospace' }}>{CONTENT_TYPES.find(tp => tp.id === contentType)?.credits} credits</strong>{credits && <span style={{ color: t.textMuted }}> · {credits.balance} available</span>}</span>
-                <button onClick={handleGenerate} disabled={!prompt.trim()} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px', background: !prompt.trim() ? t.textDisabled : t.primary, color: '#fff', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: prompt.trim() ? 'pointer' : 'not-allowed' }}><Sparkles size={14} /> Generate</button>
+                <button onClick={handleGenerate} disabled={!prompt.trim()} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px', background: !prompt.trim() ? t.textDisabled : t.primary, color: '#fff', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: prompt.trim() ? 'pointer' : 'not-allowed' }}><IpSparkle size={14} /> Generate</button>
               </div>
             </div>
           )}
           {step === 3 && (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <Loader2 size={28} style={{ color: t.primary, animation: 'spin 1s linear infinite', margin: '0 auto 14px' }} />
+              <IpLoader size={28} style={{ color: t.primary, animation: 'spin 1s linear infinite', margin: '0 auto 14px' }} />
               <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 8 }}>Creating your draft</div>
               <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>This usually takes a few seconds</div>
               <div style={{ display: 'grid', gap: 8, maxWidth: 320, margin: '0 auto' }}>

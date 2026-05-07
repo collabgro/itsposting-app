@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
+import { IpSparkle } from '../components/icons';
 import { useTheme } from '../lib/theme';
 import { Button, Input } from '../components/ui';
 
@@ -45,7 +45,7 @@ export default function Login() {
       <div style={{ width: '100%', maxWidth: 420 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-            <Sparkles size={20} color="#fff" strokeWidth={2.5} />
+            <IpSparkle size={20} color="#fff" strokeWidth={2.5} />
           </div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>Welcome back</h1>
           <p style={{ fontSize: 13, color: t.textMuted, marginTop: 6 }}>Sign in to continue</p>

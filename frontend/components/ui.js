@@ -1,4 +1,4 @@
-import { Inbox } from 'lucide-react';
+import { IpInbox } from './icons';
 import { useTheme } from '../lib/theme';
 
 export function Card({ children, padding = 24, style = {}, hoverable = false, ...rest }) {
@@ -156,7 +156,7 @@ export function SectionHeader({ title, subtitle, icon: Icon, action }) {
   );
 }
 
-export function EmptyState({ icon: Icon = Inbox, title, subtitle, action }) {
+export function EmptyState({ icon: Icon = IpInbox, title, subtitle, action }) {
   const { t } = useTheme();
   return (
     <div style={{ padding: '48px 24px', textAlign: 'center' }}>

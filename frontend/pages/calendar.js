@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
-  ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon,
-  X, FileText, Image as ImageIcon, Layers, Video,
-  Facebook, Instagram, Globe, Clock, Sparkles,
-} from 'lucide-react';
+  IpChevronLeft, IpChevronRight, IpPlus, IpCalendar as CalendarIcon,
+  IpClose, IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
+  IpFacebook, IpInstagram, IpGoogle, IpSchedule, IpSparkle,
+} from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Badge } from '../components/ui';
 import { useTheme } from '../lib/theme';
@@ -15,13 +15,13 @@ import {
   isSameDay, addMonths, subMonths, startOfWeek, endOfWeek,
 } from 'date-fns';
 
-const TYPE_ICON  = { static: FileText, photo: ImageIcon, carousel: Layers, video: Video };
+const TYPE_ICON  = { static: IpDrafts, photo: ImageIcon, carousel: IpCarousel, video: IpVideo };
 const TYPE_COLOR = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
 const STATUS_VAR = { posted: 'success', scheduled: 'warning', draft: 'default', failed: 'error' };
 const PLATFORM_ICONS = {
-  facebook:        { icon: Facebook,  color: '#1877F2' },
-  instagram:       { icon: Instagram, color: '#E1306C' },
-  google_business: { icon: Globe,     color: '#4285F4' },
+  facebook:        { icon: IpFacebook,  color: '#1877F2' },
+  instagram:       { icon: IpInstagram, color: '#E1306C' },
+  google_business: { icon: IpGoogle,    color: '#4285F4' },
 };
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -114,8 +114,8 @@ export default function Calendar() {
         subtitle="Schedule and manage your posts"
         action={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="secondary" onClick={() => setShowAI(true)}><Sparkles size={13} style={{ color: t.primary }} /> AI Generate</Button>
-            <Button variant="primary"   onClick={() => router.push('/upload')}><Plus size={14} strokeWidth={2.5} /> Create Post</Button>
+            <Button variant="secondary" onClick={() => setShowAI(true)}><IpSparkle size={13} style={{ color: t.primary }} /> AI Generate</Button>
+            <Button variant="primary"   onClick={() => router.push('/upload')}><IpPlus size={14} strokeWidth={2.5} /> Create Post</Button>
           </div>
         }
       >
@@ -147,7 +147,7 @@ export default function Calendar() {
                   onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
                   onMouseLeave={e => e.currentTarget.style.background = t.input}
                 >
-                  <ChevronLeft size={16} />
+                  <IpChevronLeft size={16} />
                 </button>
                 <button
                   onClick={() => { setCurrentMonth(new Date()); setSelectedDay(null); }}
@@ -163,7 +163,7 @@ export default function Calendar() {
                   onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
                   onMouseLeave={e => e.currentTarget.style.background = t.input}
                 >
-                  <ChevronRight size={16} />
+                  <IpChevronRight size={16} />
                 </button>
               </div>
             </div>
@@ -277,13 +277,13 @@ export default function Calendar() {
                     style={{ width: 28, height: 28, borderRadius: 7, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.primary }}
                     title="Add post on this day"
                   >
-                    <Plus size={14} strokeWidth={2.5} />
+                    <IpPlus size={14} strokeWidth={2.5} />
                   </button>
                   <button
                     onClick={() => setSelectedDay(null)}
                     style={{ width: 28, height: 28, borderRadius: 7, background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textSecondary }}
                   >
-                    <X size={14} />
+                    <IpClose size={14} />
                   </button>
                 </div>
               </div>
@@ -293,7 +293,7 @@ export default function Calendar() {
                   <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 16 }}>No posts scheduled for this day</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <Button variant="primary" size="sm" onClick={() => handleAddOnDay(selectedDay)}>
-                      <Sparkles size={12} /> Generate with AI
+                      <IpSparkle size={12} /> Generate with AI
                     </Button>
                     <Button variant="secondary" size="sm" onClick={() => router.push('/upload')}>
                       Manual upload
@@ -326,7 +326,7 @@ export default function Calendar() {
                             </div>
                             {post.scheduled_date && (
                               <div style={{ fontSize: 11, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <Clock size={10} />
+                                <IpSchedule size={10} />
                                 {format(new Date(post.scheduled_date), 'h:mm a')}
                               </div>
                             )}
@@ -358,7 +358,7 @@ export default function Calendar() {
 
                   <div style={{ padding: '12px 18px' }}>
                     <Button variant="secondary" size="sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => handleAddOnDay(selectedDay)}>
-                      <Plus size={12} strokeWidth={2.5} /> Add another post
+                      <IpPlus size={12} strokeWidth={2.5} /> Add another post
                     </Button>
                   </div>
                 </div>

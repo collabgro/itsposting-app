@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTheme } from '../lib/theme';
 import { suggestionsAPI } from '../lib/api';
 import SuggestionCard from './SuggestionCard';
-import { Sparkles, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { IpSparkle, IpRefresh, IpChevronDown, IpChevronUp } from './icons';
 
 // onUsePost(caption)      — open ContentCreatorModal with caption pre-filled
 // onCustomizePost(caption) — open ContentCreatorModal with caption, let user pick type
@@ -96,7 +96,7 @@ export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
-            <Sparkles size={16} color="#fff" strokeWidth={2.5} />
+            <IpSparkle size={16} color="#fff" strokeWidth={2.5} />
           </div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Today from PostCore</div>
@@ -120,7 +120,7 @@ export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
             }}
             title="Refresh suggestions"
           >
-            <RefreshCw size={14} style={{ animation: generating ? 'spin 1s linear infinite' : 'none' }} />
+            <IpRefresh size={14} style={{ animation: generating ? 'spin 1s linear infinite' : 'none' }} />
           </button>
 
           <button
@@ -131,7 +131,7 @@ export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
               color: t.textMuted, cursor: 'pointer',
             }}
           >
-            {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+            {collapsed ? <IpChevronDown size={16} /> : <IpChevronUp size={16} />}
           </button>
         </div>
       </div>

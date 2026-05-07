@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, CreditCard, User, ShieldAlert, Info, CheckCheck } from 'lucide-react';
+import { IpBell, IpBilling, IpUser, IpShieldAlert, IpInfo, IpCheckDouble } from './icons';
 import { useTheme } from '../lib/theme';
 import api from '../lib/api';
 
 const POLL_INTERVAL = 60_000;
 
 const TYPE_META = {
-  credits:  { icon: CreditCard, color: '#7C5CFC' },
-  account:  { icon: User,       color: '#EAB308' },
-  security: { icon: ShieldAlert, color: '#EF4444' },
-  system:   { icon: Info,       color: '#60A5FA' },
+  credits:  { icon: IpBilling,     color: '#7C5CFC' },
+  account:  { icon: IpUser,        color: '#EAB308' },
+  security: { icon: IpShieldAlert, color: '#EF4444' },
+  system:   { icon: IpInfo,        color: '#60A5FA' },
 };
 
 function timeAgo(dateStr) {
@@ -80,7 +80,7 @@ export default function NotificationBell() {
         }}
         title="Notifications"
       >
-        <Bell size={16} />
+        <IpBell size={16} />
         {unread > 0 && (
           <span style={{
             position: 'absolute', top: -4, right: -4,
@@ -122,7 +122,7 @@ export default function NotificationBell() {
                 onClick={markAllRead}
                 style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
               >
-                <CheckCheck size={13} /> Mark all read
+                <IpCheckDouble size={13} /> Mark all read
               </button>
             )}
           </div>

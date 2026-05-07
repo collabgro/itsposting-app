@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
-  Mail, CheckCircle, Clock, AlertCircle, RefreshCw,
-  RotateCcw, ArrowLeft, Send,
-} from 'lucide-react';
+  IpMail, IpCheckCircle, IpSchedule, IpWarning, IpRefresh,
+  IpArrowLeft, IpSend,
+} from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Card, Button, Badge, SectionHeader, StatCard, EmptyState } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
 const STATUS_VARIANT = { sent: 'success', pending: 'warning', failed: 'error' };
-const STATUS_ICON = { sent: CheckCircle, pending: Clock, failed: AlertCircle };
+const STATUS_ICON = { sent: IpCheckCircle, pending: IpSchedule, failed: IpWarning };
 
 const TEMPLATE_LABELS = {
   account_suspended: 'Account Suspended',
@@ -104,13 +104,13 @@ export default function EmailQueuePage() {
       subtitle="Outgoing notifications and status"
       action={
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="secondary" onClick={load}><RefreshCw size={13} /> Refresh</Button>
+          <Button variant="secondary" onClick={load}><IpRefresh size={13} /> Refresh</Button>
           {parseInt(stats.failed) > 0 && (
             <Button variant="danger" onClick={handleRetryAll}>
-              <RotateCcw size={13} /> Retry all failed ({stats.failed})
+              <IpRefresh size={13} /> Retry all failed ({stats.failed})
             </Button>
           )}
-          <Button variant="ghost" onClick={() => router.push('/admin')}><ArrowLeft size={13} /> Admin</Button>
+          <Button variant="ghost" onClick={() => router.push('/admin')}><IpArrowLeft size={13} /> Admin</Button>
         </div>
       }
     >
@@ -126,7 +126,7 @@ export default function EmailQueuePage() {
         background: 'rgba(124,92,252,0.08)', border: '1px solid rgba(124,92,252,0.25)',
         display: 'flex', alignItems: 'center', gap: 12,
       }}>
-        <Mail size={16} style={{ color: t.primary, flexShrink: 0 }} />
+        <IpMail size={16} style={{ color: t.primary, flexShrink: 0 }} />
         <div>
           <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
             Email provider: <span style={{ color: t.primary, textTransform: 'capitalize' }}>{process.env.NEXT_PUBLIC_EMAIL_PROVIDER || 'Log-only (no emails sent)'}</span>
@@ -148,7 +148,7 @@ export default function EmailQueuePage() {
       {/* TABLE */}
       <Card style={{ padding: 0 }}>
         <div style={{ padding: '16px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', gap: 12, alignItems: 'center' }}>
-          <SectionHeader icon={Send} title="Email log" style={{ flex: 1, margin: 0 }} />
+          <SectionHeader icon={IpSend} title="Email log" style={{ flex: 1, margin: 0 }} />
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={selectStyle}>
             <option value="">All statuses</option>
             <option value="pending">Pending</option>
@@ -213,7 +213,7 @@ export default function EmailQueuePage() {
                           onClick={() => handleRetry(email.id)}
                           style={{ padding: '5px 12px', background: 'rgba(124,92,252,0.1)', border: '1px solid rgba(124,92,252,0.3)', borderRadius: 6, color: t.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                         >
-                          <RotateCcw size={11} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                          <IpRefresh size={11} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
                           Retry
                         </button>
                       )}
