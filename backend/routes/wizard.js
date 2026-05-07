@@ -477,13 +477,13 @@ module.exports = (pool) => {
       try {
         claudeResponse = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 2500,
+          max_tokens: 1200,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         });
       } catch (claudeErr) {
-        console.error('[Wizard] Claude API error:', claudeErr);
-        return res.status(502).json({ error: 'AI generation failed. Please try again.' });
+        console.error('[Wizard] Claude API error:', claudeErr.message || claudeErr);
+        return res.status(502).json({ error: `AI generation failed: ${claudeErr.message || 'Unknown error'}` });
       }
 
       let parsed;
@@ -543,7 +543,7 @@ module.exports = (pool) => {
            RETURNING id`,
           [
             session.customerId,
-            answers.contentType,
+            answers.contentTypeSelection,
             transformedVariations.A.caption,
             answers.platform === 'all' ? 'facebook' : answers.platform,
             answers.platform === 'all' ? JSON.stringify(['facebook', 'instagram', 'google_business']) : JSON.stringify([answers.platform]),
@@ -600,8 +600,10 @@ module.exports = (pool) => {
         },
       });
     } catch (err) {
-      console.error('[Wizard] Error generating posts:', err);
-      res.status(500).json({ error: 'Generation failed. Please try again.' });
+      console.error('[Wizard] Error generating posts:', err.message || err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: err.message || 'Generation failed. Please try again.' });
+      }
     }
   });
 
