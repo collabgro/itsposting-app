@@ -476,7 +476,7 @@ module.exports = (pool) => {
       let claudeResponse;
       try {
         claudeResponse = await anthropic.messages.create({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 2500,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
@@ -539,7 +539,7 @@ module.exports = (pool) => {
       try {
         const postResult = await pool.query(
           `INSERT INTO posts (customer_id, content_type, caption, platform, platforms, status, generation_method, ai_model_used, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, 'draft', 'wizard', 'claude-sonnet-4-20250514', NOW(), NOW())
+           VALUES ($1, $2, $3, $4, $5, 'draft', 'wizard', 'claude-sonnet-4-6', NOW(), NOW())
            RETURNING id`,
           [
             session.customerId,
@@ -636,7 +636,7 @@ module.exports = (pool) => {
       const { systemPrompt, userPrompt } = builder.build();
 
       const claudeResponse = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 800,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
@@ -691,7 +691,7 @@ module.exports = (pool) => {
       const instruction = angleInstructions[angle] || 'Rewrite this post with a fresh angle.';
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 600,
         system: `You are PostCore, rewriting social media posts for ${customer.business_name}, a ${customer.industry} business in ${customer.location}. Always sound human and authentic. Respond with ONLY valid JSON: { "caption": "rewritten post text" }`,
         messages: [{

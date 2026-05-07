@@ -106,7 +106,7 @@ class NanoBananaService {
       const mimeType = imageResponse.headers['content-type'] || 'image/jpeg';
 
       const model = this.genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash-image-preview',
+        model: 'gemini-2.0-flash-preview-image-generation',
       });
 
       const result = await model.generateContent([
@@ -169,7 +169,7 @@ class NanoBananaService {
    */
   async generateImage(prompt) {
     const model = this.genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash-image-preview',
+      model: 'gemini-2.0-flash-preview-image-generation',
     });
 
     const result = await model.generateContent(prompt);

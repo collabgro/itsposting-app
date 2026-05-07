@@ -26,7 +26,7 @@ class ClaudeService {
     this.client = this.apiKey ? new Anthropic({ apiKey: this.apiKey }) : null;
 
     // ALWAYS use sonnet — never haiku for production post generation
-    this.model = 'claude-sonnet-4-20250514';
+    this.model = 'claude-sonnet-4-6';
   }
 
   // ── Main: generate 3 variations for a post ───────────────────────────────
