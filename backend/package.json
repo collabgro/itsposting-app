@@ -22,8 +22,10 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.1.1",
     "node-cron": "^3.0.3",
+    "luxon": "^3.7.2",
     "pg": "^8.11.3",
-    "resend": "^6.12.2"
+    "resend": "^6.12.2",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

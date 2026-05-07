@@ -5,23 +5,24 @@ import {
   IpDashboard, IpWizard, IpSparkle, IpCreatePost, IpCalendar, IpDrafts,
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon,
-  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam,
+  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap,
 } from './icons';
 import { useTheme } from '../lib/theme';
 import NotificationBell from './NotificationBell';
 
 const NAV_ITEMS = [
-  { name: 'Dashboard', href: '/dashboard', icon: IpDashboard },
-  { name: 'Post Wizard', href: '/wizard', icon: IpWizard },
-  { name: 'Create Post', href: '/upload', icon: IpCreatePost },
-  { name: 'Calendar', href: '/calendar', icon: IpCalendar },
-  { name: 'Drafts', href: '/history', icon: IpDrafts },
-  { name: 'Media Library', href: '/media', icon: IpMediaLibrary },
-  { name: 'Analytics', href: '/analytics', icon: IpAnalytics },
-  { name: 'Inbox', href: '/inbox', icon: IpInbox, badgeKey: 'dmUnread' },
-  { name: 'Contacts', href: '/contacts', icon: IpTeam },
-  { name: 'Billing', href: '/billing', icon: IpBilling },
-  { name: 'Settings', href: '/settings', icon: IpSettings },
+  { name: 'Dashboard',   href: '/dashboard',  icon: IpDashboard },
+  { name: 'Quick Post',  href: '/quick-post', icon: IpZap, isQuickPost: true },
+  { name: 'Post Wizard', href: '/wizard',     icon: IpWizard,     showSuggBadge: true },
+  { name: 'Create Post', href: '/upload',     icon: IpCreatePost },
+  { name: 'Calendar',    href: '/calendar',   icon: IpCalendar },
+  { name: 'Drafts',      href: '/history',    icon: IpDrafts },
+  { name: 'Media Library', href: '/media',    icon: IpMediaLibrary },
+  { name: 'Analytics',  href: '/analytics',  icon: IpAnalytics },
+  { name: 'Inbox',      href: '/inbox',      icon: IpInbox, badgeKey: 'dmUnread' },
+  { name: 'Contacts',   href: '/contacts',   icon: IpTeam },
+  { name: 'Billing',    href: '/billing',    icon: IpBilling },
+  { name: 'Settings',   href: '/settings',   icon: IpSettings },
 ];
 
 export default function Layout({ children, title, subtitle, action }) {
@@ -31,6 +32,8 @@ export default function Layout({ children, title, subtitle, action }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [dmUnread, setDmUnread] = useState(0);
+  const [unseenSugg, setUnseenSugg] = useState(0);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   useEffect(() => {
     const updateMobile = () => setIsMobile(window.innerWidth < 900);
@@ -38,19 +41,24 @@ export default function Layout({ children, title, subtitle, action }) {
     window.addEventListener('resize', updateMobile);
     const token = localStorage.getItem('token');
     if (token) {
-      fetch('/api/auth/verify', { headers: { Authorization: `Bearer ${token}` } })
+      const headers = { Authorization: `Bearer ${token}` };
+      fetch('/api/auth/verify', { headers })
         .then((r) => r.json())
         .then((d) => d.customer && setUser(d.customer))
         .catch(() => {});
-      fetch('/api/dms/stats', { headers: { Authorization: `Bearer ${token}` } })
+      fetch('/api/dms/stats', { headers })
         .then((r) => r.ok ? r.json() : null)
         .then((d) => d && setDmUnread(d.unreadCount || 0))
+        .catch(() => {});
+      fetch('/api/suggestions/count', { headers })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => d && setUnseenSugg(d.count || 0))
         .catch(() => {});
     }
     return () => window.removeEventListener('resize', updateMobile);
   }, []);
 
-  const badges = { dmUnread };
+  const badges = { dmUnread, unseenSugg };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -98,10 +106,21 @@ export default function Layout({ children, title, subtitle, action }) {
         >
           {!isMobile && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <IpSparkle size={16} color="#fff" strokeWidth={2.5} />
-              </div>
-              <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>Its Posting</span>
+              {logoFailed ? (
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #7C5CFC 0%, #E040FB 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <IpZap size={15} color="#fff" />
+                </div>
+              ) : (
+                <img
+                  src={theme === 'dark' ? '/itsposting-logo.png' : '/itsposting.png'}
+                  alt="ItsPosting"
+                  width={32}
+                  height={32}
+                  style={{ borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
+                  onError={() => setLogoFailed(true)}
+                />
+              )}
+              <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.03em', whiteSpace: 'nowrap' }}>ItsPosting</span>
             </div>
           )}
           {isMobile && (
@@ -149,6 +168,7 @@ export default function Layout({ children, title, subtitle, action }) {
         <nav style={{ flex: 1, padding: '4px 12px', overflowY: 'auto' }}>
           {navItems.map((item) => {
             const active = router.pathname === item.href || router.pathname.startsWith(item.href + '/');
+            const hasSuggDot = item.showSuggBadge && unseenSugg > 0;
             return (
               <Link
                 key={item.href}
@@ -161,12 +181,17 @@ export default function Layout({ children, title, subtitle, action }) {
                   background: active ? (item.isAdmin ? 'rgba(124,92,252,0.15)' : t.primaryBg) : 'transparent',
                   border: active ? `1px solid ${item.isAdmin ? 'rgba(124,92,252,0.4)' : t.primaryBorder}` : '1px solid transparent',
                   transition: 'all 150ms ease', whiteSpace: 'nowrap',
-                  textDecoration: 'none',
+                  textDecoration: 'none', position: 'relative',
                 }}
                 onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = t.cardHover; }}
                 onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
               >
-                <item.icon size={16} strokeWidth={2} style={{ color: active ? t.primary : (item.isAdmin ? t.primary : t.textMuted), flexShrink: 0 }} />
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <item.icon size={16} strokeWidth={2} style={{ color: active ? t.primary : (item.isAdmin ? t.primary : t.textMuted) }} />
+                  {hasSuggDot && (
+                    <div style={{ position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: '#EF4444', border: `1.5px solid ${t.sidebar}` }} />
+                  )}
+                </div>
                 <span style={{ flex: 1 }}>{item.name}</span>
                 {item.badgeKey && badges[item.badgeKey] > 0 && (
                   <span style={{
@@ -178,7 +203,12 @@ export default function Layout({ children, title, subtitle, action }) {
                     {badges[item.badgeKey] > 99 ? '99+' : badges[item.badgeKey]}
                   </span>
                 )}
-                {active && !item.badgeKey && <IpChevronRight size={14} style={{ color: t.textMuted }} />}
+                {item.isQuickPost && (
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 4, background: t.primaryBg, color: t.primary, border: `1px solid ${t.primaryBorder}` }}>
+                    30s
+                  </span>
+                )}
+                {active && !item.badgeKey && !item.isQuickPost && <IpChevronRight size={14} style={{ color: t.textMuted }} />}
               </Link>
             );
           })}

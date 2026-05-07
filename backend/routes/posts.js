@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const ContentMixTracker = require('../services/ContentMixTracker');
+const { convertToUTC, isValidTimezone } = require('../utils/timezone');
 
 module.exports = (pool) => {
   const router = express.Router();
@@ -131,21 +132,41 @@ module.exports = (pool) => {
    */
   router.patch('/:id', authenticate, async (req, res) => {
     try {
-      const { caption, scheduledDate, platform, platforms, status } = req.body;
+      const { caption, scheduledDate, timezone, platform, platforms, status } = req.body;
+
+      let utcScheduledDate = null;
+      let resolvedTimezone = null;
+
+      if (scheduledDate) {
+        // Resolve timezone: request body > customer profile > UTC
+        if (timezone && isValidTimezone(timezone)) {
+          resolvedTimezone = timezone;
+        } else {
+          const tzRes = await pool.query(
+            'SELECT timezone FROM customers WHERE id = $1',
+            [req.customerId]
+          );
+          resolvedTimezone = tzRes.rows[0]?.timezone || 'UTC';
+        }
+        const utcIso = convertToUTC(scheduledDate, resolvedTimezone);
+        utcScheduledDate = utcIso ? new Date(utcIso) : null;
+      }
 
       const result = await pool.query(
         `UPDATE posts SET
           caption = COALESCE($1, caption),
           scheduled_date = COALESCE($2, scheduled_date),
-          platform = COALESCE($3, platform),
-          platforms = COALESCE($4, platforms),
-          status = COALESCE($5, status),
+          scheduled_timezone = COALESCE($3, scheduled_timezone),
+          platform = COALESCE($4, platform),
+          platforms = COALESCE($5, platforms),
+          status = COALESCE($6, status),
           updated_at = NOW()
-        WHERE id = $6 AND customer_id = $7
+        WHERE id = $7 AND customer_id = $8
         RETURNING *`,
         [
           caption,
-          scheduledDate,
+          utcScheduledDate,
+          resolvedTimezone,
           platform,
           platforms ? JSON.stringify(platforms) : null,
           status,

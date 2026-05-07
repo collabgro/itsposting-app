@@ -8,6 +8,50 @@ module.exports = (pool) => {
   const router = express.Router();
   const engine = new SuggestionsEngine(pool);
 
+  // ── POST /api/suggestions/generate-daily (cron endpoint — no JWT) ──────────
+  // Called at 8am UTC by the server-side cron job.
+  // Protected by x-cron-secret header.
+  router.post('/generate-daily', async (req, res) => {
+    const cronSecret = req.headers['x-cron-secret'];
+    if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      const customers = await pool.query(`
+        SELECT id, business_name, industry, location, plan,
+               posting_streak, last_posted_at, total_posts_this_month
+        FROM customers
+        WHERE (status IN ('active', 'trial') OR plan != 'none')
+          AND (suspended = false OR suspended IS NULL)
+          AND id NOT IN (
+            SELECT DISTINCT customer_id FROM content_suggestions
+            WHERE DATE(created_at) = CURRENT_DATE AND status = 'pending'
+          )
+        ORDER BY id LIMIT 500
+      `);
+
+      let generated = 0;
+      let errors = 0;
+
+      for (const customer of customers.rows) {
+        try {
+          await engine.generateForCustomer(customer.id);
+          generated++;
+        } catch (customerErr) {
+          console.error(`[suggestions] generate-daily failed for ${customer.id}:`, customerErr.message);
+          errors++;
+        }
+      }
+
+      console.log(`[suggestions] Daily generation: ${generated} created, ${errors} errors`);
+      res.json({ success: true, generated, errors, total: customers.rows.length });
+    } catch (err) {
+      console.error('[suggestions] POST /generate-daily:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   router.use(authenticate);
 
   // ── GET /api/suggestions ─────────────────────────────────────────────────
@@ -158,6 +202,59 @@ module.exports = (pool) => {
       res.json({ success: true, cleaned });
     } catch (err) {
       console.error('[suggestions] DELETE /expired error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── GET /api/suggestions/today ────────────────────────────────────────────
+  // Returns the single highest-priority pending suggestion for the dashboard banner.
+  // Priority: streak > seasonal > content_gap > milestone
+  router.get('/today', async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT id, type, title, reason, pre_generated_caption,
+                platform, content_type, expires_at
+         FROM content_suggestions
+         WHERE customer_id = $1
+           AND status = 'pending'
+           AND (expires_at IS NULL OR expires_at > NOW())
+         ORDER BY
+           CASE type
+             WHEN 'streak'      THEN 1
+             WHEN 'seasonal'    THEN 2
+             WHEN 'content_gap' THEN 3
+             WHEN 'milestone'   THEN 4
+             ELSE 5
+           END,
+           created_at DESC
+         LIMIT 1`,
+        [req.customerId]
+      );
+
+      if (result.rows.length === 0) return res.json(null);
+
+      const row = result.rows[0];
+      let captionPreview = null;
+      if (row.pre_generated_caption) {
+        try {
+          const parsed = JSON.parse(row.pre_generated_caption);
+          captionPreview = parsed.caption || row.pre_generated_caption;
+        } catch {
+          captionPreview = row.pre_generated_caption;
+        }
+      }
+
+      res.json({
+        id:                    row.id,
+        suggestion_type:       row.type,
+        title:                 row.title,
+        reason:                row.reason,
+        pre_generated_caption: captionPreview,
+        platform:              row.platform,
+        expires_at:            row.expires_at,
+      });
+    } catch (err) {
+      console.error('[suggestions] GET /today:', err.message);
       res.status(500).json({ error: err.message });
     }
   });

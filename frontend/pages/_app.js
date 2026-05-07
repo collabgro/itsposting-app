@@ -17,7 +17,7 @@ export default function App({ Component, pageProps }) {
       <ThemeBody>
         <Head>
           <meta name="description" content="Social media automation for local businesses" />
-          <link rel="icon" href="/favicon.ico" />
+          <link rel="icon" href="/fav-icon.png" />
         </Head>
         <Component {...pageProps} />
       </ThemeBody>

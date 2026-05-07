@@ -3,13 +3,13 @@ import { useRouter } from 'next/router';
 import {
   IpCalendar as CalendarIcon, IpSchedule, IpSparkle, IpPlus,
   IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
-  IpFacebook, IpInstagram, IpGoogle, IpArrowRight, IpFlame,
+  IpFacebook, IpInstagram, IpGoogle, IpArrowRight, IpFlame, IpZap,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, StatCard, SectionHeader, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import ContentCreatorModal from '../components/ContentCreatorModal';
-import PostCoreBanner from '../components/PostCoreBanner';
+import TodaySuggestionBanner from '../components/TodaySuggestionBanner';
 import { format } from 'date-fns';
 
 const TYPE_ICON  = { static: IpDrafts, photo: ImageIcon, carousel: IpCarousel, video: IpVideo };
@@ -64,6 +64,7 @@ export default function Dashboard() {
   const [loading, setLoading]               = useState(true);
   const [showAIModal, setShowAIModal]       = useState(false);
   const [contentHealth, setContentHealth]   = useState(null);
+  const [suggestion, setSuggestion]         = useState(null);
   const [modalInitialPrompt, setModalInitialPrompt] = useState('');
   const [modalInitialType, setModalInitialType]     = useState('');
 
@@ -79,15 +80,40 @@ export default function Dashboard() {
       fetch('/api/posts/upcoming',          { headers }).then(r => r.json()).catch(() => []),
       fetch('/api/customers/profile',       { headers }).then(r => r.json()).catch(() => null),
       fetch('/api/analytics/content-health', { headers }).then(r => r.json()).catch(() => null),
-    ]).then(([s, p, u, prof, ch]) => {
+      fetch('/api/suggestions/today',        { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([s, p, u, prof, ch, sugg]) => {
       setStats(s);
       setAllPosts(Array.isArray(p) ? p : []);
       setUpcoming(Array.isArray(u) ? u : []);
       setProfile(prof);
       setContentHealth(ch);
+      setSuggestion(sugg?.id ? sugg : null);
       setLoading(false);
     });
   }, []);
+
+  const handleSuggestionDismiss = async () => {
+    if (!suggestion?.id) return;
+    const token = localStorage.getItem('token');
+    await fetch(`/api/suggestions/${suggestion.id}/dismiss`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+    setSuggestion(null);
+  };
+
+  const handleSuggestionView = async () => {
+    if (!suggestion?.id) return;
+    const token = localStorage.getItem('token');
+    await fetch(`/api/suggestions/${suggestion.id}/use`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+    if (suggestion.pre_generated_caption) {
+      sessionStorage.setItem('suggestionPost', JSON.stringify(suggestion));
+    }
+    router.push('/wizard?from=suggestion');
+  };
 
   const openModalWithDraft = (caption) => {
     setModalInitialPrompt(caption);
@@ -148,7 +174,22 @@ export default function Dashboard() {
         title="Dashboard"
         subtitle={today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         action={
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              onClick={() => router.push('/quick-post')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '7px 12px',
+                background: t.primaryBg, border: `1px solid ${t.primaryBorder}`,
+                borderRadius: 8, color: t.primary, fontSize: 12, fontWeight: 700,
+                cursor: 'pointer', transition: 'all 150ms',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = t.card)}
+              onMouseLeave={e => (e.currentTarget.style.background = t.primaryBg)}
+              title="Post from job site in 30 seconds"
+            >
+              <IpZap size={13} color={t.primary} /> Quick Post
+            </button>
             <Button variant="secondary" onClick={() => setShowAIModal(true)}>
               <IpSparkle size={14} style={{ color: t.primary }} /> Create
             </Button>
@@ -158,10 +199,11 @@ export default function Dashboard() {
           </div>
         }
       >
-        {/* 1. PostCore banner */}
-        <PostCoreBanner
-          onUsePost={openModalWithDraft}
-          onCustomizePost={openModalForCustomize}
+        {/* 1. Today's PostCore suggestion banner */}
+        <TodaySuggestionBanner
+          suggestion={suggestion}
+          onDismiss={handleSuggestionDismiss}
+          onView={handleSuggestionView}
         />
 
         {/* 2. Quick-create strip */}

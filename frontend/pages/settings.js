@@ -3,12 +3,90 @@ import { useRouter } from 'next/router';
 import {
   IpSave, IpCredits, IpPalette, IpGlobe, IpDelete,
   IpBusiness, IpShare, IpCheck, IpFacebook, IpInstagram,
-  IpGoogle, IpSparkle // Added these two
+  IpGoogle, IpSparkle, IpSchedule,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Input, Badge, SectionHeader } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { customerAPI, contentAPI, socialAPI, scraperAPI } from '../lib/api';
+
+const TIMEZONES = [
+  { value: 'America/New_York',    label: 'Eastern Time (ET)',    offset: 'UTC-5/4'   },
+  { value: 'America/Chicago',     label: 'Central Time (CT)',    offset: 'UTC-6/5'   },
+  { value: 'America/Denver',      label: 'Mountain Time (MT)',   offset: 'UTC-7/6'   },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)',    offset: 'UTC-8/7'   },
+  { value: 'America/Phoenix',     label: 'Arizona (no DST)',     offset: 'UTC-7'     },
+  { value: 'America/Anchorage',   label: 'Alaska Time (AKT)',    offset: 'UTC-9/8'   },
+  { value: 'Pacific/Honolulu',    label: 'Hawaii Time (HT)',     offset: 'UTC-10'    },
+  { value: 'Asia/Karachi',        label: 'Pakistan Standard',    offset: 'UTC+5'     },
+  { value: 'Europe/London',       label: 'London (GMT/BST)',     offset: 'UTC+0/1'   },
+  { value: 'Europe/Paris',        label: 'Central European',     offset: 'UTC+1/2'   },
+  { value: 'Europe/Berlin',       label: 'Berlin / Frankfurt',   offset: 'UTC+1/2'   },
+  { value: 'Europe/Madrid',       label: 'Madrid / Barcelona',   offset: 'UTC+1/2'   },
+  { value: 'Europe/Rome',         label: 'Rome / Milan',         offset: 'UTC+1/2'   },
+  { value: 'Europe/Amsterdam',    label: 'Amsterdam',            offset: 'UTC+1/2'   },
+  { value: 'Europe/Brussels',     label: 'Brussels',             offset: 'UTC+1/2'   },
+  { value: 'Europe/Vienna',       label: 'Vienna',               offset: 'UTC+1/2'   },
+  { value: 'Europe/Warsaw',       label: 'Warsaw',               offset: 'UTC+1/2'   },
+  { value: 'Europe/Stockholm',    label: 'Stockholm',            offset: 'UTC+1/2'   },
+  { value: 'Europe/Oslo',         label: 'Oslo',                 offset: 'UTC+1/2'   },
+  { value: 'Europe/Copenhagen',   label: 'Copenhagen',           offset: 'UTC+1/2'   },
+  { value: 'Europe/Zurich',       label: 'Zurich',               offset: 'UTC+1/2'   },
+  { value: 'Europe/Lisbon',       label: 'Lisbon',               offset: 'UTC+0/1'   },
+  { value: 'Europe/Dublin',       label: 'Dublin',               offset: 'UTC+0/1'   },
+  { value: 'Europe/Helsinki',     label: 'Helsinki',             offset: 'UTC+2/3'   },
+  { value: 'Europe/Athens',       label: 'Athens',               offset: 'UTC+2/3'   },
+  { value: 'Europe/Bucharest',    label: 'Bucharest',            offset: 'UTC+2/3'   },
+  { value: 'Europe/Istanbul',     label: 'Istanbul',             offset: 'UTC+3'     },
+  { value: 'Europe/Moscow',       label: 'Moscow',               offset: 'UTC+3'     },
+  { value: 'Asia/Dubai',          label: 'Gulf Standard (GST)',  offset: 'UTC+4'     },
+  { value: 'Asia/Baku',           label: 'Azerbaijan',           offset: 'UTC+4'     },
+  { value: 'Asia/Tbilisi',        label: 'Georgia',              offset: 'UTC+4'     },
+  { value: 'Asia/Yerevan',        label: 'Armenia',              offset: 'UTC+4'     },
+  { value: 'Asia/Kabul',          label: 'Afghanistan',          offset: 'UTC+4:30'  },
+  { value: 'Asia/Tashkent',       label: 'Uzbekistan',           offset: 'UTC+5'     },
+  { value: 'Asia/Yekaterinburg',  label: 'Yekaterinburg',        offset: 'UTC+5'     },
+  { value: 'Asia/Kolkata',        label: 'India Standard (IST)', offset: 'UTC+5:30'  },
+  { value: 'Asia/Colombo',        label: 'Sri Lanka',            offset: 'UTC+5:30'  },
+  { value: 'Asia/Kathmandu',      label: 'Nepal',                offset: 'UTC+5:45'  },
+  { value: 'Asia/Dhaka',          label: 'Bangladesh',           offset: 'UTC+6'     },
+  { value: 'Asia/Almaty',         label: 'Kazakhstan',           offset: 'UTC+6'     },
+  { value: 'Asia/Rangoon',        label: 'Myanmar',              offset: 'UTC+6:30'  },
+  { value: 'Asia/Bangkok',        label: 'Bangkok / Hanoi',      offset: 'UTC+7'     },
+  { value: 'Asia/Jakarta',        label: 'Jakarta',              offset: 'UTC+7'     },
+  { value: 'Asia/Ho_Chi_Minh',    label: 'Ho Chi Minh City',     offset: 'UTC+7'     },
+  { value: 'Asia/Singapore',      label: 'Singapore (SGT)',      offset: 'UTC+8'     },
+  { value: 'Asia/Kuala_Lumpur',   label: 'Kuala Lumpur',         offset: 'UTC+8'     },
+  { value: 'Asia/Manila',         label: 'Manila',               offset: 'UTC+8'     },
+  { value: 'Asia/Shanghai',       label: 'China Standard (CST)', offset: 'UTC+8'     },
+  { value: 'Asia/Hong_Kong',      label: 'Hong Kong',            offset: 'UTC+8'     },
+  { value: 'Asia/Taipei',         label: 'Taipei',               offset: 'UTC+8'     },
+  { value: 'Asia/Ulaanbaatar',    label: 'Ulaanbaatar',          offset: 'UTC+8'     },
+  { value: 'Asia/Seoul',          label: 'Korea Standard (KST)', offset: 'UTC+9'     },
+  { value: 'Asia/Tokyo',          label: 'Japan Standard (JST)', offset: 'UTC+9'     },
+  { value: 'Australia/Perth',     label: 'Perth (AWST)',          offset: 'UTC+8'     },
+  { value: 'Australia/Adelaide',  label: 'Adelaide (ACST)',       offset: 'UTC+9:30'  },
+  { value: 'Australia/Darwin',    label: 'Darwin (ACST)',         offset: 'UTC+9:30'  },
+  { value: 'Australia/Brisbane',  label: 'Brisbane (AEST)',       offset: 'UTC+10'    },
+  { value: 'Australia/Sydney',    label: 'Sydney (AEST/AEDT)',    offset: 'UTC+10/11' },
+  { value: 'Australia/Melbourne', label: 'Melbourne',             offset: 'UTC+10/11' },
+  { value: 'Pacific/Auckland',    label: 'New Zealand (NZST)',    offset: 'UTC+12/13' },
+  { value: 'Pacific/Fiji',        label: 'Fiji',                  offset: 'UTC+12'    },
+  { value: 'Pacific/Guam',        label: 'Guam',                  offset: 'UTC+10'    },
+  { value: 'America/Sao_Paulo',   label: 'Brasília (BRT)',        offset: 'UTC-3'     },
+  { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires', offset: 'UTC-3'  },
+  { value: 'America/Santiago',    label: 'Santiago',              offset: 'UTC-4/3'   },
+  { value: 'America/Bogota',      label: 'Bogotá',                offset: 'UTC-5'     },
+  { value: 'America/Lima',        label: 'Lima',                  offset: 'UTC-5'     },
+  { value: 'America/Mexico_City', label: 'Mexico City',           offset: 'UTC-6/5'   },
+  { value: 'America/Toronto',     label: 'Toronto (ET)',          offset: 'UTC-5/4'   },
+  { value: 'America/Vancouver',   label: 'Vancouver (PT)',        offset: 'UTC-8/7'   },
+  { value: 'Africa/Cairo',        label: 'Cairo (EET)',           offset: 'UTC+2'     },
+  { value: 'Africa/Lagos',        label: 'Lagos (WAT)',           offset: 'UTC+1'     },
+  { value: 'Africa/Nairobi',      label: 'Nairobi (EAT)',         offset: 'UTC+3'     },
+  { value: 'Africa/Johannesburg', label: 'Johannesburg (SAST)',   offset: 'UTC+2'     },
+  { value: 'UTC',                 label: 'UTC',                   offset: 'UTC+0'     },
+];
 
 const VISUAL_STYLES = [
   { id: 'modern', name: 'Modern', description: 'Clean, contemporary' },
@@ -95,6 +173,7 @@ export default function Settings() {
   const [scraping, setScraping] = useState(false);
   const [scrapedData, setScrapedData] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
+  const [timezone, setTimezone] = useState('UTC');
 
   // Manual token modal state
   const [setupModal, setSetupModal] = useState(null);
@@ -141,6 +220,7 @@ export default function Settings() {
         scraperAPI.getData().catch(() => ({ data: { hasData: false } })),
       ]);
       setProfile(profileRes.data);
+      setTimezone(profileRes.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
       setProviders(providersRes.data);
       if (scrapedRes.data.hasData) {
         setScrapedData(scrapedRes.data);
@@ -277,6 +357,7 @@ export default function Settings() {
         visualStyle: profile.visual_style,
         tone: profile.tone,
         preferredImageProvider: profile.preferred_image_provider,
+        timezone,
       });
       showToast('Settings saved!');
     } catch {
@@ -477,6 +558,57 @@ export default function Settings() {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Timezone & Scheduling */}
+        <Card>
+          <SectionHeader icon={IpSchedule} title="Timezone & Scheduling" />
+          <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16, marginTop: -12 }}>
+            Scheduled posts are converted to UTC using your timezone. All times display in local time.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>Your Timezone</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <select
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  style={{
+                    flex: '1 1 280px', padding: '10px 12px',
+                    background: t.input, border: `1px solid ${t.border}`,
+                    borderRadius: 8, color: t.text, fontSize: 13, cursor: 'pointer',
+                  }}
+                >
+                  {TIMEZONES.map((tz) => (
+                    <option key={tz.value} value={tz.value}>
+                      {tz.label} ({tz.offset})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    setTimezone(detected || 'UTC');
+                  }}
+                  style={{
+                    padding: '10px 14px', background: t.input,
+                    border: `1px solid ${t.border}`, borderRadius: 8,
+                    color: t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Auto-detect
+                </button>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: t.textMuted, padding: '8px 12px', background: t.input, borderRadius: 8, border: `1px solid ${t.border}` }}>
+              Current selection: <strong style={{ color: t.text }}>{timezone}</strong>
+              {' — '}local time: <strong style={{ color: t.text }}>
+                {new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour: 'numeric', minute: '2-digit', hour12: true, weekday: 'short' }).format(new Date())}
+              </strong>
             </div>
           </div>
         </Card>
