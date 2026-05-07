@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const whop = require('../services/WhopService');
+const EmailQueue = require('../services/EmailQueue');
 
 const PLANS = {
   trial: {
@@ -23,6 +24,7 @@ const PLANS = {
 
 module.exports = (pool) => {
   const router = express.Router();
+  const emailQueue = new EmailQueue(pool);
 
   // ── Whop webhook (raw body required for signature verification) ─────────────
   router.post('/whop/webhook',
@@ -92,6 +94,23 @@ module.exports = (pool) => {
             );
             await client.query('COMMIT');
             console.log(`[Whop] Activated ${tier} for customer ${customerId}`);
+
+            // Send payment confirmation email (non-fatal)
+            try {
+              const customerRow = await pool.query(
+                'SELECT email, business_name FROM customers WHERE id = $1',
+                [customerId]
+              );
+              if (customerRow.rows.length > 0) {
+                await emailQueue.notifyPaymentConfirmed(
+                  customerRow.rows[0],
+                  planData.name,
+                  planData.credits
+                );
+              }
+            } catch (emailErr) {
+              console.error('[Whop] Failed to queue confirmation email:', emailErr.message);
+            }
           } catch (e) {
             await client.query('ROLLBACK');
             console.error('[Whop] DB error on activation:', e.message);

@@ -13,7 +13,7 @@
 
 const PROVIDER = process.env.EMAIL_PROVIDER || 'log';
 const FROM_NAME = process.env.EMAIL_FROM_NAME || 'Its Posting';
-const FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS || 'noreply@itsposting.app';
+const FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS || 'noreply@app.itsposting.com';
 
 class EmailService {
   constructor() {
@@ -220,6 +220,30 @@ const TEMPLATES = {
       <a href="{{loginUrl}}" class="btn">Log in to Its Posting</a>
     `,
     text: `Hi {{businessName}},\n\nAn administrator has reset your Its Posting password. Log in at: {{loginUrl}}\n\nIf you did not request this, contact support.`,
+  },
+
+  payment_confirmed: {
+    subject: 'Payment confirmed — welcome to Its Posting {{planName}}',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>Your payment was successful! <span class="tag tag-success">{{planName}} Plan</span> is now active on your account.</p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Plan</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{planName}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Credits added</td>
+            <td style="text-align:right;font-size:16px;font-weight:800;color:#7C5CFC;font-family:monospace;">{{credits}} credits</td>
+          </tr>
+        </table>
+      </div>
+      <p>Log in now and let PostCore get to work for your business.</p>
+      <a href="{{loginUrl}}" class="btn">Log in to Its Posting</a>
+      <p style="font-size:13px;color:#666;">Questions? Just reply to this email — we're here to help.</p>
+    `,
+    text: `Hi {{businessName}},\n\nPayment confirmed! Your {{planName}} plan is now active with {{credits}} credits.\n\nLog in at: {{loginUrl}}\n\nQuestions? Reply to this email.`,
   },
 
   welcome: {

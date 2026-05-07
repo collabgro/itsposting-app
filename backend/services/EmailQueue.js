@@ -4,7 +4,7 @@
  * API responses. Errors are caught and logged but not propagated.
  */
 
-const APP_URL = process.env.FRONTEND_URL || 'https://itsposting.replit.app';
+const APP_URL = process.env.FRONTEND_URL || 'https://app.itsposting.com';
 
 class EmailQueue {
   constructor(pool) {
@@ -67,6 +67,16 @@ class EmailQueue {
   async notifyPasswordReset(toEmail, token) {
     await this.queue(toEmail, 'password_reset', {
       resetUrl: `${APP_URL}/reset-password?token=${token}`,
+    });
+  }
+
+  /** Called after a successful Whop payment / plan activation */
+  async notifyPaymentConfirmed(customer, planName, credits) {
+    await this.queue(customer.email, 'payment_confirmed', {
+      businessName: customer.business_name || customer.email,
+      planName,
+      credits,
+      loginUrl: `${APP_URL}/login`,
     });
   }
 
