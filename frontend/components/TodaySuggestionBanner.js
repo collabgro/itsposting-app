@@ -59,7 +59,7 @@ export default function TodaySuggestionBanner({ suggestion, onDismiss, onView })
       {/* Body */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: accent, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
-          PostCore · Today's suggestion
+          PostCore · Today&apos;s suggestion
         </div>
         <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4, lineHeight: 1.3 }}>
           {suggestion.title}
