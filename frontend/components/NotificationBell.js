@@ -131,7 +131,7 @@ export default function NotificationBell() {
           <div style={{ maxHeight: 380, overflowY: 'auto' }}>
             {notifications.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                <Bell size={28} style={{ color: t.textMuted, margin: '0 auto 10px', display: 'block' }} />
+                <IpBell size={28} style={{ color: t.textMuted, margin: '0 auto 10px', display: 'block' }} />
                 <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>All caught up!</p>
               </div>
             ) : (
