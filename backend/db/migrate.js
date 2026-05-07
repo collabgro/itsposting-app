@@ -10,7 +10,7 @@
  * Safe to run multiple times — all statements are idempotent.
  */
 
-require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
@@ -27,8 +27,16 @@ const MIGRATIONS = [
     file: path.join(__dirname, 'migrations/001_enhanced_ai_system.sql'),
     description: 'Add AI personalisation columns + content_suggestions + post_variations + post_images + 5 more tables',
   },
-  // Future migrations go here:
-  // { id: '002_wizard_tables', file: ..., description: '...' },
+  {
+    id: '004_post_variations_extras',
+    file: path.join(__dirname, 'migrations/004_post_variations_extras.sql'),
+    description: 'Add platforms, best_time_to_post, variations_json, selected_variation to posts; is_selected to post_variations',
+  },
+  {
+    id: '005_phase4_infrastructure',
+    file: path.join(__dirname, 'migrations/005_phase4_infrastructure.sql'),
+    description: 'Phase 4: scheduled_timezone on posts, timezone on customers, inbox_messages, posting_analytics, hashtag_performance, monthly_reports, postcore_briefings',
+  },
 ];
 
 // ── Migration tracking table ──────────────────────────────────────────────────
