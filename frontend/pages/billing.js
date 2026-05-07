@@ -41,6 +41,7 @@ export default function Billing() {
   const [plansError, setPlansError] = useState(false);
   const [cycle, setCycle] = useState('monthly'); // 'monthly' | 'yearly'
   const [checkingOut, setCheckingOut] = useState(null); // plan id being checked out
+  const [upgradeError, setUpgradeError] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -71,15 +72,19 @@ export default function Billing() {
 
   const handleUpgrade = async (plan) => {
     setCheckingOut(plan.id);
+    setUpgradeError('');
     try {
       const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
       const res = await fetch(`/api/billing/checkout-link?plan=${plan.id}&cycle=${cycle}`, { headers });
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        setUpgradeError(data.error || 'Checkout link unavailable. Please contact support.');
       }
     } catch (err) {
       console.error('Checkout error:', err);
+      setUpgradeError('Could not connect to billing. Please try again.');
     } finally {
       setCheckingOut(null);
     }
@@ -336,6 +341,17 @@ export default function Billing() {
             );
           })}
         </div>
+
+        {upgradeError && (
+          <div style={{ padding: '14px 18px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <IpWarning size={16} style={{ color: '#EF4444', flexShrink: 0, marginTop: 1 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#EF4444', marginBottom: 2 }}>Checkout unavailable</div>
+              <div style={{ fontSize: 12, color: t.textMuted }}>{upgradeError}</div>
+            </div>
+            <button onClick={() => setUpgradeError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
+          </div>
+        )}
 
         {/* ── CREDIT HISTORY ─────────────────────────────────────────── */}
         <Card style={{ padding: 0 }}>

@@ -73,6 +73,7 @@ export default function Layout({ children, title, subtitle, action }) {
     ? [...NAV_ITEMS,
         { name: 'Admin Portal', href: '/admin', icon: IpAdmin, isAdmin: true },
         { name: 'Email Queue', href: '/admin/email-queue', icon: IpMail, isAdmin: true },
+        { name: 'Audit Log', href: '/admin/audit', icon: IpAdmin, isAdmin: true },
       ]
     : NAV_ITEMS;
 

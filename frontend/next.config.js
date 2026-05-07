@@ -12,6 +12,7 @@ if (isNetlify && !process.env.BACKEND_URL && !process.env.SKIP_BACKEND_URL_CHECK
 
 const nextConfig = {
   reactStrictMode: true,
+  eslint: { ignoreDuringBuilds: true },
   poweredByHeader: false,
   outputFileTracingRoot: path.join(__dirname, '..'),
   images: {

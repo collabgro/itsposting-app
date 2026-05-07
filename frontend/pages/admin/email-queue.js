@@ -162,7 +162,7 @@ export default function EmailQueuePage() {
             <div style={{ width: 32, height: 32, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           </div>
         ) : data.emails.length === 0 ? (
-          <EmptyState icon={Mail} title="No emails yet" subtitle="Notifications are queued here when admin actions are taken" />
+          <EmptyState icon={IpMail} title="No emails yet" subtitle="Notifications are queued here when admin actions are taken" />
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
