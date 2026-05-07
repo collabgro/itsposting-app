@@ -10,7 +10,15 @@ import {
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
 
-// ── Step 1 data ──────────────────────────────────────────────────────────────
+// ── Step 1: Content Type Selection ──────────────────────────────────────────
+const CONTENT_TYPES = [
+  { id: 'static',   emoji: '📝', label: 'Text Post',      desc: 'Simple text with image', credits: 1 },
+  { id: 'photo',    emoji: '📸', label: 'Photo Post',     desc: 'Single image with caption', credits: 3 },
+  { id: 'carousel', emoji: '📱', label: 'Carousel',       desc: 'Multiple slides in one post', credits: 5 },
+  { id: 'video',    emoji: '🎥', label: 'Video',          desc: 'AI-generated video content', credits: 10 },
+];
+
+// ── Step 2: Content Theme (Trigger) ──────────────────────────────────────────
 const CONTENT_THEMES = [
   { id: 'just_finished_job',      emoji: '🔨', label: 'Just finished a job',     desc: 'Show off a completed project' },
   { id: 'share_tip',              emoji: '💡', label: 'Want to share a tip',      desc: 'Teach your audience something' },
@@ -22,7 +30,7 @@ const CONTENT_THEMES = [
   { id: 'team_spotlight',         emoji: '🎉', label: 'Team spotlight',           desc: 'Put a face to your business' },
 ];
 
-// ── Step 2 data ──────────────────────────────────────────────────────────────
+// ── Step 3: Tone ──────────────────────────────────────────────────────────────
 const TONES = [
   { id: 'friendly',     emoji: '😊', label: 'Friendly & casual',         desc: 'Warm, approachable, conversational' },
   { id: 'professional', emoji: '💼', label: 'Professional & trustworthy', desc: 'Polished, credible, authoritative' },
@@ -31,7 +39,10 @@ const TONES = [
   { id: 'urgent',       emoji: '🔥', label: 'Urgent & must-act-now',     desc: 'Compelling, time-sensitive, direct' },
 ];
 
-// ── Step 3 data ──────────────────────────────────────────────────────────────
+// ── Step 4: Details ──────────────────────────────────────────────────────────
+const DETAILS_PLACEHOLDER = 'Add any specific details about this post...';
+
+// ── Step 5: Platform ─────────────────────────────────────────────────────────
 const PLATFORMS = [
   { id: 'facebook',       icon: IpFacebook,  label: 'Facebook',        color: '#1877F2', bg: 'rgba(24,119,242,0.1)',  border: 'rgba(24,119,242,0.3)',  desc: 'Best for longer posts & community' },
   { id: 'instagram',      icon: IpInstagram, label: 'Instagram',       color: '#E1306C', bg: 'rgba(225,48,108,0.1)', border: 'rgba(225,48,108,0.3)', desc: 'Visual-first, hashtag-rich content' },
@@ -94,11 +105,12 @@ export default function Wizard() {
   const router = useRouter();
   const { t } = useTheme();
 
-  const [step, setStep] = useState(1);            // 1–4, 'loading', 'results'
-  const [theme, setTheme] = useState(null);       // Step 1
-  const [tone, setTone] = useState(null);         // Step 2
-  const [platform, setPlatform] = useState(null); // Step 3
+  const [step, setStep] = useState(1);            // 1–5, 'loading', 'results'
+  const [contentType, setContentType] = useState(null); // Step 1
+  const [theme, setTheme] = useState(null);       // Step 2
+  const [tone, setTone] = useState(null);         // Step 3
   const [details, setDetails] = useState('');     // Step 4
+  const [platform, setPlatform] = useState(null); // Step 5
   const [includeCTA, setIncludeCTA] = useState(true);
 
   const [results, setResults] = useState(null);
@@ -161,26 +173,27 @@ export default function Wizard() {
   }, [step]);
 
   const canProceed = () => {
-    if (step === 1) return !!theme;
-    if (step === 2) return !!tone;
-    if (step === 3) return !!platform;
+    if (step === 1) return !!contentType;
+    if (step === 2) return !!theme;
+    if (step === 3) return !!tone;
     if (step === 4) return true;
+    if (step === 5) return !!platform;
     return false;
   };
 
   const handleNext = async () => {
-    if (step === 4) { await handleGenerate(); }
+    if (step === 5) { await handleGenerate(); }
     else setStep(s => s + 1);
   };
 
   const handleBack = () => {
     if (step === 1) { router.push('/dashboard'); return; }
-    if (step === 'results') { setStep(4); return; }
+    if (step === 'results') { setStep(5); return; }
     setStep(s => s - 1);
   };
 
   const handleReset = () => {
-    setStep(1); setTheme(null); setTone(null); setPlatform(null);
+    setStep(1); setContentType(null); setTheme(null); setTone(null); setPlatform(null);
     setDetails(''); setIncludeCTA(true); setResults(null);
     setError(null); setSelectedVariation(null);
   };
@@ -198,6 +211,7 @@ export default function Wizard() {
       const wizardId = startRes.wizardId;
 
       // Submit each step's answers so the backend session is populated
+      await apiPost('/api/wizard/step', { wizardId, stepId: 'content_type_selection', answers: { value: contentType } });
       await apiPost('/api/wizard/step', { wizardId, stepId: 'content_type', answers: { value: theme } });
       await apiPost('/api/wizard/step', { wizardId, stepId: 'tone', answers: { value: tone } });
       const detailsObj = buildDetailsObject(theme, details.trim());
@@ -233,9 +247,9 @@ export default function Wizard() {
     router.push('/upload?from=wizard');
   };
 
-  const stepNum = typeof step === 'number' ? step : (step === 'results' ? 5 : 4.5);
-  const progressPct = Math.min(100, ((stepNum - 1) / 4) * 100);
-  const stepLabels = ["What's happening?", "What's the vibe?", 'Where to post?', 'Any details?'];
+  const stepNum = typeof step === 'number' ? step : (step === 'results' ? 6 : 5.5);
+  const progressPct = Math.min(100, ((stepNum - 1) / 5) * 100);
+  const stepLabels = ["Content type", "What's happening?", "What's the vibe?", 'Any details?', 'Where to post?'];
 
   return (
     <Layout title="Post Wizard" subtitle="Guided content creation — powered by PostCore">
@@ -271,9 +285,32 @@ export default function Wizard() {
         )}
 
         {/* ─────────────────────────────────────────────────────────────────────
-            STEP 1 — What's happening today?
+            STEP 1 — Content Type Selection
         ───────────────────────────────────────────────────────────────────── */}
         {step === 1 && (
+          <div>
+            <StepHeading t={t} emoji="📝" title="What type of post?" sub="Choose the format that works best for your content" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 32 }}>
+              {CONTENT_TYPES.map((item) => {
+                const selected = contentType === item.id;
+                return (
+                  <ThemeCard key={item.id} selected={selected} onClick={() => setContentType(item.id)} t={t}>
+                    <div style={{ fontSize: 32, marginBottom: 10, lineHeight: 1 }}>{item.emoji}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{item.label}</div>
+                    <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>{item.desc}</div>
+                    <div style={{ fontSize: 10, color: t.primary, fontWeight: 600, marginTop: 6 }}>{item.credits} credit{item.credits !== 1 ? 's' : ''}</div>
+                  </ThemeCard>
+                );
+              })}
+            </div>
+            <WizardNav t={t} onBack={handleBack} onNext={handleNext} canNext={canProceed()} nextLabel="Next →" />
+          </div>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────────────────
+            STEP 2 — What's happening today?
+        ───────────────────────────────────────────────────────────────────── */}
+        {step === 2 && (
           <div>
             <StepHeading t={t} emoji="✨" title="What's happening today?" sub="Pick the type of post you want to create" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 32 }}>
@@ -331,48 +368,6 @@ export default function Wizard() {
                     {selected && (
                       <div style={{ width: 22, height: 22, borderRadius: '50%', background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <IpCheck size={12} color="#fff" strokeWidth={3} />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <WizardNav t={t} onBack={handleBack} onNext={handleNext} canNext={canProceed()} nextLabel="Next →" />
-          </div>
-        )}
-
-        {/* ─────────────────────────────────────────────────────────────────────
-            STEP 3 — Where are we posting?
-        ───────────────────────────────────────────────────────────────────── */}
-        {step === 3 && (
-          <div>
-            <StepHeading t={t} emoji="📡" title="Where are we posting?" sub="Choose your platform — PostCore adapts the content automatically" />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14, marginBottom: 32 }}>
-              {PLATFORMS.map((item) => {
-                const selected = platform === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setPlatform(item.id)}
-                    style={{
-                      padding: '22px 16px', background: selected ? item.bg : t.card,
-                      border: `2px solid ${selected ? item.color : t.border}`,
-                      borderRadius: 14, cursor: 'pointer', transition: 'all 200ms ease',
-                      textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-                    }}
-                    onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = item.border; e.currentTarget.style.background = item.bg; } }}
-                    onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; } }}
-                  >
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: item.bg, border: `1px solid ${item.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <item.icon size={22} style={{ color: item.color }} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{item.label}</div>
-                      <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>{item.desc}</div>
-                    </div>
-                    {selected && (
-                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <IpCheck size={11} color="#fff" strokeWidth={3} />
                       </div>
                     )}
                   </button>

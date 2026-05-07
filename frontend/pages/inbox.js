@@ -4,7 +4,7 @@ import { useTheme } from '../lib/theme';
 import { dmsAPI } from '../lib/api';
 import {
   IpInbox, IpFacebook, IpInstagram, IpRefresh, IpSend, IpSparkle,
-  IpClose, IpWarning,
+  IpClose, IpWarning, IpPlus, IpDelete, IpEdit, IpCheck, IpSave, IpLoader, IpZap,
 } from '../components/icons';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -73,6 +73,12 @@ export default function InboxPage() {
   const [showAutoReplies, setShowAutoReplies] = useState(false);
   const [autoReplies, setAutoReplies] = useState([]);
   const [showMobileThread, setShowMobileThread] = useState(false);
+  const [arLoading, setArLoading] = useState(false);
+  const [arSaving, setArSaving] = useState(false);
+  const [showAddRule, setShowAddRule] = useState(false);
+  const [editingRule, setEditingRule] = useState(null);
+  const BLANK_RULE = { trigger_type: 'first_message', keywords: '', reply_text: '', delay_seconds: 0, send_only_once: true, is_active: true };
+  const [newRule, setNewRule] = useState(BLANK_RULE);
 
   const threadEndRef = useRef(null);
 
@@ -197,6 +203,66 @@ export default function InboxPage() {
     } catch (_) {}
   }
 
+  async function openAutoReplies() {
+    setShowAutoReplies(true);
+    setArLoading(true);
+    try {
+      const res = await dmsAPI.getAutoReplies();
+      setAutoReplies(res.data.rules || []);
+    } catch (_) { setAutoReplies([]); } finally { setArLoading(false); }
+  }
+
+  async function saveRule() {
+    if (!newRule.reply_text.trim()) return;
+    setArSaving(true);
+    try {
+      const payload = {
+        ...newRule,
+        keywords: newRule.trigger_type === 'keyword'
+          ? newRule.keywords.split(',').map(k => k.trim()).filter(Boolean)
+          : [],
+        delay_seconds: Number(newRule.delay_seconds) || 0,
+      };
+      if (editingRule) {
+        await dmsAPI.updateAutoReply(editingRule.id, payload);
+      } else {
+        await dmsAPI.createAutoReply(payload);
+      }
+      const res = await dmsAPI.getAutoReplies();
+      setAutoReplies(res.data.rules || []);
+      setShowAddRule(false);
+      setEditingRule(null);
+      setNewRule(BLANK_RULE);
+    } catch (_) {} finally { setArSaving(false); }
+  }
+
+  async function deleteRule(id) {
+    try {
+      await dmsAPI.deleteAutoReply(id);
+      setAutoReplies(prev => prev.filter(r => r.id !== id));
+    } catch (_) {}
+  }
+
+  async function toggleRuleActive(rule) {
+    try {
+      await dmsAPI.updateAutoReply(rule.id, { ...rule, is_active: !rule.is_active });
+      setAutoReplies(prev => prev.map(r => r.id === rule.id ? { ...r, is_active: !r.is_active } : r));
+    } catch (_) {}
+  }
+
+  function startEdit(rule) {
+    setEditingRule(rule);
+    setNewRule({
+      trigger_type: rule.trigger_type,
+      keywords: (rule.keywords || []).join(', '),
+      reply_text: rule.reply_text,
+      delay_seconds: rule.delay_seconds || 0,
+      send_only_once: rule.send_only_once ?? true,
+      is_active: rule.is_active ?? true,
+    });
+    setShowAddRule(true);
+  }
+
   const FILTERS = [
     { key: 'all', label: 'All', count: stats.openCount },
     { key: 'unread', label: 'Unread', count: stats.unreadCount },
@@ -239,15 +305,24 @@ export default function InboxPage() {
                   </span>
                 )}
               </div>
-              <button
-                onClick={handleSync}
-                disabled={syncing}
-                title="Sync new messages"
-                style={{ padding: '6px 10px', borderRadius: 6, background: t.card, border: `1px solid ${t.border}`, color: t.textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
-              >
-                <IpRefresh size={13} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
-                {syncing ? 'Syncing…' : 'Sync'}
-              </button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={openAutoReplies}
+                  title="Manage auto-reply rules"
+                  style={{ padding: '6px 10px', borderRadius: 6, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, color: t.primary, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600 }}
+                >
+                  <IpZap size={13} /> Auto-Replies
+                </button>
+                <button
+                  onClick={handleSync}
+                  disabled={syncing}
+                  title="Sync new messages"
+                  style={{ padding: '6px 10px', borderRadius: 6, background: t.card, border: `1px solid ${t.border}`, color: t.textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                >
+                  <IpRefresh size={13} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+                  {syncing ? 'Syncing…' : 'Sync'}
+                </button>
+              </div>
             </div>
 
             {/* Filter tabs */}
@@ -507,6 +582,159 @@ export default function InboxPage() {
           )}
         </div>
       </div>
+
+      {/* ── Auto-Reply Rules Panel ── */}
+      {showAutoReplies && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', justifyContent: 'flex-end' }}>
+          {/* Backdrop */}
+          <div onClick={() => { setShowAutoReplies(false); setShowAddRule(false); setEditingRule(null); setNewRule(BLANK_RULE); }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+
+          {/* Drawer */}
+          <div style={{ position: 'relative', width: 480, maxWidth: '100vw', background: t.bg, borderLeft: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column', height: '100vh', overflowY: 'auto' }}>
+
+            {/* Header */}
+            <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: t.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <IpZap size={18} style={{ color: t.primary }} /> Auto-Reply Rules
+                </div>
+                <div style={{ fontSize: 12, color: t.textMuted, marginTop: 3 }}>Automatically respond to DMs when certain conditions are met</div>
+              </div>
+              <button onClick={() => { setShowAutoReplies(false); setShowAddRule(false); setEditingRule(null); setNewRule(BLANK_RULE); }} style={{ width: 32, height: 32, borderRadius: 8, background: t.card, border: `1px solid ${t.border}`, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <IpClose size={14} />
+              </button>
+            </div>
+
+            {/* Rules list */}
+            <div style={{ flex: 1, padding: '16px 24px', overflowY: 'auto' }}>
+              {arLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10, color: t.textMuted, fontSize: 13 }}>
+                  <IpLoader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Loading rules…
+                </div>
+              ) : autoReplies.length === 0 && !showAddRule ? (
+                <div style={{ textAlign: 'center', padding: 40 }}>
+                  <IpZap size={40} style={{ color: t.textMuted, margin: '0 auto 12px', display: 'block' }} />
+                  <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 6 }}>No auto-reply rules yet</div>
+                  <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 20 }}>Set up automatic responses for first-time messages, keywords, or any incoming DM.</div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                  {autoReplies.map(rule => (
+                    <div key={rule.id} style={{ background: t.card, border: `1px solid ${rule.is_active ? t.primaryBorder : t.border}`, borderRadius: 10, padding: '14px 16px', opacity: rule.is_active ? 1 : 0.6 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 7px', borderRadius: 4, background: rule.trigger_type === 'first_message' ? 'rgba(59,130,246,0.15)' : rule.trigger_type === 'keyword' ? 'rgba(234,179,8,0.15)' : 'rgba(124,92,252,0.12)', color: rule.trigger_type === 'first_message' ? '#3B82F6' : rule.trigger_type === 'keyword' ? '#D97706' : t.primary }}>
+                              {rule.trigger_type === 'first_message' ? 'First message' : rule.trigger_type === 'keyword' ? 'Keyword' : 'Any message'}
+                            </span>
+                            {rule.trigger_type === 'keyword' && rule.keywords?.length > 0 && (
+                              <span style={{ fontSize: 11, color: t.textMuted }}>"{rule.keywords.slice(0, 2).join('", "')}{rule.keywords.length > 2 ? `…` : ''}"</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 13, color: t.text, lineHeight: 1.5, marginBottom: 6 }}>"{rule.reply_text}"</div>
+                          <div style={{ display: 'flex', gap: 10, fontSize: 11, color: t.textMuted }}>
+                            {rule.delay_seconds > 0 && <span>⏱ {rule.delay_seconds >= 60 ? `${Math.round(rule.delay_seconds / 60)}m delay` : `${rule.delay_seconds}s delay`}</span>}
+                            {rule.send_only_once && <span>⚡ Once per user</span>}
+                            <span>Used {rule.times_triggered || 0}×</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}>
+                          {/* Active toggle */}
+                          <button onClick={() => toggleRuleActive(rule)} style={{ width: 36, height: 20, borderRadius: 10, background: rule.is_active ? t.primary : t.border, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 200ms' }}>
+                            <div style={{ position: 'absolute', top: 2, left: rule.is_active ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 200ms ease' }} />
+                          </button>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button onClick={() => startEdit(rule)} style={{ padding: '4px 8px', borderRadius: 6, background: t.input, border: `1px solid ${t.border}`, color: t.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
+                              <IpEdit size={11} /> Edit
+                            </button>
+                            <button onClick={() => deleteRule(rule.id)} style={{ padding: '4px 8px', borderRadius: 6, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: t.error, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
+                              <IpDelete size={11} /> Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add / Edit form */}
+              {showAddRule ? (
+                <div style={{ background: t.card, border: `1px solid ${t.primaryBorder}`, borderRadius: 12, padding: '18px 20px' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 16 }}>{editingRule ? 'Edit Rule' : 'New Auto-Reply Rule'}</div>
+
+                  {/* Trigger type */}
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>When to trigger</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {[['first_message', 'First message'], ['keyword', 'Keyword match'], ['any', 'Any message']].map(([val, label]) => (
+                        <button key={val} onClick={() => setNewRule(r => ({ ...r, trigger_type: val }))} style={{ flex: 1, padding: '8px 6px', borderRadius: 8, border: `2px solid ${newRule.trigger_type === val ? t.primary : t.border}`, background: newRule.trigger_type === val ? t.primaryBg : t.input, color: newRule.trigger_type === val ? t.primary : t.textSecondary, fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms', textAlign: 'center' }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Keywords (shown only for keyword trigger) */}
+                  {newRule.trigger_type === 'keyword' && (
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Keywords <span style={{ color: t.textMuted, fontWeight: 400 }}>(comma-separated)</span></label>
+                      <input value={newRule.keywords} onChange={e => setNewRule(r => ({ ...r, keywords: e.target.value }))} placeholder="e.g. price, quote, cost" style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.text, fontSize: 13, boxSizing: 'border-box', outline: 'none' }} onFocus={e => (e.target.style.borderColor = t.primary)} onBlur={e => (e.target.style.borderColor = t.border)} />
+                    </div>
+                  )}
+
+                  {/* Reply text */}
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Auto-reply message</label>
+                    <textarea value={newRule.reply_text} onChange={e => setNewRule(r => ({ ...r, reply_text: e.target.value }))} placeholder="Hi! Thanks for reaching out to us. We'll get back to you within a few hours. For urgent inquiries, call us at..." rows={4} style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.text, fontSize: 13, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box', outline: 'none' }} onFocus={e => (e.target.style.borderColor = t.primary)} onBlur={e => (e.target.style.borderColor = t.border)} />
+                  </div>
+
+                  {/* Options row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Delay before sending</label>
+                      <select value={newRule.delay_seconds} onChange={e => setNewRule(r => ({ ...r, delay_seconds: Number(e.target.value) }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.text, fontSize: 13, cursor: 'pointer' }}>
+                        <option value={0}>Immediately</option>
+                        <option value={30}>30 seconds</option>
+                        <option value={60}>1 minute</option>
+                        <option value={300}>5 minutes</option>
+                        <option value={600}>10 minutes</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Frequency</label>
+                      <button onClick={() => setNewRule(r => ({ ...r, send_only_once: !r.send_only_once }))} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, background: newRule.send_only_once ? t.primaryBg : t.input, border: `1px solid ${newRule.send_only_once ? t.primaryBorder : t.border}`, color: newRule.send_only_once ? t.primary : t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                        {newRule.send_only_once ? <><IpCheck size={12} /> Once per user</> : 'Every message'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={saveRule} disabled={arSaving || !newRule.reply_text.trim()} style={{ flex: 1, padding: '10px 16px', borderRadius: 8, background: newRule.reply_text.trim() ? t.primary : t.border, border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: newRule.reply_text.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      {arSaving ? <IpLoader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <IpSave size={14} />}
+                      {arSaving ? 'Saving…' : editingRule ? 'Update Rule' : 'Save Rule'}
+                    </button>
+                    <button onClick={() => { setShowAddRule(false); setEditingRule(null); setNewRule(BLANK_RULE); }} style={{ padding: '10px 16px', borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowAddRule(true)} style={{ width: '100%', padding: '12px 16px', borderRadius: 10, background: 'transparent', border: `2px dashed ${t.border}`, color: t.textMuted, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 150ms' }} onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }} onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}>
+                  <IpPlus size={15} /> Add new auto-reply rule
+                </button>
+              )}
+            </div>
+
+            {/* Footer hint */}
+            <div style={{ padding: '12px 24px', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
+              <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.6 }}>
+                💡 Auto-replies are sent from your connected Facebook / Instagram accounts. Rules only trigger during active messaging windows.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

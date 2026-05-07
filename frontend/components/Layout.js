@@ -5,7 +5,7 @@ import {
   IpDashboard, IpWizard, IpSparkle, IpCreatePost, IpCalendar, IpDrafts,
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon,
-  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap,
+  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness,
 } from './icons';
 import { useTheme } from '../lib/theme';
 import NotificationBell from './NotificationBell';
@@ -18,8 +18,9 @@ const NAV_ITEMS = [
   { name: 'Calendar',    href: '/calendar',   icon: IpCalendar },
   { name: 'Drafts',      href: '/history',    icon: IpDrafts },
   { name: 'Media Library', href: '/media',    icon: IpMediaLibrary },
-  { name: 'Analytics',  href: '/analytics',  icon: IpAnalytics },
-  { name: 'Inbox',      href: '/inbox',      icon: IpInbox, badgeKey: 'dmUnread' },
+  { name: 'Analytics',      href: '/analytics',      icon: IpAnalytics },
+  { name: 'Inbox',          href: '/inbox',          icon: IpInbox, badgeKey: 'dmUnread' },
+  { name: 'Teach PostCore', href: '/knowledge-base', icon: IpBusiness },
   { name: 'Contacts',   href: '/contacts',   icon: IpTeam },
   { name: 'Billing',    href: '/billing',    icon: IpBilling },
   { name: 'Settings',   href: '/settings',   icon: IpSettings },

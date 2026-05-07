@@ -19,6 +19,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const Anthropic = require('@anthropic-ai/sdk');
 const { authenticate } = require('../middleware/auth');
+const SystemPromptBuilder = require('../services/SystemPromptBuilder');
 
 let industryKnowledge;
 try {
@@ -63,6 +64,19 @@ function getWizardSteps(industry, contentType) {
   const seasonal = knowledge.seasonalContent?.[currentMonth] || {};
 
   const step1 = {
+    id: 'content_type_selection',
+    title: 'What type of content?',
+    subtitle: 'Choose the format that works best for your post',
+    type: 'cards',
+    options: [
+      { value: 'static', label: 'Static Post', emoji: '📄', description: 'Single image with caption', cost: 1 },
+      { value: 'photo', label: 'Photo Post', emoji: '📸', description: 'Single photo with caption', cost: 3 },
+      { value: 'carousel', label: 'Carousel', emoji: '📸📸📸', description: 'Multiple images in one post', cost: 5 },
+      { value: 'video', label: 'Video', emoji: '🎥', description: 'AI-generated video with voiceover', cost: 10 },
+    ],
+  };
+
+  const step2 = {
     id: 'content_type',
     title: "What's happening today?",
     subtitle: 'Pick what best describes what you want to post about',
@@ -84,7 +98,7 @@ function getWizardSteps(industry, contentType) {
     ],
   };
 
-  const step2 = {
+  const step3 = {
     id: 'tone',
     title: "What's the vibe?",
     subtitle: 'How do you want this post to feel?',
@@ -98,7 +112,7 @@ function getWizardSteps(industry, contentType) {
     ],
   };
 
-  const step3Options = {
+  const step4Options = {
     just_finished_job: {
       id: 'details',
       title: 'Tell us about the job',
@@ -203,7 +217,8 @@ function getWizardSteps(industry, contentType) {
   return [
     step1,
     step2,
-    step3Options[contentType] || step3Options['just_finished_job'],
+    step3,
+    step4Options[contentType] || step4Options['just_finished_job'],
     step4,
   ];
 }
@@ -275,138 +290,20 @@ function getContentTypeRules(contentType) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Helper: Build Claude prompt from wizard answers
-// ─────────────────────────────────────────────────────────────
+// Wizard generation now uses SystemPromptBuilder (unified with ClaudeService)
 
-async function buildGenerationPrompt(customer, answers) {
-  const { contentType, tone, details, platform } = answers;
-  const industry = customer.industry || 'general_contractor';
-  const knowledge = industryKnowledge[industry] || {};
-  const currentMonth = new Date().getMonth() + 1;
-  const seasonal = knowledge.seasonalContent?.[currentMonth] || {};
 
-  const contentTypeMap = {
-    just_finished_job: 'before_after',
-    share_tip: 'educational_tip',
-    got_review: 'customer_testimonial',
-    running_promo: 'promotional',
-    seasonal: 'seasonal',
-    community: 'community_involvement',
-    faq: 'faq_busting',
-    team_spotlight: 'team_spotlight',
-  };
-  const internalContentType = contentTypeMap[contentType] || 'educational_tip';
 
-  const toneDescriptions = {
-    friendly: 'warm, casual, and approachable — like talking to a neighbor',
-    professional: 'polished, expert, and trustworthy — like a seasoned professional',
-    funny: 'lighthearted, relatable, and human — with a touch of humor',
-    educational: 'informative, detailed, and authority-building — like a knowledgeable expert sharing wisdom',
-    urgent: 'time-sensitive and action-driving — creating a sense of urgency without being pushy',
-  };
 
-  const platformRules = {
-    facebook: 'Facebook post: 150-300 words, conversational tone, end with a question to drive comments, 2-3 hashtags maximum',
-    instagram: 'Instagram caption: 100-150 words, visual-first language, end with engagement question, 10-15 relevant hashtags on a new line',
-    google_business: 'Google Business post: 100-200 words, naturally weave in local keywords and city name, include a clear call-to-action with contact info, no hashtags',
-    all: 'Write for Facebook (primary) with the understanding it will be adapted for Instagram and Google Business',
-  };
 
-  const painPoints = knowledge.customerPainPoints?.slice(0, 5).join(', ') || '';
-  const trustSignals = knowledge.trustSignals?.slice(0, 3).join(', ') || '';
-  const hooks = knowledge.hookFormulas?.slice(0, 3).join(' | ') || '';
 
-  let detailContext = '';
-  if (details) {
-    if (details.job_description) detailContext += `Job details: ${details.job_description}. `;
-    if (details.neighborhood) detailContext += `Location/neighborhood: ${details.neighborhood}. `;
-    if (details.customer_reaction) detailContext += `Customer reaction: ${details.customer_reaction}. `;
-    if (details.tip_topic) detailContext += `Tip topic: ${details.tip_topic}. `;
-    if (details.review_text) detailContext += `Customer review: "${details.review_text}". `;
-    if (details.customer_name) detailContext += `Customer name: ${details.customer_name}. `;
-    if (details.promo_offer) detailContext += `Promotion: ${details.promo_offer}. `;
-    if (details.promo_deadline) detailContext += `Deadline: ${details.promo_deadline}. `;
-    if (details.seasonal_angle) detailContext += `Seasonal angle: ${details.seasonal_angle}. `;
-    if (details.community_event) detailContext += `Community event: ${details.community_event}. `;
-    if (details.question) detailContext += `FAQ question: ${details.question}. `;
-    if (details.spotlight_subject) detailContext += `Spotlight subject: ${details.spotlight_subject}. `;
-    if (details.fun_fact) detailContext += `Fun fact: ${details.fun_fact}. `;
-  }
 
-  const systemPrompt = `You are PostCore, the AI social media advisor for ItsPosting. You create social media posts for local service businesses that sound completely human and authentic — never AI-generated.
 
-BUSINESS CONTEXT:
-- Business name: ${customer.business_name}
-- Industry: ${industry}
-- Location: ${customer.location || 'local area'}
-- Tone preference: ${customer.tone || 'professional'}
-- Visual style: ${customer.visual_style || 'modern'}
 
-INDUSTRY EXPERTISE:
-- Common customer pain points: ${painPoints}
-- Trust signals for this industry: ${trustSignals}
-- Proven hook formulas: ${hooks}
-- This month's seasonal opportunity: ${seasonal.urgencyTopic || 'general seasonal relevance'}
-- This month's tip opportunity: ${seasonal.tipTopic || 'general educational content'}
 
-TONE FOR THIS POST:
-${toneDescriptions[tone] || toneDescriptions.professional}
 
-PLATFORM RULES:
-${platformRules[platform] || platformRules.facebook}
 
-CONTENT TYPE RULES for ${internalContentType}:
-${getContentTypeRules(internalContentType)}
 
-AUTHENTICITY RULES (CRITICAL):
-- Write like a real business owner, not a marketing agency
-- Use natural, conversational language — avoid corporate speak
-- Never use words like: "delve", "synergy", "leverage", "optimize", "utilize", "in conclusion"
-- Reference the local community naturally (use the city name if provided)
-- Include a genuine human element — the people behind the business
-- The post must end with an engagement question (question to encourage comments)
-- Keep the 70/20/10 rule: 70% value/educational, 20% social proof, 10% promotional
-
-OUTPUT FORMAT:
-You must respond with ONLY valid JSON in this exact structure:
-{
-  "variations": {
-    "A": {
-      "caption": "Full post text here. Everything. Ending with engagement question.",
-      "hookType": "question",
-      "engagementQuestion": "The question at the end of the post, repeated here"
-    },
-    "B": {
-      "caption": "Full post text here. Different hook. Same content angle. Ending with engagement question.",
-      "hookType": "story",
-      "engagementQuestion": "The question at the end of the post, repeated here"
-    },
-    "C": {
-      "caption": "Full post text here. Third approach. Ending with engagement question.",
-      "hookType": "tip",
-      "engagementQuestion": "The question at the end of the post, repeated here"
-    }
-  },
-  "hashtags": ["hashtag1", "hashtag2", "hashtag3"],
-  "imagePrompt": "A detailed description of the ideal image to accompany this post, written for an AI image generator. Specify: subject, style, lighting, composition. Always vertical/portrait orientation (4:5 ratio). Authentic, real-world feel — not stock photo.",
-  "bestTimeToPost": "morning",
-  "contentType": "${internalContentType}",
-  "platform": "${platform}"
-}
-
-Variation A must use a question hook.
-Variation B must use a story or narrative hook.
-Variation C must use a tip or fact hook.
-All three must cover the same topic but feel distinctly different.
-Do not add any text before or after the JSON.`;
-
-  const userMessage = `Generate 3 variations of a ${internalContentType} post for ${platform}.
-Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
-${detailContext ? `\nBusiness owner provided these details: ${detailContext}` : '\nNo additional details provided — use your industry expertise to create compelling content.'}
-${seasonal.urgencyTopic ? `\nSeasonal context: ${seasonal.urgencyTopic}` : ''}`;
-
-  return { systemPrompt, userMessage, internalContentType };
-}
 
 // ─────────────────────────────────────────────────────────────
 // Module export — receives pool from server.js
@@ -539,19 +436,40 @@ module.exports = (pool) => {
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
+      const contentTypeSelectionAnswer = session.answers['content_type_selection'];
       const contentTypeAnswer = session.answers['content_type'];
       const toneAnswer = session.answers['tone'];
       const detailsAnswer = session.answers['details'];
       const platformAnswer = session.answers['platform'];
 
       const answers = {
+        contentTypeSelection: contentTypeSelectionAnswer?.value || 'photo',
         contentType: contentTypeAnswer?.value || 'just_finished_job',
         tone: toneAnswer?.value || 'professional',
         details: detailsAnswer || {},
         platform: platformAnswer?.value || 'facebook',
       };
 
-      const { systemPrompt, userMessage, internalContentType } = await buildGenerationPrompt(session.customer, answers);
+      // Map wizard content types to SystemPromptBuilder triggers
+      const triggerMap = {
+        just_finished_job: 'finished_job',
+        share_tip: 'share_tip',
+        got_review: 'got_review',
+        running_promo: 'promotion',
+        seasonal: 'seasonal',
+        community: 'community',
+        faq: 'faq',
+        team_spotlight: 'behind_scenes',
+      };
+
+      const builder = new SystemPromptBuilder(session.customer, {
+        platform: answers.platform,
+        contentType: answers.contentTypeSelection, // 'static', 'photo', 'carousel', 'video'
+        wizardTrigger: triggerMap[answers.contentType] || answers.contentType,
+        counterAnswers: answers.details,
+      });
+
+      const { systemPrompt, userPrompt } = builder.build();
 
       console.log(`[Wizard] Generating posts for customer ${session.customerId}, content type: ${answers.contentType}`);
 
@@ -559,9 +477,9 @@ module.exports = (pool) => {
       try {
         claudeResponse = await anthropic.messages.create({
           model: 'claude-sonnet-4-20250514',
-          max_tokens: 2000,
+          max_tokens: 2500,
           system: systemPrompt,
-          messages: [{ role: 'user', content: userMessage }],
+          messages: [{ role: 'user', content: userPrompt }],
         });
       } catch (claudeErr) {
         console.error('[Wizard] Claude API error:', claudeErr);
@@ -581,7 +499,36 @@ module.exports = (pool) => {
         return res.status(502).json({ error: 'Failed to parse AI response. Please try again.' });
       }
 
-      if (!parsed.variations || !parsed.variations.A || !parsed.variations.B || !parsed.variations.C) {
+      // Transform SystemPromptBuilder format (variation_a) to wizard format (variations.A)
+      const transformedVariations = {
+        A: {
+          caption: parsed.variation_a?.caption || '',
+          engagementQuestion: parsed.variation_a?.engagementQuestion || '',
+          hookType: parsed.variation_a?.hookFormulaUsed || 'question',
+        },
+        B: {
+          caption: parsed.variation_b?.caption || '',
+          engagementQuestion: parsed.variation_b?.engagementQuestion || '',
+          hookType: parsed.variation_b?.hookFormulaUsed || 'story',
+        },
+        C: {
+          caption: parsed.variation_c?.caption || '',
+          engagementQuestion: parsed.variation_c?.engagementQuestion || '',
+          hookType: parsed.variation_c?.hookFormulaUsed || 'tip',
+        },
+      };
+
+      // Extract additional content based on type
+      let slides = null;
+      let videoScript = null;
+
+      if (answers.contentTypeSelection === 'carousel') {
+        slides = parsed.variation_a?.slides || [];
+      } else if (answers.contentTypeSelection === 'video') {
+        videoScript = parsed.variation_a?.videoScript || '';
+      }
+
+      if (!transformedVariations.A.caption || !transformedVariations.B.caption || !transformedVariations.C.caption) {
         console.error('[Wizard] Invalid response structure from Claude:', parsed);
         return res.status(502).json({ error: 'Invalid AI response structure. Please try again.' });
       }
@@ -596,8 +543,8 @@ module.exports = (pool) => {
            RETURNING id`,
           [
             session.customerId,
-            internalContentType,
-            parsed.variations.A.caption,
+            answers.contentType,
+            transformedVariations.A.caption,
             answers.platform === 'all' ? 'facebook' : answers.platform,
             answers.platform === 'all' ? JSON.stringify(['facebook', 'instagram', 'google_business']) : JSON.stringify([answers.platform]),
           ]
@@ -607,7 +554,7 @@ module.exports = (pool) => {
 
         if (savedPostId) {
           try {
-            for (const [label, variation] of Object.entries(parsed.variations)) {
+            for (const [label, variation] of Object.entries(transformedVariations)) {
               await pool.query(
                 `INSERT INTO post_variations (post_id, variation_label, caption, hashtags, image_prompt, created_at)
                  VALUES ($1, $2, $3, $4, $5, NOW())
@@ -616,8 +563,8 @@ module.exports = (pool) => {
                   savedPostId,
                   label,
                   variation.caption,
-                  JSON.stringify(parsed.hashtags || []),
-                  parsed.imagePrompt || null,
+                  JSON.stringify(parsed.variation_a?.hashtags || []), // Use variation_a hashtags for all
+                  parsed.variation_a?.imagePrompt || null,
                 ]
               );
             }
@@ -636,13 +583,16 @@ module.exports = (pool) => {
         success: true,
         postId: savedPostId,
         variationsSaved: savedVariations,
-        variations: parsed.variations,
-        hashtags: parsed.hashtags || [],
-        imagePrompt: parsed.imagePrompt || '',
-        bestTimeToPost: parsed.bestTimeToPost || 'morning',
+        variations: transformedVariations,
+        hashtags: parsed.variation_a?.hashtags || [],
+        imagePrompt: parsed.variation_a?.imagePrompt || '',
+        bestTimeToPost: 'morning', // Default for now
         contentType: answers.contentType,
+        contentTypeSelection: answers.contentTypeSelection,
         platform: answers.platform,
         recommended: 'A',
+        slides,
+        videoScript,
         meta: {
           industry: session.customer.industry,
           tone: answers.tone,
@@ -674,55 +624,22 @@ module.exports = (pool) => {
       }
 
       const customer = customerResult.rows[0];
-      const industry = customer.industry || 'general_contractor';
-      const knowledge = industryKnowledge[industry] || {};
-      const currentMonth = new Date().getMonth() + 1;
-      const seasonal = knowledge.seasonalContent?.[currentMonth] || {};
 
-      const toneDescriptions = {
-        friendly: 'warm, casual, conversational',
-        professional: 'polished, expert, trustworthy',
-        funny: 'lighthearted, relatable, with gentle humor',
-        educational: 'informative and authority-building',
-        urgent: 'time-sensitive and action-driving',
-      };
+      // Use SystemPromptBuilder for consistent quality
+      const builder = new SystemPromptBuilder(customer, {
+        platform,
+        contentType: 'photo', // Quick post generates single images
+        wizardTrigger: 'finished_job', // Default trigger for quick posts
+        counterAnswers: { job_description: description.trim() }, // Pass the description as job details
+      });
 
-      const platformRules = {
-        facebook: '150-250 words, conversational, 2-3 hashtags',
-        instagram: '100-150 words, visual-first language, 10-15 hashtags',
-        google_business: '100-200 words, local keywords, clear CTA, no hashtags',
-        all: '150-250 words optimized for Facebook',
-      };
+      const { systemPrompt, userPrompt } = builder.build();
 
       const claudeResponse = await anthropic.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 800,
-        system: `You are PostCore, the AI social media advisor for ItsPosting. Create authentic social posts for local service businesses.
-
-Business: ${customer.business_name}
-Industry: ${industry}
-Location: ${customer.location || 'local area'}
-Tone: ${toneDescriptions[tone] || toneDescriptions.friendly}
-Platform rules: ${platformRules[platform] || platformRules.facebook}
-Current seasonal context: ${seasonal.urgencyTopic || 'general'}
-
-Rules:
-- Sound like a real business owner, never an AI
-- End with an engagement question
-- Include local reference naturally
-- Never use corporate buzzwords
-
-Respond with ONLY valid JSON:
-{
-  "caption": "The full post text ending with an engagement question",
-  "hashtags": ["tag1", "tag2"],
-  "imagePrompt": "Description of ideal image for this post",
-  "engagementQuestion": "The question at the end of the post"
-}`,
-        messages: [{
-          role: 'user',
-          content: `Create a quick social post for ${platform} about: "${description.trim()}"`,
-        }],
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
       });
 
       const rawText = claudeResponse.content
@@ -732,12 +649,13 @@ Respond with ONLY valid JSON:
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
+      // Extract from variation_a (SystemPromptBuilder format)
       res.json({
         success: true,
-        caption: parsed.caption,
-        hashtags: parsed.hashtags || [],
-        imagePrompt: parsed.imagePrompt || '',
-        engagementQuestion: parsed.engagementQuestion || '',
+        caption: parsed.variation_a?.caption || '',
+        hashtags: parsed.variation_a?.hashtags || [],
+        imagePrompt: parsed.variation_a?.imagePrompt || '',
+        engagementQuestion: parsed.variation_a?.engagementQuestion || '',
         platform,
         tone,
       });
