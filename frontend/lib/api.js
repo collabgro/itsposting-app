@@ -151,6 +151,11 @@ export const analyticsAPI = {
   recordSnapshot: (id, data) => api.post(`/api/analytics/posts/${id}/snapshot`, data),
   getOptimalTimes: () => api.get('/api/analytics/optimal-times'),
   getContentPerformance: () => api.get('/api/analytics/content-performance'),
+  getContentHealth: () => api.get('/api/analytics/content-health'),
+  getContentMix: () => api.get('/api/analytics/content-mix'),
+  getStreak: () => api.get('/api/analytics/streak'),
+  updateStreak: () => api.post('/api/analytics/streak/update'),
+  getMonthlyStats: () => api.get('/api/analytics/monthly-stats'),
 };
 
 export const dmsAPI = {

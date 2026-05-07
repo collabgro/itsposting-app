@@ -1,5 +1,6 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
+const ContentMixTracker = require('../services/ContentMixTracker');
 
 module.exports = (pool) => {
   const router = express.Router();
@@ -317,6 +318,72 @@ module.exports = (pool) => {
       );
 
       res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/analytics/content-health
+  router.get('/content-health', async (req, res) => {
+    try {
+      const tracker = new ContentMixTracker(pool);
+      const data = await tracker.getContentHealth(req.customerId);
+      res.json(data);
+    } catch (err) {
+      console.error('[ContentMixTracker] content-health error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/analytics/content-mix
+  router.get('/content-mix', async (req, res) => {
+    try {
+      const tracker = new ContentMixTracker(pool);
+      const data = await tracker.analyzeContentMix(req.customerId);
+      res.json(data);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/analytics/streak
+  router.get('/streak', async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT posting_streak, last_posted_at FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+      const row    = result.rows[0];
+      const streak = row?.posting_streak || 0;
+      res.json({
+        streak,
+        lastPostedAt: row?.last_posted_at || null,
+        isOnFire:     streak >= 7,
+        label:        streak === 1 ? '1 day' : `${streak} days`,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/analytics/streak/update
+  router.post('/streak/update', async (req, res) => {
+    try {
+      const tracker = new ContentMixTracker(pool);
+      const data = await tracker.updatePostingStreak(req.customerId);
+      res.json(data);
+    } catch (err) {
+      console.error('[ContentMixTracker] streak update error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/analytics/monthly-stats
+  router.get('/monthly-stats', async (req, res) => {
+    try {
+      const tracker = new ContentMixTracker(pool);
+      const data = await tracker.getMonthlyStats(req.customerId);
+      res.json(data);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

@@ -63,6 +63,7 @@ export default function Dashboard() {
   const [profile, setProfile]               = useState(null);
   const [loading, setLoading]               = useState(true);
   const [showAIModal, setShowAIModal]       = useState(false);
+  const [contentHealth, setContentHealth]   = useState(null);
   const [modalInitialPrompt, setModalInitialPrompt] = useState('');
   const [modalInitialType, setModalInitialType]     = useState('');
 
@@ -77,11 +78,13 @@ export default function Dashboard() {
       fetch('/api/posts?limit=100',         { headers }).then(r => r.json()).catch(() => []),
       fetch('/api/posts/upcoming',          { headers }).then(r => r.json()).catch(() => []),
       fetch('/api/customers/profile',       { headers }).then(r => r.json()).catch(() => null),
-    ]).then(([s, p, u, prof]) => {
+      fetch('/api/analytics/content-health', { headers }).then(r => r.json()).catch(() => null),
+    ]).then(([s, p, u, prof, ch]) => {
       setStats(s);
       setAllPosts(Array.isArray(p) ? p : []);
       setUpcoming(Array.isArray(u) ? u : []);
       setProfile(prof);
+      setContentHealth(ch);
       setLoading(false);
     });
   }, []);
@@ -222,7 +225,7 @@ export default function Dashboard() {
         </div>
 
         {/* 4. Content mix bar */}
-        <ContentMixBar mix={contentMix} t={t} />
+        <ContentHealthBar data={contentHealth} localMix={contentMix} t={t} onNavigate={(path) => router.push(path)} />
 
         {/* 5. Calendar + Upcoming grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 20 }}>
@@ -345,49 +348,90 @@ export default function Dashboard() {
   );
 }
 
-function ContentMixBar({ mix, t }) {
-  const total = (mix.educational || 0) + (mix.social_proof || 0) + (mix.promotional || 0);
-  if (!total) return null;
+function ContentHealthBar({ data, localMix, t, onNavigate }) {
+  const BUCKET_COLORS = { educational: '#7C5CFC', socialProof: '#22C55E', seasonal: '#3B82F6', promotional: '#F59E0B' };
+  const BUCKET_LABELS = { educational: 'Educational', socialProof: 'Social Proof', seasonal: 'Seasonal', promotional: 'Promotional' };
+  const BUCKETS = ['educational', 'socialProof', 'seasonal', 'promotional'];
 
-  const isImbalanced = mix.promotional > 15 || mix.educational < 55;
+  const mix          = data?.contentMix?.mix || null;
+  const healthScore  = data?.contentMix?.healthScore ?? null;
+  const gaps         = data?.contentMix?.gaps || [];
+  const streak       = data?.streak?.current || 0;
+  const recommendation = data?.recommendation || null;
+  const totalPosts   = data?.monthlyStats?.totalPostsThisMonth ?? data?.contentMix?.totalPosts ?? 0;
+
+  // Fall back to local mix if backend hasn't loaded
+  const displayMix = mix || (() => {
+    const total = (localMix.educational || 0) + (localMix.social_proof || 0) + (localMix.promotional || 0);
+    if (!total) return null;
+    return {
+      educational: localMix.educational || 0,
+      socialProof: localMix.social_proof || 0,
+      seasonal:    0,
+      promotional: localMix.promotional || 0,
+    };
+  })();
+
+  if (!displayMix) return null;
 
   return (
-    <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary }}>Content mix (last 20 posts)</div>
-        {isImbalanced && (
-          <div style={{ fontSize: 11, color: '#EAB308', fontWeight: 600 }}>Too much promotional content</div>
-        )}
+    <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary }}>
+          Content mix · {totalPosts} posts this month
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {streak > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, background: streak >= 7 ? 'rgba(239,68,68,0.1)' : t.primaryBg, border: `1px solid ${streak >= 7 ? 'rgba(239,68,68,0.3)' : t.primaryBorder}` }}>
+              <span style={{ fontSize: 13 }}>{streak >= 7 ? '🔥' : '⚡'}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: streak >= 7 ? '#EF4444' : t.primary }}>{streak}-day streak</span>
+            </div>
+          )}
+          {healthScore !== null && (
+            <div style={{ width: 34, height: 34, borderRadius: '50%', border: `3px solid ${healthScore >= 70 ? '#22C55E' : healthScore >= 40 ? '#F59E0B' : '#EF4444'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: healthScore >= 70 ? '#22C55E' : healthScore >= 40 ? '#F59E0B' : '#EF4444' }}>
+              {healthScore}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div style={{ height: 8, borderRadius: 4, overflow: 'hidden', display: 'flex', gap: 1, marginBottom: 8 }}>
-        {MIX_CONFIG.map(cfg => {
-          const pct = mix[cfg.key] || 0;
+      <div style={{ height: 8, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 10, background: t.input }}>
+        {BUCKETS.map(bucket => {
+          const pct = displayMix[bucket] || 0;
           if (!pct) return null;
-          return (
-            <div
-              key={cfg.key}
-              style={{ width: `${pct}%`, background: cfg.color, transition: 'width 400ms ease' }}
-              title={`${cfg.label}: ${pct}%`}
-            />
-          );
+          return <div key={bucket} title={`${BUCKET_LABELS[bucket]}: ${pct}%`} style={{ width: `${pct}%`, background: BUCKET_COLORS[bucket], transition: 'width 500ms ease' }} />;
         })}
       </div>
 
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {MIX_CONFIG.map(cfg => {
-          const pct = mix[cfg.key] || 0;
-          const flagged = (cfg.key === 'promotional' && pct > 15) || (cfg.key === 'educational' && pct < 55);
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 16px', marginBottom: recommendation ? 12 : 0 }}>
+        {BUCKETS.map(bucket => {
+          const pct   = displayMix[bucket] || 0;
+          const isGap = gaps.includes(bucket);
           return (
-            <div key={cfg.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: flagged ? '#EAB308' : t.textMuted, fontWeight: flagged ? 600 : 400 }}>
-                {cfg.label} {pct}% <span style={{ color: t.textDisabled }}>(target {cfg.target}%)</span>
+            <div key={bucket} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: BUCKET_COLORS[bucket], flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: isGap ? '#F59E0B' : t.textMuted, fontWeight: isGap ? 600 : 400 }}>
+                {BUCKET_LABELS[bucket]} {pct}%{isGap ? ' ⚠' : ''}
               </span>
             </div>
           );
         })}
       </div>
+
+      {recommendation && (
+        <div style={{ padding: '10px 12px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <span style={{ fontSize: 13, flexShrink: 0 }}>⚡</span>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: t.primary }}>PostCore: </span>
+            <span style={{ fontSize: 11, color: t.textSecondary }}>{recommendation}</span>
+          </div>
+          {gaps.length > 0 && (
+            <button onClick={() => onNavigate('/wizard')} style={{ fontSize: 11, fontWeight: 700, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', padding: 0, flexShrink: 0 }}>
+              Fix it →
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
+const ContentMixTracker = require('../services/ContentMixTracker');
 
 module.exports = (pool) => {
   const router = express.Router();
@@ -157,7 +158,18 @@ module.exports = (pool) => {
         return res.status(404).json({ error: 'Post not found' });
       }
 
-      res.json(result.rows[0]);
+      const updatedPost = result.rows[0];
+
+      if (status === 'posted' && updatedPost.status === 'posted') {
+        try {
+          const tracker = new ContentMixTracker(pool);
+          await tracker.updatePostingStreak(req.customerId);
+        } catch (streakErr) {
+          console.error('[ContentMixTracker] streak update failed:', streakErr.message);
+        }
+      }
+
+      res.json(updatedPost);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
