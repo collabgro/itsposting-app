@@ -105,6 +105,8 @@ export default function Wizard() {
   const router = useRouter();
   const { t } = useTheme();
 
+  const isOnboarding = router.query.onboarding === 'true';
+
   const [step, setStep] = useState(1);            // 1–5, 'loading', 'results'
   const [contentType, setContentType] = useState(null); // Step 1
   const [theme, setTheme] = useState(null);       // Step 2
@@ -254,6 +256,19 @@ export default function Wizard() {
   return (
     <Layout title="Post Wizard" subtitle="Guided content creation — powered by PostCore">
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
+
+        {/* ── Onboarding welcome banner ── */}
+        {isOnboarding && step === 1 && (
+          <div style={{ background: 'linear-gradient(135deg, rgba(124,92,252,0.12), rgba(91,63,240,0.06))', border: `1px solid ${t.primaryBorder}`, borderRadius: 14, padding: '18px 22px', marginBottom: 28, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <IpSparkle size={18} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>Welcome! Let's create your first post.</div>
+              <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>PostCore will write 3 ready-to-use variations tailored to your industry. Just answer a few quick questions — it takes under 60 seconds.</div>
+            </div>
+          </div>
+        )}
 
         {/* ── Progress header ── */}
         {typeof step === 'number' && (
