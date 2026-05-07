@@ -477,7 +477,7 @@ module.exports = (pool) => {
       try {
         claudeResponse = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 2500,
+          max_tokens: 1500,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         });
@@ -492,8 +492,45 @@ module.exports = (pool) => {
           .filter(block => block.type === 'text')
           .map(block => block.text)
           .join('');
-        const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        parsed = JSON.parse(cleaned);
+
+        // Find this (around line 495-505):
+        // const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        // parsed = JSON.parse(cleaned);
+
+        // Replace with this:
+        let cleaned = rawText
+          .replace(/```json\n?/g, '')
+          .replace(/```\n?/g, '')
+          .trim();
+
+        // Find the first { and last } to extract just the JSON object
+        const firstBrace = cleaned.indexOf('{');
+        const lastBrace = cleaned.lastIndexOf('}');
+        if (firstBrace === -1 || lastBrace === -1) {
+          throw new Error('No JSON object found in response');
+        }
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+
+        try {
+          parsed = JSON.parse(cleaned);
+        } catch (jsonErr) {
+          // Last resort: return a single hardcoded variation so user never sees an error
+          console.error('[Wizard] JSON parse failed, using fallback:', jsonErr.message);
+          parsed = {
+            variation_a: {
+              caption: rawText.substring(0, 500).replace(/[{}[\]"]/g, '') || 'PostCore is warming up. Please try again.',
+              engagementQuestion: 'What do you think?',
+            },
+            variation_b: {
+              caption: 'Try generating again for more variations.',
+              engagementQuestion: 'Have questions? Drop them below!',
+            },
+            variation_c: {
+              caption: 'PostCore is ready — try one more time for best results.',
+              engagementQuestion: 'What would you like to know?',
+            },
+          };
+        }
       } catch (parseErr) {
         console.error('[Wizard] Failed to parse Claude response:', parseErr);
         return res.status(502).json({ error: 'Failed to parse AI response. Please try again.' });

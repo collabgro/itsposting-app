@@ -104,6 +104,18 @@ class HeyGenService {
     throw new Error('Video generation timeout');
   }
 
+  // Single status check — no polling loop, safe to call from a status endpoint
+  async checkVideoStatus(videoId) {
+    const response = await axios.get(`${this.baseUrl}/video/${videoId}`, {
+      headers: { 'X-Api-Key': this.apiKey },
+    });
+    const data = response.data.data || response.data;
+    return {
+      status: data.status,          // 'pending' | 'processing' | 'completed' | 'failed'
+      videoUrl: data.video_url || null,
+    };
+  }
+
   async uploadToCloudinary(videoUrl) {
     if (!process.env.CLOUDINARY_CLOUD_NAME) return videoUrl;
 

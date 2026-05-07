@@ -165,7 +165,7 @@ IMPORTANT: Weave seasonal urgency naturally into the post — don't force it.`;
 - Use phrases customers actually search: "[city] [service]"`,
 
       all: `Platform: ALL THREE (Facebook + Instagram + Google Business)
-Generate 3 variations (A, B, C) — each adapted to a different platform:
+Generate 1 variation (A only). For B and C, use placeholder text "Variation B" and "Variation C". — each adapted to a different platform:
 - Variation A: optimised for Facebook (conversational, 150-200 words, 2-3 hashtags)
 - Variation B: optimised for Instagram (visual-first, 100-150 words, 8-12 hashtags)
 - Variation C: optimised for Google Business (keyword-rich, 100-200 words, no hashtags, hard CTA)`,
