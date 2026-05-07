@@ -117,6 +117,38 @@ export default function Wizard() {
       .then(r => r.json())
       .then(d => setIndustry(d.industry || ''))
       .catch(() => {});
+
+    // Handle navigation from dashboard suggestion banner
+    const suggestionPost = sessionStorage.getItem('suggestionPost');
+    if (suggestionPost) {
+      try {
+        const data = JSON.parse(suggestionPost);
+        if (data.pre_generated_caption) {
+          const caption = typeof data.pre_generated_caption === 'string'
+            ? data.pre_generated_caption
+            : data.pre_generated_caption?.caption || '';
+          setResults({ variations: { a: { caption, hashtags: [], imagePrompt: '', engagementQuestion: '' } }, fromSuggestion: true });
+          setPlatform(data.platform || 'all');
+          setStep('results');
+        }
+        sessionStorage.removeItem('suggestionPost');
+      } catch {}
+    }
+
+    // Handle navigation from quick-post "All Variations" button
+    const quickPostResult = sessionStorage.getItem('quickPostResult');
+    if (quickPostResult) {
+      try {
+        const data = JSON.parse(quickPostResult);
+        if (data.result) {
+          setResults(data.result);
+          setPlatform(data.platforms?.[0] || 'facebook');
+          setTone(data.tone || 'friendly');
+          setStep('results');
+        }
+        sessionStorage.removeItem('quickPostResult');
+      } catch {}
+    }
   }, []);
 
   useEffect(() => {

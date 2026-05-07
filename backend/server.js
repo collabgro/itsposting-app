@@ -22,6 +22,9 @@ const suggestionsRoutes = require('./routes/suggestions');
 const wizardRoutes = require('./routes/wizard');
 const dmsRoutes = require('./routes/dms');
 const contactsRoutes = require('./routes/contacts');
+const intelligenceRoutes = require('./routes/intelligence');
+const inboxRoutes = require('./routes/inbox');
+const knowledgeRoutes = require('./routes/knowledge');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
 const EmailWorker = require('./services/EmailWorker');
 const SuggestionsEngine = require('./services/SuggestionsEngine');
@@ -88,6 +91,9 @@ app.use('/api/suggestions', suggestionsRoutes(pool));
 app.use('/api/wizard', wizardRoutes(pool));
 app.use('/api/dms', dmsRoutes(pool));
 app.use('/api/contacts', contactsRoutes(pool));
+app.use('/api/intelligence', intelligenceRoutes(pool));
+app.use('/api/inbox', inboxRoutes(pool));
+app.use('/api/knowledge', knowledgeRoutes(pool));
 
 app.get('/health', async (req, res) => {
   try {
@@ -173,6 +179,24 @@ cron.schedule('5 0 * * *', async () => {
   await suggestionsEngine.cleanupExpired();
 });
 console.log('💡 SuggestionsEngine cron scheduled (8am daily + midnight cleanup)');
+
+const PostCoreAdvisor = require('./services/PostCoreAdvisor');
+const postCoreAdvisor = new PostCoreAdvisor(pool);
+cron.schedule('0 7 * * 1', async () => {
+  console.log('[cron] Generating PostCore weekly briefings...');
+  try {
+    const customers = await pool.query(
+      `SELECT id FROM customers WHERE status IN ('active','trial') AND (suspended = false OR suspended IS NULL) LIMIT 200`
+    );
+    let done = 0, fail = 0;
+    for (const c of customers.rows) {
+      try { await postCoreAdvisor.generateWeeklyBriefing(c.id); done++; }
+      catch (e) { fail++; console.error(`[cron] briefing failed for ${c.id}:`, e.message); }
+    }
+    console.log(`[cron] Briefings: ${done} done, ${fail} failed`);
+  } catch (e) { console.error('[cron] Briefings cron error:', e.message); }
+});
+console.log('📋 PostCoreAdvisor cron scheduled (Monday 7am UTC)');
 
 const dmPollingService = new DMPollingService(pool);
 dmPollingService.start();

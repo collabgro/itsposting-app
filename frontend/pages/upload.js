@@ -56,6 +56,26 @@ export default function Upload() {
         sessionStorage.removeItem('selectedMediaFile');
       } catch {}
     }
+    const quickPostData = sessionStorage.getItem('quickPostData');
+    if (quickPostData) {
+      try {
+        const data = JSON.parse(quickPostData);
+        if (data.caption) setCaption(data.caption);
+        if (data.hashtags?.length) setHashtags(data.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' '));
+        if (data.platforms?.length) setPlatforms(data.platforms.filter(p => p !== 'all'));
+        sessionStorage.removeItem('quickPostData');
+      } catch {}
+    }
+    const wizardPost = sessionStorage.getItem('wizardPost');
+    if (wizardPost) {
+      try {
+        const data = JSON.parse(wizardPost);
+        if (data.caption) setCaption(data.caption);
+        if (data.hashtags?.length) setHashtags(data.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' '));
+        if (data.platform) setPlatforms([data.platform]);
+        sessionStorage.removeItem('wizardPost');
+      } catch {}
+    }
   }, []);
 
   const handleFileSelect = (e) => {

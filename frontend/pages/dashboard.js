@@ -1,23 +1,25 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
-  IpCalendar as CalendarIcon, IpSchedule, IpSparkle, IpPlus,
-  IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
-  IpFacebook, IpInstagram, IpGoogle, IpArrowRight, IpFlame, IpZap,
+  IpCalendar, IpSchedule, IpSparkle, IpPlus,
+  IpTrendingUp, IpTrendingDown,
+  IpDrafts, IpPhoto, IpCarousel, IpVideo,
+  IpFacebook, IpInstagram, IpGlobe,
+  IpArrowRight, IpFlame, IpTeam, IpAnalytics,
+  IpClose, IpInfo,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, StatCard, SectionHeader, EmptyState } from '../components/ui';
+import { Card, Button, SectionHeader, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import ContentCreatorModal from '../components/ContentCreatorModal';
-import TodaySuggestionBanner from '../components/TodaySuggestionBanner';
 import { format } from 'date-fns';
 
-const TYPE_ICON  = { static: IpDrafts, photo: ImageIcon, carousel: IpCarousel, video: IpVideo };
+const TYPE_ICON  = { static: IpDrafts, photo: IpPhoto, carousel: IpCarousel, video: IpVideo };
 const TYPE_COLOR = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
-const PLATFORM_ICONS = {
+const PLAT_ICONS = {
   facebook:        { icon: IpFacebook,  color: '#1877F2' },
   instagram:       { icon: IpInstagram, color: '#E1306C' },
-  google_business: { icon: IpGoogle,    color: '#4285F4' },
+  google_business: { icon: IpGlobe,     color: '#4285F4' },
 };
 
 function parsePlatforms(raw) {
@@ -26,147 +28,89 @@ function parsePlatforms(raw) {
   try { return JSON.parse(raw); } catch { return []; }
 }
 
-// Content mix helpers — rough heuristic until wizard stores content themes
-const MIX_CONFIG = [
-  { key: 'educational', label: 'Educational', target: 70, color: '#3B82F6' },
-  { key: 'social_proof', label: 'Social proof', target: 20, color: '#22C55E' },
-  { key: 'promotional',  label: 'Promotional',  target: 10, color: '#EAB308' },
-];
-
-function classifyPost(post) {
-  const type = post.content_type;
-  if (type === 'static' || type === 'carousel') return 'educational';
-  if (type === 'video') return 'social_proof';
-  return 'promotional';
-}
-
-function computeMix(posts) {
-  if (!posts.length) return { educational: 70, social_proof: 20, promotional: 10 };
-  const counts = { educational: 0, social_proof: 0, promotional: 0 };
-  posts.forEach(p => { const k = classifyPost(p); counts[k] = (counts[k] || 0) + 1; });
-  const total = posts.length;
-  return {
-    educational:  Math.round((counts.educational  / total) * 100),
-    social_proof: Math.round((counts.social_proof / total) * 100),
-    promotional:  Math.round((counts.promotional  / total) * 100),
-  };
-}
+function fmt(n) { return n?.toLocaleString() ?? '—'; }
 
 export default function Dashboard() {
   const router = useRouter();
-  const { t } = useTheme();
+  const { t }  = useTheme();
 
-  const [mounted, setMounted]               = useState(false);
-  const [stats, setStats]                   = useState(null);
-  const [allPosts, setAllPosts]             = useState([]);
-  const [upcoming, setUpcoming]             = useState([]);
-  const [profile, setProfile]               = useState(null);
-  const [loading, setLoading]               = useState(true);
-  const [showAIModal, setShowAIModal]       = useState(false);
-  const [contentHealth, setContentHealth]   = useState(null);
-  const [suggestion, setSuggestion]         = useState(null);
-  const [modalInitialPrompt, setModalInitialPrompt] = useState('');
-  const [modalInitialType, setModalInitialType]     = useState('');
+  const [mounted,      setMounted]      = useState(false);
+  const [allPosts,     setAllPosts]     = useState([]);
+  const [upcoming,     setUpcoming]     = useState([]);
+  const [metrics,      setMetrics]      = useState(null);
+  const [briefing,     setBriefing]     = useState(null);
+  const [contentMix,   setContentMix]   = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [showAIModal,  setShowAIModal]  = useState(false);
+  const [briefingOpen, setBriefingOpen] = useState(true);
 
   useEffect(() => {
     setMounted(true);
     const token = localStorage.getItem('token');
     if (!token) { router.replace('/login'); return; }
-    const headers = { Authorization: `Bearer ${token}` };
+    const H = { Authorization: `Bearer ${token}` };
 
     Promise.all([
-      fetch('/api/posts/analytics/summary', { headers }).then(r => r.json()).catch(() => ({})),
-      fetch('/api/posts?limit=100',         { headers }).then(r => r.json()).catch(() => []),
-      fetch('/api/posts/upcoming',          { headers }).then(r => r.json()).catch(() => []),
-      fetch('/api/customers/profile',       { headers }).then(r => r.json()).catch(() => null),
-      fetch('/api/analytics/content-health', { headers }).then(r => r.json()).catch(() => null),
-      fetch('/api/suggestions/today',        { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
-    ]).then(([s, p, u, prof, ch, sugg]) => {
-      setStats(s);
+      fetch('/api/posts?limit=100',             { headers: H }).then(r => r.json()).catch(() => []),
+      fetch('/api/posts/upcoming',              { headers: H }).then(r => r.json()).catch(() => []),
+      fetch('/api/intelligence/metrics',        { headers: H }).then(r => r.json()).catch(() => null),
+      fetch('/api/intelligence/briefing',       { headers: H }).then(r => r.json()).catch(() => null),
+      fetch('/api/intelligence/content-health', { headers: H }).then(r => r.json()).catch(() => null),
+    ]).then(([p, u, m, b, cm]) => {
       setAllPosts(Array.isArray(p) ? p : []);
       setUpcoming(Array.isArray(u) ? u : []);
-      setProfile(prof);
-      setContentHealth(ch);
-      setSuggestion(sugg?.id ? sugg : null);
+      setMetrics(m);
+      setBriefing(b);
+      setContentMix(cm);
       setLoading(false);
     });
   }, []);
 
-  const handleSuggestionDismiss = async () => {
-    if (!suggestion?.id) return;
-    const token = localStorage.getItem('token');
-    await fetch(`/api/suggestions/${suggestion.id}/dismiss`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {});
-    setSuggestion(null);
-  };
-
-  const handleSuggestionView = async () => {
-    if (!suggestion?.id) return;
-    const token = localStorage.getItem('token');
-    await fetch(`/api/suggestions/${suggestion.id}/use`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {});
-    if (suggestion.pre_generated_caption) {
-      sessionStorage.setItem('suggestionPost', JSON.stringify(suggestion));
+  const dismissBriefing = async () => {
+    setBriefingOpen(false);
+    if (briefing?.id) {
+      const token = localStorage.getItem('token');
+      await fetch(`/api/intelligence/briefing/${briefing.id}/read`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
     }
-    router.push('/wizard?from=suggestion');
   };
-
-  const openModalWithDraft = (caption) => {
-    setModalInitialPrompt(caption);
-    setModalInitialType('photo');
-    setShowAIModal(true);
-  };
-
-  const openModalForCustomize = (caption) => {
-    setModalInitialPrompt(caption);
-    setModalInitialType('');
-    setShowAIModal(true);
-  };
-
-  const closeModal = () => {
-    setShowAIModal(false);
-    setModalInitialPrompt('');
-    setModalInitialType('');
-  };
-
-  // Calendar helpers
-  const today    = new Date();
-  const year     = today.getFullYear();
-  const month    = today.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const lastDay  = new Date(year, month + 1, 0);
-  const calDays  = [];
-  for (let i = 0; i < firstDay.getDay(); i++) calDays.push(null);
-  for (let d = 1; d <= lastDay.getDate(); d++) calDays.push(d);
-
-  const postsThisMonth = allPosts.filter(p => {
-    const date = p.scheduled_date || p.created_at;
-    if (!date) return false;
-    const d = new Date(date);
-    return d.getFullYear() === year && d.getMonth() === month;
-  });
-  const getPostsForDay = d =>
-    postsThisMonth.filter(p => new Date(p.scheduled_date || p.created_at).getDate() === d);
-
-  const contentMix = useMemo(() => computeMix(allPosts.slice(0, 20)), [allPosts]);
-  const streak = profile?.posting_streak || 0;
 
   if (!mounted) return null;
+
+  const today   = new Date();
+  const year    = today.getFullYear();
+  const month   = today.getMonth();
+  const calDays = [];
+  const first   = new Date(year, month, 1);
+  const last    = new Date(year, month + 1, 0);
+  for (let i = 0; i < first.getDay(); i++) calDays.push(null);
+  for (let d = 1; d <= last.getDate(); d++) calDays.push(d);
+
+  const isMonday  = today.getDay() === 1;
+  const showBrief = briefingOpen && briefing?.briefing_data && (isMonday || !briefing.is_read);
+
+  const postsThisMonth = allPosts.filter(p => {
+    const dt = new Date(p.scheduled_date || p.created_at);
+    return dt.getFullYear() === year && dt.getMonth() === month;
+  });
+  const getPostsForDay = d => postsThisMonth.filter(p =>
+    new Date(p.scheduled_date || p.created_at).getDate() === d
+  );
 
   if (loading) {
     return (
       <Layout title="Dashboard" subtitle="Welcome back">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
           <div style={{ width: 40, height: 40, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       </Layout>
     );
   }
+
+  const bd = briefing?.briefing_data;
 
   return (
     <>
@@ -174,22 +118,7 @@ export default function Dashboard() {
         title="Dashboard"
         subtitle={today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         action={
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button
-              onClick={() => router.push('/quick-post')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                padding: '7px 12px',
-                background: t.primaryBg, border: `1px solid ${t.primaryBorder}`,
-                borderRadius: 8, color: t.primary, fontSize: 12, fontWeight: 700,
-                cursor: 'pointer', transition: 'all 150ms',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = t.card)}
-              onMouseLeave={e => (e.currentTarget.style.background = t.primaryBg)}
-              title="Post from job site in 30 seconds"
-            >
-              <IpZap size={13} color={t.primary} /> Quick Post
-            </button>
+          <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" onClick={() => setShowAIModal(true)}>
               <IpSparkle size={14} style={{ color: t.primary }} /> Create
             </Button>
@@ -199,111 +128,104 @@ export default function Dashboard() {
           </div>
         }
       >
-        {/* 1. Today's PostCore suggestion banner */}
-        <TodaySuggestionBanner
-          suggestion={suggestion}
-          onDismiss={handleSuggestionDismiss}
-          onView={handleSuggestionView}
-        />
 
-        {/* 2. Quick-create strip */}
-        <div
-          style={{
-            padding: '14px 20px',
-            background: 'linear-gradient(135deg, rgba(124,92,252,0.15) 0%, rgba(91,63,240,0.07) 100%)',
-            border: `1px solid ${t.primaryBorder}`,
-            borderRadius: 12, marginBottom: 20,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            flexWrap: 'wrap', gap: 12,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <IpSparkle size={18} style={{ color: t.primary }} />
+        {/* ── 1. PostCore Briefing Banner ── */}
+        {showBrief && bd && (
+          <div style={{ background: t.card, border: `1px solid ${t.primaryBorder}`, borderRadius: 14, padding: 20, marginBottom: 20, position: 'relative' }}>
+            <button onClick={dismissBriefing} style={{ position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: 7, background: t.input, border: `1px solid ${t.border}`, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <IpClose size={13} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(135deg,#7C5CFC,#5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IpSparkle size={16} color="#fff" strokeWidth={2.5} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{bd.greeting}</div>
+                <div style={{ fontSize: 12, color: t.textMuted }}>{bd.weekSummary}</div>
+              </div>
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Create content</div>
-              <div style={{ fontSize: 12, color: t.textMuted }}>Generate captions, photos, carousels or videos with one click</div>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(2, bd.sections?.length || 1)}, 1fr)`, gap: 10 }}>
+              {(bd.sections || []).slice(0, 2).map((s, i) => (
+                <div key={i} style={{ padding: '12px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: t.primary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{s.title}</div>
+                  <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.5, marginBottom: 8 }}>{s.observation}</div>
+                  {s.action && (
+                    <button onClick={() => router.push('/wizard')} style={{ fontSize: 11, fontWeight: 700, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      {s.actionLabel || 'Create Post'} →
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
+            {bd.closingNote && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 12, fontStyle: 'italic' }}>{bd.closingNote}</div>}
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button variant="secondary" size="sm" onClick={() => router.push('/upload')}>Manual upload</Button>
-            <Button variant="primary" size="sm" onClick={() => setShowAIModal(true)}><IpSparkle size={13} /> Create</Button>
+        )}
+
+        {/* ── 2. Business Metrics Row ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 16 }}>
+          <MetricCard t={t}
+            label="People Reached"
+            main={fmt(metrics?.totalReach)}
+            sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local est.` : 'Loading...'}
+          />
+          <MetricCard t={t}
+            label="Est. New Customers"
+            main={metrics ? `${metrics.estimatedNewCustomers.min}–${metrics.estimatedNewCustomers.max}` : '—'}
+            sub={`Based on ${metrics ? 'industry' : '...'} averages`}
+            disclaimer
+          />
+          <MetricCard t={t}
+            label="Engagement Rate"
+            main={metrics ? `${metrics.engagementRate}%` : '—'}
+            sub={metrics
+              ? (metrics.isOutperforming
+                  ? `Top ${100 - metrics.percentileRank}% in industry`
+                  : `Industry avg ${metrics.industryAvgEngagement}%`)
+              : '...'}
+            subColor={metrics?.isOutperforming ? t.success : t.warning}
+          />
+          <div style={{ background: metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.07)' : t.card, border: `1px solid ${metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.28)' : t.border}`, borderRadius: 12, padding: '16px 18px' }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>Posting Streak</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: metrics?.postingStreak >= 3 ? '#EAB308' : t.text, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+              {metrics?.postingStreak >= 3 && <IpFlame size={20} color="#EAB308" />}
+              {metrics?.postingStreak ? `${metrics.postingStreak} days` : '—'}
+            </div>
+            <div style={{ fontSize: 11, color: t.textMuted }}>
+              {metrics?.postingStreak ? 'Keep posting to grow reach' : 'Post today to start'}
+            </div>
           </div>
         </div>
 
-        {/* 3. Stats row — 5 cards, streak is the 5th */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 16 }}>
-          <div onClick={() => router.push('/history')} style={{ cursor: 'pointer' }}>
-            <StatCard label="Total posts" value={stats?.total_posts || 0} hint="View all posts" />
+        {metrics && (
+          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <IpInfo size={11} /> {metrics.disclaimer}
           </div>
-          <div onClick={() => router.push('/history?filter=scheduled')} style={{ cursor: 'pointer' }}>
-            <StatCard label="Scheduled" value={stats?.scheduled_count || 0} hint="View scheduled" accent="warning" />
-          </div>
-          <div onClick={() => router.push('/history?filter=posted')} style={{ cursor: 'pointer' }}>
-            <StatCard label="Published" value={stats?.posted_count || 0} hint="View published" accent="success" />
-          </div>
-          <StatCard label="Total likes" value={stats?.total_likes || 0} hint="All-time engagement" accent="primary" />
+        )}
 
-          {/* Streak card */}
-          <div
-            style={{
-              background: streak >= 3 ? 'rgba(234,179,8,0.07)' : t.card,
-              border: `1px solid ${streak >= 3 ? 'rgba(234,179,8,0.25)' : t.border}`,
-              borderRadius: 12, padding: '16px 18px',
-              cursor: streak > 0 ? 'pointer' : 'default',
-            }}
-            onClick={() => streak > 0 && router.push('/history')}
-          >
-            <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 4 }}>Posting streak</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: streak >= 3 ? '#EAB308' : t.text, letterSpacing: '-0.03em', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {streak > 0 && <IpFlame size={20} style={{ color: '#EAB308' }} />}
-              {streak > 0 ? `${streak} days` : '--'}
-            </div>
-            <div style={{ fontSize: 11, color: streak >= 3 ? '#EAB308' : t.textMuted }}>
-              {streak >= 7 ? 'Amazing! Keep going' : streak > 0 ? 'Keep it going' : 'Post today to start'}
-            </div>
-          </div>
-        </div>
+        {/* ── 3. Content Health Bar ── */}
+        {contentMix && <ContentHealthBar data={contentMix} t={t} router={router} />}
 
-        {/* 4. Content mix bar */}
-        <ContentHealthBar data={contentHealth} localMix={contentMix} t={t} onNavigate={(path) => router.push(path)} />
-
-        {/* 5. Calendar + Upcoming grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginBottom: 20 }}>
+        {/* ── 4. Calendar + Upcoming ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 20 }}>
           <Card>
             <SectionHeader
-              icon={CalendarIcon}
+              icon={IpCalendar}
               title={`${today.toLocaleString('default', { month: 'long' })} ${year}`}
               action={<Button variant="secondary" size="sm" onClick={() => router.push('/calendar')}>Full calendar</Button>}
             />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
-              {['S','M','T','W','T','F','S'].map((d, i) => (
-                <div key={i} style={{ fontSize: 10, color: t.textMuted, textAlign: 'center', padding: '4px 0', fontWeight: 600 }}>{d}</div>
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
+              {['S','M','T','W','T','F','S'].map((d, i) => <div key={i} style={{ fontSize: 10, color: t.textMuted, textAlign: 'center', padding: '4px 0', fontWeight: 600 }}>{d}</div>)}
               {calDays.map((day, idx) => {
                 if (!day) return <div key={idx} />;
                 const isToday = day === today.getDate();
-                const dayPosts = getPostsForDay(day);
+                const dp = getPostsForDay(day);
                 return (
-                  <div
-                    key={idx}
-                    onClick={() => router.push('/calendar')}
-                    style={{
-                      aspectRatio: '1', display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center', gap: 2,
-                      borderRadius: 6, cursor: 'pointer',
-                      background: isToday ? t.primaryBg : 'transparent',
-                      border: isToday ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
-                      transition: 'all 100ms',
-                    }}
-                  >
+                  <div key={idx} onClick={() => router.push('/calendar')}
+                    style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 6, cursor: 'pointer', background: isToday ? t.primaryBg : 'transparent', border: isToday ? `1px solid ${t.primaryBorder}` : '1px solid transparent' }}>
                     <span style={{ fontSize: 12, color: isToday ? t.primary : t.textSecondary, fontWeight: isToday ? 700 : 400 }}>{day}</span>
-                    {dayPosts.length > 0 && (
+                    {dp.length > 0 && (
                       <div style={{ display: 'flex', gap: 2 }}>
-                        {dayPosts.slice(0, 3).map((p, i) => (
-                          <div key={i} style={{ width: 4, height: 4, borderRadius: '50%', background: TYPE_COLOR[p.content_type] || t.primary }} />
-                        ))}
+                        {dp.slice(0, 3).map((p, i) => <div key={i} style={{ width: 4, height: 4, borderRadius: '50%', background: TYPE_COLOR[p.content_type] || t.primary }} />)}
                       </div>
                     )}
                   </div>
@@ -313,62 +235,43 @@ export default function Dashboard() {
           </Card>
 
           <Card padding={0} style={{ overflow: 'hidden' }}>
-            <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IpSchedule size={15} style={{ color: t.primary }} /></div>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <IpSchedule size={15} style={{ color: t.primary }} />
+                </div>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Upcoming posts</div>
                   <div style={{ fontSize: 12, color: t.textMuted }}>Next 30 days</div>
                 </div>
               </div>
-              {upcoming.length > 0 && (
-                <button onClick={() => router.push('/history?filter=scheduled')} style={{ fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  View all <IpArrowRight size={12} />
-                </button>
-              )}
+              {upcoming.length > 0 && <button onClick={() => router.push('/history?filter=scheduled')} style={{ fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>View all <IpArrowRight size={12} /></button>}
             </div>
-
             {upcoming.length === 0 ? (
-              <EmptyState
-                icon={IpSchedule}
-                title="No scheduled posts"
-                subtitle="Schedule your next post"
-                action={<Button variant="secondary" size="sm" onClick={() => setShowAIModal(true)}><IpSparkle size={12} /> Create</Button>}
-              />
+              <EmptyState icon={IpSchedule} title="No scheduled posts" subtitle="Schedule your next post"
+                action={<Button variant="secondary" size="sm" onClick={() => setShowAIModal(true)}><IpSparkle size={12} /> Create</Button>} />
             ) : (
               <div>
                 {upcoming.slice(0, 4).map(post => {
-                  const TypeIcon = TYPE_ICON[post.content_type] || IpDrafts;
-                  const typeColor = TYPE_COLOR[post.content_type] || t.primary;
-                  const postPlatforms = parsePlatforms(post.platforms);
+                  const TI = TYPE_ICON[post.content_type] || IpDrafts;
+                  const tc = TYPE_COLOR[post.content_type] || t.primary;
+                  const pp = parsePlatforms(post.platforms);
                   return (
-                    <div
-                      key={post.id}
-                      onClick={() => router.push('/history')}
-                      style={{ display: 'flex', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${t.border}`, cursor: 'pointer', transition: 'background 150ms', flexWrap: 'wrap', alignItems: 'center' }}
+                    <div key={post.id} onClick={() => router.push('/history')}
+                      style={{ display: 'flex', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${t.border}`, cursor: 'pointer', alignItems: 'center' }}
                       onMouseEnter={e => (e.currentTarget.style.background = t.cardHover)}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                       <div style={{ width: 44, height: 44, borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {post.media_url
-                          ? <img src={post.media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} />
-                          : <TypeIcon size={18} style={{ color: typeColor, opacity: 0.6 }} />}
+                        {post.media_url ? <img src={post.media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} /> : <TI size={18} style={{ color: tc, opacity: 0.6 }} />}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: typeColor, textTransform: 'uppercase' }}>{post.content_type}</span>
-                          {postPlatforms.slice(0, 2).map(pid => {
-                            const pm = PLATFORM_ICONS[pid];
-                            if (!pm) return null;
-                            const PI = pm.icon;
-                            return <PI key={pid} size={11} style={{ color: pm.color }} />;
-                          })}
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: tc, textTransform: 'uppercase' }}>{post.content_type}</span>
+                          {pp.slice(0, 2).map(pid => { const pm = PLAT_ICONS[pid]; if (!pm) return null; const PI = pm.icon; return <PI key={pid} size={11} style={{ color: pm.color }} />; })}
                         </div>
                         <div style={{ fontSize: 12, color: t.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{post.caption || 'No caption'}</div>
                       </div>
-                      <div style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>
-                        {format(new Date(post.scheduled_date), 'MMM d, h:mm a')}
-                      </div>
+                      <div style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>{format(new Date(post.scheduled_date), 'MMM d, h:mm a')}</div>
                     </div>
                   );
                 })}
@@ -378,100 +281,63 @@ export default function Dashboard() {
         </div>
       </Layout>
 
-      {showAIModal && (
-        <ContentCreatorModal
-          onClose={closeModal}
-          onSuccess={() => { closeModal(); router.push('/history'); }}
-          initialPrompt={modalInitialPrompt}
-          initialContentType={modalInitialType}
-        />
-      )}
+      {showAIModal && <ContentCreatorModal onClose={() => setShowAIModal(false)} onSuccess={() => { setShowAIModal(false); router.push('/history'); }} />}
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </>
   );
 }
 
-function ContentHealthBar({ data, localMix, t, onNavigate }) {
-  const BUCKET_COLORS = { educational: '#7C5CFC', socialProof: '#22C55E', seasonal: '#3B82F6', promotional: '#F59E0B' };
-  const BUCKET_LABELS = { educational: 'Educational', socialProof: 'Social Proof', seasonal: 'Seasonal', promotional: 'Promotional' };
-  const BUCKETS = ['educational', 'socialProof', 'seasonal', 'promotional'];
+function MetricCard({ t, label, main, sub, subColor, disclaimer }) {
+  return (
+    <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '16px 18px' }}>
+      <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+        {label}
+        {disclaimer && <IpInfo size={11} style={{ color: t.textDisabled }} title="Estimate based on industry averages" />}
+      </div>
+      <div style={{ fontSize: 26, fontWeight: 800, color: t.text, letterSpacing: '-0.03em', marginBottom: 3 }}>{main}</div>
+      {sub && <div style={{ fontSize: 11, color: subColor || t.textMuted }}>{sub}</div>}
+    </div>
+  );
+}
 
-  const mix          = data?.contentMix?.mix || null;
-  const healthScore  = data?.contentMix?.healthScore ?? null;
-  const gaps         = data?.contentMix?.gaps || [];
-  const streak       = data?.streak?.current || 0;
-  const recommendation = data?.recommendation || null;
-  const totalPosts   = data?.monthlyStats?.totalPostsThisMonth ?? data?.contentMix?.totalPosts ?? 0;
+function ContentHealthBar({ data, t, router }) {
+  if (!data) return null;
+  const { mix, recommendation, gaps } = data;
+  const total = Object.values(mix).reduce((s, v) => s + v, 0);
+  if (!total) return null;
 
-  // Fall back to local mix if backend hasn't loaded
-  const displayMix = mix || (() => {
-    const total = (localMix.educational || 0) + (localMix.social_proof || 0) + (localMix.promotional || 0);
-    if (!total) return null;
-    return {
-      educational: localMix.educational || 0,
-      socialProof: localMix.social_proof || 0,
-      seasonal:    0,
-      promotional: localMix.promotional || 0,
-    };
-  })();
-
-  if (!displayMix) return null;
+  const segments = [
+    { key: 'educational', label: 'Educational',  color: '#3B82F6' },
+    { key: 'socialProof', label: 'Social proof', color: '#22C55E' },
+    { key: 'seasonal',    label: 'Seasonal',     color: '#A78BFA' },
+    { key: 'promotional', label: 'Promotional',  color: '#EAB308' },
+  ].filter(s => mix[s.key] > 0);
 
   return (
-    <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary }}>
-          Content mix · {totalPosts} posts this month
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {streak > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, background: streak >= 7 ? 'rgba(239,68,68,0.1)' : t.primaryBg, border: `1px solid ${streak >= 7 ? 'rgba(239,68,68,0.3)' : t.primaryBorder}` }}>
-              <span style={{ fontSize: 13 }}>{streak >= 7 ? '🔥' : '⚡'}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: streak >= 7 ? '#EF4444' : t.primary }}>{streak}-day streak</span>
-            </div>
-          )}
-          {healthScore !== null && (
-            <div style={{ width: 34, height: 34, borderRadius: '50%', border: `3px solid ${healthScore >= 70 ? '#22C55E' : healthScore >= 40 ? '#F59E0B' : '#EF4444'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: healthScore >= 70 ? '#22C55E' : healthScore >= 40 ? '#F59E0B' : '#EF4444' }}>
-              {healthScore}
-            </div>
-          )}
-        </div>
+    <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary }}>Content mix — last 30 posts</div>
+        {gaps.length > 0 && (
+          <button onClick={() => router.push('/wizard')} style={{ fontSize: 11, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+            Fix balance →
+          </button>
+        )}
       </div>
-
-      <div style={{ height: 8, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 10, background: t.input }}>
-        {BUCKETS.map(bucket => {
-          const pct = displayMix[bucket] || 0;
-          if (!pct) return null;
-          return <div key={bucket} title={`${BUCKET_LABELS[bucket]}: ${pct}%`} style={{ width: `${pct}%`, background: BUCKET_COLORS[bucket], transition: 'width 500ms ease' }} />;
-        })}
+      <div style={{ height: 7, borderRadius: 4, overflow: 'hidden', display: 'flex', gap: 1, marginBottom: 8 }}>
+        {segments.map(s => <div key={s.key} style={{ width: `${mix[s.key]}%`, background: s.color, transition: 'width 400ms ease' }} title={`${s.label}: ${mix[s.key]}%`} />)}
       </div>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 16px', marginBottom: recommendation ? 12 : 0 }}>
-        {BUCKETS.map(bucket => {
-          const pct   = displayMix[bucket] || 0;
-          const isGap = gaps.includes(bucket);
-          return (
-            <div key={bucket} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 2, background: BUCKET_COLORS[bucket], flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: isGap ? '#F59E0B' : t.textMuted, fontWeight: isGap ? 600 : 400 }}>
-                {BUCKET_LABELS[bucket]} {pct}%{isGap ? ' ⚠' : ''}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {recommendation && (
-        <div style={{ padding: '10px 12px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          <span style={{ fontSize: 13, flexShrink: 0 }}>⚡</span>
-          <div style={{ flex: 1 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: t.primary }}>PostCore: </span>
-            <span style={{ fontSize: 11, color: t.textSecondary }}>{recommendation}</span>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: gaps.length ? 8 : 0 }}>
+        {segments.map(s => (
+          <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
+            <span style={{ fontSize: 11, color: t.textMuted }}>{s.label} {mix[s.key]}%</span>
           </div>
-          {gaps.length > 0 && (
-            <button onClick={() => onNavigate('/wizard')} style={{ fontSize: 11, fontWeight: 700, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', padding: 0, flexShrink: 0 }}>
-              Fix it →
-            </button>
-          )}
+        ))}
+      </div>
+      {gaps.length > 0 && (
+        <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic' }}>
+          <span style={{ color: t.primary, fontWeight: 600 }}>PostCore: </span>{recommendation}
         </div>
       )}
     </div>
