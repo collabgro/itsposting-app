@@ -46,7 +46,7 @@ class ManualContentGenerator {
       return { service: this.midjourney, name: 'midjourney' };
     }
 
-    throw new Error('No image generation service configured. Set GOOGLE_AI_API_KEY or REPLICATE_API_TOKEN');
+    return null;
   }
 
   /**
@@ -118,20 +118,26 @@ class ManualContentGenerator {
     );
 
     const imageService = this.getImageService(customer);
-
     const backgroundPrompt = captionData.imagePrompt
       || `Beautiful gradient background using brand colors ${customer.brand_colors?.primary || 'blue'} and ${customer.brand_colors?.secondary || 'green'}, abstract elegant design, 1080x1080 square, no text, professional`;
 
-    const imageResult = await imageService.service.generateFromPrompt(customer, backgroundPrompt);
+    let imageResult = null;
+    if (imageService) {
+      try {
+        imageResult = await imageService.service.generateFromPrompt(customer, backgroundPrompt);
+      } catch (err) {
+        console.error('[ManualContentGenerator] static image generation failed:', err.message || err);
+      }
+    }
 
     return {
       contentType: 'static',
       caption: captionData.caption,
       hashtags: captionData.hashtags,
       overlayText: captionData.overlay_text,
-      mediaUrl: imageResult.url,
-      provider: imageResult.provider,
-      model: imageResult.model,
+      mediaUrl: imageResult?.url || null,
+      provider: imageResult?.provider || imageService?.name || 'none',
+      model: imageResult?.model || null,
       variations: captionData.variations || null,
       imagePrompt: backgroundPrompt,
     };
@@ -142,7 +148,11 @@ class ManualContentGenerator {
    */
   async generatePhoto(customer, prompt, options = {}) {
     const imageService = this.getImageService(customer);
-    console.log(`📷 Using ${imageService.name} for photo generation`);
+    if (imageService) {
+      console.log(`📷 Using ${imageService.name} for photo generation`);
+    } else {
+      console.warn('[ManualContentGenerator] No image service configured for photo generation');
+    }
 
     // Caption first — Claude's imagePrompt is richer than the raw user prompt
     const captionData = await this.claude.generateCaption(
@@ -150,15 +160,22 @@ class ManualContentGenerator {
     );
 
     const imageGenPrompt = captionData.imagePrompt || prompt;
-    const imageResult = await imageService.service.generateFromPrompt(customer, imageGenPrompt, options);
+    let imageResult = null;
+    if (imageService) {
+      try {
+        imageResult = await imageService.service.generateFromPrompt(customer, imageGenPrompt, options);
+      } catch (err) {
+        console.error('[ManualContentGenerator] photo image generation failed:', err.message || err);
+      }
+    }
 
     return {
       contentType: 'photo',
       caption: captionData.caption,
       hashtags: captionData.hashtags,
-      mediaUrl: imageResult.url,
-      provider: imageResult.provider,
-      model: imageResult.model,
+      mediaUrl: imageResult?.url || null,
+      provider: imageResult?.provider || imageService?.name || 'none',
+      model: imageResult?.model || null,
       variations: captionData.variations || null,
       imagePrompt: imageGenPrompt,
       engagementQuestion: captionData.engagementQuestion || '',
@@ -170,30 +187,38 @@ class ManualContentGenerator {
    */
   async generateCarousel(customer, prompt, options) {
     const imageService = this.getImageService(customer);
-    console.log(`📊 Using ${imageService.name} for carousel generation`);
+    if (imageService) {
+      console.log(`📊 Using ${imageService.name} for carousel generation`);
+    } else {
+      console.warn('[ManualContentGenerator] No image service configured for carousel generation');
+    }
 
     // 1. Plan the carousel with Claude
     const plan = await this.claude.planCarousel(customer, prompt);
 
-    // 2. Generate all 5 slide images
+    // 2. Generate all 5 slide images if possible
     const slidePrompts = plan.slides.map((s) => s.image_prompt);
     let slides = [];
 
-    if (imageService.name === 'nanobanana') {
-      // NanoBanana has a batch method
-      slides = await this.nanobanana.generateCarouselSlides(customer, slidePrompts);
-    } else {
-      // Midjourney - generate one by one
-      for (let i = 0; i < slidePrompts.length; i++) {
-        const result = await imageService.service.generateFromPrompt(customer, slidePrompts[i]);
-        slides.push({ slideNumber: i + 1, url: result.url });
+    if (imageService) {
+      try {
+        if (imageService.name === 'nanobanana') {
+          slides = await this.nanobanana.generateCarouselSlides(customer, slidePrompts);
+        } else {
+          for (let i = 0; i < slidePrompts.length; i++) {
+            const result = await imageService.service.generateFromPrompt(customer, slidePrompts[i]);
+            slides.push({ slideNumber: i + 1, url: result.url });
+          }
+        }
+      } catch (err) {
+        console.error('[ManualContentGenerator] carousel image generation failed:', err.message || err);
+        slides = [];
       }
     }
 
-    // 3. Combine slide info
     const enrichedSlides = plan.slides.map((slide, idx) => ({
       ...slide,
-      mediaUrl: slides[idx]?.url,
+      mediaUrl: slides[idx]?.url || null,
     }));
 
     return {
@@ -201,8 +226,8 @@ class ManualContentGenerator {
       caption: plan.main_caption,
       hashtags: plan.hashtags,
       slides: enrichedSlides,
-      mediaUrl: slides[0]?.url, // First slide as thumbnail
-      provider: imageService.name,
+      mediaUrl: slides[0]?.url || null,
+      provider: imageService?.name || 'none',
     };
   }
 
@@ -213,17 +238,26 @@ class ManualContentGenerator {
     // 1. Generate script with Claude
     const scriptData = await this.claude.generateVideoScript(customer, prompt, options.duration || 30);
 
-    // 2. Generate video with HeyGen
-    const videoResult = await this.heygen.generateFromScript(customer, scriptData.script, options);
+    let videoResult = null;
+    if (process.env.HEYGEN_API_KEY) {
+      try {
+        videoResult = await this.heygen.generateFromScript(customer, scriptData.script, options);
+      } catch (err) {
+        console.error('[ManualContentGenerator] heygen video generation failed:', err.message || err);
+      }
+    } else {
+      console.warn('[ManualContentGenerator] HEYGEN_API_KEY not configured, skipping video generation');
+    }
 
     return {
       contentType: 'video',
       caption: scriptData.caption,
       hashtags: scriptData.hashtags,
       script: scriptData.script,
-      mediaUrl: videoResult.url,
-      provider: 'heygen',
-      model: videoResult.model,
+      mediaUrl: videoResult?.url || null,
+      provider: videoResult?.provider || 'heygen',
+      model: videoResult?.model || null,
+      videoError: videoResult ? null : 'HeyGen video was unavailable. Set HEYGEN_API_KEY to enable video generation.',
     };
   }
 

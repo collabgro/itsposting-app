@@ -195,7 +195,54 @@ export default function ContentCreatorModal({ onClose, onSuccess, defaultDate = 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
               <div style={{ padding: 16, background: t.input, border: `1px solid ${t.border}`, borderRadius: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 10 }}>Preview</div>
-                <div style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.7 }}>{generatedContent.caption}</div>
+                {generatedContent.mediaUrl && generatedContent.contentType !== 'video' && (
+                  <img src={generatedContent.mediaUrl} alt="Generated preview" style={{ width: '100%', borderRadius: 14, objectFit: 'cover', maxHeight: 420, marginBottom: 14 }} />
+                )}
+                {generatedContent.contentType === 'video' && generatedContent.mediaUrl && (
+                  <video controls src={generatedContent.mediaUrl} style={{ width: '100%', borderRadius: 14, background: '#000', marginBottom: 14 }} />
+                )}
+                {generatedContent.contentType === 'carousel' && generatedContent.slides?.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginBottom: 14 }}>
+                    {generatedContent.slides.map((slide, idx) => (
+                      <div key={idx} style={{ border: `1px solid ${t.border}`, borderRadius: 14, overflow: 'hidden', background: t.input }}>
+                        {slide.mediaUrl ? (
+                          <img src={slide.mediaUrl} alt={`Slide ${idx + 1}`} style={{ width: '100%', height: 120, objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textMuted, fontSize: 12, padding: 10 }}>No image generated</div>
+                        )}
+                        <div style={{ padding: 12 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: t.text }}>{slide.title || `Slide ${idx + 1}`}</div>
+                          {slide.text && <div style={{ fontSize: 11, color: t.textSecondary, marginTop: 6, lineHeight: 1.5 }}>{slide.text}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{generatedContent.caption}</div>
+                {generatedContent.hashtags?.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+                    {generatedContent.hashtags.map(tag => (
+                      <span key={tag} style={{ padding: '6px 10px', borderRadius: 999, background: t.primaryBg, color: t.primary, fontSize: 12 }}>{tag.startsWith('#') ? tag : `#${tag}`}</span>
+                    ))}
+                  </div>
+                )}
+                {generatedContent.videoError && (
+                  <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 12, background: 'rgba(244,67,54,0.1)', border: '1px solid rgba(244,67,54,0.2)', color: '#B8323E', fontSize: 12 }}>
+                    {generatedContent.videoError}
+                  </div>
+                )}
+                {!generatedContent.mediaUrl && generatedContent.contentType !== 'video' && (
+                  <div style={{ marginTop: 14, fontSize: 12, color: t.textMuted }}>No image was generated. Enable NanoBanana by setting GOOGLE_AI_API_KEY in your environment to generate visuals.</div>
+                )}
+                {generatedContent.contentType === 'video' && !generatedContent.mediaUrl && (
+                  <div style={{ marginTop: 14, fontSize: 12, color: t.textMuted }}>Video file is unavailable. The script is shown below, and HeyGen will generate the video when HEYGEN_API_KEY is configured.</div>
+                )}
+                {generatedContent.script && (
+                  <div style={{ marginTop: 16, padding: '14px', borderRadius: 14, background: t.input, border: `1px solid ${t.border}` }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 8 }}>Video script</div>
+                    <div style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{generatedContent.script}</div>
+                  </div>
+                )}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
                 <button type="button" onClick={() => setScheduleMode('now')} style={{ padding: 12, borderRadius: 10, border: `1px solid ${scheduleMode === 'now' ? t.primary : t.border}`, background: scheduleMode === 'now' ? t.primaryBg : t.input, cursor: 'pointer' }}>Save as draft</button>
