@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import {
   IpSave, IpCredits, IpPalette, IpGlobe, IpDelete,
   IpBusiness, IpShare, IpCheck, IpFacebook, IpInstagram,
+  IpGoogle, IpSparkle // Added these two
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Input, Badge, SectionHeader } from '../components/ui';
