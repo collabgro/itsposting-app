@@ -38,6 +38,7 @@ export default function Billing() {
   const [current, setCurrent] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [plansError, setPlansError] = useState(false);
   const [cycle, setCycle] = useState('monthly'); // 'monthly' | 'yearly'
   const [checkingOut, setCheckingOut] = useState(null); // plan id being checked out
 
@@ -55,11 +56,14 @@ export default function Billing() {
         fetch('/api/billing/current', { headers }).then(r => r.json()),
         fetch('/api/billing/history', { headers }).then(r => r.json()),
       ]);
-      setPlans(Array.isArray(plansRes) ? plansRes : []);
+      const resolvedPlans = Array.isArray(plansRes) ? plansRes : [];
+      setPlans(resolvedPlans);
+      if (resolvedPlans.length === 0) setPlansError(true);
       setCurrent(currentRes);
       setHistory(Array.isArray(historyRes) ? historyRes : []);
     } catch (err) {
       console.error(err);
+      setPlansError(true);
     } finally {
       setLoading(false);
     }
@@ -237,7 +241,16 @@ export default function Billing() {
         </div>
 
         {/* ── PLAN CARDS ─────────────────────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+        {plansError && nonTrialPlans.length === 0 && (
+          <div style={{ padding: '32px 24px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, textAlign: 'center', marginBottom: 24 }}>
+            <IpWarning size={28} style={{ color: t.warning, margin: '0 auto 10px', display: 'block' }} />
+            <p style={{ fontSize: 14, color: t.textSecondary, margin: '0 0 12px' }}>Could not load plans — please refresh the page.</p>
+            <button onClick={loadData} style={{ fontSize: 13, fontWeight: 600, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, padding: '8px 20px', cursor: 'pointer' }}>
+              Try again
+            </button>
+          </div>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
           {nonTrialPlans.map(plan => {
             const isCurrent = current?.currentPlan?.id === plan.id;
             const isDowngrade = !isTrial && !isCurrent &&

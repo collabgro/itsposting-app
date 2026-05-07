@@ -151,10 +151,20 @@ class ClaudeService {
   async generateCaption(customer, prompt, contentType = 'photo', platform = 'instagram') {
     if (!this.client) throw new Error('Claude not configured. Set ANTHROPIC_API_KEY.');
 
+    let businessKnowledge = [];
+    try {
+      const knowledgeResult = await this.pool.query(
+        'SELECT * FROM business_knowledge WHERE customer_id = $1 AND is_active = true ORDER BY knowledge_type, created_at DESC',
+        [customer.id]
+      );
+      businessKnowledge = knowledgeResult.rows;
+    } catch (_) {}
+
     const builder = new SystemPromptBuilder(customer, {
       platform,
       contentType,
-      counterAnswers: { custom: prompt }, // user's typed prompt flows as context
+      counterAnswers: { custom: prompt },
+      businessKnowledge,
     });
     const { systemPrompt, userPrompt } = builder.build(); // 3-variation format from section 6
 

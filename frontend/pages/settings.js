@@ -174,6 +174,7 @@ export default function Settings() {
   const [scrapedData, setScrapedData] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [timezone, setTimezone] = useState('UTC');
+  const [loadError, setLoadError] = useState(false);
 
   // Manual token modal state
   const [setupModal, setSetupModal] = useState(null);
@@ -228,6 +229,7 @@ export default function Settings() {
       }
     } catch {
       showToast('Failed to load settings', 'error');
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -370,15 +372,26 @@ export default function Settings() {
   if (loading || !profile) {
     return (
       <Layout title="Settings">
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-          <div style={{
-            width: 36, height: 36,
-            border: `3px solid ${t.primaryBg}`,
-            borderTopColor: t.primary,
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-          }} />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 16 }}>
+          {loadError ? (
+            <>
+              <div style={{ fontSize: 15, fontWeight: 600, color: t.text }}>Could not load settings</div>
+              <div style={{ fontSize: 13, color: t.textMuted }}>Check your connection and try refreshing the page.</div>
+              <button onClick={() => { setLoadError(false); setLoading(true); loadData(); }} style={{ marginTop: 8, padding: '9px 20px', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Retry
+              </button>
+            </>
+          ) : (
+            <div style={{
+              width: 36, height: 36,
+              border: `3px solid ${t.primaryBg}`,
+              borderTopColor: t.primary,
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+            }} />
+          )}
         </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </Layout>
     );
   }

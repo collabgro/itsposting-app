@@ -106,6 +106,9 @@ module.exports = (pool) => {
 
   // POST /api/media/upload
   router.post('/upload', authenticate, upload.array('files', 20), async (req, res) => {
+    if (!process.env.CLOUDINARY_CLOUD_NAME) {
+      return res.status(503).json({ error: 'Media storage is not configured. Please contact support.' });
+    }
     const client = await pool.connect();
     try {
       if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
@@ -139,6 +142,10 @@ module.exports = (pool) => {
         } catch (uploadErr) {
           console.error(`Failed to upload ${file.originalname}:`, uploadErr.message);
         }
+      }
+      if (uploaded.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(500).json({ error: 'All files failed to upload. Check your Cloudinary configuration.' });
       }
       const totalUploaded = uploaded.reduce((sum, f) => sum + parseInt(f.file_size_bytes), 0);
       await client.query('UPDATE customers SET storage_used_bytes = storage_used_bytes + $1 WHERE id = $2', [totalUploaded, req.customerId]);

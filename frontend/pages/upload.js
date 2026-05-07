@@ -9,7 +9,6 @@ import Layout from '../components/Layout';
 import { Card, Button, Input, Textarea, SectionHeader, Badge } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { mediaAPI } from '../lib/api';
-import ContentCreatorModal from '../components/ContentCreatorModal';
 
 const CONTENT_TYPES = [
   { id: 'photo', label: 'Photo', icon: ImageIcon, desc: '1 image' },
@@ -41,7 +40,6 @@ export default function Upload() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [libraryFiles, setLibraryFiles] = useState([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
-  const [showAIModal, setShowAIModal] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -179,7 +177,7 @@ export default function Upload() {
   };
 
   return (
-    <Layout title="Create Post" subtitle="Upload your own content" action={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><Button variant="secondary" onClick={() => setShowAIModal(true)}><IpSparkle size={14} style={{ color: t.primary }} /> Create</Button><Button variant="secondary" onClick={() => router.push('/calendar')}>View Calendar</Button></div>}>
+    <Layout title="Create Post" subtitle="Upload your own content" action={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><Button variant="secondary" onClick={() => router.push('/wizard')}><IpSparkle size={14} style={{ color: t.primary }} /> Create</Button><Button variant="secondary" onClick={() => router.push('/calendar')}>View Calendar</Button></div>}>
       <div style={{ maxWidth: 720, margin: '0 auto', width: '100%' }}>
         <div style={{ padding: '14px 18px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -189,7 +187,7 @@ export default function Upload() {
               <div style={{ fontSize: 12, color: t.textMuted }}>Use credits to auto-generate captions, images, carousels, or videos</div>
             </div>
           </div>
-          <Button variant="primary" size="sm" onClick={() => setShowAIModal(true)}><IpSparkle size={14} /> Open Creator</Button>
+          <Button variant="primary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={14} /> Open Creator</Button>
         </div>
         {message.text && <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13, background: msgStyle[message.type]?.bg, border: `1px solid ${msgStyle[message.type]?.border}`, color: msgStyle[message.type]?.color }}>{message.text}</div>}
         <form onSubmit={handleSubmit}>
@@ -225,7 +223,6 @@ export default function Upload() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}><Button type="button" variant="secondary" onClick={() => router.push('/dashboard')}>Cancel</Button><Button type="submit" variant="primary" disabled={uploading || platforms.length === 0}>{uploading ? 'Publishing...' : 'Publish'}</Button></div>
         </form>
       </div>
-      {showAIModal && <ContentCreatorModal onClose={() => setShowAIModal(false)} onSuccess={() => { setShowAIModal(false); router.push('/history'); }} />}
     </Layout>
   );
 }

@@ -88,7 +88,7 @@ module.exports = function contactsRoutes(pool) {
         `INSERT INTO contacts
           (customer_id, name, email, phone, notes, tags, lead_status, job_type,
            estimated_job_value, source, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'manual', NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, 'manual', NOW(), NOW())
          RETURNING *`,
         [
           req.customerId, name, email || null, phone || null, notes || null,

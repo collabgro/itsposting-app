@@ -7,8 +7,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useTheme } from '../lib/theme';
+import Layout from '../components/Layout';
 import {
-  IpZap, IpSparkle, IpArrowLeft, IpCheck, IpRefresh,
+  IpSparkle, IpCheck, IpRefresh,
   IpEdit, IpCarousel, IpSend, IpCopy,
   IpFacebook, IpInstagram, IpGoogle, IpAllPlatforms,
 } from '../components/icons';
@@ -197,29 +198,17 @@ export default function QuickPost() {
   };
   const handleReset = () => { setResult(null); setError(''); setEditing(false); setPrompt(''); setActiveVar('a'); setTimeout(() => textareaRef.current?.focus(), 100); };
 
-  const P = '20px';
-
   return (
-    <div style={{ minHeight: '100vh', background: t.bg, color: t.text, maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
-
-      {/* Top bar */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 30, background: t.bg, borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 12, padding: `14px ${P}` }}>
-        <button onClick={() => router.back()} style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: t.card, border: `1px solid ${t.border}`, color: t.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-          <IpArrowLeft size={16} color={t.textSecondary} />
-        </button>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 700, color: t.text }}>
-            <IpZap size={15} color={t.primary} /> Quick Post
-          </div>
-          <div style={{ fontSize: 11, color: t.textMuted }}>From job site to social in 30 seconds</div>
-        </div>
+    <Layout
+      title="Quick Post"
+      subtitle="From job site to social in 30 seconds"
+      action={
         <button onClick={() => router.push('/wizard')} style={{ fontSize: 12, fontWeight: 600, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, padding: '6px 12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
           Full Wizard
         </button>
-      </div>
-
-      {/* Body */}
-      <div style={{ flex: 1, padding: `24px ${P} 72px`, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      }
+    >
+      <div style={{ maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
 
         {/* 1. Prompt */}
         <div>
@@ -376,7 +365,7 @@ export default function QuickPost() {
       </div>
 
       <style>{`@keyframes qp-spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
+    </Layout>
   );
 }
 

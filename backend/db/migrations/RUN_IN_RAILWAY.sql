@@ -371,6 +371,52 @@ ALTER TABLE customers
   ADD COLUMN IF NOT EXISTS whop_customer_id    VARCHAR(255),
   ADD COLUMN IF NOT EXISTS whop_membership_id  VARCHAR(255);
 
+-- ── SECTION: Media Library ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS media_library (
+  id                  SERIAL PRIMARY KEY,
+  customer_id         INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  cloudinary_public_id VARCHAR(500),
+  url                 TEXT NOT NULL,
+  thumbnail_url       TEXT,
+  file_name           VARCHAR(255),
+  file_type           VARCHAR(50),
+  mime_type           VARCHAR(100),
+  file_size_bytes     BIGINT    DEFAULT 0,
+  width               INTEGER,
+  height              INTEGER,
+  duration_seconds    NUMERIC,
+  folder              VARCHAR(100) DEFAULT 'all',
+  used_in_posts       INTEGER   DEFAULT 0,
+  last_used_at        TIMESTAMP,
+  uploaded_at         TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_library_customer
+  ON media_library(customer_id, uploaded_at DESC);
+CREATE INDEX IF NOT EXISTS idx_media_library_folder
+  ON media_library(customer_id, folder);
+
+-- Storage quota columns on customers
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS storage_used_bytes  BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS storage_quota_bytes BIGINT DEFAULT 10737418240;
+
+-- ── SECTION: Post Variations ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS post_variations (
+  id             SERIAL PRIMARY KEY,
+  post_id        INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  customer_id    INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  variation_key  VARCHAR(10) NOT NULL,
+  caption        TEXT,
+  hashtags       JSONB DEFAULT '[]'::jsonb,
+  image_prompt   TEXT,
+  engagement_question TEXT,
+  created_at     TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_variations_post
+  ON post_variations(post_id);
+
 COMMIT;
 
 SELECT 'Combined migration complete' AS status;
@@ -385,6 +431,6 @@ WHERE table_schema = 'public'
     'postcore_briefings', 'inbox_messages',
     'business_knowledge', 'monthly_reports',
     'posting_analytics', 'hashtag_performance',
-    'email_queue'
+    'email_queue', 'media_library', 'post_variations'
   )
 ORDER BY table_name;
