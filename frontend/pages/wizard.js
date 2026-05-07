@@ -201,7 +201,7 @@ export default function Wizard() {
   };
 
   const handleTryDifferentTone = () => {
-    setStep(2); setTone(null); setResults(null);
+    setStep(3); setTone(null); setResults(null);
   };
 
   const handleGenerate = async () => {
@@ -346,9 +346,9 @@ export default function Wizard() {
         )}
 
         {/* ─────────────────────────────────────────────────────────────────────
-            STEP 2 — What's the vibe?
+            STEP 3 — What's the vibe?
         ───────────────────────────────────────────────────────────────────── */}
-        {step === 2 && (
+        {step === 3 && (
           <div>
             <StepHeading t={t} emoji="🎭" title="What's the vibe?" sub="Choose the tone that fits your brand today" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
@@ -404,7 +404,6 @@ export default function Wizard() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24, padding: '14px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10 }}>
               <SelectionPill t={t} label={CONTENT_THEMES.find(x => x.id === theme)?.emoji + ' ' + CONTENT_THEMES.find(x => x.id === theme)?.label} />
               <SelectionPill t={t} label={TONES.find(x => x.id === tone)?.emoji + ' ' + TONES.find(x => x.id === tone)?.label} />
-              <SelectionPill t={t} label={PLATFORMS.find(x => x.id === platform)?.label} />
             </div>
 
             <div style={{ marginBottom: 20 }}>
@@ -445,8 +444,56 @@ export default function Wizard() {
               </div>
             )}
 
+            <WizardNav t={t} onBack={handleBack} onNext={handleNext} canNext={true} nextLabel="Next →" />
+          </div>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────────────────
+            STEP 5 — Where are we posting?
+        ───────────────────────────────────────────────────────────────────── */}
+        {step === 5 && (
+          <div>
+            <StepHeading t={t} emoji="📱" title="Where are we posting?" sub="PostCore will adapt the caption style for each platform" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 32 }}>
+              {PLATFORMS.map((item) => {
+                const selected = platform === item.id;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setPlatform(item.id)}
+                    style={{
+                      padding: '22px 16px', background: selected ? item.bg : t.card,
+                      border: `2px solid ${selected ? item.color : t.border}`,
+                      borderRadius: 14, cursor: 'pointer', transition: 'all 200ms ease',
+                      textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                      position: 'relative', transform: selected ? 'translateY(-2px)' : 'none',
+                      boxShadow: selected ? `0 8px 24px ${item.bg}` : 'none',
+                    }}
+                    onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = item.border; e.currentTarget.style.background = item.bg; } }}
+                    onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; } }}
+                  >
+                    {selected && (
+                      <div style={{ position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: '50%', background: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <IpCheck size={10} color="#fff" strokeWidth={3} />
+                      </div>
+                    )}
+                    <div style={{ width: 48, height: 48, borderRadius: 12, background: selected ? item.bg : t.input, border: `1px solid ${selected ? item.border : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                      <Icon size={22} style={{ color: item.color }} />
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{item.label}</div>
+                    <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>{item.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {error && (
+              <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: t.error, fontSize: 13, marginBottom: 20 }}>
+                ⚠️ {error}
+              </div>
+            )}
             <WizardNav
-              t={t} onBack={handleBack} onNext={handleNext} canNext={true}
+              t={t} onBack={handleBack} onNext={handleNext} canNext={canProceed()}
               nextLabel="✨ Generate Posts"
               nextStyle={{ background: `linear-gradient(135deg, ${t.primary}, ${t.primaryLight})`, padding: '12px 28px', fontSize: 15 }}
             />

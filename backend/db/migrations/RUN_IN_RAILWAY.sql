@@ -346,6 +346,31 @@ CREATE INDEX IF NOT EXISTS idx_suggestions_pending_notify
   ON content_suggestions(customer_id, created_at DESC)
   WHERE status = 'pending';
 
+-- ── SECTION: Email Queue ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS email_queue (
+  id             SERIAL PRIMARY KEY,
+  to_email       VARCHAR(255) NOT NULL,
+  subject        VARCHAR(255),
+  body_html      TEXT,
+  body_text      TEXT,
+  template_name  VARCHAR(100),
+  template_data  JSONB        DEFAULT '{}'::jsonb,
+  status         VARCHAR(50)  DEFAULT 'pending',
+  attempts       INTEGER      DEFAULT 0,
+  last_error     TEXT,
+  scheduled_at   TIMESTAMP    DEFAULT NOW(),
+  sent_at        TIMESTAMP,
+  created_at     TIMESTAMP    DEFAULT NOW(),
+  updated_at     TIMESTAMP    DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_email_queue_status
+  ON email_queue(status, scheduled_at);
+
+-- ── SECTION: Whop Billing Columns ────────────────────────────────────────────
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS whop_customer_id    VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS whop_membership_id  VARCHAR(255);
+
 COMMIT;
 
 SELECT 'Combined migration complete' AS status;
@@ -359,6 +384,7 @@ WHERE table_schema = 'public'
     'dm_auto_reply_rules', 'dm_sync_log',
     'postcore_briefings', 'inbox_messages',
     'business_knowledge', 'monthly_reports',
-    'posting_analytics', 'hashtag_performance'
+    'posting_analytics', 'hashtag_performance',
+    'email_queue'
   )
 ORDER BY table_name;

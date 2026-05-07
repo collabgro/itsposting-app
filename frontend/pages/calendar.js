@@ -218,7 +218,7 @@ export default function Calendar() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                           {dayPosts.slice(0, 2).map(post => {
                             const typeColor = TYPE_COLOR[post.content_type] || t.primary;
-                            const TypeIcon  = TYPE_ICON[post.content_type] || FileText;
+                            const TypeIcon  = TYPE_ICON[post.content_type] || IpDrafts;
                             const caption   = post.caption || '';
                             return (
                               <div
@@ -303,7 +303,7 @@ export default function Calendar() {
               ) : (
                 <div>
                   {selectedDayPosts.map(post => {
-                    const TypeIcon  = TYPE_ICON[post.content_type] || FileText;
+                    const TypeIcon  = TYPE_ICON[post.content_type] || IpDrafts;
                     const typeColor = TYPE_COLOR[post.content_type] || t.primary;
                     const postPlatforms = parsePlatforms(post.platforms);
 

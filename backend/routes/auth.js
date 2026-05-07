@@ -147,18 +147,6 @@ module.exports = (pool) => {
           [token, expires, email]
         );
 
-        await pool.query(
-          `INSERT INTO email_queue (to_email, subject, template_name, template_data)
-           VALUES ($1, $2, $3, $4)`,
-          [
-            email,
-            'Reset your Its Posting password',
-            'password_reset',
-            JSON.stringify({ token, resetUrl: `${process.env.FRONTEND_URL || 'https://itsposting.replit.app'}/reset-password?token=${token}` }),
-          ]
-        );
-
-        // Queue password reset email via EmailQueue
         emailQueue.notifyPasswordReset(email, token);
 
         console.log(`[DEV] Password reset token for ${email}: ${token}`);

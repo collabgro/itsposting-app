@@ -3,10 +3,10 @@ import { useRouter } from 'next/router';
 import {
   IpCheck, IpCredits, IpSparkle, IpCrown, IpBilling, IpSchedule,
   IpTrendingUp, IpArrowUpRight, IpArrowDownRight, IpWarning, IpGift,
-  IpMail, IpClose, IpCopy, IpExternalLink,
+  IpLoader, IpExternalLink,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Badge } from '../components/ui';
+import { Card, Button } from '../components/ui';
 import { useTheme } from '../lib/theme';
 
 const PLAN_ICONS = { trial: IpGift, starter: IpCredits, professional: IpSparkle, premium: IpCrown };
@@ -28,7 +28,7 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString();
 }
 
-const CONTACT_EMAIL = 'collabgroo@gmail.com';
+const YEARLY_DISCOUNT = 0.20; // 20% off for annual billing
 
 export default function Billing() {
   const router = useRouter();
@@ -38,8 +38,8 @@ export default function Billing() {
   const [current, setCurrent] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [upgradeModal, setUpgradeModal] = useState(null); // plan object
-  const [copied, setCopied] = useState('');
+  const [cycle, setCycle] = useState('monthly'); // 'monthly' | 'yearly'
+  const [checkingOut, setCheckingOut] = useState(null); // plan id being checked out
 
   useEffect(() => {
     setMounted(true);
@@ -65,10 +65,20 @@ export default function Billing() {
     }
   };
 
-  const handleCopy = (text, key) => {
-    navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(''), 2000);
+  const handleUpgrade = async (plan) => {
+    setCheckingOut(plan.id);
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+      const res = await fetch(`/api/billing/checkout-link?plan=${plan.id}&cycle=${cycle}`, { headers });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+    } finally {
+      setCheckingOut(null);
+    }
   };
 
   if (!mounted) return null;
@@ -78,6 +88,7 @@ export default function Billing() {
       <Layout title="Plans & Billing">
         <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
           <div style={{ width: 36, height: 36, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       </Layout>
     );
@@ -95,10 +106,10 @@ export default function Billing() {
   const isTrial = current?.currentPlan?.id === 'trial';
   const nonTrialPlans = plans.filter(p => p.id !== 'trial');
 
-  const emailSubject = upgradeModal ? `Upgrade to ${upgradeModal.name} Plan - Its Posting` : '';
-  const emailBody = upgradeModal
-    ? `Hi,\n\nI'd like to upgrade my account to the ${upgradeModal.name} plan ($${upgradeModal.price}/month).\n\nMy account email: [your email]\nBusiness name: [your business name]\n\nPlease activate the upgrade at your earliest convenience.\n\nThank you!`
-    : '';
+  const displayPrice = (plan) => {
+    if (cycle === 'yearly') return Math.round(plan.price * (1 - YEARLY_DISCOUNT));
+    return plan.price;
+  };
 
   return (
     <Layout title="Plans & Billing" subtitle="Manage your subscription and credit usage">
@@ -132,13 +143,18 @@ export default function Billing() {
               </div>
             </div>
 
-            {/* Trial countdown */}
             {isTrial && trialDaysLeft !== null && (
               <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(255,255,255,0.15)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <IpSchedule size={14} />
                 <span style={{ fontSize: 13, fontWeight: 600 }}>
                   {trialDaysLeft === 0 ? 'Trial ends today' : `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left on trial`}
                 </span>
+              </div>
+            )}
+
+            {current?.hasActiveMembership && (
+              <div style={{ marginTop: 16, padding: '8px 14px', background: 'rgba(255,255,255,0.15)', borderRadius: 10, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <IpCheck size={12} /> Active Whop subscription
               </div>
             )}
           </div>
@@ -186,22 +202,49 @@ export default function Billing() {
           </Card>
         </div>
 
-        {/* ── PLAN CARDS ─────────────────────────────────────────────── */}
-        <div style={{ marginBottom: 8 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, margin: '0 0 4px' }}>
-            {isTrial ? 'Choose a plan to get started' : 'Available plans'}
-          </h3>
-          <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 16px' }}>
-            Select a plan and we&apos;ll activate it for you within 1-2 hours.
-          </p>
+        {/* ── BILLING CYCLE TOGGLE ──────────────────────────────────── */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, margin: '0 0 4px' }}>
+              {isTrial ? 'Choose a plan to get started' : 'Available plans'}
+            </h3>
+            <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
+              Payments processed securely by Whop. Cancel anytime.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, padding: 4, gap: 4 }}>
+            {['monthly', 'yearly'].map((c) => (
+              <button
+                key={c}
+                onClick={() => setCycle(c)}
+                style={{
+                  padding: '7px 16px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                  fontSize: 13, fontWeight: 600, transition: 'all 150ms',
+                  background: cycle === c ? t.primary : 'transparent',
+                  color: cycle === c ? '#fff' : t.textMuted,
+                }}
+              >
+                {c === 'monthly' ? 'Monthly' : 'Yearly'}
+                {c === 'yearly' && (
+                  <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, background: 'rgba(34,197,94,0.2)', color: '#22C55E', padding: '2px 6px', borderRadius: 4 }}>
+                    -20%
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* ── PLAN CARDS ─────────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
           {nonTrialPlans.map(plan => {
             const isCurrent = current?.currentPlan?.id === plan.id;
             const isDowngrade = !isTrial && !isCurrent &&
               (nonTrialPlans.findIndex(p => p.id === plan.id) < nonTrialPlans.findIndex(p => p.id === current?.currentPlan?.id));
-            const PlanIcon = PLAN_ICONS[plan.id] || Zap;
+            const PlanIcon = PLAN_ICONS[plan.id] || IpCredits;
+            const isCheckingOut = checkingOut === plan.id;
+            const price = displayPrice(plan);
 
             return (
               <div
@@ -236,9 +279,14 @@ export default function Billing() {
                 <PlanIcon size={20} style={{ color: t.primary, marginBottom: 10 }} />
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, margin: '0 0 4px' }}>{plan.name}</h3>
 
-                <div style={{ marginBottom: 14 }}>
-                  <span style={{ fontSize: 30, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>${plan.price}</span>
+                <div style={{ marginBottom: 4 }}>
+                  <span style={{ fontSize: 30, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>${price}</span>
                   <span style={{ color: t.textMuted, fontSize: 13 }}> / mo</span>
+                  {cycle === 'yearly' && (
+                    <span style={{ display: 'block', fontSize: 11, color: t.textMuted, marginTop: 2 }}>
+                      billed annually · <span style={{ textDecoration: 'line-through' }}>${plan.price}/mo</span>
+                    </span>
+                  )}
                 </div>
 
                 <div style={{ background: t.input, padding: '10px 12px', borderRadius: 8, marginBottom: 14, border: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -256,16 +304,20 @@ export default function Billing() {
                 </ul>
 
                 <Button
-                  onClick={() => !isCurrent && !isDowngrade && setUpgradeModal(plan)}
-                  disabled={isCurrent || isDowngrade}
+                  onClick={() => !isCurrent && !isDowngrade && handleUpgrade(plan)}
+                  disabled={isCurrent || isDowngrade || !!checkingOut}
                   variant={isCurrent ? 'secondary' : plan.popular ? 'primary' : 'secondary'}
-                  style={{ width: '100%', justifyContent: 'center', padding: '11px' }}
+                  style={{ width: '100%', justifyContent: 'center', padding: '11px', gap: 6 }}
                 >
-                  {isCurrent
-                    ? <><IpCheck size={13} strokeWidth={3} /> Current plan</>
-                    : isDowngrade
-                    ? 'Contact us to downgrade'
-                    : <><IpMail size={13} /> Request upgrade</>}
+                  {isCurrent ? (
+                    <><IpCheck size={13} strokeWidth={3} /> Current plan</>
+                  ) : isDowngrade ? (
+                    'Contact us to downgrade'
+                  ) : isCheckingOut ? (
+                    <><IpLoader size={13} /> Redirecting...</>
+                  ) : (
+                    <><IpExternalLink size={13} /> Upgrade Now</>
+                  )}
                 </Button>
               </div>
             );
@@ -331,70 +383,8 @@ export default function Billing() {
           )}
         </Card>
 
-        {/* Footer note */}
-        <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(124,92,252,0.06)', border: '1px solid rgba(124,92,252,0.2)', borderRadius: 8, fontSize: 12, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <IpMail size={13} style={{ color: t.primary, flexShrink: 0 }} />
-          Upgrades are activated manually within 1-2 hours after you email us at <strong style={{ color: t.primary, margin: '0 4px' }}>{CONTACT_EMAIL}</strong>
-        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
-
-      {/* ── UPGRADE MODAL ──────────────────────────────────────────── */}
-      {upgradeModal && (
-        <div
-          onClick={() => setUpgradeModal(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, width: '100%', maxWidth: 500, overflow: 'hidden' }}
-          >
-            {/* Header */}
-            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: t.text, margin: 0 }}>Upgrade to {upgradeModal.name}</h2>
-                <p style={{ fontSize: 13, color: t.textMuted, margin: '4px 0 0' }}>${upgradeModal.price}/month · {upgradeModal.credits} credits</p>
-              </div>
-              <button onClick={() => setUpgradeModal(null)} style={{ width: 32, height: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textMuted }}>
-                <IpClose size={16} />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div style={{ padding: 24 }}>
-              <div style={{ padding: 16, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <IpMail size={16} style={{ color: t.primary }} />
-                  <span style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Send an email to activate</span>
-                </div>
-                <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 12px', lineHeight: 1.6 }}>
-                  We process upgrades manually and activate them within <strong style={{ color: t.text }}>1-2 hours</strong>. Simply send us an email and we&apos;ll take care of the rest.
-                </p>
-                <div style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.8 }}>
-                  <div style={{ marginBottom: 4 }}><strong style={{ color: t.text }}>To:</strong> {CONTACT_EMAIL}</div>
-                  <div style={{ marginBottom: 4 }}><strong style={{ color: t.text }}>Subject:</strong> {emailSubject}</div>
-                  <div><strong style={{ color: t.text }}>Include:</strong> Your registered email + business name</div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 10 }}>
-                <a
-                  href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`}
-                  style={{ flex: 1, padding: '11px 0', background: t.primary, color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 700, textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                >
-                  <IpExternalLink size={13} /> Open Email App
-                </a>
-                <button
-                  onClick={() => handleCopy(CONTACT_EMAIL, 'email')}
-                  style={{ padding: '11px 16px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, color: t.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                >
-                  <IpCopy size={13} />
-                  {copied === 'email' ? 'Copied!' : 'Copy Email'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </Layout>
   );
 }
