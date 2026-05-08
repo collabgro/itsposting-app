@@ -364,6 +364,22 @@ RESEND_API_KEY
 - Always verify webhook signature before processing any event
 - Always return 200 OK to Lemon Squeezy (even on errors — log, don't reject)
 
+### Trial Rate Limiting (IP-Based)
+- Max 2 trial account registrations per IP address, enforced in `backend/routes/auth.js`
+- Table: `trial_ip_registrations` (ip_address VARCHAR(45), customer_id, created_at)
+- Use x-forwarded-for header first (Railway uses proxies), fallback to req.ip
+- Return 429 with human-readable message: "Trial limit reached for this network. Please contact support to upgrade your plan."
+- IP check wrapped in try/catch — skips silently if table doesn't exist yet (migration safety)
+
+### Generated Media Validation
+- ALL NanoBanana images and HeyGen videos must pass validation before being used:
+  - HTTP status 200 from the URL
+  - File size > 10KB and < 10MB (checked via Content-Length header)
+- On validation failure: retry once → imageFailed: true in response (caption-only mode)
+- Validation is ONLY for media files — NOT for captions, hashtags, or engagement questions
+- Caption quality control comes from the customer's [Regenerate Image] button and Claude's prompt
+- The validateMedia() helper lives in `backend/routes/wizard.js` and is reused by all wizard endpoints
+
 ---
 
 ## THE INDUSTRY KNOWLEDGE SYSTEM
