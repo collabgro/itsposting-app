@@ -48,6 +48,24 @@ pool.query('SELECT NOW()', (err, res) => {
   else console.log('✅ Database connected at', res.rows[0].now);
 });
 
+// Startup schema migrations — safe to re-run (IF NOT EXISTS / IF NOT column already)
+(async () => {
+  const migrations = [
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS video_job_id VARCHAR(255)`,
+    `CREATE TABLE IF NOT EXISTS trial_ip_registrations (
+      id SERIAL PRIMARY KEY,
+      ip_address VARCHAR(45) NOT NULL,
+      customer_id INTEGER REFERENCES customers(id),
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_trial_ip ON trial_ip_registrations(ip_address)`,
+  ];
+  for (const sql of migrations) {
+    try { await pool.query(sql); }
+    catch (e) { console.warn('[Migration] Skipped:', e.message.substring(0, 80)); }
+  }
+})();
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 

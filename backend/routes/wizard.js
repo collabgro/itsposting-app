@@ -58,6 +58,28 @@ try {
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ─────────────────────────────────────────────────────────────
+// JSON repair — fixes literal newlines inside string values
+// Claude sometimes outputs actual \n characters inside JSON strings
+// (especially in videoScript / imagePrompt fields), breaking JSON.parse
+// ─────────────────────────────────────────────────────────────
+function repairJSON(str) {
+  let inString = false;
+  let escaped = false;
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (escaped) { escaped = false; result += ch; continue; }
+    if (ch === '\\') { escaped = true; result += ch; continue; }
+    if (ch === '"') { inString = !inString; result += ch; continue; }
+    if (inString && ch === '\n') { result += '\\n'; continue; }
+    if (inString && ch === '\r') { continue; }
+    if (inString && ch === '\t') { result += '\\t'; continue; }
+    result += ch;
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Media validation — sanity checks before sending URL to frontend
 // Catches corrupt/missing NanoBanana and HeyGen outputs
 // ─────────────────────────────────────────────────────────────
@@ -549,7 +571,7 @@ module.exports = (pool) => {
       try {
         claudeResponse = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 2500,
+          max_tokens: 4000,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         });
@@ -584,24 +606,19 @@ module.exports = (pool) => {
         cleaned = cleaned.substring(firstBrace, lastBrace + 1);
 
         try {
-          parsed = JSON.parse(cleaned);
+          parsed = JSON.parse(repairJSON(cleaned));
         } catch (jsonErr) {
-          // Last resort: return a single hardcoded variation so user never sees an error
-          console.error('[Wizard] JSON parse failed, using fallback:', jsonErr.message);
-          parsed = {
-            variation_a: {
-              caption: rawText.substring(0, 500).replace(/[{}[\]"]/g, '') || 'PostCore is warming up. Please try again.',
-              engagementQuestion: 'What do you think?',
-            },
-            variation_b: {
-              caption: 'Try generating again for more variations.',
-              engagementQuestion: 'Have questions? Drop them below!',
-            },
-            variation_c: {
-              caption: 'PostCore is ready — try one more time for best results.',
-              engagementQuestion: 'What would you like to know?',
-            },
-          };
+          // repairJSON handled newlines — if we still fail, try plain parse as last resort
+          try {
+            parsed = JSON.parse(cleaned);
+          } catch (jsonErr2) {
+            console.error('[Wizard] JSON parse failed after repair:', jsonErr2.message, '| First 200 chars:', cleaned.substring(0, 200));
+            parsed = {
+              variation_a: { caption: 'PostCore hit a snag generating this post. Please try again.', engagementQuestion: 'What would you like to know?' },
+              variation_b: { caption: 'Try generating again for a fresh set of variations.', engagementQuestion: 'Have questions? Drop them below!' },
+              variation_c: { caption: 'PostCore is ready — one more try usually does the trick.', engagementQuestion: 'What do you think?' },
+            };
+          }
         }
       } catch (parseErr) {
         console.error('[Wizard] Failed to parse Claude response:', parseErr);
@@ -712,8 +729,11 @@ module.exports = (pool) => {
       }
 
       // ── HeyGen async kick-off for video posts ────────────────────────────────
-      let videoJobId = null;
-      if (HeyGenService && answers.contentTypeSelection === 'video') {
+      // videoRendering: true signals the frontend to poll /api/wizard/video-poll/:postId
+      // We do NOT use a 'pending' sentinel as the videoJobId because the polling
+      // endpoint would search for video_job_id='pending' in the DB and find nothing.
+      let videoRendering = false;
+      if (HeyGenService && process.env.HEYGEN_API_KEY && answers.contentTypeSelection === 'video') {
         const heyGen = new HeyGenService();
         const videoScript = parsed.variation_a?.videoScript || transformedVariations.A.caption;
         heyGen.createVideo(session.customer, videoScript)
@@ -726,7 +746,7 @@ module.exports = (pool) => {
             }
           })
           .catch(err => console.error('[Wizard] HeyGen createVideo error:', err.message));
-        videoJobId = 'pending';
+        videoRendering = true;
       }
 
       let savedPostId = null;
@@ -786,7 +806,8 @@ module.exports = (pool) => {
         mediaUrl,
         mediaVariants,
         imageFailed,
-        videoJobId,
+        videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
+        videoJobId: null, // kept for backward compat but no longer 'pending'
         bestTimeToPost: 'morning',
         contentType: answers.contentType,
         contentTypeSelection: answers.contentTypeSelection,
@@ -847,6 +868,59 @@ module.exports = (pool) => {
     } catch (err) {
       console.error('[Wizard] video-status error:', err.message);
       res.status(500).json({ error: 'Failed to check video status' });
+    }
+  });
+
+  // GET /api/wizard/video-poll/:postId — poll video rendering status by post ID
+  // More reliable than video-status/:videoId because we use postId (always available)
+  // and look up the HeyGen video_job_id from the post record ourselves.
+  router.get('/video-poll/:postId', authenticate, async (req, res) => {
+    try {
+      const { postId } = req.params;
+      const customerId = req.customerId;
+
+      let post;
+      try {
+        const result = await pool.query(
+          `SELECT video_job_id, media_url FROM posts WHERE id = $1 AND customer_id = $2`,
+          [postId, customerId]
+        );
+        if (result.rows.length === 0) return res.status(403).json({ error: 'Not authorized' });
+        post = result.rows[0];
+      } catch (dbErr) {
+        // video_job_id column may not exist yet — treat as still processing
+        console.warn('[Wizard] video-poll DB error (column may not exist):', dbErr.message);
+        return res.json({ status: 'processing' });
+      }
+
+      // Already completed (media_url was saved after HeyGen finished)
+      if (post.media_url) {
+        return res.json({ status: 'completed', videoUrl: post.media_url });
+      }
+
+      // HeyGen hasn't responded yet or service isn't configured
+      if (!post.video_job_id || !HeyGenService) {
+        return res.json({ status: 'processing' });
+      }
+
+      // Have a real HeyGen video ID — check its status
+      const heyGen = new HeyGenService();
+      const { status, videoUrl } = await heyGen.checkVideoStatus(post.video_job_id);
+
+      if (status === 'completed' && videoUrl) {
+        try {
+          await validateMedia(videoUrl);
+          await pool.query(`UPDATE posts SET media_url = $1 WHERE id = $2`, [videoUrl, postId]);
+        } catch (valErr) {
+          console.warn('[Wizard] Video validation failed:', valErr.message);
+          return res.json({ status: 'failed', videoUrl: null });
+        }
+      }
+
+      return res.json({ status, videoUrl: videoUrl || null });
+    } catch (err) {
+      console.error('[Wizard] video-poll error:', err.message);
+      return res.json({ status: 'processing' }); // don't error — just retry next poll
     }
   });
 

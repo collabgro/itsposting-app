@@ -195,23 +195,35 @@ export default function Wizard() {
     return () => clearInterval(loadingInterval.current);
   }, [step]); // contentType/industry don't change during loading so no stale closure issue
 
-  // Video polling — fires every 6s when a video job is pending
+  // Video polling — fires every 6s while videoRendering is true
+  // Uses /video-poll/:postId which looks up the HeyGen job ID from the post record
+  // Times out after 10 minutes (100 polls) — HeyGen videos take 2-5 min typically
   useEffect(() => {
-    if (!results?.videoJobId || results.videoJobId === 'completed' || results.videoJobId === 'failed') return;
+    if (!results?.videoRendering || results.videoRendering === 'completed' || results.videoRendering === 'failed') return;
+    if (!results?.postId) return;
+    let pollCount = 0;
+    const MAX_POLLS = 100; // 100 × 6s = 10 minutes
     const interval = setInterval(async () => {
+      pollCount++;
+      if (pollCount > MAX_POLLS) {
+        setResults(r => ({ ...r, videoRendering: 'failed', imageFailed: true }));
+        clearInterval(interval);
+        return;
+      }
       try {
-        const { status, videoUrl } = await apiGet(`/api/wizard/video-status/${results.videoJobId}`);
+        const { status, videoUrl } = await apiGet(`/api/wizard/video-poll/${results.postId}`);
         if (status === 'completed' && videoUrl) {
-          setResults(r => ({ ...r, mediaUrl: videoUrl, videoJobId: 'completed' }));
+          setResults(r => ({ ...r, mediaUrl: videoUrl, videoRendering: 'completed' }));
           clearInterval(interval);
         } else if (status === 'failed') {
-          setResults(r => ({ ...r, videoJobId: 'failed', imageFailed: true }));
+          setResults(r => ({ ...r, videoRendering: 'failed', imageFailed: true }));
           clearInterval(interval);
         }
-      } catch { /* polling errors are silent */ }
+        // 'processing' → keep polling
+      } catch { /* polling errors are silent — retry next tick */ }
     }, 6000);
     return () => clearInterval(interval);
-  }, [results?.videoJobId]);
+  }, [results?.videoRendering, results?.postId]);
 
   const canProceed = () => {
     if (step === 1) return !!contentType;
@@ -649,13 +661,13 @@ export default function Wizard() {
 
                 {/* Media display */}
                 <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, aspectRatio: '4/5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                  {results.mediaUrl && results.videoJobId !== 'pending' ? (
+                  {results.mediaUrl && results.videoRendering !== true ? (
                     results.contentTypeSelection === 'video' ? (
                       <video src={results.mediaUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <img src={results.mediaUrl} alt="Generated post" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     )
-                  ) : results.videoJobId === 'pending' ? (
+                  ) : (results.videoRendering === true || (results.videoRendering && results.videoRendering !== 'completed' && results.videoRendering !== 'failed')) ? (
                     <div style={{ textAlign: 'center', padding: 24 }}>
                       <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${t.primary}`, borderTopColor: 'transparent', margin: '0 auto 12px', animation: 'spin 1s linear infinite' }} />
                       <div style={{ fontSize: 13, color: t.textMuted }}>Video rendering...</div>
