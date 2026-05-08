@@ -1,42 +1,41 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
-  IpJobDone, IpTip, IpReview, IpPromotion, IpSeasonal, IpCommunity,
-  IpFAQ, IpTeam, IpBriefcase,
   IpCredits, IpFacebook, IpInstagram, IpGoogle,
   IpArrowLeft, IpArrowRight, IpRefresh, IpCopy,
   IpCheck, IpEdit, IpSparkle, IpChevronRight,
 } from '../components/icons';
+import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
 const CONTENT_TYPES = [
-  { id: 'static',   emoji: '📝', label: 'Text Post',      desc: 'Simple text with image', credits: 1 },
-  { id: 'photo',    emoji: '📸', label: 'Photo Post',     desc: 'Single image with caption', credits: 3 },
-  { id: 'carousel', emoji: '📱', label: 'Carousel',       desc: 'Multiple slides in one post', credits: 5 },
-  { id: 'video',    emoji: '🎥', label: 'Video',          desc: 'AI-generated video content', credits: 10 },
+  { id: 'static',   icon: 'text_post',  label: 'Text Post',      desc: 'Simple text with image', credits: 1 },
+  { id: 'photo',    icon: 'photo_post', label: 'Photo Post',     desc: 'Single image with caption', credits: 3 },
+  { id: 'carousel', icon: 'carousel',   label: 'Carousel',       desc: 'Multiple slides in one post', credits: 5 },
+  { id: 'video',    icon: 'video',      label: 'Video',          desc: 'AI-generated video content', credits: 10 },
 ];
 
 // ── Step 2: Content Theme (Trigger) ──────────────────────────────────────────
 const CONTENT_THEMES = [
-  { id: 'just_finished_job',      emoji: '🔨', label: 'Just finished a job',     desc: 'Show off a completed project' },
-  { id: 'share_tip',              emoji: '💡', label: 'Want to share a tip',      desc: 'Teach your audience something' },
-  { id: 'got_review',             emoji: '⭐', label: 'Got a great review',       desc: 'Showcase customer love' },
-  { id: 'running_promo',          emoji: '📅', label: 'Running a promotion',      desc: 'Announce an offer or deal' },
-  { id: 'seasonal',               emoji: '🌤️', label: 'Seasonal content',         desc: null },
-  { id: 'community',              emoji: '🏘️', label: 'Community / local event',  desc: 'Connect with your neighborhood' },
-  { id: 'faq',                    emoji: '❓', label: 'FAQ or myth-busting',      desc: 'Answer what customers always ask' },
-  { id: 'team_spotlight',         emoji: '🎉', label: 'Team spotlight',           desc: 'Put a face to your business' },
+  { id: 'just_finished_job',  icon: 'job_finished',   label: 'Just finished a job',    desc: 'Show off a completed project' },
+  { id: 'share_tip',          icon: 'share_tip',      label: 'Want to share a tip',     desc: 'Teach your audience something' },
+  { id: 'got_review',         icon: 'got_review',     label: 'Got a great review',      desc: 'Showcase customer love' },
+  { id: 'running_promo',      icon: 'promotion',      label: 'Running a promotion',     desc: 'Announce an offer or deal' },
+  { id: 'seasonal',           icon: 'seasonal',       label: 'Seasonal content',        desc: null },
+  { id: 'community',          icon: 'community',      label: 'Community / local event', desc: 'Connect with your neighborhood' },
+  { id: 'faq',                icon: 'faq',            label: 'FAQ or myth-busting',     desc: 'Answer what customers always ask' },
+  { id: 'team_spotlight',     icon: 'team_spotlight', label: 'Team spotlight',          desc: 'Put a face to your business' },
 ];
 
 // ── Step 3: Tone ──────────────────────────────────────────────────────────────
 const TONES = [
-  { id: 'friendly',     emoji: '😊', label: 'Friendly & casual',         desc: 'Warm, approachable, conversational' },
-  { id: 'professional', emoji: '💼', label: 'Professional & trustworthy', desc: 'Polished, credible, authoritative' },
-  { id: 'funny',        emoji: '😄', label: 'Funny & relatable',         desc: 'Light-hearted, witty, human' },
-  { id: 'educational',  emoji: '📚', label: 'Educational & expert',      desc: 'Informative, detailed, insightful' },
-  { id: 'urgent',       emoji: '🔥', label: 'Urgent & must-act-now',     desc: 'Compelling, time-sensitive, direct' },
+  { id: 'friendly',     icon: 'friendly',     label: 'Friendly & casual',          desc: 'Warm, approachable, conversational' },
+  { id: 'professional', icon: 'professional', label: 'Professional & trustworthy',  desc: 'Polished, credible, authoritative' },
+  { id: 'funny',        icon: 'funny',        label: 'Funny & relatable',           desc: 'Light-hearted, witty, human' },
+  { id: 'educational',  icon: 'educational',  label: 'Educational & expert',        desc: 'Informative, detailed, insightful' },
+  { id: 'urgent',       icon: 'urgent',       label: 'Urgent & must-act-now',       desc: 'Compelling, time-sensitive, direct' },
 ];
 
 // ── Step 4: Details ──────────────────────────────────────────────────────────
@@ -304,13 +303,13 @@ export default function Wizard() {
         ───────────────────────────────────────────────────────────────────── */}
         {step === 1 && (
           <div>
-            <StepHeading t={t} emoji="📝" title="What type of post?" sub="Choose the format that works best for your content" />
+            <StepHeading t={t} icon="text_post" title="What type of post?" sub="Choose the format that works best for your content" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 32 }}>
               {CONTENT_TYPES.map((item) => {
                 const selected = contentType === item.id;
                 return (
                   <ThemeCard key={item.id} selected={selected} onClick={() => setContentType(item.id)} t={t}>
-                    <div style={{ fontSize: 32, marginBottom: 10, lineHeight: 1 }}>{item.emoji}</div>
+                    <div style={{ marginBottom: 10 }}><Icon name={item.icon} size={32} color={selected ? '#7C5CFC' : undefined} /></div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{item.label}</div>
                     <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>{item.desc}</div>
                     <div style={{ fontSize: 10, color: t.primary, fontWeight: 600, marginTop: 6 }}>{item.credits} credit{item.credits !== 1 ? 's' : ''}</div>
@@ -327,14 +326,14 @@ export default function Wizard() {
         ───────────────────────────────────────────────────────────────────── */}
         {step === 2 && (
           <div>
-            <StepHeading t={t} emoji="✨" title="What's happening today?" sub="Pick the type of post you want to create" />
+            <StepHeading t={t} icon="sparkles" title="What's happening today?" sub="Pick the type of post you want to create" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 32 }}>
               {CONTENT_THEMES.map((item) => {
                 const selected = theme === item.id;
                 const desc = item.id === 'seasonal' ? getSeasonalDesc() : item.desc;
                 return (
                   <ThemeCard key={item.id} selected={selected} onClick={() => setTheme(item.id)} t={t}>
-                    <div style={{ fontSize: 32, marginBottom: 10, lineHeight: 1 }}>{item.emoji}</div>
+                    <div style={{ marginBottom: 10 }}><Icon name={item.icon} size={32} color={selected ? '#7C5CFC' : undefined} /></div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{item.label}</div>
                     <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>{desc}</div>
                   </ThemeCard>
@@ -350,7 +349,7 @@ export default function Wizard() {
         ───────────────────────────────────────────────────────────────────── */}
         {step === 3 && (
           <div>
-            <StepHeading t={t} emoji="🎭" title="What's the vibe?" sub="Choose the tone that fits your brand today" />
+            <StepHeading t={t} icon="friendly" title="What's the vibe?" sub="Choose the tone that fits your brand today" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
               {TONES.map((item) => {
                 const selected = tone === item.id;
@@ -372,9 +371,8 @@ export default function Wizard() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       background: selected ? t.primaryBg : t.input,
                       border: `1px solid ${selected ? t.primaryBorder : t.border}`,
-                      fontSize: 24,
                     }}>
-                      {item.emoji}
+                      <Icon name={item.icon} size={24} color={selected ? '#7C5CFC' : undefined} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 3 }}>{item.label}</div>
@@ -398,12 +396,12 @@ export default function Wizard() {
         ───────────────────────────────────────────────────────────────────── */}
         {step === 4 && (
           <div>
-            <StepHeading t={t} emoji="✏️" title="Add any details" sub="Optional — but the more context you give PostCore, the better the posts" />
+            <StepHeading t={t} icon="edit" title="Add any details" sub="Optional — but the more context you give PostCore, the better the posts" />
 
             {/* Summary pills */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24, padding: '14px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10 }}>
-              <SelectionPill t={t} label={CONTENT_THEMES.find(x => x.id === theme)?.emoji + ' ' + CONTENT_THEMES.find(x => x.id === theme)?.label} />
-              <SelectionPill t={t} label={TONES.find(x => x.id === tone)?.emoji + ' ' + TONES.find(x => x.id === tone)?.label} />
+              <SelectionPill t={t} icon={CONTENT_THEMES.find(x => x.id === theme)?.icon} label={CONTENT_THEMES.find(x => x.id === theme)?.label || ''} />
+              <SelectionPill t={t} icon={TONES.find(x => x.id === tone)?.icon} label={TONES.find(x => x.id === tone)?.label || ''} />
             </div>
 
             <div style={{ marginBottom: 20 }}>
@@ -439,8 +437,8 @@ export default function Wizard() {
             </div>
 
             {error && (
-              <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: t.error, fontSize: 13, marginBottom: 20 }}>
-                ⚠️ {error}
+              <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: t.error, fontSize: 13, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="warning" size={15} color="#EF4444" /> {error}
               </div>
             )}
 
@@ -453,7 +451,7 @@ export default function Wizard() {
         ───────────────────────────────────────────────────────────────────── */}
         {step === 5 && (
           <div>
-            <StepHeading t={t} emoji="📱" title="Where are we posting?" sub="PostCore will adapt the caption style for each platform" />
+            <StepHeading t={t} icon="all_platforms" title="Where are we posting?" sub="PostCore will adapt the caption style for each platform" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 32 }}>
               {PLATFORMS.map((item) => {
                 const selected = platform === item.id;
@@ -488,8 +486,8 @@ export default function Wizard() {
               })}
             </div>
             {error && (
-              <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: t.error, fontSize: 13, marginBottom: 20 }}>
-                ⚠️ {error}
+              <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: t.error, fontSize: 13, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="warning" size={15} color="#EF4444" /> {error}
               </div>
             )}
             <WizardNav
@@ -568,7 +566,7 @@ export default function Wizard() {
 
             {results.imagePrompt && (
               <div style={{ padding: '16px 20px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, marginBottom: 28 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>📸 Image Prompt Suggestion</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="image" size={12} color={t.textMuted} /> Image Prompt Suggestion</div>
                 <div style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.5 }}>{results.imagePrompt}</div>
               </div>
             )}
@@ -595,10 +593,12 @@ export default function Wizard() {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function StepHeading({ t, emoji, title, sub }) {
+function StepHeading({ t, icon, title, sub }) {
   return (
     <div style={{ marginBottom: 28 }}>
-      <div style={{ fontSize: 32, marginBottom: 8 }}>{emoji}</div>
+      <div style={{ marginBottom: 12 }}>
+        <Icon name={icon} size={32} color={t.primary} />
+      </div>
       <h2 style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: '-0.03em', marginBottom: 6 }}>{title}</h2>
       <p style={{ fontSize: 14, color: t.textMuted }}>{sub}</p>
     </div>
@@ -630,9 +630,10 @@ function ThemeCard({ selected, onClick, t, children }) {
   );
 }
 
-function SelectionPill({ t, label }) {
+function SelectionPill({ t, icon, label }) {
   return (
-    <span style={{ padding: '4px 12px', borderRadius: 20, background: t.card, border: `1px solid ${t.primaryBorder}`, fontSize: 12, fontWeight: 600, color: t.primary }}>
+    <span style={{ padding: '4px 12px', borderRadius: 20, background: t.card, border: `1px solid ${t.primaryBorder}`, fontSize: 12, fontWeight: 600, color: t.primary, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      {icon && <Icon name={icon} size={12} color={t.primary} />}
       {label}
     </span>
   );
@@ -711,7 +712,7 @@ function VariationCard({ label, variation, t, copiedId, onCopy, onUse, selected,
       {/* Engagement question */}
       {variation.engagementQuestion && (
         <div style={{ padding: '12px 20px', background: 'rgba(234,179,8,0.08)', borderBottom: `1px solid ${t.border}`, borderLeft: '3px solid #EAB308' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#EAB308', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>💬 Engagement Question</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#EAB308', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="message" size={12} color="#EAB308" /> Engagement Question</div>
           <div style={{ fontSize: 13, color: t.text, fontStyle: 'italic' }}>{variation.engagementQuestion}</div>
         </div>
       )}
@@ -733,7 +734,7 @@ function VariationCard({ label, variation, t, copiedId, onCopy, onUse, selected,
       {/* Image prompt */}
       {variation.imagePrompt && (
         <div style={{ padding: '12px 20px', borderBottom: `1px solid ${t.border}` }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>📸 Image Prompt</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="image" size={12} color={t.textMuted} /> Image Prompt</div>
           <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.5, fontStyle: 'italic' }}>{variation.imagePrompt}</div>
         </div>
       )}
