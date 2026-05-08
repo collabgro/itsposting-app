@@ -16,10 +16,28 @@
  */
 
 const express = require('express');
+const https = require('https');
+const http = require('http');
 const { v4: uuidv4 } = require('uuid');
 const Anthropic = require('@anthropic-ai/sdk');
 const { authenticate } = require('../middleware/auth');
 const SystemPromptBuilder = require('../services/SystemPromptBuilder');
+
+let NanoBananaService;
+try {
+  NanoBananaService = require('../services/NanoBananaService');
+} catch {
+  NanoBananaService = null;
+  console.warn('[Wizard] NanoBananaService not found — image generation disabled');
+}
+
+let ImageResizer;
+try {
+  ImageResizer = require('../services/ImageResizer');
+} catch {
+  ImageResizer = null;
+  console.warn('[Wizard] ImageResizer not found — platform variants disabled');
+}
 
 let industryKnowledge;
 try {
@@ -30,6 +48,25 @@ try {
 }
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ─────────────────────────────────────────────────────────────
+// Media validation — sanity checks before sending URL to frontend
+// Catches corrupt/missing NanoBanana and HeyGen outputs
+// ─────────────────────────────────────────────────────────────
+function validateMedia(url) {
+  return new Promise((resolve, reject) => {
+    const lib = url.startsWith('https') ? https : http;
+    lib.get(url, (res) => {
+      const status = res.statusCode;
+      const len = parseInt(res.headers['content-length'] || '0', 10);
+      res.resume(); // drain response body
+      if (status !== 200) return reject(new Error(`Media URL returned ${status}`));
+      if (len > 0 && len < 10240) return reject(new Error(`Media too small (${len} bytes) — likely corrupt`));
+      if (len > 10 * 1024 * 1024) return reject(new Error(`Media too large (${len} bytes)`));
+      resolve();
+    }).on('error', reject);
+  });
+}
 
 // ─────────────────────────────────────────────────────────────
 // In-memory wizard sessions
@@ -585,13 +622,75 @@ module.exports = (pool) => {
         return res.status(502).json({ error: 'Invalid AI response structure. Please try again.' });
       }
 
+      // ── Media orchestration (NanoBanana images) ──────────────────────────────
+      let mediaUrl = null;
+      let mediaVariants = {};
+      let imageFailed = false;
+      const imagePromptForGen = parsed.imagePrompt || parsed.variation_a?.imagePrompt || '';
+      const contentTypeForMedia = answers.contentTypeSelection;
+
+      if (NanoBananaService && imagePromptForGen && (contentTypeForMedia === 'photo' || contentTypeForMedia === 'carousel')) {
+        const nanoBanana = new NanoBananaService();
+
+        const attemptImageGen = async (prompt) => {
+          const result = await nanoBanana.generateFromPrompt(session.customer, prompt);
+          await validateMedia(result.url);
+          return result;
+        };
+
+        try {
+          if (contentTypeForMedia === 'carousel') {
+            const slideList = parsed.carouselSlides || parsed.variation_a?.slides || [];
+            const slideResults = [];
+            for (const slide of slideList) {
+              try {
+                const slideResult = await nanoBanana.generateFromPrompt(session.customer, slide.description || imagePromptForGen);
+                await validateMedia(slideResult.url);
+                slideResults.push({ ...slide, imageUrl: slideResult.url });
+              } catch (slideErr) {
+                console.warn(`[Wizard] Slide ${slide.slideNumber} image failed:`, slideErr.message);
+                slideResults.push({ ...slide, imageUrl: null });
+              }
+            }
+            mediaUrl = slideResults[0]?.imageUrl || null;
+            mediaVariants = { slides: slideResults };
+          } else {
+            // Photo — try once, retry once on failure
+            let imageResult;
+            try {
+              imageResult = await attemptImageGen(imagePromptForGen);
+            } catch (firstErr) {
+              console.warn('[Wizard] Image gen attempt 1 failed, retrying:', firstErr.message);
+              imageResult = await attemptImageGen(imagePromptForGen);
+            }
+            mediaUrl = imageResult.url;
+            if (ImageResizer) {
+              try {
+                const variants = await ImageResizer.uploadResizedImages(
+                  imageResult.url,
+                  `wizard-${Date.now()}`,
+                  session.customerId
+                );
+                mediaVariants = variants;
+              } catch (resizerErr) {
+                console.warn('[Wizard] ImageResizer failed — using original URL:', resizerErr.message);
+                mediaVariants = {};
+              }
+            }
+          }
+        } catch (imgErr) {
+          console.error('[Wizard] Image generation failed after retries:', imgErr.message);
+          imageFailed = true;
+        }
+      }
+
       let savedPostId = null;
       let savedVariations = null;
 
       try {
         const postResult = await pool.query(
-          `INSERT INTO posts (customer_id, content_type, caption, platform, platforms, status, generation_method, ai_model_used, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, 'draft', 'wizard', 'claude-sonnet-4-6', NOW(), NOW())
+          `INSERT INTO posts (customer_id, content_type, caption, platform, platforms, status, generation_method, ai_model_used, media_url, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, 'draft', 'wizard', 'claude-sonnet-4-6', $6, NOW(), NOW())
            RETURNING id`,
           [
             session.customerId,
@@ -599,6 +698,7 @@ module.exports = (pool) => {
             transformedVariations.A.caption,
             answers.platform === 'all' ? 'facebook' : answers.platform,
             answers.platform === 'all' ? JSON.stringify(['facebook', 'instagram', 'google_business']) : JSON.stringify([answers.platform]),
+            mediaUrl,
           ]
         );
 
@@ -637,8 +737,11 @@ module.exports = (pool) => {
         variationsSaved: savedVariations,
         variations: transformedVariations,
         hashtags: parsed.variation_a?.hashtags || [],
-        imagePrompt: parsed.variation_a?.imagePrompt || '',
-        bestTimeToPost: 'morning', // Default for now
+        imagePrompt: parsed.imagePrompt || parsed.variation_a?.imagePrompt || '',
+        mediaUrl,
+        mediaVariants,
+        imageFailed,
+        bestTimeToPost: 'morning',
         contentType: answers.contentType,
         contentTypeSelection: answers.contentTypeSelection,
         platform: answers.platform,

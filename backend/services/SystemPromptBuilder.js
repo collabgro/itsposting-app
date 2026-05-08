@@ -279,37 +279,33 @@ PostCore voice rules (non-negotiable):
 Return ONLY valid JSON. No markdown, no backticks, no explanation.
 
 {
+  "imagePrompt": "A SINGLE shared image prompt used for ALL 3 variations. Must be universal — not tailored to any specific variation. Include: subject, setting, lighting, style, mood, composition. Be specific enough to generate a professional photo.",${isCarousel ? `
+  "carouselSlides": [
+    { "slideNumber": 1, "overlayText": "max 8 words", "description": "what this slide shows visually" },
+    { "slideNumber": 2, "overlayText": "max 8 words", "description": "what this slide shows visually" },
+    { "slideNumber": 3, "overlayText": "max 8 words", "description": "what this slide shows visually" }
+  ],` : ''}
   "variation_a": {
     "caption": "Full caption text for variation A",
     "hashtags": ["tag1", "tag2", "tag3"],
-    "imagePrompt": "Detailed description of the image to generate — lighting, subject, angle, style, mood",
     "engagementQuestion": "The question at the end of the caption (extracted separately for UI display)",
     "hookFormulaUsed": "Which hook formula from the industry knowledge was used",
-    "engagementScore": 75${isCarousel ? `,
-    "slides": [
-      { "slideNumber": 1, "overlayText": "max 8 words", "description": "what this slide shows" },
-      { "slideNumber": 2, "overlayText": "max 8 words", "description": "what this slide shows" },
-      { "slideNumber": 3, "overlayText": "max 8 words", "description": "what this slide shows" },
-      { "slideNumber": 4, "overlayText": "max 8 words", "description": "what this slide shows" },
-      { "slideNumber": 5, "overlayText": "max 8 words", "description": "what this slide shows" }
-    ]` : ''}${isVideo ? `,
+    "engagementScore": 75${isVideo ? `,
     "videoScript": "The 20-30 second spoken script"` : ''}
   },
   "variation_b": {
     "caption": "Full caption text for variation B — different hook, same quality",
     "hashtags": ["tag1", "tag2"],
-    "imagePrompt": "Different image angle or style for variation B",
     "engagementQuestion": "Different engagement question",
     "hookFormulaUsed": "Which hook formula was used",
-    "engagementScore": 68${isCarousel ? ',\n    "slides": [...]' : ''}
+    "engagementScore": 68
   },
   "variation_c": {
     "caption": "Full caption text for variation C — different tone or angle",
     "hashtags": ["tag1", "tag2"],
-    "imagePrompt": "Different image concept for variation C",
     "engagementQuestion": "Different engagement question",
     "hookFormulaUsed": "Which hook formula was used",
-    "engagementScore": 71${isCarousel ? ',\n    "slides": [...]' : ''}
+    "engagementScore": 71
   }
 }
 
@@ -318,8 +314,10 @@ Rules for all 3 variations:
 - Each variation MUST end with a different engagement question
 - engagementScore is 0-100 — your honest assessment of predicted engagement
 - Variation A is for Facebook, B for Instagram, C for Google Business (even if platform = 'all')
-- imagePrompt must be specific enough to generate a professional photo — include: subject, setting, lighting, style, mood
-- NEVER output the same hashtag set for multiple variations`;
+- imagePrompt MUST work for ALL three variations — it is shared and generated once (saves cost)
+- NEVER output the same hashtag set for multiple variations${isCarousel ? `
+- Carousel: Include 3-7 slides in carouselSlides. Decide count based on topic complexity: simple tips = 3, step-by-step processes = 5-6, complex how-tos = 7. Keep each overlayText under 8 words.` : ''}`;
+
   }
 
   // ── User Prompt (the actual request) ─────────────────────────────────────
