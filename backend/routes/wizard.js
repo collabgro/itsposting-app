@@ -929,8 +929,8 @@ module.exports = (pool) => {
   });
 
   // GET /api/wizard/debug-image — test NanoBanana image generation, returns exact error
-  // Hit this URL in a browser tab while logged in to diagnose image gen failures
-  router.get('/debug-image', authenticate, async (req, res) => {
+  // No auth required — diagnostic only, remove after debugging
+  router.get('/debug-image', async (req, res) => {
     const result = {
       apiKeySet: !!process.env.GOOGLE_AI_API_KEY,
       apiKeyPrefix: process.env.GOOGLE_AI_API_KEY ? process.env.GOOGLE_AI_API_KEY.substring(0, 8) + '...' : null,
