@@ -24,6 +24,35 @@ media without needing to understand social media?"
 
 ---
 
+## THE WIZARD ARCHITECTURE (CORE FEATURE — NON-NEGOTIABLE)
+
+The wizard is ItsPosting's most important feature. It is a single-page,
+end-to-end content creation pipeline. The customer never leaves the wizard.
+
+Flow:
+1. Customer answers 5 steps (content type, what's happening, vibe, details, platform)
+2. Hits Generate
+3. Backend orchestrates EVERYTHING:
+   - Claude reads customer DB profile + industry knowledge + brand data
+   - Claude generates 3 caption variations + hashtags
+   - Claude generates ONE rich image/video prompt
+   - NanoBanana generates the image (or HeyGen for video)
+   - All 3 variations share the same image (saves API costs)
+   - ImageResizer creates platform variants (FB/IG/GB)
+4. Customer sees finished post on same page
+5. They tap Post Now or Schedule — done
+
+Critical principles:
+- Customer NEVER sees or writes image prompts
+- Claude is the orchestrator — it decides everything from DB context
+- Carousel slide count: Claude decides (3-7 based on topic)
+- All API calls happen in ONE backend request from /api/wizard/generate
+- If image generation fails: auto-retry once → fallback to stock image → caption-only
+- Loading screen: rotating messages showing real progress
+- Result screen: same page, no redirects
+
+---
+
 ## POSTCORE — THE AI PERSONA (NON-NEGOTIABLE)
 
 PostCore is not a feature. PostCore IS the product's identity — a named AI
@@ -57,11 +86,15 @@ AI:           Anthropic Claude API (@anthropic-ai/sdk)
               Model: claude-sonnet-4-20250514 (ALWAYS this exact string)
 Styling:      Inline styles using theme object from frontend/lib/theme.js
               Use (t) from useTheme() — NEVER hardcode colors
-Icons:        Custom SVG icon system — frontend/components/icons/index.js
-              ALL icons are Ip-prefixed (IpSparkle, IpPlus, IpClose, etc.)
-              Import: import { IpSparkle, IpPlus } from '../components/icons'
-              NEVER use lucide-react — it is permanently banned from this project
-              NEVER import from 'lucide-react' under any circumstances
+Icons:        Two-tier system:
+              Tier 1 — UI chrome (sidebar, nav, buttons, all pages except wizard cards):
+                Custom SVG system: frontend/components/icons/index.js (Ip-prefixed)
+                Import: import { IpSparkle, IpPlus } from '../components/icons'
+              Tier 2 — Wizard step cards (content type, theme, tone selectors):
+                Lucide wrapper: frontend/components/Icon.js
+                Import: import Icon from '../components/Icon'
+                Usage: <Icon name="job_finished" size={32} />
+                NEVER import directly from 'lucide-react' — always go through Icon.js
 Image gen:    NanoBanana (Google Gemini 2.5 Flash Image) — default
               Midjourney via Replicate — premium fallback
               Sharp.js for image processing (backend)
@@ -272,17 +305,26 @@ RESEND_API_KEY
 - Use theme (t) from useTheme() for ALL styling — never hardcode colors
 - Frontend API calls go ONLY through frontend/lib/api.js — never fetch directly
 
-### Icons (ABSOLUTE — lucide-react IS BANNED)
-- NEVER import from 'lucide-react' — it is completely removed from this project
-- ALL icons come from: import { IpXxx } from '../components/icons' (adjust relative path)
-- Every icon is prefixed Ip (IpSparkle, IpPlus, IpClose, IpChevronRight, etc.)
-- Icon component reference: frontend/components/icons/index.js (~80 icons available)
+### Icons (Two-Tier System)
+**Tier 1 — UI chrome** (sidebar, nav, all pages except wizard step cards):
+- Import from: `import { IpXxx } from '../components/icons'`
+- Every icon is Ip-prefixed (IpSparkle, IpPlus, IpClose, IpChevronRight, etc.)
+- Icon reference: frontend/components/icons/index.js (~80 icons available)
 - Platform icons: IpFacebook, IpInstagram, IpGoogle (abstract geometric shapes)
 - Common mappings: Sparkles→IpSparkle, Plus→IpPlus, X→IpClose, Clock→IpSchedule,
   ChevronRight→IpChevronRight, Search→IpSearch, Trash2→IpDelete, RefreshCw→IpRefresh,
   AlertCircle/AlertTriangle→IpWarning, CheckCircle→IpCheckCircle, XCircle→IpCloseCircle,
   Users→IpTeam, Building→IpBusiness, Shield→IpAdmin, DollarSign→IpDollar,
   TrendingUp→IpTrendingUp, Heart→IpHeart, MessageCircle→IpComment, Share2→IpShare
+
+**Tier 2 — Wizard step cards** (content type, theme, tone selectors):
+- Import from: `import Icon from '../components/Icon'`
+- Usage: `<Icon name="job_finished" size={32} />`
+- Reference: frontend/components/Icon.js (wraps lucide-react)
+- NEVER import directly from 'lucide-react' — always go through Icon.js
+- Available names: text_post, photo_post, carousel, video, job_finished, share_tip,
+  got_review, promotion, seasonal, community, faq, team_spotlight,
+  friendly, professional, funny, educational, urgent, warning, image, refresh, etc.
 
 ### Database
 - Always parameterized queries ($1, $2) — NEVER string concatenation
