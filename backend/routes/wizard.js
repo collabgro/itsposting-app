@@ -955,11 +955,11 @@ module.exports = (pool) => {
 
     // Step 2: Try each candidate model name until one generates an image
     const candidates = [
-      'gemini-2.0-flash-exp',
-      'gemini-2.0-flash',
-      'gemini-2.5-flash-preview-image-generation',
-      'gemini-2.5-flash',
-      ...imageCapableModels.filter(n => n.includes('image') || n.includes('flash')),
+      'gemini-2.5-flash-image',
+      'gemini-3.1-flash-image-preview',
+      'gemini-3-pro-image-preview',
+      'nano-banana-pro-preview',
+      ...imageCapableModels.filter(n => n.includes('image')),
     ].filter((v, i, a) => a.indexOf(v) === i); // dedupe
 
     const testPrompt = 'A simple test photograph of a red apple on a white table, studio lighting, square composition. No text.';

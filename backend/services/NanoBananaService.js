@@ -165,47 +165,58 @@ class NanoBananaService {
   }
 
   /**
-   * Core image generation function — uses REST API directly to avoid
-   * @google/generative-ai SDK limitations with responseModalities
+   * Core image generation function — tries image-capable models in priority order
+   * Uses REST API directly (SDK doesn't support responseModalities properly)
    */
   async generateImage(prompt) {
     const axios = require('axios');
 
-    let response;
-    try {
-      response = await axios.post(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent',
-        {
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ['IMAGE'] },
-        },
-        {
-          headers: { 'Content-Type': 'application/json' },
-          params: { key: this.apiKey },
-          timeout: 45000,
-        }
-      );
-    } catch (httpErr) {
-      const detail = httpErr.response?.data?.error?.message || httpErr.message;
-      console.error('[NanoBanana] Gemini API HTTP error:', detail);
-      throw new Error(`Gemini API error: ${detail}`);
-    }
+    // Models to try in order — image-named models first
+    const modelsToTry = [
+      'gemini-2.5-flash-image',
+      'gemini-3.1-flash-image-preview',
+      'gemini-3-pro-image-preview',
+      'nano-banana-pro-preview',
+    ];
 
-    const candidates = response.data?.candidates || [];
-    for (const candidate of candidates) {
-      const parts = candidate.content?.parts || [];
-      for (const part of parts) {
-        if (part.inlineData?.data) {
-          return part.inlineData.data;
+    let lastError;
+    for (const modelName of modelsToTry) {
+      try {
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
+          {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseModalities: ['IMAGE'] },
+          },
+          {
+            headers: { 'Content-Type': 'application/json' },
+            params: { key: this.apiKey },
+            timeout: 45000,
+          }
+        );
+
+        const candidates = response.data?.candidates || [];
+        for (const candidate of candidates) {
+          const parts = candidate.content?.parts || [];
+          for (const part of parts) {
+            if (part.inlineData?.data) {
+              console.log(`[NanoBanana] ✓ Image generated with model: ${modelName}`);
+              return part.inlineData.data;
+            }
+          }
         }
+
+        const finishReason = candidates[0]?.finishReason;
+        console.warn(`[NanoBanana] ${modelName} returned no image. finishReason: ${finishReason}`);
+        lastError = new Error(`${modelName}: no image data (finishReason: ${finishReason || 'unknown'})`);
+      } catch (err) {
+        const detail = err.response?.data?.error?.message || err.message;
+        console.warn(`[NanoBanana] ${modelName} failed (${err.response?.status || 'network'}):`, detail);
+        lastError = new Error(`${modelName}: ${detail}`);
       }
     }
 
-    // Log exactly what came back so Railway logs show the real reason
-    const finishReason = candidates[0]?.finishReason;
-    const safetyRatings = candidates[0]?.safetyRatings;
-    console.error('[NanoBanana] No image in Gemini response. finishReason:', finishReason, '| safetyRatings:', JSON.stringify(safetyRatings));
-    throw new Error(`No image data in response (finishReason: ${finishReason || 'unknown'})`);
+    throw lastError || new Error('All image generation models failed');
   }
 
   /**
