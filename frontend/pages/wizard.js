@@ -49,14 +49,13 @@ const PLATFORMS = [
   { id: 'all',            icon: IpSparkle,   label: 'All Three',       color: '#7C5CFC', bg: 'rgba(124,92,252,0.1)', border: 'rgba(124,92,252,0.3)', desc: 'Auto-adapted for each platform' },
 ];
 
-// ── Loading messages ──────────────────────────────────────────────────────────
-const LOADING_MESSAGES = [
-  (industry) => `Reading the room for ${industry || 'your industry'}...`,
-  () => 'Writing like a local expert...',
-  () => 'Adding that authentic touch...',
-  () => 'Crafting your three variations...',
-  () => 'Almost ready — putting on the finishing touches...',
-];
+// ── Loading messages (content-type-aware) ────────────────────────────────────
+const LOADING_MESSAGES = {
+  static:   (ind) => [`Reading the room for ${ind || 'your industry'}...`, 'Writing like a local expert...', 'Adding that authentic touch...', 'Almost ready...'],
+  photo:    (ind) => [`Reading the room for ${ind || 'your industry'}...`, 'Building the perfect image prompt...', 'Generating your image...', 'Adding finishing touches...'],
+  carousel: (ind) => [`Reading the room for ${ind || 'your industry'}...`, 'Drafting slide content...', 'Creating slide images...', 'Assembling your carousel...', 'Almost done...'],
+  video:    (ind) => [`Reading the room for ${ind || 'your industry'}...`, 'Writing your video script...', 'Sending to video AI...', 'Video rendering — captions ready now...'],
+};
 
 function getSeasonalDesc() {
   const seasonal = [
@@ -87,13 +86,27 @@ function buildDetailsObject(contentType, detailsText) {
 }
 
 // ── Inline API calls (wizard is self-contained) ───────────────────────────────
+function authHeaders() {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+}
+
 async function apiPost(path, body) {
-  const token = localStorage.getItem('token');
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  });
+  const res = await fetch(path, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
+  return json;
+}
+
+async function apiPatch(path, body) {
+  const res = await fetch(path, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
+  return json;
+}
+
+async function apiGet(path) {
+  const res = await fetch(path, { headers: authHeaders() });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
   return json;
@@ -119,7 +132,15 @@ export default function Wizard() {
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
   const [industry, setIndustry] = useState('');
   const [copiedId, setCopiedId] = useState(null);
-  const [selectedVariation, setSelectedVariation] = useState(null);
+  const [selectedVariation, setSelectedVariation] = useState('A');
+
+  // Result screen action state
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionToast, setActionToast] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedCaption, setEditedCaption] = useState('');
 
   const loadingInterval = useRef(null);
 
@@ -166,12 +187,31 @@ export default function Wizard() {
 
   useEffect(() => {
     if (step === 'loading') {
+      const msgs = (LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry);
       loadingInterval.current = setInterval(() => {
-        setLoadingMsgIdx(i => (i + 1) % LOADING_MESSAGES.length);
+        setLoadingMsgIdx(i => (i + 1) % msgs.length);
       }, 1800);
     }
     return () => clearInterval(loadingInterval.current);
-  }, [step]);
+  }, [step]); // contentType/industry don't change during loading so no stale closure issue
+
+  // Video polling — fires every 6s when a video job is pending
+  useEffect(() => {
+    if (!results?.videoJobId || results.videoJobId === 'completed' || results.videoJobId === 'failed') return;
+    const interval = setInterval(async () => {
+      try {
+        const { status, videoUrl } = await apiGet(`/api/wizard/video-status/${results.videoJobId}`);
+        if (status === 'completed' && videoUrl) {
+          setResults(r => ({ ...r, mediaUrl: videoUrl, videoJobId: 'completed' }));
+          clearInterval(interval);
+        } else if (status === 'failed') {
+          setResults(r => ({ ...r, videoJobId: 'failed', imageFailed: true }));
+          clearInterval(interval);
+        }
+      } catch { /* polling errors are silent */ }
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [results?.videoJobId]);
 
   const canProceed = () => {
     if (step === 1) return !!contentType;
@@ -195,8 +235,9 @@ export default function Wizard() {
 
   const handleReset = () => {
     setStep(1); setContentType(null); setTheme(null); setTone(null); setPlatform(null);
-    setDetails(''); setIncludeCTA(true); setResults(null);
-    setError(null); setSelectedVariation(null);
+    setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
+    setSelectedVariation('A'); setActionLoading(false); setActionToast(null);
+    setShowScheduleModal(false); setScheduleDate(''); setIsEditing(false); setEditedCaption('');
   };
 
   const handleTryDifferentTone = () => {
@@ -221,6 +262,7 @@ export default function Wizard() {
 
       const genRes = await apiPost('/api/wizard/generate', { wizardId });
       setResults(genRes);
+      setSelectedVariation('A');
       setStep('results');
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
@@ -235,17 +277,63 @@ export default function Wizard() {
     });
   };
 
-  const handleUsePost = (variation) => {
-    sessionStorage.setItem('wizardPost', JSON.stringify({
-      caption: variation.caption,
-      hashtags: variation.hashtags,
-      imagePrompt: variation.imagePrompt,
-      engagementQuestion: variation.engagementQuestion,
-      platform: platform === 'all' ? 'facebook' : platform,
-      contentTheme: theme,
-      tone,
-    }));
-    router.push('/upload?from=wizard');
+  const showToast = (type, message) => {
+    setActionToast({ type, message });
+    setTimeout(() => setActionToast(null), 3500);
+  };
+
+  const handlePostNow = async () => {
+    if (!results?.postId) return;
+    setActionLoading(true);
+    try {
+      await apiPatch(`/api/posts/${results.postId}`, { status: 'published' });
+      showToast('success', 'Post published!');
+    } catch (err) {
+      showToast('error', err.message || 'Failed to publish');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleScheduleSubmit = async () => {
+    if (!results?.postId || !scheduleDate) return;
+    setActionLoading(true);
+    try {
+      await apiPatch(`/api/posts/${results.postId}`, { status: 'scheduled', scheduled_at: scheduleDate });
+      setShowScheduleModal(false);
+      showToast('success', 'Post scheduled!');
+    } catch (err) {
+      showToast('error', err.message || 'Failed to schedule');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!results?.postId || !editedCaption.trim()) return;
+    setActionLoading(true);
+    try {
+      await apiPatch(`/api/posts/${results.postId}`, { caption: editedCaption.trim() });
+      setResults(r => ({
+        ...r,
+        variations: {
+          ...r.variations,
+          [selectedVariation]: { ...r.variations[selectedVariation], caption: editedCaption.trim() },
+        },
+      }));
+      setIsEditing(false);
+      showToast('success', 'Caption saved!');
+    } catch (err) {
+      showToast('error', err.message || 'Failed to save');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEditStart = () => {
+    const variation = results?.variations?.[selectedVariation];
+    setEditedCaption(variation?.caption || '');
+    setIsEditing(true);
   };
 
   const stepNum = typeof step === 'number' ? step : (step === 'results' ? 6 : 5.5);
@@ -512,7 +600,7 @@ export default function Wizard() {
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 22, fontWeight: 700, color: t.text, marginBottom: 10 }}>Crafting your posts...</div>
               <div style={{ fontSize: 14, color: t.primary, minHeight: 22, transition: 'opacity 300ms' }}>
-                {LOADING_MESSAGES[loadingMsgIdx](industry)}
+                {((LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry))[loadingMsgIdx] || ''}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -533,56 +621,211 @@ export default function Wizard() {
         ───────────────────────────────────────────────────────────────────── */}
         {step === 'results' && results && (
           <div>
-            <div style={{ marginBottom: 28, textAlign: 'center' }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>🎉</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: t.text, marginBottom: 6 }}>Your posts are ready!</div>
-              <div style={{ fontSize: 13, color: t.textMuted }}>PostCore generated 3 variations — pick your favourite or customise it</div>
+            {/* Toast notification */}
+            {actionToast && (
+              <div style={{ position: 'fixed', top: 24, right: 24, zIndex: 9999, padding: '12px 20px', borderRadius: 10, background: actionToast.type === 'success' ? '#22C55E' : '#EF4444', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name={actionToast.type === 'success' ? 'check' : 'warning'} size={15} color="#fff" />
+                {actionToast.message}
+              </div>
+            )}
+
+            <div style={{ marginBottom: 24, textAlign: 'center' }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: t.text, marginBottom: 4 }}>🎉 Your posts are ready!</div>
+              <div style={{ fontSize: 13, color: t.textMuted }}>PostCore generated 3 variations — pick your favourite</div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 28 }}>
-              {results.variations && Object.entries(results.variations).map(([label, variation]) => (
-                <VariationCard
-                  key={label} label={label} variation={variation} t={t}
-                  copiedId={copiedId} onCopy={handleCopy}
-                  onUse={() => handleUsePost(variation)}
-                  selected={selectedVariation === label}
-                  onSelect={() => setSelectedVariation(label === selectedVariation ? null : label)}
-                />
-              ))}
+            {/* Two-column layout */}
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+
+              {/* ── LEFT: Media panel (40%) ── */}
+              <div style={{ flex: '0 0 280px', minWidth: 220 }}>
+
+                {/* Image failed banner */}
+                {results.imageFailed && (
+                  <div style={{ padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#D97706' }}>
+                    <Icon name="warning" size={14} color="#D97706" /> Image generation failed — caption-only mode
+                  </div>
+                )}
+
+                {/* Media display */}
+                <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, aspectRatio: '4/5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  {results.mediaUrl && results.videoJobId !== 'pending' ? (
+                    results.contentTypeSelection === 'video' ? (
+                      <video src={results.mediaUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <img src={results.mediaUrl} alt="Generated post" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )
+                  ) : results.videoJobId === 'pending' ? (
+                    <div style={{ textAlign: 'center', padding: 24 }}>
+                      <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${t.primary}`, borderTopColor: 'transparent', margin: '0 auto 12px', animation: 'spin 1s linear infinite' }} />
+                      <div style={{ fontSize: 13, color: t.textMuted }}>Video rendering...</div>
+                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Caption is ready to post now</div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: 24, color: t.textMuted }}>
+                      <Icon name="image" size={48} color={t.textMuted} />
+                      <div style={{ fontSize: 12, marginTop: 8 }}>No image</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Platform badges */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                  {(results.platform === 'all' ? ['facebook', 'instagram', 'google_business'] : [results.platform]).map(p => {
+                    const config = PLATFORMS.find(x => x.id === p);
+                    if (!config) return null;
+                    const PIcon = config.icon;
+                    return (
+                      <span key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, background: config.bg, border: `1px solid ${config.border}`, fontSize: 11, fontWeight: 600, color: config.color }}>
+                        <PIcon size={12} style={{ color: config.color }} /> {config.label}
+                      </span>
+                    );
+                  })}
+                </div>
+
+                {/* Regenerate image button */}
+                {results.postId && results.contentTypeSelection !== 'video' && results.contentTypeSelection !== 'static' && (
+                  <button
+                    onClick={() => {
+                      sessionStorage.setItem('regenPost', JSON.stringify({ postId: results.postId, imagePrompt: results.imagePrompt }));
+                      showToast('success', 'Use "Regenerate Image" after the page refreshes');
+                    }}
+                    style={{ width: '100%', padding: '9px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = t.primaryBorder}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = t.border}
+                  >
+                    <IpRefresh size={13} /> Regenerate Image
+                  </button>
+                )}
+              </div>
+
+              {/* ── RIGHT: Variations + actions (60%) ── */}
+              <div style={{ flex: 1, minWidth: 280 }}>
+
+                {/* Variation radio cards */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                  {results.variations && Object.entries(results.variations).map(([label, variation]) => {
+                    const isSelected = selectedVariation === label;
+                    const labelColors = { A: '#7C5CFC', B: '#3B82F6', C: '#10B981' };
+                    const color = labelColors[label] || t.primary;
+                    return (
+                      <div
+                        key={label}
+                        onClick={() => { if (!isEditing) { setSelectedVariation(label); setIsEditing(false); } }}
+                        style={{ background: t.card, border: `2px solid ${isSelected ? color : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: isEditing ? 'default' : 'pointer', transition: 'all 150ms', boxShadow: isSelected ? `0 4px 16px ${color}25` : 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: isSelected ? `${color}10` : 'transparent', borderBottom: `1px solid ${t.border}` }}>
+                          <div style={{ width: 24, height: 24, borderRadius: 6, background: isSelected ? color : t.input, border: `2px solid ${isSelected ? color : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12, color: isSelected ? '#fff' : t.textMuted, flexShrink: 0 }}>
+                            {label}
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: isSelected ? color : t.textSecondary }}>
+                            Variation {label}
+                            {variation.hookType && <span style={{ color: t.textMuted, fontWeight: 400, fontSize: 12 }}> · {variation.hookType}</span>}
+                          </span>
+                        </div>
+
+                        {isSelected && (
+                          <div style={{ padding: '14px 16px' }}>
+                            {isEditing ? (
+                              <textarea
+                                value={editedCaption}
+                                onChange={e => setEditedCaption(e.target.value)}
+                                rows={6}
+                                style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.primary}`, borderRadius: 8, color: t.text, fontSize: 13, lineHeight: 1.6, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                                autoFocus
+                              />
+                            ) : (
+                              <div style={{ fontSize: 13, color: t.text, lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: 10 }}>
+                                {variation.caption}
+                              </div>
+                            )}
+
+                            {variation.engagementQuestion && !isEditing && (
+                              <div style={{ padding: '10px 12px', background: 'rgba(234,179,8,0.08)', borderRadius: 6, borderLeft: '3px solid #EAB308', marginBottom: 10 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#EAB308', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <Icon name="message" size={11} color="#EAB308" /> Engagement Question
+                                </div>
+                                <div style={{ fontSize: 12, color: t.text, fontStyle: 'italic' }}>{variation.engagementQuestion}</div>
+                              </div>
+                            )}
+
+                            {variation.hashtags && variation.hashtags.length > 0 && !isEditing && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {variation.hashtags.slice(0, 8).map((tag, i) => (
+                                  <span key={i} style={{ padding: '3px 8px', borderRadius: 5, background: t.primaryBg, color: t.primary, fontSize: 11, fontWeight: 500 }}>
+                                    {tag.startsWith('#') ? tag : `#${tag}`}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {!isSelected && (
+                          <div style={{ padding: '10px 16px', fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {variation.caption?.substring(0, 80)}...
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Action bar */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 16, borderTop: `1px solid ${t.border}` }}>
+                  {isEditing ? (
+                    <>
+                      <button onClick={handleSaveEdit} disabled={actionLoading} style={{ flex: 1, padding: '10px 16px', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <Icon name="check" size={14} color="#fff" /> Save Caption
+                      </button>
+                      <button onClick={() => setIsEditing(false)} style={{ padding: '10px 16px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={handlePostNow} disabled={actionLoading || !results.postId} style={{ flex: 1, minWidth: 100, padding: '10px 14px', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <Icon name="send" size={14} color="#fff" /> Post Now
+                      </button>
+                      <button onClick={() => setShowScheduleModal(true)} disabled={actionLoading || !results.postId} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: actionLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Icon name="schedule" size={14} /> Schedule
+                      </button>
+                      <button onClick={handleEditStart} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Icon name="edit" size={14} /> Edit
+                      </button>
+                      <button onClick={handleReset} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <IpArrowLeft size={14} /> Start Over
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {results.hashtags && results.hashtags.length > 0 && (
-              <div style={{ padding: '16px 20px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, marginBottom: 20 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Suggested Hashtags</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {results.hashtags.map((tag, i) => (
-                    <span key={i} style={{ padding: '4px 10px', borderRadius: 6, background: t.primaryBg, color: t.primary, fontSize: 12, fontWeight: 500, border: `1px solid ${t.primaryBorder}` }}>
-                      {tag.startsWith('#') ? tag : `#${tag}`}
-                    </span>
-                  ))}
+            {/* ── Inline schedule modal ── */}
+            {showScheduleModal && (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                <div style={{ background: t.card, borderRadius: 14, padding: 24, width: '100%', maxWidth: 360, border: `1px solid ${t.border}` }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 16 }}>Schedule Post</div>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 6 }}>Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      value={scheduleDate}
+                      onChange={e => setScheduleDate(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={handleScheduleSubmit} disabled={actionLoading || !scheduleDate} style={{ flex: 1, padding: '10px 16px', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: scheduleDate && !actionLoading ? 'pointer' : 'not-allowed', opacity: scheduleDate && !actionLoading ? 1 : 0.5 }}>
+                      {actionLoading ? 'Scheduling...' : 'Schedule'}
+                    </button>
+                    <button onClick={() => setShowScheduleModal(false)} style={{ padding: '10px 16px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
-
-            {results.imagePrompt && (
-              <div style={{ padding: '16px 20px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, marginBottom: 28 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="image" size={12} color={t.textMuted} /> Image Prompt Suggestion</div>
-                <div style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.5 }}>{results.imagePrompt}</div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', paddingTop: 8, borderTop: `1px solid ${t.border}` }}>
-              <button onClick={handleTryDifferentTone} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.primaryBorder; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}>
-                <IpRefresh size={14} /> Try Different Tone
-              </button>
-              <button onClick={handleReset} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.primaryBorder; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}>
-                <IpArrowLeft size={14} /> Start Over
-              </button>
-            </div>
           </div>
         )}
 
