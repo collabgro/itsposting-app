@@ -377,8 +377,7 @@ module.exports = (pool) => {
       const customerResult = await pool.query(
         `SELECT id, business_name, industry, location, tone, visual_style,
                 timezone, credits_balance, plan, status,
-                brand_colors, logo_url, website_url,
-                scraped_services, scraped_about,
+                brand_colors, logo_url,
                 past_post_examples, content_preferences
          FROM customers WHERE id = $1`,
         [customerId]
@@ -389,6 +388,17 @@ module.exports = (pool) => {
       }
 
       const customer = customerResult.rows[0];
+
+      // Optional brand/scrape columns — added by migration, may not exist yet
+      try {
+        const extResult = await pool.query(
+          `SELECT website_url, scraped_services, scraped_about FROM customers WHERE id = $1`,
+          [customerId]
+        );
+        if (extResult.rows[0]) Object.assign(customer, extResult.rows[0]);
+      } catch (extErr) {
+        // Columns don't exist yet — safe to continue without them
+      }
 
       const wizardId = uuidv4();
       const industry = customer.industry || 'general_contractor';

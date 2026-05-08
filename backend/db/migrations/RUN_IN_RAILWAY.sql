@@ -328,6 +328,9 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS lemon_squeezy_customer_id    VARC
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS lemon_squeezy_subscription_id VARCHAR(255);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS plan_expires_at              TIMESTAMP;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS trial_ends_at                TIMESTAMP;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS website_url                  TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS scraped_services             TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS scraped_about                TEXT;
 
 -- content_suggestions (created by migration 002 — add columns 005 expected)
 ALTER TABLE content_suggestions ADD COLUMN IF NOT EXISTS notification_sent BOOLEAN DEFAULT false;
