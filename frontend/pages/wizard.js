@@ -91,23 +91,28 @@ function authHeaders() {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 }
 
+async function safeJson(res) {
+  try { return await res.json(); }
+  catch { throw new Error(`Server error (${res.status}) — please try again.`); }
+}
+
 async function apiPost(path, body) {
   const res = await fetch(path, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
-  const json = await res.json();
+  const json = await safeJson(res);
   if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
   return json;
 }
 
 async function apiPatch(path, body) {
   const res = await fetch(path, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
-  const json = await res.json();
+  const json = await safeJson(res);
   if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
   return json;
 }
 
 async function apiGet(path) {
   const res = await fetch(path, { headers: authHeaders() });
-  const json = await res.json();
+  const json = await safeJson(res);
   if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
   return json;
 }

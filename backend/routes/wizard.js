@@ -728,29 +728,33 @@ module.exports = (pool) => {
         }
       }
 
+      let savedPostId = null;
+      let savedVariations = null;
+
       // ── HeyGen async kick-off for video posts ────────────────────────────────
       // videoRendering: true signals the frontend to poll /api/wizard/video-poll/:postId
       // We do NOT use a 'pending' sentinel as the videoJobId because the polling
       // endpoint would search for video_job_id='pending' in the DB and find nothing.
       let videoRendering = false;
       if (HeyGenService && process.env.HEYGEN_API_KEY && answers.contentTypeSelection === 'video') {
-        const heyGen = new HeyGenService();
-        const videoScript = parsed.variation_a?.videoScript || transformedVariations.A.caption;
-        heyGen.createVideo(session.customer, videoScript)
-          .then(async (jobId) => {
-            if (jobId && savedPostId) {
-              await pool.query(
-                `UPDATE posts SET video_job_id = $1 WHERE id = $2`,
-                [jobId, savedPostId]
-              ).catch(err => console.warn('[Wizard] Could not save video_job_id:', err.message));
-            }
-          })
-          .catch(err => console.error('[Wizard] HeyGen createVideo error:', err.message));
-        videoRendering = true;
+        try {
+          const heyGen = new HeyGenService();
+          const videoScriptText = parsed.variation_a?.videoScript || transformedVariations.A.caption;
+          heyGen.createVideo(session.customer, videoScriptText)
+            .then(async (jobId) => {
+              if (jobId && savedPostId) {
+                await pool.query(
+                  `UPDATE posts SET video_job_id = $1 WHERE id = $2`,
+                  [jobId, savedPostId]
+                ).catch(err => console.warn('[Wizard] Could not save video_job_id:', err.message));
+              }
+            })
+            .catch(err => console.error('[Wizard] HeyGen createVideo error:', err.message));
+          videoRendering = true;
+        } catch (heyGenInitErr) {
+          console.error('[Wizard] HeyGen init error (video will be caption-only):', heyGenInitErr.message);
+        }
       }
-
-      let savedPostId = null;
-      let savedVariations = null;
 
       try {
         const postResult = await pool.query(
