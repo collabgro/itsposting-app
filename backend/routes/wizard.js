@@ -928,6 +928,84 @@ module.exports = (pool) => {
     }
   });
 
+  // GET /api/wizard/debug-image — test NanoBanana image generation, returns exact error
+  // Hit this URL in a browser tab while logged in to diagnose image gen failures
+  router.get('/debug-image', authenticate, async (req, res) => {
+    const result = {
+      apiKeySet: !!process.env.GOOGLE_AI_API_KEY,
+      apiKeyPrefix: process.env.GOOGLE_AI_API_KEY ? process.env.GOOGLE_AI_API_KEY.substring(0, 8) + '...' : null,
+      cloudinarySet: !!process.env.CLOUDINARY_CLOUD_NAME,
+      nanoBananaServiceLoaded: !!NanoBananaService,
+    };
+
+    if (!process.env.GOOGLE_AI_API_KEY) {
+      return res.json({ ...result, status: 'failed', error: 'GOOGLE_AI_API_KEY is not set in environment variables' });
+    }
+
+    if (!NanoBananaService) {
+      return res.json({ ...result, status: 'failed', error: 'NanoBananaService could not be loaded' });
+    }
+
+    try {
+      const axios = require('axios');
+      const testPrompt = 'A simple test photograph of a red apple on a white table, studio lighting, 1:1 square composition';
+
+      // Step 1: Test Gemini REST API directly
+      let geminiResponse;
+      try {
+        geminiResponse = await axios.post(
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent',
+          {
+            contents: [{ parts: [{ text: testPrompt }] }],
+            generationConfig: { responseModalities: ['IMAGE'] },
+          },
+          {
+            headers: { 'Content-Type': 'application/json' },
+            params: { key: process.env.GOOGLE_AI_API_KEY },
+            timeout: 45000,
+          }
+        );
+      } catch (httpErr) {
+        return res.json({
+          ...result,
+          status: 'failed',
+          step: 'gemini_api_call',
+          error: httpErr.response?.data?.error?.message || httpErr.message,
+          httpStatus: httpErr.response?.status,
+          fullError: httpErr.response?.data,
+        });
+      }
+
+      const candidates = geminiResponse.data?.candidates || [];
+      const firstCandidate = candidates[0];
+      const parts = firstCandidate?.content?.parts || [];
+      const hasImage = parts.some(p => p.inlineData?.data);
+
+      if (!hasImage) {
+        return res.json({
+          ...result,
+          status: 'failed',
+          step: 'image_extraction',
+          error: `Gemini returned no image data. finishReason: ${firstCandidate?.finishReason}, parts: ${JSON.stringify(parts.map(p => Object.keys(p)))}`,
+          candidateCount: candidates.length,
+          finishReason: firstCandidate?.finishReason,
+          safetyRatings: firstCandidate?.safetyRatings,
+        });
+      }
+
+      const imageBase64 = parts.find(p => p.inlineData?.data).inlineData.data;
+      return res.json({
+        ...result,
+        status: 'success',
+        imageBase64Preview: imageBase64.substring(0, 50) + '... [truncated]',
+        imageSizeBytes: Math.round(imageBase64.length * 0.75),
+        message: 'Image generation is working! The base64 data is valid.',
+      });
+    } catch (err) {
+      return res.json({ ...result, status: 'failed', step: 'unexpected', error: err.message, stack: err.stack?.split('\n').slice(0, 3) });
+    }
+  });
+
   // POST /api/wizard/quick — mobile quick post mode
   router.post('/quick', authenticate, async (req, res) => {
     try {
