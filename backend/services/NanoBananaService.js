@@ -170,6 +170,9 @@ class NanoBananaService {
   async generateImage(prompt) {
     const model = this.genAI.getGenerativeModel({
       model: 'gemini-2.0-flash-preview-image-generation',
+      generationConfig: {
+        responseModalities: ['IMAGE'],
+      },
     });
 
     const result = await model.generateContent(prompt);

@@ -62,6 +62,8 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // Catches corrupt/missing NanoBanana and HeyGen outputs
 // ─────────────────────────────────────────────────────────────
 function validateMedia(url) {
+  // data: URLs are inline base64 — no HTTP check needed
+  if (!url || url.startsWith('data:')) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
     lib.get(url, (res) => {
@@ -697,7 +699,7 @@ module.exports = (pool) => {
             }
           }
         } catch (imgErr) {
-          console.error('[Wizard] Image generation failed after retries:', imgErr.message);
+          console.error('[Wizard] Image generation failed after retries:', imgErr.message, imgErr.stack?.split('\n')[1]);
           imageFailed = true;
         }
       }
