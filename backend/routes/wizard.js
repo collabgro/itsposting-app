@@ -331,7 +331,10 @@ module.exports = (pool) => {
 
       const customerResult = await pool.query(
         `SELECT id, business_name, industry, location, tone, visual_style,
-                timezone, credits_balance, plan, status
+                timezone, credits_balance, plan, status,
+                brand_colors, logo_url, website_url,
+                scraped_services, scraped_about,
+                past_post_examples, content_preferences
          FROM customers WHERE id = $1`,
         [customerId]
       );
@@ -462,11 +465,23 @@ module.exports = (pool) => {
         team_spotlight: 'behind_scenes',
       };
 
+      let businessKnowledge = [];
+      try {
+        const bkResult = await pool.query(
+          `SELECT content_type, content FROM business_knowledge WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 10`,
+          [session.customerId]
+        );
+        businessKnowledge = bkResult.rows;
+      } catch (e) {
+        // table may not exist yet — safe to ignore
+      }
+
       const builder = new SystemPromptBuilder(session.customer, {
         platform: answers.platform,
         contentType: answers.contentTypeSelection, // 'static', 'photo', 'carousel', 'video'
         wizardTrigger: triggerMap[answers.contentType] || answers.contentType,
         counterAnswers: answers.details,
+        businessKnowledge,
       });
 
       const { systemPrompt, userPrompt } = builder.build();
@@ -477,7 +492,7 @@ module.exports = (pool) => {
       try {
         claudeResponse = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 1500,
+          max_tokens: 2500,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }],
         });
