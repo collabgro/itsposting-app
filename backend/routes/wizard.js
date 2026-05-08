@@ -31,6 +31,14 @@ try {
   console.warn('[Wizard] NanoBananaService not found — image generation disabled');
 }
 
+let HeyGenService;
+try {
+  HeyGenService = require('../services/HeyGenService');
+} catch {
+  HeyGenService = null;
+  console.warn('[Wizard] HeyGenService not found — video generation disabled');
+}
+
 let ImageResizer;
 try {
   ImageResizer = require('../services/ImageResizer');
@@ -684,6 +692,24 @@ module.exports = (pool) => {
         }
       }
 
+      // ── HeyGen async kick-off for video posts ────────────────────────────────
+      let videoJobId = null;
+      if (HeyGenService && answers.contentTypeSelection === 'video') {
+        const heyGen = new HeyGenService();
+        const videoScript = parsed.variation_a?.videoScript || transformedVariations.A.caption;
+        heyGen.createVideo(session.customer, videoScript)
+          .then(async (jobId) => {
+            if (jobId && savedPostId) {
+              await pool.query(
+                `UPDATE posts SET video_job_id = $1 WHERE id = $2`,
+                [jobId, savedPostId]
+              ).catch(err => console.warn('[Wizard] Could not save video_job_id:', err.message));
+            }
+          })
+          .catch(err => console.error('[Wizard] HeyGen createVideo error:', err.message));
+        videoJobId = 'pending';
+      }
+
       let savedPostId = null;
       let savedVariations = null;
 
@@ -741,6 +767,7 @@ module.exports = (pool) => {
         mediaUrl,
         mediaVariants,
         imageFailed,
+        videoJobId,
         bestTimeToPost: 'morning',
         contentType: answers.contentType,
         contentTypeSelection: answers.contentTypeSelection,
@@ -759,6 +786,48 @@ module.exports = (pool) => {
       if (!res.headersSent) {
         res.status(500).json({ error: err.message || 'Generation failed. Please try again.' });
       }
+    }
+  });
+
+  // GET /api/wizard/video-status/:videoId — poll HeyGen job status
+  router.get('/video-status/:videoId', authenticate, async (req, res) => {
+    try {
+      const { videoId } = req.params;
+      const customerId = req.customerId;
+
+      // Security: only the post owner can poll their video
+      const postCheck = await pool.query(
+        `SELECT id FROM posts WHERE customer_id = $1 AND video_job_id = $2`,
+        [customerId, videoId]
+      );
+      if (postCheck.rows.length === 0) {
+        return res.status(403).json({ error: 'Not authorized' });
+      }
+
+      if (!HeyGenService) {
+        return res.json({ status: 'failed', videoUrl: null });
+      }
+
+      const heyGen = new HeyGenService();
+      const { status, videoUrl } = await heyGen.checkVideoStatus(videoId);
+
+      if (status === 'completed' && videoUrl) {
+        try {
+          await validateMedia(videoUrl);
+          await pool.query(
+            `UPDATE posts SET media_url = $1 WHERE video_job_id = $2`,
+            [videoUrl, videoId]
+          );
+        } catch (valErr) {
+          console.warn('[Wizard] Video validation failed:', valErr.message);
+          return res.json({ status: 'failed', videoUrl: null });
+        }
+      }
+
+      res.json({ status, videoUrl: videoUrl || null });
+    } catch (err) {
+      console.error('[Wizard] video-status error:', err.message);
+      res.status(500).json({ error: 'Failed to check video status' });
     }
   });
 

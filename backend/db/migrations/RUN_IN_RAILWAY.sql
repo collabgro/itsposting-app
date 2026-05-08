@@ -302,6 +302,16 @@ ALTER TABLE posts ADD COLUMN IF NOT EXISTS uploaded_by_user     BOOLEAN      DEF
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS engagement_by_platform JSONB      DEFAULT '{}'::jsonb;
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS performance_score    NUMERIC;
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS last_metrics_sync    TIMESTAMP;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS video_job_id         VARCHAR(255);
+
+-- trial IP registrations (max 2 trial accounts per IP address)
+CREATE TABLE IF NOT EXISTS trial_ip_registrations (
+  id            SERIAL PRIMARY KEY,
+  ip_address    VARCHAR(45) NOT NULL,
+  customer_id   INTEGER REFERENCES customers(id),
+  created_at    TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_trial_ip ON trial_ip_registrations(ip_address);
 
 -- customers
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS timezone                     VARCHAR(100) DEFAULT 'UTC';
