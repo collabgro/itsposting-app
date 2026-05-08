@@ -649,7 +649,14 @@ module.exports = (pool) => {
       const imagePromptForGen = parsed.imagePrompt || parsed.variation_a?.imagePrompt || '';
       const contentTypeForMedia = answers.contentTypeSelection;
 
+      if (!imagePromptForGen && (contentTypeForMedia === 'photo' || contentTypeForMedia === 'carousel')) {
+        console.warn('[Wizard] Claude returned no imagePrompt — skipping image generation. Parsed keys:', Object.keys(parsed));
+      }
+
       if (NanoBananaService && imagePromptForGen && (contentTypeForMedia === 'photo' || contentTypeForMedia === 'carousel')) {
+        if (!process.env.GOOGLE_AI_API_KEY) {
+          console.error('[Wizard] GOOGLE_AI_API_KEY is not set — image generation will fail');
+        }
         const nanoBanana = new NanoBananaService();
 
         const attemptImageGen = async (prompt) => {

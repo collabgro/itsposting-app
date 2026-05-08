@@ -165,20 +165,47 @@ class NanoBananaService {
   }
 
   /**
-   * Core image generation function
+   * Core image generation function — uses REST API directly to avoid
+   * @google/generative-ai SDK limitations with responseModalities
    */
   async generateImage(prompt) {
-    const model = this.genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-preview-image-generation',
-      generationConfig: {
-        responseModalities: ['IMAGE'],
-      },
-    });
+    const axios = require('axios');
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
+    let response;
+    try {
+      response = await axios.post(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent',
+        {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['IMAGE'] },
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          params: { key: this.apiKey },
+          timeout: 45000,
+        }
+      );
+    } catch (httpErr) {
+      const detail = httpErr.response?.data?.error?.message || httpErr.message;
+      console.error('[NanoBanana] Gemini API HTTP error:', detail);
+      throw new Error(`Gemini API error: ${detail}`);
+    }
 
-    return this.extractImageFromResponse(response);
+    const candidates = response.data?.candidates || [];
+    for (const candidate of candidates) {
+      const parts = candidate.content?.parts || [];
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          return part.inlineData.data;
+        }
+      }
+    }
+
+    // Log exactly what came back so Railway logs show the real reason
+    const finishReason = candidates[0]?.finishReason;
+    const safetyRatings = candidates[0]?.safetyRatings;
+    console.error('[NanoBanana] No image in Gemini response. finishReason:', finishReason, '| safetyRatings:', JSON.stringify(safetyRatings));
+    throw new Error(`No image data in response (finishReason: ${finishReason || 'unknown'})`);
   }
 
   /**
