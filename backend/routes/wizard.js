@@ -831,6 +831,84 @@ module.exports = (pool) => {
     }
   });
 
+  // POST /api/wizard/regenerate-image — regenerate image for an existing post (costs 1 credit)
+  router.post('/regenerate-image', authenticate, async (req, res) => {
+    try {
+      const { postId, imagePrompt } = req.body;
+      const customerId = req.customerId;
+
+      if (!postId || !imagePrompt) {
+        return res.status(400).json({ error: 'postId and imagePrompt are required' });
+      }
+
+      // Verify post ownership
+      const postCheck = await pool.query(
+        `SELECT id FROM posts WHERE id = $1 AND customer_id = $2`,
+        [postId, customerId]
+      );
+      if (postCheck.rows.length === 0) {
+        return res.status(403).json({ error: 'Post not found or not authorized' });
+      }
+
+      // Deduct 1 credit atomically
+      const creditResult = await pool.query(
+        `UPDATE customers SET credits_balance = credits_balance - 1
+         WHERE id = $1 AND credits_balance >= 1
+         RETURNING credits_balance`,
+        [customerId]
+      );
+      if (creditResult.rows.length === 0) {
+        return res.status(402).json({ error: 'Insufficient credits' });
+      }
+
+      if (!NanoBananaService) {
+        return res.status(503).json({ error: 'Image generation is not available' });
+      }
+
+      const nanoBanana = new NanoBananaService();
+      let imageResult;
+      try {
+        imageResult = await nanoBanana.generateFromPrompt({ id: customerId }, imagePrompt);
+        await validateMedia(imageResult.url);
+      } catch (genErr) {
+        // Refund the credit on failure
+        await pool.query(
+          `UPDATE customers SET credits_balance = credits_balance + 1 WHERE id = $1`,
+          [customerId]
+        );
+        return res.status(502).json({ error: `Image generation failed: ${genErr.message}` });
+      }
+
+      let mediaVariants = {};
+      if (ImageResizer) {
+        try {
+          mediaVariants = await ImageResizer.uploadResizedImages(
+            imageResult.url,
+            `regen-${postId}-${Date.now()}`,
+            customerId
+          );
+        } catch (resizerErr) {
+          console.warn('[Wizard] Regenerate: ImageResizer failed:', resizerErr.message);
+        }
+      }
+
+      await pool.query(
+        `UPDATE posts SET media_url = $1, updated_at = NOW() WHERE id = $2`,
+        [imageResult.url, postId]
+      );
+
+      res.json({
+        success: true,
+        mediaUrl: imageResult.url,
+        mediaVariants,
+        creditsRemaining: creditResult.rows[0].credits_balance,
+      });
+    } catch (err) {
+      console.error('[Wizard] regenerate-image error:', err.message);
+      res.status(500).json({ error: 'Image regeneration failed' });
+    }
+  });
+
   // POST /api/wizard/quick — mobile quick post mode
   router.post('/quick', authenticate, async (req, res) => {
     try {
