@@ -28,6 +28,23 @@ module.exports = (pool) => {
         return res.status(409).json({ error: 'Email already registered' });
       }
 
+      // IP-based trial limit (max 2 trial accounts per IP address)
+      const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'unknown';
+      try {
+        const ipCheck = await pool.query(
+          `SELECT COUNT(*) FROM trial_ip_registrations WHERE ip_address = $1`,
+          [clientIp]
+        );
+        if (parseInt(ipCheck.rows[0].count, 10) >= 2) {
+          return res.status(429).json({
+            error: 'Trial limit reached for this network. Please contact support to upgrade your plan.',
+          });
+        }
+      } catch (ipErr) {
+        // trial_ip_registrations table may not exist yet — allow registration
+        console.warn('[Auth] IP trial check skipped (table may not exist):', ipErr.message);
+      }
+
       const passwordHash = await bcrypt.hash(password, 10);
 
       const result = await pool.query(
@@ -45,6 +62,12 @@ module.exports = (pool) => {
          VALUES ($1, 'bonus', 10, 10, 'Welcome bonus - 10 free credits')`,
         [customer.id]
       );
+
+      // Record this IP → customer registration (non-blocking, fail silently)
+      pool.query(
+        `INSERT INTO trial_ip_registrations (ip_address, customer_id) VALUES ($1, $2)`,
+        [clientIp, customer.id]
+      ).catch(err => console.warn('[Auth] Could not record trial IP:', err.message));
 
       // Queue welcome email (non-blocking)
       emailQueue.notifyWelcome({ email: customer.email, business_name: customer.business_name, credits_balance: 10 });
