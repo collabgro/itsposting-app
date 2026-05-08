@@ -928,82 +928,71 @@ module.exports = (pool) => {
     }
   });
 
-  // GET /api/wizard/debug-image — test NanoBanana image generation, returns exact error
+  // GET /api/wizard/debug-image — find working Gemini image model + test it
   // No auth required — diagnostic only, remove after debugging
   router.get('/debug-image', async (req, res) => {
-    const result = {
-      apiKeySet: !!process.env.GOOGLE_AI_API_KEY,
-      apiKeyPrefix: process.env.GOOGLE_AI_API_KEY ? process.env.GOOGLE_AI_API_KEY.substring(0, 8) + '...' : null,
-      cloudinarySet: !!process.env.CLOUDINARY_CLOUD_NAME,
-      nanoBananaServiceLoaded: !!NanoBananaService,
-    };
+    const axios = require('axios');
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
 
-    if (!process.env.GOOGLE_AI_API_KEY) {
-      return res.json({ ...result, status: 'failed', error: 'GOOGLE_AI_API_KEY is not set in environment variables' });
+    if (!apiKey) {
+      return res.json({ status: 'failed', error: 'GOOGLE_AI_API_KEY is not set' });
     }
 
-    if (!NanoBananaService) {
-      return res.json({ ...result, status: 'failed', error: 'NanoBananaService could not be loaded' });
-    }
-
+    // Step 1: List all available models that support generateContent
+    let imageCapableModels = [];
     try {
-      const axios = require('axios');
-      const testPrompt = 'A simple test photograph of a red apple on a white table, studio lighting, 1:1 square composition';
+      const listResp = await axios.get(
+        'https://generativelanguage.googleapis.com/v1beta/models',
+        { params: { key: apiKey }, timeout: 10000 }
+      );
+      const allModels = listResp.data?.models || [];
+      imageCapableModels = allModels
+        .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+        .map(m => m.name.replace('models/', ''));
+    } catch (listErr) {
+      return res.json({ status: 'failed', step: 'list_models', error: listErr.message });
+    }
 
-      // Step 1: Test Gemini REST API directly
-      let geminiResponse;
+    // Step 2: Try each candidate model name until one generates an image
+    const candidates = [
+      'gemini-2.0-flash-exp',
+      'gemini-2.0-flash',
+      'gemini-2.5-flash-preview-image-generation',
+      'gemini-2.5-flash',
+      ...imageCapableModels.filter(n => n.includes('image') || n.includes('flash')),
+    ].filter((v, i, a) => a.indexOf(v) === i); // dedupe
+
+    const testPrompt = 'A simple test photograph of a red apple on a white table, studio lighting, square composition. No text.';
+    const results = [];
+
+    for (const modelName of candidates.slice(0, 8)) {
       try {
-        geminiResponse = await axios.post(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent',
+        const r = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
           {
             contents: [{ parts: [{ text: testPrompt }] }],
             generationConfig: { responseModalities: ['IMAGE'] },
           },
-          {
-            headers: { 'Content-Type': 'application/json' },
-            params: { key: process.env.GOOGLE_AI_API_KEY },
-            timeout: 45000,
-          }
+          { headers: { 'Content-Type': 'application/json' }, params: { key: apiKey }, timeout: 30000 }
         );
-      } catch (httpErr) {
-        return res.json({
-          ...result,
-          status: 'failed',
-          step: 'gemini_api_call',
-          error: httpErr.response?.data?.error?.message || httpErr.message,
-          httpStatus: httpErr.response?.status,
-          fullError: httpErr.response?.data,
-        });
+        const parts = r.data?.candidates?.[0]?.content?.parts || [];
+        const hasImage = parts.some(p => p.inlineData?.data);
+        results.push({ model: modelName, status: hasImage ? 'IMAGE_OK' : 'no_image', finishReason: r.data?.candidates?.[0]?.finishReason });
+        if (hasImage) break; // found a working model — stop
+      } catch (e) {
+        results.push({ model: modelName, status: 'error', httpStatus: e.response?.status, error: e.response?.data?.error?.message || e.message });
       }
-
-      const candidates = geminiResponse.data?.candidates || [];
-      const firstCandidate = candidates[0];
-      const parts = firstCandidate?.content?.parts || [];
-      const hasImage = parts.some(p => p.inlineData?.data);
-
-      if (!hasImage) {
-        return res.json({
-          ...result,
-          status: 'failed',
-          step: 'image_extraction',
-          error: `Gemini returned no image data. finishReason: ${firstCandidate?.finishReason}, parts: ${JSON.stringify(parts.map(p => Object.keys(p)))}`,
-          candidateCount: candidates.length,
-          finishReason: firstCandidate?.finishReason,
-          safetyRatings: firstCandidate?.safetyRatings,
-        });
-      }
-
-      const imageBase64 = parts.find(p => p.inlineData?.data).inlineData.data;
-      return res.json({
-        ...result,
-        status: 'success',
-        imageBase64Preview: imageBase64.substring(0, 50) + '... [truncated]',
-        imageSizeBytes: Math.round(imageBase64.length * 0.75),
-        message: 'Image generation is working! The base64 data is valid.',
-      });
-    } catch (err) {
-      return res.json({ ...result, status: 'failed', step: 'unexpected', error: err.message, stack: err.stack?.split('\n').slice(0, 3) });
     }
+
+    const working = results.find(r => r.status === 'IMAGE_OK');
+    return res.json({
+      availableModels: imageCapableModels.slice(0, 30),
+      testedModels: results,
+      workingModel: working?.model || null,
+      recommendation: working
+        ? `Use model: "${working.model}" — update NanoBananaService.js`
+        : 'No working image model found. Check API key permissions or enable image generation in Google AI Studio.',
+    });
   });
 
   // POST /api/wizard/quick — mobile quick post mode
