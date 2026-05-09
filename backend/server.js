@@ -25,6 +25,7 @@ const contactsRoutes = require('./routes/contacts');
 const intelligenceRoutes = require('./routes/intelligence');
 const inboxRoutes = require('./routes/inbox');
 const knowledgeRoutes = require('./routes/knowledge');
+const webhookRoutes = require('./routes/webhooks');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
 const EmailWorker = require('./services/EmailWorker');
 const SuggestionsEngine = require('./services/SuggestionsEngine');
@@ -79,6 +80,8 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', passwordResetLimiter);
 
 app.use(cors({ origin: true, credentials: true }));
+// Webhooks must be registered BEFORE express.json() — they need raw body for HMAC verification
+app.use('/api/webhooks', webhookRoutes(pool));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
