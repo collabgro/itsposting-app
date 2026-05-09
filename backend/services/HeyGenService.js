@@ -192,7 +192,7 @@ class HeyGenService {
           'X-Api-Key': this.apiKey,
           'Content-Type': 'application/json',
         },
-        timeout: 15000,
+        timeout: 60000, // 60s — HeyGen can be slow to respond when under load
       });
     } catch (axiosErr) {
       const status = axiosErr.response?.status;

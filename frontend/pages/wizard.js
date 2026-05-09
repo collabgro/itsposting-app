@@ -211,7 +211,7 @@ export default function Wizard() {
     if (!results?.videoRendering || results.videoRendering === 'completed' || results.videoRendering === 'failed') return;
     if (!results?.postId) return;
     let pollCount = 0;
-    const MAX_POLLS = 60; // 60 × 6s = 6 minutes (HeyGen renders take 2-5 min)
+    const MAX_POLLS = 100; // 100 × 6s = 10 minutes — extra headroom for HeyGen backlog
     const interval = setInterval(async () => {
       pollCount++;
       if (pollCount > MAX_POLLS) {

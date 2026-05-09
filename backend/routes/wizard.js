@@ -823,66 +823,42 @@ module.exports = (pool) => {
       let videoJobId = null;
       let videoError = null;
 
-      // ── HeyGen sync kickoff — create the video job before responding ──
+      // ── HeyGen async kickoff — fire-and-forget so the response is immediate ──
+      // When HeyGen is under load, their /v2/video/generate endpoint can take 30-60s
+      // just to queue the job. We cannot block the HTTP response waiting for that.
+      // Instead: mark videoRendering=true, return captions now, let the background
+      // task save the job ID, and let /video-poll/:postId (already set up) handle it.
       if (HeyGenService && process.env.HEYGEN_API_KEY && answers.contentTypeSelection === 'video' && savedPostId) {
-        try {
-          debugStage = 'video_create';
-          // Ensure prefetch is done before createVideo checks the cache
-          if (heyGenPrefetch) await heyGenPrefetch;
-          const heyGen = new HeyGenService();
-          const videoScriptText = parsed.variation_a?.videoScript || transformedVariations.A.caption;
-          console.log('[Wizard] Initiating HeyGen video generation for post', savedPostId);
+        videoRendering = true; // always — captions are ready, video is on its way
 
+        const bgPostId = savedPostId;
+        const bgCustomer = { ...session.customer };
+        const bgScript = parsed.variation_a?.videoScript || transformedVariations.A.caption;
+        const bgPrefetch = heyGenPrefetch; // already running in parallel with Claude
+
+        setImmediate(async () => {
           try {
-            const jobId = await heyGen.createVideo(session.customer, videoScriptText);
+            if (bgPrefetch) await bgPrefetch;
+            const heyGen = new HeyGenService();
+            console.log('[Wizard BG] Submitting HeyGen video for post', bgPostId);
+            const jobId = await heyGen.createVideo(bgCustomer, bgScript);
             if (jobId) {
-              videoJobId = jobId;
-              videoRendering = true;
-              try {
-                await pool.query(
-                  `UPDATE posts SET video_job_id = $1, status = 'video_processing' WHERE id = $2`,
-                  [jobId, savedPostId]
-                );
-              } catch (updateErr) {
-                console.error('[Wizard] Could not save video_job_id:', updateErr.message);
-              }
-              console.log('[Wizard] HeyGen job created successfully:', jobId);
-            } else {
-              videoError = 'HeyGen returned no job ID';
-              try {
-                await pool.query(
-                  `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
-                  [savedPostId]
-                );
-              } catch (updateErr) {
-                console.error('[Wizard] Could not save video_failed status:', updateErr.message);
-              }
-              console.error('[Wizard] HeyGen createVideo returned no job ID for post', savedPostId);
-            }
-          } catch (videoErr) {
-            videoError = videoErr.message || 'HeyGen video creation failed';
-            console.error('[Wizard] HeyGen createVideo failed for post', savedPostId, ':', videoError);
-            try {
               await pool.query(
-                `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
-                [savedPostId]
+                `UPDATE posts SET video_job_id = $1, status = 'video_processing', updated_at = NOW() WHERE id = $2`,
+                [jobId, bgPostId]
               );
-            } catch (updateErr) {
-              console.error('[Wizard] Could not save video_failed status:', updateErr.message);
+              console.log('[Wizard BG] HeyGen job created:', jobId, '→ post', bgPostId);
+            } else {
+              await pool.query(`UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`, [bgPostId]);
+              console.error('[Wizard BG] HeyGen returned no job ID for post', bgPostId);
             }
+          } catch (err) {
+            console.error('[Wizard BG] HeyGen submission failed for post', bgPostId, ':', err.message);
+            try {
+              await pool.query(`UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`, [bgPostId]);
+            } catch {}
           }
-        } catch (heyGenInitErr) {
-          videoError = heyGenInitErr.message;
-          console.error('[Wizard] HeyGen initialization error (video will be caption-only) for post', savedPostId, ':', heyGenInitErr.message);
-          try {
-            await pool.query(
-              `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
-              [savedPostId]
-            );
-          } catch (updateErr) {
-            console.error('[Wizard] Could not save video_failed status after initialization error:', updateErr.message);
-          }
-        }
+        });
       }
 
       wizardSessions.delete(wizardId);
@@ -1004,10 +980,11 @@ module.exports = (pool) => {
         return res.json({ status: 'failed', error: 'Video service unavailable.' });
       }
 
-      // If no job ID yet: give HeyGen 90 seconds to store it, then declare failure
+      // Background task submits to HeyGen — give it up to 3 min to get the job ID
+      // (HeyGen's /video/generate can take 60s+ when under load)
       if (!post.video_job_id) {
         const ageMs = Date.now() - new Date(post.created_at).getTime();
-        if (ageMs > 90_000) {
+        if (ageMs > 180_000) {
           return res.json({ status: 'failed', error: 'Video generation did not start in time.' });
         }
         return res.json({ status: 'processing' });
@@ -1110,73 +1087,6 @@ module.exports = (pool) => {
       console.error('[Wizard] regenerate-image error:', err.message);
       res.status(500).json({ error: 'Image regeneration failed' });
     }
-  });
-
-  // GET /api/wizard/debug-image — find working Gemini image model + test it
-  // No auth required — diagnostic only, remove after debugging
-  router.get('/debug-image', async (req, res) => {
-    const axios = require('axios');
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
-
-    if (!apiKey) {
-      return res.json({ status: 'failed', error: 'GOOGLE_AI_API_KEY is not set' });
-    }
-
-    // Step 1: List all available models that support generateContent
-    let imageCapableModels = [];
-    try {
-      const listResp = await axios.get(
-        'https://generativelanguage.googleapis.com/v1beta/models',
-        { params: { key: apiKey }, timeout: 10000 }
-      );
-      const allModels = listResp.data?.models || [];
-      imageCapableModels = allModels
-        .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
-        .map(m => m.name.replace('models/', ''));
-    } catch (listErr) {
-      return res.json({ status: 'failed', step: 'list_models', error: listErr.message });
-    }
-
-    // Step 2: Try each candidate model name until one generates an image
-    const candidates = [
-      'gemini-2.5-flash-image',
-      'gemini-3.1-flash-image-preview',
-      'gemini-3-pro-image-preview',
-      'nano-banana-pro-preview',
-      ...imageCapableModels.filter(n => n.includes('image')),
-    ].filter((v, i, a) => a.indexOf(v) === i); // dedupe
-
-    const testPrompt = 'A simple test photograph of a red apple on a white table, studio lighting, square composition. No text.';
-    const results = [];
-
-    for (const modelName of candidates.slice(0, 8)) {
-      try {
-        const r = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
-          {
-            contents: [{ parts: [{ text: testPrompt }] }],
-            generationConfig: { responseModalities: ['IMAGE'] },
-          },
-          { headers: { 'Content-Type': 'application/json' }, params: { key: apiKey }, timeout: 30000 }
-        );
-        const parts = r.data?.candidates?.[0]?.content?.parts || [];
-        const hasImage = parts.some(p => p.inlineData?.data);
-        results.push({ model: modelName, status: hasImage ? 'IMAGE_OK' : 'no_image', finishReason: r.data?.candidates?.[0]?.finishReason });
-        if (hasImage) break; // found a working model — stop
-      } catch (e) {
-        results.push({ model: modelName, status: 'error', httpStatus: e.response?.status, error: e.response?.data?.error?.message || e.message });
-      }
-    }
-
-    const working = results.find(r => r.status === 'IMAGE_OK');
-    return res.json({
-      availableModels: imageCapableModels.slice(0, 30),
-      testedModels: results,
-      workingModel: working?.model || null,
-      recommendation: working
-        ? `Use model: "${working.model}" — update NanoBananaService.js`
-        : 'No working image model found. Check API key permissions or enable image generation in Google AI Studio.',
-    });
   });
 
   // POST /api/wizard/quick — mobile quick post mode
