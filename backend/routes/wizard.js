@@ -610,13 +610,20 @@ module.exports = (pool) => {
             .map(block => {
               if (typeof block === 'string') return block;
               if (block?.type === 'text' || block?.type === 'output_text' || !block.type) return block.text || block.content || '';
+              if (block?.type === 'response') return block.response || '';
               return '';
             })
             .join('');
+        } else if (claudeResponse.content?.text) {
+          rawText = claudeResponse.content.text;
         } else if (claudeResponse.content?.[0]?.text) {
           rawText = claudeResponse.content[0].text;
+        } else if (claudeResponse.output_text) {
+          rawText = claudeResponse.output_text;
         } else if (claudeResponse.text) {
           rawText = claudeResponse.text;
+        } else if (typeof claudeResponse === 'string') {
+          rawText = claudeResponse;
         } else {
           throw new Error('Unexpected Claude response format');
         }

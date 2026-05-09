@@ -134,27 +134,40 @@ class HeyGenService {
 
   async createVideo(customer, script, options = {}) {
     console.log('[HeyGen] createVideo START — retrieving voice and avatar...');
-    
+
     const voiceId = customer.voice_id || await this.getDefaultVoiceId();
     const avatarId = customer.avatar_id || await this.getDefaultAvatarId();
 
     console.log('[HeyGen] Voice ID:', voiceId ? '✓ set' : '✗ MISSING');
     console.log('[HeyGen] Avatar ID:', avatarId ? '✓ set' : '✗ MISSING');
 
-    // HeyGen v2 flat payload — NOT video_inputs (that is v1/multi-scene format)
+    // HeyGen v2 video/generate expects video_inputs array format
     const payload = {
-      avatar_id: avatarId,
-      voice: {
-        voice_id: voiceId,
-        rate: 1.0,
-        emotion: 'friendly',
-      },
-      input_text: script.substring(0, 1500),
-      test: process.env.HEYGEN_TEST_MODE === 'true', // set HEYGEN_TEST_MODE=true to generate free watermarked videos while debugging
+      video_inputs: [
+        {
+          character: {
+            type: 'avatar',
+            avatar_id: avatarId,
+            avatar_style: 'normal',
+          },
+          voice: {
+            type: 'text',
+            input_text: script.substring(0, 1500),
+            voice_id: voiceId,
+            speed: 1.0,
+          },
+          background: {
+            type: 'color',
+            value: customer.brand_colors?.primary || '#1a1a2e',
+          },
+        },
+      ],
+      dimension: { width: 1080, height: 1920 },
+      aspect_ratio: '9:16',
+      test: process.env.HEYGEN_TEST_MODE === 'true',
     };
 
-    // voice_id is required — skip generation if we couldn't resolve one
-    if (!payload.voice.voice_id) {
+    if (!voiceId) {
       const err = 'No valid HeyGen voice ID available. Set HEYGEN_VOICE_ID in env or ensure your HeyGen API key has access to voices.';
       console.error('[HeyGen] ERROR:', err);
       throw new Error(err);

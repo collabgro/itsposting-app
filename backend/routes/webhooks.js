@@ -12,9 +12,11 @@
 const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
+const NotificationService = require('../services/NotificationService');
 
 module.exports = (pool) => {
   const router = express.Router();
+  const notifier = new NotificationService(pool);
 
   // ─────────────────────────────────────────────────────────────
   // OPTIONS — HeyGen pings this to verify the endpoint is alive
@@ -70,17 +72,33 @@ module.exports = (pool) => {
       console.log('[HeyGen Webhook] event:', event_type, '| video_id:', videoId);
 
       // ── avatar_video.success ────────────────────────────────
-      if (event_type === 'avatar_video.success' && videoId && event_data?.url) {
-        const videoUrl = event_data.url;
+      if (event_type === 'avatar_video.success' && videoId) {
+        // HeyGen sends the URL in either 'url' or 'video_url' depending on version
+        const videoUrl = event_data?.url || event_data?.video_url;
+        if (!videoUrl) {
+          console.warn('[HeyGen Webhook] Success event but no video URL in payload:', JSON.stringify(event_data));
+          return;
+        }
         console.log('[HeyGen Webhook] Video ready:', videoId, '->', videoUrl);
 
         try {
           const result = await pool.query(
-            `UPDATE posts SET media_url = $1 WHERE video_job_id = $2 RETURNING id`,
+            `UPDATE posts
+             SET media_url = $1, status = 'draft', updated_at = NOW()
+             WHERE video_job_id = $2
+             RETURNING id, customer_id`,
             [videoUrl, videoId]
           );
           if (result.rowCount > 0) {
-            console.log('[HeyGen Webhook] Saved media_url to post', result.rows[0].id);
+            const { id: postId, customer_id: customerId } = result.rows[0];
+            console.log('[HeyGen Webhook] Saved media_url to post', postId);
+            // Light up the notification bell
+            await notifier.create(
+              customerId,
+              'system',
+              'Your video is ready!',
+              'Your AI avatar video has finished rendering and is ready to review and publish.'
+            );
           } else {
             console.warn('[HeyGen Webhook] No post found for video_job_id:', videoId);
           }
@@ -92,9 +110,30 @@ module.exports = (pool) => {
 
       // ── avatar_video.fail ───────────────────────────────────
       if (event_type === 'avatar_video.fail') {
-        console.warn('[HeyGen Webhook] Video failed:', videoId, '|', event_data?.msg || '(no detail)');
-        // No DB update needed — the frontend poll will detect 'failed' status
-        // from HeyGen's status API on the next tick
+        const errMsg = event_data?.msg || event_data?.message || 'Unknown error';
+        console.warn('[HeyGen Webhook] Video failed:', videoId, '|', errMsg);
+
+        try {
+          const result = await pool.query(
+            `UPDATE posts
+             SET status = 'video_failed', updated_at = NOW()
+             WHERE video_job_id = $1
+             RETURNING id, customer_id`,
+            [videoId]
+          );
+          if (result.rowCount > 0) {
+            const { id: postId, customer_id: customerId } = result.rows[0];
+            console.log('[HeyGen Webhook] Marked post', postId, 'as video_failed');
+            await notifier.create(
+              customerId,
+              'system',
+              'Video generation failed',
+              'Your video could not be generated. Please try again or contact support.'
+            );
+          }
+        } catch (dbErr) {
+          console.error('[HeyGen Webhook] DB update for failure failed:', dbErr.message);
+        }
         return;
       }
 
