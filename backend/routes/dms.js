@@ -334,7 +334,7 @@ module.exports = function dmsRoutes(pool) {
         .join('\n');
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 300,
         system: `You are PostCore helping ${customer.business_name || 'a local business'} reply to a ${conv.platform} DM.
 

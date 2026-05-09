@@ -124,7 +124,7 @@ module.exports = (pool) => {
       }
 
       const response = await claude.messages.create({
-        model:      'claude-sonnet-4-20250514',
+        model:      'claude-sonnet-4-6',
         max_tokens: 300,
         system:     `You are a reply assistant for ${customer.business_name || 'a local service business'} in the ${customer.industry || 'home services'} industry. Write a ${tone} reply to this social media comment. Be genuine and brief (1-3 sentences max). Never use marketing jargon. Sound like a real local business owner.`,
         messages:   [{ role: 'user', content: `Write a reply to this comment: "${msg.message_text}"` }],

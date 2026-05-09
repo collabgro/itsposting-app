@@ -3,7 +3,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const industryKnowledge = require('../data/industryKnowledge');
 
-const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const CLAUDE_MODEL = 'claude-sonnet-4-6';
 
 const SUGGESTION_TYPES = {
   SEASONAL:    'seasonal',

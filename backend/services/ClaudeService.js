@@ -6,7 +6,7 @@
  *  - Uses SystemPromptBuilder for rich, industry-aware prompts
  *  - Always generates 3 variations (A, B, C) — never just 1
  *  - Saves variations to post_variations table
- *  - Correct model: claude-sonnet-4-20250514 (not haiku)
+ *  - Correct model: claude-sonnet-4-6 (not haiku)
  *  - Every post ends with an engagement question
  *  - Pulls business_knowledge for few-shot context
  */

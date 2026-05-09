@@ -83,7 +83,7 @@ Frontend:     Next.js (pages router), plain JavaScript — NO TypeScript
 Backend:      Express.js, Node.js — PORT 8080 on Railway, 3001 locally
 Database:     PostgreSQL via pg library (pool imported from server.js)
 AI:           Anthropic Claude API (@anthropic-ai/sdk)
-              Model: claude-sonnet-4-20250514 (ALWAYS this exact string)
+              Model: claude-sonnet-4-6 (ALWAYS this exact string)
 Styling:      Inline styles using theme object from frontend/lib/theme.js
               Use (t) from useTheme() — NEVER hardcode colors
 Icons:        Two-tier system:
@@ -334,7 +334,7 @@ RESEND_API_KEY
 - Store times in UTC always — never local time in database
 
 ### Claude API
-- Model: claude-sonnet-4-20250514 — always this exact string, never haiku
+- Model: claude-sonnet-4-6 — always this exact string, never haiku
 - Always handle JSON parse failures with try/catch
 - Strip ```json fences: text.replace(/```json|```/g, '').trim()
 - Always validate Claude responses before saving to database

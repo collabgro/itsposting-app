@@ -287,7 +287,7 @@ class ManualContentGenerator {
           result.overlayText || null,
           prompt,
           'manual',
-          result.model || 'claude-sonnet-4-20250514',
+          result.model || 'claude-sonnet-4-6',
           result.provider || 'unknown',
           primaryPlatform,
           JSON.stringify(platforms),
