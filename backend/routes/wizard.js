@@ -83,20 +83,28 @@ function repairJSON(str) {
 // Media validation — sanity checks before sending URL to frontend
 // Catches corrupt/missing NanoBanana and HeyGen outputs
 // ─────────────────────────────────────────────────────────────
-function validateMedia(url) {
+function validateMedia(url, type = 'image') {
   // data: URLs are inline base64 — no HTTP check needed
   if (!url || url.startsWith('data:')) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
-    lib.get(url, (res) => {
+    const req = lib.get(url, (res) => {
       const status = res.statusCode;
       const len = parseInt(res.headers['content-length'] || '0', 10);
       res.resume(); // drain response body
+      // Follow redirects (HeyGen CDN may redirect)
+      if (status === 301 || status === 302 || status === 307 || status === 308) {
+        return resolve(); // treat redirect as OK — URL is accessible
+      }
       if (status !== 200) return reject(new Error(`Media URL returned ${status}`));
-      if (len > 0 && len < 10240) return reject(new Error(`Media too small (${len} bytes) — likely corrupt`));
-      if (len > 10 * 1024 * 1024) return reject(new Error(`Media too large (${len} bytes)`));
+      // Only apply size checks for images — videos are 50-200MB, no upper limit
+      if (type === 'image') {
+        if (len > 0 && len < 10240) return reject(new Error(`Image too small (${len} bytes) — likely corrupt`));
+        if (len > 20 * 1024 * 1024) return reject(new Error(`Image too large (${len} bytes)`));
+      }
       resolve();
-    }).on('error', reject);
+    });
+    req.on('error', reject);
   });
 }
 
@@ -856,7 +864,7 @@ module.exports = (pool) => {
 
       if (status === 'completed' && videoUrl) {
         try {
-          await validateMedia(videoUrl);
+          await validateMedia(videoUrl, 'video');
           await pool.query(
             `UPDATE posts SET media_url = $1 WHERE video_job_id = $2`,
             [videoUrl, videoId]
@@ -921,7 +929,7 @@ module.exports = (pool) => {
 
       if (status === 'completed' && videoUrl) {
         try {
-          await validateMedia(videoUrl);
+          await validateMedia(videoUrl, 'video');
           await pool.query(`UPDATE posts SET media_url = $1 WHERE id = $2`, [videoUrl, postId]);
         } catch (valErr) {
           console.warn('[Wizard] Video validation failed:', valErr.message);
