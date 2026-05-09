@@ -287,7 +287,7 @@ export default function Wizard() {
       setStep('results');
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
-      setStep(4);
+      setStep(5); // stay on platform step so the error banner is visible
     }
   };
 

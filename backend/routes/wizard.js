@@ -565,6 +565,28 @@ module.exports = (pool) => {
         // table may not exist yet — safe to ignore
       }
 
+      // ── Credit check — fail before any expensive API calls ──────────────────
+      const CREDIT_COSTS = { static: 1, photo: 3, carousel: 5, video: 10 };
+      const creditCost = CREDIT_COSTS[answers.contentTypeSelection] ?? 1;
+
+      debugStage = 'credit_check';
+      const creditRow = await pool.query(
+        `SELECT credits_balance, plan, status FROM customers WHERE id = $1`,
+        [session.customerId]
+      );
+      const freshCustomer = creditRow.rows[0];
+      if (!freshCustomer) {
+        return res.status(404).json({ error: 'Customer not found' });
+      }
+      if (freshCustomer.status === 'suspended') {
+        return res.status(403).json({ error: 'Your account is suspended. Please contact support.' });
+      }
+      if (freshCustomer.credits_balance < creditCost) {
+        return res.status(402).json({
+          error: `Not enough credits. This ${answers.contentTypeSelection} post costs ${creditCost} credit${creditCost !== 1 ? 's' : ''} but you only have ${freshCustomer.credits_balance}. Please upgrade your plan.`,
+        });
+      }
+
       debugStage = 'prompt_build';
       const builder = new SystemPromptBuilder(session.customer, {
         platform: answers.platform,
@@ -820,6 +842,47 @@ module.exports = (pool) => {
         console.warn('[Wizard] Could not save post to database:', dbErr.message);
       }
 
+      // ── Deduct credits atomically after post is saved ────────────────────────
+      let creditsRemaining = null;
+      if (savedPostId) {
+        try {
+          const deductResult = await pool.query(
+            `UPDATE customers
+             SET credits_balance          = credits_balance - $1,
+                 credits_used_this_month  = credits_used_this_month + $1
+             WHERE id = $2 AND credits_balance >= $1
+             RETURNING credits_balance`,
+            [creditCost, session.customerId]
+          );
+          if (deductResult.rows.length > 0) {
+            creditsRemaining = deductResult.rows[0].credits_balance;
+            // Also stamp the post with the credit cost
+            try {
+              await pool.query(`UPDATE posts SET credits_used = $1 WHERE id = $2`, [creditCost, savedPostId]);
+            } catch {} // credits_used column may not exist yet — safe to skip
+            // Audit log
+            try {
+              await pool.query(
+                `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description)
+                 VALUES ($1, $2, 'debit', $3, $4, $5)`,
+                [session.customerId, savedPostId, -creditCost, creditsRemaining, `Generated ${answers.contentTypeSelection} post via wizard`]
+              );
+            } catch (txErr) {
+              console.warn('[Wizard] credit_transactions insert failed:', txErr.message);
+            }
+            console.log(`[Wizard] Deducted ${creditCost} credit(s) for post ${savedPostId} — balance now ${creditsRemaining}`);
+          } else {
+            // Race condition: credits fell below threshold between check and deduction
+            // Delete the post so the user isn't charged without a post
+            try { await pool.query(`DELETE FROM posts WHERE id = $1`, [savedPostId]); } catch {}
+            return res.status(402).json({ error: 'Insufficient credits. Please refresh and try again.' });
+          }
+        } catch (creditErr) {
+          console.error('[Wizard] Credit deduction failed:', creditErr.message);
+          // Don't fail the whole request — post exists, log the error for manual review
+        }
+      }
+
       let videoJobId = null;
       let videoError = null;
 
@@ -876,6 +939,8 @@ module.exports = (pool) => {
         videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
         videoJobId,
         videoError,
+        creditsUsed: creditCost,
+        creditsRemaining,
         bestTimeToPost: 'morning',
         contentType: answers.contentType,
         contentTypeSelection: answers.contentTypeSelection,
