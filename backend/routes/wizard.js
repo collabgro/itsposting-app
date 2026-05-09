@@ -784,29 +784,49 @@ module.exports = (pool) => {
         console.warn('[Wizard] Could not save post to database:', dbErr.message);
       }
 
-      // ── HeyGen async kick-off — runs AFTER DB insert so savedPostId is guaranteed set ──
+      let videoJobId = null;
+      let videoError = null;
+
+      // ── HeyGen sync kickoff — create the video job before responding ──
       if (HeyGenService && process.env.HEYGEN_API_KEY && answers.contentTypeSelection === 'video' && savedPostId) {
         try {
           const heyGen = new HeyGenService();
           const videoScriptText = parsed.variation_a?.videoScript || transformedVariations.A.caption;
           console.log('[Wizard] Initiating HeyGen video generation for post', savedPostId);
-          
-          heyGen.createVideo(session.customer, videoScriptText)
-            .then(async (jobId) => {
-              if (jobId) {
-                console.log('[Wizard] HeyGen job created successfully:', jobId);
-                await pool.query(
-                  `UPDATE posts SET video_job_id = $1 WHERE id = $2`,
-                  [jobId, savedPostId]
-                ).catch(err => console.warn('[Wizard] Could not save video_job_id:', err.message));
-              }
-            })
-            .catch(err => {
-              console.error('[Wizard] HeyGen createVideo failed for post', savedPostId, ':', err.message || err);
-            });
-          videoRendering = true;
+
+          try {
+            const jobId = await heyGen.createVideo(session.customer, videoScriptText);
+            if (jobId) {
+              videoJobId = jobId;
+              videoRendering = true;
+              await pool.query(
+                `UPDATE posts SET video_job_id = $1, status = 'video_processing' WHERE id = $2`,
+                [jobId, savedPostId]
+              );
+              console.log('[Wizard] HeyGen job created successfully:', jobId);
+            } else {
+              videoError = 'HeyGen returned no job ID';
+              await pool.query(
+                `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
+                [savedPostId]
+              );
+              console.error('[Wizard] HeyGen createVideo returned no job ID for post', savedPostId);
+            }
+          } catch (videoErr) {
+            videoError = videoErr.message || 'HeyGen video creation failed';
+            console.error('[Wizard] HeyGen createVideo failed for post', savedPostId, ':', videoError);
+            await pool.query(
+              `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
+              [savedPostId]
+            );
+          }
         } catch (heyGenInitErr) {
+          videoError = heyGenInitErr.message;
           console.error('[Wizard] HeyGen initialization error (video will be caption-only) for post', savedPostId, ':', heyGenInitErr.message);
+          await pool.query(
+            `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
+            [savedPostId]
+          );
         }
       }
 
@@ -823,7 +843,8 @@ module.exports = (pool) => {
         mediaVariants,
         imageFailed,
         videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
-        videoJobId: null, // kept for backward compat but no longer 'pending'
+        videoJobId,
+        videoError,
         bestTimeToPost: 'morning',
         contentType: answers.contentType,
         contentTypeSelection: answers.contentTypeSelection,
@@ -898,7 +919,7 @@ module.exports = (pool) => {
       let post;
       try {
         const result = await pool.query(
-          `SELECT video_job_id, media_url, created_at FROM posts WHERE id = $1 AND customer_id = $2`,
+          `SELECT video_job_id, media_url, status, created_at FROM posts WHERE id = $1 AND customer_id = $2`,
           [postId, customerId]
         );
         if (result.rows.length === 0) return res.status(403).json({ error: 'Not authorized' });
@@ -914,16 +935,25 @@ module.exports = (pool) => {
         return res.json({ status: 'completed', videoUrl: post.media_url });
       }
 
+      // If video generation already failed, return the failure state with detail
+      if (post.status === 'video_failed') {
+        return res.json({ status: 'failed', error: 'Video generation failed. Please try again later or contact support.' });
+      }
+
+      if (post.status === 'insufficient_credits') {
+        return res.json({ status: 'failed', error: 'Insufficient credits for HeyGen video generation.' });
+      }
+
       // If HeyGen service isn't configured, fail immediately
       if (!HeyGenService || !process.env.HEYGEN_API_KEY) {
-        return res.json({ status: 'failed' });
+        return res.json({ status: 'failed', error: 'Video service unavailable.' });
       }
 
       // If no job ID yet: give HeyGen 90 seconds to store it, then declare failure
       if (!post.video_job_id) {
         const ageMs = Date.now() - new Date(post.created_at).getTime();
         if (ageMs > 90_000) {
-          return res.json({ status: 'failed' });
+          return res.json({ status: 'failed', error: 'Video generation did not start in time.' });
         }
         return res.json({ status: 'processing' });
       }
@@ -938,7 +968,7 @@ module.exports = (pool) => {
           await pool.query(`UPDATE posts SET media_url = $1 WHERE id = $2`, [videoUrl, postId]);
         } catch (valErr) {
           console.warn('[Wizard] Video validation failed:', valErr.message);
-          return res.json({ status: 'failed', videoUrl: null });
+          return res.json({ status: 'failed', videoUrl: null, error: 'Video validation failed.' });
         }
       }
 
