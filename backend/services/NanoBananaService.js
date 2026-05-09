@@ -171,12 +171,10 @@ class NanoBananaService {
   async generateImage(prompt) {
     const axios = require('axios');
 
-    // Models to try in order — image-named models first
+    // Models that actually support image generation output via REST API
     const modelsToTry = [
-      'gemini-2.5-flash-image',
-      'gemini-3.1-flash-image-preview',
-      'gemini-3-pro-image-preview',
-      'nano-banana-pro-preview',
+      'gemini-2.0-flash-preview-image-generation',
+      'gemini-2.0-flash-exp-image-generation',
     ];
 
     let lastError;

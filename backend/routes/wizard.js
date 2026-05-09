@@ -547,7 +547,7 @@ module.exports = (pool) => {
       let businessKnowledge = [];
       try {
         const bkResult = await pool.query(
-          `SELECT knowledge_type, content FROM business_knowledge WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 10`,
+          `SELECT knowledge_type, title, content FROM business_knowledge WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 10`,
           [session.customerId]
         );
         businessKnowledge = bkResult.rows;
@@ -618,12 +618,8 @@ module.exports = (pool) => {
           try {
             parsed = JSON.parse(cleaned);
           } catch (jsonErr2) {
-            console.error('[Wizard] JSON parse failed after repair:', jsonErr2.message, '| First 200 chars:', cleaned.substring(0, 200));
-            parsed = {
-              variation_a: { caption: 'PostCore hit a snag generating this post. Please try again.', engagementQuestion: 'What would you like to know?' },
-              variation_b: { caption: 'Try generating again for a fresh set of variations.', engagementQuestion: 'Have questions? Drop them below!' },
-              variation_c: { caption: 'PostCore is ready — one more try usually does the trick.', engagementQuestion: 'What do you think?' },
-            };
+            console.error('[Wizard] JSON parse failed after repair:', jsonErr2.message, '| First 300 chars:', cleaned.substring(0, 300));
+            return res.status(502).json({ error: 'AI returned an unexpected format. Please try again.' });
           }
         }
       } catch (parseErr) {
