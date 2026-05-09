@@ -247,4 +247,12 @@ app.listen(PORT, '0.0.0.0', () => {
 process.on('SIGTERM', async () => { console.log('SIGTERM received, shutting down...'); await pool.end(); process.exit(0); });
 process.on('SIGINT', async () => { console.log('\nSIGINT received, shutting down...'); await pool.end(); process.exit(0); });
 
+// Prevent unhandled rejections from crashing the process (Node.js 15+ fatal by default)
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Server] Unhandled Promise Rejection:', reason?.message || reason, '| Promise:', promise);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[Server] Uncaught Exception:', err.message, err.stack);
+});
+
 module.exports = { pool };

@@ -547,7 +547,7 @@ module.exports = (pool) => {
       let businessKnowledge = [];
       try {
         const bkResult = await pool.query(
-          `SELECT content_type, content FROM business_knowledge WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 10`,
+          `SELECT knowledge_type, content FROM business_knowledge WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 10`,
           [session.customerId]
         );
         businessKnowledge = bkResult.rows;
@@ -569,12 +569,18 @@ module.exports = (pool) => {
 
       let claudeResponse;
       try {
-        claudeResponse = await anthropic.messages.create({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 4000,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: userPrompt }],
-        });
+        const claudeTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('AI response timeout — please try again')), 55000)
+        );
+        claudeResponse = await Promise.race([
+          anthropic.messages.create({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 4000,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: userPrompt }],
+          }),
+          claudeTimeout,
+        ]);
       } catch (claudeErr) {
         console.error('[Wizard] Claude API error:', claudeErr.message || claudeErr);
         return res.status(502).json({ error: `AI generation failed: ${claudeErr.message || 'Unknown error'}` });
@@ -823,7 +829,7 @@ module.exports = (pool) => {
         },
       });
     } catch (err) {
-      console.error('[Wizard] Error generating posts:', err.message || err);
+      console.error('[Wizard] Error generating posts:', err.message || err, '\n', err.stack || '');
       if (!res.headersSent) {
         res.status(500).json({ error: err.message || 'Generation failed. Please try again.' });
       }
