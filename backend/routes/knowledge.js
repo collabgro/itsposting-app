@@ -7,6 +7,43 @@ module.exports = (pool) => {
   const router = express.Router();
   router.use(authenticate);
 
+  // ── GET /api/knowledge/scrape-preview ────────────────────────────────────
+  // Returns scraped website data formatted for the knowledge form.
+  // The client merges this into existing form state — nothing is saved here.
+  router.get('/scrape-preview', async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT website_services, website_about, website FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+      const row = result.rows[0];
+      if (!row) return res.status(404).json({ error: 'Not found' });
+
+      const rawServices = row.website_services;
+      if (!rawServices && !row.website_about) {
+        return res.json({ hasData: false });
+      }
+
+      const serviceList = Array.isArray(rawServices)
+        ? rawServices
+        : JSON.parse(rawServices || '[]');
+
+      const services = serviceList
+        .filter(s => s && String(s).trim())
+        .map(s => ({ name: String(s).trim(), description: '', priceRange: '' }));
+
+      res.json({
+        hasData: services.length > 0 || !!row.website_about,
+        website: row.website,
+        services,
+        differentiators: (row.website_about || '').substring(0, 400),
+      });
+    } catch (err) {
+      console.error('[knowledge] scrape-preview:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── GET /api/knowledge ────────────────────────────────────────────────────
   router.get('/', async (req, res) => {
     try {

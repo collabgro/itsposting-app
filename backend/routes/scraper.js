@@ -2,6 +2,45 @@ const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const ScraperService = require('../services/ScraperService');
 
+// Auto-seed business_knowledge from scraped data — only runs when table is empty for this customer
+async function autoSeedKnowledge(pool, customerId, scraped) {
+  const existing = await pool.query(
+    'SELECT COUNT(*) FROM business_knowledge WHERE customer_id = $1',
+    [customerId]
+  );
+  if (parseInt(existing.rows[0].count, 10) > 0) return;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const services = Array.isArray(scraped.services) ? scraped.services : [];
+    for (let i = 0; i < services.length; i++) {
+      const name = String(services[i]).trim();
+      if (name) {
+        await client.query(
+          `INSERT INTO business_knowledge (customer_id, knowledge_type, title, content, sort_order)
+           VALUES ($1, 'services', $2, $3, $4)`,
+          [customerId, name, JSON.stringify({ name, description: '', priceRange: '' }), i]
+        );
+      }
+    }
+    if (scraped.about?.trim()) {
+      await client.query(
+        `INSERT INTO business_knowledge (customer_id, knowledge_type, title, content)
+         VALUES ($1, 'differentiators', 'What Makes Us Different', $2)`,
+        [customerId, scraped.about.substring(0, 500)]
+      );
+    }
+    await client.query('COMMIT');
+    console.log(`[Scraper] Auto-seeded knowledge for customer ${customerId}: ${services.length} services`);
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = (pool) => {
   const router = express.Router();
   const scraper = new ScraperService();
@@ -28,6 +67,11 @@ module.exports = (pool) => {
       await pool.query(
         `UPDATE customers SET website=$1, scraped_data=$2, scraped_at=NOW(), website_services=$3, website_about=$4, updated_at=NOW() WHERE id=$5`,
         [url, JSON.stringify(data), JSON.stringify(data.services), data.about || null, req.customerId]
+      );
+
+      // Auto-seed Teach PostCore if it's still empty (non-blocking)
+      autoSeedKnowledge(pool, req.customerId, data).catch(e =>
+        console.warn('[Scraper] Auto-seed knowledge failed:', e.message)
       );
 
       res.json({ cached: false, data, message: `Scrape complete. Found ${data.services.length} services!` });

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
-  IpPlus, IpDelete, IpCheck, IpWarning, IpDrafts, IpSave, IpLoader,
+  IpPlus, IpDelete, IpCheck, IpWarning, IpDrafts, IpSave, IpLoader, IpRefresh,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Input, Textarea } from '../components/ui';
@@ -11,10 +11,13 @@ export default function KnowledgeBase() {
   const router = useRouter();
   const { t }  = useTheme();
 
-  const [mounted, setMounted] = useState(false);
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState(false);
-  const [data, setData]       = useState({
+  const [mounted,       setMounted]       = useState(false);
+  const [saving,        setSaving]        = useState(false);
+  const [saved,         setSaved]         = useState(false);
+  const [importing,     setImporting]     = useState(false);
+  const [importBanner,  setImportBanner]  = useState(null); // { website, services, differentiators }
+  const [importToast,   setImportToast]   = useState(null);
+  const [data, setData] = useState({
     services:        [],
     reviews:         '',
     differentiators: '',
@@ -26,6 +29,8 @@ export default function KnowledgeBase() {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
     const token = localStorage.getItem('token');
+
+    // Load existing knowledge base
     fetch('/api/knowledge', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(kb => {
@@ -41,7 +46,38 @@ export default function KnowledgeBase() {
         setData(merged);
       })
       .catch(() => {});
+
+    // Check if scraped data is available to import
+    fetch('/api/knowledge/scrape-preview', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(preview => {
+        if (preview?.hasData) setImportBanner(preview);
+      })
+      .catch(() => {});
   }, []);
+
+  // Merge scraped data into form — deduplicates services by name, never overwrites reviews/FAQs/team
+  const handleImport = () => {
+    if (!importBanner) return;
+    setImporting(true);
+    setData(prev => {
+      const existingNames = new Set(prev.services.map(s => s.name.toLowerCase().trim()));
+      const newServices = importBanner.services.filter(
+        s => s.name.trim() && !existingNames.has(s.name.toLowerCase().trim())
+      );
+      return {
+        ...prev,
+        services: [...prev.services, ...newServices],
+        differentiators: prev.differentiators.trim()
+          ? prev.differentiators
+          : importBanner.differentiators || prev.differentiators,
+      };
+    });
+    const count = importBanner.services.length;
+    setImportToast(`Imported ${count} service${count !== 1 ? 's' : ''} from ${importBanner.website || 'your website'}`);
+    setTimeout(() => { setImportToast(null); setImporting(false); }, 3500);
+    setImportBanner(null);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -92,6 +128,34 @@ export default function KnowledgeBase() {
         </Button>
       }
     >
+      {/* Import success toast */}
+      {importToast && (
+        <div style={{ position: 'fixed', top: 24, right: 24, zIndex: 9999, padding: '12px 20px', borderRadius: 10, background: '#22C55E', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <IpCheck size={15} color="#fff" /> {importToast}
+        </div>
+      )}
+
+      {/* Website Intelligence import banner */}
+      {importBanner && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 18px', background: 'rgba(124,92,252,0.08)', border: `1px solid rgba(124,92,252,0.25)`, borderRadius: 12, marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2 }}>
+              Website Intelligence found {importBanner.services.length} service{importBanner.services.length !== 1 ? 's' : ''}
+            </div>
+            <div style={{ fontSize: 12, color: t.textMuted }}>
+              From {importBanner.website || 'your website'} — import to pre-fill your knowledge base, then edit as needed
+            </div>
+          </div>
+          <button
+            onClick={handleImport}
+            disabled={importing}
+            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.7 : 1, whiteSpace: 'nowrap' }}
+          >
+            <IpRefresh size={13} color="#fff" /> Import from website
+          </button>
+        </div>
+      )}
+
       {/* Completeness bar */}
       <Card style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
