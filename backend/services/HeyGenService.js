@@ -125,7 +125,7 @@ class HeyGenService {
         emotion: 'friendly',
       },
       input_text: script.substring(0, 1500),
-      test: false,
+      test: process.env.HEYGEN_TEST_MODE === 'true', // set HEYGEN_TEST_MODE=true to generate free watermarked videos while debugging
     };
 
     // voice_id is required — skip generation if we couldn't resolve one
@@ -133,15 +133,24 @@ class HeyGenService {
       throw new Error('No valid HeyGen voice ID available. Set HEYGEN_VOICE_ID in env or check your HeyGen plan.');
     }
 
-    console.log('[HeyGen] createVideo — avatar:', avatarId, '| voice:', voiceId, '| script chars:', payload.input_text.length);
+    console.log('[HeyGen] createVideo payload:', JSON.stringify(payload).substring(0, 500));
 
-    const response = await axios.post(`${this.baseUrl}/video/generate`, payload, {
-      headers: {
-        'X-Api-Key': this.apiKey,
-        'Content-Type': 'application/json',
-      },
-      timeout: 15000,
-    });
+    let response;
+    try {
+      response = await axios.post(`${this.baseUrl}/video/generate`, payload, {
+        headers: {
+          'X-Api-Key': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+        timeout: 15000,
+      });
+    } catch (axiosErr) {
+      const detail = axiosErr.response?.data;
+      console.error('[HeyGen] createVideo HTTP error:', axiosErr.response?.status, JSON.stringify(detail).substring(0, 500));
+      throw axiosErr;
+    }
+
+    console.log('[HeyGen] createVideo response:', JSON.stringify(response.data).substring(0, 500));
 
     const videoId = response.data.data?.video_id || response.data.video_id;
     if (!videoId) {
