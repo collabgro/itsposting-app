@@ -207,7 +207,7 @@ export default function Wizard() {
     if (!results?.videoRendering || results.videoRendering === 'completed' || results.videoRendering === 'failed') return;
     if (!results?.postId) return;
     let pollCount = 0;
-    const MAX_POLLS = 100; // 100 × 6s = 10 minutes
+    const MAX_POLLS = 20; // 20 × 6s = 2 minutes
     const interval = setInterval(async () => {
       pollCount++;
       if (pollCount > MAX_POLLS) {
