@@ -657,10 +657,13 @@ export default function Wizard() {
               {/* ── LEFT: Media panel (40%) ── */}
               <div style={{ flex: '0 0 280px', minWidth: 220 }}>
 
-                {/* Image failed banner */}
+                {/* Image/video failed banner */}
                 {results.imageFailed && (
                   <div style={{ padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#D97706' }}>
-                    <Icon name="warning" size={14} color="#D97706" /> Image generation failed — caption-only mode
+                    <Icon name="warning" size={14} color="#D97706" />
+                    {results.contentTypeSelection === 'video'
+                      ? 'Video generation failed — captions are ready to post'
+                      : 'Image generation failed — caption-only mode'}
                   </div>
                 )}
 
