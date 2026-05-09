@@ -513,6 +513,7 @@ module.exports = (pool) => {
 
   // POST /api/wizard/generate
   router.post('/generate', authenticate, async (req, res) => {
+    let debugStage = 'start';
     try {
       const { wizardId } = req.body;
 
@@ -520,6 +521,7 @@ module.exports = (pool) => {
         return res.status(404).json({ error: 'Wizard session not found or expired. Please start again.' });
       }
 
+      debugStage = 'session';
       const session = wizardSessions.get(wizardId);
 
       if (session.customerId !== req.customerId) {
@@ -563,6 +565,7 @@ module.exports = (pool) => {
         // table may not exist yet — safe to ignore
       }
 
+      debugStage = 'prompt_build';
       const builder = new SystemPromptBuilder(session.customer, {
         platform: answers.platform,
         contentType: answers.contentTypeSelection, // 'static', 'photo', 'carousel', 'video'
@@ -575,6 +578,7 @@ module.exports = (pool) => {
 
       console.log(`[Wizard] Generating posts for customer ${session.customerId}, content type: ${answers.contentType}`);
 
+      debugStage = 'claude_request';
       let claudeResponse;
       try {
         const claudeTimeout = new Promise((_, reject) =>
@@ -594,18 +598,29 @@ module.exports = (pool) => {
         return res.status(502).json({ error: `AI generation failed: ${claudeErr.message || 'Unknown error'}` });
       }
 
+      debugStage = 'claude_parse';
       let parsed;
       try {
-        const rawText = claudeResponse.content
-          .filter(block => block.type === 'text')
-          .map(block => block.text)
-          .join('');
+        let rawText = '';
 
-        // Find this (around line 495-505):
-        // const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        // parsed = JSON.parse(cleaned);
+        if (typeof claudeResponse.content === 'string') {
+          rawText = claudeResponse.content;
+        } else if (Array.isArray(claudeResponse.content)) {
+          rawText = claudeResponse.content
+            .map(block => {
+              if (typeof block === 'string') return block;
+              if (block?.type === 'text' || block?.type === 'output_text' || !block.type) return block.text || block.content || '';
+              return '';
+            })
+            .join('');
+        } else if (claudeResponse.content?.[0]?.text) {
+          rawText = claudeResponse.content[0].text;
+        } else if (claudeResponse.text) {
+          rawText = claudeResponse.text;
+        } else {
+          throw new Error('Unexpected Claude response format');
+        }
 
-        // Replace with this:
         let cleaned = rawText
           .replace(/```json\n?/g, '')
           .replace(/```\n?/g, '')
@@ -741,6 +756,7 @@ module.exports = (pool) => {
       let savedPostId = null;
       let savedVariations = null;
       let videoRendering = false;
+      debugStage = 'db_insert';
 
       try {
         const postResult = await pool.query(
@@ -790,6 +806,7 @@ module.exports = (pool) => {
       // ── HeyGen sync kickoff — create the video job before responding ──
       if (HeyGenService && process.env.HEYGEN_API_KEY && answers.contentTypeSelection === 'video' && savedPostId) {
         try {
+          debugStage = 'video_create';
           const heyGen = new HeyGenService();
           const videoScriptText = parsed.variation_a?.videoScript || transformedVariations.A.caption;
           console.log('[Wizard] Initiating HeyGen video generation for post', savedPostId);
@@ -875,9 +892,9 @@ module.exports = (pool) => {
         },
       });
     } catch (err) {
-      console.error('[Wizard] Error generating posts:', err.message || err, '\n', err.stack || '');
+      console.error('[Wizard] Error generating posts at stage', debugStage, ':', err.message || err, '\n', err.stack || '');
       if (!res.headersSent) {
-        res.status(500).json({ error: err.message || 'Generation failed. Please try again.' });
+        res.status(500).json({ error: `Server error at stage: ${debugStage}. Please try again.` });
       }
     }
   });
