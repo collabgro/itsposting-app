@@ -799,34 +799,50 @@ module.exports = (pool) => {
             if (jobId) {
               videoJobId = jobId;
               videoRendering = true;
-              await pool.query(
-                `UPDATE posts SET video_job_id = $1, status = 'video_processing' WHERE id = $2`,
-                [jobId, savedPostId]
-              );
+              try {
+                await pool.query(
+                  `UPDATE posts SET video_job_id = $1, status = 'video_processing' WHERE id = $2`,
+                  [jobId, savedPostId]
+                );
+              } catch (updateErr) {
+                console.error('[Wizard] Could not save video_job_id:', updateErr.message);
+              }
               console.log('[Wizard] HeyGen job created successfully:', jobId);
             } else {
               videoError = 'HeyGen returned no job ID';
-              await pool.query(
-                `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
-                [savedPostId]
-              );
+              try {
+                await pool.query(
+                  `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
+                  [savedPostId]
+                );
+              } catch (updateErr) {
+                console.error('[Wizard] Could not save video_failed status:', updateErr.message);
+              }
               console.error('[Wizard] HeyGen createVideo returned no job ID for post', savedPostId);
             }
           } catch (videoErr) {
             videoError = videoErr.message || 'HeyGen video creation failed';
             console.error('[Wizard] HeyGen createVideo failed for post', savedPostId, ':', videoError);
-            await pool.query(
-              `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
-              [savedPostId]
-            );
+            try {
+              await pool.query(
+                `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
+                [savedPostId]
+              );
+            } catch (updateErr) {
+              console.error('[Wizard] Could not save video_failed status:', updateErr.message);
+            }
           }
         } catch (heyGenInitErr) {
           videoError = heyGenInitErr.message;
           console.error('[Wizard] HeyGen initialization error (video will be caption-only) for post', savedPostId, ':', heyGenInitErr.message);
-          await pool.query(
-            `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
-            [savedPostId]
-          );
+          try {
+            await pool.query(
+              `UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`,
+              [savedPostId]
+            );
+          } catch (updateErr) {
+            console.error('[Wizard] Could not save video_failed status after initialization error:', updateErr.message);
+          }
         }
       }
 
