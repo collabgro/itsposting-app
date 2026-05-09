@@ -36,14 +36,18 @@ class HeyGenService {
     if (this._cachedVoiceId) return this._cachedVoiceId;
     if (process.env.HEYGEN_VOICE_ID) {
       this._cachedVoiceId = process.env.HEYGEN_VOICE_ID;
+      console.log('[HeyGen] Using HEYGEN_VOICE_ID from env:', this._cachedVoiceId);
       return this._cachedVoiceId;
     }
     try {
+      console.log('[HeyGen] Fetching available voices from API...');
       const response = await axios.get(`${this.baseUrl}/voices`, {
         headers: { 'X-Api-Key': this.apiKey },
         timeout: 8000,
       });
       const voices = response.data.data?.voices || response.data.voices || [];
+      console.log(`[HeyGen] Found ${voices.length} voices`);
+      
       // HeyGen voice_ids often embed gender: 'female-en-us-001', 'male-en-us-001'
       const pick =
         voices.find(v => v.language === 'en' && (v.voice_id || '').startsWith('female')) ||
@@ -53,9 +57,14 @@ class HeyGenService {
         console.log('[HeyGen] Using voice:', pick.voice_name || pick.voice_id);
         this._cachedVoiceId = pick.voice_id;
         return pick.voice_id;
+      } else {
+        console.warn('[HeyGen] No suitable voice found in list');
       }
     } catch (err) {
-      console.warn('[HeyGen] Could not fetch voices list:', err.message);
+      console.error('[HeyGen] Error fetching voices:', err.response?.status, err.message);
+      if (err.response?.status === 401) {
+        console.error('[HeyGen] Authentication failed - check HEYGEN_API_KEY');
+      }
     }
     return null;
   }
@@ -66,14 +75,18 @@ class HeyGenService {
     if (this._cachedAvatarId) return this._cachedAvatarId;
     if (process.env.HEYGEN_AVATAR_ID) {
       this._cachedAvatarId = process.env.HEYGEN_AVATAR_ID;
+      console.log('[HeyGen] Using HEYGEN_AVATAR_ID from env:', this._cachedAvatarId);
       return this._cachedAvatarId;
     }
     try {
+      console.log('[HeyGen] Fetching available avatars from API...');
       const response = await axios.get(`${this.baseUrl}/avatars`, {
         headers: { 'X-Api-Key': this.apiKey },
         timeout: 8000,
       });
       const avatars = response.data.data?.avatars || response.data.avatars || [];
+      console.log(`[HeyGen] Found ${avatars.length} avatars`);
+      
       const pick =
         avatars.find(a => (a.avatar_style || '').toLowerCase() === 'female') ||
         avatars[0];
@@ -81,12 +94,19 @@ class HeyGenService {
         console.log('[HeyGen] Using avatar:', pick.avatar_name || pick.avatar_id);
         this._cachedAvatarId = pick.avatar_id;
         return pick.avatar_id;
+      } else {
+        console.warn('[HeyGen] No avatar found in list');
       }
     } catch (err) {
-      console.warn('[HeyGen] Could not fetch avatars list:', err.message);
+      console.error('[HeyGen] Error fetching avatars:', err.response?.status, err.message);
+      if (err.response?.status === 401) {
+        console.error('[HeyGen] Authentication failed - check HEYGEN_API_KEY');
+      }
     }
-    // Known stable fallbacks
-    return 'anna_20220920';
+    // Known stable fallback
+    console.log('[HeyGen] Using fallback avatar: anna_20220920');
+    this._cachedAvatarId = 'anna_20220920';
+    return this._cachedAvatarId;
   }
 
   async generateFromScript(customer, script, options = {}) {
@@ -113,8 +133,13 @@ class HeyGenService {
   }
 
   async createVideo(customer, script, options = {}) {
+    console.log('[HeyGen] createVideo START — retrieving voice and avatar...');
+    
     const voiceId = customer.voice_id || await this.getDefaultVoiceId();
     const avatarId = customer.avatar_id || await this.getDefaultAvatarId();
+
+    console.log('[HeyGen] Voice ID:', voiceId ? '✓ set' : '✗ MISSING');
+    console.log('[HeyGen] Avatar ID:', avatarId ? '✓ set' : '✗ MISSING');
 
     // HeyGen v2 flat payload — NOT video_inputs (that is v1/multi-scene format)
     const payload = {
@@ -130,10 +155,18 @@ class HeyGenService {
 
     // voice_id is required — skip generation if we couldn't resolve one
     if (!payload.voice.voice_id) {
-      throw new Error('No valid HeyGen voice ID available. Set HEYGEN_VOICE_ID in env or check your HeyGen plan.');
+      const err = 'No valid HeyGen voice ID available. Set HEYGEN_VOICE_ID in env or ensure your HeyGen API key has access to voices.';
+      console.error('[HeyGen] ERROR:', err);
+      throw new Error(err);
     }
 
-    console.log('[HeyGen] createVideo payload:', JSON.stringify(payload).substring(0, 500));
+    if (!avatarId) {
+      const err = 'No valid HeyGen avatar ID available. Set HEYGEN_AVATAR_ID in env or ensure your HeyGen API key has access to avatars.';
+      console.error('[HeyGen] ERROR:', err);
+      throw new Error(err);
+    }
+
+    console.log('[HeyGen] Payload ready. Making API call to', `${this.baseUrl}/video/generate`);
 
     let response;
     try {
@@ -145,8 +178,13 @@ class HeyGenService {
         timeout: 15000,
       });
     } catch (axiosErr) {
+      const status = axiosErr.response?.status;
       const detail = axiosErr.response?.data;
-      console.error('[HeyGen] createVideo HTTP error:', axiosErr.response?.status, JSON.stringify(detail).substring(0, 500));
+      console.error('[HeyGen] API call failed:', {
+        status,
+        message: detail?.error?.message || detail?.message || axiosErr.message,
+        fullError: JSON.stringify(detail).substring(0, 500),
+      });
       throw axiosErr;
     }
 

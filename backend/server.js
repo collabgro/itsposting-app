@@ -49,6 +49,23 @@ pool.query('SELECT NOW()', (err, res) => {
   else console.log('✅ Database connected at', res.rows[0].now);
 });
 
+// Startup diagnostics
+console.log('\n═══════════════════════════════════════════');
+console.log('🚀 ItsPosting Backend Startup Diagnostics');
+console.log('═══════════════════════════════════════════');
+console.log('Environment: NODE_ENV =', process.env.NODE_ENV || 'development');
+console.log('Services configured:');
+console.log('  🖼️  Image generation:', process.env.GOOGLE_AI_API_KEY ? '✓ NanoBanana' : '✗ Not configured');
+console.log('  🖼️  Premium images:', process.env.REPLICATE_API_TOKEN ? '✓ Midjourney' : '✗ Not configured');
+console.log('  🎥 Video generation:', process.env.HEYGEN_API_KEY ? '✓ HeyGen configured' : '✗ HEYGEN_API_KEY not set');
+if (process.env.HEYGEN_API_KEY) {
+  console.log('     - Voice ID:', process.env.HEYGEN_VOICE_ID ? '✓ Pre-configured' : '⚠️  Will auto-fetch from API');
+  console.log('     - Avatar ID:', process.env.HEYGEN_AVATAR_ID ? '✓ Pre-configured' : '⚠️  Will auto-fetch from API');
+  console.log('     - Test mode:', process.env.HEYGEN_TEST_MODE === 'true' ? '✓ ON (watermarked videos)' : 'OFF (real credits used)');
+}
+console.log('  ☁️  Storage:', process.env.CLOUDINARY_CLOUD_NAME ? '✓ Cloudinary' : '✗ Not configured');
+console.log('═══════════════════════════════════════════\n');
+
 // Startup schema migrations — safe to re-run (IF NOT EXISTS / IF NOT column already)
 (async () => {
   const migrations = [

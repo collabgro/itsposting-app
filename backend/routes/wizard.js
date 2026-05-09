@@ -789,19 +789,24 @@ module.exports = (pool) => {
         try {
           const heyGen = new HeyGenService();
           const videoScriptText = parsed.variation_a?.videoScript || transformedVariations.A.caption;
+          console.log('[Wizard] Initiating HeyGen video generation for post', savedPostId);
+          
           heyGen.createVideo(session.customer, videoScriptText)
             .then(async (jobId) => {
               if (jobId) {
+                console.log('[Wizard] HeyGen job created successfully:', jobId);
                 await pool.query(
                   `UPDATE posts SET video_job_id = $1 WHERE id = $2`,
                   [jobId, savedPostId]
                 ).catch(err => console.warn('[Wizard] Could not save video_job_id:', err.message));
               }
             })
-            .catch(err => console.error('[Wizard] HeyGen createVideo error:', err.message));
+            .catch(err => {
+              console.error('[Wizard] HeyGen createVideo failed for post', savedPostId, ':', err.message || err);
+            });
           videoRendering = true;
         } catch (heyGenInitErr) {
-          console.error('[Wizard] HeyGen init error (video will be caption-only):', heyGenInitErr.message);
+          console.error('[Wizard] HeyGen initialization error (video will be caption-only) for post', savedPostId, ':', heyGenInitErr.message);
         }
       }
 
