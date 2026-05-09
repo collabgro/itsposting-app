@@ -1179,39 +1179,6 @@ module.exports = (pool) => {
     });
   });
 
-  // GET /api/wizard/heygen-ids — fetch available voice + avatar IDs from HeyGen
-  // Call once to find values for HEYGEN_VOICE_ID / HEYGEN_AVATAR_ID env vars, then remove
-  router.get('/heygen-ids', async (req, res) => {
-    const apiKey = process.env.HEYGEN_API_KEY;
-    if (!apiKey) return res.json({ error: 'HEYGEN_API_KEY not set' });
-    const axios = require('axios');
-    try {
-      const [voiceRes, avatarRes] = await Promise.all([
-        axios.get('https://api.heygen.com/v2/voices', { headers: { 'X-Api-Key': apiKey }, timeout: 10000 }),
-        axios.get('https://api.heygen.com/v2/avatars', { headers: { 'X-Api-Key': apiKey }, timeout: 10000 }),
-      ]);
-      const voices = voiceRes.data.data?.voices || voiceRes.data.voices || [];
-      const avatars = avatarRes.data.data?.avatars || avatarRes.data.avatars || [];
-      const bestVoice =
-        voices.find(v => v.language === 'en' && (v.voice_id || '').startsWith('female')) ||
-        voices.find(v => (v.language || '').startsWith('en')) ||
-        voices[0];
-      const bestAvatar =
-        avatars.find(a => (a.avatar_style || '').toLowerCase() === 'female') ||
-        avatars[0];
-      res.json({
-        recommendation: {
-          HEYGEN_VOICE_ID: bestVoice?.voice_id || null,
-          HEYGEN_AVATAR_ID: bestAvatar?.avatar_id || null,
-        },
-        allVoices: voices.slice(0, 20).map(v => ({ voice_id: v.voice_id, name: v.voice_name, language: v.language })),
-        allAvatars: avatars.slice(0, 20).map(a => ({ avatar_id: a.avatar_id, name: a.avatar_name, style: a.avatar_style })),
-      });
-    } catch (err) {
-      res.status(500).json({ error: err.response?.data || err.message });
-    }
-  });
-
   // POST /api/wizard/quick — mobile quick post mode
   router.post('/quick', authenticate, async (req, res) => {
     try {
