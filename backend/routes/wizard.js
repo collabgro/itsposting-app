@@ -578,6 +578,19 @@ module.exports = (pool) => {
 
       console.log(`[Wizard] Generating posts for customer ${session.customerId}, content type: ${answers.contentType}`);
 
+      // For video posts: prefetch HeyGen voice/avatar IDs in parallel with Claude.
+      // The fetches take ~8s each; Claude takes ~10-15s — so by the time Claude finishes
+      // the IDs are already cached and createVideo() returns in <15s instead of ~31s.
+      let heyGenPrefetch = null;
+      if (HeyGenService && process.env.HEYGEN_API_KEY && answers.contentTypeSelection === 'video') {
+        const prefetcher = new HeyGenService();
+        heyGenPrefetch = Promise.allSettled([
+          prefetcher.getDefaultVoiceId(),
+          prefetcher.getDefaultAvatarId(),
+        ]);
+        console.log('[Wizard] HeyGen voice/avatar prefetch started in parallel with Claude');
+      }
+
       debugStage = 'claude_request';
       let claudeResponse;
       try {
@@ -814,6 +827,8 @@ module.exports = (pool) => {
       if (HeyGenService && process.env.HEYGEN_API_KEY && answers.contentTypeSelection === 'video' && savedPostId) {
         try {
           debugStage = 'video_create';
+          // Ensure prefetch is done before createVideo checks the cache
+          if (heyGenPrefetch) await heyGenPrefetch;
           const heyGen = new HeyGenService();
           const videoScriptText = parsed.variation_a?.videoScript || transformedVariations.A.caption;
           console.log('[Wizard] Initiating HeyGen video generation for post', savedPostId);

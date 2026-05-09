@@ -92,8 +92,12 @@ function authHeaders() {
 }
 
 async function safeJson(res) {
-  try { return await res.json(); }
-  catch { throw new Error(`Server error (${res.status}) — please try again.`); }
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch {
+    console.error('[Wizard] Non-JSON response from server:', res.status, text.substring(0, 600));
+    throw new Error(`Server error (${res.status}) — please try again.`);
+  }
 }
 
 async function apiPost(path, body) {

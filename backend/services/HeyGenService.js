@@ -10,12 +10,16 @@
 const axios = require('axios');
 const cloudinary = require('cloudinary').v2;
 
+// Module-level caches — survive across HeyGenService() instantiations within the same process.
+// Critical: wizard.js creates a new HeyGenService() on every request, so instance-level
+// caches were being thrown away each time, forcing fresh voice/avatar API calls (~16s extra).
+let _voiceIdCache = null;
+let _avatarIdCache = null;
+
 class HeyGenService {
   constructor() {
     this.apiKey = process.env.HEYGEN_API_KEY;
     this.baseUrl = 'https://api.heygen.com/v2';
-    this._cachedVoiceId = null;
-    this._cachedAvatarId = null;
 
     if (!this.apiKey) {
       console.warn('⚠️  HEYGEN_API_KEY not set - video generation will not work');
@@ -33,11 +37,11 @@ class HeyGenService {
   // Fetch a valid HeyGen voice ID — caches result so API is only called once per process
   // HeyGen v2 voice fields: voice_id, voice_name, language, accent (NOT locale/gender)
   async getDefaultVoiceId() {
-    if (this._cachedVoiceId) return this._cachedVoiceId;
+    if (_voiceIdCache) return _voiceIdCache;
     if (process.env.HEYGEN_VOICE_ID) {
-      this._cachedVoiceId = process.env.HEYGEN_VOICE_ID;
-      console.log('[HeyGen] Using HEYGEN_VOICE_ID from env:', this._cachedVoiceId);
-      return this._cachedVoiceId;
+      _voiceIdCache = process.env.HEYGEN_VOICE_ID;
+      console.log('[HeyGen] Using HEYGEN_VOICE_ID from env:', _voiceIdCache);
+      return _voiceIdCache;
     }
     try {
       console.log('[HeyGen] Fetching available voices from API...');
@@ -47,7 +51,7 @@ class HeyGenService {
       });
       const voices = response.data.data?.voices || response.data.voices || [];
       console.log(`[HeyGen] Found ${voices.length} voices`);
-      
+
       // HeyGen voice_ids often embed gender: 'female-en-us-001', 'male-en-us-001'
       const pick =
         voices.find(v => v.language === 'en' && (v.voice_id || '').startsWith('female')) ||
@@ -55,7 +59,7 @@ class HeyGenService {
         voices[0];
       if (pick?.voice_id) {
         console.log('[HeyGen] Using voice:', pick.voice_name || pick.voice_id);
-        this._cachedVoiceId = pick.voice_id;
+        _voiceIdCache = pick.voice_id;
         return pick.voice_id;
       } else {
         console.warn('[HeyGen] No suitable voice found in list');
@@ -72,11 +76,11 @@ class HeyGenService {
   // Fetch a valid HeyGen avatar ID — caches result
   // HeyGen v2 avatar fields: avatar_id, avatar_name, avatar_style (male/female)
   async getDefaultAvatarId() {
-    if (this._cachedAvatarId) return this._cachedAvatarId;
+    if (_avatarIdCache) return _avatarIdCache;
     if (process.env.HEYGEN_AVATAR_ID) {
-      this._cachedAvatarId = process.env.HEYGEN_AVATAR_ID;
-      console.log('[HeyGen] Using HEYGEN_AVATAR_ID from env:', this._cachedAvatarId);
-      return this._cachedAvatarId;
+      _avatarIdCache = process.env.HEYGEN_AVATAR_ID;
+      console.log('[HeyGen] Using HEYGEN_AVATAR_ID from env:', _avatarIdCache);
+      return _avatarIdCache;
     }
     try {
       console.log('[HeyGen] Fetching available avatars from API...');
@@ -86,13 +90,13 @@ class HeyGenService {
       });
       const avatars = response.data.data?.avatars || response.data.avatars || [];
       console.log(`[HeyGen] Found ${avatars.length} avatars`);
-      
+
       const pick =
         avatars.find(a => (a.avatar_style || '').toLowerCase() === 'female') ||
         avatars[0];
       if (pick?.avatar_id) {
         console.log('[HeyGen] Using avatar:', pick.avatar_name || pick.avatar_id);
-        this._cachedAvatarId = pick.avatar_id;
+        _avatarIdCache = pick.avatar_id;
         return pick.avatar_id;
       } else {
         console.warn('[HeyGen] No avatar found in list');
@@ -105,8 +109,8 @@ class HeyGenService {
     }
     // Known stable fallback
     console.log('[HeyGen] Using fallback avatar: anna_20220920');
-    this._cachedAvatarId = 'anna_20220920';
-    return this._cachedAvatarId;
+    _avatarIdCache = 'anna_20220920';
+    return _avatarIdCache;
   }
 
   async generateFromScript(customer, script, options = {}) {
