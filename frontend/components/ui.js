@@ -140,10 +140,10 @@ export function SectionHeader({ title, subtitle, icon: Icon, action }) {
             style={{
               width: 36, height: 36, borderRadius: 8, background: t.primaryBg,
               border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center',
-              justifyContent: 'center', color: t.primary, flexShrink: 0,
+              justifyContent: 'center', flexShrink: 0,
             }}
           >
-            <Icon size={18} strokeWidth={2} />
+            <Icon size={18} strokeWidth={2} color="url(#brand-gradient)" />
           </div>
         )}
         <div>

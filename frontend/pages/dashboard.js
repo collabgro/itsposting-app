@@ -120,7 +120,7 @@ export default function Dashboard() {
         action={
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" onClick={() => setShowAIModal(true)}>
-              <IpSparkle size={14} style={{ color: t.primary }} /> Create
+              <IpSparkle size={14} color="url(#brand-gradient)" /> Create
             </Button>
             <Button variant="primary" onClick={() => router.push('/upload')}>
               <IpPlus size={14} strokeWidth={2.5} /> Create Post
@@ -238,7 +238,7 @@ export default function Dashboard() {
             <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <IpSchedule size={15} style={{ color: t.primary }} />
+                  <IpSchedule size={15} color="url(#brand-gradient)" />
                 </div>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Upcoming posts</div>

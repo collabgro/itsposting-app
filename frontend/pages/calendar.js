@@ -114,7 +114,7 @@ export default function Calendar() {
         subtitle="Schedule and manage your posts"
         action={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="secondary" onClick={() => setShowAI(true)}><IpSparkle size={13} style={{ color: t.primary }} /> AI Generate</Button>
+            <Button variant="secondary" onClick={() => setShowAI(true)}><IpSparkle size={13} color="url(#brand-gradient)" /> AI Generate</Button>
             <Button variant="primary"   onClick={() => router.push('/upload')}><IpPlus size={14} strokeWidth={2.5} /> Create Post</Button>
           </div>
         }
@@ -126,7 +126,7 @@ export default function Calendar() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: `1px solid ${t.border}`, flexWrap: 'wrap', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <CalendarIcon size={18} style={{ color: t.primary }} />
+                <CalendarIcon size={18} color="url(#brand-gradient)" />
                 {/* Month selector */}
                 <div style={{ position: 'relative' }}>
                   <select value={currentMonth.getMonth()} onChange={handleMonthChange} style={selectStyle}>

@@ -81,3 +81,10 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+.icon-gradient {
+  background: linear-gradient(135deg, #9B4FD4 0%, #C44BB8 50%, #E040A0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

@@ -160,7 +160,7 @@ export default function Layout({ children, title, subtitle, action }) {
               onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.primaryBorder; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}
             >
-              <IpPlus size={16} strokeWidth={2.5} style={{ color: t.primary }} />
+              <IpPlus size={16} strokeWidth={2.5} color="url(#brand-gradient)" />
               <span>Create new post</span>
             </button>
           </div>
@@ -189,7 +189,7 @@ export default function Layout({ children, title, subtitle, action }) {
                 onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
               >
                 <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <item.icon size={16} strokeWidth={2} style={{ color: active ? t.primary : (item.isAdmin ? t.primary : t.textMuted) }} />
+                  <item.icon size={16} strokeWidth={2} color={active ? 'url(#brand-gradient)' : (item.isAdmin ? 'url(#brand-gradient)' : t.textMuted)} />
                   {hasSuggDot && (
                     <div style={{ position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: '#EF4444', border: `1.5px solid ${t.sidebar}` }} />
                   )}
