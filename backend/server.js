@@ -77,6 +77,22 @@ console.log('══════════════════════�
       created_at TIMESTAMP DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_trial_ip ON trial_ip_registrations(ip_address)`,
+    `CREATE TABLE IF NOT EXISTS post_engagement_snapshots (
+      id SERIAL PRIMARY KEY,
+      post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      platform VARCHAR(50),
+      likes INTEGER DEFAULT 0,
+      comments INTEGER DEFAULT 0,
+      shares INTEGER DEFAULT 0,
+      saves INTEGER DEFAULT 0,
+      reach INTEGER DEFAULT 0,
+      impressions INTEGER DEFAULT 0,
+      clicks INTEGER DEFAULT 0,
+      video_views INTEGER DEFAULT 0,
+      snapshot_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_snapshots_post ON post_engagement_snapshots(post_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_snapshots_at ON post_engagement_snapshots(snapshot_at)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -235,6 +251,81 @@ cron.schedule('0 7 * * 1', async () => {
   } catch (e) { console.error('[cron] Briefings cron error:', e.message); }
 });
 console.log('📋 PostCoreAdvisor cron scheduled (Monday 7am UTC)');
+
+const PLAN_MONTHLY_CREDITS = { starter: 50, professional: 100, premium: 150 };
+
+async function runMonthlyCredits() {
+  try {
+    // Allocate credits to customers whose next_billing_date has arrived
+    const due = await pool.query(`
+      SELECT id, plan, credits_balance, billing_cycle
+      FROM customers
+      WHERE status = 'active' AND (suspended = false OR suspended IS NULL)
+        AND next_billing_date IS NOT NULL
+        AND next_billing_date <= NOW()
+        AND plan IN ('starter','professional','premium')
+    `);
+    for (const c of due.rows) {
+      const credits = PLAN_MONTHLY_CREDITS[c.plan] || 0;
+      if (!credits) continue;
+      const newBalance = (c.credits_balance || 0) + credits;
+      const nextDate = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `UPDATE customers SET credits_balance=$1, credits_used_this_month=0,
+           next_billing_date=$2, updated_at=NOW() WHERE id=$3`,
+          [newBalance, nextDate, c.id]
+        );
+        await client.query(
+          `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+           VALUES ($1,'bonus',$2,$3,$4)`,
+          [c.id, credits, newBalance, `Monthly ${c.plan} plan credits (+${credits} credits, rolled over)`]
+        );
+        await client.query('COMMIT');
+        console.log(`[MonthlyCredits] +${credits} credits for customer ${c.id} (${c.plan})`);
+      } catch (e) {
+        await client.query('ROLLBACK');
+        console.error(`[MonthlyCredits] Error for customer ${c.id}:`, e.message);
+      } finally {
+        client.release();
+      }
+    }
+
+    // Safety net: revoke access for plans that have expired (Whop also sends membership.deactivated)
+    // Includes status='cancelled' so cancelled customers also lose access at plan_expires_at
+    const expired = await pool.query(`
+      SELECT id, email, business_name FROM customers
+      WHERE (status = 'active' OR status = 'cancelled') AND (suspended = false OR suspended IS NULL)
+        AND plan_expires_at IS NOT NULL
+        AND plan_expires_at < NOW()
+        AND plan IN ('starter','professional','premium')
+    `);
+    for (const c of expired.rows) {
+      await pool.query(
+        `UPDATE customers SET status='inactive', suspended=true, updated_at=NOW() WHERE id=$1`,
+        [c.id]
+      );
+      try {
+        await pool.query(
+          `INSERT INTO email_queue (to_email, template_name, template_data, scheduled_at)
+           VALUES ($1,'account_suspended',$2,NOW())`,
+          [c.email, JSON.stringify({ businessName: c.business_name || 'there', reason: 'Your subscription has expired. Please renew your plan to continue using ItsPosting.' })]
+        );
+      } catch (emailErr) {
+        console.error(`[MonthlyCredits] Email error for ${c.email}:`, emailErr.message);
+      }
+      console.log(`[MonthlyCredits] Revoked access for customer ${c.id} (plan expired)`);
+    }
+  } catch (err) {
+    console.error('[MonthlyCredits] Cron error:', err.message);
+  }
+}
+
+runMonthlyCredits();
+cron.schedule('0 1 * * *', runMonthlyCredits);
+console.log('💳 MonthlyCredits cron scheduled (daily 1am UTC)');
 
 const dmPollingService = new DMPollingService(pool);
 dmPollingService.start();

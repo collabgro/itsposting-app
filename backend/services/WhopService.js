@@ -8,8 +8,8 @@ const PLAN_IDS = {
 
 const PLAN_CREDITS = {
   starter:      50,
-  professional: 150,
-  premium:      500,
+  professional: 100,
+  premium:      150,
 };
 
 function getCheckoutUrl(tier, cycle = 'monthly') {
@@ -44,4 +44,27 @@ function getCreditsForTier(tier) {
   return PLAN_CREDITS[tier] || 0;
 }
 
-module.exports = { getCheckoutUrl, verifyWebhookSignature, getPlanTierFromWhopId, getCreditsForTier };
+function getPlanCycleFromWhopId(whopPlanId) {
+  for (const [, cycles] of Object.entries(PLAN_IDS)) {
+    if (cycles.monthly === whopPlanId) return 'monthly';
+    if (cycles.yearly  === whopPlanId) return 'yearly';
+  }
+  return 'monthly';
+}
+
+async function cancelMembership(membershipId) {
+  const apiKey = process.env.WHOP_API_KEY;
+  if (!apiKey) throw new Error('WHOP_API_KEY not configured');
+  const res = await fetch(`https://api.whop.com/api/v5/memberships/${membershipId}/cancel`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ immediately: false }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Whop API ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
+module.exports = { getCheckoutUrl, verifyWebhookSignature, getPlanTierFromWhopId, getPlanCycleFromWhopId, getCreditsForTier, cancelMembership };

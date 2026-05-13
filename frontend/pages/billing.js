@@ -12,12 +12,13 @@ import { useTheme } from '../lib/theme';
 const PLAN_ICONS = { trial: IpGift, starter: IpCredits, professional: IpSparkle, premium: IpCrown };
 
 const TX_META = {
-  bonus:           { label: 'Bonus',           color: '#22C55E', dir: 1 },
-  admin_grant:     { label: 'Admin grant',      color: '#22C55E', dir: 1 },
-  admin_deduction: { label: 'Admin deduction',  color: '#EF4444', dir: -1 },
-  usage:           { label: 'Used',             color: '#A0A0B0', dir: -1 },
-  purchase:        { label: 'Purchase',         color: '#22C55E', dir: 1 },
-  refund:          { label: 'Refund',           color: '#60A5FA', dir: 1 },
+  bonus:               { label: 'Bonus',            color: '#22C55E', dir: 1 },
+  monthly_allocation:  { label: 'Monthly credits',  color: '#22C55E', dir: 1 },
+  admin_grant:         { label: 'Admin grant',       color: '#22C55E', dir: 1 },
+  admin_deduction:     { label: 'Admin deduction',   color: '#EF4444', dir: -1 },
+  usage:               { label: 'Used',              color: '#A0A0B0', dir: -1 },
+  purchase:            { label: 'Purchase',          color: '#22C55E', dir: 1 },
+  refund:              { label: 'Refund',            color: '#60A5FA', dir: 1 },
 };
 
 function timeAgo(dateStr) {
@@ -53,6 +54,9 @@ export default function Billing() {
   const [buyingPack, setBuyingPack] = useState(null); // credit pack id being purchased
   const [upgradeError, setUpgradeError] = useState('');
   const [creditMsg, setCreditMsg] = useState('');
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -124,6 +128,25 @@ export default function Billing() {
     }
   };
 
+  const handleCancelPlan = async () => {
+    setCancelling(true);
+    setCancelError('');
+    try {
+      const res = await fetch('/api/billing/cancel', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Cancellation failed');
+      setShowCancelModal(false);
+      await loadData();
+    } catch (err) {
+      setCancelError(err.message);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   if (!mounted) return null;
 
   if (loading) {
@@ -146,6 +169,7 @@ export default function Billing() {
     : null;
 
   const isTrial = current?.currentPlan?.id === 'trial';
+  const isCancelled = current?.status === 'cancelled';
   const nonTrialPlans = plans.filter(p => p.id !== 'trial');
 
   const displayPrice = (plan) => {
@@ -194,9 +218,35 @@ export default function Billing() {
               </div>
             )}
 
-            {current?.hasActiveMembership && (
-              <div style={{ marginTop: 16, padding: '8px 14px', background: 'rgba(255,255,255,0.15)', borderRadius: 10, fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <IpCheck size={12} /> Active Whop subscription
+            {!isTrial && !isCancelled && (
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.18)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+                      <IpCheck size={11} />
+                      {current?.billingCycle === 'yearly' ? 'Yearly' : 'Monthly'} plan active
+                    </div>
+                    {current?.planExpiresAt && (
+                      <div style={{ opacity: 0.8 }}>Renews {new Date(current.planExpiresAt).toLocaleDateString()}</div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    style={{ padding: '6px 14px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 500, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.7)' }}
+                  >
+                    Cancel plan
+                  </button>
+                </div>
+              </div>
+            )}
+            {isCancelled && (
+              <div style={{ marginTop: 16, padding: '12px 14px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#FCA5A5', marginBottom: 4 }}>
+                  <IpWarning size={13} /> Subscription cancelled
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
+                  Full access until {current?.planExpiresAt ? new Date(current.planExpiresAt).toLocaleDateString() : 'end of period'}. No further charges.
+                </div>
               </div>
             )}
           </div>
@@ -270,7 +320,7 @@ export default function Billing() {
                 {c === 'monthly' ? 'Monthly' : 'Yearly'}
                 {c === 'yearly' && (
                   <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, background: 'rgba(34,197,94,0.2)', color: '#22C55E', padding: '2px 6px', borderRadius: 4 }}>
-                    -10%
+                    Save 10%
                   </span>
                 )}
               </button>
@@ -485,6 +535,44 @@ export default function Billing() {
 
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
+
+      {showCancelModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: t.card, borderRadius: 16, padding: 32, maxWidth: 420, width: '100%', border: `1px solid ${t.border}` }}>
+            <IpWarning size={28} style={{ color: '#EF4444', display: 'block', margin: '0 auto 16px' }} />
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, textAlign: 'center', margin: '0 0 10px' }}>
+              Cancel your subscription?
+            </h3>
+            <p style={{ fontSize: 13, color: t.textSecondary, textAlign: 'center', lineHeight: 1.6, margin: '0 0 20px' }}>
+              You'll keep full <strong>{current?.currentPlan?.name}</strong> access until{' '}
+              <strong>{current?.planExpiresAt ? new Date(current.planExpiresAt).toLocaleDateString() : 'your billing date'}</strong>.
+              After that, your account returns to the free trial. We won't charge your card again.
+            </p>
+            {cancelError && (
+              <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, fontSize: 12, color: '#EF4444', marginBottom: 16 }}>
+                {cancelError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Button
+                onClick={() => { setShowCancelModal(false); setCancelError(''); }}
+                variant="secondary"
+                style={{ flex: 1, justifyContent: 'center' }}
+                disabled={cancelling}
+              >
+                Keep my plan
+              </Button>
+              <Button
+                onClick={handleCancelPlan}
+                style={{ flex: 1, justifyContent: 'center', background: '#EF4444', color: '#fff' }}
+                disabled={cancelling}
+              >
+                {cancelling ? 'Cancelling…' : 'Yes, cancel'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

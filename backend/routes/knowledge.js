@@ -111,5 +111,49 @@ module.exports = (pool) => {
     }
   });
 
+  // ── POST /api/knowledge/import-website ───────────────────────────────────
+  // Uses cached scrape data if available, otherwise triggers a fresh scrape.
+  // Returns the same shape as scrape-preview so the frontend can call applyImportData directly.
+  router.post('/import-website', async (req, res) => {
+    try {
+      const row = (await pool.query(
+        `SELECT website, website_services, website_about, website_testimonials FROM customers WHERE id = $1`,
+        [req.customerId]
+      )).rows[0];
+
+      if (!row?.website) return res.json({ noWebsite: true });
+
+      // Return cached data without re-scraping
+      if (row.website_services || row.website_about) {
+        const serviceList = (() => {
+          try { const r = row.website_services; return Array.isArray(r) ? r : JSON.parse(r || '[]'); }
+          catch { return []; }
+        })();
+        const services = serviceList.filter(s => s && String(s).trim()).map(s => ({ name: String(s).trim(), description: '', priceRange: '' }));
+        let testimonials = [];
+        try { const r = row.website_testimonials; testimonials = Array.isArray(r) ? r : JSON.parse(r || '[]'); } catch {}
+        return res.json({ hasData: true, website: row.website, services, differentiators: (row.website_about || '').substring(0, 400), testimonials });
+      }
+
+      // No cached data — trigger a fresh scrape
+      const ScraperService = require('../services/ScraperService');
+      const scraper = new ScraperService();
+      const data = await scraper.scrapeWebsite(row.website);
+
+      await pool.query(
+        `UPDATE customers SET scraped_data=$1, scraped_at=NOW(), website_services=$2, website_about=$3, website_testimonials=$4, updated_at=NOW() WHERE id=$5`,
+        [JSON.stringify(data), JSON.stringify(data.services || []), data.about || null, JSON.stringify(data.testimonials || []), req.customerId]
+      );
+
+      const services = (data.services || []).filter(s => s?.trim()).map(s => ({ name: String(s).trim(), description: '', priceRange: '' }));
+      let testimonials = [];
+      try { testimonials = data.testimonials || []; } catch {}
+      res.json({ hasData: services.length > 0 || !!data.about, website: row.website, services, differentiators: (data.about || '').substring(0, 400), testimonials });
+    } catch (err) {
+      console.error('[knowledge] import-website:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };

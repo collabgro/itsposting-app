@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
-  IpPlus, IpDelete, IpCheck, IpWarning, IpDrafts, IpSave, IpRefresh,
+  IpPlus, IpDelete, IpCheck, IpWarning, IpSave, IpRefresh,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Input, Textarea } from '../components/ui';
@@ -11,12 +11,14 @@ export default function KnowledgeBase() {
   const router = useRouter();
   const { t }  = useTheme();
 
-  const [mounted,       setMounted]       = useState(false);
-  const [saving,        setSaving]        = useState(false);
-  const [saved,         setSaved]         = useState(false);
-  const [importing,     setImporting]     = useState(false);
-  const [importBanner,  setImportBanner]  = useState(null); // { website, services, differentiators, testimonials }
-  const [importToast,   setImportToast]   = useState(null);
+  const [mounted,            setMounted]            = useState(false);
+  const [saving,             setSaving]             = useState(false);
+  const [saved,              setSaved]              = useState(false);
+  const [importing,          setImporting]          = useState(false);
+  const [importingWebsite,   setImportingWebsite]   = useState(false);
+  const [importBanner,       setImportBanner]       = useState(null);
+  const [importToast,        setImportToast]        = useState(null);
+  const [importWebsiteError, setImportWebsiteError] = useState('');
   const [data, setData] = useState({
     services:        [],
     reviews:         '',
@@ -30,7 +32,6 @@ export default function KnowledgeBase() {
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
     const token = localStorage.getItem('token');
 
-    // Load existing knowledge base
     fetch('/api/knowledge', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(kb => {
@@ -47,48 +48,73 @@ export default function KnowledgeBase() {
       })
       .catch(() => {});
 
-    // Check if scraped data is available to import
+    // Show auto-import banner if cached scrape data already exists
     fetch('/api/knowledge/scrape-preview', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(preview => {
-        if (preview?.hasData) setImportBanner(preview);
-      })
+      .then(preview => { if (preview?.hasData) setImportBanner(preview); })
       .catch(() => {});
   }, []);
 
-  // Merge scraped data into form — deduplicates services, populates reviews from testimonials
-  const handleImport = () => {
-    if (!importBanner) return;
-    setImporting(true);
+  // Core import logic — accepts data directly so it works from both banner and header button
+  const applyImportData = (importData) => {
     let reviewsAdded = 0;
     setData(prev => {
       const existingNames = new Set(prev.services.map(s => s.name.toLowerCase().trim()));
-      const newServices = importBanner.services.filter(
-        s => s.name.trim() && !existingNames.has(s.name.toLowerCase().trim())
+      const newServices = (importData.services || []).filter(
+        s => s.name?.trim() && !existingNames.has(s.name.toLowerCase().trim())
       );
-
-      const formattedReviews = (importBanner.testimonials || [])
+      const formattedReviews = (importData.testimonials || [])
         .filter(t => t.text && t.text.length > 20)
         .slice(0, 2)
         .map(t => `"${t.text}"${t.author ? ` — ${t.author}` : ''}`)
         .join('\n\n');
       reviewsAdded = formattedReviews ? 1 : 0;
-
       return {
         ...prev,
         services: [...prev.services, ...newServices],
-        differentiators: prev.differentiators.trim()
-          ? prev.differentiators
-          : importBanner.differentiators || prev.differentiators,
+        differentiators: prev.differentiators.trim() ? prev.differentiators : (importData.differentiators || prev.differentiators),
         reviews: prev.reviews.trim() ? prev.reviews : (formattedReviews || prev.reviews),
       };
     });
-    const svcCount = importBanner.services.length;
+    const svcCount = (importData.services || []).length;
     const parts = [`${svcCount} service${svcCount !== 1 ? 's' : ''}`];
     if (reviewsAdded) parts.push('2 reviews');
-    setImportToast(`Imported ${parts.join(' + ')} from ${importBanner.website || 'your website'}`);
-    setTimeout(() => { setImportToast(null); setImporting(false); }, 3500);
+    setImportToast(`Imported ${parts.join(' + ')} from ${importData.website || 'your website'}`);
+    setTimeout(() => setImportToast(null), 3500);
+  };
+
+  // Import from the auto-detected banner (existing cached data)
+  const handleImport = () => {
+    if (!importBanner) return;
+    setImporting(true);
+    applyImportData(importBanner);
     setImportBanner(null);
+    setTimeout(() => setImporting(false), 3500);
+  };
+
+  // Import triggered by the header button — uses cache or triggers a fresh scrape
+  const handleImportFromWebsite = async () => {
+    setImportingWebsite(true);
+    setImportWebsiteError('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/knowledge/import-website', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Import failed');
+      if (result.noWebsite) {
+        setImportWebsiteError('No website URL saved — add it in Settings first.');
+        return;
+      }
+      applyImportData(result);
+      setImportBanner(null);
+    } catch (err) {
+      setImportWebsiteError(err.message);
+    } finally {
+      setImportingWebsite(false);
+    }
   };
 
   const handleSave = async () => {
@@ -126,7 +152,7 @@ export default function KnowledgeBase() {
   const removeFaq     = i  => setData(d => ({ ...d, faqs: d.faqs.filter((_, idx) => idx !== i) }));
   const removeTeam    = i  => setData(d => ({ ...d, team: d.team.filter((_, idx) => idx !== i) }));
 
-  const SaveIcon = saving ? null : saved ? IpCheck : IpSave;
+  const SaveIcon  = saved ? IpCheck : IpSave;
   const saveLabel = saving ? 'Saving...' : saved ? 'Saved!' : 'Save changes';
 
   return (
@@ -134,10 +160,21 @@ export default function KnowledgeBase() {
       title="Teach PostCore"
       subtitle="The more PostCore knows, the better every post it creates for you"
       action={
-        <Button variant="primary" onClick={handleSave} disabled={saving}>
-          {saving ? <img src="/icon-192.png" alt="" style={{ width: 14, height: 14, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} /> : <SaveIcon size={14} />}
-          {saveLabel}
-        </Button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Button variant="secondary" onClick={handleImportFromWebsite} disabled={importingWebsite || saving}>
+            {importingWebsite
+              ? <><img src="/icon-192.png" alt="" style={{ width: 13, height: 13, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle', marginRight: 6 }} />Importing…</>
+              : <><IpRefresh size={14} /> Import from website</>
+            }
+          </Button>
+          <Button variant="primary" onClick={handleSave} disabled={saving}>
+            {saving
+              ? <img src="/icon-192.png" alt="" style={{ width: 14, height: 14, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} />
+              : <SaveIcon size={14} />
+            }
+            {saveLabel}
+          </Button>
+        </div>
       }
     >
       {/* Import success toast */}
@@ -147,7 +184,7 @@ export default function KnowledgeBase() {
         </div>
       )}
 
-      {/* Website Intelligence import banner */}
+      {/* Auto-detected import banner (shown when cached scrape data found on load) */}
       {importBanner && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 18px', background: 'rgba(124,92,252,0.08)', border: `1px solid rgba(124,92,252,0.25)`, borderRadius: 12, marginBottom: 20 }}>
           <div>
@@ -165,6 +202,14 @@ export default function KnowledgeBase() {
           >
             <IpRefresh size={13} color="#fff" /> Import from website
           </button>
+        </div>
+      )}
+
+      {/* Import error */}
+      {importWebsiteError && (
+        <div style={{ padding: '10px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, fontSize: 12, color: '#EF4444', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {importWebsiteError}
+          <button onClick={() => setImportWebsiteError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
         </div>
       )}
 

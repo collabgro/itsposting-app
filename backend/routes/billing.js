@@ -86,6 +86,10 @@ module.exports = (pool) => {
           const tier = whop.getPlanTierFromWhopId(whopPlanId);
           if (!tier) { console.warn('[Whop] Unknown plan ID:', whopPlanId); return; }
 
+          const cycle = whop.getPlanCycleFromWhopId(whopPlanId);
+          const expiresAt = new Date(Date.now() + (cycle === 'yearly' ? 365 : 30) * 24 * 3600 * 1000);
+          const nextBillingDate = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+
           const planData = PLANS[tier];
           const whopMembershipId = data?.id || data?.membership_id;
           const whopCustomerId = data?.user_id || data?.customer_id;
@@ -120,9 +124,11 @@ module.exports = (pool) => {
             await client.query(
               `UPDATE customers SET plan=$1, status='active', credits_balance=$2,
                credits_used_this_month=0, plan_changed_at=NOW(),
-               whop_membership_id=$3, whop_customer_id=$4, updated_at=NOW()
-               WHERE id=$5`,
-              [tier, newBalance, whopMembershipId, whopCustomerId, customerId]
+               whop_membership_id=$3, whop_customer_id=$4,
+               billing_cycle=$5, plan_expires_at=$6, next_billing_date=$7,
+               updated_at=NOW()
+               WHERE id=$8`,
+              [tier, newBalance, whopMembershipId, whopCustomerId, cycle, expiresAt, nextBillingDate, customerId]
             );
             await client.query(
               `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
@@ -160,7 +166,7 @@ module.exports = (pool) => {
           const whopMembershipId = data?.id;
           if (!whopMembershipId) return;
           await pool.query(
-            `UPDATE customers SET plan='trial', status='inactive', updated_at=NOW()
+            `UPDATE customers SET plan='trial', status='inactive', suspended=true, updated_at=NOW()
              WHERE whop_membership_id=$1`,
             [whopMembershipId]
           );
@@ -212,6 +218,43 @@ module.exports = (pool) => {
     }
   });
 
+  // ── Cancel subscription ──────────────────────────────────────────────────────
+  router.post('/cancel', authenticate, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT plan, status, whop_membership_id, plan_expires_at FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+      const customer = result.rows[0];
+      if (!customer) return res.status(404).json({ error: 'Not found' });
+      if (customer.plan === 'trial') {
+        return res.status(400).json({ error: 'No active subscription to cancel' });
+      }
+      if (customer.status === 'cancelled') {
+        return res.status(400).json({ error: 'Subscription already cancelled' });
+      }
+
+      // Tell Whop to stop future charges (only if membership ID exists, non-fatal)
+      if (customer.whop_membership_id) {
+        try {
+          await whop.cancelMembership(customer.whop_membership_id);
+        } catch (whopErr) {
+          console.error('[Billing] Whop cancel API failed:', whopErr.message);
+        }
+      }
+
+      await pool.query(
+        `UPDATE customers SET status='cancelled', updated_at=NOW() WHERE id=$1`,
+        [req.customerId]
+      );
+
+      console.log(`[Billing] Customer ${req.customerId} cancelled subscription`);
+      res.json({ success: true, accessUntil: customer.plan_expires_at });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Existing endpoints ───────────────────────────────────────────────────────
   router.get('/plans', authenticate, async (req, res) => {
     res.json(Object.values(PLANS));
@@ -233,7 +276,8 @@ module.exports = (pool) => {
     try {
       const result = await pool.query(
         `SELECT plan, status, credits_balance, credits_used_this_month,
-                trial_ends_at, plan_changed_at, whop_membership_id
+                trial_ends_at, plan_changed_at, whop_membership_id,
+                billing_cycle, plan_expires_at, next_billing_date
          FROM customers WHERE id = $1`,
         [req.customerId]
       );
@@ -247,6 +291,9 @@ module.exports = (pool) => {
         trialEndsAt: customer.trial_ends_at,
         planChangedAt: customer.plan_changed_at,
         hasActiveMembership: !!customer.whop_membership_id,
+        billingCycle: customer.billing_cycle || 'monthly',
+        planExpiresAt: customer.plan_expires_at,
+        nextBillingDate: customer.next_billing_date,
       });
     } catch (error) {
       res.status(500).json({ error: error.message });

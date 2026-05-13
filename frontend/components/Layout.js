@@ -35,17 +35,26 @@ export default function Layout({ children, title, subtitle, action }) {
   const [dmUnread, setDmUnread] = useState(0);
   const [unseenSugg, setUnseenSugg] = useState(0);
   const [logoFailed, setLogoFailed] = useState(false);
+  const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
     const updateMobile = () => setIsMobile(window.innerWidth < 900);
     updateMobile();
     window.addEventListener('resize', updateMobile);
     const token = localStorage.getItem('token');
+    setHasToken(!!token);
     if (token) {
       const headers = { Authorization: `Bearer ${token}` };
       fetch('/api/auth/verify', { headers })
-        .then((r) => r.json())
-        .then((d) => d.customer && setUser(d.customer))
+        .then((r) => {
+          if (r.status === 401 || r.status === 403) {
+            localStorage.removeItem('token');
+            router.push('/login');
+            return null;
+          }
+          return r.json();
+        })
+        .then((d) => d && d.customer && setUser(d.customer))
         .catch(() => {});
       fetch('/api/dms/stats', { headers })
         .then((r) => r.ok ? r.json() : null)
@@ -246,7 +255,7 @@ export default function Layout({ children, title, subtitle, action }) {
 
         {/* USER PROFILE */}
         {!isMobile && user && (
-          <div style={{ padding: '12px', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
+          <div style={{ padding: '12px 12px 0', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8 }}>
               <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #FB923C 0%, #F97316 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, color: '#fff', flexShrink: 0 }}>
                 {(user.business_name || user.email || 'U').charAt(0).toUpperCase()}
@@ -266,9 +275,13 @@ export default function Layout({ children, title, subtitle, action }) {
                 <IpBilling size={13} color="url(#brand-gradient)" /> Upgrade Plan
               </Link>
             )}
+          </div>
+        )}
+        {!isMobile && hasToken && (
+          <div style={{ padding: user ? '6px 12px 12px' : '12px 12px 12px', borderTop: user ? 'none' : `1px solid ${t.border}`, flexShrink: 0 }}>
             <button
               onClick={handleLogout}
-              style={{ width: '100%', marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.textMuted, fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 150ms ease' }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.textMuted, fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 150ms ease' }}
               onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#ef4444'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted; e.currentTarget.style.borderColor = t.border; }}
             >
