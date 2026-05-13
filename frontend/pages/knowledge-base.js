@@ -131,11 +131,15 @@ export default function KnowledgeBase() {
       setImportBanner(null);
 
       // Auto-save immediately
-      await fetch('/api/knowledge/save', {
+      const saveRes = await fetch('/api/knowledge/save', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body:    JSON.stringify(mergedData),
       });
+      if (!saveRes.ok) {
+        const saveErr = await saveRes.json().catch(() => ({}));
+        throw new Error(saveErr.error || 'Save failed — please try again');
+      }
 
       const svcCount = newServices.length;
       const parts = [`${svcCount} service${svcCount !== 1 ? 's' : ''}`];

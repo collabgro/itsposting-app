@@ -94,6 +94,18 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_snapshots_post ON post_engagement_snapshots(post_id)`,
     `CREATE INDEX IF NOT EXISTS idx_snapshots_at ON post_engagement_snapshots(snapshot_at)`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS website_testimonials JSONB DEFAULT '[]'`,
+    `CREATE TABLE IF NOT EXISTS business_knowledge (
+      id             SERIAL PRIMARY KEY,
+      customer_id    INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      knowledge_type VARCHAR(50)  NOT NULL,
+      title          VARCHAR(255) NOT NULL,
+      content        TEXT         NOT NULL,
+      sort_order     INTEGER  DEFAULT 0,
+      is_active      BOOLEAN  DEFAULT true,
+      created_at     TIMESTAMP DEFAULT NOW(),
+      updated_at     TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_knowledge_customer ON business_knowledge(customer_id, knowledge_type, is_active)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
