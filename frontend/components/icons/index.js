@@ -34,13 +34,19 @@ export function IpDashboard({ size = 20, color = 'currentColor', strokeWidth = 1
   );
 }
 
-export function IpSparkle({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+export function IpSparkle({ size = 20, style, className }) {
   return (
-    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
-      <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z" />
-      <path d="M19 16l.9 2.1 2.1.9-2.1.9L19 22l-.9-2.1-2.1-.9 2.1-.9z" />
-      <path d="M4.5 18l.6 1.4 1.4.6-1.4.6L4.5 22l-.6-1.4-1.4-.6 1.4-.6z" />
-    </Ico>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
+      <defs>
+        <linearGradient id="sparkGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#9450E6" />
+          <stop offset="100%" stopColor="#CD4B91" />
+        </linearGradient>
+      </defs>
+      <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z" fill="url(#sparkGrad)" />
+      <circle cx="19" cy="16" r="1.2" fill="url(#sparkGrad)" />
+      <circle cx="4.5" cy="18" r="0.9" fill="url(#sparkGrad)" />
+    </svg>
   );
 }
 
@@ -170,31 +176,37 @@ export function IpLogout({ size = 20, color = 'currentColor', strokeWidth = 1.75
 
 // ── Platform Icons (abstract branded — NOT actual logos) ──────────────────────
 
-export function IpFacebook({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+export function IpFacebook({ size = 20, style, className }) {
   return (
-    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="5" />
-      <path d="M15 8h-2a1 1 0 0 0-1 1v2.5h3l-.5 2.5H12V19H9.5v-5H8v-2.5h1.5V9a3.5 3.5 0 0 1 3.5-3.5H15V8z" />
-    </Ico>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="5" fill="#1877F2" fillOpacity="0.15" stroke="#1877F2" strokeWidth="1.5" />
+      <path d="M15 8h-2a1 1 0 0 0-1 1v2.5h3l-.5 2.5H12V19H9.5v-5H8v-2.5h1.5V9a3.5 3.5 0 0 1 3.5-3.5H15V8z" fill="white" />
+    </svg>
   );
 }
 
-export function IpInstagram({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+export function IpInstagram({ size = 20, style, className }) {
   return (
-    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="5" />
-      <rect x="7" y="7" width="10" height="10" rx="3" />
-      <circle cx="17.5" cy="6.5" r="1" fill={color} stroke="none" />
-    </Ico>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
+      <defs>
+        <linearGradient id="igBorderGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#9450E6" />
+          <stop offset="100%" stopColor="#CD4B91" />
+        </linearGradient>
+      </defs>
+      <rect x="2" y="2" width="20" height="20" rx="5" fill="#CD4B91" fillOpacity="0.12" stroke="url(#igBorderGrad)" strokeWidth="1.5" />
+      <rect x="7" y="7" width="10" height="10" rx="3" stroke="white" strokeWidth="1.5" />
+      <circle cx="17.5" cy="6.5" r="1" fill="white" />
+    </svg>
   );
 }
 
-export function IpGoogle({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+export function IpGoogle({ size = 20, style, className }) {
   return (
-    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="5" />
-      <path d="M17 12h-5v2.5h2.8A3 3 0 1 1 12 9a3 3 0 0 1 2 .77l1.8-1.8A5.5 5.5 0 1 0 17.5 12H17z" />
-    </Ico>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="5" fill="#4285F4" fillOpacity="0.15" stroke="#4285F4" strokeWidth="1.5" />
+      <path d="M17 12h-5v2.5h2.8A3 3 0 1 1 12 9a3 3 0 0 1 2 .77l1.8-1.8A5.5 5.5 0 1 0 17.5 12H17z" fill="white" />
+    </svg>
   );
 }
 
@@ -946,22 +958,22 @@ export function IpBriefcase({ size = 20, color = 'currentColor', strokeWidth = 1
   );
 }
 
-export function IpLinkedIn({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+export function IpLinkedIn({ size = 20, style, className }) {
   return (
-    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="4" />
-      <line x1="7" y1="10" x2="7" y2="17" />
-      <circle cx="7" cy="7" r="1" fill={color} stroke="none" />
-      <path d="M11 10v7M11 13a3 3 0 0 1 6 0v4" />
-    </Ico>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="4" fill="#0A66C2" fillOpacity="0.15" stroke="#0A66C2" strokeWidth="1.5" />
+      <line x1="7" y1="10" x2="7" y2="17" stroke="white" strokeWidth="1.75" strokeLinecap="round" />
+      <circle cx="7" cy="7" r="1" fill="white" />
+      <path d="M11 10v7M11 13a3 3 0 0 1 6 0v4" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-export function IpTikTok({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+export function IpTikTok({ size = 20, style, className }) {
   return (
-    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="4" />
-      <path d="M10 17a4 4 0 1 0 4-4V6l2 1.5" />
-    </Ico>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="4" fill="#111" fillOpacity="0.8" stroke="#444" strokeWidth="1.5" />
+      <path d="M10 17a4 4 0 1 0 4-4V6l2 1.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

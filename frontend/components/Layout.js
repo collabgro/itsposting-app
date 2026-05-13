@@ -9,6 +9,7 @@ import {
 } from './icons';
 import { useTheme } from '../lib/theme';
 import NotificationBell from './NotificationBell';
+import { ItsPostingLogo } from './ItsPostingLogo';
 
 const NAV_ITEMS = [
   { name: 'Dashboard',   href: '/dashboard',  icon: IpDashboard },
@@ -34,7 +35,6 @@ export default function Layout({ children, title, subtitle, action }) {
   const [isMobile, setIsMobile] = useState(false);
   const [dmUnread, setDmUnread] = useState(0);
   const [unseenSugg, setUnseenSugg] = useState(0);
-  const [logoFailed, setLogoFailed] = useState(false);
   const [hasToken, setHasToken] = useState(false);
 
   useEffect(() => {
@@ -116,23 +116,7 @@ export default function Layout({ children, title, subtitle, action }) {
           }}
         >
           {!isMobile && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {logoFailed ? (
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #7C5CFC 0%, #E040FB 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <IpZap size={15} color="#fff" />
-                </div>
-              ) : (
-                <img
-                  src={theme === 'dark' ? '/itsposting-logo.png' : '/itsposting.png'}
-                  alt="ItsPosting"
-                  width={32}
-                  height={32}
-                  style={{ borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }}
-                  onError={() => setLogoFailed(true)}
-                />
-              )}
-              <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.03em', whiteSpace: 'nowrap' }}>ItsPosting</span>
-            </div>
+            <ItsPostingLogo size="sm" variant="full" theme={theme} />
           )}
           {isMobile && (
             <button

@@ -291,7 +291,7 @@ module.exports = (pool) => {
         return res.status(400).json({ error: 'platform and accessToken are required' });
       }
 
-      const validPlatforms = ['facebook', 'instagram', 'google_business'];
+      const validPlatforms = ['facebook', 'instagram', 'google_business', 'linkedin', 'tiktok'];
       if (!validPlatforms.includes(platform)) {
         return res.status(400).json({
           error: `Invalid platform. Must be one of: ${validPlatforms.join(', ')}`,

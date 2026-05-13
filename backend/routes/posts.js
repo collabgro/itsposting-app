@@ -160,6 +160,7 @@ module.exports = (pool) => {
           platform = COALESCE($4, platform),
           platforms = COALESCE($5, platforms),
           status = COALESCE($6, status),
+          posted_at = CASE WHEN $6 = 'posted' AND status != 'posted' THEN NOW() ELSE posted_at END,
           updated_at = NOW()
         WHERE id = $7 AND customer_id = $8
         RETURNING *`,
@@ -201,16 +202,21 @@ module.exports = (pool) => {
    */
   router.delete('/:id', authenticate, async (req, res) => {
     try {
-      const result = await pool.query(
-        'DELETE FROM posts WHERE id = $1 AND customer_id = $2 RETURNING id',
+      // Verify ownership before deleting
+      const check = await pool.query(
+        'SELECT id FROM posts WHERE id = $1 AND customer_id = $2',
         [req.params.id, req.customerId]
       );
-
-      if (result.rows.length === 0) {
+      if (check.rows.length === 0) {
         return res.status(404).json({ error: 'Post not found' });
       }
 
-      res.json({ success: true, deletedId: result.rows[0].id });
+      // Clean up carousel slides before deleting the post
+      await pool.query('DELETE FROM post_carousel_slides WHERE post_id = $1', [req.params.id]);
+
+      await pool.query('DELETE FROM posts WHERE id = $1 AND customer_id = $2', [req.params.id, req.customerId]);
+
+      res.json({ success: true, deletedId: parseInt(req.params.id) });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
