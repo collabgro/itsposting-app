@@ -92,7 +92,7 @@ export default function KnowledgeBase() {
     setTimeout(() => setImporting(false), 3500);
   };
 
-  // Import triggered by the header button — uses cache or triggers a fresh scrape
+  // Import triggered by the header button — uses cache or triggers a fresh scrape, then auto-saves
   const handleImportFromWebsite = async () => {
     setImportingWebsite(true);
     setImportWebsiteError('');
@@ -102,14 +102,46 @@ export default function KnowledgeBase() {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Import failed');
-      if (result.noWebsite) {
+      const importData = await res.json();
+      if (!res.ok) throw new Error(importData.error || 'Import failed');
+      if (importData.noWebsite) {
         setImportWebsiteError('No website URL saved — add it in Settings first.');
         return;
       }
-      applyImportData(result);
+
+      // Compute merged data synchronously so we can update state + save in one shot
+      const existingNames = new Set(data.services.map(s => s.name.toLowerCase().trim()));
+      const newServices = (importData.services || []).filter(
+        s => s.name?.trim() && !existingNames.has(s.name.toLowerCase().trim())
+      );
+      const formattedReviews = (importData.testimonials || [])
+        .filter(t => t.text && t.text.length > 20)
+        .slice(0, 2)
+        .map(t => `"${t.text}"${t.author ? ` — ${t.author}` : ''}`)
+        .join('\n\n');
+
+      const mergedData = {
+        ...data,
+        services:        [...data.services, ...newServices],
+        differentiators: data.differentiators.trim() ? data.differentiators : (importData.differentiators || data.differentiators),
+        reviews:         data.reviews.trim()         ? data.reviews         : (formattedReviews            || data.reviews),
+      };
+
+      setData(mergedData);
       setImportBanner(null);
+
+      // Auto-save immediately
+      await fetch('/api/knowledge/save', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify(mergedData),
+      });
+
+      const svcCount = newServices.length;
+      const parts = [`${svcCount} service${svcCount !== 1 ? 's' : ''}`];
+      if (formattedReviews) parts.push('reviews');
+      setImportToast(`Imported & saved ${parts.join(' + ')} from ${importData.website || 'your website'}`);
+      setTimeout(() => setImportToast(null), 3500);
     } catch (err) {
       setImportWebsiteError(err.message);
     } finally {

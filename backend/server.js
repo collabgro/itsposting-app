@@ -93,6 +93,7 @@ console.log('══════════════════════�
     )`,
     `CREATE INDEX IF NOT EXISTS idx_snapshots_post ON post_engagement_snapshots(post_id)`,
     `CREATE INDEX IF NOT EXISTS idx_snapshots_at ON post_engagement_snapshots(snapshot_at)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS website_testimonials JSONB DEFAULT '[]'`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
