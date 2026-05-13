@@ -945,3 +945,23 @@ export function IpBriefcase({ size = 20, color = 'currentColor', strokeWidth = 1
     </Ico>
   );
 }
+
+export function IpLinkedIn({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+  return (
+    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="4" />
+      <line x1="7" y1="10" x2="7" y2="17" />
+      <circle cx="7" cy="7" r="1" fill={color} stroke="none" />
+      <path d="M11 10v7M11 13a3 3 0 0 1 6 0v4" />
+    </Ico>
+  );
+}
+
+export function IpTikTok({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+  return (
+    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
+      <rect x="2" y="2" width="20" height="20" rx="4" />
+      <path d="M10 17a4 4 0 1 0 4-4V6l2 1.5" />
+    </Ico>
+  );
+}

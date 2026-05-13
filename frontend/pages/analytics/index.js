@@ -6,12 +6,10 @@ import {
   IpReview, IpCalendar, IpInfo,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Button, Badge, StatCard, SectionHeader, EmptyState } from '../../components/ui';
+import { Card, Button, Badge, StatCard, SectionHeader, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { analyticsAPI } from '../../lib/api';
 import { format, addDays } from 'date-fns';
-import ContentCreatorModal from '../../components/ContentCreatorModal';
-
 /* ─── constants ──────────────────────────────────────────── */
 const DAYS     = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS    = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
@@ -55,8 +53,6 @@ export default function Analytics() {
   const [optTimes, setOptTimes]       = useState(null);
   const [contentPerf, setContentPerf] = useState(null);
   const [hoverCell, setHoverCell]     = useState(null);
-  const [showAI, setShowAI]           = useState(false);
-  const [aiDate, setAiDate]           = useState(null);
 
   useEffect(() => {
     setMounted(true);
@@ -92,9 +88,8 @@ export default function Analytics() {
     try { const r = await analyticsAPI.listPosts({ sort }); setPosts(Array.isArray(r.data) ? r.data : []); } catch {}
   };
 
-  const handleUseTime = slot => {
-    setAiDate(buildScheduledDate(slot.dow, slot.hour));
-    setShowAI(true);
+  const handleUseTime = () => {
+    router.push('/wizard');
   };
 
   if (!mounted) return null;
@@ -119,7 +114,7 @@ export default function Analytics() {
                 >{lbl}</button>
               ))}
             </div>
-            <Button variant="primary" onClick={() => setShowAI(true)}>
+            <Button variant="primary" onClick={() => router.push('/wizard')}>
               <IpSparkle size={13} /> Generate Post
             </Button>
           </div>
@@ -127,7 +122,7 @@ export default function Analytics() {
       >
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-            <div style={{ width: 40, height: 40, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <Spinner size={40} />
           </div>
         ) : (
           <>
@@ -145,7 +140,7 @@ export default function Analytics() {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ width: 38, height: 38, borderRadius: 10, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <IpSchedule size={18} style={{ color: t.primary }} />
+                    <IpSchedule size={18} color="url(#brand-gradient)" />
                   </div>
                   <div>
                     <h2 style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: '-0.02em', marginBottom: 3 }}>Scheduling Optimizer</h2>
@@ -293,7 +288,7 @@ export default function Analytics() {
                         onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.input; }}
                       >
-                        <IpSchedule size={11} style={{ color: t.primary }} /> {slot.label}
+                        <IpSchedule size={11} color="url(#brand-gradient)" /> {slot.label}
                       </button>
                     ))}
                   </div>
@@ -462,14 +457,6 @@ export default function Analytics() {
         )}
       </Layout>
 
-      {showAI && (
-        <ContentCreatorModal
-          onClose={() => { setShowAI(false); setAiDate(null); }}
-          onSuccess={() => { setShowAI(false); setAiDate(null); router.push('/history'); }}
-          defaultDate={aiDate}
-          defaultScheduleMode={aiDate ? 'later' : 'now'}
-        />
-      )}
     </>
   );
 }

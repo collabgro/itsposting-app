@@ -5,7 +5,7 @@ import {
   IpWarning, IpAdmin, IpEdit, IpClose, IpSave,
 } from '../../../components/icons';
 import Layout from '../../../components/Layout';
-import { Card, Button, Badge, SectionHeader, EmptyState } from '../../../components/ui';
+import { Card, Button, Badge, SectionHeader, EmptyState, Spinner } from '../../../components/ui';
 import { useTheme } from '../../../lib/theme';
 import { adminAPI } from '../../../lib/api';
 
@@ -126,7 +126,7 @@ export default function AdminCustomerDetail() {
       <Layout title="Customer">
         <Card>
           <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
-            <div style={{ width: 36, height: 36, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <Spinner size={36} />
           </div>
         </Card>
       </Layout>

@@ -4,7 +4,7 @@ import { useTheme } from '../lib/theme';
 import { dmsAPI } from '../lib/api';
 import {
   IpInbox, IpFacebook, IpInstagram, IpRefresh, IpSend, IpSparkle,
-  IpClose, IpWarning, IpPlus, IpDelete, IpEdit, IpCheck, IpSave, IpLoader, IpZap,
+  IpClose, IpWarning, IpPlus, IpDelete, IpEdit, IpCheck, IpSave, IpZap,
 } from '../components/icons';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -609,7 +609,7 @@ export default function InboxPage() {
             <div style={{ flex: 1, padding: '16px 24px', overflowY: 'auto' }}>
               {arLoading ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10, color: t.textMuted, fontSize: 13 }}>
-                  <IpLoader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Loading rules…
+                  <img src="/icon-192.png" alt="" style={{ width: 18, height: 18, borderRadius: 4, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} /> Loading rules…
                 </div>
               ) : autoReplies.length === 0 && !showAddRule ? (
                 <div style={{ textAlign: 'center', padding: 40 }}>
@@ -711,7 +711,7 @@ export default function InboxPage() {
 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={saveRule} disabled={arSaving || !newRule.reply_text.trim()} style={{ flex: 1, padding: '10px 16px', borderRadius: 8, background: newRule.reply_text.trim() ? t.primary : t.border, border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: newRule.reply_text.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      {arSaving ? <IpLoader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <IpSave size={14} />}
+                      {arSaving ? <img src="/icon-192.png" alt="" style={{ width: 14, height: 14, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} /> : <IpSave size={14} />}
                       {arSaving ? 'Saving…' : editingRule ? 'Update Rule' : 'Save Rule'}
                     </button>
                     <button onClick={() => { setShowAddRule(false); setEditingRule(null); setNewRule(BLANK_RULE); }} style={{ padding: '10px 16px', borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>

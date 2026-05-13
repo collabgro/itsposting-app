@@ -176,8 +176,9 @@ export function EmptyState({ icon: Icon = IpInbox, title, subtitle, action }) {
   );
 }
 
-export function Spinner() {
+export function Spinner({ size = 40 }) {
   return (
-    <div style={{ width: 40, height: 40, border: '3px solid rgba(124,92,252,0.2)', borderTopColor: '#7C5CFC', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    <img src="/icon-192.png" alt="" aria-hidden="true"
+      style={{ width: size, height: size, borderRadius: size * 0.22, animation: 'logo-pulse 1.2s ease-in-out infinite' }} />
   );
 }

@@ -4,7 +4,7 @@ import {
   IpAdmin, IpRefresh, IpArrowLeft, IpWarning,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Badge, SectionHeader, EmptyState } from '../../components/ui';
+import { Card, Badge, SectionHeader, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 
 const ACTION_VARIANT = {
@@ -104,8 +104,7 @@ export default function AuditLog() {
 
           {loading ? (
             <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
-              <div style={{ width: 32, height: 32, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              <Spinner size={32} />
             </div>
           ) : entries.length === 0 ? (
             <EmptyState icon={IpAdmin} title="No audit entries yet" subtitle="Admin actions will appear here" />

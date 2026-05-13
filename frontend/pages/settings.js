@@ -3,10 +3,10 @@ import { useRouter } from 'next/router';
 import {
   IpSave, IpCredits, IpPalette, IpGlobe, IpDelete,
   IpBusiness, IpShare, IpCheck, IpFacebook, IpInstagram,
-  IpGoogle, IpSparkle, IpSchedule,
+  IpGoogle, IpSparkle, IpSchedule, IpLinkedIn, IpTikTok,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Input, Badge, SectionHeader } from '../components/ui';
+import { Card, Button, Input, Badge, SectionHeader, Spinner } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { customerAPI, contentAPI, socialAPI, scraperAPI } from '../lib/api';
 
@@ -155,6 +155,40 @@ const PLATFORM_CONFIG = {
       ],
       pageIdLabel: 'Business Account ID',
       pageIdHelp: 'Found in your Google Business Profile dashboard URL',
+    },
+  },
+  linkedin: {
+    label: 'LinkedIn',
+    Icon: IpLinkedIn,
+    color: '#0A66C2',
+    description: 'Post to your company page',
+    tokenHelp: {
+      title: 'How to get your LinkedIn Access Token:',
+      steps: [
+        { text: 'Go to LinkedIn Developer Portal and create an app (requires company page)' },
+        { text: 'Enable the "Share on LinkedIn" and "Marketing Developer Platform" products' },
+        { text: 'Under "Auth" tab, generate an access token with w_member_social permission' },
+        { text: 'Paste the access token below' },
+      ],
+      pageIdLabel: 'Company Page ID (e.g. urn:li:organization:12345678)',
+      pageIdHelp: 'Found in your LinkedIn Company Page admin URL after /company/',
+    },
+  },
+  tiktok: {
+    label: 'TikTok',
+    Icon: IpTikTok,
+    color: '#010101',
+    description: 'Post to your business account',
+    tokenHelp: {
+      title: 'How to connect TikTok:',
+      steps: [
+        { text: 'Go to TikTok for Business developer portal and create an app' },
+        { text: 'Enable the Content Posting API product in your app settings' },
+        { text: 'Generate a user access token with video.publish scope' },
+        { text: 'Paste the access token below' },
+      ],
+      pageIdLabel: 'TikTok Open ID (your account ID)',
+      pageIdHelp: 'Found in TikTok for Business → Account Settings → Open ID',
     },
   },
 };
@@ -382,13 +416,7 @@ export default function Settings() {
               </button>
             </>
           ) : (
-            <div style={{
-              width: 36, height: 36,
-              border: `3px solid ${t.primaryBg}`,
-              borderTopColor: t.primary,
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-            }} />
+            <Spinner size={36} />
           )}
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

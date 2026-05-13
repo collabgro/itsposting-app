@@ -238,13 +238,13 @@ export default function QuickPost() {
               const sel = selectedPlats.includes(p.id);
               return (
                 <button key={p.id} onClick={() => togglePlatform(p.id)} style={{ height: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, border: sel ? `2px solid ${t.primary}` : `1px solid ${t.border}`, background: sel ? t.primaryBg : t.card, cursor: 'pointer', transition: 'all 150ms' }}>
-                  <p.Icon size={20} color={sel ? t.primary : t.textMuted} />
+                  <p.Icon size={20} color={sel ? 'url(#brand-gradient)' : t.textMuted} />
                   <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: sel ? t.primary : t.textMuted }}>{p.shortLabel}</span>
                 </button>
               );
             })}
             <button onClick={() => togglePlatform('all')} style={{ height: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, border: allSelected ? `2px solid ${t.primary}` : `1px solid ${t.border}`, background: allSelected ? t.primaryBg : t.card, cursor: 'pointer', transition: 'all 150ms' }}>
-              <IpAllPlatforms size={20} color={allSelected ? t.primary : t.textMuted} />
+              <IpAllPlatforms size={20} color={allSelected ? 'url(#brand-gradient)' : t.textMuted} />
               <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: allSelected ? t.primary : t.textMuted }}>All</span>
             </button>
           </div>
@@ -258,7 +258,7 @@ export default function QuickPost() {
               const sel = tone === tn.id;
               return (
                 <button key={tn.id} onClick={() => setTone(tn.id)} title={tn.label} style={{ height: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, border: sel ? `2px solid ${t.primary}` : `1px solid ${t.border}`, background: sel ? t.primaryBg : t.card, cursor: 'pointer', transition: 'all 150ms' }}>
-                  <tn.Icon size={22} color={sel ? t.primary : t.textMuted} />
+                  <tn.Icon size={22} color={sel ? 'url(#brand-gradient)' : t.textMuted} />
                   <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: sel ? t.primary : t.textMuted }}>{tn.label}</span>
                 </button>
               );

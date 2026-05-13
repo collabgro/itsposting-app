@@ -39,6 +39,8 @@ module.exports = (pool) => {
       facebook:        { configured: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
       instagram:       { configured: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
       google_business: { configured: !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) },
+      linkedin:        { configured: true, manualOnly: true },
+      tiktok:          { configured: true, manualOnly: true },
       manual:          { configured: true },
     });
   });

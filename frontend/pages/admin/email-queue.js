@@ -5,7 +5,7 @@ import {
   IpArrowLeft, IpSend,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Button, Badge, SectionHeader, StatCard, EmptyState } from '../../components/ui';
+import { Card, Button, Badge, SectionHeader, StatCard, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
@@ -159,7 +159,7 @@ export default function EmailQueuePage() {
 
         {loading ? (
           <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
-            <div style={{ width: 32, height: 32, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <Spinner size={32} />
           </div>
         ) : data.emails.length === 0 ? (
           <EmptyState icon={IpMail} title="No emails yet" subtitle="Notifications are queued here when admin actions are taken" />

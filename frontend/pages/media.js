@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpPublish, IpPhoto as ImageIcon, IpVideo, IpDelete, IpSearch,
-  IpFolderOpen, IpClose, IpCheck, IpLoader, IpHardDrive, IpFolderPlus,
+  IpFolderOpen, IpClose, IpCheck, IpHardDrive, IpFolderPlus,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Badge, EmptyState } from '../components/ui';
+import { Card, Button, Badge, EmptyState, Spinner } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { mediaAPI } from '../lib/api';
 
@@ -187,7 +187,7 @@ export default function MediaLibrary() {
             <IpFolderPlus size={14} /> New Folder
           </Button>
           <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-            {uploading ? <IpLoader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <IpPublish size={14} strokeWidth={2.5} />}
+            {uploading ? <img src="/icon-192.png" alt="" style={{ width: 14, height: 14, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} /> : <IpPublish size={14} strokeWidth={2.5} />}
             {uploading ? `Uploading ${uploadProgress}%` : 'Upload Files'}
           </Button>
         </div>
@@ -206,7 +206,7 @@ export default function MediaLibrary() {
         <Card style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <IpHardDrive size={18} style={{ color: t.primary }} />
+              <IpHardDrive size={18} color="url(#brand-gradient)" />
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Storage</div>
                 <div style={{ fontSize: 12, color: t.textMuted }}>
@@ -286,7 +286,7 @@ export default function MediaLibrary() {
       {loading ? (
         <Card>
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-            <IpLoader size={28} style={{ color: t.primary, animation: 'spin 1s linear infinite' }} />
+            <Spinner size={48} />
           </div>
         </Card>
       ) : files.length === 0 ? (

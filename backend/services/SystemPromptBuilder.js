@@ -83,6 +83,11 @@ Visual style: ${c.visual_style || 'modern and clean'}`;
       ctx += `\n\nAbout this business:\n${c.website_about.substring(0, 400)}`;
     }
 
+    if (c.brand_colors) {
+      const colors = Array.isArray(c.brand_colors) ? c.brand_colors.join(', ') : c.brand_colors;
+      if (colors) ctx += `\n\nBrand colors: ${colors} — reference these in image prompts where relevant.`;
+    }
+
     return ctx;
   }
 
@@ -164,7 +169,25 @@ IMPORTANT: Weave seasonal urgency naturally into the post — don't force it.`;
 - Every post should boost local search rankings
 - Use phrases customers actually search: "[city] [service]"`,
 
-      all: `Platform: ALL THREE (Facebook + Instagram + Google Business)
+      linkedin: `Platform: LINKEDIN
+- Length: 150-300 words
+- Tone: professional, business-focused, thought leadership
+- Hashtags: 3-5 relevant professional/industry hashtags
+- Emojis: minimal (0-2 max) — keep it credible
+- End with a thought-provoking question to drive professional discussion
+- Showcase expertise, credibility, and business results
+- Focus on business value and professional insights`,
+
+      tiktok: `Platform: TIKTOK
+- Length: 50-80 words (video-first platform — caption is secondary)
+- Hook in the first 3 words — must grab instantly
+- Tone: casual, energetic, authentic, relatable
+- Hashtags: 5-8 hashtags mixing trending, niche, and local tags
+- Emojis: 3-5 energetic emojis
+- Direct CTA: Follow, Comment, or Share focused
+- Write as if the viewer just paused their scroll`,
+
+      all: `Platform: ALL PLATFORMS (Facebook + Instagram + Google Business)
 Generate 3 separate, fully-written variations — one per platform:
 - Variation A: Facebook — conversational, 150-200 words, 2-3 hashtags, question at end
 - Variation B: Instagram — visual-first hook, 100-150 words, 8-15 hashtags, 3-5 emojis
@@ -266,6 +289,21 @@ PostCore voice rules (non-negotiable):
         const label = k.title ? `[${k.knowledge_type.toUpperCase()}] ${k.title}` : `[${k.knowledge_type.toUpperCase()}]`;
         const content = typeof k.content === 'string' ? k.content : JSON.stringify(k.content);
         voice += `\n\n${label}:\n${content.substring(0, 300)}`;
+      });
+    }
+
+    const testimonials = (() => {
+      try {
+        const raw = this.customer.website_testimonials;
+        if (!raw) return [];
+        return Array.isArray(raw) ? raw : JSON.parse(raw);
+      } catch { return []; }
+    })();
+
+    if (testimonials.length > 0) {
+      voice += `\n\nReal customer testimonials from this business's website (mirror how their customers talk about them — use this language and these outcomes in your writing):`;
+      testimonials.slice(0, 2).forEach((t, i) => {
+        voice += `\n${i + 1}. "${t.text}"${t.author ? ` — ${t.author}` : ''}`;
       });
     }
 

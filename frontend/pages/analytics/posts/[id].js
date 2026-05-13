@@ -6,7 +6,7 @@ import {
   IpCheckCircle, IpWarning, IpInfo,
 } from '../../../components/icons';
 import Layout from '../../../components/Layout';
-import { Card, Button, Badge, SectionHeader, EmptyState } from '../../../components/ui';
+import { Card, Button, Badge, SectionHeader, EmptyState, Spinner } from '../../../components/ui';
 import { useTheme } from '../../../lib/theme';
 import { analyticsAPI } from '../../../lib/api';
 
@@ -52,7 +52,7 @@ export default function PostPerformance() {
       <Layout title="Post Performance">
         <Card>
           <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
-            <div style={{ width: 36, height: 36, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <Spinner size={36} />
           </div>
         </Card>
       </Layout>
@@ -117,7 +117,7 @@ export default function PostPerformance() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
             {[
               { label: 'Likes', key: 'likes', icon: IpHeart, color: '#F43F5E' },
-              { label: 'Comments', key: 'comments', icon: IpComment, color: t.primary },
+              { label: 'Comments', key: 'comments', icon: IpComment, color: 'url(#brand-gradient)' },
               { label: 'Shares', key: 'shares', icon: IpShare, color: t.success },
             ].map(({ label, key, icon: Icon, color }) => {
               const cmp = comparison[key];
@@ -189,7 +189,7 @@ export default function PostPerformance() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {[
                         { label: 'Likes', value: m.likes, icon: IpHeart, color: '#F43F5E' },
-                        { label: 'Comments', value: m.comments, icon: IpComment, color: t.primary },
+                        { label: 'Comments', value: m.comments, icon: IpComment, color: 'url(#brand-gradient)' },
                         { label: 'Shares', value: m.shares, icon: IpShare, color: t.success },
                         { label: 'Reach', value: m.reach, icon: IpEye, color: t.info },
                         { label: 'Impressions', value: m.impressions, icon: IpEye, color: t.textMuted },

@@ -13,7 +13,7 @@ module.exports = (pool) => {
   router.get('/scrape-preview', async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT website_services, website_about, website FROM customers WHERE id = $1`,
+        `SELECT website_services, website_about, website, website_testimonials FROM customers WHERE id = $1`,
         [req.customerId]
       );
       const row = result.rows[0];
@@ -32,11 +32,18 @@ module.exports = (pool) => {
         .filter(s => s && String(s).trim())
         .map(s => ({ name: String(s).trim(), description: '', priceRange: '' }));
 
+      let testimonials = [];
+      try {
+        const raw = row.website_testimonials;
+        testimonials = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
+      } catch { testimonials = []; }
+
       res.json({
         hasData: services.length > 0 || !!row.website_about,
         website: row.website,
         services,
         differentiators: (row.website_about || '').substring(0, 400),
+        testimonials,
       });
     } catch (err) {
       console.error('[knowledge] scrape-preview:', err.message);

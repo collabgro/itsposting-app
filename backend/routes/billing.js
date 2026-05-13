@@ -5,22 +5,33 @@ const EmailQueue = require('../services/EmailQueue');
 
 const PLANS = {
   trial: {
-    id: 'trial', name: 'Free Trial', price: 0, credits: 10, duration: '7 days',
+    id: 'trial', name: 'Free Trial', price: 0, yearlyPrice: 0, credits: 10, duration: '7 days',
     features: ['10 free credits', 'All content types', '1 social account', 'Basic analytics'],
   },
   starter: {
-    id: 'starter', name: 'Starter', price: 99, yearlyPrice: 79, credits: 50, duration: 'per month',
-    features: ['50 credits/month', '~3 posts per week', '1 platform (FB, IG, or GBP)', 'Manual uploads (unlimited)', 'Email support'],
+    id: 'starter', name: 'Starter', price: 20, yearlyPrice: 18, credits: 50, duration: 'per month',
+    features: ['50 credits/month', 'Instagram, TikTok, Facebook, LinkedIn & Google Business', 'Custom AI training on your brand', 'Email support', '7-day free trial'],
   },
   professional: {
-    id: 'professional', name: 'Professional', price: 199, yearlyPrice: 159, credits: 150, duration: 'per month', popular: true,
-    features: ['150 credits/month', 'Daily posting (~7/week)', 'All 3 platforms', 'Manual uploads (unlimited)', 'Website scraping', 'Priority support', 'Custom branding'],
+    id: 'professional', name: 'Professional', price: 40, yearlyPrice: 36, credits: 100, duration: 'per month', popular: true,
+    features: ['100 credits/month', 'Instagram, TikTok, Facebook, LinkedIn & Google Business', 'Custom AI training on your brand', 'Priority support', '7-day free trial'],
   },
   premium: {
-    id: 'premium', name: 'Premium', price: 349, yearlyPrice: 279, credits: 500, duration: 'per month',
-    features: ['500 credits/month', '2x daily posting (~14/week)', 'All platforms + Stories', 'Manual uploads (unlimited)', 'Website scraping', 'Dedicated account manager', 'Advanced analytics', 'API access'],
+    id: 'premium', name: 'Premium', price: 60, yearlyPrice: 54, credits: 150, duration: 'per month',
+    features: ['150 credits/month', 'Instagram, TikTok, Facebook, LinkedIn & Google Business', 'Custom AI training on your brand', 'Priority support', 'Dedicated support manager', '7-day free trial'],
   },
 };
+
+const CREDIT_PACKS = [
+  { id: 'credits_25',  amount: 25,  price: 10 },
+  { id: 'credits_50',  amount: 50,  price: 20 },
+  { id: 'credits_75',  amount: 75,  price: 30 },
+  { id: 'credits_100', amount: 100, price: 40 },
+  { id: 'credits_125', amount: 125, price: 50 },
+  { id: 'credits_150', amount: 150, price: 60 },
+  { id: 'credits_200', amount: 200, price: 80 },
+  { id: 'credits_250', amount: 250, price: 100 },
+];
 
 module.exports = (pool) => {
   const router = express.Router();
@@ -46,6 +57,32 @@ module.exports = (pool) => {
 
         if (action === 'membership.activated' || action === 'payment.succeeded') {
           const whopPlanId = data?.plan_id || data?.product?.plan_id;
+
+          // Check if this is a credit pack purchase
+          const creditPack = CREDIT_PACKS.find(p => p.id === whopPlanId);
+          if (creditPack) {
+            const email = data?.email || data?.user?.email;
+            const whopMembershipId = data?.id || data?.membership_id;
+            let customerResult = null;
+            if (whopMembershipId) {
+              customerResult = await pool.query('SELECT id, credits_balance FROM customers WHERE whop_membership_id = $1', [whopMembershipId]);
+            }
+            if (!customerResult?.rows?.length && email) {
+              customerResult = await pool.query('SELECT id, credits_balance FROM customers WHERE email = $1', [email]);
+            }
+            if (customerResult?.rows?.length) {
+              const customerId = customerResult.rows[0].id;
+              const newBalance = (customerResult.rows[0].credits_balance || 0) + creditPack.amount;
+              await pool.query(`UPDATE customers SET credits_balance=$1, updated_at=NOW() WHERE id=$2`, [newBalance, customerId]);
+              await pool.query(
+                `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description) VALUES ($1,'purchase',$2,$3,$4)`,
+                [customerId, creditPack.amount, newBalance, `Credit pack purchase: ${creditPack.amount} credits ($${creditPack.price})`]
+              );
+              console.log(`[Whop] Credit pack ${creditPack.id} granted to customer ${customerId}`);
+            }
+            return;
+          }
+
           const tier = whop.getPlanTierFromWhopId(whopPlanId);
           if (!tier) { console.warn('[Whop] Unknown plan ID:', whopPlanId); return; }
 
@@ -144,6 +181,32 @@ module.exports = (pool) => {
       }
       const url = whop.getCheckoutUrl(plan, cycle);
       res.json({ url });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Credit packs list ────────────────────────────────────────────────────────
+  router.get('/credit-packs', (req, res) => {
+    res.json(CREDIT_PACKS);
+  });
+
+  // ── Buy credits (generates checkout link for a credit pack) ──────────────────
+  router.get('/buy-credits', authenticate, async (req, res) => {
+    try {
+      const { pack } = req.query;
+      const creditPack = CREDIT_PACKS.find(p => p.id === pack);
+      if (!creditPack) return res.status(400).json({ error: 'Invalid credit pack' });
+
+      try {
+        const url = whop.getCheckoutUrl(pack, 'monthly');
+        if (url) return res.json({ url });
+      } catch {}
+
+      // Fallback: no Whop product configured for this pack yet
+      res.json({
+        message: `To purchase ${creditPack.amount} credits for $${creditPack.price}, email support@itsposting.com with subject: "Credit purchase — ${pack}". We'll add them to your account within 24 hours.`,
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

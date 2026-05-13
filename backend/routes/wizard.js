@@ -57,6 +57,32 @@ try {
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// Auto-save generated media to media_library (non-blocking)
+async function autoSaveToMediaLibrary(pool, customerId, mediaUrl, contentType, width, height) {
+  if (!mediaUrl) return;
+  try {
+    // Extract cloudinary public_id from URL
+    // URL format: https://res.cloudinary.com/{cloud}/image/upload/v{ver}/{public_id}.{ext}
+    const match = mediaUrl.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?$/i);
+    const publicId = match ? match[1] : mediaUrl;
+    const isVideo = contentType === 'video';
+    const fileType = isVideo ? 'video' : 'image';
+    const mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
+    const fileName = `AI Generated — ${new Date().toISOString().slice(0, 10)}`;
+
+    await pool.query(
+      `INSERT INTO media_library
+         (customer_id, cloudinary_public_id, url, thumbnail_url, file_name, file_type, mime_type,
+          file_size_bytes, width, height, folder, created_at)
+       VALUES ($1,$2,$3,$3,$4,$5,$6,0,$7,$8,'AI Generated',NOW())
+       ON CONFLICT DO NOTHING`,
+      [customerId, publicId, mediaUrl, fileName, fileType, mimeType, width || null, height || null]
+    );
+  } catch (e) {
+    console.warn('[Wizard] Auto-save to media_library failed (non-fatal):', e.message);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // JSON repair — fixes literal newlines inside string values
 // Claude sometimes outputs actual \n characters inside JSON strings
@@ -424,7 +450,7 @@ module.exports = (pool) => {
       // Optional brand/scrape columns — added by migration, may not exist yet
       try {
         const extResult = await pool.query(
-          `SELECT website_url, scraped_services, scraped_about FROM customers WHERE id = $1`,
+          `SELECT website, website_services, website_about, website_testimonials FROM customers WHERE id = $1`,
           [customerId]
         );
         if (extResult.rows[0]) Object.assign(customer, extResult.rows[0]);
@@ -534,12 +560,14 @@ module.exports = (pool) => {
       const detailsAnswer = session.answers['details'];
       const platformAnswer = session.answers['platform'];
 
+      const formatAnswer = session.answers['selected_format'];
       const answers = {
         contentTypeSelection: contentTypeSelectionAnswer?.value || 'photo',
         contentType: contentTypeAnswer?.value || 'just_finished_job',
         tone: toneAnswer?.value || 'professional',
         details: detailsAnswer || {},
         platform: platformAnswer?.value || 'facebook',
+        selectedFormat: formatAnswer?.value || null,
       };
 
       // Map wizard content types to SystemPromptBuilder triggers
@@ -836,6 +864,16 @@ module.exports = (pool) => {
             savedVariations = true;
           } catch (variationsErr) {
             console.warn('[Wizard] Could not save post_variations (table may not exist yet):', variationsErr.message);
+          }
+
+          // Auto-save generated image/video to Media Library (non-blocking)
+          if (mediaUrl) {
+            const fmt = answers.selectedFormat;
+            autoSaveToMediaLibrary(
+              pool, session.customerId, mediaUrl,
+              answers.contentTypeSelection,
+              fmt?.width, fmt?.height
+            ).catch(() => {});
           }
         }
       } catch (dbErr) {

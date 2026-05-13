@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
-  IpPlus, IpDelete, IpCheck, IpWarning, IpDrafts, IpSave, IpLoader, IpRefresh,
+  IpPlus, IpDelete, IpCheck, IpWarning, IpDrafts, IpSave, IpRefresh,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Input, Textarea } from '../components/ui';
@@ -15,7 +15,7 @@ export default function KnowledgeBase() {
   const [saving,        setSaving]        = useState(false);
   const [saved,         setSaved]         = useState(false);
   const [importing,     setImporting]     = useState(false);
-  const [importBanner,  setImportBanner]  = useState(null); // { website, services, differentiators }
+  const [importBanner,  setImportBanner]  = useState(null); // { website, services, differentiators, testimonials }
   const [importToast,   setImportToast]   = useState(null);
   const [data, setData] = useState({
     services:        [],
@@ -56,25 +56,37 @@ export default function KnowledgeBase() {
       .catch(() => {});
   }, []);
 
-  // Merge scraped data into form — deduplicates services by name, never overwrites reviews/FAQs/team
+  // Merge scraped data into form — deduplicates services, populates reviews from testimonials
   const handleImport = () => {
     if (!importBanner) return;
     setImporting(true);
+    let reviewsAdded = 0;
     setData(prev => {
       const existingNames = new Set(prev.services.map(s => s.name.toLowerCase().trim()));
       const newServices = importBanner.services.filter(
         s => s.name.trim() && !existingNames.has(s.name.toLowerCase().trim())
       );
+
+      const formattedReviews = (importBanner.testimonials || [])
+        .filter(t => t.text && t.text.length > 20)
+        .slice(0, 2)
+        .map(t => `"${t.text}"${t.author ? ` — ${t.author}` : ''}`)
+        .join('\n\n');
+      reviewsAdded = formattedReviews ? 1 : 0;
+
       return {
         ...prev,
         services: [...prev.services, ...newServices],
         differentiators: prev.differentiators.trim()
           ? prev.differentiators
           : importBanner.differentiators || prev.differentiators,
+        reviews: prev.reviews.trim() ? prev.reviews : (formattedReviews || prev.reviews),
       };
     });
-    const count = importBanner.services.length;
-    setImportToast(`Imported ${count} service${count !== 1 ? 's' : ''} from ${importBanner.website || 'your website'}`);
+    const svcCount = importBanner.services.length;
+    const parts = [`${svcCount} service${svcCount !== 1 ? 's' : ''}`];
+    if (reviewsAdded) parts.push('2 reviews');
+    setImportToast(`Imported ${parts.join(' + ')} from ${importBanner.website || 'your website'}`);
     setTimeout(() => { setImportToast(null); setImporting(false); }, 3500);
     setImportBanner(null);
   };
@@ -114,7 +126,7 @@ export default function KnowledgeBase() {
   const removeFaq     = i  => setData(d => ({ ...d, faqs: d.faqs.filter((_, idx) => idx !== i) }));
   const removeTeam    = i  => setData(d => ({ ...d, team: d.team.filter((_, idx) => idx !== i) }));
 
-  const SaveIcon = saving ? IpLoader : saved ? IpCheck : IpSave;
+  const SaveIcon = saving ? null : saved ? IpCheck : IpSave;
   const saveLabel = saving ? 'Saving...' : saved ? 'Saved!' : 'Save changes';
 
   return (
@@ -123,7 +135,7 @@ export default function KnowledgeBase() {
       subtitle="The more PostCore knows, the better every post it creates for you"
       action={
         <Button variant="primary" onClick={handleSave} disabled={saving}>
-          <SaveIcon size={14} style={saving ? { animation: 'spin 1s linear infinite' } : undefined} />
+          {saving ? <img src="/icon-192.png" alt="" style={{ width: 14, height: 14, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} /> : <SaveIcon size={14} />}
           {saveLabel}
         </Button>
       }
@@ -196,10 +208,11 @@ export default function KnowledgeBase() {
 
         {/* Differentiators */}
         <KnowledgeCard t={t} title="What Makes You Different" status={data.differentiators.trim().length > 20 ? 'done' : 'empty'} description="PostCore weaves this into trust signals in every post.">
-          <Input
+          <Textarea
             value={data.differentiators}
             onChange={e => setData(d => ({ ...d, differentiators: e.target.value }))}
             placeholder="e.g. Same-day service, 25-year warranty, family owned since 1998, licensed and insured, free estimates..."
+            rows={3}
           />
         </KnowledgeCard>
 

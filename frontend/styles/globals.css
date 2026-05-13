@@ -88,3 +88,8 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+@keyframes logo-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1;   }
+  50%       { transform: scale(0.82); opacity: 0.55; }
+}

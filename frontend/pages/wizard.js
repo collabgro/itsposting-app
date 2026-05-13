@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import {
   IpCredits, IpFacebook, IpInstagram, IpGoogle,
   IpArrowLeft, IpArrowRight, IpRefresh, IpCopy,
-  IpCheck, IpEdit, IpSparkle, IpChevronRight,
+  IpCheck, IpEdit, IpSparkle, IpChevronRight, IpLinkedIn, IpTikTok,
 } from '../components/icons';
 import Icon from '../components/Icon';
 import Layout from '../components/Layout';
@@ -46,7 +46,9 @@ const PLATFORMS = [
   { id: 'facebook',       icon: IpFacebook,  label: 'Facebook',        color: '#1877F2', bg: 'rgba(24,119,242,0.1)',  border: 'rgba(24,119,242,0.3)',  desc: 'Best for longer posts & community' },
   { id: 'instagram',      icon: IpInstagram, label: 'Instagram',       color: '#E1306C', bg: 'rgba(225,48,108,0.1)', border: 'rgba(225,48,108,0.3)', desc: 'Visual-first, hashtag-rich content' },
   { id: 'google_business',icon: IpGoogle,    label: 'Google Business', color: '#4285F4', bg: 'rgba(66,133,244,0.1)', border: 'rgba(66,133,244,0.3)', desc: 'Local search visibility & reviews' },
-  { id: 'all',            icon: IpSparkle,   label: 'All Three',       color: '#7C5CFC', bg: 'rgba(124,92,252,0.1)', border: 'rgba(124,92,252,0.3)', desc: 'Auto-adapted for each platform' },
+  { id: 'linkedin',       icon: IpLinkedIn,  label: 'LinkedIn',        color: '#0A66C2', bg: 'rgba(10,102,194,0.1)', border: 'rgba(10,102,194,0.3)', desc: 'Professional B2B audience reach' },
+  { id: 'tiktok',         icon: IpTikTok,    label: 'TikTok',          color: '#010101', bg: 'rgba(1,1,1,0.07)',     border: 'rgba(1,1,1,0.2)',      desc: 'Short-form video-first audience' },
+  { id: 'all',            icon: IpSparkle,   label: 'All Platforms',   color: '#7C5CFC', bg: 'rgba(124,92,252,0.1)', border: 'rgba(124,92,252,0.3)', desc: 'Auto-adapted for each platform' },
 ];
 
 // ── Loading messages (content-type-aware) ────────────────────────────────────
@@ -56,6 +58,105 @@ const LOADING_MESSAGES = {
   carousel: (ind) => [`Reading the room for ${ind || 'your industry'}...`, 'Drafting slide content...', 'Creating slide images...', 'Assembling your carousel...', 'Almost done...'],
   video:    (ind) => [`Reading the room for ${ind || 'your industry'}...`, 'Writing your video script...', 'Sending to video AI...', 'Video rendering — captions ready now...'],
 };
+
+// ── Step 2: Choose Format ─────────────────────────────────────────────────────
+const FORMAT_TABS = ['Popular', 'Facebook', 'Instagram', 'LinkedIn', 'TikTok'];
+
+const FORMAT_DATA = {
+  Popular: [
+    { platform: 'instagram', label: 'Instagram Post',  sublabel: '4:5 Portrait',   width: 1080, height: 1350 },
+    { platform: 'instagram', label: 'Instagram Story', sublabel: '9:16 Vertical',  width: 1080, height: 1920 },
+    { platform: 'facebook',  label: 'Facebook Post',   sublabel: 'Landscape',      width: 1200, height: 630  },
+    { platform: 'linkedin',  label: 'LinkedIn Post',   sublabel: 'Square',         width: 1200, height: 1200 },
+    { platform: 'tiktok',    label: 'TikTok Video',    sublabel: '9:16 Vertical',  width: 1080, height: 1920 },
+  ],
+  Facebook: [
+    { platform: 'facebook', label: 'Facebook Post',   sublabel: 'Landscape',      width: 1200, height: 630  },
+    { platform: 'facebook', label: 'Facebook Story',  sublabel: '9:16 Vertical',  width: 1080, height: 1920 },
+    { platform: 'facebook', label: 'Facebook Square', sublabel: '1:1 Square',     width: 1080, height: 1080 },
+  ],
+  Instagram: [
+    { platform: 'instagram', label: 'Instagram Post',   sublabel: '4:5 Portrait',  width: 1080, height: 1350 },
+    { platform: 'instagram', label: 'Instagram Story',  sublabel: '9:16 Vertical', width: 1080, height: 1920 },
+    { platform: 'instagram', label: 'Instagram Reel',   sublabel: '9:16 Vertical', width: 1080, height: 1920 },
+    { platform: 'instagram', label: 'Instagram Square', sublabel: '1:1 Square',    width: 1080, height: 1080 },
+  ],
+  LinkedIn: [
+    { platform: 'linkedin', label: 'LinkedIn Post',  sublabel: '1:1 Square',     width: 1200, height: 1200 },
+    { platform: 'linkedin', label: 'LinkedIn Video', sublabel: '9:16 Vertical',  width: 1280, height: 1920 },
+  ],
+  TikTok: [
+    { platform: 'tiktok', label: 'TikTok Video', sublabel: '9:16 Vertical', width: 1080, height: 1920 },
+    { platform: 'tiktok', label: 'TikTok Story', sublabel: '9:16 Vertical', width: 1080, height: 1920 },
+  ],
+};
+
+// Content-type-aware recommendations for the hero row
+const RECOMMENDED_FORMATS = {
+  static: [
+    { platform: 'instagram', label: 'Instagram Post',  sublabel: '4:5 Portrait',  width: 1080, height: 1350 },
+    { platform: 'facebook',  label: 'Facebook Post',   sublabel: 'Landscape',     width: 1200, height: 630  },
+    { platform: 'linkedin',  label: 'LinkedIn Post',   sublabel: '1:1 Square',    width: 1200, height: 1200 },
+  ],
+  photo: [
+    { platform: 'instagram', label: 'Instagram Post',  sublabel: '4:5 Portrait',  width: 1080, height: 1350 },
+    { platform: 'instagram', label: 'Instagram Story', sublabel: '9:16 Vertical', width: 1080, height: 1920 },
+    { platform: 'facebook',  label: 'Facebook Post',   sublabel: 'Landscape',     width: 1200, height: 630  },
+  ],
+  carousel: [
+    { platform: 'instagram', label: 'Instagram Post',  sublabel: '4:5 Portrait',  width: 1080, height: 1350 },
+    { platform: 'linkedin',  label: 'LinkedIn Post',   sublabel: '1:1 Square',    width: 1200, height: 1200 },
+    { platform: 'facebook',  label: 'Facebook Post',   sublabel: 'Landscape',     width: 1200, height: 630  },
+  ],
+  video: [
+    { platform: 'tiktok',    label: 'TikTok Video',    sublabel: '9:16 Vertical', width: 1080, height: 1920 },
+    { platform: 'instagram', label: 'Instagram Reel',  sublabel: '9:16 Vertical', width: 1080, height: 1920 },
+    { platform: 'facebook',  label: 'Facebook Story',  sublabel: '9:16 Vertical', width: 1080, height: 1920 },
+  ],
+};
+
+const FORMAT_PLATFORM_COLORS = {
+  facebook: '#1877F2', instagram: '#E1306C', linkedin: '#0A66C2',
+  tiktok: '#111111', google_business: '#4285F4',
+};
+
+// Aspect-ratio-accurate preview rectangle
+function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md' }) {
+  const maxH = size === 'lg' ? 84 : 68;
+  const maxW = size === 'lg' ? 126 : 100;
+  let w, h;
+  if (width / height > maxW / maxH) {
+    w = maxW; h = Math.round(maxW * height / width);
+  } else {
+    h = maxH; w = Math.round(maxH * width / height);
+  }
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: 7, flexShrink: 0,
+      background: `linear-gradient(145deg, ${platformColor}26, ${platformColor}0a)`,
+      border: `1.5px solid ${platformColor}45`,
+      position: 'relative', overflow: 'hidden',
+    }}>
+      {/* diagonal shimmer */}
+      <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(155deg, ${platformColor}1a 0%, transparent 55%)` }} />
+      {/* simulated text lines */}
+      <div style={{ position: 'absolute', bottom: '22%', left: '10%', right: '12%', height: 2.5, borderRadius: 2, background: `${platformColor}40` }} />
+      <div style={{ position: 'absolute', bottom: '12%', left: '10%', right: '32%', height: 2, borderRadius: 2, background: `${platformColor}28` }} />
+      {/* platform badge */}
+      {PlatformIcon && (
+        <div style={{
+          position: 'absolute', top: 5, left: 5,
+          width: 17, height: 17, borderRadius: 4,
+          background: platformColor,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: `0 1px 4px ${platformColor}55`,
+        }}>
+          <PlatformIcon size={10} color="#fff" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 function getSeasonalDesc() {
   const seasonal = [
@@ -128,12 +229,15 @@ export default function Wizard() {
 
   const isOnboarding = router.query.onboarding === 'true';
 
-  const [step, setStep] = useState(1);            // 1–5, 'loading', 'results'
+  const [step, setStep] = useState(1);            // 1–6, 'loading', 'results'
   const [contentType, setContentType] = useState(null); // Step 1
-  const [theme, setTheme] = useState(null);       // Step 2
-  const [tone, setTone] = useState(null);         // Step 3
-  const [details, setDetails] = useState('');     // Step 4
-  const [platform, setPlatform] = useState(null); // Step 5
+  const [selectedFormat, setSelectedFormat] = useState(null); // Step 2
+  const [formatTab, setFormatTab] = useState('Popular');
+  const [hoveredFormat, setHoveredFormat] = useState(null);
+  const [theme, setTheme] = useState(null);       // Step 3
+  const [tone, setTone] = useState(null);         // Step 4
+  const [details, setDetails] = useState('');     // Step 5
+  const [platform, setPlatform] = useState(null); // Step 6
   const [includeCTA, setIncludeCTA] = useState(true);
 
   const [results, setResults] = useState(null);
@@ -236,33 +340,40 @@ export default function Wizard() {
 
   const canProceed = () => {
     if (step === 1) return !!contentType;
-    if (step === 2) return !!theme;
-    if (step === 3) return !!tone;
-    if (step === 4) return true;
-    if (step === 5) return !!platform;
+    if (step === 2) return true; // format is optional
+    if (step === 3) return !!theme;
+    if (step === 4) return !!tone;
+    if (step === 5) return true;
+    if (step === 6) return !!platform;
     return false;
   };
 
   const handleNext = async () => {
-    if (step === 5) { await handleGenerate(); }
+    if (step === 6) { await handleGenerate(); }
     else setStep(s => s + 1);
   };
 
   const handleBack = () => {
     if (step === 1) { router.push('/dashboard'); return; }
-    if (step === 'results') { setStep(5); return; }
+    if (step === 'results') { setStep(6); return; }
     setStep(s => s - 1);
   };
 
   const handleReset = () => {
     setStep(1); setContentType(null); setTheme(null); setTone(null); setPlatform(null);
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
+    setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null);
     setSelectedVariation('A'); setActionLoading(false); setActionToast(null);
     setShowScheduleModal(false); setScheduleDate(''); setIsEditing(false); setEditedCaption('');
   };
 
+  const handleFormatSelect = (fmt) => {
+    setSelectedFormat(fmt);
+    setTimeout(() => setStep(3), 180);
+  };
+
   const handleTryDifferentTone = () => {
-    setStep(3); setTone(null); setResults(null);
+    setStep(4); setTone(null); setResults(null);
   };
 
   const handleGenerate = async () => {
@@ -280,6 +391,9 @@ export default function Wizard() {
       const detailsObj = buildDetailsObject(theme, details.trim());
       await apiPost('/api/wizard/step', { wizardId, stepId: 'details', answers: { ...detailsObj, includeCTA } });
       await apiPost('/api/wizard/step', { wizardId, stepId: 'platform', answers: { value: platform } });
+      if (selectedFormat) {
+        await apiPost('/api/wizard/step', { wizardId, stepId: 'selected_format', answers: { value: selectedFormat } });
+      }
 
       const genRes = await apiPost('/api/wizard/generate', { wizardId });
       setResults(genRes);
@@ -287,7 +401,7 @@ export default function Wizard() {
       setStep('results');
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
-      setStep(5); // stay on platform step so the error banner is visible
+      setStep(6); // stay on platform step so the error banner is visible
     }
   };
 
@@ -307,7 +421,7 @@ export default function Wizard() {
     if (!results?.postId) return;
     setActionLoading(true);
     try {
-      await apiPatch(`/api/posts/${results.postId}`, { status: 'published' });
+      await apiPatch(`/api/posts/${results.postId}`, { status: 'posted' });
       showToast('success', 'Post published!');
     } catch (err) {
       showToast('error', err.message || 'Failed to publish');
@@ -320,7 +434,7 @@ export default function Wizard() {
     if (!results?.postId || !scheduleDate) return;
     setActionLoading(true);
     try {
-      await apiPatch(`/api/posts/${results.postId}`, { status: 'scheduled', scheduled_at: scheduleDate });
+      await apiPatch(`/api/posts/${results.postId}`, { status: 'scheduled', scheduledDate: scheduleDate });
       setShowScheduleModal(false);
       showToast('success', 'Post scheduled!');
     } catch (err) {
@@ -357,9 +471,9 @@ export default function Wizard() {
     setIsEditing(true);
   };
 
-  const stepNum = typeof step === 'number' ? step : (step === 'results' ? 6 : 5.5);
-  const progressPct = Math.min(100, ((stepNum - 1) / 5) * 100);
-  const stepLabels = ["Content type", "What's happening?", "What's the vibe?", 'Any details?', 'Where to post?'];
+  const stepNum = typeof step === 'number' ? step : (step === 'results' ? 7 : 6.5);
+  const progressPct = Math.min(100, ((stepNum - 1) / 6) * 100);
+  const stepLabels = ['Content type', 'Format', "What's happening?", "What's the vibe?", 'Any details?', 'Where to post?'];
 
   return (
     <Layout title="Post Wizard" subtitle="Guided content creation — powered by PostCore">
@@ -418,7 +532,7 @@ export default function Wizard() {
                 const selected = contentType === item.id;
                 return (
                   <ThemeCard key={item.id} selected={selected} onClick={() => setContentType(item.id)} t={t}>
-                    <div style={{ marginBottom: 10 }}><Icon name={item.icon} size={32} color={selected ? '#7C5CFC' : undefined} /></div>
+                    <div style={{ marginBottom: 10 }}><Icon name={item.icon} size={32} color={selected ? 'url(#brand-gradient)' : undefined} /></div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{item.label}</div>
                     <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>{item.desc}</div>
                     <div style={{ fontSize: 10, color: t.primary, fontWeight: 600, marginTop: 6 }}>{item.credits} credit{item.credits !== 1 ? 's' : ''}</div>
@@ -431,9 +545,159 @@ export default function Wizard() {
         )}
 
         {/* ─────────────────────────────────────────────────────────────────────
-            STEP 2 — What's happening today?
+            STEP 2 — Choose Format
         ───────────────────────────────────────────────────────────────────── */}
-        {step === 2 && (
+        {step === 2 && (() => {
+          const recFormats = RECOMMENDED_FORMATS[contentType] || RECOMMENDED_FORMATS.photo;
+          const ctLabel = CONTENT_TYPES.find(c => c.id === contentType)?.label || 'post';
+          const subtext = {
+            video:    'Vertical formats get the most reach for video',
+            carousel: 'Square and portrait sizes work best for carousels',
+            photo:    'Portrait formats stop the scroll better than landscape',
+            static:   'Different platforms reward different sizes',
+          }[contentType] || 'Pick the platform size that fits your post';
+          const fmtIconMap = { facebook: IpFacebook, instagram: IpInstagram, linkedin: IpLinkedIn, tiktok: IpTikTok, google_business: IpGoogle };
+          const tabIconMap = { Facebook: IpFacebook, Instagram: IpInstagram, LinkedIn: IpLinkedIn, TikTok: IpTikTok };
+
+          const FormatCard = ({ fmt, isSelected, uid, size = 'md', isBest = false }) => {
+            const pColor = FORMAT_PLATFORM_COLORS[fmt.platform] || t.primary;
+            const PIcon = fmtIconMap[fmt.platform];
+            const isHovered = hoveredFormat === uid;
+            return (
+              <button
+                onClick={() => handleFormatSelect(fmt)}
+                onMouseEnter={() => setHoveredFormat(uid)}
+                onMouseLeave={() => setHoveredFormat(null)}
+                style={{
+                  padding: size === 'lg' ? '18px 14px 16px' : '14px 10px 12px',
+                  border: `2px solid ${isSelected ? pColor : isHovered ? pColor + '60' : t.border}`,
+                  borderRadius: 14,
+                  background: isSelected ? `${pColor}12` : isHovered ? `${pColor}06` : t.card,
+                  cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  gap: size === 'lg' ? 14 : 10,
+                  transition: 'border-color 150ms, background 150ms, transform 150ms, box-shadow 150ms',
+                  transform: isHovered && !isSelected ? 'translateY(-3px)' : 'none',
+                  boxShadow: isSelected ? `0 0 0 3px ${pColor}20, 0 4px 16px ${pColor}18` : isHovered ? `0 6px 20px ${pColor}18` : 'none',
+                  position: 'relative',
+                }}
+              >
+                {/* Best pick ribbon */}
+                {isBest && (
+                  <div style={{ position: 'absolute', top: -1, right: 12, background: `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || t.primary})`, color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: '0 0 6px 6px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                    Best pick
+                  </div>
+                )}
+                {/* Checkmark when selected */}
+                {isSelected && (
+                  <div style={{ position: 'absolute', top: 8, left: 10, width: 18, height: 18, borderRadius: '50%', background: pColor, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 6px ${pColor}50` }}>
+                    <IpCheck size={10} color="#fff" strokeWidth={3} />
+                  </div>
+                )}
+                <FormatMockup width={fmt.width} height={fmt.height} platformColor={pColor} PlatformIcon={PIcon} size={size} />
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: size === 'lg' ? 13 : 11, fontWeight: 700, color: isSelected ? pColor : t.text, lineHeight: 1.3, marginBottom: 3 }}>{fmt.label}</div>
+                  <div style={{ fontSize: 10, color: t.textMuted, fontWeight: 500 }}>{fmt.sublabel}</div>
+                  {(isHovered || isSelected) && (
+                    <div style={{ fontSize: 10, color: `${pColor}cc`, marginTop: 3, fontWeight: 600 }}>{fmt.width}×{fmt.height}</div>
+                  )}
+                </div>
+              </button>
+            );
+          };
+
+          return (
+            <div>
+              {/* Header */}
+              <div style={{ marginBottom: 28 }}>
+                <h2 style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: '-0.03em', marginBottom: 6 }}>Choose a format</h2>
+                <p style={{ fontSize: 14, color: t.textMuted }}>{subtext}</p>
+              </div>
+
+              {/* ── Recommended row ── */}
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+                  <IpSparkle size={12} color="url(#brand-gradient)" />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: t.primary, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Best for {ctLabel}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  {recFormats.map((fmt, idx) => (
+                    <FormatCard
+                      key={`rec-${idx}`}
+                      fmt={fmt}
+                      uid={`rec-${idx}`}
+                      isSelected={selectedFormat?.label === fmt.label && selectedFormat?.platform === fmt.platform}
+                      size="lg"
+                      isBest={idx === 0}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+                <div style={{ flex: 1, height: 1, background: t.border }} />
+                <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 500, whiteSpace: 'nowrap' }}>All formats</span>
+                <div style={{ flex: 1, height: 1, background: t.border }} />
+              </div>
+
+              {/* ── Platform filter pills ── */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+                {FORMAT_TABS.map(tab => {
+                  const TIcon = tabIconMap[tab];
+                  const active = formatTab === tab;
+                  const tColor = FORMAT_PLATFORM_COLORS[tab.toLowerCase()] || t.primary;
+                  return (
+                    <button key={tab} onClick={() => setFormatTab(tab)} style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '5px 13px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                      cursor: 'pointer',
+                      border: `1.5px solid ${active ? tColor : t.border}`,
+                      background: active ? `${tColor}12` : 'transparent',
+                      color: active ? tColor : t.textMuted,
+                      transition: 'all 150ms',
+                    }}>
+                      {TIcon && <TIcon size={11} style={{ color: 'inherit' }} />}
+                      {tab}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ── All formats grid ── */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 28 }}>
+                {(FORMAT_DATA[formatTab] || []).map((fmt, idx) => (
+                  <FormatCard
+                    key={`${formatTab}-${idx}`}
+                    fmt={fmt}
+                    uid={`${formatTab}-${idx}`}
+                    isSelected={selectedFormat?.label === fmt.label && selectedFormat?.platform === fmt.platform}
+                  />
+                ))}
+              </div>
+
+              {/* ── Footer nav ── */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                  onMouseEnter={e => e.currentTarget.style.background = t.cardHover || t.input}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <IpArrowLeft size={14} /> Back
+                </button>
+                <button onClick={() => { setSelectedFormat(null); setStep(3); }} style={{ fontSize: 12, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '10px 4px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                  Skip for now
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ─────────────────────────────────────────────────────────────────────
+            STEP 3 — What's happening today?
+        ───────────────────────────────────────────────────────────────────── */}
+        {step === 3 && (
           <div>
             <StepHeading t={t} icon="sparkles" title="What's happening today?" sub="Pick the type of post you want to create" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 32 }}>
@@ -442,7 +706,7 @@ export default function Wizard() {
                 const desc = item.id === 'seasonal' ? getSeasonalDesc() : item.desc;
                 return (
                   <ThemeCard key={item.id} selected={selected} onClick={() => setTheme(item.id)} t={t}>
-                    <div style={{ marginBottom: 10 }}><Icon name={item.icon} size={32} color={selected ? '#7C5CFC' : undefined} /></div>
+                    <div style={{ marginBottom: 10 }}><Icon name={item.icon} size={32} color={selected ? 'url(#brand-gradient)' : undefined} /></div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{item.label}</div>
                     <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>{desc}</div>
                   </ThemeCard>
@@ -454,9 +718,9 @@ export default function Wizard() {
         )}
 
         {/* ─────────────────────────────────────────────────────────────────────
-            STEP 3 — What's the vibe?
+            STEP 4 — What's the vibe?
         ───────────────────────────────────────────────────────────────────── */}
-        {step === 3 && (
+        {step === 4 && (
           <div>
             <StepHeading t={t} icon="friendly" title="What's the vibe?" sub="Choose the tone that fits your brand today" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
@@ -481,7 +745,7 @@ export default function Wizard() {
                       background: selected ? t.primaryBg : t.input,
                       border: `1px solid ${selected ? t.primaryBorder : t.border}`,
                     }}>
-                      <Icon name={item.icon} size={24} color={selected ? '#7C5CFC' : undefined} />
+                      <Icon name={item.icon} size={24} color={selected ? 'url(#brand-gradient)' : undefined} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 3 }}>{item.label}</div>
@@ -501,9 +765,9 @@ export default function Wizard() {
         )}
 
         {/* ─────────────────────────────────────────────────────────────────────
-            STEP 4 — Add any details (optional)
+            STEP 5 — Add any details (optional)
         ───────────────────────────────────────────────────────────────────── */}
-        {step === 4 && (
+        {step === 5 && (
           <div>
             <StepHeading t={t} icon="edit" title="Add any details" sub="Optional — but the more context you give PostCore, the better the posts" />
 
@@ -556,9 +820,9 @@ export default function Wizard() {
         )}
 
         {/* ─────────────────────────────────────────────────────────────────────
-            STEP 5 — Where are we posting?
+            STEP 6 — Where are we posting?
         ───────────────────────────────────────────────────────────────────── */}
-        {step === 5 && (
+        {step === 6 && (
           <div>
             <StepHeading t={t} icon="all_platforms" title="Where are we posting?" sub="PostCore will adapt the caption style for each platform" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 32 }}>
@@ -681,7 +945,7 @@ export default function Wizard() {
                     )
                   ) : (results.videoRendering === true || (results.videoRendering && results.videoRendering !== 'completed' && results.videoRendering !== 'failed')) ? (
                     <div style={{ textAlign: 'center', padding: 24 }}>
-                      <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${t.primary}`, borderTopColor: 'transparent', margin: '0 auto 12px', animation: 'spin 1s linear infinite' }} />
+                      <img src="/icon-192.png" alt="" aria-hidden="true" style={{ width: 48, height: 48, borderRadius: 11, animation: 'logo-pulse 1.2s ease-in-out infinite', margin: '0 auto 12px', display: 'block' }} />
                       <div style={{ fontSize: 13, color: t.textMuted }}>Video rendering...</div>
                       <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Caption is ready to post now</div>
                     </div>
@@ -864,7 +1128,7 @@ function StepHeading({ t, icon, title, sub }) {
   return (
     <div style={{ marginBottom: 28 }}>
       <div style={{ marginBottom: 12 }}>
-        <Icon name={icon} size={32} color={t.primary} />
+        <Icon name={icon} size={32} color="url(#brand-gradient)" />
       </div>
       <h2 style={{ fontSize: 24, fontWeight: 800, color: t.text, letterSpacing: '-0.03em', marginBottom: 6 }}>{title}</h2>
       <p style={{ fontSize: 14, color: t.textMuted }}>{sub}</p>
@@ -900,7 +1164,7 @@ function ThemeCard({ selected, onClick, t, children }) {
 function SelectionPill({ t, icon, label }) {
   return (
     <span style={{ padding: '4px 12px', borderRadius: 20, background: t.card, border: `1px solid ${t.primaryBorder}`, fontSize: 12, fontWeight: 600, color: t.primary, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-      {icon && <Icon name={icon} size={12} color={t.primary} />}
+      {icon && <Icon name={icon} size={12} color="url(#brand-gradient)" />}
       {label}
     </span>
   );

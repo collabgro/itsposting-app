@@ -64,9 +64,13 @@ module.exports = (pool) => {
       }
 
       const data = await scraper.scrapeWebsite(url);
+
+      // Ensure website_testimonials column exists (migration safety)
+      await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS website_testimonials JSONB DEFAULT '[]'`).catch(() => {});
+
       await pool.query(
-        `UPDATE customers SET website=$1, scraped_data=$2, scraped_at=NOW(), website_services=$3, website_about=$4, updated_at=NOW() WHERE id=$5`,
-        [url, JSON.stringify(data), JSON.stringify(data.services), data.about || null, req.customerId]
+        `UPDATE customers SET website=$1, scraped_data=$2, scraped_at=NOW(), website_services=$3, website_about=$4, website_testimonials=$5, updated_at=NOW() WHERE id=$6`,
+        [url, JSON.stringify(data), JSON.stringify(data.services), data.about || null, JSON.stringify(data.testimonials || []), req.customerId]
       );
 
       // Auto-seed Teach PostCore if it's still empty (non-blocking)

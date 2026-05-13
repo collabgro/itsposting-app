@@ -20,6 +20,7 @@ class ScraperService {
         businessName: this.extractBusinessName($),
         services: this.extractServices($, homepage.html),
         about: this.extractAbout($),
+        testimonials: this.extractTestimonials($),
         contactInfo: this.extractContactInfo($, homepage.html),
         images: this.extractImages($, url),
         socialLinks: this.extractSocialLinks($),
@@ -142,6 +143,33 @@ class ScraperService {
   extractKeywords($) {
     const meta = $('meta[name="keywords"]').attr('content');
     return meta ? meta.split(',').map((k) => k.trim()).filter(Boolean).slice(0, 20) : [];
+  }
+
+  extractTestimonials($) {
+    const testimonials = [];
+    const selectors = [
+      '[class*="testimonial"]', '[class*="review"]', '[class*="quote"]',
+      '[id*="testimonial"]', '[id*="review"]', 'blockquote',
+      '[class*="feedback"]', '[class*="client-say"]', '[class*="what-client"]',
+    ];
+    for (const sel of selectors) {
+      try {
+        $(sel).each((_, el) => {
+          if (testimonials.length >= 3) return false;
+          const $el = $(el);
+          const text = $el.text().trim().replace(/\s+/g, ' ');
+          if (text.length > 30 && text.length < 500) {
+            const authorEl = $el.find('[class*="author"], [class*="name"], cite, [class*="client"]').first();
+            testimonials.push({
+              text: text.substring(0, 300),
+              author: authorEl.text().trim().substring(0, 80) || '',
+            });
+          }
+        });
+      } catch (e) { continue; }
+      if (testimonials.length >= 3) break;
+    }
+    return testimonials;
   }
 
   async scrapeSubpages(baseUrl, $) {

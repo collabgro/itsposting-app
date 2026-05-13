@@ -336,12 +336,41 @@ class ManualContentGenerator {
       );
 
       await client.query('COMMIT');
+
+      // Auto-save generated media to Media Library (non-blocking)
+      if (result.mediaUrl) {
+        this._autoSaveToMediaLibrary(customer.id, result.mediaUrl, contentType).catch(() => {});
+      }
+
       return post;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  async _autoSaveToMediaLibrary(customerId, mediaUrl, contentType) {
+    try {
+      const match = mediaUrl.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?$/i);
+      const publicId = match ? match[1] : mediaUrl;
+      const isVideo = contentType === 'video';
+      await this.pool.query(
+        `INSERT INTO media_library
+           (customer_id, cloudinary_public_id, url, thumbnail_url, file_name, file_type, mime_type,
+            file_size_bytes, folder, created_at)
+         VALUES ($1,$2,$3,$3,$4,$5,$6,0,'AI Generated',NOW())
+         ON CONFLICT DO NOTHING`,
+        [
+          customerId, publicId, mediaUrl,
+          `AI Generated — ${new Date().toISOString().slice(0, 10)}`,
+          isVideo ? 'video' : 'image',
+          isVideo ? 'video/mp4' : 'image/jpeg',
+        ]
+      );
+    } catch (e) {
+      console.warn('[ContentGenerator] Auto-save to media_library failed (non-fatal):', e.message);
     }
   }
 

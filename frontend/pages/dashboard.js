@@ -9,9 +9,8 @@ import {
   IpClose, IpInfo,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, SectionHeader, EmptyState } from '../components/ui';
+import { Card, Button, SectionHeader, EmptyState, Spinner } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import ContentCreatorModal from '../components/ContentCreatorModal';
 import { format } from 'date-fns';
 
 const TYPE_ICON  = { static: IpDrafts, photo: IpPhoto, carousel: IpCarousel, video: IpVideo };
@@ -41,7 +40,6 @@ export default function Dashboard() {
   const [briefing,     setBriefing]     = useState(null);
   const [contentMix,   setContentMix]   = useState(null);
   const [loading,      setLoading]      = useState(true);
-  const [showAIModal,  setShowAIModal]  = useState(false);
   const [briefingOpen, setBriefingOpen] = useState(true);
 
   useEffect(() => {
@@ -103,8 +101,7 @@ export default function Dashboard() {
     return (
       <Layout title="Dashboard" subtitle="Welcome back">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
-          <div style={{ width: 40, height: 40, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          <Spinner size={40} />
         </div>
       </Layout>
     );
@@ -119,7 +116,7 @@ export default function Dashboard() {
         subtitle={today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         action={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="secondary" onClick={() => setShowAIModal(true)}>
+            <Button variant="secondary" onClick={() => router.push('/wizard')}>
               <IpSparkle size={14} color="url(#brand-gradient)" /> Create
             </Button>
             <Button variant="primary" onClick={() => router.push('/upload')}>
@@ -249,7 +246,7 @@ export default function Dashboard() {
             </div>
             {upcoming.length === 0 ? (
               <EmptyState icon={IpSchedule} title="No scheduled posts" subtitle="Schedule your next post"
-                action={<Button variant="secondary" size="sm" onClick={() => setShowAIModal(true)}><IpSparkle size={12} /> Create</Button>} />
+                action={<Button variant="secondary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={12} /> Create</Button>} />
             ) : (
               <div>
                 {upcoming.slice(0, 4).map(post => {
@@ -280,8 +277,6 @@ export default function Dashboard() {
           </Card>
         </div>
       </Layout>
-
-      {showAIModal && <ContentCreatorModal onClose={() => setShowAIModal(false)} onSuccess={() => { setShowAIModal(false); router.push('/history'); }} />}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </>

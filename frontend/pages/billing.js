@@ -3,10 +3,10 @@ import { useRouter } from 'next/router';
 import {
   IpCheck, IpCredits, IpSparkle, IpCrown, IpBilling, IpSchedule,
   IpTrendingUp, IpArrowUpRight, IpArrowDownRight, IpWarning, IpGift,
-  IpLoader, IpExternalLink,
+  IpExternalLink,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button } from '../components/ui';
+import { Card, Button, Spinner } from '../components/ui';
 import { useTheme } from '../lib/theme';
 
 const PLAN_ICONS = { trial: IpGift, starter: IpCredits, professional: IpSparkle, premium: IpCrown };
@@ -28,7 +28,16 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString();
 }
 
-const YEARLY_DISCOUNT = 0.20; // 20% off for annual billing
+const CREDIT_PACKS = [
+  { id: 'credits_25',  amount: 25,  price: 10 },
+  { id: 'credits_50',  amount: 50,  price: 20 },
+  { id: 'credits_75',  amount: 75,  price: 30 },
+  { id: 'credits_100', amount: 100, price: 40 },
+  { id: 'credits_125', amount: 125, price: 50 },
+  { id: 'credits_150', amount: 150, price: 60 },
+  { id: 'credits_200', amount: 200, price: 80 },
+  { id: 'credits_250', amount: 250, price: 100 },
+];
 
 export default function Billing() {
   const router = useRouter();
@@ -41,7 +50,9 @@ export default function Billing() {
   const [plansError, setPlansError] = useState(false);
   const [cycle, setCycle] = useState('monthly'); // 'monthly' | 'yearly'
   const [checkingOut, setCheckingOut] = useState(null); // plan id being checked out
+  const [buyingPack, setBuyingPack] = useState(null); // credit pack id being purchased
   const [upgradeError, setUpgradeError] = useState('');
+  const [creditMsg, setCreditMsg] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -90,14 +101,36 @@ export default function Billing() {
     }
   };
 
+  const handleBuyCredits = async (pack) => {
+    setBuyingPack(pack.id);
+    setCreditMsg('');
+    setUpgradeError('');
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+      const res = await fetch(`/api/billing/buy-credits?pack=${pack.id}`, { headers });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else if (data.message) {
+        setCreditMsg(data.message);
+      } else {
+        setUpgradeError('Unable to process. Please contact support.');
+      }
+    } catch (err) {
+      console.error('Buy credits error:', err);
+      setUpgradeError('Could not connect to billing. Please try again.');
+    } finally {
+      setBuyingPack(null);
+    }
+  };
+
   if (!mounted) return null;
 
   if (loading) {
     return (
       <Layout title="Plans & Billing">
         <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-          <div style={{ width: 36, height: 36, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <Spinner size={36} />
         </div>
       </Layout>
     );
@@ -116,7 +149,7 @@ export default function Billing() {
   const nonTrialPlans = plans.filter(p => p.id !== 'trial');
 
   const displayPrice = (plan) => {
-    if (cycle === 'yearly') return Math.round(plan.price * (1 - YEARLY_DISCOUNT));
+    if (cycle === 'yearly') return plan.yearlyPrice ?? Math.round(plan.price * 0.9);
     return plan.price;
   };
 
@@ -237,7 +270,7 @@ export default function Billing() {
                 {c === 'monthly' ? 'Monthly' : 'Yearly'}
                 {c === 'yearly' && (
                   <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, background: 'rgba(34,197,94,0.2)', color: '#22C55E', padding: '2px 6px', borderRadius: 4 }}>
-                    -20%
+                    -10%
                   </span>
                 )}
               </button>
@@ -294,7 +327,7 @@ export default function Billing() {
                   </div>
                 )}
 
-                <PlanIcon size={20} style={{ color: t.primary, marginBottom: 10 }} />
+                <PlanIcon size={20} color="url(#brand-gradient)" style={{ marginBottom: 10 }} />
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, margin: '0 0 4px' }}>{plan.name}</h3>
 
                 <div style={{ marginBottom: 4 }}>
@@ -332,7 +365,7 @@ export default function Billing() {
                   ) : isDowngrade ? (
                     'Contact us to downgrade'
                   ) : isCheckingOut ? (
-                    <><IpLoader size={13} /> Redirecting...</>
+                    <><img src="/icon-192.png" alt="" style={{ width: 13, height: 13, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} /> Redirecting...</>
                   ) : (
                     <><IpExternalLink size={13} /> Upgrade Now</>
                   )}
@@ -353,10 +386,48 @@ export default function Billing() {
           </div>
         )}
 
+        {/* ── BUY MORE CREDITS ───────────────────────────────────────── */}
+        <Card style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <IpCredits size={16} color="url(#brand-gradient)" />
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, margin: 0 }}>Buy More Credits</h3>
+            </div>
+            <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>Top up your balance anytime — added instantly, never expire</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
+            {CREDIT_PACKS.map(pack => (
+              <button
+                key={pack.id}
+                onClick={() => handleBuyCredits(pack)}
+                disabled={!!buyingPack}
+                style={{
+                  padding: '14px 10px', border: `1px solid ${buyingPack === pack.id ? t.primaryBorder : t.border}`, borderRadius: 10,
+                  background: buyingPack === pack.id ? t.primaryBg : t.input,
+                  cursor: buyingPack ? 'not-allowed' : 'pointer', textAlign: 'center', transition: 'all 150ms', opacity: buyingPack && buyingPack !== pack.id ? 0.5 : 1,
+                }}
+                onMouseEnter={e => { if (!buyingPack) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; } }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.input; }}
+              >
+                <div style={{ fontSize: 24, fontWeight: 800, color: t.primary, fontFamily: 'monospace', lineHeight: 1 }}>{pack.amount}</div>
+                <div style={{ fontSize: 11, color: t.textMuted, margin: '3px 0 8px' }}>credits</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>${pack.price}</div>
+                {buyingPack === pack.id && <div style={{ fontSize: 10, color: t.primary, marginTop: 4 }}>Redirecting…</div>}
+              </button>
+            ))}
+          </div>
+          {creditMsg && (
+            <div style={{ marginTop: 14, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, fontSize: 12, color: t.textSecondary, lineHeight: 1.6 }}>
+              {creditMsg}
+              <button onClick={() => setCreditMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 14 }}>×</button>
+            </div>
+          )}
+        </Card>
+
         {/* ── CREDIT HISTORY ─────────────────────────────────────────── */}
         <Card style={{ padding: 0 }}>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <IpTrendingUp size={16} style={{ color: t.primary }} />
+            <IpTrendingUp size={16} color="url(#brand-gradient)" />
             <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Credit history</span>
             <span style={{ fontSize: 12, color: t.textMuted, marginLeft: 'auto' }}>Last 50 transactions</span>
           </div>

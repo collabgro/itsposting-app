@@ -6,10 +6,9 @@ import {
   IpFacebook, IpInstagram, IpGoogle, IpSchedule, IpSparkle,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Badge } from '../components/ui';
+import { Card, Button, Badge, Spinner } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI } from '../lib/api';
-import ContentCreatorModal from '../components/ContentCreatorModal';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   isSameDay, addMonths, subMonths, startOfWeek, endOfWeek,
@@ -40,8 +39,6 @@ export default function Calendar() {
   const [posts, setPosts]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [selectedDay, setSelectedDay]   = useState(null);
-  const [showAI, setShowAI]             = useState(false);
-  const [aiDate, setAiDate]             = useState(null);
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -76,9 +73,8 @@ export default function Calendar() {
     setSelectedDay(day);
   };
 
-  const handleAddOnDay = (day) => {
-    setAiDate(format(day, "yyyy-MM-dd'T'09:00"));
-    setShowAI(true);
+  const handleAddOnDay = () => {
+    router.push('/wizard');
   };
 
   const handleMonthChange = (e) => {
@@ -114,7 +110,7 @@ export default function Calendar() {
         subtitle="Schedule and manage your posts"
         action={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="secondary" onClick={() => setShowAI(true)}><IpSparkle size={13} color="url(#brand-gradient)" /> AI Generate</Button>
+            <Button variant="secondary" onClick={() => router.push('/wizard')}><IpSparkle size={13} color="url(#brand-gradient)" /> AI Generate</Button>
             <Button variant="primary"   onClick={() => router.push('/upload')}><IpPlus size={14} strokeWidth={2.5} /> Create Post</Button>
           </div>
         }
@@ -170,7 +166,7 @@ export default function Calendar() {
 
             {loading ? (
               <div style={{ padding: 80, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ width: 36, height: 36, border: `3px solid ${t.primaryBg}`, borderTopColor: t.primary, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <Spinner size={36} />
               </div>
             ) : (
               <div style={{ padding: 16 }}>
@@ -368,13 +364,6 @@ export default function Calendar() {
         </div>
       </Layout>
 
-      {showAI && (
-        <ContentCreatorModal
-          onClose={() => { setShowAI(false); setAiDate(null); }}
-          onSuccess={() => { setShowAI(false); setAiDate(null); loadPosts(); }}
-          defaultDate={aiDate}
-        />
-      )}
     </>
   );
 }
