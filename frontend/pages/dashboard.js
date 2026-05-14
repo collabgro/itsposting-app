@@ -9,8 +9,9 @@ import {
   IpClose, IpInfo,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, SectionHeader, EmptyState, Spinner } from '../components/ui';
+import { Card, Button, SectionHeader, EmptyState, Spinner, Skeleton } from '../components/ui';
 import { useTheme } from '../lib/theme';
+import { postsAPI, intelligenceAPI } from '../lib/api';
 import { format } from 'date-fns';
 
 const TYPE_ICON  = { static: IpDrafts, photo: IpPhoto, carousel: IpCarousel, video: IpVideo };
@@ -46,20 +47,19 @@ export default function Dashboard() {
     setMounted(true);
     const token = localStorage.getItem('token');
     if (!token) { router.replace('/login'); return; }
-    const H = { Authorization: `Bearer ${token}` };
 
     Promise.all([
-      fetch('/api/posts?limit=100',             { headers: H }).then(r => r.json()).catch(() => []),
-      fetch('/api/posts/upcoming',              { headers: H }).then(r => r.json()).catch(() => []),
-      fetch('/api/intelligence/metrics',        { headers: H }).then(r => r.json()).catch(() => null),
-      fetch('/api/intelligence/briefing',       { headers: H }).then(r => r.json()).catch(() => null),
-      fetch('/api/intelligence/content-health', { headers: H }).then(r => r.json()).catch(() => null),
+      postsAPI.getAll({ limit: 100 }).catch(() => ({ data: [] })),
+      postsAPI.getUpcoming().catch(() => ({ data: [] })),
+      intelligenceAPI.getMetrics().catch(() => ({ data: null })),
+      intelligenceAPI.getBriefing().catch(() => ({ data: null })),
+      intelligenceAPI.getContentHealth().catch(() => ({ data: null })),
     ]).then(([p, u, m, b, cm]) => {
-      setAllPosts(Array.isArray(p) ? p : []);
-      setUpcoming(Array.isArray(u) ? u : []);
-      setMetrics(m);
-      setBriefing(b);
-      setContentMix(cm);
+      setAllPosts(Array.isArray(p.data) ? p.data : []);
+      setUpcoming(Array.isArray(u.data) ? u.data : []);
+      setMetrics(m.data);
+      setBriefing(b.data);
+      setContentMix(cm.data);
       setLoading(false);
     });
   }, []);
@@ -67,11 +67,7 @@ export default function Dashboard() {
   const dismissBriefing = async () => {
     setBriefingOpen(false);
     if (briefing?.id) {
-      const token = localStorage.getItem('token');
-      await fetch(`/api/intelligence/briefing/${briefing.id}/read`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {});
+      await intelligenceAPI.markBriefingRead(briefing.id).catch(() => {});
     }
   };
 
@@ -97,15 +93,7 @@ export default function Dashboard() {
     new Date(p.scheduled_date || p.created_at).getDate() === d
   );
 
-  if (loading) {
-    return (
-      <Layout title="Dashboard" subtitle="Welcome back">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
-          <Spinner size={40} />
-        </div>
-      </Layout>
-    );
-  }
+  // Loading handled inline with skeleton cards — no full-page spinner needed
 
   const bd = briefing?.briefing_data;
 
@@ -133,7 +121,7 @@ export default function Dashboard() {
               <IpClose size={13} />
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: 'linear-gradient(135deg,#7C5CFC,#5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: `linear-gradient(135deg,${t.primary},${t.primaryHover})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <IpSparkle size={16} color="#fff" strokeWidth={2.5} />
               </div>
               <div>
@@ -160,37 +148,41 @@ export default function Dashboard() {
 
         {/* ── 2. Business Metrics Row ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 16 }}>
-          <MetricCard t={t}
-            label="People Reached"
-            main={fmt(metrics?.totalReach)}
-            sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local est.` : 'Loading...'}
-          />
-          <MetricCard t={t}
-            label="Est. New Customers"
-            main={metrics ? `${metrics.estimatedNewCustomers.min}–${metrics.estimatedNewCustomers.max}` : '—'}
-            sub={`Based on ${metrics ? 'industry' : '...'} averages`}
-            disclaimer
-          />
-          <MetricCard t={t}
-            label="Engagement Rate"
-            main={metrics ? `${metrics.engagementRate}%` : '—'}
-            sub={metrics
-              ? (metrics.isOutperforming
-                  ? `Top ${100 - metrics.percentileRank}% in industry`
-                  : `Industry avg ${metrics.industryAvgEngagement}%`)
-              : '...'}
-            subColor={metrics?.isOutperforming ? t.success : t.warning}
-          />
-          <div style={{ background: metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.07)' : t.card, border: `1px solid ${metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.28)' : t.border}`, borderRadius: 12, padding: '16px 18px' }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>Posting Streak</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: metrics?.postingStreak >= 3 ? '#EAB308' : t.text, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-              {metrics?.postingStreak >= 3 && <IpFlame size={20} color="#EAB308" />}
-              {metrics?.postingStreak ? `${metrics.postingStreak} days` : '—'}
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={86} borderRadius={12} />)
+          ) : (<>
+            <MetricCard t={t}
+              label="People Reached"
+              main={fmt(metrics?.totalReach)}
+              sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local est.` : 'No data yet'}
+            />
+            <MetricCard t={t}
+              label="Est. New Customers"
+              main={metrics ? `${metrics.estimatedNewCustomers.min}–${metrics.estimatedNewCustomers.max}` : '—'}
+              sub={`Based on ${metrics ? 'industry' : '...'} averages`}
+              disclaimer
+            />
+            <MetricCard t={t}
+              label="Engagement Rate"
+              main={metrics ? `${metrics.engagementRate}%` : '—'}
+              sub={metrics
+                ? (metrics.isOutperforming
+                    ? `Top ${100 - metrics.percentileRank}% in industry`
+                    : `Industry avg ${metrics.industryAvgEngagement}%`)
+                : 'Post to see data'}
+              subColor={metrics?.isOutperforming ? t.success : t.warning}
+            />
+            <div style={{ background: metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.07)' : t.card, border: `1px solid ${metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.28)' : t.border}`, borderRadius: 12, padding: '16px 18px' }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>Posting Streak</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: metrics?.postingStreak >= 3 ? '#EAB308' : t.text, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                {metrics?.postingStreak >= 3 && <IpFlame size={20} color="#EAB308" />}
+                {metrics?.postingStreak ? `${metrics.postingStreak} days` : '—'}
+              </div>
+              <div style={{ fontSize: 11, color: t.textMuted }}>
+                {metrics?.postingStreak ? 'Keep posting to grow reach' : 'Post today to start'}
+              </div>
             </div>
-            <div style={{ fontSize: 11, color: t.textMuted }}>
-              {metrics?.postingStreak ? 'Keep posting to grow reach' : 'Post today to start'}
-            </div>
-          </div>
+          </>)}
         </div>
 
         {metrics && (
@@ -245,8 +237,9 @@ export default function Dashboard() {
               {upcoming.length > 0 && <button onClick={() => router.push('/history?filter=scheduled')} style={{ fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>View all <IpArrowRight size={12} /></button>}
             </div>
             {upcoming.length === 0 ? (
-              <EmptyState icon={IpSchedule} title="No scheduled posts" subtitle="Schedule your next post"
-                action={<Button variant="secondary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={12} /> Create</Button>} />
+              <EmptyState icon={IpCalendar} title="Your schedule is open"
+                subtitle="PostCore recommends posting 3–6× per week. Create your first scheduled post."
+                action={<Button variant="primary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={12} /> Generate a Post</Button>} />
             ) : (
               <div>
                 {upcoming.slice(0, 4).map(post => {
@@ -296,18 +289,44 @@ function MetricCard({ t, label, main, sub, subColor, disclaimer }) {
   );
 }
 
+const TARGET_MIX = [
+  { key: 'educational', label: 'Educational',  color: '#3B82F6', target: 70 },
+  { key: 'socialProof', label: 'Social proof', color: '#22C55E', target: 20 },
+  { key: 'promotional', label: 'Promotional',  color: '#EAB308', target: 10 },
+];
+
 function ContentHealthBar({ data, t, router }) {
   if (!data) return null;
   const { mix, recommendation, gaps } = data;
   const total = Object.values(mix).reduce((s, v) => s + v, 0);
-  if (!total) return null;
 
-  const segments = [
+  if (!total) {
+    return (
+      <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 8 }}>Content mix — target</div>
+        <div style={{ height: 7, borderRadius: 4, overflow: 'hidden', display: 'flex', gap: 1, marginBottom: 8 }}>
+          {TARGET_MIX.map(s => <div key={s.key} style={{ width: `${s.target}%`, background: s.color, opacity: 0.35 }} />)}
+        </div>
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 8 }}>
+          {TARGET_MIX.map(s => (
+            <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, opacity: 0.5 }} />
+              <span style={{ fontSize: 11, color: t.textMuted }}>{s.label} {s.target}%</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic' }}>Target mix — start posting to track your actual ratio</div>
+      </div>
+    );
+  }
+
+  const allSegments = [
     { key: 'educational', label: 'Educational',  color: '#3B82F6' },
     { key: 'socialProof', label: 'Social proof', color: '#22C55E' },
     { key: 'seasonal',    label: 'Seasonal',     color: '#A78BFA' },
     { key: 'promotional', label: 'Promotional',  color: '#EAB308' },
-  ].filter(s => mix[s.key] > 0);
+  ];
+  const segments = allSegments.filter(s => mix[s.key] > 0);
 
   return (
     <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>

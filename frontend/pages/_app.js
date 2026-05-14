@@ -2,6 +2,7 @@ import '../styles/globals.css';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { ThemeProvider, useTheme } from '../lib/theme';
+import { ToastProvider } from '../components/ui';
 
 function ThemeBody({ children }) {
   const { theme } = useTheme();
@@ -94,8 +95,10 @@ export default function App({ Component, pageProps }) {
             </linearGradient>
           </defs>
         </svg>
-        <Component {...pageProps} />
-        <InstallBanner />
+        <ToastProvider>
+          <Component {...pageProps} />
+          <InstallBanner />
+        </ToastProvider>
       </ThemeBody>
     </ThemeProvider>
   );

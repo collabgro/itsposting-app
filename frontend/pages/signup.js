@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { IpSparkle } from '../components/icons';
 import { useTheme } from '../lib/theme';
 import { Button, Input } from '../components/ui';
+import { authAPI } from '../lib/api';
 
 const INDUSTRIES = [
   { label: 'Plumbing',            value: 'plumbing' },
@@ -43,17 +44,11 @@ export default function Signup() {
     setError('');
     try {
       const industryValue = INDUSTRIES.find(i => i.label === formData.industry)?.value || 'general_contractor';
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email, password: formData.password, businessName: formData.businessName, industry: industryValue, location: formData.location }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Signup failed'); setLoading(false); return; }
+      const { data } = await authAPI.register({ email: formData.email, password: formData.password, businessName: formData.businessName, industry: industryValue, location: formData.location });
       localStorage.setItem('token', data.token);
       router.push('/wizard?onboarding=true');
-    } catch {
-      setError('Connection failed');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Signup failed');
       setLoading(false);
     }
   };

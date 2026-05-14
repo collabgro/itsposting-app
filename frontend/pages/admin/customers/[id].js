@@ -5,7 +5,7 @@ import {
   IpWarning, IpAdmin, IpEdit, IpClose, IpSave,
 } from '../../../components/icons';
 import Layout from '../../../components/Layout';
-import { Card, Button, Badge, SectionHeader, EmptyState, Spinner } from '../../../components/ui';
+import { Card, Button, Badge, SectionHeader, EmptyState, Spinner, ConfirmModal } from '../../../components/ui';
 import { useTheme } from '../../../lib/theme';
 import { adminAPI } from '../../../lib/api';
 
@@ -18,6 +18,8 @@ export default function AdminCustomerDetail() {
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
@@ -66,15 +68,21 @@ export default function AdminCustomerDetail() {
     }
   };
 
-  const handleReactivate = async () => {
-    if (!confirm('Reactivate this account?')) return;
-    try {
-      await adminAPI.reactivate(id);
-      showMsg('success', 'Account reactivated');
-      load();
-    } catch (err) {
-      showMsg('error', 'Failed to reactivate');
-    }
+  const handleReactivate = () => {
+    setConfirmModal({
+      title: 'Reactivate Account',
+      message: 'Reactivate this account? The customer will regain access immediately.',
+      confirmLabel: 'Reactivate',
+      onConfirm: async () => {
+        try {
+          await adminAPI.reactivate(id);
+          showMsg('success', 'Account reactivated');
+          load();
+        } catch {
+          showMsg('error', 'Failed to reactivate');
+        }
+      },
+    });
   };
 
   const handleUpdate = async (fields) => {
@@ -88,9 +96,12 @@ export default function AdminCustomerDetail() {
     }
   };
 
-  const handleResetPassword = async () => {
-    const pwd = prompt('Enter new password (8+ chars):');
-    if (!pwd || pwd.length < 8) return;
+  const handleResetPassword = () => {
+    setShowPasswordModal(true);
+  };
+
+  const handleResetPasswordSubmit = async (pwd) => {
+    setShowPasswordModal(false);
     try {
       await adminAPI.resetPassword(id, pwd);
       showMsg('success', 'Password reset successfully');
@@ -99,26 +110,39 @@ export default function AdminCustomerDetail() {
     }
   };
 
-  const handlePromote = async () => {
-    if (!confirm('Grant admin privileges to this user?')) return;
-    try {
-      await adminAPI.promote(id);
-      showMsg('success', 'User promoted to admin');
-      load();
-    } catch (err) {
-      showMsg('error', err.response?.data?.error || 'Failed');
-    }
+  const handlePromote = () => {
+    setConfirmModal({
+      title: 'Grant Admin Privileges',
+      message: 'This user will gain full admin access. Are you sure?',
+      confirmLabel: 'Promote',
+      onConfirm: async () => {
+        try {
+          await adminAPI.promote(id);
+          showMsg('success', 'User promoted to admin');
+          load();
+        } catch (err) {
+          showMsg('error', err.response?.data?.error || 'Failed');
+        }
+      },
+    });
   };
 
-  const handleDemote = async () => {
-    if (!confirm('Remove admin privileges from this user?')) return;
-    try {
-      await adminAPI.demote(id);
-      showMsg('success', 'Admin privileges removed');
-      load();
-    } catch (err) {
-      showMsg('error', err.response?.data?.error || 'Failed');
-    }
+  const handleDemote = () => {
+    setConfirmModal({
+      title: 'Remove Admin Privileges',
+      message: 'This user will lose admin access immediately.',
+      confirmLabel: 'Demote',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        try {
+          await adminAPI.demote(id);
+          showMsg('success', 'Admin privileges removed');
+          load();
+        } catch (err) {
+          showMsg('error', err.response?.data?.error || 'Failed');
+        }
+      },
+    });
   };
 
   if (!mounted || !data) {
@@ -276,6 +300,8 @@ export default function AdminCustomerDetail() {
       {showCreditsModal && <CreditsModal onClose={() => setShowCreditsModal(false)} onSubmit={handleAdjustCredits} t={t} />}
       {showSuspendModal && <SuspendModal onClose={() => setShowSuspendModal(false)} onSubmit={handleSuspend} t={t} />}
       {showEditModal && <EditModal customer={c} onClose={() => setShowEditModal(false)} onSubmit={handleUpdate} t={t} />}
+      {showPasswordModal && <PasswordModal onClose={() => setShowPasswordModal(false)} onSubmit={handleResetPasswordSubmit} t={t} />}
+      {confirmModal && <ConfirmModal {...confirmModal} onCancel={() => setConfirmModal(null)} />}
     </Layout>
   );
 }
@@ -283,10 +309,12 @@ export default function AdminCustomerDetail() {
 function CreditsModal({ onClose, onSubmit, t }) {
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+  const [error, setError] = useState('');
   const submit = () => {
     const n = parseInt(amount);
-    if (!n || isNaN(n)) return alert('Enter a valid number (negative to deduct)');
-    if (!reason || reason.length < 3) return alert('Reason required (min 3 chars)');
+    if (!n || isNaN(n)) { setError('Enter a valid number (negative to deduct)'); return; }
+    if (!reason || reason.length < 3) { setError('Reason required (min 3 chars)'); return; }
+    setError('');
     onSubmit(n, reason);
   };
   return (
@@ -297,7 +325,8 @@ function CreditsModal({ onClose, onSubmit, t }) {
         <input type="number" placeholder="e.g. 50 or -10" value={amount} onChange={(e) => setAmount(e.target.value)}
           style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, marginBottom: 12, fontSize: 13 }} />
         <textarea placeholder="Reason (visible in audit log)" value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
-          style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, marginBottom: 16, fontFamily: 'inherit', resize: 'vertical', fontSize: 13 }} />
+          style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, marginBottom: error ? 8 : 16, fontFamily: 'inherit', resize: 'vertical', fontSize: 13 }} />
+        {error && <div style={{ fontSize: 12, color: t.error, marginBottom: 12 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
           <button onClick={submit} style={{ padding: '8px 16px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Apply</button>
@@ -362,6 +391,35 @@ function EditModal({ customer: c, onClose, onSubmit, t }) {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
           <button onClick={() => onSubmit(form)} style={{ padding: '8px 16px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Save changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PasswordModal({ onClose, onSubmit, t }) {
+  const [pwd, setPwd] = useState('');
+  const [error, setError] = useState('');
+  const submit = () => {
+    if (!pwd || pwd.length < 8) { setError('Password must be at least 8 characters'); return; }
+    onSubmit(pwd);
+  };
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 24, maxWidth: 400, width: '100%' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 8 }}>Reset Password</h3>
+        <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16 }}>Enter a new password for this account (min 8 characters).</p>
+        <input
+          type="password" placeholder="New password" value={pwd}
+          onChange={e => setPwd(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          autoFocus
+          style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${error ? t.error : t.borderStrong}`, borderRadius: 8, color: t.text, marginBottom: error ? 8 : 16, fontSize: 13 }}
+        />
+        {error && <div style={{ fontSize: 12, color: t.error, marginBottom: 12 }}>{error}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={submit} style={{ padding: '8px 16px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Reset Password</button>
         </div>
       </div>
     </div>

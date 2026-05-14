@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { IpSparkle } from '../components/icons';
 import { useTheme } from '../lib/theme';
 import { Button, Input } from '../components/ui';
+import { authAPI } from '../lib/api';
 
 export default function Login() {
   const router = useRouter();
@@ -23,17 +24,11 @@ export default function Login() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Login failed'); setLoading(false); return; }
+      const { data } = await authAPI.login(formData);
       localStorage.setItem('token', data.token);
       router.push('/dashboard');
-    } catch {
-      setError('Connection failed');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Login failed');
       setLoading(false);
     }
   };

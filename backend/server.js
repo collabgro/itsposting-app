@@ -26,6 +26,7 @@ const intelligenceRoutes = require('./routes/intelligence');
 const inboxRoutes = require('./routes/inbox');
 const knowledgeRoutes = require('./routes/knowledge');
 const webhookRoutes = require('./routes/webhooks');
+const workspaceRoutes = require('./routes/workspaces');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
 const EmailWorker = require('./services/EmailWorker');
 const SuggestionsEngine = require('./services/SuggestionsEngine');
@@ -106,6 +107,44 @@ console.log('══════════════════════�
       updated_at     TIMESTAMP DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_knowledge_customer ON business_knowledge(customer_id, knowledge_type, is_active)`,
+    `CREATE TABLE IF NOT EXISTS wizard_sessions (
+      id         VARCHAR(36)  PRIMARY KEY,
+      customer_id INTEGER     NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      data       JSONB        NOT NULL,
+      expires_at TIMESTAMP    NOT NULL,
+      created_at TIMESTAMP    DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_wizard_sessions_customer ON wizard_sessions(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_wizard_sessions_expires  ON wizard_sessions(expires_at)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS parent_customer_id INTEGER REFERENCES customers(id)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS workspace_display_name VARCHAR(100)`,
+    `CREATE INDEX IF NOT EXISTS idx_customers_parent ON customers(parent_customer_id)`,
+    `CREATE TABLE IF NOT EXISTS admin_audit_log (
+      id          SERIAL PRIMARY KEY,
+      admin_id    INTEGER REFERENCES customers(id),
+      admin_email VARCHAR(255),
+      action      VARCHAR(100) NOT NULL,
+      target_type VARCHAR(50),
+      target_id   INTEGER,
+      details     JSONB,
+      ip_address  VARCHAR(45),
+      user_agent  TEXT,
+      created_at  TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_audit_log_admin  ON admin_audit_log(admin_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_audit_log_target ON admin_audit_log(target_type, target_id)`,
+    `CREATE TABLE IF NOT EXISTS notifications (
+      id          SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      type        VARCHAR(50)  NOT NULL,
+      title       VARCHAR(255) NOT NULL,
+      message     TEXT,
+      read        BOOLEAN DEFAULT false,
+      created_at  TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_notifications_customer ON notifications(customer_id, read)`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS video_render_status VARCHAR(20) DEFAULT 'none'`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS video_provider VARCHAR(50)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -119,11 +158,16 @@ app.use(compression());
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, message: 'Too many requests, please try again later.', standardHeaders: true, legacyHeaders: false });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many authentication attempts. Try again in 15 minutes.', skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
 const passwordResetLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, message: 'Too many password reset attempts. Try again in 1 hour.', standardHeaders: true, legacyHeaders: false });
+const generationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20, message: { error: 'Generation limit reached — wait an hour or upgrade your plan' }, standardHeaders: true, legacyHeaders: false });
 
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/forgot-password', passwordResetLimiter);
+app.use('/api/wizard/generate', generationLimiter);
+app.use('/api/wizard/refresh', generationLimiter);
+app.use('/api/wizard/regenerate-image', generationLimiter);
+app.use('/api/content/generate', generationLimiter);
 
 app.use(cors({ origin: true, credentials: true }));
 // Webhooks must be registered BEFORE express.json() — they need raw body for HMAC verification
@@ -161,6 +205,7 @@ app.use('/api/contacts', contactsRoutes(pool));
 app.use('/api/intelligence', intelligenceRoutes(pool));
 app.use('/api/inbox', inboxRoutes(pool));
 app.use('/api/knowledge', knowledgeRoutes(pool));
+app.use('/api/workspaces', workspaceRoutes(pool));
 
 app.get('/health', async (req, res) => {
   try {
@@ -195,6 +240,7 @@ app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use((err, req, res, next) => {
   const errorId = Math.random().toString(36).substring(7);
   console.error(JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', errorId, message: err.message, stack: err.stack, method: req.method, path: req.path, userId: req.customerId || null }));
+  res.setHeader('X-Error-ID', errorId);
   res.status(err.status || 500).json({ error: err.message || 'Internal server error', errorId, ...(process.env.NODE_ENV === 'development' && { stack: err.stack }) });
 });
 
@@ -340,6 +386,14 @@ runMonthlyCredits();
 cron.schedule('0 1 * * *', runMonthlyCredits);
 console.log('💳 MonthlyCredits cron scheduled (daily 1am UTC)');
 
+// Purge expired wizard sessions from DB daily at 2am
+cron.schedule('0 2 * * *', async () => {
+  try {
+    const r = await pool.query(`DELETE FROM wizard_sessions WHERE expires_at < NOW()`);
+    if (r.rowCount > 0) console.log(`[cron] Cleaned up ${r.rowCount} expired wizard session(s)`);
+  } catch (e) { console.warn('[cron] wizard_sessions cleanup failed:', e.message); }
+});
+
 const dmPollingService = new DMPollingService(pool);
 dmPollingService.start();
 
@@ -368,8 +422,16 @@ app.listen(PORT, '0.0.0.0', () => {
   `);
 });
 
-process.on('SIGTERM', async () => { console.log('SIGTERM received, shutting down...'); await pool.end(); process.exit(0); });
-process.on('SIGINT', async () => { console.log('\nSIGINT received, shutting down...'); await pool.end(); process.exit(0); });
+const SHUTDOWN_TIMEOUT = 10000;
+async function gracefulShutdown(signal) {
+  console.log(`${signal} received, shutting down gracefully...`);
+  const forced = setTimeout(() => { console.error('[Shutdown] Forced exit after timeout'); process.exit(1); }, SHUTDOWN_TIMEOUT);
+  forced.unref();
+  try { await pool.end(); } catch (e) { console.warn('[Shutdown] Pool close warning:', e.message); }
+  process.exit(0);
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
 // Prevent unhandled rejections from crashing the process (Node.js 15+ fatal by default)
 process.on('unhandledRejection', (reason, promise) => {

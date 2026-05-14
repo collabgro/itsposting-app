@@ -6,6 +6,7 @@ import {
 import Layout from '../components/Layout';
 import { Card, Button, Input, Textarea } from '../components/ui';
 import { useTheme } from '../lib/theme';
+import { knowledgeAPI } from '../lib/api';
 
 export default function KnowledgeBase() {
   const router = useRouter();
@@ -32,9 +33,9 @@ export default function KnowledgeBase() {
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
     const token = localStorage.getItem('token');
 
-    fetch('/api/knowledge', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(kb => {
+    knowledgeAPI.list()
+      .then(r => {
+        const kb = r.data;
         if (!kb || kb.error) return;
         const merged = { services: [], reviews: '', differentiators: '', faqs: [], team: [] };
         (kb.items || []).forEach(item => {
@@ -49,9 +50,8 @@ export default function KnowledgeBase() {
       .catch(() => {});
 
     // Show auto-import banner if cached scrape data already exists
-    fetch('/api/knowledge/scrape-preview', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(preview => { if (preview?.hasData) setImportBanner(preview); })
+    knowledgeAPI.getPreview()
+      .then(r => { if (r.data?.hasData) setImportBanner(r.data); })
       .catch(() => {});
   }, []);
 
@@ -97,13 +97,7 @@ export default function KnowledgeBase() {
     setImportingWebsite(true);
     setImportWebsiteError('');
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/knowledge/import-website', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const importData = await res.json();
-      if (!res.ok) throw new Error(importData.error || 'Import failed');
+      const { data: importData } = await knowledgeAPI.importWebsite({});
       if (importData.noWebsite) {
         setImportWebsiteError('No website URL saved — add it in Settings first.');
         return;
@@ -131,15 +125,7 @@ export default function KnowledgeBase() {
       setImportBanner(null);
 
       // Auto-save immediately
-      const saveRes = await fetch('/api/knowledge/save', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify(mergedData),
-      });
-      if (!saveRes.ok) {
-        const saveErr = await saveRes.json().catch(() => ({}));
-        throw new Error(saveErr.error || 'Save failed — please try again');
-      }
+      await knowledgeAPI.save(mergedData);
 
       const svcCount = newServices.length;
       const parts = [`${svcCount} service${svcCount !== 1 ? 's' : ''}`];
@@ -156,12 +142,7 @@ export default function KnowledgeBase() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      await fetch('/api/knowledge/save', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify(data),
-      });
+      await knowledgeAPI.save(data);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {

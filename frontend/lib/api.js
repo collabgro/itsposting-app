@@ -101,12 +101,27 @@ export const uploadAPI = {
     return api.post('/api/upload/carousel', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
   createPost: (data) => api.post('/api/upload/post', data),
+  getPostImages: (postId) => api.get(`/api/upload/post-images/${postId}`),
+  getPlatformSpecs: () => api.get('/api/upload/platform-specs'),
 };
 
 export const billingAPI = {
   getPlans: () => api.get('/api/billing/plans'),
   getCurrent: () => api.get('/api/billing/current'),
+  getHistory: () => api.get('/api/billing/history'),
+  getCheckoutLink: (plan, cycle) => api.get(`/api/billing/checkout-link?plan=${plan}&cycle=${cycle}`),
+  buyCredits: (pack) => api.get(`/api/billing/buy-credits?pack=${pack}`),
+  cancel: () => api.post('/api/billing/cancel'),
   upgrade: (planId) => api.post('/api/billing/upgrade', { planId }),
+};
+
+export const workspacesAPI = {
+  list: () => api.get('/api/workspaces'),
+  create: (data) => api.post('/api/workspaces', data),
+  remove: (id) => api.delete(`/api/workspaces/${id}`),
+  rename: (id, name) => api.patch(`/api/workspaces/${id}`, { name }),
+  switchTo: (id) => api.post(`/api/workspaces/${id}/switch`),
+  switchToMain: () => api.post('/api/workspaces/main/switch'),
 };
 
 export const mediaAPI = {
@@ -180,6 +195,37 @@ export const contactsAPI = {
   get: (id) => api.get(`/api/contacts/${id}`),
   update: (id, data) => api.patch(`/api/contacts/${id}`, data),
   delete: (id) => api.delete(`/api/contacts/${id}`),
+};
+
+export const intelligenceAPI = {
+  getMetrics: (params) => api.get('/api/intelligence/metrics', { params }),
+  getTrend: (params) => api.get('/api/intelligence/trend', { params }),
+  getBestPost: (params) => api.get('/api/intelligence/best-post', { params }),
+  getContentMix: (params) => api.get('/api/intelligence/content-mix', { params }),
+  getContentHealth: () => api.get('/api/intelligence/content-health'),
+  getBriefing: () => api.get('/api/intelligence/briefing'),
+  generateBriefing: () => api.post('/api/intelligence/briefing/generate'),
+  markBriefingRead: (id) => api.patch(`/api/intelligence/briefing/${id}/read`),
+  getBenchmarks: (params) => api.get('/api/intelligence/benchmarks', { params }),
+  getBestTimes: () => api.get('/api/intelligence/best-times'),
+};
+
+export const notificationsAPI = {
+  list: (params) => api.get('/api/notifications', { params }),
+  markRead: (id) => api.patch(`/api/notifications/${id}/read`),
+  markAllRead: () => api.patch('/api/notifications/read-all'),
+  delete: (id) => api.delete(`/api/notifications/${id}`),
+};
+
+export const knowledgeAPI = {
+  getPreview: (params) => api.get('/api/knowledge/scrape-preview', { params }),
+  list: () => api.get('/api/knowledge'),
+  save: (data) => api.post('/api/knowledge/save', data),
+  importWebsite: (data) => api.post('/api/knowledge/import-website', data),
+};
+
+export const suggestionsAPIExtra = {
+  getToday: () => api.get('/api/suggestions/today'),
 };
 
 export default api;

@@ -171,8 +171,6 @@ module.exports = (pool) => {
         );
 
         emailQueue.notifyPasswordReset(email, token);
-
-        console.log(`[DEV] Password reset token for ${email}: ${token}`);
       }
 
       res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });

@@ -1,13 +1,15 @@
 'use strict';
 
 const Anthropic = require('@anthropic-ai/sdk');
+const EmailQueue = require('./EmailQueue');
 
 class PostCoreAdvisor {
   constructor(pool) {
-    this.pool   = pool;
-    this.client = process.env.ANTHROPIC_API_KEY
+    this.pool       = pool;
+    this.client     = process.env.ANTHROPIC_API_KEY
       ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
       : null;
+    this.emailQueue = new EmailQueue(pool);
   }
 
   async generateWeeklyBriefing(customerId) {
@@ -138,6 +140,11 @@ Return this exact JSON structure:
        DO UPDATE SET briefing_data = EXCLUDED.briefing_data, is_read = false
        RETURNING *`,
       [customerId, JSON.stringify(briefingData), weekOf.toISOString().split('T')[0]]
+    );
+
+    // Queue weekly briefing email (non-blocking)
+    this.emailQueue.notifyPostCoreBriefing(customer, briefingData).catch(err =>
+      console.error('[PostCoreAdvisor] Failed to queue briefing email:', err.message)
     );
 
     return result.rows[0];

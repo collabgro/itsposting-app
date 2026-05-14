@@ -53,6 +53,8 @@ export default function Analytics() {
   const [optTimes, setOptTimes]       = useState(null);
   const [contentPerf, setContentPerf] = useState(null);
   const [hoverCell, setHoverCell]     = useState(null);
+  const [streak, setStreak]           = useState(null);
+  const [contentMix, setContentMix]   = useState(null);
 
   useEffect(() => {
     setMounted(true);
@@ -66,16 +68,20 @@ export default function Analytics() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [o, p, ot, cp] = await Promise.all([
+      const [o, p, ot, cp, str, cm] = await Promise.all([
         analyticsAPI.getOverview({ period }),
         analyticsAPI.listPosts({ sort: 'recent' }),
         analyticsAPI.getOptimalTimes(),
         analyticsAPI.getContentPerformance(),
+        analyticsAPI.getStreak().catch(() => ({ data: null })),
+        analyticsAPI.getContentMix().catch(() => ({ data: null })),
       ]);
       setOverview(o.data);
       setPosts(Array.isArray(p.data) ? p.data : []);
       setOptTimes(ot.data);
       setContentPerf(cp.data);
+      if (str?.data) setStreak(str.data);
+      if (cm?.data) setContentMix(cm.data);
     } catch (err) { console.error('Analytics load error:', err); }
     finally { setLoading(false); }
   };
@@ -88,8 +94,12 @@ export default function Analytics() {
     try { const r = await analyticsAPI.listPosts({ sort }); setPosts(Array.isArray(r.data) ? r.data : []); } catch {}
   };
 
-  const handleUseTime = () => {
-    router.push('/wizard');
+  const handleUseTime = (slot) => {
+    if (slot?.dow !== undefined && slot?.hour !== undefined) {
+      router.push(`/wizard?suggestedTime=${DAYS[slot.dow].toLowerCase()}-${slot.hour}`);
+    } else {
+      router.push('/wizard');
+    }
   };
 
   if (!mounted) return null;
@@ -133,6 +143,104 @@ export default function Analytics() {
               <StatCard label="Total comments"  value={parseInt(summary.total_comments) || 0} accent="success" />
               <StatCard label="Total shares"    value={parseInt(summary.total_shares) || 0}   accent="warning" />
             </div>
+
+            {/* ── STREAK CARD ────────────────────────────────── */}
+            {streak !== null && streak.streak > 0 && (
+              <Card style={{ marginBottom: 24, borderLeft: `4px solid ${streak.isOnFire ? '#F59E0B' : streak.streak >= 3 ? '#22C55E' : t.primary}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 14, background: streak.isOnFire ? 'rgba(245,158,11,0.12)' : streak.streak >= 3 ? 'rgba(34,197,94,0.1)' : t.primaryBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>
+                    {streak.isOnFire ? '🔥' : streak.streak >= 3 ? '⚡' : '📅'}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: t.text }}>{streak.label} posting streak</div>
+                    <div style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>
+                      {streak.isOnFire
+                        ? "You're on fire! Keep posting daily to maintain your momentum."
+                        : streak.streak >= 3
+                        ? 'Great consistency! Keep it up to build trust with your audience.'
+                        : 'Good start — post tomorrow to grow your streak.'}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 42, fontWeight: 800, color: streak.isOnFire ? '#F59E0B' : streak.streak >= 3 ? '#22C55E' : t.primary, lineHeight: 1, fontFamily: 'monospace' }}>{streak.streak}</div>
+                    <div style={{ fontSize: 11, color: t.textMuted }}>day{streak.streak !== 1 ? 's' : ''}</div>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* ── CONTENT MIX ────────────────────────────────── */}
+            {contentMix && contentMix.totalPosts > 0 && (
+              <Card style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Content Mix <span style={{ fontSize: 12, fontWeight: 400, color: t.textMuted }}>· last 30 days</span></div>
+                    <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>Target: 30% educational · 25% social proof · 20% seasonal · 25% promotional</div>
+                  </div>
+                  <div style={{ padding: '5px 12px', borderRadius: 20, background: contentMix.healthScore >= 80 ? 'rgba(34,197,94,0.1)' : contentMix.healthScore >= 55 ? 'rgba(234,179,8,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${contentMix.healthScore >= 80 ? 'rgba(34,197,94,0.3)' : contentMix.healthScore >= 55 ? 'rgba(234,179,8,0.3)' : 'rgba(239,68,68,0.3)'}`, fontSize: 13, fontWeight: 700, color: contentMix.healthScore >= 80 ? '#22C55E' : contentMix.healthScore >= 55 ? '#EAB308' : '#EF4444' }}>
+                    {contentMix.healthScore}/100
+                  </div>
+                </div>
+
+                {/* Your mix bar */}
+                <div style={{ marginBottom: 4, fontSize: 11, fontWeight: 600, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your mix</div>
+                <div style={{ display: 'flex', height: 22, borderRadius: 8, overflow: 'hidden', marginBottom: 6 }}>
+                  {Object.entries(contentMix.mix).map(([bucket, pct]) => (
+                    pct > 0 && (
+                      <div key={bucket} style={{ width: `${pct}%`, background: contentMix.bucketColors[bucket], display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'width 600ms ease', minWidth: pct > 4 ? 'auto' : 0, overflow: 'hidden' }} title={`${contentMix.bucketLabels[bucket]}: ${pct}%`}>
+                        {pct > 8 && <span style={{ fontSize: 10, fontWeight: 700, color: '#fff' }}>{pct}%</span>}
+                      </div>
+                    )
+                  ))}
+                </div>
+
+                {/* Target bar */}
+                <div style={{ marginBottom: 4, fontSize: 11, fontWeight: 600, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Target</div>
+                <div style={{ display: 'flex', height: 22, borderRadius: 8, overflow: 'hidden', marginBottom: 14 }}>
+                  {Object.entries(contentMix.idealMix).map(([bucket, pct]) => (
+                    <div key={bucket} style={{ width: `${pct}%`, background: contentMix.bucketColors[bucket], opacity: 0.35, transition: 'width 600ms ease' }} title={`${contentMix.bucketLabels[bucket]} target: ${pct}%`} />
+                  ))}
+                </div>
+
+                {/* Legend */}
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
+                  {Object.keys(contentMix.bucketLabels).map(bucket => (
+                    <div key={bucket} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: contentMix.bucketColors[bucket], flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, color: t.textMuted }}>
+                        {contentMix.bucketLabels[bucket]} <strong style={{ color: t.text }}>{contentMix.mix[bucket]}%</strong> <span style={{ color: t.textMuted }}>(target {contentMix.idealMix[bucket]}%)</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* PostCore recommendation */}
+                {contentMix.recommendation && contentMix.recommendation !== 'Your content mix is well balanced. Keep it up!' && (
+                  <div style={{ padding: '10px 14px', background: 'rgba(234,179,8,0.07)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 8, fontSize: 12, color: t.textSecondary, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <IpInfo size={13} style={{ color: '#EAB308', flexShrink: 0, marginTop: 1 }} />
+                    <span>{contentMix.recommendation}</span>
+                  </div>
+                )}
+                {contentMix.recommendation === 'Your content mix is well balanced. Keep it up!' && (
+                  <div style={{ padding: '10px 14px', background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 8, fontSize: 12, color: t.textSecondary, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 14 }}>✓</span>
+                    <span>{contentMix.recommendation}</span>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* ── EMPTY STATE ────────────────────────────────── */}
+            {!loading && parseInt(summary.posted) === 0 && (
+              <Card style={{ marginBottom: 24 }}>
+                <EmptyState
+                  icon={IpTrendingUp}
+                  title="No data for this period"
+                  subtitle="Publish posts to start building your analytics."
+                  action={<Button variant="primary" onClick={() => router.push('/wizard')}><IpSparkle size={13} /> Create a Post</Button>}
+                />
+              </Card>
+            )}
 
             {/* ── SCHEDULING OPTIMIZER ───────────────────────── */}
             <Card style={{ marginBottom: 24 }}>
@@ -236,9 +344,10 @@ export default function Analytics() {
                               key={hour}
                               onMouseEnter={() => setHoverCell(key)}
                               onMouseLeave={() => setHoverCell(null)}
+                              onClick={() => isRec && handleUseTime({ dow, hour })}
                               title={count > 0
                                 ? `${DAYS[dow]} ${FMT_HOUR(hour)} · ${count} post${count !== 1 ? 's' : ''} · avg score ${Math.round(score)}`
-                                : isRec ? `${DAYS[dow]} ${FMT_HOUR(hour)} · Recommended slot` : undefined}
+                                : isRec ? `${DAYS[dow]} ${FMT_HOUR(hour)} · Recommended — click to schedule` : undefined}
                               style={{
                                 height: 28, borderRadius: 5, cursor: count > 0 || isRec ? 'pointer' : 'default',
                                 background: bg || (isRec && !optTimes?.hasRealData ? 'rgba(124,92,252,0.12)' : t.input),

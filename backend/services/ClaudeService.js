@@ -331,6 +331,34 @@ Return ONLY valid JSON:
     };
     return lengths[platform] || '100-150 words';
   }
+
+  async generateDMReply({ customerProfile, conversationHistory = [], lastMessage, tone = 'friendly' }) {
+    if (!this.client) throw new Error('Claude not configured. Set ANTHROPIC_API_KEY.');
+    const bizName = customerProfile.business_name || 'Local Business';
+    const industry = customerProfile.industry || 'general_contractor';
+    const toneMap = {
+      professional: 'professional and trustworthy',
+      friendly: 'warm and friendly',
+      casual: 'casual and conversational',
+      urgent: 'prompt and action-oriented',
+    };
+    const toneDesc = toneMap[tone] || 'warm and friendly';
+    const context = conversationHistory.slice(-4)
+      .map(m => `${m.direction === 'incoming' ? 'Customer' : 'Business'}: ${m.message_text || m.text || ''}`)
+      .join('\n');
+    const prompt = `You are replying on behalf of ${bizName}, a ${industry} business.\nTone: ${toneDesc}. Keep it SHORT (2-4 sentences). Include a clear next step.\n${context ? `Recent conversation:\n${context}\n\n` : ''}Customer's latest message: "${lastMessage}"\nWrite a reply:`;
+    try {
+      const response = await this.client.messages.create({
+        model: this.model,
+        max_tokens: 250,
+        messages: [{ role: 'user', content: prompt }],
+      });
+      return response.content[0].text.trim();
+    } catch (err) {
+      console.error('[ClaudeService] generateDMReply error:', err.message);
+      throw new Error(`DM reply generation failed: ${err.message}`);
+    }
+  }
 }
 
 module.exports = ClaudeService;

@@ -430,6 +430,37 @@ CREATE TABLE IF NOT EXISTS post_variations (
 CREATE INDEX IF NOT EXISTS idx_post_variations_post
   ON post_variations(post_id);
 
+-- admin_audit_log and notifications (missing from all prior migrations)
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+  id          SERIAL PRIMARY KEY,
+  admin_id    INTEGER REFERENCES customers(id),
+  admin_email VARCHAR(255),
+  action      VARCHAR(100) NOT NULL,
+  target_type VARCHAR(50),
+  target_id   INTEGER,
+  details     JSONB,
+  ip_address  VARCHAR(45),
+  user_agent  TEXT,
+  created_at  TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_log_admin  ON admin_audit_log(admin_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_target ON admin_audit_log(target_type, target_id);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id          SERIAL PRIMARY KEY,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  type        VARCHAR(50)  NOT NULL,
+  title       VARCHAR(255) NOT NULL,
+  message     TEXT,
+  read        BOOLEAN DEFAULT false,
+  created_at  TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_customer ON notifications(customer_id, read);
+
+-- ── Video pipeline columns on posts ─────────────────────────────────────────
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS video_render_status VARCHAR(20) DEFAULT 'none';
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS video_provider VARCHAR(50);
+
 COMMIT;
 
 SELECT 'Combined migration complete' AS status;
@@ -444,6 +475,7 @@ WHERE table_schema = 'public'
     'postcore_briefings', 'inbox_messages',
     'business_knowledge', 'monthly_reports',
     'posting_analytics', 'hashtag_performance',
-    'email_queue', 'media_library', 'post_variations'
+    'email_queue', 'media_library', 'post_variations',
+    'admin_audit_log', 'notifications'
   )
 ORDER BY table_name;

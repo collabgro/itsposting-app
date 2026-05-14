@@ -8,6 +8,7 @@ import {
 import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
+import api, { customerAPI } from '../lib/api';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
 const CONTENT_TYPES = [
@@ -51,107 +52,170 @@ const PLATFORMS = [
   { id: 'all',            icon: IpSparkle,   label: 'All Platforms',   color: '#7C5CFC', bg: 'rgba(124,92,252,0.1)', border: 'rgba(124,92,252,0.3)', desc: 'Auto-adapted for each platform' },
 ];
 
-// ── Loading messages (content-type-aware) ────────────────────────────────────
+// ── Loading messages (content-type-aware, industry + city-aware) ─────────────
 const LOADING_MESSAGES = {
-  static:   (ind) => [`Reading the room for ${ind || 'your industry'}...`, 'Writing like a local expert...', 'Adding that authentic touch...', 'Almost ready...'],
-  photo:    (ind) => [`Reading the room for ${ind || 'your industry'}...`, 'Building the perfect image prompt...', 'Generating your image...', 'Adding finishing touches...'],
-  carousel: (ind) => [`Reading the room for ${ind || 'your industry'}...`, 'Drafting slide content...', 'Creating slide images...', 'Assembling your carousel...', 'Almost done...'],
-  video:    (ind) => [`Reading the room for ${ind || 'your industry'}...`, 'Writing your video script...', 'Sending to video AI...', 'Video rendering — captions ready now...'],
+  static:   (ind, city) => [
+    `Reading what works for ${ind || 'your industry'} businesses${city ? ` in ${city}` : ''}...`,
+    'Writing 3 variations with different angles...',
+    'Adding seasonal context for this time of year...',
+    'Almost ready...',
+  ],
+  photo:    (ind, city) => [
+    `Reading what works for ${ind || 'your industry'} businesses${city ? ` in ${city}` : ''}...`,
+    'Building the perfect image prompt...',
+    'Generating your image...',
+    'Adding finishing touches...',
+  ],
+  carousel: (ind, city) => [
+    `Reading what works for ${ind || 'your industry'} businesses${city ? ` in ${city}` : ''}...`,
+    'Drafting slide content...',
+    'Creating slide images...',
+    'Assembling your carousel...',
+    'Almost done...',
+  ],
+  video: (ind, city, vType) => [
+    `Reading what works for ${ind || 'your industry'} businesses${city ? ` in ${city}` : ''}...`,
+    'Writing your video script...',
+    vType === 'avatar' ? 'Preparing AI avatar presenter...' : 'Generating key frame image...',
+    'Sending to video AI — this takes 1–2 minutes...',
+    'Video rendering in background — captions are ready now!',
+  ],
 };
 
 // ── Step 2: Choose Format ─────────────────────────────────────────────────────
-const FORMAT_TABS = ['Popular', 'Facebook', 'Instagram', 'LinkedIn', 'TikTok'];
+const FORMAT_TABS = ['Popular', 'Facebook', 'Instagram', 'LinkedIn', 'TikTok', 'Google'];
 
 const FORMAT_DATA = {
   Popular: [
-    { platform: 'instagram', label: 'Instagram Post',  sublabel: '4:5 Portrait',   width: 1080, height: 1350 },
-    { platform: 'instagram', label: 'Instagram Story', sublabel: '9:16 Vertical',  width: 1080, height: 1920 },
-    { platform: 'facebook',  label: 'Facebook Post',   sublabel: 'Landscape',      width: 1200, height: 630  },
-    { platform: 'linkedin',  label: 'LinkedIn Post',   sublabel: 'Square',         width: 1200, height: 1200 },
-    { platform: 'tiktok',    label: 'TikTok Video',    sublabel: '9:16 Vertical',  width: 1080, height: 1920 },
+    { id: 'ig-45',        platform: 'instagram',       label: 'Instagram Post',       sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
+    { id: 'ig-story',     platform: 'instagram',       label: 'Instagram Story',      sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'fb-landscape', platform: 'facebook',        label: 'Facebook Post',        sublabel: '1200 × 630 · 16:9',  width: 1200, height: 630  },
+    { id: 'li-post',      platform: 'linkedin',        label: 'LinkedIn Post',        sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
+    { id: 'tt-video',     platform: 'tiktok',          label: 'TikTok Video',         sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'gb-45',        platform: 'google_business', label: 'Google Business Post', sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
   ],
   Facebook: [
-    { platform: 'facebook', label: 'Facebook Post',   sublabel: 'Landscape',      width: 1200, height: 630  },
-    { platform: 'facebook', label: 'Facebook Story',  sublabel: '9:16 Vertical',  width: 1080, height: 1920 },
-    { platform: 'facebook', label: 'Facebook Square', sublabel: '1:1 Square',     width: 1080, height: 1080 },
+    { id: 'fb-landscape', platform: 'facebook', label: 'Facebook Post',   sublabel: '1200 × 630 · 16:9',  width: 1200, height: 630  },
+    { id: 'fb-story',     platform: 'facebook', label: 'Facebook Story',  sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'fb-square',    platform: 'facebook', label: 'Facebook Square', sublabel: '1080 × 1080 · 1:1',  width: 1080, height: 1080 },
   ],
   Instagram: [
-    { platform: 'instagram', label: 'Instagram Post',   sublabel: '4:5 Portrait',  width: 1080, height: 1350 },
-    { platform: 'instagram', label: 'Instagram Story',  sublabel: '9:16 Vertical', width: 1080, height: 1920 },
-    { platform: 'instagram', label: 'Instagram Reel',   sublabel: '9:16 Vertical', width: 1080, height: 1920 },
-    { platform: 'instagram', label: 'Instagram Square', sublabel: '1:1 Square',    width: 1080, height: 1080 },
+    { id: 'ig-45',     platform: 'instagram', label: 'Instagram Post',   sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
+    { id: 'ig-story',  platform: 'instagram', label: 'Instagram Story',  sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'ig-reel',   platform: 'instagram', label: 'Instagram Reel',   sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'ig-square', platform: 'instagram', label: 'Instagram Square', sublabel: '1080 × 1080 · 1:1',  width: 1080, height: 1080 },
   ],
   LinkedIn: [
-    { platform: 'linkedin', label: 'LinkedIn Post',  sublabel: '1:1 Square',     width: 1200, height: 1200 },
-    { platform: 'linkedin', label: 'LinkedIn Video', sublabel: '9:16 Vertical',  width: 1280, height: 1920 },
+    { id: 'li-post',  platform: 'linkedin', label: 'LinkedIn Post',  sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
+    { id: 'li-video', platform: 'linkedin', label: 'LinkedIn Video', sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
   ],
   TikTok: [
-    { platform: 'tiktok', label: 'TikTok Video', sublabel: '9:16 Vertical', width: 1080, height: 1920 },
-    { platform: 'tiktok', label: 'TikTok Story', sublabel: '9:16 Vertical', width: 1080, height: 1920 },
+    { id: 'tt-video', platform: 'tiktok', label: 'TikTok Video', sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'tt-story', platform: 'tiktok', label: 'TikTok Story', sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+  ],
+  Google: [
+    { id: 'gb-45', platform: 'google_business', label: 'Google Business Post', sublabel: '1080 × 1350 · 4:5', width: 1080, height: 1350 },
   ],
 };
 
 // Content-type-aware recommendations for the hero row
 const RECOMMENDED_FORMATS = {
   static: [
-    { platform: 'instagram', label: 'Instagram Post',  sublabel: '4:5 Portrait',  width: 1080, height: 1350 },
-    { platform: 'facebook',  label: 'Facebook Post',   sublabel: 'Landscape',     width: 1200, height: 630  },
-    { platform: 'linkedin',  label: 'LinkedIn Post',   sublabel: '1:1 Square',    width: 1200, height: 1200 },
+    { id: 'ig-45',        platform: 'instagram',       label: 'Instagram Post',       sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
+    { id: 'fb-landscape', platform: 'facebook',        label: 'Facebook Post',        sublabel: '1200 × 630 · 16:9',  width: 1200, height: 630  },
+    { id: 'li-post',      platform: 'linkedin',        label: 'LinkedIn Post',        sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
   ],
   photo: [
-    { platform: 'instagram', label: 'Instagram Post',  sublabel: '4:5 Portrait',  width: 1080, height: 1350 },
-    { platform: 'instagram', label: 'Instagram Story', sublabel: '9:16 Vertical', width: 1080, height: 1920 },
-    { platform: 'facebook',  label: 'Facebook Post',   sublabel: 'Landscape',     width: 1200, height: 630  },
+    { id: 'ig-45',        platform: 'instagram',       label: 'Instagram Post',       sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
+    { id: 'ig-story',     platform: 'instagram',       label: 'Instagram Story',      sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'fb-landscape', platform: 'facebook',        label: 'Facebook Post',        sublabel: '1200 × 630 · 16:9',  width: 1200, height: 630  },
   ],
   carousel: [
-    { platform: 'instagram', label: 'Instagram Post',  sublabel: '4:5 Portrait',  width: 1080, height: 1350 },
-    { platform: 'linkedin',  label: 'LinkedIn Post',   sublabel: '1:1 Square',    width: 1200, height: 1200 },
-    { platform: 'facebook',  label: 'Facebook Post',   sublabel: 'Landscape',     width: 1200, height: 630  },
+    { id: 'ig-45',        platform: 'instagram',       label: 'Instagram Post',       sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
+    { id: 'li-post',      platform: 'linkedin',        label: 'LinkedIn Post',        sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
+    { id: 'fb-landscape', platform: 'facebook',        label: 'Facebook Post',        sublabel: '1200 × 630 · 16:9',  width: 1200, height: 630  },
   ],
   video: [
-    { platform: 'tiktok',    label: 'TikTok Video',    sublabel: '9:16 Vertical', width: 1080, height: 1920 },
-    { platform: 'instagram', label: 'Instagram Reel',  sublabel: '9:16 Vertical', width: 1080, height: 1920 },
-    { platform: 'facebook',  label: 'Facebook Story',  sublabel: '9:16 Vertical', width: 1080, height: 1920 },
+    { id: 'tt-video',  platform: 'tiktok',    label: 'TikTok Video',    sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'ig-reel',   platform: 'instagram', label: 'Instagram Reel',  sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'fb-story',  platform: 'facebook',  label: 'Facebook Story',  sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
   ],
 };
 
 const FORMAT_PLATFORM_COLORS = {
   facebook: '#1877F2', instagram: '#E1306C', linkedin: '#0A66C2',
-  tiktok: '#111111', google_business: '#4285F4',
+  tiktok: '#111111', google_business: '#34A853',
+  Google: '#34A853',
 };
 
-// Aspect-ratio-accurate preview rectangle
+// Canva-style device-frame mockup
 function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md' }) {
-  const maxH = size === 'lg' ? 84 : 68;
-  const maxW = size === 'lg' ? 126 : 100;
-  let w, h;
-  if (width / height > maxW / maxH) {
-    w = maxW; h = Math.round(maxW * height / width);
-  } else {
-    h = maxH; w = Math.round(maxH * width / height);
-  }
-  return (
-    <div style={{
-      width: w, height: h, borderRadius: 7, flexShrink: 0,
-      background: `linear-gradient(145deg, ${platformColor}26, ${platformColor}0a)`,
-      border: `1.5px solid ${platformColor}45`,
-      position: 'relative', overflow: 'hidden',
-    }}>
-      {/* diagonal shimmer */}
-      <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(155deg, ${platformColor}1a 0%, transparent 55%)` }} />
-      {/* simulated text lines */}
-      <div style={{ position: 'absolute', bottom: '22%', left: '10%', right: '12%', height: 2.5, borderRadius: 2, background: `${platformColor}40` }} />
-      <div style={{ position: 'absolute', bottom: '12%', left: '10%', right: '32%', height: 2, borderRadius: 2, background: `${platformColor}28` }} />
-      {/* platform badge */}
-      {PlatformIcon && (
+  const maxH = size === 'lg' ? 96 : 76;
+  const maxW = size === 'lg' ? 136 : 108;
+  const ratio = width / height;
+  let cW, cH;
+  if (ratio > maxW / maxH) { cW = maxW; cH = Math.round(maxW / ratio); }
+  else { cH = maxH; cW = Math.round(maxH * ratio); }
+
+  const isPortrait = height >= width * 1.3;
+  const badgeSize = size === 'lg' ? 18 : 15;
+
+  if (isPortrait) {
+    const bx = 5, bTop = 14, bBot = 12;
+    const phoneW = cW + bx * 2, phoneH = cH + bTop + bBot;
+    return (
+      <div style={{ position: 'relative', width: phoneW, height: phoneH, flexShrink: 0 }}>
+        {/* Phone shell SVG */}
+        <svg width={phoneW} height={phoneH} viewBox={`0 0 ${phoneW} ${phoneH}`} style={{ position: 'absolute', inset: 0 }} fill="none">
+          <rect x="0.75" y="0.75" width={phoneW - 1.5} height={phoneH - 1.5} rx="11" fill="#F5F5F5" stroke="#D0D0D0" strokeWidth="1.5"/>
+          <circle cx={bx + 5} cy={7} r="1" fill="#C0C0C0"/>
+          <circle cx={bx + 9} cy={7} r="1" fill="#C0C0C0"/>
+          <rect x={phoneW / 2 - 12} y={phoneH - 7} width="24" height="2.5" rx="1.25" fill="#C8C8C8"/>
+        </svg>
+        {/* Screen content */}
         <div style={{
-          position: 'absolute', top: 5, left: 5,
-          width: 17, height: 17, borderRadius: 4,
-          background: platformColor,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: `0 1px 4px ${platformColor}55`,
+          position: 'absolute', top: bTop, left: bx, width: cW, height: cH,
+          borderRadius: 3, overflow: 'hidden',
         }}>
-          <PlatformIcon size={10} color="#fff" />
+          {/* Image area ~60% */}
+          <div style={{ height: '60%', background: `linear-gradient(160deg, ${platformColor}60, ${platformColor}35)` }}>
+            {/* Simulated image texture lines */}
+            <div style={{ height: '100%', background: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${platformColor}12 8px, ${platformColor}12 9px)` }} />
+          </div>
+          {/* Caption area */}
+          <div style={{ flex: 1, background: `${platformColor}14`, padding: '5px 6px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ height: 2.5, background: `${platformColor}80`, borderRadius: 2, width: '70%' }} />
+            <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '50%' }} />
+          </div>
+        </div>
+        {/* Platform badge */}
+        {PlatformIcon && (
+          <div style={{ position: 'absolute', top: bTop + 4, left: bx + 4, borderRadius: 3, lineHeight: 0, boxShadow: '0 1px 5px rgba(0,0,0,0.28)' }}>
+            <PlatformIcon size={badgeSize} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Landscape or square — framed content rect (no phone shell)
+  return (
+    <div style={{ position: 'relative', width: cW, height: cH, flexShrink: 0 }}>
+      <div style={{ position: 'absolute', inset: 0, borderRadius: 7, border: '1.5px solid #D0D0D0', background: '#F5F5F5', overflow: 'hidden' }}>
+        {/* Image area ~58% */}
+        <div style={{ height: '58%', background: `linear-gradient(135deg, ${platformColor}60, ${platformColor}35)` }}>
+          <div style={{ height: '100%', background: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${platformColor}12 8px, ${platformColor}12 9px)` }} />
+        </div>
+        {/* Caption lines */}
+        <div style={{ padding: '5px 7px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div style={{ height: 2.5, background: `${platformColor}80`, borderRadius: 2, width: '68%' }} />
+          <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '48%' }} />
+        </div>
+      </div>
+      {/* Platform badge */}
+      {PlatformIcon && (
+        <div style={{ position: 'absolute', top: 6, left: 6, borderRadius: 3, lineHeight: 0, boxShadow: '0 1px 5px rgba(0,0,0,0.28)' }}>
+          <PlatformIcon size={badgeSize} />
         </div>
       )}
     </div>
@@ -186,40 +250,20 @@ function buildDetailsObject(contentType, detailsText) {
   return map[contentType] || { job_description: detailsText };
 }
 
-// ── Inline API calls (wizard is self-contained) ───────────────────────────────
-function authHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
-  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-}
-
-async function safeJson(res) {
-  const text = await res.text();
-  try { return JSON.parse(text); }
-  catch {
-    console.error('[Wizard] Non-JSON response from server:', res.status, text.substring(0, 600));
-    throw new Error(`Server error (${res.status}) — please try again.`);
-  }
-}
-
+// ── Inline API helpers (thin wrappers over the shared api instance) ──────────
 async function apiPost(path, body) {
-  const res = await fetch(path, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
-  const json = await safeJson(res);
-  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
-  return json;
+  const res = await api.post(path, body);
+  return res.data;
 }
 
 async function apiPatch(path, body) {
-  const res = await fetch(path, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
-  const json = await safeJson(res);
-  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
-  return json;
+  const res = await api.patch(path, body);
+  return res.data;
 }
 
 async function apiGet(path) {
-  const res = await fetch(path, { headers: authHeaders() });
-  const json = await safeJson(res);
-  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
-  return json;
+  const res = await api.get(path);
+  return res.data;
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -231,6 +275,7 @@ export default function Wizard() {
 
   const [step, setStep] = useState(1);            // 1–6, 'loading', 'results'
   const [contentType, setContentType] = useState(null); // Step 1
+  const [videoType, setVideoType] = useState('services'); // 'services' | 'avatar' (shown when contentType='video')
   const [selectedFormat, setSelectedFormat] = useState(null); // Step 2
   const [formatTab, setFormatTab] = useState('Popular');
   const [hoveredFormat, setHoveredFormat] = useState(null);
@@ -244,6 +289,8 @@ export default function Wizard() {
   const [error, setError] = useState(null);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
   const [industry, setIndustry] = useState('');
+  const [city, setCity] = useState('');
+  const [profileTimezone, setProfileTimezone] = useState('');
   const [copiedId, setCopiedId] = useState(null);
   const [selectedVariation, setSelectedVariation] = useState('A');
 
@@ -260,9 +307,13 @@ export default function Wizard() {
   useEffect(() => {
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
     const token = localStorage.getItem('token');
-    fetch('/api/customers/profile', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(d => setIndustry(d.industry || ''))
+    customerAPI.getProfile()
+      .then(r => {
+        const d = r.data;
+        setIndustry(d.industry || '');
+        setCity(d.city || d.location || '');
+        setProfileTimezone(d.timezone || '');
+      })
       .catch(() => {});
 
     // Handle navigation from dashboard suggestion banner
@@ -296,17 +347,38 @@ export default function Wizard() {
         sessionStorage.removeItem('quickPostResult');
       } catch {}
     }
+
+    // Handle ?suggestedTime=tuesday-9 from analytics heatmap
+    const st = new URLSearchParams(window.location.search).get('suggestedTime');
+    if (st) {
+      const [dayName, hourStr] = st.split('-');
+      const DAYS_MAP = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+      const dow = DAYS_MAP[dayName?.toLowerCase().slice(0, 3)];
+      const hour = parseInt(hourStr);
+      if (dow !== undefined && !isNaN(hour)) {
+        const today = new Date();
+        const todayDow = today.getDay();
+        let daysAhead = (dow - todayDow + 7) % 7;
+        if (daysAhead === 0) daysAhead = 7;
+        const target = new Date(today);
+        target.setDate(today.getDate() + daysAhead);
+        target.setHours(hour, 0, 0, 0);
+        const pad = n => String(n).padStart(2, '0');
+        setScheduleDate(`${target.getFullYear()}-${pad(target.getMonth()+1)}-${pad(target.getDate())}T${pad(hour)}:00`);
+      }
+    }
   }, []);
 
   useEffect(() => {
     if (step === 'loading') {
-      const msgs = (LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry);
+      const msgFn = LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo;
+      const msgs = msgFn(industry, city, videoType);
       loadingInterval.current = setInterval(() => {
         setLoadingMsgIdx(i => (i + 1) % msgs.length);
       }, 1800);
     }
     return () => clearInterval(loadingInterval.current);
-  }, [step]); // contentType/industry don't change during loading so no stale closure issue
+  }, [step]); // contentType/industry/videoType don't change during loading — no stale closure issue
 
   // Video polling — fires every 6s while videoRendering is true
   // Uses /video-poll/:postId which looks up the HeyGen job ID from the post record
@@ -360,7 +432,7 @@ export default function Wizard() {
   };
 
   const handleReset = () => {
-    setStep(1); setContentType(null); setTheme(null); setTone(null); setPlatform(null);
+    setStep(1); setContentType(null); setVideoType('services'); setTheme(null); setTone(null); setPlatform(null);
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
     setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null);
     setSelectedVariation('A'); setActionLoading(false); setActionToast(null);
@@ -393,6 +465,9 @@ export default function Wizard() {
       await apiPost('/api/wizard/step', { wizardId, stepId: 'platform', answers: { value: platform } });
       if (selectedFormat) {
         await apiPost('/api/wizard/step', { wizardId, stepId: 'selected_format', answers: { value: selectedFormat } });
+      }
+      if (contentType === 'video') {
+        await apiPost('/api/wizard/step', { wizardId, stepId: 'video_type', answers: { value: videoType } });
       }
 
       const genRes = await apiPost('/api/wizard/generate', { wizardId });
@@ -527,7 +602,7 @@ export default function Wizard() {
         {step === 1 && (
           <div>
             <StepHeading t={t} icon="text_post" title="What type of post?" sub="Choose the format that works best for your content" />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 32 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: contentType === 'video' ? 20 : 32 }}>
               {CONTENT_TYPES.map((item) => {
                 const selected = contentType === item.id;
                 return (
@@ -540,6 +615,61 @@ export default function Wizard() {
                 );
               })}
             </div>
+
+            {/* Video type sub-selection — shown only when Video is chosen */}
+            {contentType === 'video' && (
+              <div style={{ marginBottom: 32, padding: '18px 20px', background: t.cardAlt || t.card, border: `1px solid ${t.border}`, borderRadius: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                  What style of video?
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {[
+                    {
+                      id: 'services',
+                      emoji: '🎬',
+                      label: 'Services Video',
+                      desc: 'Animated scene showing your work — powered by Veo 3.1',
+                      tag: 'Recommended',
+                    },
+                    {
+                      id: 'avatar',
+                      emoji: '👤',
+                      label: 'Avatar Video',
+                      desc: 'AI presenter talks to camera about your business — powered by HeyGen',
+                      tag: null,
+                    },
+                  ].map(vt => {
+                    const selected = videoType === vt.id;
+                    return (
+                      <button
+                        key={vt.id}
+                        onClick={() => setVideoType(vt.id)}
+                        style={{
+                          padding: '14px 16px',
+                          border: `2px solid ${selected ? t.primary : t.border}`,
+                          borderRadius: 12,
+                          background: selected ? `${t.primary}12` : t.card,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'border-color 150ms, background 150ms',
+                          position: 'relative',
+                        }}
+                      >
+                        {vt.tag && (
+                          <div style={{ position: 'absolute', top: -1, right: 12, background: t.primary, color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: '0 0 6px 6px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                            {vt.tag}
+                          </div>
+                        )}
+                        <div style={{ fontSize: 20, marginBottom: 8 }}>{vt.emoji}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: selected ? t.primary : t.text, marginBottom: 4 }}>{vt.label}</div>
+                        <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.5 }}>{vt.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <WizardNav t={t} onBack={handleBack} onNext={handleNext} canNext={canProceed()} nextLabel="Next →" />
           </div>
         )}
@@ -557,7 +687,7 @@ export default function Wizard() {
             static:   'Different platforms reward different sizes',
           }[contentType] || 'Pick the platform size that fits your post';
           const fmtIconMap = { facebook: IpFacebook, instagram: IpInstagram, linkedin: IpLinkedIn, tiktok: IpTikTok, google_business: IpGoogle };
-          const tabIconMap = { Facebook: IpFacebook, Instagram: IpInstagram, LinkedIn: IpLinkedIn, TikTok: IpTikTok };
+          const tabIconMap = { Facebook: IpFacebook, Instagram: IpInstagram, LinkedIn: IpLinkedIn, TikTok: IpTikTok, Google: IpGoogle };
 
           const FormatCard = ({ fmt, isSelected, uid, size = 'md', isBest = false }) => {
             const pColor = FORMAT_PLATFORM_COLORS[fmt.platform] || t.primary;
@@ -927,11 +1057,22 @@ export default function Wizard() {
 
                 {/* Image/video failed banner */}
                 {results.imageFailed && (
-                  <div style={{ padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#D97706' }}>
-                    <Icon name="warning" size={14} color="#D97706" />
-                    {results.contentTypeSelection === 'video'
-                      ? 'Video generation failed — captions are ready to post'
-                      : 'Image generation failed — caption-only mode'}
+                  <div style={{ padding: '12px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, marginBottom: 12, fontSize: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#D97706', marginBottom: results.contentTypeSelection === 'video' ? 8 : 0 }}>
+                      <Icon name="warning" size={14} color="#D97706" />
+                      {results.contentTypeSelection === 'video'
+                        ? 'Your captions are ready. The video is still generating — check back in a few minutes to add it, or post the caption now.'
+                        : 'Image generation failed — your caption is ready to post without an image.'}
+                    </div>
+                    {results.contentTypeSelection === 'video' && (
+                      <button
+                        onClick={handlePostNow}
+                        disabled={actionLoading}
+                        style={{ marginTop: 4, padding: '7px 14px', background: '#D97706', border: 'none', borderRadius: 7, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        Post Caption-Only
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -994,7 +1135,7 @@ export default function Wizard() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
                   {results.variations && Object.entries(results.variations).map(([label, variation]) => {
                     const isSelected = selectedVariation === label;
-                    const labelColors = { A: '#7C5CFC', B: '#3B82F6', C: '#10B981' };
+                    const labelColors = { A: t.primary, B: t.info, C: t.success };
                     const color = labelColors[label] || t.primary;
                     return (
                       <div
@@ -1091,20 +1232,32 @@ export default function Wizard() {
 
             {/* ── Inline schedule modal ── */}
             {showScheduleModal && (
-              <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-                <div style={{ background: t.card, borderRadius: 14, padding: 24, width: '100%', maxWidth: 360, border: `1px solid ${t.border}` }}>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowScheduleModal(false)}>
+                <div style={{ background: t.card, borderRadius: 14, padding: 24, width: '100%', maxWidth: 360, border: `1px solid ${t.border}` }} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 16 }}>Schedule Post</div>
-                  <div style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 4 }}>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 6 }}>Date & Time</label>
                     <input
                       type="datetime-local"
                       value={scheduleDate}
                       onChange={e => setScheduleDate(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${scheduleDate && new Date(scheduleDate) < new Date() ? t.error : t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }}
                     />
                   </div>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button onClick={handleScheduleSubmit} disabled={actionLoading || !scheduleDate} style={{ flex: 1, padding: '10px 16px', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: scheduleDate && !actionLoading ? 'pointer' : 'not-allowed', opacity: scheduleDate && !actionLoading ? 1 : 0.5 }}>
+                  {scheduleDate && new Date(scheduleDate) < new Date() && (
+                    <div style={{ fontSize: 12, color: t.error, marginBottom: 12, marginTop: 4 }}>That time has already passed</div>
+                  )}
+                  {profileTimezone && (
+                    <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 16, marginTop: scheduleDate && new Date(scheduleDate) < new Date() ? 0 : 8 }}>
+                      Scheduling in: {profileTimezone}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                    <button
+                      onClick={handleScheduleSubmit}
+                      disabled={actionLoading || !scheduleDate || (scheduleDate && new Date(scheduleDate) < new Date())}
+                      style={{ flex: 1, padding: '10px 16px', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: scheduleDate && !actionLoading && new Date(scheduleDate) > new Date() ? 'pointer' : 'not-allowed', opacity: scheduleDate && !actionLoading && new Date(scheduleDate) > new Date() ? 1 : 0.5 }}
+                    >
                       {actionLoading ? 'Scheduling...' : 'Schedule'}
                     </button>
                     <button onClick={() => setShowScheduleModal(false)} style={{ padding: '10px 16px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
@@ -1203,7 +1356,7 @@ function WizardNav({ t, onBack, onNext, canNext, nextLabel = 'Next →', nextSty
 }
 
 function VariationCard({ label, variation, t, copiedId, onCopy, onUse, selected, onSelect }) {
-  const labelColors = { A: '#7C5CFC', B: '#3B82F6', C: '#10B981' };
+  const labelColors = { A: t.primary, B: t.info, C: t.success };
   const color = labelColors[label] || t.primary;
   const copyId = `var-${label}`;
   const captionText = variation.caption + (variation.engagementQuestion ? '\n\n' + variation.engagementQuestion : '');

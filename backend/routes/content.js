@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireActiveAccount, getBillingCustomerId } = require('../middleware/auth');
 const ManualContentGenerator = require('../services/ManualContentGenerator');
 
 module.exports = (pool) => {
@@ -9,7 +9,7 @@ module.exports = (pool) => {
   /**
    * POST /api/content/generate
    */
-  router.post('/generate', authenticate, async (req, res) => {
+  router.post('/generate', authenticate, requireActiveAccount(pool), async (req, res) => {
     try {
       const { contentType, prompt, options } = req.body;
 
@@ -30,7 +30,8 @@ module.exports = (pool) => {
         req.customerId,
         contentType,
         prompt,
-        options || {}
+        options || {},
+        getBillingCustomerId(req)
       );
 
       res.json({ success: true, ...result });

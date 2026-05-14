@@ -262,6 +262,36 @@ const TEMPLATES = {
     `,
     text: `Hi {{businessName}},\n\nWelcome to Its Posting! You have {{credits}} free credits to get started.\n\nLog in at: {{loginUrl}}`,
   },
+
+  post_published: {
+    subject: 'Your post went live on {{platform}}',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>Your post was successfully published to <strong style="color:#22C55E;">{{platform}}</strong>. <span class="tag tag-success">Live</span></p>
+      <p>PostCore will track its performance over the next 24–48 hours and surface insights in your analytics dashboard.</p>
+      <a href="{{analyticsUrl}}" class="btn">View Analytics</a>
+    `,
+    text: `Hi {{businessName}},\n\nYour post is now live on {{platform}}.\n\nView analytics at: {{analyticsUrl}}`,
+  },
+
+  postcore_briefing: {
+    subject: 'Your weekly PostCore briefing',
+    html: `
+      <p style="font-size:16px;font-weight:600;color:#E2E2E8;">{{greeting}}</p>
+      <p>{{weekSummary}}</p>
+      <div class="box">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.05em;">What's Working</p>
+        <p style="margin:0;font-size:14px;color:#E2E2E8;">{{whatWorking}}</p>
+      </div>
+      <div class="box">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#EAB308;text-transform:uppercase;letter-spacing:0.05em;">This Week's Opportunity</p>
+        <p style="margin:0;font-size:14px;color:#E2E2E8;">{{opportunity}}</p>
+      </div>
+      <p style="font-size:13px;color:#666;font-style:italic;">{{closingNote}}</p>
+      <a href="{{dashboardUrl}}" class="btn">Open Dashboard</a>
+    `,
+    text: `{{greeting}}\n\n{{weekSummary}}\n\nWhat's Working:\n{{whatWorking}}\n\nThis Week's Opportunity:\n{{opportunity}}\n\n{{closingNote}}\n\nDashboard: {{dashboardUrl}}`,
+  },
 };
 
 module.exports = EmailService;

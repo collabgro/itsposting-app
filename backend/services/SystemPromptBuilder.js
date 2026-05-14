@@ -35,6 +35,7 @@ class SystemPromptBuilder {
     this.wizardTrigger = options.wizardTrigger || null;
     this.counterAnswers = options.counterAnswers || {};
     this.businessKnowledge = options.businessKnowledge || [];
+    this.wizardTone = options.wizardTone || null;
 
     // Resolve industry knowledge — fall back to general_contractor if unknown
     this.knowledge = industryKnowledge[customer.industry] || industryKnowledge.general_contractor || {};
@@ -258,15 +259,26 @@ Spoken language: natural, not scripted-sounding — conversational`,
       ? (triggerRules[this.wizardTrigger] || '')
       : '';
 
-    return `=== CONTENT TYPE RULES ===
+    let rules = `=== CONTENT TYPE RULES ===
 ${triggerRule ? triggerRule + '\n\n' : ''}${contentTypeRules[this.contentType] || contentTypeRules.photo}`;
+
+    const prefs = this.customer.content_preferences;
+    if (prefs && typeof prefs === 'object' && !Array.isArray(prefs)) {
+      const edu = prefs.educational ?? 70;
+      const social = prefs.social_proof ?? 20;
+      const promo = prefs.promotional ?? 10;
+      rules += `\n\nThis customer's content mix target: ${edu}% educational, ${social}% social proof, ${promo}% promotional. Ensure this post fits within their chosen balance.`;
+    }
+
+    return rules;
   }
 
   // ── Section 5: Brand Voice + Few-Shot ────────────────────────────────────
   _section5_brandVoice() {
     const c = this.customer;
+    const effectiveTone = this.wizardTone || c.tone || 'professional and approachable';
     let voice = `=== BRAND VOICE ===
-Tone: ${c.tone || 'professional and approachable'}
+Tone: ${effectiveTone}
 Writing style: ${c.visual_style === 'bold' ? 'punchy and direct' : c.visual_style === 'minimal' ? 'clean and concise' : 'warm and conversational'}
 
 PostCore voice rules (non-negotiable):
@@ -275,6 +287,10 @@ PostCore voice rules (non-negotiable):
 - Plain language a tradesperson would use and be proud of
 - The business owner should read it and think "that sounds exactly like me"
 - Every post ends with an engagement question — this is non-negotiable`;
+
+    if (this.wizardTone) {
+      voice += `\nIMPORTANT: The customer specifically selected "${this.wizardTone}" as the tone for THIS post — this overrides their default profile tone. Make the tone shift noticeable and intentional.`;
+    }
 
     if (c.past_post_examples?.length > 0) {
       voice += `\n\nExamples of this business's best past posts (match this style and voice exactly):`;

@@ -3,10 +3,11 @@ import { useRouter } from 'next/router';
 import {
   IpChevronLeft, IpChevronRight, IpPlus, IpCalendar as CalendarIcon,
   IpClose, IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
-  IpFacebook, IpInstagram, IpGoogle, IpSchedule, IpSparkle,
+  IpFacebook, IpInstagram, IpGoogle, IpLinkedIn, IpTikTok,
+  IpSchedule, IpSparkle, IpDelete,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Badge, Spinner } from '../components/ui';
+import { Card, Button, Badge, Skeleton } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI } from '../lib/api';
 import {
@@ -21,6 +22,8 @@ const PLATFORM_ICONS = {
   facebook:        { icon: IpFacebook,  color: '#1877F2' },
   instagram:       { icon: IpInstagram, color: '#E1306C' },
   google_business: { icon: IpGoogle,    color: '#4285F4' },
+  linkedin:        { icon: IpLinkedIn,  color: '#0A66C2' },
+  tiktok:          { icon: IpTikTok,    color: '#010101' },
 };
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -75,6 +78,25 @@ export default function Calendar() {
 
   const handleAddOnDay = () => {
     router.push('/wizard');
+  };
+
+  const [deletingPost, setDeletingPost] = useState(null);
+  const handleDeletePost = async (postId) => {
+    if (!confirm('Delete this post? This cannot be undone.')) return;
+    setDeletingPost(postId);
+    try {
+      await postsAPI.delete(postId);
+      setPosts(prev => {
+        const updated = prev.filter(p => p.id !== postId);
+        // Close side panel if no posts remain on that day
+        if (selectedDay) {
+          const remaining = updated.filter(p => p.scheduled_date && isSameDay(new Date(p.scheduled_date), selectedDay));
+          if (remaining.length === 0) setSelectedDay(null);
+        }
+        return updated;
+      });
+    } catch (e) { console.error(e); }
+    finally { setDeletingPost(null); }
   };
 
   const handleMonthChange = (e) => {
@@ -165,11 +187,29 @@ export default function Calendar() {
             </div>
 
             {loading ? (
-              <div style={{ padding: 80, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Spinner size={36} />
+              <div style={{ padding: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+                  {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
+                    <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 0' }}>{d}</div>
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+                  {Array.from({ length: 35 }).map((_, i) => <Skeleton key={i} height={88} borderRadius={8} />)}
+                </div>
               </div>
             ) : (
               <div style={{ padding: 16 }}>
+                {/* Empty month banner */}
+                {!loading && posts.filter(p => p.scheduled_date && new Date(p.scheduled_date).getMonth() === currentMonth.getMonth() && new Date(p.scheduled_date).getFullYear() === currentMonth.getFullYear()).length === 0 && (
+                  <div style={{ marginBottom: 12, padding: '10px 14px', background: t.input, borderRadius: 8, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, color: t.textMuted }}>
+                      No posts scheduled for {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                    </span>
+                    <button onClick={() => router.push('/wizard')} style={{ fontSize: 12, fontWeight: 600, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                      Schedule one →
+                    </button>
+                  </div>
+                )}
                 {/* Day headers */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
@@ -184,6 +224,7 @@ export default function Calendar() {
                     const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
                     const isToday        = isSameDay(day, new Date());
                     const isSelected     = selectedDay && isSameDay(day, selectedDay);
+                    const isPast         = day < new Date() && !isToday;
                     const hasPosts       = dayPosts.length > 0;
 
                     return (
@@ -194,7 +235,7 @@ export default function Calendar() {
                           minHeight: 88, padding: 6, borderRadius: 8, cursor: 'pointer',
                           border: `2px solid ${isSelected ? t.primary : isToday ? t.primaryBorder : t.border}`,
                           background: isSelected ? t.primaryBg : isToday ? 'rgba(124,92,252,0.05)' : isCurrentMonth ? t.card : t.input,
-                          opacity: isCurrentMonth ? 1 : 0.35,
+                          opacity: !isCurrentMonth ? 0.35 : isPast ? 0.45 : 1,
                           transition: 'all 150ms',
                         }}
                         onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = t.primaryBorder; }}
@@ -338,7 +379,7 @@ export default function Calendar() {
 
                         {/* Platforms */}
                         {postPlatforms.length > 0 && (
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10 }}>
                             <span style={{ fontSize: 10, color: t.textMuted }}>Posting to:</span>
                             {postPlatforms.map(pid => {
                               const pm = PLATFORM_ICONS[pid];
@@ -348,6 +389,15 @@ export default function Calendar() {
                             })}
                           </div>
                         )}
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => handleDeletePost(post.id)}
+                          disabled={deletingPost === post.id}
+                          style={{ padding: '4px 10px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, fontSize: 11, fontWeight: 600, color: '#EF4444', cursor: deletingPost === post.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: deletingPost === post.id ? 0.5 : 1 }}
+                        >
+                          <IpDelete size={11} /> {deletingPost === post.id ? 'Deleting…' : 'Delete'}
+                        </button>
                       </div>
                     );
                   })}

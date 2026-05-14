@@ -20,7 +20,8 @@ const https = require('https');
 const http = require('http');
 const { v4: uuidv4 } = require('uuid');
 const Anthropic = require('@anthropic-ai/sdk');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireActiveAccount, getBillingCustomerId } = require('../middleware/auth');
+const NotificationService = require('../services/NotificationService');
 const SystemPromptBuilder = require('../services/SystemPromptBuilder');
 
 let NanoBananaService;
@@ -37,6 +38,14 @@ try {
 } catch {
   HeyGenService = null;
   console.warn('[Wizard] HeyGenService not found — video generation disabled');
+}
+
+let VideoService;
+try {
+  VideoService = require('../services/VideoService');
+} catch {
+  VideoService = null;
+  console.warn('[Wizard] VideoService not found — video generation disabled');
 }
 
 let ImageResizer;
@@ -56,6 +65,23 @@ try {
 }
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// Format → dimensions + media type map. Mirrors FORMAT_DATA in frontend/pages/wizard.js.
+// Used to pass correct aspect ratio to NanoBanana and Veo.
+const FORMAT_CONFIG = {
+  'ig-45':        { w: 1080, h: 1350, mediaType: 'image', aspectRatio: '4:5' },
+  'ig-story':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
+  'ig-reel':      { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
+  'ig-square':    { w: 1080, h: 1080, mediaType: 'image', aspectRatio: '1:1' },
+  'fb-landscape': { w: 1200, h: 630,  mediaType: 'image', aspectRatio: '16:9' },
+  'fb-story':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
+  'fb-square':    { w: 1080, h: 1080, mediaType: 'image', aspectRatio: '1:1' },
+  'li-post':      { w: 1200, h: 1200, mediaType: 'image', aspectRatio: '1:1' },
+  'li-video':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
+  'tt-video':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
+  'tt-story':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
+  'gb-45':        { w: 1080, h: 1350, mediaType: 'image', aspectRatio: '4:5' },
+};
 
 // Auto-save generated media to media_library (non-blocking)
 async function autoSaveToMediaLibrary(pool, customerId, mediaUrl, contentType, width, height) {
@@ -135,19 +161,78 @@ function validateMedia(url, type = 'image') {
 }
 
 // ─────────────────────────────────────────────────────────────
-// In-memory wizard sessions
-// Sessions are ephemeral — they live only during the creation flow
-// Cleaned up after 2 hours of inactivity
+// Wizard session management — in-memory cache + DB persistence
+// DB is the source of truth; Map is a fast read cache.
+// Sessions expire after 2 hours.
 // ─────────────────────────────────────────────────────────────
 
 const wizardSessions = new Map();
 
+async function getSession(id) {
+  if (wizardSessions.has(id)) return wizardSessions.get(id);
+  try {
+    const r = await pool.query(
+      `SELECT data FROM wizard_sessions WHERE id = $1 AND expires_at > NOW()`,
+      [id]
+    );
+    if (r.rows[0]) {
+      wizardSessions.set(id, r.rows[0].data);
+      return r.rows[0].data;
+    }
+  } catch (e) {
+    console.warn('[Wizard] Session DB read failed:', e.message);
+  }
+  return null;
+}
+
+async function saveSession(id, data) {
+  wizardSessions.set(id, data);
+  const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  try {
+    await pool.query(
+      `INSERT INTO wizard_sessions (id, customer_id, data, expires_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (id) DO UPDATE SET data = $3, expires_at = $4`,
+      [id, data.customerId, JSON.stringify(data), expiresAt]
+    );
+  } catch (e) {
+    console.warn('[Wizard] Session DB save failed:', e.message);
+  }
+}
+
+async function deleteSession(id) {
+  wizardSessions.delete(id);
+  try {
+    await pool.query(`DELETE FROM wizard_sessions WHERE id = $1`, [id]);
+  } catch (e) {
+    console.warn('[Wizard] Session DB delete failed:', e.message);
+  }
+}
+
+// Credit refund helper — called when video generation fails after credits were deducted
+async function _refundCredits(pool, billingId, postId, amount) {
+  if (!billingId || !amount) return;
+  try {
+    await pool.query(
+      'UPDATE customers SET credits_balance = credits_balance + $1 WHERE id = $2',
+      [amount, billingId]
+    );
+    await pool.query(
+      `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, description)
+       VALUES ($1, $2, 'refund', $3, 'Video generation failed - credits refunded')`,
+      [billingId, postId, amount]
+    );
+    console.log(`[Wizard] Refunded ${amount} credit(s) to customer ${billingId} for failed video post ${postId}`);
+  } catch (refundErr) {
+    console.error('[Wizard] Credit refund failed (manual review needed):', refundErr.message);
+  }
+}
+
+// Purge expired sessions from memory every hour; DB cleanup via startup cron
 setInterval(() => {
   const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
   for (const [id, session] of wizardSessions.entries()) {
-    if (session.createdAt < twoHoursAgo) {
-      wizardSessions.delete(id);
-    }
+    if ((session.createdAt || 0) < twoHoursAgo) wizardSessions.delete(id);
   }
 }, 60 * 60 * 1000);
 
@@ -472,7 +557,7 @@ module.exports = (pool) => {
         createdAt: Date.now(),
       };
 
-      wizardSessions.set(wizardId, session);
+      await saveSession(wizardId, session);
 
       res.json({
         wizardId,
@@ -496,14 +581,28 @@ module.exports = (pool) => {
     try {
       const { wizardId, stepId, answers } = req.body;
 
-      if (!wizardId || !wizardSessions.has(wizardId)) {
+      if (!wizardId) {
+        return res.status(404).json({ error: 'Wizard session not found or expired. Please start again.' });
+      }
+      const session = await getSession(wizardId);
+      if (!session) {
         return res.status(404).json({ error: 'Wizard session not found or expired. Please start again.' });
       }
 
-      const session = wizardSessions.get(wizardId);
-
       if (session.customerId !== req.customerId) {
         return res.status(403).json({ error: 'Unauthorized' });
+      }
+
+      // video_type and selected_format are frontend-only meta steps — store but don't advance step counter
+      if (stepId === 'video_type' || stepId === 'selected_format') {
+        session.answers[stepId] = answers;
+        await saveSession(wizardId, session);
+        return res.json({
+          currentStep: session.currentStep,
+          totalSteps: session.steps.length,
+          stepData: session.steps[session.currentStep] || null,
+          answersCollected: Object.keys(session.answers),
+        });
       }
 
       session.answers[stepId] = answers;
@@ -516,7 +615,7 @@ module.exports = (pool) => {
       session.currentStep += 1;
 
       if (session.currentStep >= session.steps.length) {
-        wizardSessions.set(wizardId, session);
+        await saveSession(wizardId, session);
         return res.json({
           complete: true,
           wizardId,
@@ -524,7 +623,7 @@ module.exports = (pool) => {
         });
       }
 
-      wizardSessions.set(wizardId, session);
+      await saveSession(wizardId, session);
       res.json({
         currentStep: session.currentStep,
         totalSteps: session.steps.length,
@@ -538,17 +637,19 @@ module.exports = (pool) => {
   });
 
   // POST /api/wizard/generate
-  router.post('/generate', authenticate, async (req, res) => {
+  router.post('/generate', authenticate, requireActiveAccount(pool), async (req, res) => {
     let debugStage = 'start';
     try {
       const { wizardId } = req.body;
 
-      if (!wizardId || !wizardSessions.has(wizardId)) {
+      if (!wizardId) {
         return res.status(404).json({ error: 'Wizard session not found or expired. Please start again.' });
       }
-
       debugStage = 'session';
-      const session = wizardSessions.get(wizardId);
+      const session = await getSession(wizardId);
+      if (!session) {
+        return res.status(404).json({ error: 'Wizard session not found or expired. Please start again.' });
+      }
 
       if (session.customerId !== req.customerId) {
         return res.status(403).json({ error: 'Unauthorized' });
@@ -561,6 +662,7 @@ module.exports = (pool) => {
       const platformAnswer = session.answers['platform'];
 
       const formatAnswer = session.answers['selected_format'];
+      const videoTypeAnswer = session.answers['video_type'];
       const answers = {
         contentTypeSelection: contentTypeSelectionAnswer?.value || 'photo',
         contentType: contentTypeAnswer?.value || 'just_finished_job',
@@ -568,7 +670,13 @@ module.exports = (pool) => {
         details: detailsAnswer || {},
         platform: platformAnswer?.value || 'facebook',
         selectedFormat: formatAnswer?.value || null,
+        videoType: videoTypeAnswer?.value || 'services',
       };
+
+      // Resolve format config from selectedFormat.id (set by frontend FORMAT_DATA)
+      const fmtId = answers.selectedFormat?.id || null;
+      const fmtConfig = (fmtId && FORMAT_CONFIG[fmtId]) || {};
+      const formatAspectRatio = fmtConfig.aspectRatio || null;
 
       // Map wizard content types to SystemPromptBuilder triggers
       const triggerMap = {
@@ -598,9 +706,10 @@ module.exports = (pool) => {
       const creditCost = CREDIT_COSTS[answers.contentTypeSelection] ?? 1;
 
       debugStage = 'credit_check';
+      const billingId = getBillingCustomerId(req);
       const creditRow = await pool.query(
         `SELECT credits_balance, plan, status FROM customers WHERE id = $1`,
-        [session.customerId]
+        [billingId]
       );
       const freshCustomer = creditRow.rows[0];
       if (!freshCustomer) {
@@ -622,6 +731,7 @@ module.exports = (pool) => {
         wizardTrigger: triggerMap[answers.contentType] || answers.contentType,
         counterAnswers: answers.details,
         businessKnowledge,
+        wizardTone: answers.tone,
       });
 
       const { systemPrompt, userPrompt } = builder.build();
@@ -629,10 +739,14 @@ module.exports = (pool) => {
       console.log(`[Wizard] Generating posts for customer ${session.customerId}, content type: ${answers.contentType}`);
 
       // For video posts: prefetch HeyGen voice/avatar IDs in parallel with Claude.
+      // Only needed for avatar video or when Veo is not enabled (fallback path uses HeyGen).
       // The fetches take ~8s each; Claude takes ~10-15s — so by the time Claude finishes
       // the IDs are already cached and createVideo() returns in <15s instead of ~31s.
       let heyGenPrefetch = null;
-      if (HeyGenService && process.env.HEYGEN_API_KEY && answers.contentTypeSelection === 'video') {
+      const willUseHeyGen = answers.contentTypeSelection === 'video' && (
+        answers.videoType === 'avatar' || process.env.VEO_ENABLED !== 'true'
+      );
+      if (HeyGenService && process.env.HEYGEN_API_KEY && willUseHeyGen) {
         const prefetcher = new HeyGenService();
         heyGenPrefetch = Promise.allSettled([
           prefetcher.getDefaultVoiceId(),
@@ -771,8 +885,13 @@ module.exports = (pool) => {
         }
         const nanoBanana = new NanoBananaService();
 
+        // Determine aspect ratio from selected format, falling back to a content-type default
+        const imageAspectRatio = formatAspectRatio || (
+          contentTypeForMedia === 'carousel' ? '1:1' : '4:5'
+        );
+
         const attemptImageGen = async (prompt) => {
-          const result = await nanoBanana.generateFromPrompt(session.customer, prompt);
+          const result = await nanoBanana.generateFromPrompt(session.customer, prompt, { aspectRatio: imageAspectRatio });
           await validateMedia(result.url);
           return result;
         };
@@ -783,7 +902,7 @@ module.exports = (pool) => {
             const slideResults = [];
             for (const slide of slideList) {
               try {
-                const slideResult = await nanoBanana.generateFromPrompt(session.customer, slide.description || imagePromptForGen);
+                const slideResult = await nanoBanana.generateFromPrompt(session.customer, slide.description || imagePromptForGen, { aspectRatio: '1:1' });
                 await validateMedia(slideResult.url);
                 slideResults.push({ ...slide, imageUrl: slideResult.url });
               } catch (slideErr) {
@@ -890,7 +1009,7 @@ module.exports = (pool) => {
                  credits_used_this_month  = credits_used_this_month + $1
              WHERE id = $2 AND credits_balance >= $1
              RETURNING credits_balance`,
-            [creditCost, session.customerId]
+            [creditCost, billingId]
           );
           if (deductResult.rows.length > 0) {
             creditsRemaining = deductResult.rows[0].credits_balance;
@@ -903,12 +1022,17 @@ module.exports = (pool) => {
               await pool.query(
                 `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description)
                  VALUES ($1, $2, 'debit', $3, $4, $5)`,
-                [session.customerId, savedPostId, -creditCost, creditsRemaining, `Generated ${answers.contentTypeSelection} post via wizard`]
+                [billingId, savedPostId, -creditCost, creditsRemaining, `Generated ${answers.contentTypeSelection} post via wizard`]
               );
             } catch (txErr) {
               console.warn('[Wizard] credit_transactions insert failed:', txErr.message);
             }
             console.log(`[Wizard] Deducted ${creditCost} credit(s) for post ${savedPostId} — balance now ${creditsRemaining}`);
+            // Fire low-credits notification when balance drops below 10
+            if (creditsRemaining < 10) {
+              const notifier = new NotificationService(pool);
+              notifier.lowCredits(billingId, creditsRemaining);
+            }
           } else {
             // Race condition: credits fell below threshold between check and deduction
             // Delete the post so the user isn't charged without a post
@@ -924,45 +1048,61 @@ module.exports = (pool) => {
       let videoJobId = null;
       let videoError = null;
 
-      // ── HeyGen async kickoff — fire-and-forget so the response is immediate ──
-      // When HeyGen is under load, their /v2/video/generate endpoint can take 30-60s
-      // just to queue the job. We cannot block the HTTP response waiting for that.
-      // Instead: mark videoRendering=true, return captions now, let the background
-      // task save the job ID, and let /video-poll/:postId (already set up) handle it.
-      if (HeyGenService && process.env.HEYGEN_API_KEY && answers.contentTypeSelection === 'video' && savedPostId) {
-        videoRendering = true; // always — captions are ready, video is on its way
+      // ── Video async kickoff — fire-and-forget so the response is immediate ──
+      // VideoService routes to Veo (services video) or HeyGen (avatar video).
+      // Either way: mark videoRendering=true, return captions now, generate in background,
+      // and let /video-poll/:postId handle completion polling.
+      const videoServiceAvailable = VideoService && (process.env.HEYGEN_API_KEY || process.env.VEO_ENABLED === 'true');
+      if (videoServiceAvailable && answers.contentTypeSelection === 'video' && savedPostId) {
+        videoRendering = true; // captions are ready immediately — video is on its way
 
         const bgPostId = savedPostId;
         const bgCustomer = { ...session.customer };
         const bgScript = parsed.variation_a?.videoScript || transformedVariations.A.caption;
-        const bgPrefetch = heyGenPrefetch; // already running in parallel with Claude
+        const bgImagePrompt = parsed.variation_a?.imagePrompt || imagePromptForGen || '';
+        const bgVideoType = answers.videoType;
+        const bgAspectRatio = formatAspectRatio || '9:16';
+        const bgBillingId = billingId;
+        const bgCreditCost = creditCost;
+        const bgPrefetch = heyGenPrefetch;
 
         setImmediate(async () => {
           try {
             if (bgPrefetch) await bgPrefetch;
-            const heyGen = new HeyGenService();
-            console.log('[Wizard BG] Submitting HeyGen video for post', bgPostId);
-            const jobId = await heyGen.createVideo(bgCustomer, bgScript);
-            if (jobId) {
+
+            const videoSvc = new VideoService();
+            console.log(`[Wizard BG] Starting video generation for post ${bgPostId} (type: ${bgVideoType})`);
+
+            const videoResult = await videoSvc.generate(bgCustomer, bgScript, {
+              videoType: bgVideoType,
+              imagePrompt: bgImagePrompt,
+              aspectRatio: bgAspectRatio,
+              durationSeconds: 7,
+            });
+
+            if (videoResult?.url) {
               await pool.query(
-                `UPDATE posts SET video_job_id = $1, status = 'video_processing', updated_at = NOW() WHERE id = $2`,
-                [jobId, bgPostId]
+                `UPDATE posts SET media_url = $1, video_provider = $2, status = 'draft', updated_at = NOW() WHERE id = $3`,
+                [videoResult.url, videoResult.provider, bgPostId]
               );
-              console.log('[Wizard BG] HeyGen job created:', jobId, '→ post', bgPostId);
+              console.log(`[Wizard BG] Video ready for post ${bgPostId}: ${videoResult.url.substring(0, 60)}`);
             } else {
               await pool.query(`UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`, [bgPostId]);
-              console.error('[Wizard BG] HeyGen returned no job ID for post', bgPostId);
+              console.error('[Wizard BG] VideoService returned no URL for post', bgPostId);
+              // Refund credits
+              await _refundCredits(pool, bgBillingId, bgPostId, bgCreditCost);
             }
           } catch (err) {
-            console.error('[Wizard BG] HeyGen submission failed for post', bgPostId, ':', err.message);
+            console.error(`[Wizard BG] Video generation failed for post ${bgPostId}:`, err.message);
             try {
               await pool.query(`UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`, [bgPostId]);
             } catch {}
+            await _refundCredits(pool, bgBillingId, bgPostId, bgCreditCost);
           }
         });
       }
 
-      wizardSessions.delete(wizardId);
+      await deleteSession(wizardId);
 
       res.json({
         success: true,
@@ -1053,7 +1193,7 @@ module.exports = (pool) => {
       let post;
       try {
         const result = await pool.query(
-          `SELECT video_job_id, media_url, status, created_at FROM posts WHERE id = $1 AND customer_id = $2`,
+          `SELECT video_job_id, video_provider, media_url, status, created_at FROM posts WHERE id = $1 AND customer_id = $2`,
           [postId, customerId]
         );
         if (result.rows.length === 0) return res.status(403).json({ error: 'Not authorized' });
@@ -1064,43 +1204,45 @@ module.exports = (pool) => {
         return res.json({ status: 'processing' });
       }
 
-      // Already completed (media_url was saved after HeyGen finished)
+      // Already completed — media_url is set once video is saved (works for both Veo and HeyGen)
       if (post.media_url) {
         return res.json({ status: 'completed', videoUrl: post.media_url });
       }
 
-      // If video generation already failed, return the failure state with detail
+      // Explicit failure
       if (post.status === 'video_failed') {
-        return res.json({ status: 'failed', error: 'Video generation failed. Please try again later or contact support.' });
+        return res.json({ status: 'failed', error: 'Video generation failed. Credits have been refunded.' });
       }
 
       if (post.status === 'insufficient_credits') {
-        return res.json({ status: 'failed', error: 'Insufficient credits for HeyGen video generation.' });
+        return res.json({ status: 'failed', error: 'Insufficient credits for video generation.' });
       }
 
-      // If HeyGen service isn't configured, fail immediately
-      if (!HeyGenService || !process.env.HEYGEN_API_KEY) {
+      // If neither HeyGen nor Veo are configured, fail immediately
+      const videoServiceAvailableForPoll = (HeyGenService && process.env.HEYGEN_API_KEY) || process.env.VEO_ENABLED === 'true';
+      if (!videoServiceAvailableForPoll) {
         return res.json({ status: 'failed', error: 'Video service unavailable.' });
       }
 
-      // Background task submits to HeyGen — give it up to 3 min to get the job ID
-      // (HeyGen's /video/generate can take 60s+ when under load)
+      // For Veo and services-video pipeline: the background job saves media_url directly.
+      // If media_url is still null, it's still processing. Give it up to 4 min from creation.
       if (!post.video_job_id) {
         const ageMs = Date.now() - new Date(post.created_at).getTime();
-        if (ageMs > 180_000) {
-          return res.json({ status: 'failed', error: 'Video generation did not start in time.' });
+        if (ageMs > 240_000) {
+          return res.json({ status: 'failed', error: 'Video generation did not complete in time.' });
         }
         return res.json({ status: 'processing' });
       }
 
-      // Have a real HeyGen video ID — check its status
+      // Have a HeyGen video_job_id — check its status directly (avatar video path)
+      if (!HeyGenService) return res.json({ status: 'processing' });
       const heyGen = new HeyGenService();
       const { status, videoUrl } = await heyGen.checkVideoStatus(post.video_job_id);
 
       if (status === 'completed' && videoUrl) {
         try {
           await validateMedia(videoUrl, 'video');
-          await pool.query(`UPDATE posts SET media_url = $1 WHERE id = $2`, [videoUrl, postId]);
+          await pool.query(`UPDATE posts SET media_url = $1, video_provider = 'heygen' WHERE id = $2`, [videoUrl, postId]);
         } catch (valErr) {
           console.warn('[Wizard] Video validation failed:', valErr.message);
           return res.json({ status: 'failed', videoUrl: null, error: 'Video validation failed.' });
@@ -1115,10 +1257,11 @@ module.exports = (pool) => {
   });
 
   // POST /api/wizard/regenerate-image — regenerate image for an existing post (costs 1 credit)
-  router.post('/regenerate-image', authenticate, async (req, res) => {
+  router.post('/regenerate-image', authenticate, requireActiveAccount(pool), async (req, res) => {
     try {
       const { postId, imagePrompt } = req.body;
       const customerId = req.customerId;
+      const billingId = getBillingCustomerId(req);
 
       if (!postId || !imagePrompt) {
         return res.status(400).json({ error: 'postId and imagePrompt are required' });
@@ -1133,12 +1276,12 @@ module.exports = (pool) => {
         return res.status(403).json({ error: 'Post not found or not authorized' });
       }
 
-      // Deduct 1 credit atomically
+      // Deduct 1 credit atomically from billing account
       const creditResult = await pool.query(
         `UPDATE customers SET credits_balance = credits_balance - 1
          WHERE id = $1 AND credits_balance >= 1
          RETURNING credits_balance`,
-        [customerId]
+        [billingId]
       );
       if (creditResult.rows.length === 0) {
         return res.status(402).json({ error: 'Insufficient credits' });
@@ -1157,7 +1300,7 @@ module.exports = (pool) => {
         // Refund the credit on failure
         await pool.query(
           `UPDATE customers SET credits_balance = credits_balance + 1 WHERE id = $1`,
-          [customerId]
+          [billingId]
         );
         return res.status(502).json({ error: `Image generation failed: ${genErr.message}` });
       }
@@ -1253,7 +1396,7 @@ module.exports = (pool) => {
   });
 
   // POST /api/wizard/refresh — refresh a variation with a different angle
-  router.post('/refresh', authenticate, async (req, res) => {
+  router.post('/refresh', authenticate, requireActiveAccount(pool), async (req, res) => {
     try {
       const { caption, platform, tone, angle } = req.body;
 
@@ -1303,11 +1446,10 @@ module.exports = (pool) => {
     try {
       const { wizardId } = req.params;
 
-      if (!wizardSessions.has(wizardId)) {
+      const session = await getSession(wizardId);
+      if (!session) {
         return res.status(404).json({ error: 'Session not found or expired' });
       }
-
-      const session = wizardSessions.get(wizardId);
 
       if (session.customerId !== req.customerId) {
         return res.status(403).json({ error: 'Unauthorized' });

@@ -3,11 +3,12 @@ import { useRouter } from 'next/router';
 import {
   IpCheck, IpCredits, IpSparkle, IpCrown, IpBilling, IpSchedule,
   IpTrendingUp, IpArrowUpRight, IpArrowDownRight, IpWarning, IpGift,
-  IpExternalLink,
+  IpExternalLink, IpDollar,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Spinner } from '../components/ui';
+import { Card, Button, Spinner, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
+import { billingAPI } from '../lib/api';
 
 const PLAN_ICONS = { trial: IpGift, starter: IpCredits, professional: IpSparkle, premium: IpCrown };
 
@@ -65,12 +66,11 @@ export default function Billing() {
   }, []);
 
   const loadData = async () => {
-    const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
     try {
       const [plansRes, currentRes, historyRes] = await Promise.all([
-        fetch('/api/billing/plans', { headers }).then(r => r.json()),
-        fetch('/api/billing/current', { headers }).then(r => r.json()),
-        fetch('/api/billing/history', { headers }).then(r => r.json()),
+        billingAPI.getPlans().then(r => r.data),
+        billingAPI.getCurrent().then(r => r.data),
+        billingAPI.getHistory().then(r => r.data),
       ]);
       const resolvedPlans = Array.isArray(plansRes) ? plansRes : [];
       setPlans(resolvedPlans);
@@ -89,17 +89,14 @@ export default function Billing() {
     setCheckingOut(plan.id);
     setUpgradeError('');
     try {
-      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
-      const res = await fetch(`/api/billing/checkout-link?plan=${plan.id}&cycle=${cycle}`, { headers });
-      const data = await res.json();
+      const { data } = await billingAPI.getCheckoutLink(plan.id, cycle);
       if (data.url) {
         window.location.href = data.url;
       } else {
         setUpgradeError(data.error || 'Checkout link unavailable. Please contact support.');
       }
     } catch (err) {
-      console.error('Checkout error:', err);
-      setUpgradeError('Could not connect to billing. Please try again.');
+      setUpgradeError(err.response?.data?.error || 'Could not connect to billing. Please try again.');
     } finally {
       setCheckingOut(null);
     }
@@ -110,9 +107,7 @@ export default function Billing() {
     setCreditMsg('');
     setUpgradeError('');
     try {
-      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
-      const res = await fetch(`/api/billing/buy-credits?pack=${pack.id}`, { headers });
-      const data = await res.json();
+      const { data } = await billingAPI.buyCredits(pack.id);
       if (data.url) {
         window.location.href = data.url;
       } else if (data.message) {
@@ -121,8 +116,7 @@ export default function Billing() {
         setUpgradeError('Unable to process. Please contact support.');
       }
     } catch (err) {
-      console.error('Buy credits error:', err);
-      setUpgradeError('Could not connect to billing. Please try again.');
+      setUpgradeError(err.response?.data?.error || 'Could not connect to billing. Please try again.');
     } finally {
       setBuyingPack(null);
     }
@@ -132,16 +126,11 @@ export default function Billing() {
     setCancelling(true);
     setCancelError('');
     try {
-      const res = await fetch('/api/billing/cancel', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Cancellation failed');
+      await billingAPI.cancel();
       setShowCancelModal(false);
       await loadData();
     } catch (err) {
-      setCancelError(err.message);
+      setCancelError(err.response?.data?.error || err.message || 'Cancellation failed');
     } finally {
       setCancelling(false);
     }
@@ -162,7 +151,8 @@ export default function Billing() {
   const planCredits = current?.currentPlan?.credits || 10;
   const usedThisMonth = parseInt(current?.creditsUsedThisMonth) || 0;
   const balance = parseInt(current?.creditsBalance) || 0;
-  const usagePct = Math.min(100, planCredits > 0 ? Math.round((usedThisMonth / planCredits) * 100) : 0);
+  const totalCredits = balance + usedThisMonth;
+  const usagePct = Math.min(100, totalCredits > 0 ? Math.round((usedThisMonth / totalCredits) * 100) : 0);
 
   const trialDaysLeft = current?.trialEndsAt
     ? Math.max(0, Math.ceil((new Date(current.trialEndsAt) - Date.now()) / 86_400_000))
@@ -186,7 +176,7 @@ export default function Billing() {
 
           {/* Current plan */}
           <div style={{
-            background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)',
+            background: `linear-gradient(135deg, ${t.primary} 0%, ${t.primaryHover} 100%)`,
             borderRadius: 16, padding: 24, color: '#fff',
           }}>
             <div style={{ fontSize: 11, opacity: 0.75, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
@@ -260,7 +250,7 @@ export default function Billing() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
               <div>
                 <span style={{ fontSize: 32, fontWeight: 800, fontFamily: 'monospace', color: t.text }}>{usedThisMonth}</span>
-                <span style={{ fontSize: 14, color: t.textMuted }}> / {planCredits}</span>
+                <span style={{ fontSize: 14, color: t.textMuted }}> / {totalCredits} used</span>
               </div>
               <span style={{ fontSize: 13, color: usagePct >= 90 ? t.error : usagePct >= 70 ? t.warning : t.success, fontWeight: 700 }}>
                 {usagePct}%
@@ -279,11 +269,11 @@ export default function Billing() {
               }} />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
               <div>
-                <span style={{ color: t.textMuted }}>Balance: </span>
+                <span style={{ color: t.textMuted }}>Remaining: </span>
                 <span style={{ color: t.primary, fontWeight: 700, fontFamily: 'monospace' }}>{balance}</span>
-                <span style={{ color: t.textMuted }}> credits</span>
+                <span style={{ color: t.textMuted }}> · plan: {planCredits}/mo</span>
               </div>
               {usagePct >= 80 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: t.warning, fontSize: 12, fontWeight: 600 }}>
@@ -370,7 +360,7 @@ export default function Billing() {
                 {isCurrent && (
                   <div style={{
                     position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
-                    background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', color: '#fff', padding: '4px 14px', borderRadius: 9999,
+                    background: `linear-gradient(135deg, ${t.primary}, ${t.primaryHover})`, color: '#fff', padding: '4px 14px', borderRadius: 9999,
                     fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap',
                   }}>
                     Your Plan
@@ -386,6 +376,11 @@ export default function Billing() {
                   {cycle === 'yearly' && (
                     <span style={{ display: 'block', fontSize: 11, color: t.textMuted, marginTop: 2 }}>
                       billed annually · <span style={{ textDecoration: 'line-through' }}>${plan.price}/mo</span>
+                    </span>
+                  )}
+                  {cycle === 'yearly' && (
+                    <span style={{ display: 'block', fontSize: 12, color: t.success, marginTop: 4, fontWeight: 600 }}>
+                      ${Math.round(price * 12)}/yr — save ${Math.round((plan.price - price) * 12)}
                     </span>
                   )}
                 </div>
@@ -438,36 +433,69 @@ export default function Billing() {
 
         {/* ── BUY MORE CREDITS ───────────────────────────────────────── */}
         <Card style={{ marginBottom: 24 }}>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <IpCredits size={16} color="url(#brand-gradient)" />
-              <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, margin: 0 }}>Buy More Credits</h3>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <IpCredits size={16} color="url(#brand-gradient)" />
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, margin: 0 }}>Buy More Credits</h3>
+              </div>
+              <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>Top up your balance anytime — added instantly, never expire</p>
             </div>
-            <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>Top up your balance anytime — added instantly, never expire</p>
+            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: t.textMuted }}>
+              <span>Photo post = 3 cr</span>
+              <span>Carousel = 5 cr</span>
+              <span>Video = 10 cr</span>
+            </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
-            {CREDIT_PACKS.map(pack => (
-              <button
-                key={pack.id}
-                onClick={() => handleBuyCredits(pack)}
-                disabled={!!buyingPack}
-                style={{
-                  padding: '14px 10px', border: `1px solid ${buyingPack === pack.id ? t.primaryBorder : t.border}`, borderRadius: 10,
-                  background: buyingPack === pack.id ? t.primaryBg : t.input,
-                  cursor: buyingPack ? 'not-allowed' : 'pointer', textAlign: 'center', transition: 'all 150ms', opacity: buyingPack && buyingPack !== pack.id ? 0.5 : 1,
-                }}
-                onMouseEnter={e => { if (!buyingPack) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; } }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.input; }}
-              >
-                <div style={{ fontSize: 24, fontWeight: 800, color: t.primary, fontFamily: 'monospace', lineHeight: 1 }}>{pack.amount}</div>
-                <div style={{ fontSize: 11, color: t.textMuted, margin: '3px 0 8px' }}>credits</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>${pack.price}</div>
-                {buyingPack === pack.id && <div style={{ fontSize: 10, color: t.primary, marginTop: 4 }}>Redirecting…</div>}
-              </button>
-            ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
+            {CREDIT_PACKS.map(pack => {
+              const isBestValue = pack.id === 'credits_200';
+              const isRecommended = pack.id === 'credits_100';
+              const costPerCredit = (pack.price / pack.amount).toFixed(2);
+              const photoEquiv = Math.floor(pack.amount / 3);
+              const carouselEquiv = Math.floor(pack.amount / 5);
+              const context = pack.amount >= 100
+                ? `≈ ${carouselEquiv} carousels`
+                : `≈ ${photoEquiv} photo posts`;
+              const isActive = buyingPack === pack.id;
+
+              return (
+                <button
+                  key={pack.id}
+                  onClick={() => handleBuyCredits(pack)}
+                  disabled={!!buyingPack}
+                  style={{
+                    padding: '16px 12px', border: `2px solid ${isActive ? t.primaryBorder : isRecommended ? t.primaryBorder : isBestValue ? 'rgba(251,191,36,0.5)' : t.border}`,
+                    borderRadius: 12, background: isActive ? t.primaryBg : isRecommended ? t.primaryBg : t.input,
+                    cursor: buyingPack ? 'not-allowed' : 'pointer', textAlign: 'center',
+                    transition: 'all 150ms', opacity: buyingPack && !isActive ? 0.5 : 1,
+                    position: 'relative',
+                  }}
+                  onMouseEnter={e => { if (!buyingPack) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; } }}
+                  onMouseLeave={e => { if (!buyingPack) { e.currentTarget.style.borderColor = isRecommended ? t.primaryBorder : isBestValue ? 'rgba(251,191,36,0.5)' : t.border; e.currentTarget.style.background = isRecommended ? t.primaryBg : t.input; } }}
+                >
+                  {isBestValue && (
+                    <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #FBBF24, #F59E0B)', color: '#fff', padding: '2px 10px', borderRadius: 9999, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                      Best Value
+                    </div>
+                  )}
+                  {isRecommended && !isBestValue && (
+                    <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: t.primary, color: '#fff', padding: '2px 10px', borderRadius: 9999, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                      Popular
+                    </div>
+                  )}
+                  <div style={{ fontSize: 28, fontWeight: 800, color: t.primary, fontFamily: 'monospace', lineHeight: 1 }}>{pack.amount}</div>
+                  <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 8 }}>credits</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: t.text, marginBottom: 2 }}>${pack.price}</div>
+                  <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>${costPerCredit}/credit</div>
+                  <div style={{ fontSize: 10, color: t.textSecondary, padding: '3px 6px', background: 'rgba(124,92,252,0.08)', borderRadius: 6 }}>{context}</div>
+                  {isActive && <div style={{ fontSize: 10, color: t.primary, marginTop: 6, fontWeight: 600 }}>Redirecting…</div>}
+                </button>
+              );
+            })}
           </div>
           {creditMsg && (
-            <div style={{ marginTop: 14, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, fontSize: 12, color: t.textSecondary, lineHeight: 1.6 }}>
+            <div style={{ marginTop: 16, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, fontSize: 12, color: t.textSecondary, lineHeight: 1.6 }}>
               {creditMsg}
               <button onClick={() => setCreditMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 14 }}>×</button>
             </div>
@@ -483,10 +511,11 @@ export default function Billing() {
           </div>
 
           {history.length === 0 ? (
-            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-              <IpBilling size={28} style={{ color: t.textMuted, margin: '0 auto 10px', display: 'block' }} />
-              <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>No transactions yet</p>
-            </div>
+            <EmptyState
+              icon={IpDollar}
+              title="No transactions yet"
+              subtitle="Your credit usage history will appear here after your first post."
+            />
           ) : (
             <div>
               {history.map(tx => {

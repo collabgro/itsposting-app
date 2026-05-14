@@ -39,9 +39,11 @@ function WindowStatus({ conv, t }) {
   if (status === 'human_agent') {
     const secs = Math.max(0, Math.floor(conv.window_seconds_remaining || 0));
     const hours = Math.floor(secs / 3600);
+    const mins = Math.floor((secs % 3600) / 60);
+    const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
     return (
       <span style={{ fontSize: 10, color: t.warning, display: 'flex', alignItems: 'center', gap: 3 }}>
-        <IpWarning size={10} /> Human agent ({hours}h left)
+        <IpWarning size={10} /> Human agent ({timeStr} left)
       </span>
     );
   }
@@ -216,17 +218,27 @@ export default function InboxPage() {
     if (!newRule.reply_text.trim()) return;
     setArSaving(true);
     try {
-      const payload = {
-        ...newRule,
-        keywords: newRule.trigger_type === 'keyword'
-          ? newRule.keywords.split(',').map(k => k.trim()).filter(Boolean)
-          : [],
-        delay_seconds: Number(newRule.delay_seconds) || 0,
-      };
       if (editingRule) {
-        await dmsAPI.updateAutoReply(editingRule.id, payload);
+        const updatePayload = {
+          isActive: newRule.is_active,
+          replyText: newRule.reply_text,
+          keywords: typeof newRule.keywords === 'string'
+            ? newRule.keywords.split(',').map(k => k.trim()).filter(Boolean)
+            : (newRule.keywords || []),
+          delaySeconds: Number(newRule.delay_seconds) || 0,
+        };
+        await dmsAPI.updateAutoReply(editingRule.id, updatePayload);
       } else {
-        await dmsAPI.createAutoReply(payload);
+        const createPayload = {
+          triggerType: newRule.trigger_type,
+          keywords: newRule.trigger_type === 'keyword'
+            ? newRule.keywords.split(',').map(k => k.trim()).filter(Boolean)
+            : [],
+          replyText: newRule.reply_text,
+          delaySeconds: Number(newRule.delay_seconds) || 0,
+          sendOnlyOnce: newRule.send_only_once !== false,
+        };
+        await dmsAPI.createAutoReply(createPayload);
       }
       const res = await dmsAPI.getAutoReplies();
       setAutoReplies(res.data.rules || []);
@@ -372,7 +384,7 @@ export default function InboxPage() {
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                       {/* Avatar */}
-                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: '#fff', flexShrink: 0 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: `linear-gradient(135deg, ${t.primary}, ${t.primaryHover})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: '#fff', flexShrink: 0 }}>
                         {(conv.sender_name || '?').charAt(0).toUpperCase()}
                       </div>
 
@@ -440,7 +452,7 @@ export default function InboxPage() {
                   >
                     ←
                   </button>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: `linear-gradient(135deg, ${t.primary}, ${t.primaryHover})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff' }}>
                     {(selected.sender_name || '?').charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -481,7 +493,7 @@ export default function InboxPage() {
                     return (
                       <div key={msg.id || i} style={{ display: 'flex', flexDirection: isOut ? 'row-reverse' : 'row', gap: 8, marginBottom: 12, alignItems: 'flex-end' }}>
                         {!isOut && (
-                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11, color: '#fff', flexShrink: 0 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: `linear-gradient(135deg, ${t.primary}, ${t.primaryHover})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11, color: '#fff', flexShrink: 0 }}>
                             {(selected.sender_name || '?').charAt(0).toUpperCase()}
                           </div>
                         )}

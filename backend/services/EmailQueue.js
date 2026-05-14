@@ -89,6 +89,30 @@ class EmailQueue {
     });
   }
 
+  /** Called when AutoPostScheduler successfully publishes a post */
+  async notifyPostPublished(customer, platform) {
+    await this.queue(customer.email, 'post_published', {
+      businessName: customer.business_name || customer.email,
+      platform: platform ? platform.replace(/_/g, ' ') : 'social media',
+      analyticsUrl: `${APP_URL}/analytics`,
+    });
+  }
+
+  /** Called by PostCoreAdvisor on Monday mornings */
+  async notifyPostCoreBriefing(customer, briefingData) {
+    const sections = briefingData?.sections || [];
+    const working = sections.find(s => s.type === 'working');
+    const opportunity = sections.find(s => s.type === 'opportunity');
+    await this.queue(customer.email, 'postcore_briefing', {
+      greeting: briefingData?.greeting || `Good morning, ${customer.business_name}.`,
+      weekSummary: briefingData?.weekSummary || '',
+      whatWorking: working ? `${working.observation} ${working.action}` : 'Keep posting consistently.',
+      opportunity: opportunity ? `${opportunity.observation} ${opportunity.action}` : 'Create a seasonal post this week.',
+      closingNote: briefingData?.closingNote || 'Every post puts your business in front of local customers.',
+      dashboardUrl: `${APP_URL}/dashboard`,
+    });
+  }
+
   // ─── Queue management (used by admin email queue page) ────────────────────
 
   async list({ status, limit = 50, offset = 0 } = {}) {

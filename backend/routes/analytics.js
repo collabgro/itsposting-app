@@ -10,7 +10,7 @@ module.exports = (pool) => {
   router.get('/overview', async (req, res) => {
     try {
       const { period = '30' } = req.query;
-      const days = parseInt(period) || 30;
+      const days = Math.min(Math.max(parseInt(period) || 30, 1), 365);
 
       const result = await pool.query(`
         SELECT

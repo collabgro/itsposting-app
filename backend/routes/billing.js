@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const whop = require('../services/WhopService');
 const EmailQueue = require('../services/EmailQueue');
+const NotificationService = require('../services/NotificationService');
 
 const PLANS = {
   trial: {
@@ -165,12 +166,20 @@ module.exports = (pool) => {
         if (action === 'membership.deactivated') {
           const whopMembershipId = data?.id;
           if (!whopMembershipId) return;
-          await pool.query(
+          const deactivated = await pool.query(
             `UPDATE customers SET plan='trial', status='inactive', suspended=true, updated_at=NOW()
-             WHERE whop_membership_id=$1`,
+             WHERE whop_membership_id=$1 RETURNING id, credits_balance`,
             [whopMembershipId]
           );
           console.log(`[Whop] Deactivated membership ${whopMembershipId}`);
+          // Notify if credits are low so customer knows to renew
+          if (deactivated.rows[0]) {
+            const { id: customerId, credits_balance } = deactivated.rows[0];
+            if ((credits_balance || 0) < 10) {
+              const notifier = new NotificationService(pool);
+              notifier.lowCredits(customerId, credits_balance || 0);
+            }
+          }
         }
       } catch (err) {
         console.error('[Whop] Webhook processing error:', err.message);

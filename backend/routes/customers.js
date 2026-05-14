@@ -54,6 +54,15 @@ module.exports = (pool) => {
         timezone,
       } = req.body;
 
+      // Input length validation
+      const MAX_LENGTHS = { businessName: 100, location: 200, phone: 30, website: 500, tone: 50, visualStyle: 100 };
+      for (const [field, max] of Object.entries(MAX_LENGTHS)) {
+        const val = req.body[field];
+        if (val && String(val).length > max) {
+          return res.status(400).json({ error: `${field} too long (max ${max} characters)` });
+        }
+      }
+
       const result = await pool.query(
         `UPDATE customers SET
           business_name = COALESCE($1, business_name),

@@ -71,9 +71,10 @@ module.exports = (pool) => {
   router.get('/analytics/summary', authenticate, async (req, res) => {
     try {
       const { period = '30' } = req.query;
+      const safePeriod = [7, 14, 30, 90, 365].includes(parseInt(period)) ? parseInt(period) : 30;
 
       const result = await pool.query(
-        `SELECT 
+        `SELECT
           COUNT(*) as total_posts,
           COUNT(*) FILTER (WHERE status = 'posted') as posted_count,
           COUNT(*) FILTER (WHERE status = 'scheduled') as scheduled_count,
@@ -85,10 +86,10 @@ module.exports = (pool) => {
           COALESCE(SUM((engagement->>'shares')::int), 0) as total_shares,
           COALESCE(AVG((engagement->>'likes')::int), 0)::int as avg_likes,
           COALESCE(AVG((engagement->>'comments')::int), 0)::int as avg_comments
-        FROM posts 
+        FROM posts
         WHERE customer_id = $1
-        AND created_at > NOW() - INTERVAL '${parseInt(period)} days'`,
-        [req.customerId]
+        AND created_at > NOW() - ($2 || ' days')::INTERVAL`,
+        [req.customerId, safePeriod]
       );
 
       res.json(result.rows[0]);

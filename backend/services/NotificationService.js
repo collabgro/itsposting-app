@@ -58,6 +58,40 @@ class NotificationService {
       'An administrator has reset your account password.'
     );
   }
+
+  postPublished(customerId, postId, platform) {
+    const label = platform ? platform.replace('_', ' ') : 'your platform';
+    this.create(
+      customerId, TYPES.SYSTEM,
+      'Post published',
+      `Your post was successfully published to ${label}.`
+    );
+  }
+
+  postFailed(customerId, postId, platform, reason) {
+    const label = platform ? platform.replace('_', ' ') : 'platform';
+    this.create(
+      customerId, TYPES.SYSTEM,
+      'Post failed to publish',
+      `Could not publish to ${label}${reason ? `: ${reason}` : '. Please check your connected account and try again.'}`
+    );
+  }
+
+  lowCredits(customerId, remaining) {
+    this.create(
+      customerId, TYPES.CREDITS,
+      'Running low on credits',
+      `You have ${remaining} credit${remaining !== 1 ? 's' : ''} left. Upgrade your plan to keep posting without interruption.`
+    );
+  }
+
+  newSuggestion(customerId) {
+    this.create(
+      customerId, TYPES.SYSTEM,
+      'PostCore has a suggestion for you',
+      'A new content idea is ready. Check your dashboard to use it.'
+    );
+  }
 }
 
 module.exports = NotificationService;

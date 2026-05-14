@@ -6,7 +6,7 @@ import {
   IpGoogle, IpSparkle, IpSchedule, IpLinkedIn, IpTikTok,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Input, Badge, SectionHeader, Spinner } from '../components/ui';
+import { Card, Button, Input, Badge, SectionHeader, Spinner, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { customerAPI, contentAPI, socialAPI, scraperAPI } from '../lib/api';
 
@@ -203,6 +203,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null);
   const [scraperUrl, setScraperUrl] = useState('');
   const [scraping, setScraping] = useState(false);
   const [scrapedData, setScrapedData] = useState(null);
@@ -303,16 +304,22 @@ export default function Settings() {
     }
   };
 
-  const handleClearScrape = async () => {
-    if (!confirm('Clear scraped data?')) return;
-    try {
-      await scraperAPI.clearData();
-      setScrapedData(null);
-      setScraperUrl('');
-      showToast('Saved website data cleared');
-    } catch {
-      showToast('Failed to clear data', 'error');
-    }
+  const handleClearScrape = () => {
+    setConfirmModal({
+      title: 'Clear Website Data',
+      message: 'This will remove your saved website scan. You can re-scan anytime.',
+      confirmLabel: 'Clear',
+      onConfirm: async () => {
+        try {
+          await scraperAPI.clearData();
+          setScrapedData(null);
+          setScraperUrl('');
+          showToast('Saved website data cleared');
+        } catch {
+          showToast('Failed to clear data', 'error');
+        }
+      },
+    });
   };
 
   const handleConnect = (platform) => {
@@ -355,17 +362,25 @@ export default function Settings() {
   };
 
   const handleDisconnect = async (platform) => {
-    if (!confirm(`Disconnect ${PLATFORM_CONFIG[platform]?.label || platform}?`)) return;
-    setDisconnecting(platform);
-    try {
-      await socialAPI.disconnect(platform);
-      showToast('Account disconnected');
-      loadSocialAccounts();
-    } catch {
-      showToast('Failed to disconnect', 'error');
-    } finally {
-      setDisconnecting(null);
-    }
+    const label = PLATFORM_CONFIG[platform]?.label || platform;
+    setConfirmModal({
+      title: `Disconnect ${label}`,
+      message: `This will disconnect ${label} — you can reconnect anytime.`,
+      confirmLabel: 'Disconnect',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setDisconnecting(platform);
+        try {
+          await socialAPI.disconnect(platform);
+          showToast('Account disconnected');
+          loadSocialAccounts();
+        } catch {
+          showToast('Failed to disconnect', 'error');
+        } finally {
+          setDisconnecting(null);
+        }
+      },
+    });
   };
 
   const handleToggleAutoPost = async (account) => {
@@ -560,7 +575,7 @@ export default function Settings() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
               {['primary', 'secondary', 'accent'].map((key) => {
-                const defaultColors = { primary: '#7C5CFC', secondary: '#22C55E', accent: '#F97316' };
+                const defaultColors = { primary: t.primary, secondary: '#22C55E', accent: '#F97316' };
                 const val = profile.brand_colors?.[key] || defaultColors[key];
                 return (
                   <div key={key}>
@@ -671,7 +686,15 @@ export default function Settings() {
                       <config.Icon size={20} style={{ color: config.color }} />
                     </div>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{config.label}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{config.label}</div>
+                        {connected && connected.token_expires_at && (() => {
+                          const daysLeft = Math.floor((new Date(connected.token_expires_at) - new Date()) / 86400000);
+                          return daysLeft >= 0 && daysLeft <= 7
+                            ? <Badge variant="warning">Expires in {daysLeft}d</Badge>
+                            : null;
+                        })()}
+                      </div>
                       <div style={{ fontSize: 12, color: connected ? t.success : t.textMuted }}>
                         {connected ? `✓ ${connected.account_name || 'Connected'}` : config.description}
                       </div>
@@ -698,6 +721,8 @@ export default function Settings() {
         </Card>
 
       </div>
+
+      {confirmModal && <ConfirmModal {...confirmModal} onCancel={() => setConfirmModal(null)} />}
 
       {/* Manual Token Modal */}
       {setupModal && platformConfig && (

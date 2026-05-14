@@ -5,7 +5,7 @@ import {
   IpArrowLeft, IpSend,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Button, Badge, SectionHeader, StatCard, EmptyState, Spinner } from '../../components/ui';
+import { Card, Button, Badge, SectionHeader, StatCard, EmptyState, Spinner, ConfirmModal } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
@@ -29,6 +29,7 @@ export default function EmailQueuePage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [confirmModal, setConfirmModal] = useState(null);
 
   useEffect(() => {
     setMounted(true);
@@ -69,15 +70,21 @@ export default function EmailQueuePage() {
     }
   };
 
-  const handleRetryAll = async () => {
-    if (!confirm('Retry all failed emails?')) return;
-    try {
-      const res = await adminAPI.retryAllEmails();
-      showMsg('success', `${res.data.count} email(s) re-queued`);
-      load();
-    } catch (err) {
-      showMsg('error', 'Failed to retry all');
-    }
+  const handleRetryAll = () => {
+    setConfirmModal({
+      title: 'Retry All Failed Emails',
+      message: 'This will re-queue all failed emails for delivery. Continue?',
+      confirmLabel: 'Retry All',
+      onConfirm: async () => {
+        try {
+          const res = await adminAPI.retryAllEmails();
+          showMsg('success', `${res.data.count} email(s) re-queued`);
+          load();
+        } catch {
+          showMsg('error', 'Failed to retry all');
+        }
+      },
+    });
   };
 
   if (!mounted) return null;
@@ -225,6 +232,7 @@ export default function EmailQueuePage() {
           </table>
         )}
       </Card>
+      {confirmModal && <ConfirmModal {...confirmModal} onCancel={() => setConfirmModal(null)} />}
     </Layout>
   );
 }

@@ -5,11 +5,15 @@
 
 const cron = require('node-cron');
 const axios = require('axios');
+const NotificationService = require('./NotificationService');
+const EmailQueue = require('./EmailQueue');
 
 class AutoPostScheduler {
   constructor(pool) {
     this.pool = pool;
     this.running = false;
+    this.notifier = new NotificationService(pool);
+    this.emailQueue = new EmailQueue(pool);
   }
 
   start() {
@@ -35,7 +39,7 @@ class AutoPostScheduler {
 
   async getDuePosts() {
     const result = await this.pool.query(
-      `SELECT p.*, c.id AS customer_id
+      `SELECT p.*, c.id AS customer_id, c.email AS customer_email, c.business_name AS customer_business_name
        FROM posts p
        JOIN customers c ON p.customer_id = c.id
        WHERE p.status = 'scheduled'
@@ -65,7 +69,7 @@ class AutoPostScheduler {
 
       for (const account of accounts.rows) {
         try {
-          const postId = await this.postToplatform(account, post);
+          const postId = await this.postToPlatform(account, post);
           if (postId) platformPostIds[account.platform] = postId;
         } catch (err) {
           errors.push(`${account.platform}: ${err.message}`);
@@ -78,12 +82,26 @@ class AutoPostScheduler {
           `UPDATE posts SET status='failed', error_message=$1, updated_at=NOW() WHERE id=$2`,
           [errors.join('; '), post.id]
         );
+        // Notify customer of failure
+        for (const account of accounts.rows) {
+          if (errors.some(e => e.startsWith(account.platform))) {
+            this.notifier.postFailed(post.customer_id, post.id, account.platform, errors.find(e => e.startsWith(account.platform))?.split(': ')[1]);
+          }
+        }
       } else {
         await this.pool.query(
           `UPDATE posts SET status='posted', posted_at=NOW(), platform_post_ids=$1, updated_at=NOW() WHERE id=$2`,
           [JSON.stringify(platformPostIds), post.id]
         );
         console.log(`✅ Posted #${post.id} to ${Object.keys(platformPostIds).join(', ')}`);
+        // Notify customer of success for each platform (in-app + email)
+        const customerObj = { email: post.customer_email, business_name: post.customer_business_name };
+        for (const platform of Object.keys(platformPostIds)) {
+          this.notifier.postPublished(post.customer_id, post.id, platform);
+          this.emailQueue.notifyPostPublished(customerObj, platform).catch(err =>
+            console.error('[AutoPostScheduler] Failed to queue post-published email:', err.message)
+          );
+        }
       }
     } catch (error) {
       await this.pool.query(
@@ -93,7 +111,7 @@ class AutoPostScheduler {
     }
   }
 
-  async postToplatform(account, post) {
+  async postToPlatform(account, post) {
     switch (account.platform) {
       case 'facebook': return await this.postToFacebook(account, post);
       case 'instagram': return await this.postToInstagram(account, post);
@@ -186,8 +204,13 @@ class AutoPostScheduler {
   buildCaption(post) {
     let text = post.caption || '';
     if (post.hashtags) {
-      const tags = Array.isArray(post.hashtags) ? post.hashtags : JSON.parse(post.hashtags);
-      if (tags.length > 0) text += '\n\n' + tags.map((t) => (t.startsWith('#') ? t : `#${t}`)).join(' ');
+      let tags = [];
+      try {
+        tags = Array.isArray(post.hashtags) ? post.hashtags : JSON.parse(post.hashtags);
+      } catch { tags = []; }
+      if (Array.isArray(tags) && tags.length > 0) {
+        text += '\n\n' + tags.map((t) => (t.startsWith('#') ? t : `#${t}`)).join(' ');
+      }
     }
     return text;
   }

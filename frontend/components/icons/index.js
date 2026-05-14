@@ -174,13 +174,13 @@ export function IpLogout({ size = 20, color = 'currentColor', strokeWidth = 1.75
   );
 }
 
-// ── Platform Icons (abstract branded — NOT actual logos) ──────────────────────
+// ── Platform Icons (real brand logos) ────────────────────────────────────────
 
 export function IpFacebook({ size = 20, style, className }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="5" fill="#1877F2" fillOpacity="0.15" stroke="#1877F2" strokeWidth="1.5" />
-      <path d="M15 8h-2a1 1 0 0 0-1 1v2.5h3l-.5 2.5H12V19H9.5v-5H8v-2.5h1.5V9a3.5 3.5 0 0 1 3.5-3.5H15V8z" fill="white" />
+      <rect width="24" height="24" rx="5" fill="#1877F2"/>
+      <path d="M14 5.5h-1.5C10.57 5.5 9 7.07 9 9V11H7v3h2v7.5h3V14h2.5l.5-3H12V9c0-.276.224-.5.5-.5H14V5.5z" fill="white"/>
     </svg>
   );
 }
@@ -189,14 +189,17 @@ export function IpInstagram({ size = 20, style, className }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
       <defs>
-        <linearGradient id="igBorderGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#9450E6" />
-          <stop offset="100%" stopColor="#CD4B91" />
-        </linearGradient>
+        <radialGradient id="igGrad" cx="25%" cy="105%" r="130%">
+          <stop offset="0%" stopColor="#FCAF45"/>
+          <stop offset="30%" stopColor="#E1306C"/>
+          <stop offset="65%" stopColor="#833AB4"/>
+          <stop offset="100%" stopColor="#405DE6"/>
+        </radialGradient>
       </defs>
-      <rect x="2" y="2" width="20" height="20" rx="5" fill="#CD4B91" fillOpacity="0.12" stroke="url(#igBorderGrad)" strokeWidth="1.5" />
-      <rect x="7" y="7" width="10" height="10" rx="3" stroke="white" strokeWidth="1.5" />
-      <circle cx="17.5" cy="6.5" r="1" fill="white" />
+      <rect width="24" height="24" rx="5" fill="url(#igGrad)"/>
+      <rect x="5" y="5" width="14" height="14" rx="4" stroke="white" strokeWidth="1.75"/>
+      <circle cx="12" cy="12" r="3.5" stroke="white" strokeWidth="1.75"/>
+      <circle cx="17" cy="7" r="1.1" fill="white"/>
     </svg>
   );
 }
@@ -204,8 +207,11 @@ export function IpInstagram({ size = 20, style, className }) {
 export function IpGoogle({ size = 20, style, className }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="5" fill="#4285F4" fillOpacity="0.15" stroke="#4285F4" strokeWidth="1.5" />
-      <path d="M17 12h-5v2.5h2.8A3 3 0 1 1 12 9a3 3 0 0 1 2 .77l1.8-1.8A5.5 5.5 0 1 0 17.5 12H17z" fill="white" />
+      <rect width="24" height="24" rx="5" fill="white" stroke="#DADCE0" strokeWidth="1"/>
+      <path d="M21.5 12.2c0-.7-.1-1.3-.2-1.9H12v3.6h5.3c-.2 1.1-.9 2.1-1.9 2.8v2.3h3.1c1.8-1.6 2.9-4 2.9-6.8z" fill="#4285F4"/>
+      <path d="M12 22c2.7 0 5-.9 6.5-2.4l-3.1-2.3c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.2H3.2v2.4C4.8 19.8 8.2 22 12 22z" fill="#34A853"/>
+      <path d="M6.4 14.1c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.8H3.2A9.1 9.1 0 0 0 2.9 12c0 1.5.3 2.9.3 4.3l3.2-2.2z" fill="#FBBC05"/>
+      <path d="M12 5.8c1.5 0 2.8.5 3.8 1.5l2.9-2.9C17 2.8 14.7 2 12 2 8.2 2 4.8 4.2 3.2 7.8l3.2 2.3C7.2 7.6 9.4 5.8 12 5.8z" fill="#EA4335"/>
     </svg>
   );
 }
@@ -961,10 +967,10 @@ export function IpBriefcase({ size = 20, color = 'currentColor', strokeWidth = 1
 export function IpLinkedIn({ size = 20, style, className }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="4" fill="#0A66C2" fillOpacity="0.15" stroke="#0A66C2" strokeWidth="1.5" />
-      <line x1="7" y1="10" x2="7" y2="17" stroke="white" strokeWidth="1.75" strokeLinecap="round" />
-      <circle cx="7" cy="7" r="1" fill="white" />
-      <path d="M11 10v7M11 13a3 3 0 0 1 6 0v4" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      <rect width="24" height="24" rx="4" fill="#0A66C2"/>
+      <circle cx="6.5" cy="7.5" r="1.5" fill="white"/>
+      <rect x="5" y="10.5" width="3" height="9" rx="0.5" fill="white"/>
+      <path d="M11 10.5h2.8v1.4c.6-1 1.7-1.7 3.2-1.7 2.2 0 3.5 1.5 3.5 4v5.3H17.7v-4.8c0-1.3-.6-2-1.8-2s-2 .8-2 2.2v4.6H11V10.5z" fill="white"/>
     </svg>
   );
 }
@@ -972,8 +978,13 @@ export function IpLinkedIn({ size = 20, style, className }) {
 export function IpTikTok({ size = 20, style, className }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="4" fill="#111" fillOpacity="0.8" stroke="#444" strokeWidth="1.5" />
-      <path d="M10 17a4 4 0 1 0 4-4V6l2 1.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+      <rect width="24" height="24" rx="5" fill="#010101"/>
+      {/* Cyan shadow layer */}
+      <path d="M9.5 15a2.5 2.5 0 1 0 2.5 2.5V5h2c.3 1.5 1.5 2.7 3 3v2a5 5 0 0 1-3-1V17a5 5 0 1 1-4.5-5z" fill="#25F4EE" transform="translate(-0.6 -0.6)"/>
+      {/* Pink shadow layer */}
+      <path d="M9.5 15a2.5 2.5 0 1 0 2.5 2.5V5h2c.3 1.5 1.5 2.7 3 3v2a5 5 0 0 1-3-1V17a5 5 0 1 1-4.5-5z" fill="#FE2C55" transform="translate(0.6 0.6)"/>
+      {/* White foreground */}
+      <path d="M9.5 15a2.5 2.5 0 1 0 2.5 2.5V5h2c.3 1.5 1.5 2.7 3 3v2a5 5 0 0 1-3-1V17a5 5 0 1 1-4.5-5z" fill="white"/>
     </svg>
   );
 }

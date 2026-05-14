@@ -6,6 +6,7 @@ import {
 import Layout from '../../components/Layout';
 import { Card, Badge, SectionHeader, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
+import { adminAPI } from '../../lib/api';
 
 const ACTION_VARIANT = {
   adjust_credits: 'success',
@@ -45,22 +46,17 @@ export default function AuditLog() {
     setMounted(true);
     const token = localStorage.getItem('token');
     if (!token) { router.replace('/login'); return; }
-    loadData(token);
+    loadData();
   }, []);
 
-  const loadData = async (token) => {
+  const loadData = async () => {
     setLoading(true);
     setError('');
     try {
-      const tok = token || localStorage.getItem('token');
-      const res = await fetch('/api/admin/audit?limit=100', {
-        headers: { Authorization: `Bearer ${tok}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const { data } = await adminAPI.getAuditLog({ limit: 100 });
       setEntries(Array.isArray(data) ? data : (data.entries || []));
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }

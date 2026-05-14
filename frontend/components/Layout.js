@@ -5,9 +5,10 @@ import {
   IpDashboard, IpWizard, IpSparkle, IpCreatePost, IpCalendar, IpDrafts,
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon, IpLogout,
-  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness,
+  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpTrendingUp,
 } from './icons';
 import { useTheme } from '../lib/theme';
+import { dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
 import NotificationBell from './NotificationBell';
 import { ItsPostingLogo } from './ItsPostingLogo';
 
@@ -20,9 +21,12 @@ const NAV_ITEMS = [
   { name: 'Drafts',      href: '/history',    icon: IpDrafts },
   { name: 'Media Library', href: '/media',    icon: IpMediaLibrary },
   { name: 'Analytics',      href: '/analytics',      icon: IpAnalytics },
+  { name: 'Reports',        href: '/reports',        icon: IpDrafts },
+  { name: 'ROI Estimator',  href: '/roi',            icon: IpTrendingUp },
   { name: 'Inbox',          href: '/inbox',          icon: IpInbox, badgeKey: 'dmUnread' },
   { name: 'Teach PostCore', href: '/knowledge-base', icon: IpBusiness },
   { name: 'Contacts',   href: '/contacts',   icon: IpTeam },
+  { name: 'Workspaces', href: '/workspaces', icon: IpTeam, isWorkspaceNav: true },
   { name: 'Billing',    href: '/billing',    icon: IpBilling },
   { name: 'Settings',   href: '/settings',   icon: IpSettings },
 ];
@@ -36,6 +40,9 @@ export default function Layout({ children, title, subtitle, action }) {
   const [dmUnread, setDmUnread] = useState(0);
   const [unseenSugg, setUnseenSugg] = useState(0);
   const [hasToken, setHasToken] = useState(false);
+  const [wsData, setWsData] = useState(null);
+  const [wsDropdownOpen, setWsDropdownOpen] = useState(false);
+  const [switchingWs, setSwitchingWs] = useState(null);
 
   useEffect(() => {
     const updateMobile = () => setIsMobile(window.innerWidth < 900);
@@ -56,17 +63,40 @@ export default function Layout({ children, title, subtitle, action }) {
         })
         .then((d) => d && d.customer && setUser(d.customer))
         .catch(() => {});
-      fetch('/api/dms/stats', { headers })
-        .then((r) => r.ok ? r.json() : null)
-        .then((d) => d && setDmUnread(d.unreadCount || 0))
+      dmsAPI.getStats()
+        .then((r) => setDmUnread(r.data?.unreadCount || 0))
         .catch(() => {});
-      fetch('/api/suggestions/count', { headers })
-        .then((r) => r.ok ? r.json() : null)
-        .then((d) => d && setUnseenSugg(d.count || 0))
+      suggestionsAPI.getCount()
+        .then((r) => setUnseenSugg(r.data?.count || 0))
+        .catch(() => {});
+      workspacesAPI.list()
+        .then((r) => r.data && setWsData(r.data))
         .catch(() => {});
     }
     return () => window.removeEventListener('resize', updateMobile);
   }, []);
+
+  async function switchToWorkspace(wsId) {
+    setSwitchingWs(wsId);
+    try {
+      const { data } = await workspacesAPI.switchTo(wsId);
+      localStorage.setItem('token', data.token);
+      window.location.href = '/dashboard';
+    } catch { /* swallow */ } finally {
+      setSwitchingWs(null);
+    }
+  }
+
+  async function switchToMain() {
+    setSwitchingWs('main');
+    try {
+      const { data } = await workspacesAPI.switchToMain();
+      localStorage.setItem('token', data.token);
+      window.location.href = '/dashboard';
+    } catch { /* swallow */ } finally {
+      setSwitchingWs(null);
+    }
+  }
 
   const badges = { dmUnread, unseenSugg };
 
@@ -77,14 +107,18 @@ export default function Layout({ children, title, subtitle, action }) {
 
   const sidebarWidth = 240;
 
+  // Hide Workspaces nav item when operating inside a workspace (not the main account)
+  const isInWorkspace = wsData?.mainAccount && wsData.mainAccount.id !== user?.id;
+  const baseNavItems = NAV_ITEMS.filter(item => !(item.isWorkspaceNav && isInWorkspace));
+
   // Nav items + conditionally add admin link for admins
   const navItems = user?.is_admin
-    ? [...NAV_ITEMS,
+    ? [...baseNavItems,
         { name: 'Admin Portal', href: '/admin', icon: IpAdmin, isAdmin: true },
         { name: 'Email Queue', href: '/admin/email-queue', icon: IpMail, isAdmin: true },
         { name: 'Audit Log', href: '/admin/audit', icon: IpAdmin, isAdmin: true },
       ]
-    : NAV_ITEMS;
+    : baseNavItems;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: t.bg, color: t.text }}>
@@ -130,17 +164,118 @@ export default function Layout({ children, title, subtitle, action }) {
 
         {/* WORKSPACE SWITCHER */}
         {!isMobile && user && (
-          <div style={{ padding: '12px', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8, background: t.card, border: `1px solid ${t.border}`, cursor: 'pointer' }}>
+          <div style={{ padding: '12px', borderBottom: `1px solid ${t.border}`, flexShrink: 0, position: 'relative' }}>
+            <div
+              onClick={() => setWsDropdownOpen((v) => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8, background: t.card, border: `1px solid ${wsDropdownOpen ? t.primaryBorder : t.border}`, cursor: 'pointer', transition: 'border-color 150ms' }}
+            >
               <div style={{ width: 32, height: 32, borderRadius: 6, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff', flexShrink: 0 }}>
                 {(user.business_name || 'W').charAt(0).toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.business_name || 'Workspace'}</div>
-                <div style={{ fontSize: 11, color: t.textMuted }}>{user.industry || 'Business'}</div>
+                <div style={{ fontSize: 11, color: t.textMuted }}>{wsData?.mainAccount && wsData.mainAccount.id !== user.id ? 'Workspace' : (user.industry || 'Main account')}</div>
               </div>
-              <IpChevronsUpDown size={14} style={{ color: t.textMuted, flexShrink: 0 }} />
+              <IpChevronsUpDown size={14} color={t.textMuted} style={{ flexShrink: 0 }} />
             </div>
+
+            {wsDropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute', top: 'calc(100% - 4px)', left: 12, right: 12,
+                  background: t.card, border: `1px solid ${t.border}`, borderRadius: 10,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.16)', zIndex: 200, overflow: 'hidden',
+                }}
+              >
+                {/* Close dropdown on outside click */}
+                <div
+                  style={{ position: 'fixed', inset: 0, zIndex: -1 }}
+                  onClick={() => setWsDropdownOpen(false)}
+                />
+                <div style={{ padding: '6px 10px 4px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                  Switch workspace
+                </div>
+
+                {/* Main account row */}
+                {wsData?.mainAccount && (
+                  <button
+                    onClick={() => {
+                      if (wsData.mainAccount.id === user.id) { setWsDropdownOpen(false); return; }
+                      setWsDropdownOpen(false);
+                      switchToMain();
+                    }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 10px', background: wsData.mainAccount.id === user.id ? t.primaryBg : 'transparent',
+                      border: 'none', cursor: wsData.mainAccount.id === user.id ? 'default' : 'pointer',
+                      borderRadius: 6, transition: 'background 150ms',
+                    }}
+                    onMouseEnter={(e) => { if (wsData.mainAccount.id !== user.id) e.currentTarget.style.background = t.cardHover; }}
+                    onMouseLeave={(e) => { if (wsData.mainAccount.id !== user.id) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #FB923C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                      {(wsData.mainAccount.business_name || 'M').charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wsData.mainAccount.business_name}</div>
+                      <div style={{ fontSize: 10, color: t.textMuted }}>Main account</div>
+                    </div>
+                    {wsData.mainAccount.id === user.id && switchingWs !== 'main' && (
+                      <span style={{ fontSize: 10, color: t.primary, fontWeight: 700 }}>Active</span>
+                    )}
+                    {switchingWs === 'main' && <span style={{ fontSize: 10, color: t.textMuted }}>Switching…</span>}
+                  </button>
+                )}
+
+                {/* Workspace rows */}
+                {wsData?.workspaces?.filter(ws => ws.status !== 'inactive').map((ws) => (
+                  <button
+                    key={ws.id}
+                    onClick={() => {
+                      if (ws.id === user.id) { setWsDropdownOpen(false); return; }
+                      setWsDropdownOpen(false);
+                      switchToWorkspace(ws.id);
+                    }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 10px', background: ws.id === user.id ? t.primaryBg : 'transparent',
+                      border: 'none', cursor: ws.id === user.id ? 'default' : 'pointer',
+                      borderRadius: 6, transition: 'background 150ms',
+                    }}
+                    onMouseEnter={(e) => { if (ws.id !== user.id) e.currentTarget.style.background = t.cardHover; }}
+                    onMouseLeave={(e) => { if (ws.id !== user.id) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                      {(ws.workspace_display_name || ws.business_name || 'W').charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.workspace_display_name || ws.business_name}</div>
+                      <div style={{ fontSize: 10, color: t.textMuted }}>Workspace</div>
+                    </div>
+                    {ws.id === user.id && <span style={{ fontSize: 10, color: t.primary, fontWeight: 700 }}>Active</span>}
+                    {switchingWs === ws.id && <span style={{ fontSize: 10, color: t.textMuted }}>Switching…</span>}
+                  </button>
+                ))}
+
+                {/* Add workspace / Manage */}
+                <div style={{ borderTop: `1px solid ${t.border}`, padding: '6px 8px 8px', display: 'flex', gap: 6 }}>
+                  {wsData && wsData.workspaces && (wsData.workspaces.filter(w => w.status !== 'inactive').length + 1) < (wsData.planLimit || 1) && (
+                    <button
+                      onClick={() => { setWsDropdownOpen(false); router.push('/workspaces'); }}
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 10px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 7, color: t.primary, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      <IpPlus size={12} /> Add workspace
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setWsDropdownOpen(false); router.push('/workspaces'); }}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 10px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 7, color: t.textSecondary, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Manage
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

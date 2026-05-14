@@ -11,6 +11,7 @@ const ClaudeService = require('./ClaudeService');
 const NanoBananaService = require('./NanoBananaService');
 const MidjourneyService = require('./MidjourneyService');
 const HeyGenService = require('./HeyGenService');
+const VideoService = require('./VideoService');
 
 const CREDIT_COSTS = {
   static: 1,
@@ -52,8 +53,13 @@ class ManualContentGenerator {
   /**
    * Generate content from user prompt
    */
-  async generateFromPrompt(customerId, contentType, prompt, options = {}) {
-    // 1. Validate credits
+  async generateFromPrompt(customerId, contentType, prompt, options = {}, billingCustomerId = null) {
+    // 1. Validate credits — always check against the billing account (parent if workspace)
+    const effectiveBillingId = billingCustomerId || customerId;
+    const billingCustomer = effectiveBillingId !== customerId
+      ? await this.getCustomer(effectiveBillingId)
+      : null;
+
     const customer = await this.getCustomer(customerId);
     const creditCost = CREDIT_COSTS[contentType];
 
@@ -61,8 +67,9 @@ class ManualContentGenerator {
       throw new Error(`Invalid content type: ${contentType}`);
     }
 
-    if (customer.credits_balance < creditCost) {
-      throw new Error(`Insufficient credits. Need ${creditCost}, have ${customer.credits_balance}`);
+    const creditsSource = billingCustomer || customer;
+    if (creditsSource.credits_balance < creditCost) {
+      throw new Error(`Insufficient credits. Need ${creditCost}, have ${creditsSource.credits_balance}`);
     }
 
     // Resolve platforms — frontend may send platforms[] or platform string
@@ -91,8 +98,8 @@ class ManualContentGenerator {
         throw new Error(`Unsupported content type: ${contentType}`);
     }
 
-    // 3. Save to database & deduct credits
-    const post = await this.savePost(customer, contentType, prompt, result, creditCost, platformsArr, primaryPlatform);
+    // 3. Save to database & deduct credits from billing account
+    const post = await this.savePost(customer, contentType, prompt, result, creditCost, platformsArr, primaryPlatform, effectiveBillingId);
 
     // 4. Persist A/B/C variations to post_variations table (non-fatal if fails)
     if (result.variations && post.id) {
@@ -105,7 +112,7 @@ class ManualContentGenerator {
       ...result,
       postId: post.id,
       creditsUsed: creditCost,
-      creditsRemaining: customer.credits_balance - creditCost,
+      creditsRemaining: creditsSource.credits_balance - creditCost,
     };
   }
 
@@ -232,21 +239,27 @@ class ManualContentGenerator {
   }
 
   /**
-   * Generate video
+   * Generate video — routes to avatar (HeyGen) or services (NanoBanana → Veo) via VideoService
    */
-  async generateVideo(customer, prompt, options) {
+  async generateVideo(customer, prompt, options = {}) {
     // 1. Generate script with Claude
     const scriptData = await this.claude.generateVideoScript(customer, prompt, options.duration || 30);
 
+    const videoService = new VideoService();
+    const videoType = options.videoType || 'services';
+    const aspectRatio = options.aspectRatio || '9:16';
+    const imagePrompt = `Professional ${customer.industry || 'home services'} business scene: ${scriptData.script.substring(0, 120)}`;
+
     let videoResult = null;
-    if (process.env.HEYGEN_API_KEY) {
-      try {
-        videoResult = await this.heygen.generateFromScript(customer, scriptData.script, options);
-      } catch (err) {
-        console.error('[ManualContentGenerator] heygen video generation failed:', err.message || err);
-      }
-    } else {
-      console.warn('[ManualContentGenerator] HEYGEN_API_KEY not configured, skipping video generation');
+    try {
+      videoResult = await videoService.generate(customer, scriptData.script, {
+        videoType,
+        imagePrompt,
+        aspectRatio,
+        durationSeconds: 7,
+      });
+    } catch (err) {
+      console.error('[ManualContentGenerator] Video generation failed:', err.message || err);
     }
 
     return {
@@ -255,16 +268,16 @@ class ManualContentGenerator {
       hashtags: scriptData.hashtags,
       script: scriptData.script,
       mediaUrl: videoResult?.url || null,
-      provider: videoResult?.provider || 'heygen',
+      provider: videoResult?.provider || 'none',
       model: videoResult?.model || null,
-      videoError: videoResult ? null : 'HeyGen video was unavailable. Set HEYGEN_API_KEY to enable video generation.',
+      videoError: videoResult ? null : 'Video generation unavailable. Please try again or contact support.',
     };
   }
 
   /**
    * Save post to database & deduct credits
    */
-  async savePost(customer, contentType, prompt, result, creditCost, platforms = ['facebook'], primaryPlatform = 'facebook') {
+  async savePost(customer, contentType, prompt, result, creditCost, platforms = ['facebook'], primaryPlatform = 'facebook', billingCustomerId = null) {
     const client = await this.pool.connect();
 
     try {
@@ -310,23 +323,29 @@ class ManualContentGenerator {
         }
       }
 
-      // Deduct credits
-      const newBalance = customer.credits_balance - creditCost;
+      // Deduct credits from billing account (parent if workspace, else same customer)
+      const creditAccountId = billingCustomerId || customer.id;
+      const balanceRow = await client.query(
+        `SELECT credits_balance FROM customers WHERE id = $1`,
+        [creditAccountId]
+      );
+      const currentBalance = balanceRow.rows[0]?.credits_balance || 0;
+      const newBalance = currentBalance - creditCost;
       await client.query(
-        `UPDATE customers 
-        SET credits_balance = $1, 
+        `UPDATE customers
+        SET credits_balance = $1,
             credits_used_this_month = credits_used_this_month + $2
         WHERE id = $3`,
-        [newBalance, creditCost, customer.id]
+        [newBalance, creditCost, creditAccountId]
       );
 
       // Log transaction
       await client.query(
-        `INSERT INTO credit_transactions 
+        `INSERT INTO credit_transactions
         (customer_id, post_id, transaction_type, amount, balance_after, description)
         VALUES ($1, $2, $3, $4, $5, $6)`,
         [
-          customer.id,
+          creditAccountId,
           post.id,
           'debit',
           -creditCost,

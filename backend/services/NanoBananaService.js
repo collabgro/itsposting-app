@@ -264,9 +264,13 @@ class NanoBananaService {
 
     // Add aspect ratio hint
     if (options.aspectRatio === '9:16') {
-      enhanced += ', vertical portrait orientation';
+      enhanced += ', vertical portrait orientation, 9:16 aspect ratio, mobile-first framing';
     } else if (options.aspectRatio === '16:9') {
-      enhanced += ', horizontal landscape orientation';
+      enhanced += ', horizontal landscape orientation, 16:9 widescreen composition';
+    } else if (options.aspectRatio === '4:5') {
+      enhanced += ', portrait orientation, 4:5 aspect ratio, ideal Instagram and Google Business feed framing';
+    } else if (options.aspectRatio === '1:1') {
+      enhanced += ', square composition, 1:1 aspect ratio, clean centered framing';
     } else {
       enhanced += ', square 1:1 composition';
     }

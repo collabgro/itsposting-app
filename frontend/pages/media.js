@@ -5,7 +5,7 @@ import {
   IpFolderOpen, IpClose, IpCheck, IpHardDrive, IpFolderPlus,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Badge, EmptyState, Spinner } from '../components/ui';
+import { Card, Button, Badge, EmptyState, Spinner, useToast, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { mediaAPI } from '../lib/api';
 
@@ -40,11 +40,12 @@ export default function MediaLibrary() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [confirmModal, setConfirmModal] = useState(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
-    // Load custom (empty) folders from localStorage
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
       setCustomFolders(Array.isArray(stored) ? stored : []);
@@ -95,6 +96,14 @@ export default function MediaLibrary() {
     return merged;
   })();
 
+  // Files not assigned to any named folder — shown in the root "Files" section
+  const folderNamesSet = new Set(allFolders.map(f => f.folder));
+  const looseFiles = filterFolder === 'all'
+    ? files.filter(f => !f.folder || !folderNamesSet.has(f.folder))
+    : files;
+  // What the select-all / bulk controls operate on
+  const displayFiles = filterFolder === 'all' ? looseFiles : files;
+
   const handleCreateFolder = () => {
     const name = newFolderName.trim().replace(/[^a-zA-Z0-9_\- ]/g, '').trim();
     if (!name) return;
@@ -123,7 +132,6 @@ export default function MediaLibrary() {
     try {
       const res = await mediaAPI.upload(selected, filterFolder, setUploadProgress);
       setMessage({ type: 'success', text: `Uploaded ${res.data.uploaded} file(s) (${res.data.totalSizeUploaded})` });
-      // If uploading to a custom folder, it now has files — reload all
       await loadAll();
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     } catch (err) {
@@ -137,27 +145,42 @@ export default function MediaLibrary() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this file? This cannot be undone.')) return;
-    try {
-      await mediaAPI.delete(id);
-      setMessage({ type: 'success', text: 'File deleted' });
-      await loadAll();
-      setTimeout(() => setMessage({ type: '', text: '' }), 2000);
-    } catch (err) {
-      setMessage({ type: 'error', text: 'Delete failed' });
-    }
+  const handleDelete = (id) => {
+    setConfirmModal({
+      title: 'Delete File',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        try {
+          await mediaAPI.delete(id);
+          showToast('File deleted', 'success');
+          await loadAll();
+        } catch {
+          showToast('Delete failed', 'error');
+        }
+      },
+    });
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Delete ${selectedIds.size} file(s)?`)) return;
-    try {
-      await Promise.all(Array.from(selectedIds).map((id) => mediaAPI.delete(id)));
-      setMessage({ type: 'success', text: `Deleted ${selectedIds.size} file(s)` });
-      setSelectedIds(new Set());
-      await loadAll();
-    } catch (err) { setMessage({ type: 'error', text: 'Some deletions failed' }); }
+    setConfirmModal({
+      title: 'Delete Files',
+      message: `Delete ${selectedIds.size} file${selectedIds.size !== 1 ? 's' : ''}? This cannot be undone.`,
+      confirmLabel: 'Delete All',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        try {
+          await Promise.all(Array.from(selectedIds).map((id) => mediaAPI.delete(id)));
+          showToast(`Deleted ${selectedIds.size} file${selectedIds.size !== 1 ? 's' : ''}`, 'success');
+          setSelectedIds(new Set());
+          await loadAll();
+        } catch {
+          showToast('Some deletions failed', 'error');
+        }
+      },
+    });
   };
 
   const toggleSelect = (id) => {
@@ -171,6 +194,85 @@ export default function MediaLibrary() {
   const msgColor = { error: t.error, success: t.success, info: t.primary };
 
   if (!mounted) return null;
+
+  // Reusable file card renderer
+  const renderFileGrid = (fileList, emptyTitle, emptySubtitle) => {
+    if (fileList.length === 0) {
+      return (
+        <Card>
+          <EmptyState
+            icon={IpFolderOpen}
+            title={emptyTitle}
+            subtitle={emptySubtitle}
+            action={
+              <Button variant="primary" onClick={() => fileInputRef.current?.click()}>
+                <IpPublish size={14} strokeWidth={2.5} /> Upload files{filterFolder !== 'all' ? ` to "${filterFolder}"` : ''}
+              </Button>
+            }
+          />
+        </Card>
+      );
+    }
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+        {fileList.map((file) => {
+          const isSelected = selectedIds.has(file.id);
+          return (
+            <div
+              key={file.id}
+              onClick={() => setPreviewFile(file)}
+              style={{ background: t.card, border: `2px solid ${isSelected ? t.primary : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'all 150ms ease', position: 'relative' }}
+              onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.borderColor = t.primaryBorder; }}
+              onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.borderColor = t.border; }}
+            >
+              {/* CHECKBOX */}
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleSelect(file.id); }}
+                style={{ position: 'absolute', top: 8, left: 8, width: 22, height: 22, borderRadius: 6, background: isSelected ? t.primary : 'rgba(0,0,0,0.5)', border: `1px solid ${isSelected ? t.primary : '#fff'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', zIndex: 2 }}
+              >
+                {isSelected && <IpCheck size={14} strokeWidth={3} />}
+              </button>
+
+              {/* TYPE BADGE */}
+              <div style={{ position: 'absolute', top: 8, right: 8, padding: '3px 8px', background: 'rgba(0,0,0,0.7)', color: '#fff', borderRadius: 6, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, zIndex: 2 }}>
+                {file.file_type === 'video' ? <IpVideo size={10} /> : <ImageIcon size={10} />}
+                {file.file_type}
+              </div>
+
+              {/* THUMBNAIL */}
+              <div style={{ aspectRatio: '1/1', background: t.input, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {file.file_type === 'video' ? (
+                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <img src={file.thumbnail_url} alt={file.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => (e.currentTarget.style.display = 'none')} />
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: 3 }}>▶</div>
+                    </div>
+                  </div>
+                ) : (
+                  <img src={file.url} alt={file.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                )}
+              </div>
+
+              {/* INFO */}
+              <div style={{ padding: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.file_name}>
+                  {file.file_name}
+                </div>
+                <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>
+                  {formatBytes(file.file_size_bytes)}{file.used_in_posts > 0 && ` · Used ${file.used_in_posts}x`}
+                </div>
+                {file.folder && file.folder !== 'all' && (
+                  <div style={{ fontSize: 10, color: t.primary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <IpFolderOpen size={9} /> {file.folder}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <Layout
@@ -224,142 +326,119 @@ export default function MediaLibrary() {
         </Card>
       )}
 
-      {/* FOLDERS SIDEBAR + FILTERS */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 20, alignItems: 'flex-start' }}>
-
-        {/* Folder list */}
-        {allFolders.length > 1 && (
-          <div style={{ width: 180, flexShrink: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Folders</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {allFolders.map((f) => (
-                <button
-                  key={f.folder}
-                  onClick={() => setFilterFolder(f.folder)}
-                  style={{
-                    padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 500,
-                    color: filterFolder === f.folder ? t.primary : t.textSecondary,
-                    background: filterFolder === f.folder ? t.primaryBg : 'transparent',
-                    border: filterFolder === f.folder ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
-                    cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6,
-                    transition: 'all 150ms',
-                  }}
-                  onMouseEnter={e => { if (filterFolder !== f.folder) e.currentTarget.style.background = t.input; }}
-                  onMouseLeave={e => { if (filterFolder !== f.folder) e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <IpFolderOpen size={13} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 100 }}>
-                      {f.folder === 'all' ? 'All Files' : f.folder}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: 10, padding: '1px 5px', background: t.input, borderRadius: 9, color: t.textMuted, flexShrink: 0 }}>
-                    {f.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* FILTERS + BREADCRUMB */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+        {/* Back to All Files when inside a folder */}
+        {filterFolder !== 'all' && (
+          <button
+            onClick={() => setFilterFolder('all')}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, transition: 'color 150ms' }}
+            onMouseEnter={e => e.currentTarget.style.color = t.text}
+            onMouseLeave={e => e.currentTarget.style.color = t.textSecondary}
+          >
+            ← All Files
+          </button>
         )}
 
-        {/* Search + type filter */}
-        <div style={{ flex: 1, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 320 }}>
-            <IpSearch size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted }} />
-            <input
-              type="text" placeholder="Search files..." value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ width: '100%', padding: '8px 12px 8px 34px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13 }}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: 4, background: t.input, padding: 3, borderRadius: 8 }}>
-            {[{ id: 'all', label: 'All' }, { id: 'image', label: 'Images' }, { id: 'video', label: 'Videos' }].map((opt) => (
-              <button key={opt.id} onClick={() => setFilterType(opt.id)} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500, color: filterType === opt.id ? t.text : t.textMuted, background: filterType === opt.id ? t.card : 'transparent', cursor: 'pointer' }}>
-                {opt.label}
-              </button>
-            ))}
-          </div>
+        {/* Select-all toggle — operates on visible files only */}
+        {displayFiles.length > 0 && (
+          <button
+            onClick={() => setSelectedIds(selectedIds.size === displayFiles.length ? new Set() : new Set(displayFiles.map(f => f.id)))}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: selectedIds.size > 0 ? t.primaryBg : t.input, border: `1px solid ${selectedIds.size > 0 ? t.primaryBorder : t.border}`, borderRadius: 8, color: selectedIds.size > 0 ? t.primary : t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          >
+            <div style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${selectedIds.size > 0 ? t.primary : t.border}`, background: selectedIds.size === displayFiles.length ? t.primary : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {selectedIds.size === displayFiles.length && <IpCheck size={9} color="#fff" strokeWidth={3} />}
+              {selectedIds.size > 0 && selectedIds.size < displayFiles.length && <div style={{ width: 6, height: 1.5, background: t.primary }} />}
+            </div>
+            {selectedIds.size === displayFiles.length ? 'Deselect all' : 'Select all'}
+          </button>
+        )}
+
+        {/* Search */}
+        <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 320 }}>
+          <IpSearch size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted }} />
+          <input
+            type="text" placeholder="Search files..." value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: '100%', padding: '8px 12px 8px 34px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13 }}
+          />
+        </div>
+
+        {/* Type filter */}
+        <div style={{ display: 'flex', gap: 4, background: t.input, padding: 3, borderRadius: 8 }}>
+          {[{ id: 'all', label: 'All' }, { id: 'image', label: 'Images' }, { id: 'video', label: 'Videos' }].map((opt) => (
+            <button key={opt.id} onClick={() => setFilterType(opt.id)} style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500, color: filterType === opt.id ? t.text : t.textMuted, background: filterType === opt.id ? t.card : 'transparent', cursor: 'pointer' }}>
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* FILE GRID */}
+      {/* MAIN CONTENT */}
       {loading ? (
         <Card>
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
             <Spinner size={48} />
           </div>
         </Card>
-      ) : files.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={IpFolderOpen}
-            title={filterFolder !== 'all' ? `No files in "${filterFolder}"` : 'No media yet'}
-            subtitle={filterFolder !== 'all' ? 'Upload files to this folder using the Upload button above' : 'Upload images and videos to use in your posts'}
-            action={
-              <Button variant="primary" onClick={() => fileInputRef.current?.click()}>
-                <IpPublish size={14} strokeWidth={2.5} /> Upload files{filterFolder !== 'all' ? ` to "${filterFolder}"` : ''}
-              </Button>
-            }
-          />
-        </Card>
+      ) : filterFolder !== 'all' ? (
+        /* ── FOLDER VIEW: just show files in this folder ── */
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <IpFolderOpen size={18} color={t.primary} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{filterFolder}</span>
+            <span style={{ fontSize: 12, color: t.textMuted }}>· {files.length} {files.length === 1 ? 'file' : 'files'}</span>
+          </div>
+          {renderFileGrid(
+            files,
+            `No files in "${filterFolder}"`,
+            'Upload files to this folder using the Upload button above'
+          )}
+        </>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-          {files.map((file) => {
-            const isSelected = selectedIds.has(file.id);
-            return (
-              <div
-                key={file.id}
-                onClick={() => setPreviewFile(file)}
-                style={{ background: t.card, border: `2px solid ${isSelected ? t.primary : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'all 150ms ease', position: 'relative' }}
-                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.borderColor = t.primaryBorder; }}
-                onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.borderColor = t.border; }}
-              >
-                {/* CHECKBOX */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleSelect(file.id); }}
-                  style={{ position: 'absolute', top: 8, left: 8, width: 22, height: 22, borderRadius: 6, background: isSelected ? t.primary : 'rgba(0,0,0,0.5)', border: `1px solid ${isSelected ? t.primary : '#fff'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', zIndex: 2 }}
+        /* ── ROOT VIEW: folders first, then loose files ── */
+        <>
+          {/* FOLDER TILES */}
+          {allFolders.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 8 }}>
+              {allFolders.map((f) => (
+                <div
+                  key={f.folder}
+                  onClick={() => setFilterFolder(f.folder)}
+                  style={{ background: t.card, border: `2px solid ${t.border}`, borderRadius: 12, cursor: 'pointer', transition: 'all 150ms ease', padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 110 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; }}
                 >
-                  {isSelected && <IpCheck size={14} strokeWidth={3} />}
-                </button>
-
-                {/* TYPE BADGE */}
-                <div style={{ position: 'absolute', top: 8, right: 8, padding: '3px 8px', background: 'rgba(0,0,0,0.7)', color: '#fff', borderRadius: 6, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, zIndex: 2 }}>
-                  {file.file_type === 'video' ? <IpVideo size={10} /> : <ImageIcon size={10} />}
-                  {file.file_type}
-                </div>
-
-                {/* THUMBNAIL */}
-                <div style={{ aspectRatio: '1/1', background: t.input, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                  {file.file_type === 'video' ? (
-                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                      <img src={file.thumbnail_url} alt={file.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => (e.currentTarget.style.display = 'none')} />
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
-                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', paddingLeft: 3 }}>▶</div>
-                      </div>
-                    </div>
-                  ) : (
-                    <img src={file.url} alt={file.file_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  )}
-                </div>
-
-                {/* INFO */}
-                <div style={{ padding: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.file_name}>
-                    {file.file_name}
+                  <IpFolderOpen size={34} color={t.primary} />
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{f.folder}</div>
+                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3 }}>{f.count} {f.count === 1 ? 'file' : 'files'}</div>
                   </div>
-                  <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>
-                    {formatBytes(file.file_size_bytes)}{file.used_in_posts > 0 && ` · Used ${file.used_in_posts}x`}
-                  </div>
-                  {file.folder && file.folder !== 'all' && (
-                    <div style={{ fontSize: 10, color: t.primary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <IpFolderOpen size={9} /> {file.folder}
-                    </div>
-                  )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              ))}
+            </div>
+          )}
+
+          {/* SEPARATOR */}
+          {allFolders.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0 16px' }}>
+              <div style={{ flex: 1, height: 1, background: t.border }} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Files{looseFiles.length > 0 ? ` · ${looseFiles.length}` : ''}
+              </span>
+              <div style={{ flex: 1, height: 1, background: t.border }} />
+            </div>
+          )}
+
+          {/* LOOSE FILES */}
+          {renderFileGrid(
+            looseFiles,
+            allFolders.length > 0 ? 'No loose files' : 'No media yet',
+            allFolders.length > 0
+              ? 'All your files are organised into folders above'
+              : 'Upload images and videos to use in your posts'
+          )}
+        </>
       )}
 
       {/* PREVIEW MODAL */}
@@ -393,7 +472,7 @@ export default function MediaLibrary() {
               </button>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(previewFile.url); alert('URL copied!'); }}
+                  onClick={() => { navigator.clipboard.writeText(previewFile.url); showToast('URL copied!', 'success'); }}
                   style={{ padding: '8px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Copy URL
@@ -447,6 +526,8 @@ export default function MediaLibrary() {
           </div>
         </div>
       )}
+
+      {confirmModal && <ConfirmModal {...confirmModal} onCancel={() => setConfirmModal(null)} />}
     </Layout>
   );
 }

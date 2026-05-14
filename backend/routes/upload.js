@@ -5,6 +5,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { authenticate } = require('../middleware/auth');
 const ImageResizer = require('../services/ImageResizer');
+const { convertToUTC, isValidTimezone } = require('../utils/timezone');
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -12,7 +13,9 @@ const upload = multer({
   limits: { fileSize: 100 * 1024 * 1024, files: 10 },
   fileFilter: (req, file, cb) => {
     const allowed = /jpeg|jpg|png|gif|webp|mp4|mov|webm|heic|heif/;
-    if (allowed.test(file.originalname.toLowerCase()) || allowed.test(file.mimetype)) cb(null, true);
+    const extOk = allowed.test(file.originalname.toLowerCase());
+    const mimeOk = allowed.test(file.mimetype);
+    if (extOk && mimeOk) cb(null, true);
     else cb(new Error('Only images and videos allowed (jpg, png, gif, webp, heic, mp4, mov, webm)'));
   },
 });
@@ -56,6 +59,22 @@ module.exports = (pool) => {
   router.post('/media', authenticate, upload.single('file'), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+      // Quota check — same guard as /carousel
+      try {
+        const quotaRes = await pool.query(
+          'SELECT storage_used_bytes, storage_quota_bytes FROM customers WHERE id=$1',
+          [req.customerId]
+        );
+        const qRow = quotaRes.rows[0];
+        if (qRow) {
+          const used = parseInt(qRow.storage_used_bytes) || 0;
+          const quota = parseInt(qRow.storage_quota_bytes) || (10 * 1024 * 1024 * 1024);
+          if (used + req.file.size > quota) {
+            return res.status(413).json({ error: 'Storage quota exceeded' });
+          }
+        }
+      } catch { /* quota columns may not exist — allow upload */ }
 
       const isVideo = req.file.mimetype.startsWith('video/');
 
@@ -163,24 +182,40 @@ module.exports = (pool) => {
   router.post('/post', authenticate, async (req, res) => {
     const client = await pool.connect();
     try {
-      const { contentType, mediaUrl, mediaUrls, caption, hashtags, platforms, scheduledDate, timezone } = req.body;
+      const { contentType, mediaUrl, mediaUrls, caption, hashtags, platforms, scheduledDate, timezone, publishNow } = req.body;
       if (!contentType || !caption) return res.status(400).json({ error: 'contentType and caption required' });
       if (contentType !== 'carousel' && !mediaUrl) return res.status(400).json({ error: 'mediaUrl required' });
       if (contentType === 'carousel' && (!mediaUrls || mediaUrls.length < 2))
         return res.status(400).json({ error: 'Carousel requires at least 2 mediaUrls' });
 
+      // Convert scheduled time from customer's local timezone to UTC before storing
+      let utcScheduledDate = null;
+      const resolvedTz = isValidTimezone(timezone) ? timezone : 'America/New_York';
+      if (scheduledDate) {
+        const utcIso = convertToUTC(scheduledDate, resolvedTz);
+        utcScheduledDate = utcIso ? new Date(utcIso) : new Date(scheduledDate);
+      }
+
       await client.query('BEGIN');
-      const status = scheduledDate ? 'scheduled' : 'draft';
+      let status;
+      if (scheduledDate) {
+        status = 'scheduled';
+      } else if (publishNow === true || publishNow === 'true') {
+        status = 'scheduled';
+        utcScheduledDate = new Date();
+      } else {
+        status = 'draft';
+      }
       const postResult = await client.query(
         `INSERT INTO posts (customer_id, content_type, caption, hashtags, media_url, media_urls,
-          platforms, scheduled_date, timezone, status, source, uploaded_by_user, credits_used, generation_method)
+          platforms, scheduled_date, scheduled_timezone, status, source, uploaded_by_user, credits_used, generation_method)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
         [
           req.customerId, contentType, caption, JSON.stringify(hashtags || []),
           contentType !== 'carousel' ? mediaUrl : (mediaUrls?.[0] || null),
           JSON.stringify(contentType === 'carousel' ? mediaUrls : [mediaUrl]),
-          JSON.stringify(platforms || []), scheduledDate || null,
-          timezone || 'America/New_York', status, 'manual_upload', true, 0, 'manual_upload',
+          JSON.stringify(platforms || []), utcScheduledDate,
+          resolvedTz, status, 'manual_upload', true, 0, 'manual_upload',
         ]
       );
       const post = postResult.rows[0];
@@ -197,7 +232,11 @@ module.exports = (pool) => {
       res.json({
         success: true,
         post,
-        message: scheduledDate ? `Scheduled for ${new Date(scheduledDate).toLocaleString()}` : 'Saved as draft (ready to post)',
+        message: scheduledDate
+          ? `Scheduled for ${new Date(scheduledDate).toLocaleString()}`
+          : (publishNow === true || publishNow === 'true')
+            ? 'Published! Post queued for immediate publishing.'
+            : 'Saved as draft (ready to post)',
         creditsUsed: 0,
       });
     } catch (error) {

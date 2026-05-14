@@ -13,7 +13,7 @@ module.exports = (pool) => {
   // Protected by x-cron-secret header.
   router.post('/generate-daily', async (req, res) => {
     const cronSecret = req.headers['x-cron-secret'];
-    if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+    if (!process.env.CRON_SECRET || cronSecret !== process.env.CRON_SECRET) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 

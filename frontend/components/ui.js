@@ -1,5 +1,124 @@
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { IpInbox } from './icons';
 import { useTheme } from '../lib/theme';
+
+// ─── Toast System ─────────────────────────────────────────────────────────────
+
+const ToastContext = createContext(null);
+
+function ToastItem({ id, message, variant, onDismiss }) {
+  const { t } = useTheme();
+  const borderColors = { success: t.success, error: t.error, warning: t.warning, info: t.info };
+  const border = borderColors[variant] || t.info;
+  return (
+    <div style={{
+      background: t.card, border: `1px solid ${t.border}`, borderLeft: `3px solid ${border}`,
+      borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12,
+      boxShadow: '0 4px 24px rgba(0,0,0,0.3)', minWidth: 260, maxWidth: 380,
+      animation: 'toast-slide-in 200ms ease', pointerEvents: 'all',
+    }}>
+      <span style={{ flex: 1, fontSize: 13, color: t.text, fontWeight: 500, lineHeight: 1.4 }}>{message}</span>
+      <button onClick={() => onDismiss(id)}
+        style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', padding: '0 2px', fontSize: 18, lineHeight: 1, flexShrink: 0 }}>
+        ×
+      </button>
+    </div>
+  );
+}
+
+function ToastContainer({ toasts, onDismiss }) {
+  if (toasts.length === 0) return null;
+  return (
+    <div style={{
+      position: 'fixed', top: 20, right: 20, zIndex: 9999,
+      display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none',
+    }}>
+      {toasts.map(toast => <ToastItem key={toast.id} {...toast} onDismiss={onDismiss} />)}
+    </div>
+  );
+}
+
+export function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+
+  useEffect(() => {
+    if (document.getElementById('ip-ui-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'ip-ui-styles';
+    style.textContent = `
+      @keyframes toast-slide-in { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
+      @keyframes skeleton-pulse { 0%,100% { opacity:1; } 50% { opacity:0.45; } }
+      @keyframes logo-pulse { 0%,100% { opacity:1; } 50% { opacity:0.55; } }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
+  const showToast = useCallback((message, variant = 'info') => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev.slice(-3), { id, message, variant }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }, []);
+
+  const dismiss = useCallback((id) => setToasts(prev => prev.filter(t => t.id !== id)), []);
+
+  return (
+    <ToastContext.Provider value={{ showToast }}>
+      {children}
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
+    </ToastContext.Provider>
+  );
+}
+
+export function useToast() {
+  const ctx = useContext(ToastContext);
+  if (!ctx) {
+    // Graceful fallback when used outside ToastProvider
+    return { showToast: (msg) => console.warn('[Toast]', msg) };
+  }
+  return ctx;
+}
+
+// ─── ConfirmModal ─────────────────────────────────────────────────────────────
+
+export function ConfirmModal({ title, message, confirmLabel = 'Confirm', confirmVariant = 'danger', onConfirm, onCancel }) {
+  const { t } = useTheme();
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') onConfirm(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onConfirm, onCancel]);
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)',
+      zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }} onClick={onCancel}>
+      <div style={{
+        background: t.card, border: `1px solid ${t.border}`, borderRadius: 14,
+        padding: 28, maxWidth: 400, width: 'calc(100vw - 40px)', boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+      }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 8 }}>{title}</h3>
+        <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 28, lineHeight: 1.6 }}>{message}</p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+          <Button variant={confirmVariant} onClick={() => { onConfirm(); onCancel(); }}>{confirmLabel}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+export function Skeleton({ width = '100%', height = 20, borderRadius = 8, style = {} }) {
+  const { t } = useTheme();
+  return (
+    <div style={{
+      width, height, borderRadius,
+      background: t.border, animation: 'skeleton-pulse 1.5s ease-in-out infinite',
+      ...style,
+    }} />
+  );
+}
 
 export function Card({ children, padding = 24, style = {}, hoverable = false, ...rest }) {
   const { t } = useTheme();

@@ -42,20 +42,22 @@ module.exports = (pool) => {
     try {
       // ── Signature verification ──────────────────────────────
       const secret = process.env.HEYGEN_WEBHOOK_SECRET;
-      if (secret) {
-        const sig = req.headers['signature'];
-        if (!sig) {
-          console.warn('[HeyGen Webhook] Missing Signature header — skipping');
-          return;
-        }
-        const expected = crypto
-          .createHmac('sha256', secret)
-          .update(req.body)
-          .digest('hex');
-        if (expected !== sig) {
-          console.warn('[HeyGen Webhook] Signature mismatch — ignoring payload');
-          return;
-        }
+      if (!secret) {
+        console.warn('[HeyGen Webhook] HEYGEN_WEBHOOK_SECRET not set — payload ignored for security. Set this env var to enable webhook processing.');
+        return;
+      }
+      const sig = req.headers['signature'];
+      if (!sig) {
+        console.warn('[HeyGen Webhook] Missing Signature header — ignoring payload');
+        return;
+      }
+      const expected = crypto
+        .createHmac('sha256', secret)
+        .update(req.body)
+        .digest('hex');
+      if (expected !== sig) {
+        console.warn('[HeyGen Webhook] Signature mismatch — ignoring payload');
+        return;
       }
 
       // ── Parse payload ───────────────────────────────────────
