@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, getBillingCustomerId } = require('../middleware/auth');
 const GeoAuditService = require('../services/GeoAuditService');
 
 module.exports = (pool) => {
@@ -20,9 +20,17 @@ module.exports = (pool) => {
   router.post('/audit', authenticate, async (req, res) => {
     try {
       const customerId = req.customerId;
+      const billingId = getBillingCustomerId(req); // parent account when in a workspace
+
       const { rows } = await pool.query('SELECT * FROM customers WHERE id = $1', [customerId]);
       if (!rows.length) return res.status(404).json({ error: 'Customer not found' });
       const customer = rows[0];
+
+      // Fetch billing account (may differ from customer when inside a workspace)
+      const billingRow = billingId !== customerId
+        ? await pool.query('SELECT * FROM customers WHERE id = $1', [billingId])
+        : { rows: [customer] };
+      const billing = billingRow.rows[0];
 
       // Body params override profile values (from pre-audit config form)
       const businessName = (req.body.businessName || customer.business_name || '').trim();
@@ -30,6 +38,9 @@ module.exports = (pool) => {
       const serviceFocus = req.body.serviceFocus || 'all';
       const competitors = Array.isArray(req.body.competitors)
         ? req.body.competitors.filter(Boolean).slice(0, 3)
+        : [];
+      const services = Array.isArray(req.body.services)
+        ? req.body.services.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim()).slice(0, 10)
         : [];
 
       if (!location) {
@@ -46,18 +57,18 @@ module.exports = (pool) => {
       }
 
       let isFree = false;
-      if (!customer.free_geo_audit_used) {
-        await pool.query('UPDATE customers SET free_geo_audit_used = true WHERE id = $1', [customerId]);
+      if (!billing.free_geo_audit_used) {
+        await pool.query('UPDATE customers SET free_geo_audit_used = true WHERE id = $1', [billingId]);
         isFree = true;
       } else {
-        if ((customer.credits_balance || 0) < 10) {
-          return res.status(402).json({ error: 'You need 10 credits to run a GEO Audit. Please purchase more credits or upgrade your plan.' });
+        if ((billing.credits_balance || 0) < 5) {
+          return res.status(402).json({ error: 'You need 5 credits to run a GEO Audit. Please purchase more credits or upgrade your plan.' });
         }
-        await pool.query('UPDATE customers SET credits_balance = credits_balance - 10 WHERE id = $1', [customerId]);
+        await pool.query('UPDATE customers SET credits_balance = credits_balance - 5 WHERE id = $1', [billingId]);
         await pool.query(
           `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
-           VALUES ($1, 'usage', -10, $2, 'GEO Audit — AI visibility check')`,
-          [customerId, (customer.credits_balance || 0) - 10]
+           VALUES ($1, 'usage', -5, $2, 'GEO Audit — AI visibility check')`,
+          [billingId, (billing.credits_balance || 0) - 5]
         );
       }
 
@@ -71,7 +82,7 @@ module.exports = (pool) => {
       const auditCustomer = { ...customer, business_name: businessName, location };
 
       // Fire-and-forget — client polls for completion
-      geoAuditService.runAudit(auditCustomer, audit.id, { serviceFocus, competitors }).catch(err => {
+      geoAuditService.runAudit(auditCustomer, audit.id, { serviceFocus, competitors, services }).catch(err => {
         console.error('[GeoAudit route] runAudit failed:', err.message);
         pool.query(`UPDATE geo_audits SET status = 'failed' WHERE id = $1`, [audit.id]);
       });

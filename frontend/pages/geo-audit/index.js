@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
-  IpSearch, IpRefresh, IpArrowRight, IpTrendingUp, IpInfo, IpWarning, IpClose, IpPlus,
+  IpSearch, IpRefresh, IpArrowRight, IpTrendingUp, IpEdit, IpWarning, IpClose, IpPlus,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Card, Button, SectionHeader, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
-import { geoAPI, authAPI } from '../../lib/api';
+import { geoAPI, authAPI, scraperAPI } from '../../lib/api';
 
 const LOADING_MESSAGES = [
   'Asking ChatGPT about your business...',
@@ -26,22 +26,15 @@ const FOCUS_OPTIONS = [
   { value: 'commercial', label: 'Commercial' },
 ];
 
-function ScoreGauge({ score, t }) {
+function ScoreRing({ score, size, t }) {
   const color = score >= 70 ? t.success : score >= 40 ? t.warning : t.error;
-  const label = score >= 70 ? 'Strong Foundation' : score >= 40 ? 'Emerging — clear path ahead' : 'Invisible — here\'s your playbook';
+  const inner = Math.round(size * 0.73);
   return (
-    <div style={{ textAlign: 'center', padding: '24px 0' }}>
-      <div style={{
-        width: 120, height: 120, borderRadius: '50%', margin: '0 auto 16px',
-        background: `conic-gradient(${color} ${score * 3.6}deg, ${t.border} 0deg)`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <div style={{ width: 90, height: 90, borderRadius: '50%', background: t.card, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1 }}>{score}</span>
-          <span style={{ fontSize: 10, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>/100</span>
-        </div>
+    <div style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: `conic-gradient(${color} ${score * 3.6}deg, ${t.border} 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: inner, height: inner, borderRadius: '50%', background: t.card, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ fontSize: Math.round(size * 0.27), fontWeight: 800, color, lineHeight: 1 }}>{score}</span>
+        <span style={{ fontSize: Math.round(size * 0.14), color: t.textMuted, lineHeight: 1.2 }}>/100</span>
       </div>
-      <div style={{ fontSize: 14, fontWeight: 700, color }}>{label}</div>
     </div>
   );
 }
@@ -50,7 +43,6 @@ export default function GeoAuditPage() {
   const router = useRouter();
   const { t } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [profile, setProfile] = useState(null);
   const [scoreData, setScoreData] = useState(null);
   const [latestAudit, setLatestAudit] = useState(null);
   const [history, setHistory] = useState([]);
@@ -59,11 +51,16 @@ export default function GeoAuditPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Config form state
+  // Config form
   const [businessName, setBusinessName] = useState('');
   const [location, setLocation] = useState('');
   const [serviceFocus, setServiceFocus] = useState('all');
   const [competitors, setCompetitors] = useState(['', '', '']);
+
+  // Scraped data
+  const [scrapedData, setScrapedData] = useState(null);
+  const [selectedServices, setSelectedServices] = useState([]);
+  const [serviceInput, setServiceInput] = useState('');
 
   const pollRef = useRef(null);
   const msgRef = useRef(null);
@@ -77,20 +74,27 @@ export default function GeoAuditPage() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [scoreRes, latestRes, historyRes, profileRes] = await Promise.all([
+      const [scoreRes, latestRes, historyRes, profileRes, scraperRes] = await Promise.all([
         geoAPI.getScore().catch(() => ({ data: {} })),
         geoAPI.getLatest().catch(() => ({ data: { audit: null } })),
         geoAPI.getHistory().catch(() => ({ data: { history: [] } })),
         authAPI.verify().catch(() => ({ data: {} })),
+        scraperAPI.getData().catch(() => ({ data: { hasData: false } })),
       ]);
+
       setScoreData(scoreRes.data);
       setLatestAudit(latestRes.data.audit);
       setHistory(historyRes.data.history || []);
 
       const customer = profileRes.data?.customer || {};
-      setProfile(customer);
       setBusinessName(customer.business_name || '');
       setLocation(customer.location || '');
+
+      const sd = scraperRes.data;
+      setScrapedData(sd);
+      if (sd?.hasData && Array.isArray(sd.services)) {
+        setSelectedServices(sd.services.slice(0, 12));
+      }
 
       if (latestRes.data.audit?.status === 'running') {
         setRunning(true);
@@ -123,9 +127,7 @@ export default function GeoAuditPage() {
           ]);
           setScoreData(scoreRes.data);
           setHistory(histRes.data.history || []);
-          if (audit.status === 'failed') {
-            setError('The audit encountered an error. Please try again.');
-          }
+          if (audit.status === 'failed') setError('The audit encountered an error. Please try again.');
         }
       } catch { /* keep polling */ }
     }, 3000);
@@ -152,6 +154,7 @@ export default function GeoAuditPage() {
         location: location.trim(),
         serviceFocus,
         competitors: competitors.filter(Boolean),
+        services: selectedServices,
       });
       startPolling();
     } catch (err) {
@@ -171,10 +174,20 @@ export default function GeoAuditPage() {
     setCompetitors(next);
   }
 
+  const removeService = (idx) => setSelectedServices(s => s.filter((_, i) => i !== idx));
+  const addService = () => {
+    const v = serviceInput.trim();
+    if (v && !selectedServices.includes(v)) setSelectedServices(s => [...s, v]);
+    setServiceInput('');
+  };
+
   if (!mounted || loading) return null;
 
   const hasCompleted = latestAudit?.status === 'complete';
   const isFree = !scoreData?.freeAuditUsed;
+  const score = latestAudit?.geo_score || 0;
+  const scoreColor = score >= 70 ? t.success : score >= 40 ? t.warning : t.error;
+  const scoreLabel = score >= 70 ? 'Strong Foundation' : score >= 40 ? 'Emerging' : 'Invisible';
 
   const inputStyle = {
     width: '100%', padding: '9px 12px', fontSize: 13,
@@ -188,26 +201,26 @@ export default function GeoAuditPage() {
     color: active ? t.primary : t.textMuted,
     transition: 'all 150ms',
   });
+  const labelStyle = {
+    display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted,
+    marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em',
+  };
+
+  const scrapedAtLabel = scrapedData?.scrapedAt
+    ? `Scanned ${new Date(scrapedData.scrapedAt).toLocaleDateString()}`
+    : '';
 
   return (
     <Layout
       title="GEO Audit"
-      subtitle="AI visibility check across ChatGPT, Claude & Perplexity"
-      action={
-        <Button variant="ghost" onClick={() => router.push('/dashboard')}>
-          ← Dashboard
-        </Button>
-      }
+      subtitle="AI visibility across ChatGPT, Claude & Perplexity"
+      action={<Button variant="ghost" onClick={() => router.push('/dashboard')}>← Dashboard</Button>}
     >
       {running ? (
         /* ── LOADING STATE ── */
         <Card style={{ maxWidth: 480, margin: '40px auto', textAlign: 'center' }}>
-          <div style={{ marginBottom: 24 }}>
-            <Spinner size={48} />
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>
-            Running your GEO Audit...
-          </div>
+          <div style={{ marginBottom: 24 }}><Spinner size={48} /></div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>Running your GEO Audit...</div>
           <div style={{ fontSize: 13, color: t.textMuted, minHeight: 20, transition: 'opacity 300ms' }}>
             {LOADING_MESSAGES[loadingMsg]}
           </div>
@@ -215,51 +228,52 @@ export default function GeoAuditPage() {
             Checking 15 questions across 3 AI engines — takes about 60–90 seconds
           </div>
         </Card>
-      ) : !hasCompleted ? (
-        /* ── NO AUDIT YET — CONFIG + CTA STATE ── */
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      ) : (
+        <div style={{ maxWidth: 700, margin: '0 auto' }}>
+
+          {/* Error banner */}
           {error && (
-            <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, marginBottom: 20, display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, marginBottom: 16, display: 'flex', gap: 10, alignItems: 'center' }}>
               <IpWarning size={15} color={t.error} />
               <span style={{ fontSize: 13, color: t.error }}>{error}</span>
             </div>
           )}
 
-          {/* Hero */}
-          <Card style={{ marginBottom: 20, textAlign: 'center', padding: '32px 32px 24px' }}>
-            <div style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg,#7C5CFC,#5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <IpSearch size={28} color="#fff" />
-            </div>
-            <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: t.text }}>
-              Find Out If AI Recommends Your Business
-            </h2>
-            <p style={{ margin: '0 0 20px', fontSize: 13, color: t.textSecondary, lineHeight: 1.7, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
-              PostCore runs 15 searches across ChatGPT, Claude, and Perplexity — then tells you
-              exactly who's beating you, what trust signals the AI looks for, and which platforms
-              you're missing from.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginBottom: 0, flexWrap: 'wrap' }}>
-              {[
-                { label: '15 AI searches', sub: 'across 3 engines' },
-                { label: isFree ? 'Free' : '10 credits', sub: isFree ? 'no credits needed' : 'per audit' },
-                { label: '~90 seconds', sub: 'to complete' },
-              ].map(({ label, sub }) => (
-                <div key={label} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{label}</div>
-                  <div style={{ fontSize: 11, color: t.textMuted }}>{sub}</div>
+          {/* Compact score banner (only when a completed audit exists) */}
+          {hasCompleted && (
+            <Card style={{ marginBottom: 16, padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <ScoreRing score={score} size={56} t={t} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: scoreColor }}>{score}/100 — {scoreLabel}</div>
+                  <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
+                    {latestAudit.report_data?.summary
+                      ? latestAudit.report_data.summary.substring(0, 90) + (latestAudit.report_data.summary.length > 90 ? '…' : '')
+                      : `${latestAudit.citations_found || 0} of ${latestAudit.total_queries || 45} AI searches`}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </Card>
+                <Button size="sm" onClick={() => router.push(`/geo-audit/${latestAudit.id}`)} style={{ flexShrink: 0 }}>
+                  View Report <IpArrowRight size={13} style={{ marginLeft: 4 }} />
+                </Button>
+              </div>
+            </Card>
+          )}
 
-          {/* Config form */}
-          <Card style={{ marginBottom: 20 }}>
-            <SectionHeader icon={IpInfo} title="Confirm your audit details" subtitle="Pre-filled from your profile — adjust anything before running" />
-            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Config card */}
+          <Card style={{ marginBottom: 16 }}>
+            <SectionHeader
+              icon={IpEdit}
+              title={hasCompleted ? 'Run Another Audit' : 'Set Up Your GEO Audit'}
+              subtitle="Pre-filled from your profile — adjust anything before running"
+            />
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 24 }}>
+
+              {/* LEFT — Business context */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Business name</label>
+                  <label style={labelStyle}>Business name</label>
                   <input
                     style={inputStyle}
                     value={businessName}
@@ -267,8 +281,11 @@ export default function GeoAuditPage() {
                     placeholder="Mike's Plumbing"
                   />
                 </div>
+
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>City / service area <span style={{ color: t.error }}>*</span></label>
+                  <label style={labelStyle}>
+                    City / service area <span style={{ color: t.error }}>*</span>
+                  </label>
                   <input
                     style={{ ...inputStyle, borderColor: !location.trim() ? t.error : t.border }}
                     value={location}
@@ -276,144 +293,161 @@ export default function GeoAuditPage() {
                     placeholder="Austin, TX"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Service focus</label>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {FOCUS_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setServiceFocus(opt.value)}
-                      style={chipStyle(serviceFocus === opt.value)}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                {/* Website services (scraped) */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <label style={{ ...labelStyle, marginBottom: 0 }}>Your services</label>
+                    {scrapedData?.hasData && scrapedAtLabel && (
+                      <span style={{ fontSize: 10, color: t.textMuted }}>{scrapedAtLabel}</span>
+                    )}
+                  </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Known competitors <span style={{ color: t.textMuted, fontWeight: 400, textTransform: 'none' }}>(optional — we'll track if they appear)</span></label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {competitors.map((val, idx) => (
-                    <div key={idx} style={{ position: 'relative' }}>
-                      <input
-                        style={{ ...inputStyle, paddingRight: val ? 36 : 12 }}
-                        value={val}
-                        onChange={e => updateCompetitor(idx, e.target.value)}
-                        placeholder={`Competitor ${idx + 1} name`}
-                      />
-                      {val && (
+                  {scrapedData?.hasData ? (
+                    <div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8, minHeight: 30 }}>
+                        {selectedServices.map((svc, idx) => (
+                          <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px 4px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 20, fontSize: 12, color: t.text }}>
+                            {svc}
+                            <button
+                              onClick={() => removeService(idx)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: t.textMuted, lineHeight: 1, display: 'flex' }}
+                            >
+                              <IpClose size={11} />
+                            </button>
+                          </span>
+                        ))}
+                        {selectedServices.length === 0 && (
+                          <span style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic' }}>All services removed — add some below</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                          style={{ ...inputStyle, flex: 1 }}
+                          value={serviceInput}
+                          onChange={e => setServiceInput(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && addService()}
+                          placeholder="Add a service..."
+                        />
                         <button
-                          onClick={() => updateCompetitor(idx, '')}
-                          style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: t.textMuted }}
+                          onClick={addService}
+                          disabled={!serviceInput.trim()}
+                          style={{ padding: '9px 12px', background: t.primaryBg, border: `1px solid ${t.primary}`, borderRadius: 8, cursor: serviceInput.trim() ? 'pointer' : 'not-allowed', opacity: serviceInput.trim() ? 1 : 0.5, color: t.primary, display: 'flex', alignItems: 'center' }}
                         >
-                          <IpClose size={13} />
+                          <IpPlus size={14} />
                         </button>
-                      )}
+                      </div>
+                      <div style={{ fontSize: 10, color: t.textMuted, marginTop: 6 }}>
+                        These help the AI audit target your actual work. Manage saved services in{' '}
+                        <button onClick={() => router.push('/settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: t.primary, fontSize: 10 }}>Settings</button>
+                      </div>
                     </div>
-                  ))}
+                  ) : (
+                    <div style={{ padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8 }}>
+                      <div style={{ fontSize: 12, color: t.textMuted }}>
+                        No website data yet.{' '}
+                        <button onClick={() => router.push('/settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: t.primary, fontSize: 12, fontWeight: 600 }}>
+                          Scan your website in Settings
+                        </button>{' '}
+                        for more targeted audit questions.
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <Button onClick={handleRunAudit} style={{ justifyContent: 'center' }}>
-                <IpSearch size={15} style={{ marginRight: 8 }} />
-                {isFree ? 'Run Free GEO Audit' : 'Run GEO Audit (10 credits)'}
-              </Button>
-            </div>
-          </Card>
+              {/* RIGHT — Audit config */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* What we check */}
-          <Card>
-            <SectionHeader icon={IpInfo} title="What the audit checks" />
-            <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                { group: 'A', label: 'Brand visibility', desc: '"Who is the best plumber in [your city]?" — 5 direct queries', color: '#7C5CFC' },
-                { group: 'B', label: 'Competitive intel', desc: '"What are the top plumbers in [your city]?" — extracts who AI actually recommends', color: '#F97316' },
-                { group: 'C', label: 'Trust signal analysis', desc: '"What should I look for when hiring a plumber?" — reveals the AI\'s trust criteria', color: '#22C55E' },
-                { group: 'D', label: 'Platform intelligence', desc: '"Where can I find plumber reviews?" — shows which directories the AI sends customers to', color: '#3B82F6' },
-              ].map(({ group, label, desc, color }) => (
-                <div key={group} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 12px', background: t.input, borderRadius: 8, border: `1px solid ${t.border}` }}>
-                  <div style={{ width: 22, height: 22, borderRadius: 6, background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0, marginTop: 1 }}>{group}</div>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: t.text, marginBottom: 2 }}>{label}</div>
-                    <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.5 }}>{desc}</div>
+                <div>
+                  <label style={labelStyle}>Service focus</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {FOCUS_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setServiceFocus(opt.value)}
+                        style={{ ...chipStyle(serviceFocus === opt.value), textAlign: 'left' }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      ) : (
-        /* ── HAS COMPLETED AUDIT — SCORE STATE ── */
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          {error && (
-            <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, marginBottom: 20, display: 'flex', gap: 10, alignItems: 'center' }}>
-              <IpWarning size={15} color={t.error} />
-              <span style={{ fontSize: 13, color: t.error }}>{error}</span>
-            </div>
-          )}
 
-          <Card style={{ marginBottom: 20 }}>
-            <ScoreGauge score={latestAudit.geo_score || 0} t={t} />
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <p style={{ margin: 0, fontSize: 13, color: t.textSecondary, lineHeight: 1.6 }}>
-                {latestAudit.report_data?.summary || `Your business appeared in ${latestAudit.citations_found || 0} of ${latestAudit.total_queries || 45} AI searches.`}
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Button onClick={() => router.push(`/geo-audit/${latestAudit.id}`)} style={{ justifyContent: 'center' }}>
-                View Full Report <IpArrowRight size={14} style={{ marginLeft: 6 }} />
-              </Button>
-              <Button variant="secondary" onClick={() => setLatestAudit({ ...latestAudit, status: 'reset' })} style={{ justifyContent: 'center' }}>
-                <IpRefresh size={14} style={{ marginRight: 6 }} />
-                Re-configure & Run Again
-              </Button>
-            </div>
-          </Card>
-
-          {/* Score history */}
-          {history.length > 1 && (
-            <Card>
-              <SectionHeader icon={IpTrendingUp} title="Score History" />
-              <div style={{ marginTop: 12 }}>
-                {history.slice(0, 6).map((h) => (
-                  <div
-                    key={h.id}
-                    onClick={() => router.push(`/geo-audit/${h.id}`)}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 0', borderBottom: `1px solid ${t.border}`,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 8,
-                        background: `${h.geo_score >= 70 ? 'rgba(34,197,94,0.1)' : h.geo_score >= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)'}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 13, fontWeight: 800,
-                        color: h.geo_score >= 70 ? t.success : h.geo_score >= 40 ? t.warning : t.error,
-                      }}>
-                        {h.geo_score}
+                <div>
+                  <label style={labelStyle}>
+                    Known competitors{' '}
+                    <span style={{ color: t.textMuted, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {competitors.map((val, idx) => (
+                      <div key={idx} style={{ position: 'relative' }}>
+                        <input
+                          style={{ ...inputStyle, paddingRight: val ? 34 : 12 }}
+                          value={val}
+                          onChange={e => updateCompetitor(idx, e.target.value)}
+                          placeholder={`Competitor ${idx + 1}`}
+                        />
+                        {val && (
+                          <button
+                            onClick={() => updateCompetitor(idx, '')}
+                            style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: t.textMuted }}
+                          >
+                            <IpClose size={12} />
+                          </button>
+                        )}
                       </div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>
-                          {h.citations_found || 0} of {h.total_queries || 45} brand citations
-                        </div>
-                        <div style={{ fontSize: 11, color: t.textMuted }}>
-                          {new Date(h.created_at).toLocaleDateString()}
-                          {h.is_free && <span style={{ marginLeft: 6, color: t.primary, fontWeight: 600 }}>FREE</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <IpArrowRight size={13} color={t.textMuted} />
+                    ))}
                   </div>
-                ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Run button */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${t.border}` }}>
+              <Button onClick={handleRunAudit} style={{ justifyContent: 'center', width: '100%' }}>
+                <IpSearch size={15} style={{ marginRight: 8 }} />
+                {isFree ? 'Run Free GEO Audit' : 'Run GEO Audit — 5 credits'}
+              </Button>
+              <div style={{ textAlign: 'center', marginTop: 8, fontSize: 11, color: t.textMuted }}>
+                15 questions × 3 AI engines · takes about 60–90 seconds
+              </div>
+            </div>
+          </Card>
+
+          {/* Past audits */}
+          {history.length > 0 && (
+            <Card>
+              <SectionHeader icon={IpTrendingUp} title="Past Audits" />
+              <div style={{ marginTop: 12 }}>
+                {history.slice(0, 6).map((h) => {
+                  const hColor = h.geo_score >= 70 ? t.success : h.geo_score >= 40 ? t.warning : t.error;
+                  return (
+                    <div
+                      key={h.id}
+                      onClick={() => router.push(`/geo-audit/${h.id}`)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: `1px solid ${t.border}`, cursor: 'pointer' }}
+                      onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: `${hColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: hColor, flexShrink: 0 }}>
+                        {h.geo_score || 0}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>
+                          {h.citations_found || 0} of {h.total_queries || 45} searches
+                        </div>
+                        <div style={{ fontSize: 11, color: t.textMuted }}>{new Date(h.created_at).toLocaleDateString()}</div>
+                      </div>
+                      {h.is_free && <span style={{ fontSize: 10, color: t.primary, fontWeight: 700 }}>FREE</span>}
+                      <IpArrowRight size={12} color={t.textMuted} />
+                    </div>
+                  );
+                })}
               </div>
             </Card>
           )}
+
         </div>
       )}
     </Layout>

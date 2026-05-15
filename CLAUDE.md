@@ -36,7 +36,7 @@ Flow:
    - Claude reads customer DB profile + industry knowledge + brand data
    - Claude generates 3 caption variations + hashtags
    - Claude generates ONE rich image/video prompt
-   - NanoBanana generates the image (or HeyGen for video)
+   - NanoBanana generates the image (or video pipeline for video)
    - All 3 variations share the same image (saves API costs)
    - ImageResizer creates platform variants (FB/IG/GB)
 4. Customer sees finished post on same page
@@ -50,6 +50,8 @@ Critical principles:
 - If image generation fails: auto-retry once → fallback to stock image → caption-only
 - Loading screen: rotating messages showing real progress
 - Result screen: same page, no redirects
+
+**Status:** Backend (`backend/routes/wizard.js`) — BUILT and live. Frontend dedicated wizard page still to be wired up (currently accessible via ContentCreatorModal.js).
 
 ---
 
@@ -97,8 +99,13 @@ Icons:        Two-tier system:
                 NEVER import directly from 'lucide-react' — always go through Icon.js
 Image gen:    NanoBanana (Google Gemini 2.5 Flash Image) — default
               Midjourney via Replicate — premium fallback
-              Sharp.js for image processing (backend)
-Video gen:    HeyGen API
+              Sharp.js for image processing (backend/services/ImageResizer.js)
+Video gen:    Two separate pipelines:
+              1. Avatar/talking-head: HeyGen API (HeyGenService.js)
+              2. Cinematic/job footage (PLANNED — see VIDEO CONTENT PIPELINE section):
+                 NanoBanana 2 key frame → Veo 3.1 Fast (primary) →
+                 Runway Gen-4 (fallback #1) → Pika 2.2 (fallback #2)
+              VeoService.js and VideoService.js already exist for pipeline #2
 Timezone:     Luxon (backend), Intl.DateTimeFormat (frontend)
 Payments:     Lemon Squeezy (NOT Stripe — unavailable in Pakistan)
 Email:        Resend SDK
@@ -122,7 +129,7 @@ itsposting-app-main/
 │   ├── utils/
 │   │   └── timezone.js        # Luxon timezone helpers
 │   └── middleware/
-│       └── auth.js            # JWT authentication middleware
+│       └── auth.js            # JWT auth — getBillingCustomerId() for workspace billing
 ├── frontend/
 │   ├── pages/                 # Next.js pages (pages router)
 │   ├── components/            # Shared React components
@@ -139,7 +146,7 @@ itsposting-app-main/
 
 ### Backend routes (all in backend/routes/):
 - `auth.js` — register, login, verify, forgot-password, reset-password
-- `customers.js` — profile CRUD, social accounts list
+- `customers.js` — profile CRUD, social accounts list; sub-accounts return parent credits
 - `posts.js` — posts CRUD, analytics summary
 - `content.js` — AI content generation endpoint
 - `social.js` — social platform OAuth and posting
@@ -147,15 +154,35 @@ itsposting-app-main/
 - `upload.js` — manual file upload (0 credits)
 - `billing.js` — plan management (Lemon Squeezy placeholder)
 - `media.js` — 10GB media library with quota enforcement
-- `admin.js` — customer management, credits, suspend/reactivate
+- `admin.js` — customer management, credits, suspend/reactivate, impersonation
 - `analytics.js` — post performance, per-platform breakdown
 - `notifications.js` — notification management
+- `wizard.js` — guided content creation (steps, generate, quick-post, refresh)
+- `geo.js` — GEO Audit (trigger, poll, history, score card); 1 free then 5 credits
+- `suggestions.js` — proactive PostCore suggestions (4 types: seasonal/streak/gap/milestone)
+- `workspaces.js` — multi-account workspaces (create, switch, rename, delete)
+- `knowledge.js` — business knowledge base CRUD
+- `intelligence.js` — business intelligence metrics endpoint
+- `dms.js` — DM polling and management
+- `inbox.js` — unified engagement inbox
+- `contacts.js` — contacts management
+- `webhooks.js` — inbound webhook handling
 
 ### Backend services (all in backend/services/):
 - `ClaudeService.js` — caption, carousel, video script, week plan generation
+- `SystemPromptBuilder.js` — assembles 6-section rich prompts for every AI call
 - `NanoBananaService.js` — Google Gemini 2.5 Flash image generation
 - `MidjourneyService.js` — Replicate/Midjourney premium images
 - `HeyGenService.js` — AI avatar video generation
+- `VeoService.js` — Veo video generation (cinematic pipeline)
+- `VideoService.js` — video orchestration across providers
+- `ImageResizer.js` — Sharp-based 3-variant image processing (FB/IG/GB)
+- `GeoAuditService.js` — runs 15 AI questions × 3 engines GEO visibility audit
+- `SuggestionsEngine.js` — generates proactive PostCore suggestions
+- `BusinessIntelligence.js` — translates metrics into business-language insights
+- `PostCoreAdvisor.js` — weekly briefing generator (Monday 7am UTC)
+- `ContentMixTracker.js` — 70/20/10 content ratio tracking and enforcement
+- `IndustryBenchmarks.js` — per-industry engagement benchmark data
 - `ScraperService.js` — Cheerio-based website scraper
 - `ManualContentGenerator.js` — orchestrator, provider routing
 - `AutoPostScheduler.js` — scheduled posting cron
@@ -164,38 +191,57 @@ itsposting-app-main/
 - `EmailQueue.js` — email queue management
 - `AuditLog.js` — admin action logging
 - `NotificationService.js` — in-app notifications
+- `DMPollingService.js` — polling social DMs
+- `WhopService.js` — Whop integration
 
 ### Frontend pages (all in frontend/pages/):
 - `index.js` — auth redirect
 - `login.js` — authentication
 - `signup.js` — 2-step onboarding
-- `dashboard.js` — main dashboard
+- `dashboard.js` — main dashboard with PostCore suggestions banner
 - `calendar.js` — month calendar view
 - `history.js` — post history / drafts
 - `upload.js` — manual upload + library picker
 - `media.js` — 10GB media library
+- `quick-post.js` — mobile-optimised single-screen post creation
 - `billing.js` — plan management
 - `settings.js` — profile, branding, scraper
+- `reports.js` — monthly reports
+- `roi.js` — ROI estimator
+- `workspaces.js` — multi-account workspace switcher UI
+- `contacts.js` — contacts management
+- `knowledge-base.js` — Teach PostCore knowledge base UI
 - `analytics/index.js` — analytics overview
 - `analytics/posts/[id].js` — per-post performance detail
+- `geo-audit/index.js` — GEO Audit dashboard (run, configure, results card)
+- `geo-audit/[id].js` — full GEO Audit report by ID
 - `admin/index.js` — admin dashboard
 - `admin/customers.js` — customer list
-- `admin/customers/[id].js` — customer detail
+- `admin/customers/[id].js` — customer detail + impersonation
 - `admin/email-queue.js` — email queue management
+- `admin/audit.js` — admin audit log
+- `admin/posts.js` — admin posts management
+- `admin/broadcast.js` — admin broadcast messaging
 
 ### Frontend components:
-- `Layout.js` — sidebar + topbar with theme toggle and Lucide icons
-- `ContentCreatorModal.js` — 4-step content creation wizard
+- `Layout.js` — sidebar + topbar with theme toggle; trial card shows "X shared credits" for sub-accounts
+- `ContentCreatorModal.js` — wizard content creation (current primary UI for wizard flow)
 - `ui.js` — Card, Button, Input, Badge, StatCard, SectionHeader, EmptyState
 - `NotificationBell.js` — notification bell with dropdown
+- `PostCoreBanner.js` — PostCore weekly briefing banner
+- `SuggestionCard.js` — individual suggestion card (use/customize/skip)
+- `TodaySuggestionBanner.js` — "Today from PostCore" dashboard banner
+- `ItsPostingLogo.js` — brand logo component
+- `Icon.js` — Lucide wrapper for wizard step cards
+- `icons/index.js` — custom Ip-prefixed SVG icons (~80 icons)
 
 ---
 
 ## DATABASE TABLES (ALL EXIST — DO NOT RECREATE)
 
-### Core tables (original schema):
+### Core tables:
 ```sql
-customers             -- Business accounts (50+ columns)
+customers             -- Business accounts (50+ columns); parent_customer_id for workspaces
 social_accounts       -- OAuth-linked FB/IG/GBP connections
 posts                 -- All generated and scheduled posts
 post_carousel_slides  -- Individual carousel slides
@@ -204,25 +250,23 @@ industry_templates    -- Day-themed templates per industry (35 rows seeded)
 credit_transactions   -- Full credit audit trail
 ```
 
-### Extended tables (Phase 2+):
+### Extended tables:
 ```sql
-media_library          -- Customer uploaded files (10GB quota)
-admin_audit_log        -- All admin actions with IP + user agent
+media_library             -- Customer uploaded files (10GB quota)
+admin_audit_log           -- All admin actions with IP + user agent
 post_engagement_snapshots -- Per-platform engagement timeline
-email_queue            -- Outbound email queue (body_html, body_text)
-system_metrics         -- Health monitoring
-notifications          -- In-app user notifications
-content_suggestions    -- Proactive AI suggestions (TO BE BUILT)
-post_variations        -- 3 AI variations per generation (TO BE BUILT)
-post_images            -- Platform-specific image variants (TO BE BUILT)
-posting_analytics      -- Best time to post data (TO BE BUILT)
-hashtag_performance    -- Hashtag tracking (TO BE BUILT)
-monthly_reports        -- Auto-generated monthly reports (TO BE BUILT)
-business_knowledge     -- Teach PostCore knowledge base (TO BE BUILT)
-postcore_briefings     -- Weekly PostCore strategy briefings (TO BE BUILT)
+email_queue               -- Outbound email queue (body_html, body_text)
+system_metrics            -- Health monitoring
+notifications             -- In-app user notifications
+business_knowledge        -- Teach PostCore knowledge base entries
+wizard_sessions           -- Guided wizard step state
+trial_ip_registrations    -- IP-based trial account rate limiting
+geo_audits                -- GEO visibility audit runs and results
+geo_citations             -- Individual citations found per audit
+geo_tracking_scores       -- Score history over time per customer
 ```
 
-### Key columns added to customers:
+### Key columns on customers:
 ```sql
 timezone VARCHAR(100)
 is_admin BOOLEAN
@@ -237,9 +281,15 @@ content_preferences JSONB
 lemon_squeezy_customer_id VARCHAR(255)
 lemon_squeezy_subscription_id VARCHAR(255)
 plan_expires_at TIMESTAMP
+parent_customer_id INTEGER        -- NULL for main accounts; set for workspace sub-accounts
+workspace_display_name VARCHAR(255) -- friendly name override for workspace
+geo_score NUMERIC                 -- latest GEO visibility score (0-100)
+last_geo_audit_at TIMESTAMP
+free_geo_audit_used BOOLEAN       -- one free audit per billing account
+website_testimonials TEXT
 ```
 
-### Key columns added to posts:
+### Key columns on posts:
 ```sql
 scheduled_timezone VARCHAR(100)
 source VARCHAR(50)          -- 'ai_generated' or 'manual_upload'
@@ -247,6 +297,9 @@ uploaded_by_user BOOLEAN
 engagement_by_platform JSONB
 performance_score NUMERIC
 last_metrics_sync TIMESTAMP
+video_job_id VARCHAR(255)
+video_render_status VARCHAR(50)
+video_provider VARCHAR(50)
 ```
 
 ---
@@ -274,7 +327,10 @@ REPLICATE_API_TOKEN             # Midjourney via Replicate
 IMAGE_PROVIDER=nanobanana       # 'nanobanana' | 'midjourney' | 'auto'
 
 # AI — Video
-HEYGEN_API_KEY                  # Video generation
+HEYGEN_API_KEY                  # Avatar/talking-head video generation
+VEO_API_KEY                     # Veo cinematic video generation (pipeline #2)
+RUNWAY_API_KEY                  # Runway Gen-4 fallback video
+PIKA_API_KEY                    # Pika 2.2 fallback video
 
 # Storage
 CLOUDINARY_CLOUD_NAME
@@ -348,7 +404,7 @@ RESEND_API_KEY
 - Always generate 3 variants: facebook_feed (1200x630), instagram_feed (1080x1350), google_business (720x720)
 - Use Sharp with 'cover' fit — never distort images, always crop
 - JPEG quality: 85 for all exports
-- Upload all variants to Cloudinary, save URLs to post_images table
+- Upload all variants to Cloudinary
 
 ### Timezone
 - Store: UTC always in database
@@ -364,6 +420,16 @@ RESEND_API_KEY
 - Always verify webhook signature before processing any event
 - Always return 200 OK to Lemon Squeezy (even on errors — log, don't reject)
 
+### Workspaces / Sub-Accounts
+- Sub-accounts have `parent_customer_id` set; main accounts have it NULL
+- Sub-accounts are created with `credits_balance = 0` — they share the parent's pool
+- For credit checks and deductions always use `getBillingCustomerId(req)` from `middleware/auth.js`
+  — this resolves to `req.parentCustomerId || req.customerId` (parent when in workspace context)
+- `GET /api/auth/verify` and `GET /api/customers/profile` both override `credits_balance` and
+  `free_geo_audit_used` with the parent's values when `parent_customer_id` is set
+- Layout.js sidebar shows "X shared credits" (not "X credits remaining") for `user.is_sub_account`
+- Workspace JWT contains `{ parentCustomerId }` claim — set by `POST /api/workspaces/:id/switch`
+
 ### Trial Rate Limiting (IP-Based)
 - Max 2 trial account registrations per IP address, enforced in `backend/routes/auth.js`
 - Table: `trial_ip_registrations` (ip_address VARCHAR(45), customer_id, created_at)
@@ -377,14 +443,13 @@ RESEND_API_KEY
   - File size > 10KB and < 10MB (checked via Content-Length header)
 - On validation failure: retry once → imageFailed: true in response (caption-only mode)
 - Validation is ONLY for media files — NOT for captions, hashtags, or engagement questions
-- Caption quality control comes from the customer's [Regenerate Image] button and Claude's prompt
 - The validateMedia() helper lives in `backend/routes/wizard.js` and is reused by all wizard endpoints
 
 ---
 
 ## THE INDUSTRY KNOWLEDGE SYSTEM
 
-**File:** `backend/data/industryKnowledge.js` — ALREADY CREATED AND COMPLETE
+**File:** `backend/data/industryKnowledge.js` — COMPLETE
 
 This is the brain of every AI generation. Contains for each industry:
 - `customerPainPoints` — 15+ real homeowner problems in human language
@@ -414,11 +479,11 @@ const seasonal = knowledge.seasonalContent[thisMonth];
 
 ---
 
-## THE SYSTEM PROMPT ARCHITECTURE (HOW CLAUDE MUST BE CALLED)
+## THE SYSTEM PROMPT ARCHITECTURE
 
-**File:** `backend/services/SystemPromptBuilder.js` — TO BE CREATED
+**File:** `backend/services/SystemPromptBuilder.js` — BUILT
 
-Every Claude API call for post generation MUST go through this builder.
+Every Claude API call for post generation goes through this builder.
 Never send a raw simple prompt to Claude for post generation.
 
 The assembled system prompt contains 6 sections:
@@ -429,6 +494,7 @@ Business name, industry, location, tone, visual style
 Their scraped services (from website intelligence if available)
 Brand personality and voice
 Past post examples if provided (few-shot prompting)
+Business knowledge base entries (from business_knowledge table)
 ```
 
 ### 2. INDUSTRY EXPERTISE
@@ -495,13 +561,23 @@ Business knowledge base content if provided
 
 ---
 
-## THE GUIDED CREATION WIZARD (NEXT MAJOR FEATURE)
+## THE GUIDED CREATION WIZARD
 
-**File:** `frontend/pages/wizard.js` — TO BE CREATED
-**File:** `backend/routes/wizard.js` — TO BE CREATED
+**Backend:** `backend/routes/wizard.js` — BUILT
+**Frontend:** Currently served via `ContentCreatorModal.js` — dedicated `frontend/pages/wizard.js` still to be created
 
 **Core principle:** NO blank prompt boxes. Ever. Local business owners are not
 copywriters. Remove the blank box entirely and replace with guided choices.
+
+### Wizard endpoints (all live):
+```
+POST /api/wizard/start              — begin session, return step 1
+POST /api/wizard/step               — submit answers, return next step or final posts
+POST /api/wizard/generate           — generate 3 variations
+GET  /api/wizard/steps/:industry/:contentType — return step config
+POST /api/wizard/quick              — mobile quick post mode
+POST /api/wizard/refresh            — refresh a variation with a different angle
+```
 
 ### Step 1 — "What's happening today?" (clickable cards, 2×4 grid)
 ```
@@ -529,36 +605,17 @@ copywriters. Remove the blank box entirely and replace with guided choices.
 Facebook | Instagram | Google Business | All Three (auto-adapted)
 ```
 
-### Step 4 — Smart Counter-Query (THE FLAGSHIP FEATURE — see below)
-Ask 2-3 targeted questions based on Step 1 choice + industry before generating.
+### Step 4 — Smart Counter-Query
+2-3 targeted questions based on Step 1 choice + industry before generating.
+Maximum 3 questions. Always show Skip button. Use chip selects wherever possible.
 
-### Step 5 — Loading state (rotating messages):
-```
-"Reading the room for [industry]..."
-"Writing like a local expert..."
-"Checking what's trending in [city]..."
-"Adding that authentic touch..."
-```
+### Step 5 — Loading state (rotating messages)
 
-### Step 6 — Results (3 variation cards: A, B, C) each showing:
-```
-- Full caption text
-- Engagement question (highlighted separately)
-- Hashtags as chips
-- Image prompt suggestion
-- [Use This] [Edit] [Try Different Tone] buttons
-- Below all: [One-Tap Refresh] [Start Over]
-```
-
-### Quick Post Mode (mobile/job site):
-```
-Single screen: short text input + platform toggles + tone emoji row
-Results: best single variation + [Post Now] [See All Versions] [Edit]
-```
+### Step 6 — Results (3 variation cards: A, B, C)
 
 ---
 
-## THE SMART COUNTER-QUERY ENGINE (FLAGSHIP FEATURE)
+## THE SMART COUNTER-QUERY ENGINE
 
 **This is what separates ItsPosting from every competitor.**
 
@@ -566,63 +623,91 @@ After Step 1 of the wizard, the system asks 2-3 targeted questions before
 generating. The questions are dynamic — based on content type, industry,
 day-of-week theme, and what's already known from the website scrape.
 
-### The psychology:
+The psychology:
 - Blank prompt → vague output → customer regenerates 2-3 times → credits wasted
 - 3 smart questions → first-try success rate jumps from ~30% to ~80%
 - Maximum 3 questions. Never more. Never required (always show Skip button).
 - Use quick-select chips wherever possible (tap-friendly, not typing)
 
-### Question selection logic:
-```javascript
-// backend/routes/wizard.js — getQuestionsForContext(industry, contentType, dayTheme, scrapeData)
+---
 
-const questionBank = {
-  universal: [
-    { id: 'location', text: 'Which area or neighbourhood is this job in?', type: 'text' },
-    { id: 'cta', text: 'What action should people take?', type: 'chips',
-      options: ['Call us', 'DM for quote', 'Book online', 'Visit our website', 'No CTA'] },
-    { id: 'unique', text: 'Anything unique about this job or situation?', type: 'text' }
-  ],
-  before_after: [
-    { id: 'transformation', text: 'How dramatic was the change?', type: 'chips',
-      options: ['Very dramatic', 'Significant improvement', 'Subtle but important'] },
-    { id: 'before_state', text: 'Describe the "before" in a few words:', type: 'text' },
-    { id: 'challenge', text: 'Was there anything technically challenging?', type: 'text' }
-  ],
-  plumbing: [
-    { id: 'emergency', text: 'Was this an emergency call-out?', type: 'chips',
-      options: ['Yes — emergency', 'No — planned work'] },
-    { id: 'pain_point', text: 'What was the customer\'s main issue?', type: 'text' }
-  ],
-  // ... per industry + per content type
-}
-```
+## GEO AUDIT SYSTEM
 
-### New API endpoints:
+**Backend:** `backend/routes/geo.js` + `backend/services/GeoAuditService.js` — BUILT
+**Frontend:** `frontend/pages/geo-audit/index.js` + `frontend/pages/geo-audit/[id].js` — BUILT
+
+GEO (Generative Engine Optimisation) audits measure how visible the business is
+across AI answer engines (ChatGPT, Gemini, Perplexity, etc.).
+
+### How it works:
+1. 15 targeted queries × 3 AI engines = 45 visibility checks
+2. Results scored 0-100, stored in `geo_audits` + `geo_citations` + `geo_tracking_scores`
+3. Report shows citations found, missing platforms, and improvement recommendations
+
+### Credit model:
+- First audit: FREE (one per billing account; `free_geo_audit_used` flag)
+- Subsequent audits: **5 credits** each
+- Always deduct from the billing account (parent for workspaces) via `getBillingCustomerId(req)`
+
+### Endpoints:
 ```
-POST /api/wizard/questions    — returns 2-3 questions based on context
-POST /api/wizard/generate     — generates 3 variations using questions + context
+POST /api/geo/audit         — trigger audit (free once, then 5 credits)
+GET  /api/geo/audit/latest  — most recent audit
+GET  /api/geo/audit/:id     — full report
+GET  /api/geo/history       — past 20 audits
+GET  /api/geo/score         — lightweight score card for dashboard
 ```
 
 ---
 
-## PROACTIVE SUGGESTIONS SYSTEM (TO BE BUILT)
+## WORKSPACES / MULTI-ACCOUNT SYSTEM
 
-**Files:** `backend/services/SuggestionsEngine.js`, `backend/routes/suggestions.js`
-**Frontend:** Dashboard "Today from PostCore" banner
+**Backend:** `backend/routes/workspaces.js` — BUILT
+**Frontend:** `frontend/pages/workspaces.js` — BUILT
+
+Allows one main account to manage multiple business identities (e.g. an agency
+managing clients, or a business with multiple locations).
+
+### How it works:
+- Workspace = child `customers` row with `parent_customer_id` set
+- Workspaces share the parent's credit pool (`credits_balance` always 0 on workspace row)
+- Switching into a workspace issues a new JWT with `parentCustomerId` claim
+- All billing operations resolve to the parent via `getBillingCustomerId(req)`
+
+### Plan limits:
+```
+Trial / Starter:  1 workspace total (main only)
+Professional:     2 workspaces
+Premium:          3 workspaces
+```
+
+### Endpoints:
+```
+GET    /api/workspaces           — list all workspaces under the main account
+POST   /api/workspaces           — create a new workspace
+PATCH  /api/workspaces/:id       — rename workspace
+DELETE /api/workspaces/:id       — soft-delete (suspend) workspace
+POST   /api/workspaces/:id/switch    — switch into a workspace (returns new JWT)
+POST   /api/workspaces/main/switch   — switch back to main account
+```
+
+---
+
+## PROACTIVE SUGGESTIONS SYSTEM
+
+**Files:** `backend/services/SuggestionsEngine.js`, `backend/routes/suggestions.js` — BUILT
+**Frontend:** `TodaySuggestionBanner.js`, `SuggestionCard.js` on dashboard — BUILT
 
 ### 4 types of suggestions:
 
 **1. SEASONAL** — "It's January, peak frozen pipe season. Here's a post:"
    - Generated from `industryKnowledge[industry].seasonalContent[currentMonth]`
-   - Shown in first week of each month
 
 **2. STREAK** — "You haven't posted in 3 days" OR "Keep your 6-day streak!"
    - Based on `customers.posting_streak` and `customers.last_posted_at`
 
 **3. CONTENT GAP** — "You've posted 5 promos but no educational content"
-   - Analyzes last 10 posts by content_type against 70/20/10 ratio
-   - Generates a ready post of the missing type
+   - Analyzes last 10 posts against 70/20/10 ratio via `ContentMixTracker.js`
 
 **4. MILESTONE** — "First post of the month!" "10th post!" "30-day streak!"
    - Based on posting_streak and total_posts_this_month
@@ -639,17 +724,16 @@ POST /api/wizard/generate     — generates 3 variations using questions + conte
 ```
 8am daily cron → generate suggestions for all active customers
 Dashboard → prominent "Today from PostCore" banner (red dot if unseen)
-Push notification → "☀️ Good morning! Here's today's suggested post..."
 ```
 
 ---
 
-## BUSINESS INTELLIGENCE DASHBOARD (TO BE BUILT)
+## BUSINESS INTELLIGENCE DASHBOARD
 
-**File:** `backend/services/BusinessIntelligence.js`
-Translate social media numbers into BUSINESS language.
+**File:** `backend/services/BusinessIntelligence.js` + `backend/routes/intelligence.js` — BUILT
+**Frontend:** `frontend/pages/roi.js`, `frontend/pages/reports.js` — BUILT
 
-### The rule: Never show vanity metrics without context.
+The rule: Never show vanity metrics without context.
 ```
 NOT: "710 impressions this week"
 YES: "~834 local people saw your business this month"
@@ -658,56 +742,24 @@ NOT: "3.2% engagement rate"
 YES: "Your engagement is in the top 25% of HVAC businesses your size"
 ```
 
-### The 4 metric cards:
-1. "People Reached This Month" — reach + "estimated [X] local homeowners"
-2. "Estimated New Customers" — range (min-max) with "Based on [industry] averages"
-3. "Engagement Rate" — your rate vs industry average + percentile badge
-4. "Posting Streak" — 🔥 N-day streak with encouragement phrase
-
 **CRITICAL:** ALL revenue/customer estimates must say "estimated".
 Always show: "Based on industry averages. Actual results vary."
 
-### Content Health Bar:
-```
-[Educational 70%][Social Proof 20%][Promotional 10%]  ← target
-[Educational 25%][Social Proof 15%][Seasonal 10%][Promotional 50%]  ← actual
-```
-If imbalanced: PostCore tip + [Generate Educational Post →]
-
 ---
 
-## POSTCORE WEEKLY BRIEFING (TO BE BUILT)
+## POSTCORE WEEKLY BRIEFING
 
-**File:** `backend/services/PostCoreAdvisor.js`
+**File:** `backend/services/PostCoreAdvisor.js` — BUILT
+**Frontend:** `PostCoreBanner.js` on dashboard — BUILT
+
 Generated every Monday 7am UTC for all active customers.
 Delivered via Resend email + in-app dashboard banner.
 
-### Format:
-```
-"Good morning, [Business Name]."
-
-This week in numbers:
-- [X] posts published → reached approximately [Y] local people
-- Your best post: [caption excerpt] with [N] engagements
-- [Streak status]
-
-What's Working
-[observation] → [why it matters] → [one action]
-
-Needs Attention
-[observation] → [why it matters] → [one action]
-
-This Week's Opportunity
-[seasonal or gap-based suggestion] → [one action]
-
-Keep it going — [encouragement specific to their industry and streak]
-```
-
 ---
 
-## IMAGE INTELLIGENCE (TO BE BUILT)
+## IMAGE RESIZING
 
-**File:** `backend/services/ImageResizer.js`
+**File:** `backend/services/ImageResizer.js` — BUILT
 
 ### Platform specs (hardcoded, never change):
 ```javascript
@@ -720,18 +772,34 @@ const PLATFORM_SPECS = {
 };
 ```
 
-### Process for every generated or uploaded image:
+Process: receive buffer → resize to master (1080x1350) → create FB + GB variants →
+upload all to Cloudinary → return URLs. Always 'cover' fit — never distort, always crop.
+
+---
+
+## VIDEO CONTENT PIPELINE (PLANNED — NEXT BUILD)
+
+Two separate pipelines for different video types:
+
+**Pipeline 1 — Avatar / talking-head (EXISTS):**
+`HeyGenService.js` — for AI spokesperson videos
+
+**Pipeline 2 — Cinematic / job footage (PLANNED):**
 ```
-1. Receive image buffer
-2. Resize to instagram_feed (1080x1350) — the master
-3. Resize to facebook_feed and google_business
-4. Upload all 3 variants to Cloudinary (folder: 'postflow/images')
-5. Save URLs to post_images table
-6. Return all URLs in API response
+Step 1: Generate key frame image
+        NanoBanana 2 (always — stable)
+              ↓
+Step 2: Animate to video
+        Veo 3.1 Fast          ← Primary (preview, cheap, native audio, Google ecosystem)
+              ↓ rate limit / downtime
+        Runway Gen-4          ← Fallback #1 (image-to-video king, cinematic zoom)
+                                + Google TTS for audio layer
+              ↓ Runway outage (rare)
+        Pika 2.2              ← Fallback #2 (social-first, authentic feel)
 ```
 
-**Safe zone for text:** Keep content in center 80% — outer 10% is danger zone
-**Fit:** Always 'cover' with Sharp — never distort, always crop
+`VeoService.js` and `VideoService.js` already exist as the foundation.
+Runway and Pika integrations still to be completed.
 
 ---
 
@@ -744,21 +812,12 @@ Week 1: Educational tip
 Week 2: Before & after project showcase
 Week 3: Customer testimonial or review
 Week 4: Team/behind-the-scenes OR seasonal
-
-Monthly overlays (from industryKnowledge.js):
-- Month start: "Start strong" milestone suggestion
-- Seasonal peak: Industry-specific urgency posts
-- Content gap: Auto-detected and auto-filled
 ```
 
-**The 70/20/10 rule** (non-negotiable):
+**The 70/20/10 rule** (non-negotiable, enforced by ContentMixTracker.js):
 - 70% educational / value-giving content
 - 20% social proof (testimonials, before/afters)
 - 10% promotional (special offers, sales)
-
-If a customer tries to post a 5th promotional post when they've only had 2
-educational posts, PostCore should proactively flag this and suggest an
-educational post first.
 
 ---
 
@@ -799,13 +858,14 @@ Professional: $199/month — 150 credits, all platforms (recommended)
 Premium:      $349/month — 500 credits, all platforms + agency features
 ```
 
-### Credits per content type:
+### Credits per action:
 ```
-Static text card: 1 credit
-Photo post:       3 credits
-Carousel:         5 credits
-Video:            10 credits
-Manual upload:    0 credits (own content)
+Static text card:  1 credit
+Photo post:        3 credits
+Carousel:          5 credits
+Video:             10 credits
+GEO Audit:         5 credits (first one is FREE per billing account)
+Manual upload:     0 credits (own content)
 ```
 
 ### Free (no credits):
@@ -893,58 +953,45 @@ CTA: Clear single action (not multiple options)
 
 ---
 
-## IMPLEMENTATION ORDER (FOLLOW THIS EXACTLY)
+## CURRENT STATUS & WHAT'S STILL TO BUILD
 
-### ✅ DONE:
+### ✅ FULLY BUILT:
 - Full AI content pipeline (captions, images, carousels, video)
-- industryKnowledge.js (backend/data/) — complete with 10 industries
+- industryKnowledge.js — complete with 10 industries
+- SystemPromptBuilder.js — 6-section rich prompt assembly
+- Guided wizard API (backend/routes/wizard.js) — all endpoints live
+- ContentCreatorModal.js — current wizard UI
+- Quick Post mode (frontend/pages/quick-post.js)
+- Smart Counter-Query Engine (built into wizard route)
+- ImageResizer.js — Sharp-based 3-variant processing
+- GEO Audit — full pipeline (GeoAuditService.js + routes + frontend pages)
+- Proactive Suggestions — SuggestionsEngine.js + routes + dashboard UI
+- ContentMixTracker.js — 70/20/10 enforcement
+- BusinessIntelligence.js + intelligence route + ROI page
+- PostCoreAdvisor.js — weekly briefing + PostCoreBanner
+- Business Knowledge Base — knowledge route + knowledge-base.js page
+- Workspaces / Multi-account — full stack (routes + frontend)
+- Admin portal — dashboard, customers, impersonation, audit log, broadcast
 - Website scraping with 7-day cache
-- Manual upload (0 credits)
-- 10GB media library
-- Admin portal with audit logging
+- Manual upload (0 credits) + 10GB media library
 - Post analytics with per-platform breakdown
-- Billing structure (4 plan tiers)
-- Dark theme + Lucide icons
-- Auth (JWT + bcrypt + rate limiting)
+- Notifications (in-app bell + email queue)
+- Auth (JWT + bcrypt + IP rate limiting + workspace JWTs)
 - Password reset flow
-- Email queue infrastructure
+- Reports page + ROI estimator
+- DMs + Inbox + Contacts pages
+- IndustryBenchmarks.js
+- VeoService.js + VideoService.js foundation (pipeline #2 partial)
 
-### 🔴 CRITICAL — Build these first:
-**Week 1:**
-- [ ] `SystemPromptBuilder.js` — the AI brain upgrade (uses industryKnowledge.js)
-- [ ] Database migrations for new tables (content_suggestions, post_variations, post_images, business_knowledge, postcore_briefings)
-- [ ] Install and configure Luxon + Sharp
-- [ ] Timezone handling (backend utils + frontend display)
-
-**Week 2:**
-- [ ] `backend/routes/wizard.js` — Guided wizard API
-- [ ] `frontend/pages/wizard.js` — Guided wizard UI (Step 1-6)
-- [ ] Smart Counter-Query Engine (questions API + UI chips)
-- [ ] `ImageResizer.js` — 3-variant image processing with Sharp
-
-**Week 3:**
-- [ ] `SuggestionsEngine.js` — Proactive suggestions (4 types)
-- [ ] Dashboard suggestions UI — "Today from PostCore" banner
-- [ ] Content mix tracker — 70/20/10 enforcement
-- [ ] Mobile Quick Post mode
-
-**Week 4:**
-- [ ] `BusinessIntelligence.js` — business-language metrics
-- [ ] `PostCoreAdvisor.js` — weekly briefing generator
-- [ ] Business intelligence dashboard UI
-- [ ] ROI estimator page
-
-**Week 5:**
-- [ ] Teach PostCore — business knowledge base UI + storage
-- [ ] Monthly report generator (PDF via Resend)
-- [ ] Unified engagement inbox (comment monitoring)
-- [ ] Industry benchmarking
-
-**Week 6:**
-- [ ] Lemon Squeezy billing integration (full webhook handling)
-- [ ] PWA setup for mobile job-site use
-- [ ] Facebook + Instagram live OAuth + posting
-- [ ] Google Business Profile posting
+### 🔴 STILL TO BUILD:
+- **`frontend/pages/wizard.js`** — dedicated wizard page (backend is done; currently in modal)
+- **Video pipeline #2 completion** — Runway Gen-4 + Pika 2.2 integrations in VideoService.js
+- **Lemon Squeezy full webhook handling** — billing.js is a placeholder; implement all webhook events
+- **Facebook + Instagram live OAuth + posting** — social.js exists; live posting needs OAuth flows
+- **Google Business Profile live posting** — endpoint exists; GBP API integration needed
+- **LinkedIn + TikTok posting** — routes exist; provider integrations needed
+- **Monthly report generator** — PDF generation via Resend (reports page is UI-only)
+- **PWA setup** — service worker + manifest for mobile job-site use
 
 ---
 

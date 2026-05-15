@@ -68,6 +68,7 @@ class GeoAuditService {
     const knowledge = industryKnowledge[customer.industry] || industryKnowledge.general_contractor;
     const seasonalTopic = knowledge.seasonalContent?.[month]?.urgencyTopic || `${svc} services`;
     const serviceFocus = options.serviceFocus || 'all';
+    const services = Array.isArray(options.services) && options.services.length > 0 ? options.services : null;
 
     const focusLabel = serviceFocus === 'emergency' ? 'emergency'
       : serviceFocus === 'commercial' ? 'commercial'
@@ -81,11 +82,11 @@ class GeoAuditService {
       `Top-rated ${svc} companies in ${city} — who should I hire?`,
       `${city} residents: who do you recommend for ${svc} work?`,
 
-      // Group B — Competitive intel (5 questions)
+      // Group B — Competitive intel (5 questions) — uses scraped services when available
       `What are the top ${svc} companies in ${city}?`,
       `Which ${svc} in ${city} has the best online reviews?`,
-      `Best ${svc} for ${focusLabel} work in ${city}`,
-      `Most trusted ${svc} in ${city} — who do locals use?`,
+      services?.[0] ? `Best ${services[0]} service in ${city}` : `Best ${svc} for ${focusLabel} work in ${city}`,
+      services?.[1] ? `Most trusted ${services[1]} company in ${city}` : `Most trusted ${svc} in ${city} — who do locals use?`,
       `Who handles ${seasonalTopic} in ${city}?`,
 
       // Group C — Trust signal extraction (3 questions)
@@ -191,27 +192,22 @@ Text: ${text.substring(0, 600)}`,
     }
   }
 
-  // New composite scoring model
+  // New composite scoring model — returns {total, brand, competitor, trust}
   computeScore(citations, uniqueCompetitorCount) {
-    if (!citations.length) return 0;
+    if (!citations.length) return { total: 0, brand: 0, competitor: 0, trust: 0 };
 
-    const brandMentions = citations.filter(c => c.business_mentioned).length;
-    // brand mentions counted across Group A (first 5 questions = 15 citations)
     const groupACitations = citations.slice(0, 15);
     const groupAMentions = groupACitations.filter(c => c.business_mentioned).length;
 
-    const brandScore = Math.round((groupAMentions / Math.max(groupACitations.length, 1)) * 40);
+    const brand = Math.round((groupAMentions / Math.max(groupACitations.length, 1)) * 40);
+    const competitor = Math.max(0, 30 - (uniqueCompetitorCount * 5));
 
-    // fewer competitors = less crowded market = better opportunity
-    const competitorScore = Math.max(0, 30 - (uniqueCompetitorCount * 5));
-
-    // trust signal richness — more signals = better intel quality
     const allSignals = new Set(citations.flatMap(c => c.trust_signals || []));
-    const trustScore = Math.round((Math.min(allSignals.size, 8) / 8) * 30);
+    const trust = Math.round((Math.min(allSignals.size, 8) / 8) * 30);
 
-    const total = Math.min(100, brandScore + competitorScore + trustScore);
-    console.log(`[GeoAudit] Score breakdown: brand=${brandScore} competitor=${competitorScore} trust=${trustScore} total=${total}`);
-    return total;
+    const total = Math.min(100, brand + competitor + trust);
+    console.log(`[GeoAudit] Score breakdown: brand=${brand} competitor=${competitor} trust=${trust} total=${total}`);
+    return { total, brand, competitor, trust };
   }
 
   async synthesizeReport(customer, citations, options = {}) {
@@ -220,7 +216,7 @@ Text: ${text.substring(0, 600)}`,
     }
 
     const uniqueCompetitors = [...new Set(citations.flatMap(c => c.competitors_mentioned || []))];
-    const score = this.computeScore(citations, uniqueCompetitors.length);
+    const { total: score } = this.computeScore(citations, uniqueCompetitors.length);
     const citationsFound = citations.filter(c => c.business_mentioned).length;
 
     // Aggregate competitor appearances
@@ -330,7 +326,7 @@ Include exactly 5 recommendations. queryGrid must include all ${questions.length
 
   _fallbackReport(customer, citations, options = {}) {
     const uniqueCompetitors = [...new Set(citations.flatMap(c => c.competitors_mentioned || []))];
-    const score = this.computeScore(citations, uniqueCompetitors.length);
+    const { total: score } = this.computeScore(citations, uniqueCompetitors.length);
     const found = citations.filter(c => c.business_mentioned).length;
     const verdict = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
 
@@ -423,20 +419,24 @@ Include exactly 5 recommendations. queryGrid must include all ${questions.length
       }
 
       const uniqueCompetitors = [...new Set(citations.flatMap(c => c.competitors_mentioned || []))];
-      const score = this.computeScore(citations, uniqueCompetitors.length);
+      const scoreResult = this.computeScore(citations, uniqueCompetitors.length);
+      const geoScore = scoreResult.total;
       const citationsFound = citations.filter(c => c.business_mentioned).length;
       const reportData = await this.synthesizeReport(customer, citations, options);
+
+      // Attach score breakdown so the report page can show brand/competitor/trust bars
+      reportData.scoreBreakdown = { brand: scoreResult.brand, competitor: scoreResult.competitor, trust: scoreResult.trust };
 
       await this.pool.query(
         `UPDATE geo_audits
          SET status = 'complete', geo_score = $1, citations_found = $2, report_data = $3, completed_at = NOW()
          WHERE id = $4`,
-        [score, citationsFound, JSON.stringify(reportData), auditId]
+        [geoScore, citationsFound, JSON.stringify(reportData), auditId]
       );
 
       await this.pool.query(
         `UPDATE customers SET geo_score = $1, last_geo_audit_at = NOW() WHERE id = $2`,
-        [score, customer.id]
+        [geoScore, customer.id]
       );
 
       const weekStart = new Date();
@@ -445,10 +445,10 @@ Include exactly 5 recommendations. queryGrid must include all ${questions.length
         `INSERT INTO geo_tracking_scores (customer_id, geo_score, citations_found, week_start)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT DO NOTHING`,
-        [customer.id, score, citationsFound, weekStart.toISOString().split('T')[0]]
+        [customer.id, geoScore, citationsFound, weekStart.toISOString().split('T')[0]]
       );
 
-      console.log(`[GeoAudit] Audit ${auditId} complete — score ${score}/100, ${citationsFound}/${citations.length} citations`);
+      console.log(`[GeoAudit] Audit ${auditId} complete — score ${geoScore}/100, ${citationsFound}/${citations.length} citations`);
     } catch (err) {
       console.error('[GeoAudit] runAudit failed:', err.message);
       await this.pool.query(

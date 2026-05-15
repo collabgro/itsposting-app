@@ -131,7 +131,7 @@ module.exports = (pool) => {
       const result = await pool.query(
         `SELECT id, email, business_name, industry, location, plan, status, credits_balance,
                 brand_colors, visual_style, tone, avatar_id, voice_id, preferred_image_provider,
-                is_admin, role, suspended
+                is_admin, role, suspended, parent_customer_id, free_geo_audit_used
          FROM customers WHERE id = $1`,
         [req.customerId]
       );
@@ -143,6 +143,19 @@ module.exports = (pool) => {
       const customer = result.rows[0];
       if (customer.suspended) {
         return res.status(403).json({ error: 'Account suspended' });
+      }
+
+      // Sub-accounts share the parent's credit pool
+      if (customer.parent_customer_id) {
+        const parentRow = await pool.query(
+          `SELECT credits_balance, free_geo_audit_used FROM customers WHERE id = $1`,
+          [customer.parent_customer_id]
+        );
+        if (parentRow.rows.length) {
+          customer.credits_balance = parentRow.rows[0].credits_balance;
+          customer.free_geo_audit_used = parentRow.rows[0].free_geo_audit_used;
+          customer.is_sub_account = true;
+        }
       }
 
       res.json({ customer });

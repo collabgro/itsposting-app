@@ -386,7 +386,7 @@ export default function Layout({ children, title, subtitle, action }) {
           <div style={{ padding: '12px', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
             <div style={{ padding: '12px 14px', background: t.card, borderRadius: 10, border: `1px solid ${t.border}` }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 2 }}>Free trial version</div>
-              <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8 }}>{user.credits_balance ?? 0} credits remaining</div>
+              <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8 }}>{user.credits_balance ?? 0} {user.is_sub_account ? 'shared credits' : 'credits remaining'}</div>
               <div style={{ height: 4, background: t.input, borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
                 <div style={{ height: '100%', width: `${Math.min(100, ((user.credits_balance ?? 0) / 10) * 100)}%`, background: t.primary, borderRadius: 2 }} />
               </div>

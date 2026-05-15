@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
 
+
 module.exports = (pool) => {
   const router = express.Router();
 
@@ -16,7 +17,8 @@ module.exports = (pool) => {
                 credits_used_this_month, trial_ends_at, auto_post_enabled,
                 auto_post_frequency, posting_times, timezone,
                 is_admin, role, suspended, posting_streak,
-                last_posted_at, total_posts_this_month
+                last_posted_at, total_posts_this_month, parent_customer_id,
+                free_geo_audit_used
          FROM customers WHERE id = $1`,
         [req.customerId]
       );
@@ -25,7 +27,19 @@ module.exports = (pool) => {
         return res.status(404).json({ error: 'Customer not found' });
       }
 
-      res.json(result.rows[0]);
+      const profile = result.rows[0];
+      if (profile.parent_customer_id) {
+        const parentRow = await pool.query(
+          `SELECT credits_balance, free_geo_audit_used FROM customers WHERE id = $1`,
+          [profile.parent_customer_id]
+        );
+        if (parentRow.rows.length) {
+          profile.credits_balance = parentRow.rows[0].credits_balance;
+          profile.free_geo_audit_used = parentRow.rows[0].free_geo_audit_used;
+          profile.is_sub_account = true;
+        }
+      }
+      res.json(profile);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
