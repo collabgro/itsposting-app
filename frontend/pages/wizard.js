@@ -4,6 +4,7 @@ import {
   IpCredits, IpFacebook, IpInstagram, IpGoogle,
   IpArrowLeft, IpArrowRight, IpRefresh, IpCopy,
   IpCheck, IpEdit, IpSparkle, IpChevronRight, IpLinkedIn, IpTikTok,
+  IpVideo, IpUser,
 } from '../components/icons';
 import Icon from '../components/Icon';
 import Layout from '../components/Layout';
@@ -148,8 +149,15 @@ const FORMAT_PLATFORM_COLORS = {
   Google: '#34A853',
 };
 
+const FORMAT_TYPE_FILTER = {
+  video:    ['ig-reel', 'ig-story', 'fb-story', 'tt-video', 'tt-story', 'li-video'],
+  carousel: ['ig-45', 'ig-square', 'li-post', 'fb-square', 'fb-landscape'],
+  photo:    null,
+  static:   ['ig-45', 'fb-landscape', 'li-post', 'gb-45', 'fb-square'],
+};
+
 // Canva-style device-frame mockup
-function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md' }) {
+function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md', contentType }) {
   const maxH = size === 'lg' ? 96 : 76;
   const maxW = size === 'lg' ? 136 : 108;
   const ratio = width / height;
@@ -159,6 +167,32 @@ function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md' 
 
   const isPortrait = height >= width * 1.3;
   const badgeSize = size === 'lg' ? 18 : 15;
+
+  const ContentOverlay = ({ W, H }) => {
+    if (contentType === 'video') {
+      const cx = W / 2, cy = H * 0.45;
+      const r = Math.min(W, H) * 0.14;
+      const tx = cx + r * 0.35, ty = cy;
+      const pt = `${cx - r * 0.5},${cy - r * 0.65} ${tx + r * 0.5},${ty} ${cx - r * 0.5},${cy + r * 0.65}`;
+      return (
+        <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }} fill="none">
+          <circle cx={cx} cy={cy} r={r * 1.5} fill="rgba(0,0,0,0.28)" />
+          <polygon points={pt} fill="rgba(255,255,255,0.92)" />
+        </svg>
+      );
+    }
+    if (contentType === 'carousel') {
+      const dotY = H * 0.88, spacing = 6, dotR = 2.5;
+      return (
+        <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }} fill="none">
+          <circle cx={W / 2 - spacing} cy={dotY} r={dotR} fill="rgba(255,255,255,0.45)" />
+          <circle cx={W / 2}            cy={dotY} r={dotR} fill="rgba(255,255,255,0.95)" />
+          <circle cx={W / 2 + spacing} cy={dotY} r={dotR} fill="rgba(255,255,255,0.45)" />
+        </svg>
+      );
+    }
+    return null;
+  };
 
   if (isPortrait) {
     const bx = 5, bTop = 14, bBot = 12;
@@ -178,9 +212,9 @@ function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md' 
           borderRadius: 3, overflow: 'hidden',
         }}>
           {/* Image area ~60% */}
-          <div style={{ height: '60%', background: `linear-gradient(160deg, ${platformColor}60, ${platformColor}35)` }}>
-            {/* Simulated image texture lines */}
+          <div style={{ height: '60%', background: `linear-gradient(160deg, ${platformColor}60, ${platformColor}35)`, position: 'relative' }}>
             <div style={{ height: '100%', background: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${platformColor}12 8px, ${platformColor}12 9px)` }} />
+            <ContentOverlay W={cW} H={cH * 0.6} />
           </div>
           {/* Caption area */}
           <div style={{ flex: 1, background: `${platformColor}14`, padding: '5px 6px', display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -203,8 +237,9 @@ function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md' 
     <div style={{ position: 'relative', width: cW, height: cH, flexShrink: 0 }}>
       <div style={{ position: 'absolute', inset: 0, borderRadius: 7, border: '1.5px solid #D0D0D0', background: '#F5F5F5', overflow: 'hidden' }}>
         {/* Image area ~58% */}
-        <div style={{ height: '58%', background: `linear-gradient(135deg, ${platformColor}60, ${platformColor}35)` }}>
+        <div style={{ height: '58%', background: `linear-gradient(135deg, ${platformColor}60, ${platformColor}35)`, position: 'relative' }}>
           <div style={{ height: '100%', background: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${platformColor}12 8px, ${platformColor}12 9px)` }} />
+          <ContentOverlay W={cW} H={cH * 0.58} />
         </div>
         {/* Caption lines */}
         <div style={{ padding: '5px 7px', display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -626,14 +661,14 @@ export default function Wizard() {
                   {[
                     {
                       id: 'services',
-                      emoji: '🎬',
+                      Icon: IpVideo,
                       label: 'Services Video',
                       desc: 'Animated scene showing your work — powered by Veo 3.1',
                       tag: 'Recommended',
                     },
                     {
                       id: 'avatar',
-                      emoji: '👤',
+                      Icon: IpUser,
                       label: 'Avatar Video',
                       desc: 'AI presenter talks to camera about your business — powered by HeyGen',
                       tag: null,
@@ -660,7 +695,7 @@ export default function Wizard() {
                             {vt.tag}
                           </div>
                         )}
-                        <div style={{ fontSize: 20, marginBottom: 8 }}>{vt.emoji}</div>
+                        <div style={{ marginBottom: 8 }}><vt.Icon size={22} color={selected ? t.primary : t.textMuted} /></div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: selected ? t.primary : t.text, marginBottom: 4 }}>{vt.label}</div>
                         <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.5 }}>{vt.desc}</div>
                       </button>
@@ -689,7 +724,7 @@ export default function Wizard() {
           const fmtIconMap = { facebook: IpFacebook, instagram: IpInstagram, linkedin: IpLinkedIn, tiktok: IpTikTok, google_business: IpGoogle };
           const tabIconMap = { Facebook: IpFacebook, Instagram: IpInstagram, LinkedIn: IpLinkedIn, TikTok: IpTikTok, Google: IpGoogle };
 
-          const FormatCard = ({ fmt, isSelected, uid, size = 'md', isBest = false }) => {
+          const FormatCard = ({ fmt, isSelected, uid, size = 'md', isBest = false, contentType: ct }) => {
             const pColor = FORMAT_PLATFORM_COLORS[fmt.platform] || t.primary;
             const PIcon = fmtIconMap[fmt.platform];
             const isHovered = hoveredFormat === uid;
@@ -724,7 +759,7 @@ export default function Wizard() {
                     <IpCheck size={10} color="#fff" strokeWidth={3} />
                   </div>
                 )}
-                <FormatMockup width={fmt.width} height={fmt.height} platformColor={pColor} PlatformIcon={PIcon} size={size} />
+                <FormatMockup width={fmt.width} height={fmt.height} platformColor={pColor} PlatformIcon={PIcon} size={size} contentType={ct} />
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: size === 'lg' ? 13 : 11, fontWeight: 700, color: isSelected ? pColor : t.text, lineHeight: 1.3, marginBottom: 3 }}>{fmt.label}</div>
                   <div style={{ fontSize: 10, color: t.textMuted, fontWeight: 500 }}>{fmt.sublabel}</div>
@@ -761,6 +796,7 @@ export default function Wizard() {
                       isSelected={selectedFormat?.label === fmt.label && selectedFormat?.platform === fmt.platform}
                       size="lg"
                       isBest={idx === 0}
+                      contentType={contentType}
                     />
                   ))}
                 </div>
@@ -797,16 +833,29 @@ export default function Wizard() {
               </div>
 
               {/* ── All formats grid ── */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 28 }}>
-                {(FORMAT_DATA[formatTab] || []).map((fmt, idx) => (
-                  <FormatCard
-                    key={`${formatTab}-${idx}`}
-                    fmt={fmt}
-                    uid={`${formatTab}-${idx}`}
-                    isSelected={selectedFormat?.label === fmt.label && selectedFormat?.platform === fmt.platform}
-                  />
-                ))}
-              </div>
+              {(() => {
+                const allowedIds = FORMAT_TYPE_FILTER[contentType];
+                const visibleFormats = allowedIds
+                  ? (FORMAT_DATA[formatTab] || []).filter(f => allowedIds.includes(f.id))
+                  : (FORMAT_DATA[formatTab] || []);
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 28 }}>
+                    {visibleFormats.length === 0 ? (
+                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '30px 0', fontSize: 13, color: t.textMuted }}>
+                        No {contentType} formats for this platform — try another tab
+                      </div>
+                    ) : visibleFormats.map((fmt, idx) => (
+                      <FormatCard
+                        key={`${formatTab}-${idx}`}
+                        fmt={fmt}
+                        uid={`${formatTab}-${idx}`}
+                        isSelected={selectedFormat?.label === fmt.label && selectedFormat?.platform === fmt.platform}
+                        contentType={contentType}
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* ── Footer nav ── */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -995,7 +1044,7 @@ export default function Wizard() {
             )}
             <WizardNav
               t={t} onBack={handleBack} onNext={handleNext} canNext={canProceed()}
-              nextLabel="✨ Generate Posts"
+              nextLabel={<><IpSparkle size={14} /> Generate Posts</>}
               nextStyle={{ background: `linear-gradient(135deg, ${t.primary}, ${t.primaryLight})`, padding: '12px 28px', fontSize: 15 }}
             />
           </div>

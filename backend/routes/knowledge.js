@@ -1,10 +1,15 @@
 'use strict';
 
 const express          = require('express');
+const multer           = require('multer');
 const { authenticate } = require('../middleware/auth');
+const CrawlerService   = require('../services/CrawlerService');
+
+const memUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 module.exports = (pool) => {
   const router = express.Router();
+  const crawler = new CrawlerService(pool);
   router.use(authenticate);
 
   // ── GET /api/knowledge/scrape-preview ────────────────────────────────────
@@ -111,6 +116,28 @@ module.exports = (pool) => {
     }
   });
 
+  // ── POST /api/knowledge/entry ────────────────────────────────────────────
+  // Create a single knowledge entry
+  router.post('/entry', async (req, res) => {
+    try {
+      const { knowledgeType, title, content } = req.body;
+      if (!knowledgeType || !title || !content) {
+        return res.status(400).json({ error: 'knowledgeType, title, content are required' });
+      }
+      const { rows } = await pool.query(
+        `INSERT INTO business_knowledge (customer_id, knowledge_type, title, content, sort_order)
+         VALUES ($1, $2, $3, $4,
+           (SELECT COALESCE(MAX(sort_order), 0) + 10 FROM business_knowledge WHERE customer_id=$1 AND knowledge_type=$2)
+         ) RETURNING *`,
+        [req.customerId, knowledgeType, title, content]
+      );
+      res.json({ entry: rows[0] });
+    } catch (err) {
+      console.error('[knowledge] POST /entry:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── POST /api/knowledge/import-website ───────────────────────────────────
   // Uses cached scrape data if available, otherwise triggers a fresh scrape.
   // Returns the same shape as scrape-preview so the frontend can call applyImportData directly.
@@ -151,6 +178,220 @@ module.exports = (pool) => {
       res.json({ hasData: services.length > 0 || !!data.about, website: row.website, services, differentiators: (data.about || '').substring(0, 400), testimonials });
     } catch (err) {
       console.error('[knowledge] import-website:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/knowledge/crawl ─────────────────────────────────────
+  // Start a new crawl job. Returns jobId for polling.
+  router.post('/crawl', async (req, res) => {
+    try {
+      const { url, mode = 'domain' } = req.body;
+      if (!url) return res.status(400).json({ error: 'url is required' });
+
+      const customer = (await pool.query(
+        'SELECT plan FROM customers WHERE id=$1', [req.customerId]
+      )).rows[0];
+      const plan = customer?.plan || 'starter';
+
+      const jobId = await crawler.crawl(req.customerId, url, mode, plan);
+      res.json({ success: true, jobId });
+    } catch (err) {
+      console.error('[knowledge] crawl start:', err.message);
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // ── GET /api/knowledge/crawls ─────────────────────────────────────
+  // List all crawl jobs for this customer (for Web Crawler tab table)
+  router.get('/crawls', async (req, res) => {
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, url, mode, status, pages_crawled, pages_found, created_at, completed_at
+         FROM crawl_jobs WHERE customer_id=$1 ORDER BY created_at DESC`,
+        [req.customerId]
+      );
+      res.json({ jobs: rows });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── GET /api/knowledge/crawl/:jobId ──────────────────────────────
+  router.get('/crawl/:jobId', async (req, res) => {
+    try {
+      const job = await crawler.getJob(parseInt(req.params.jobId), req.customerId);
+      if (!job) return res.status(404).json({ error: 'Crawl job not found' });
+      res.json({ job });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/knowledge/crawl/:jobId/import ───────────────────────
+  // Import selected page URLs from a completed crawl into business_knowledge
+  router.post('/crawl/:jobId/import', async (req, res) => {
+    const client = await pool.connect();
+    try {
+      const { selectedUrls = [] } = req.body;
+      if (!selectedUrls.length) return res.status(400).json({ error: 'No pages selected' });
+
+      const content = await crawler.importPages(parseInt(req.params.jobId), req.customerId, selectedUrls);
+
+      // Merge into business_knowledge (append — don't delete existing)
+      await client.query('BEGIN');
+
+      const insertItem = (type, title, c, order = 0) =>
+        client.query(
+          `INSERT INTO business_knowledge (customer_id, knowledge_type, title, content, sort_order)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [req.customerId, type, title, c, order]
+        );
+
+      for (let i = 0; i < content.services.length; i++) {
+        const s = content.services[i];
+        await insertItem('services', s.slice(0, 250), JSON.stringify({ name: s, description: '', priceRange: '' }), 1000 + i);
+      }
+      for (let i = 0; i < content.faqs.length; i++) {
+        const f = content.faqs[i];
+        if (f.q) await insertItem('faqs', f.q.slice(0, 250), JSON.stringify(f), 1000 + i);
+      }
+      if (content.about?.trim()) {
+        await insertItem('differentiators', 'About (from website)', content.about.trim().substring(0, 400), 1000);
+      }
+      for (let i = 0; i < (content.testimonials || []).length; i++) {
+        const t = content.testimonials[i];
+        if (t) await insertItem('reviews', `Review ${i + 1}`, t.substring(0, 300), 1000 + i);
+      }
+
+      // Store pricing and hours in a dedicated knowledge entry
+      if (content.pricing?.length) {
+        await insertItem('services', 'Pricing (from website)', JSON.stringify({ pricing: content.pricing }), 999);
+      }
+      if (content.hours) {
+        await insertItem('differentiators', 'Business Hours', content.hours, 998);
+      }
+
+      await client.query('COMMIT');
+      res.json({ success: true, imported: { services: content.services.length, faqs: content.faqs.length } });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('[knowledge] crawl import:', err.message);
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
+  });
+
+  // ── DELETE /api/knowledge/crawl/:jobId ───────────────────────────
+  router.delete('/crawl/:jobId', async (req, res) => {
+    try {
+      await pool.query(
+        `DELETE FROM crawl_jobs WHERE id=$1 AND customer_id=$2`,
+        [req.params.jobId, req.customerId]
+      );
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/knowledge/prices ────────────────────────────────────
+  // Save structured pricing table as a knowledge entry
+  router.post('/prices', async (req, res) => {
+    try {
+      const { items = [] } = req.body; // [{service, priceRange, notes}]
+      if (!items.length) return res.status(400).json({ error: 'No pricing items provided' });
+
+      await pool.query(
+        `DELETE FROM business_knowledge WHERE customer_id=$1 AND knowledge_type='services' AND title LIKE 'Price:%'`,
+        [req.customerId]
+      );
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.service?.trim()) {
+          await pool.query(
+            `INSERT INTO business_knowledge (customer_id, knowledge_type, title, content, sort_order)
+             VALUES ($1, 'services', $2, $3, $4)`,
+            [req.customerId, `Price: ${item.service.trim()}`, JSON.stringify(item), 500 + i]
+          );
+        }
+      }
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/knowledge/upload-file ──────────────────────────────────────
+  // Upload a TXT or PDF file and store extracted text as a knowledge entry
+  router.post('/upload-file', memUpload.single('file'), async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) return res.status(400).json({ error: 'No file uploaded' });
+
+      const ext = file.originalname.split('.').pop().toLowerCase();
+      let content = '';
+
+      if (ext === 'txt' || ext === 'md') {
+        content = file.buffer.toString('utf8');
+      } else if (ext === 'pdf') {
+        try {
+          const pdfParse = require('pdf-parse');
+          const data = await pdfParse(file.buffer);
+          content = data.text;
+        } catch (pdfErr) {
+          return res.status(422).json({ error: 'Could not parse PDF: ' + pdfErr.message });
+        }
+      } else {
+        return res.status(400).json({ error: 'Only TXT, MD, and PDF files are supported' });
+      }
+
+      if (!content.trim()) return res.status(422).json({ error: 'File appears to be empty or contains no readable text' });
+
+      const { rows } = await pool.query(
+        `INSERT INTO business_knowledge (customer_id, knowledge_type, title, content, sort_order)
+         VALUES ($1, 'files', $2, $3,
+           (SELECT COALESCE(MAX(sort_order), 0) + 10 FROM business_knowledge WHERE customer_id=$1 AND knowledge_type='files')
+         ) RETURNING *`,
+        [req.customerId, file.originalname, content.trim()]
+      );
+      res.json({ entry: rows[0] });
+    } catch (err) {
+      console.error('[knowledge] upload-file:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── PUT /api/knowledge/:id ────────────────────────────────────────────────
+  // Update a single entry's title and content
+  router.put('/:id', async (req, res) => {
+    try {
+      const { title, content } = req.body;
+      const { rows } = await pool.query(
+        `UPDATE business_knowledge SET title=$1, content=$2, updated_at=NOW()
+         WHERE id=$3 AND customer_id=$4 AND is_active=true RETURNING *`,
+        [title, content, req.params.id, req.customerId]
+      );
+      if (!rows[0]) return res.status(404).json({ error: 'Entry not found' });
+      res.json({ entry: rows[0] });
+    } catch (err) {
+      console.error('[knowledge] PUT /:id:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── DELETE /api/knowledge/:id ─────────────────────────────────────────────
+  // Soft-delete a single entry
+  router.delete('/:id', async (req, res) => {
+    try {
+      await pool.query(
+        `UPDATE business_knowledge SET is_active=false WHERE id=$1 AND customer_id=$2`,
+        [req.params.id, req.customerId]
+      );
+      res.json({ success: true });
+    } catch (err) {
+      console.error('[knowledge] DELETE /:id:', err.message);
       res.status(500).json({ error: err.message });
     }
   });

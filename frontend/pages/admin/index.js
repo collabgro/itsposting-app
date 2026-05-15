@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpTeam, IpTrendingUp, IpDollar, IpWarning, IpActivity,
-  IpAdmin, IpChevronRight, IpAnalytics, IpCheckCircle, IpCloseCircle,
+  IpAdmin, IpChevronRight, IpAnalytics, IpCheckCircle, IpCloseCircle, IpCheck, IpPhotoStudio,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Card, Button, Badge, StatCard, SectionHeader, EmptyState, Spinner } from '../../components/ui';
@@ -88,9 +88,14 @@ export default function AdminDashboard() {
           <div>
             <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{health.status === 'healthy' ? 'All systems operational' : 'System issues detected'}</span>
             <span style={{ fontSize: 12, color: t.textMuted, marginLeft: 12 }}>DB: {health.database?.version?.split(' ').slice(0, 2).join(' ')}</span>
-            {health.errors24h > 0 && <span style={{ fontSize: 12, color: t.error, marginLeft: 12 }}>⚠ {health.errors24h} failed posts in last 24h</span>}
-            <span style={{ fontSize: 12, color: t.textMuted, marginLeft: 12 }}>
-              AI: {health.services?.anthropic ? '✓ Claude' : '✗ Claude'} · {health.services?.nanobanana ? '✓ Gemini' : '✗ Gemini'} · {health.services?.cloudinary ? '✓ Cloudinary' : '✗ Cloudinary'}
+            {health.errors24h > 0 && <span style={{ fontSize: 12, color: t.error, marginLeft: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}><IpWarning size={12} /> {health.errors24h} failed posts in last 24h</span>}
+            <span style={{ fontSize: 12, color: t.textMuted, marginLeft: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              AI:{' '}
+              {health.services?.anthropic ? <IpCheck size={12} style={{ color: '#22c55e' }} /> : <IpCloseCircle size={12} style={{ color: t.error }} />}{' '}Claude
+              {' · '}
+              {health.services?.nanobanana ? <IpCheck size={12} style={{ color: '#22c55e' }} /> : <IpCloseCircle size={12} style={{ color: t.error }} />}{' '}Gemini
+              {' · '}
+              {health.services?.cloudinary ? <IpCheck size={12} style={{ color: '#22c55e' }} /> : <IpCloseCircle size={12} style={{ color: t.error }} />}{' '}Cloudinary
             </span>
           </div>
         </div>
@@ -187,6 +192,26 @@ export default function AdminDashboard() {
           </div>
         </Card>
       )}
+
+      {/* CONTENT LIBRARY */}
+      <div style={{ marginTop: 20 }}>
+        <SectionHeader title="Content Library" />
+        <Card
+          onClick={() => router.push('/admin/stock-photos')}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', marginTop: 12 }}
+          onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
+          onMouseLeave={e => e.currentTarget.style.background = ''}
+        >
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: t.primaryBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <IpPhotoStudio size={22} color={t.primary} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Stock Photo Library</div>
+            <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>Upload and manage photos available to all customers in Photo Studio</div>
+          </div>
+          <IpChevronRight size={16} color={t.textMuted} />
+        </Card>
+      </div>
     </Layout>
   );
 }

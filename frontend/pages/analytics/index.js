@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import {
   IpTrendingUp, IpHeart, IpComment, IpShare, IpAnalytics, IpChevronRight,
   IpSchedule, IpSparkle, IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
-  IpReview, IpCalendar, IpInfo,
+  IpReview, IpCalendar, IpInfo, IpCheck,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Card, Button, Badge, StatCard, SectionHeader, EmptyState, Spinner } from '../../components/ui';
@@ -223,7 +223,7 @@ export default function Analytics() {
                 )}
                 {contentMix.recommendation === 'Your content mix is well balanced. Keep it up!' && (
                   <div style={{ padding: '10px 14px', background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 8, fontSize: 12, color: t.textSecondary, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: 14 }}>✓</span>
+                    <IpCheck size={14} style={{ color: t.success, flexShrink: 0 }} />
                     <span>{contentMix.recommendation}</span>
                   </div>
                 )}
@@ -526,7 +526,7 @@ export default function Analytics() {
                           <img src={p.media_url} alt="" style={{ width: 52, height: 52, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} onError={e => e.target.style.display = 'none'} />
                         ) : (
                           <div style={{ width: 52, height: 52, borderRadius: 8, background: t.input, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ fontSize: 22 }}>{p.content_type === 'carousel' ? '🎞' : p.content_type === 'video' ? '🎬' : '📝'}</span>
+                            {p.content_type === 'carousel' ? <IpCarousel size={22} style={{ color: t.textMuted }} /> : p.content_type === 'video' ? <IpVideo size={22} style={{ color: t.textMuted }} /> : <IpDrafts size={22} style={{ color: t.textMuted }} />}
                           </div>
                         )}
 

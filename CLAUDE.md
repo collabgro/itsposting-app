@@ -107,7 +107,7 @@ Video gen:    Two separate pipelines:
                  Runway Gen-4 (fallback #1) → Pika 2.2 (fallback #2)
               VeoService.js and VideoService.js already exist for pipeline #2
 Timezone:     Luxon (backend), Intl.DateTimeFormat (frontend)
-Payments:     Lemon Squeezy (NOT Stripe — unavailable in Pakistan)
+Payments:     Whop (NOT Stripe — unavailable in Pakistan)
 Email:        Resend SDK
 Storage:      Cloudinary (images + videos)
 Deployment:   Railway (backend port 8080, frontend Next.js separate service)
@@ -152,7 +152,7 @@ itsposting-app-main/
 - `social.js` — social platform OAuth and posting
 - `scraper.js` — website scraping (FREE, 7-day cache)
 - `upload.js` — manual file upload (0 credits)
-- `billing.js` — plan management (Lemon Squeezy placeholder)
+- `billing.js` — plan management + Whop webhooks (fully implemented)
 - `media.js` — 10GB media library with quota enforcement
 - `admin.js` — customer management, credits, suspend/reactivate, impersonation
 - `analytics.js` — post performance, per-platform breakdown
@@ -167,6 +167,10 @@ itsposting-app-main/
 - `inbox.js` — unified engagement inbox
 - `contacts.js` — contacts management
 - `webhooks.js` — inbound webhook handling
+- `receptionist.js` — AI Receptionist config, conversations, leads pipeline, automations, review actions
+- `twilio.js` — Twilio inbound SMS/WhatsApp webhooks (per-customer credentials; mounted at /api/twilio)
+- `gmb-messages.js` — Google Business Messages inbound webhook + verification (mounted at /api/gmb)
+- `studio.js` — AI-powered image studio (Sharp + Claude for branded card templates)
 
 ### Backend services (all in backend/services/):
 - `ClaudeService.js` — caption, carousel, video script, week plan generation
@@ -184,6 +188,7 @@ itsposting-app-main/
 - `ContentMixTracker.js` — 70/20/10 content ratio tracking and enforcement
 - `IndustryBenchmarks.js` — per-industry engagement benchmark data
 - `ScraperService.js` — Cheerio-based website scraper
+- `CrawlerService.js` — deep website crawler for business intelligence
 - `ManualContentGenerator.js` — orchestrator, provider routing
 - `AutoPostScheduler.js` — scheduled posting cron
 - `EmailService.js` — Resend email sending
@@ -193,6 +198,14 @@ itsposting-app-main/
 - `NotificationService.js` — in-app notifications
 - `DMPollingService.js` — polling social DMs
 - `WhopService.js` — Whop integration
+- `ReceptionistService.js` — AI receptionist brain (intent classification, reply generation, escalation logic)
+- `TwilioService.js` — SMS + WhatsApp send/receive via Twilio (per-customer credentials)
+- `MetaWhatsAppService.js` — WhatsApp via Meta Business Cloud API (Graph API v19.0); preferred over Twilio when configured
+- `MailgunService.js` — transactional email via Mailgun (per-customer credentials)
+- `CalComService.js` — Cal.com booking link integration
+- `GMBMessagesService.js` — Google My Business Messages send/receive
+- `QueueService.js` — BullMQ queue management with Redis fallback (graceful degradation to cron)
+- `OutboundQueue.js` — outbound job scheduler (follow-up, review request, no-show, seasonal, custom); BullMQ + cron fallback
 
 ### Frontend pages (all in frontend/pages/):
 - `index.js` — auth redirect
@@ -266,6 +279,27 @@ geo_citations             -- Individual citations found per audit
 geo_tracking_scores       -- Score history over time per customer
 ```
 
+### AI Receptionist tables:
+```sql
+receptionist_config       -- Per-customer AI Receptionist settings; all integration credentials stored here:
+                          --   enabled, auto_handle, active_platforms (JSONB), tone
+                          --   escalate_keywords (JSONB), booking_link
+                          --   business_hours_start/end, timezone, after_hours_message
+                          --   twilio_account_sid, twilio_auth_token (secret), twilio_phone_number, twilio_whatsapp_number
+                          --   calcom_api_key (secret)
+                          --   mailgun_api_key (secret), mailgun_domain, mailgun_from_email
+                          --   meta_wa_phone_number_id, meta_wa_access_token (secret), meta_wa_business_id
+                          --   automation_config (JSONB) -- array of automation rules
+dm_conversations          -- Inbound DM conversation threads (Facebook, Instagram, Google)
+dm_messages               -- Individual DM messages; ai_handled BOOLEAN tracks AI auto-replies
+sms_conversations         -- SMS/WhatsApp conversation threads per customer
+sms_messages              -- Individual SMS/WhatsApp messages within conversations
+outbound_jobs             -- Scheduled outbound messages; statuses: pending/running/sent/failed
+                          --   job_type: follow_up | review_request | noshow | seasonal | custom
+                          --   platform: sms | whatsapp | email
+                          --   payload JSONB, scheduled_for TIMESTAMP
+```
+
 ### Key columns on customers:
 ```sql
 timezone VARCHAR(100)
@@ -278,9 +312,11 @@ last_posted_at TIMESTAMP
 total_posts_this_month INTEGER
 past_post_examples TEXT[]
 content_preferences JSONB
-lemon_squeezy_customer_id VARCHAR(255)
-lemon_squeezy_subscription_id VARCHAR(255)
+whop_membership_id VARCHAR(255)
+whop_customer_id VARCHAR(255)
+billing_cycle VARCHAR(20)             -- 'monthly' | 'yearly'
 plan_expires_at TIMESTAMP
+next_billing_date TIMESTAMP
 parent_customer_id INTEGER        -- NULL for main accounts; set for workspace sub-accounts
 workspace_display_name VARCHAR(255) -- friendly name override for workspace
 geo_score NUMERIC                 -- latest GEO visibility score (0-100)
@@ -337,13 +373,15 @@ CLOUDINARY_CLOUD_NAME
 CLOUDINARY_API_KEY
 CLOUDINARY_API_SECRET
 
-# Billing (Lemon Squeezy — NOT Stripe)
-LEMONSQUEEZY_API_KEY
-LEMONSQUEEZY_STORE_ID
-LEMONSQUEEZY_WEBHOOK_SECRET
-PLAN_STARTER_ID                 # Lemon Squeezy variant ID for $99 plan
-PLAN_PRO_ID                     # Lemon Squeezy variant ID for $199 plan
-PLAN_AGENCY_ID                  # Lemon Squeezy variant ID for $349 plan
+# Billing (Whop — NOT Stripe)
+WHOP_API_KEY
+WHOP_WEBHOOK_KEY
+PLAN_STARTER_M_WHOP_ID          # Whop plan ID for Starter monthly ($20)
+PLAN_STARTER_Y_WHOP_ID          # Whop plan ID for Starter yearly ($18/mo)
+PLAN_PRO_M_WHOP_ID              # Whop plan ID for Professional monthly ($40)
+PLAN_PRO_Y_WHOP_ID              # Whop plan ID for Professional yearly ($36/mo)
+PLAN_PREMIUM_M_WHOP_ID          # Whop plan ID for Premium monthly ($60)
+PLAN_PREMIUM_Y_WHOP_ID          # Whop plan ID for Premium yearly ($54/mo)
 
 # Email
 RESEND_API_KEY
@@ -415,10 +453,11 @@ RESEND_API_KEY
 
 ### Billing
 - NEVER suggest or implement Stripe — unavailable in Pakistan
-- Use Lemon Squeezy as Merchant of Record (handles all taxes globally)
-- Webhook route MUST use express.raw() — not JSON body parser
-- Always verify webhook signature before processing any event
-- Always return 200 OK to Lemon Squeezy (even on errors — log, don't reject)
+- Use Whop as Merchant of Record (handles all taxes globally)
+- Webhook route at `POST /api/billing/whop/webhook` uses `express.raw({ type: 'application/json' })`
+- Always verify signature via `whop.verifyWebhookSignature()` before processing
+- Always return 200 OK immediately, then process async (already implemented this way)
+- Use `WhopService.js` for checkout URLs, plan ID resolution, and membership cancellation
 
 ### Workspaces / Sub-Accounts
 - Sub-accounts have `parent_customer_id` set; main accounts have it NULL
@@ -849,13 +888,26 @@ Week 4: Team/behind-the-scenes OR seasonal
 
 ---
 
-## BILLING (LEMON SQUEEZY — NEVER STRIPE)
+## BILLING (WHOP — NEVER STRIPE)
 
 ### Plans:
 ```
-Starter:      $99/month  — 50 credits, 1 platform
-Professional: $199/month — 150 credits, all platforms (recommended)
-Premium:      $349/month — 500 credits, all platforms + agency features
+Trial:        Free       — 10 credits, 7-day trial
+Starter:      $20/month  — 50 credits/month  ($18/mo yearly)
+Professional: $40/month  — 100 credits/month ($36/mo yearly) ← recommended
+Premium:      $60/month  — 150 credits/month ($54/mo yearly)
+```
+
+### Credit packs (top-up, no subscription):
+```
+25 credits  → $10
+50 credits  → $20
+75 credits  → $30
+100 credits → $40
+125 credits → $50
+150 credits → $60
+200 credits → $80
+250 credits → $100
 ```
 
 ### Credits per action:
@@ -875,17 +927,15 @@ Manual upload:     0 credits (own content)
 - Editing captions of existing posts
 - Social account management
 
-### Webhook events to handle:
+### Whop webhook events handled (in billing.js):
 ```javascript
-'order_created'              → update plan + status + add credits
-'subscription_created'       → store LS subscription ID
-'subscription_updated'       → handle upgrades/downgrades
-'subscription_cancelled'     → status = 'cancelled', keep access until expiry
-'subscription_expired'       → downgrade to trial limits
+'membership.activated'   → activate plan, add credits, send confirmation email
+'payment.succeeded'      → same as above (handles renewals + credit packs)
+'membership.deactivated' → downgrade to trial, suspend account, notify if low credits
 ```
 
-**CRITICAL:** Webhook route uses `express.raw({ type: 'application/json' })`
-Always verify signature before processing. Always return 200 OK (log errors, don't reject).
+**Webhook URL:** `POST /api/billing/whop/webhook`
+Returns 200 immediately, processes async. Verifies HMAC-SHA256 signature via `WHOP_WEBHOOK_KEY`.
 
 ---
 
@@ -982,11 +1032,20 @@ CTA: Clear single action (not multiple options)
 - DMs + Inbox + Contacts pages
 - IndustryBenchmarks.js
 - VeoService.js + VideoService.js foundation (pipeline #2 partial)
+- Whop billing — WhopService.js + full webhook handler (activation, renewal, deactivation, credit packs)
+- **AI Receptionist** — ReceptionistService.js (intent classification, AI reply generation, escalation); receptionist.js route (config, conversations, leads pipeline, review actions); settings UI (full configuration panel)
+- **SMS/WhatsApp inbox** — TwilioService.js + twilio.js inbound webhook; per-customer Twilio credentials; SMS conversation threading (sms_conversations + sms_messages)
+- **Google Business Messages** — GMBMessagesService.js + gmb-messages.js webhook handler
+- **Outbound Automations** — OutboundQueue.js + QueueService.js; 4 built-in rules (follow_up, review_request, noshow, seasonal) + unlimited custom rules; BullMQ + Redis when available; cron fallback when Redis absent
+- **Custom Automations UI** — create/edit/delete custom automation rules in settings; all channels (SMS, WhatsApp, Email); trigger events; delay window; message template with variables
+- **Meta WhatsApp Business API** — MetaWhatsAppService.js (Graph API v19.0); preferred over Twilio WhatsApp when `meta_wa_phone_number_id` + `meta_wa_access_token` configured; Twilio WhatsApp remains fallback
+- **Channel selector** — automation modals always show SMS / WhatsApp / Email; unconfigured channels shown as disabled with "(not configured)" label so users know what to set up
+- **Integration cards** — settings page has Twilio, Cal.com, Mailgun, and WhatsApp Business (Meta) cards with configure modals; credentials stored in receptionist_config, secrets never returned to frontend
+- **Studio route** — AI-powered branded image card generator (Sharp + Claude, mounted at /api/studio)
 
 ### 🔴 STILL TO BUILD:
 - **`frontend/pages/wizard.js`** — dedicated wizard page (backend is done; currently in modal)
 - **Video pipeline #2 completion** — Runway Gen-4 + Pika 2.2 integrations in VideoService.js
-- **Lemon Squeezy full webhook handling** — billing.js is a placeholder; implement all webhook events
 - **Facebook + Instagram live OAuth + posting** — social.js exists; live posting needs OAuth flows
 - **Google Business Profile live posting** — endpoint exists; GBP API integration needed
 - **LinkedIn + TikTok posting** — routes exist; provider integrations needed
@@ -1028,4 +1087,4 @@ Done. 10 seconds. No thinking required.
 
 ---
 
-*Last updated: May 2026 | ItsPosting.com*
+*Last updated: May 2026 (v2) | ItsPosting.com*

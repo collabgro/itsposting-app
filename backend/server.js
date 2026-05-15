@@ -28,6 +28,10 @@ const knowledgeRoutes = require('./routes/knowledge');
 const webhookRoutes = require('./routes/webhooks');
 const workspaceRoutes = require('./routes/workspaces');
 const geoRoutes = require('./routes/geo');
+const studioRoutes = require('./routes/studio');
+const receptionistRoutes = require('./routes/receptionist');
+const twilioRoutes = require('./routes/twilio');
+const gmbMessagesRoutes = require('./routes/gmb-messages');
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
 const EmailWorker = require('./services/EmailWorker');
@@ -187,6 +191,140 @@ console.log('══════════════════════�
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS geo_score INTEGER DEFAULT 0`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS last_geo_audit_at TIMESTAMP`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS free_geo_audit_used BOOLEAN DEFAULT false`,
+    // Photo Studio tables
+    `CREATE TABLE IF NOT EXISTS stock_photos (
+      id                    SERIAL PRIMARY KEY,
+      industry              VARCHAR(100) NOT NULL,
+      category              VARCHAR(100) NOT NULL,
+      tags                  TEXT[] DEFAULT '{}',
+      url                   TEXT NOT NULL,
+      thumbnail_url         TEXT,
+      cloudinary_public_id  VARCHAR(500),
+      title                 VARCHAR(255),
+      description           TEXT,
+      width                 INTEGER,
+      height                INTEGER,
+      file_size_bytes       BIGINT,
+      is_active             BOOLEAN DEFAULT true,
+      usage_count           INTEGER DEFAULT 0,
+      created_at            TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_stock_photos_industry ON stock_photos(industry, category, is_active)`,
+    `CREATE INDEX IF NOT EXISTS idx_stock_photos_tags ON stock_photos USING GIN(tags)`,
+    `CREATE TABLE IF NOT EXISTS studio_creations (
+      id                    SERIAL PRIMARY KEY,
+      customer_id           INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      stock_photo_id        INTEGER REFERENCES stock_photos(id) ON DELETE SET NULL,
+      prompt                TEXT,
+      overlay_title         VARCHAR(255),
+      overlay_subtitle      TEXT,
+      overlay_style         VARCHAR(50)   DEFAULT 'banner',
+      overlay_color         VARCHAR(20)   DEFAULT '#1a5c2a',
+      text_color            VARCHAR(20)   DEFAULT '#ffffff',
+      overlay_opacity       NUMERIC(3,2)  DEFAULT 0.85,
+      output_url            TEXT,
+      output_cloudinary_id  VARCHAR(500),
+      post_id               INTEGER REFERENCES posts(id) ON DELETE SET NULL,
+      status                VARCHAR(50)   DEFAULT 'created',
+      created_at            TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_studio_customer ON studio_creations(customer_id, created_at DESC)`,
+    // AI Receptionist — crawler job tracking
+    `CREATE TABLE IF NOT EXISTS crawl_jobs (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      url TEXT NOT NULL,
+      mode VARCHAR(20) NOT NULL,
+      status VARCHAR(20) DEFAULT 'pending',
+      pages_found INTEGER DEFAULT 0,
+      pages_crawled INTEGER DEFAULT 0,
+      pages_failed INTEGER DEFAULT 0,
+      result_summary JSONB,
+      error TEXT,
+      started_at TIMESTAMP,
+      completed_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_crawl_jobs_customer ON crawl_jobs(customer_id, created_at DESC)`,
+    // AI Receptionist — per-customer settings
+    `CREATE TABLE IF NOT EXISTS receptionist_config (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER UNIQUE REFERENCES customers(id) ON DELETE CASCADE,
+      enabled BOOLEAN DEFAULT false,
+      auto_handle BOOLEAN DEFAULT false,
+      active_platforms TEXT[] DEFAULT '{}',
+      tone VARCHAR(30) DEFAULT 'friendly',
+      escalate_keywords TEXT[] DEFAULT '{"legal","lawsuit","refund","scam","terrible"}',
+      booking_link TEXT,
+      business_hours_start TIME DEFAULT '08:00',
+      business_hours_end TIME DEFAULT '18:00',
+      timezone VARCHAR(100) DEFAULT 'UTC',
+      after_hours_message TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`,
+    // AI Receptionist — extend contacts for receptionist pipeline
+    `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS receptionist_stage VARCHAR(30)`,
+    `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS appointment_at TIMESTAMP`,
+    `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS cal_event_id VARCHAR(255)`,
+    `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_ai_summary TEXT`,
+    // AI Receptionist — SMS / WhatsApp conversations (Phase 2)
+    `CREATE TABLE IF NOT EXISTS sms_conversations (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      platform VARCHAR(20) NOT NULL,
+      contact_phone VARCHAR(30) NOT NULL,
+      contact_name VARCHAR(255),
+      status VARCHAR(20) DEFAULT 'open',
+      last_message_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_sms_convs_customer ON sms_conversations(customer_id, last_message_at DESC)`,
+    `CREATE TABLE IF NOT EXISTS sms_messages (
+      id SERIAL PRIMARY KEY,
+      conversation_id INTEGER REFERENCES sms_conversations(id) ON DELETE CASCADE,
+      direction VARCHAR(10) NOT NULL,
+      body TEXT NOT NULL,
+      sent_at TIMESTAMP DEFAULT NOW(),
+      ai_handled BOOLEAN DEFAULT false
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_sms_msgs_conv ON sms_messages(conversation_id, sent_at)`,
+    // AI Receptionist — outbound job tracking (Phase 3)
+    `CREATE TABLE IF NOT EXISTS outbound_jobs (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      contact_id INTEGER,
+      job_type VARCHAR(50) NOT NULL,
+      platform VARCHAR(20),
+      scheduled_for TIMESTAMP NOT NULL,
+      sent_at TIMESTAMP,
+      status VARCHAR(20) DEFAULT 'pending',
+      payload JSONB,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_outbound_jobs_customer ON outbound_jobs(customer_id, status, scheduled_for)`,
+    // AI Receptionist — track which DM messages were AI-auto-handled
+    `ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS ai_handled BOOLEAN DEFAULT false`,
+    // Phase 2 — Twilio phone numbers on customers
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS twilio_phone_number VARCHAR(30)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS twilio_whatsapp_number VARCHAR(50)`,
+    // Phase 2 — unique constraint for sms_conversations upsert
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_sms_convs_unique ON sms_conversations(customer_id, platform, contact_phone)`,
+    // Phase 2 — unique constraint for dm_conversations GMB upsert
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_dm_convs_unique ON dm_conversations(customer_id, platform, external_conversation_id)`,
+    // Per-customer credentials — stored in receptionist_config, not server env vars
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS twilio_account_sid TEXT`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS twilio_auth_token TEXT`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS twilio_phone_number VARCHAR(30)`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS twilio_whatsapp_number VARCHAR(50)`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS calcom_api_key TEXT`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS mailgun_api_key TEXT`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS mailgun_domain VARCHAR(255)`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS mailgun_from_email VARCHAR(255)`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS automation_config JSONB`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_phone_number_id TEXT`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_access_token TEXT`,
+    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_business_id TEXT`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -249,6 +387,30 @@ app.use('/api/inbox', inboxRoutes(pool));
 app.use('/api/knowledge', knowledgeRoutes(pool));
 app.use('/api/workspaces', workspaceRoutes(pool));
 app.use('/api/geo', geoRoutes(pool));
+app.use('/api/studio', studioRoutes(pool));
+app.use('/api/receptionist', receptionistRoutes(pool));
+app.use('/api/twilio', twilioRoutes(pool));
+app.use('/api/gmb', gmbMessagesRoutes(pool));
+
+// Mailgun inbound email webhook — respond 200 immediately, process async
+app.post('/api/mailgun/inbound', express.urlencoded({ extended: true, limit: '5mb' }), async (req, res) => {
+  res.sendStatus(200);
+  try {
+    const recipient = req.body.recipient || '';
+    const domain = recipient.split('@')[1];
+    if (!domain) return;
+    const { rows } = await pool.query(
+      `SELECT customer_id FROM receptionist_config WHERE mailgun_domain=$1 AND mailgun_api_key IS NOT NULL`,
+      [domain]
+    );
+    if (!rows.length) return;
+    const ReceptionistService = require('./services/ReceptionistService');
+    const svc = new ReceptionistService(pool);
+    await svc.handleIncomingEmail(rows[0].customer_id, req.body);
+  } catch (err) {
+    console.error('[Mailgun inbound]', err.message);
+  }
+});
 
 app.get('/health', async (req, res) => {
   try {
@@ -469,6 +631,45 @@ cron.schedule('0 2 * * *', async () => {
 
 const dmPollingService = new DMPollingService(pool);
 dmPollingService.start();
+
+// ── AI Receptionist — Outbound Queue (Phase 3) ─────────────────────────────
+const OutboundQueue = require('./services/OutboundQueue');
+const outboundQueue = new OutboundQueue(pool);
+
+// Start BullMQ worker (no-op if REDIS_URL not set)
+outboundQueue.startWorker();
+
+// Cron fallback: poll DB for overdue outbound jobs every 15 min when Redis absent
+cron.schedule('*/15 * * * *', () => outboundQueue.processPendingJobs().catch(e => console.error('[OutboundQueue cron]', e.message)));
+console.log('📤 OutboundQueue cron scheduled (15-min fallback)');
+
+// Weekly re-crawl: every Monday 8am UTC for customers with receptionist enabled
+cron.schedule('0 8 * * 1', async () => {
+  console.log('[Receptionist] Weekly knowledge re-crawl starting...');
+  try {
+    const CrawlerService = require('./services/CrawlerService');
+    const crawler = new CrawlerService(pool);
+    const { rows } = await pool.query(
+      `SELECT rc.customer_id, c.plan, cj.url
+       FROM receptionist_config rc
+       INNER JOIN customers c ON c.id = rc.customer_id
+       LEFT JOIN LATERAL (
+         SELECT url FROM crawl_jobs WHERE customer_id = rc.customer_id ORDER BY created_at DESC LIMIT 1
+       ) cj ON true
+       WHERE rc.enabled = true AND cj.url IS NOT NULL
+         AND (c.suspended = false OR c.suspended IS NULL)`
+    );
+    for (const row of rows) {
+      try {
+        await crawler.crawl(row.customer_id, row.url, 'domain', row.plan || 'professional');
+        console.log(`[Receptionist] Re-crawl started for customer ${row.customer_id}`);
+      } catch (e) {
+        console.error(`[Receptionist] Re-crawl failed for ${row.customer_id}:`, e.message);
+      }
+    }
+  } catch (e) { console.error('[Receptionist] Weekly re-crawl error:', e.message); }
+});
+console.log('🕷️ Receptionist weekly re-crawl cron scheduled (Monday 8am UTC)');
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`

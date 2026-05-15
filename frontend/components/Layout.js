@@ -6,11 +6,11 @@ import {
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon, IpLogout,
   IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpTrendingUp, IpSearch,
+  IpPhotoStudio, IpWarning,
 } from './icons';
 import { useTheme } from '../lib/theme';
-import { dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
+import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
 import NotificationBell from './NotificationBell';
-import { ItsPostingLogo } from './ItsPostingLogo';
 
 const NAV_ITEMS = [
   { name: 'Dashboard',   href: '/dashboard',  icon: IpDashboard },
@@ -20,11 +20,13 @@ const NAV_ITEMS = [
   { name: 'Calendar',    href: '/calendar',   icon: IpCalendar },
   { name: 'Drafts',      href: '/history',    icon: IpDrafts },
   { name: 'Media Library', href: '/media',    icon: IpMediaLibrary },
+  { name: 'Photo Studio', href: '/studio',    icon: IpPhotoStudio },
   { name: 'Analytics',      href: '/analytics',      icon: IpAnalytics },
   { name: 'Reports',        href: '/reports',        icon: IpDrafts },
   { name: 'ROI Estimator',  href: '/roi',            icon: IpTrendingUp },
   { name: 'GEO Audit',     href: '/geo-audit',      icon: IpSearch },
   { name: 'Inbox',          href: '/inbox',          icon: IpInbox, badgeKey: 'dmUnread' },
+  { name: 'AI Receptionist', href: '/receptionist', icon: IpSparkle, betaBadge: true },
   { name: 'Teach PostCore', href: '/knowledge-base', icon: IpBusiness },
   { name: 'Contacts',   href: '/contacts',   icon: IpTeam },
   { name: 'Workspaces', href: '/workspaces', icon: IpTeam, isWorkspaceNav: true },
@@ -54,27 +56,26 @@ export default function Layout({ children, title, subtitle, action }) {
     setHasToken(!!token);
     setImpersonatingAs(localStorage.getItem('impersonating_as') || null);
     if (token) {
-      const headers = { Authorization: `Bearer ${token}` };
-      fetch('/api/auth/verify', { headers })
-        .then((r) => {
-          if (r.status === 401 || r.status === 403) {
+      (async () => {
+        try {
+          const r = await authAPI.verify();
+          if (r.data?.customer) setUser(r.data.customer);
+        } catch (err) {
+          if (err.response?.status === 401 || err.response?.status === 403) {
             localStorage.removeItem('token');
             router.push('/login');
-            return null;
+            return;
           }
-          return r.json();
-        })
-        .then((d) => d && d.customer && setUser(d.customer))
-        .catch(() => {});
-      dmsAPI.getStats()
-        .then((r) => setDmUnread(r.data?.unreadCount || 0))
-        .catch(() => {});
-      suggestionsAPI.getCount()
-        .then((r) => setUnseenSugg(r.data?.count || 0))
-        .catch(() => {});
-      workspacesAPI.list()
-        .then((r) => r.data && setWsData(r.data))
-        .catch(() => {});
+        }
+        const [dmsResult, suggResult, wsResult] = await Promise.allSettled([
+          dmsAPI.getStats(),
+          suggestionsAPI.getCount(),
+          workspacesAPI.list(),
+        ]);
+        if (dmsResult.status === 'fulfilled') setDmUnread(dmsResult.value.data?.unreadCount || 0);
+        if (suggResult.status === 'fulfilled') setUnseenSugg(suggResult.value.data?.count || 0);
+        if (wsResult.status === 'fulfilled' && wsResult.value.data) setWsData(wsResult.value.data);
+      })();
     }
     return () => window.removeEventListener('resize', updateMobile);
   }, []);
@@ -133,6 +134,7 @@ export default function Layout({ children, title, subtitle, action }) {
         { name: 'Broadcast',       href: '/admin/broadcast',   icon: IpMail,      isAdmin: true },
         { name: 'Email Queue',     href: '/admin/email-queue', icon: IpMail,      isAdmin: true },
         { name: 'Audit Log',       href: '/admin/audit',       icon: IpAdmin,     isAdmin: true },
+        { name: 'Stock Photos',    href: '/admin/stock-photos', icon: IpPhotoStudio, isAdmin: true },
       ]
     : baseNavItems;
 
@@ -166,7 +168,10 @@ export default function Layout({ children, title, subtitle, action }) {
           }}
         >
           {!isMobile && (
-            <ItsPostingLogo size="sm" variant="full" theme={theme} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <img src="/itsposting-logo.png" alt="ItsPosting" width={32} height={32} style={{ borderRadius: 8, flexShrink: 0, objectFit: 'cover' }} />
+              <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.03em', color: t.text, whiteSpace: 'nowrap' }}>ItsPosting</span>
+            </div>
           )}
           {isMobile && (
             <button
@@ -362,7 +367,12 @@ export default function Layout({ children, title, subtitle, action }) {
                     30s
                   </span>
                 )}
-                {active && !item.badgeKey && !item.isQuickPost && <IpChevronRight size={14} style={{ color: t.textMuted }} />}
+                {item.betaBadge && (
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 4, background: 'rgba(234,179,8,0.15)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.3)', flexShrink: 0 }}>
+                    Beta
+                  </span>
+                )}
+                {active && !item.badgeKey && !item.isQuickPost && !item.betaBadge && <IpChevronRight size={14} style={{ color: t.textMuted }} />}
               </Link>
             );
           })}
@@ -482,7 +492,7 @@ export default function Layout({ children, title, subtitle, action }) {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             fontSize: 13, fontWeight: 600, position: 'sticky', top: 64, zIndex: 39,
           }}>
-            <span>⚠ Viewing as: {impersonatingAs} — all actions are real</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IpWarning size={14} /> Viewing as: {impersonatingAs} — all actions are real</span>
             <button
               onClick={exitImpersonation}
               style={{ padding: '5px 14px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(0,0,0,0.25)', borderRadius: 6, color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}

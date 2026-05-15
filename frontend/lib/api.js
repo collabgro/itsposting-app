@@ -43,6 +43,7 @@ export const socialAPI = {
   getAccounts: () => api.get('/api/social/accounts'),
   getStatus: () => api.get('/api/social/status'),
   getConnectUrl: (platform) => `/api/social/connect/${platform}`,
+  connectManual: (platform, data) => api.post('/api/social/connect/manual', { platform, ...data }),
   updateAccount: (id, data) => api.patch(`/api/social/accounts/${id}`, data),
   disconnect: (platform) => api.delete(`/api/social/accounts/${platform}`),
 };
@@ -163,6 +164,10 @@ export const adminAPI = {
   deletePost: (id, reason) => api.delete(`/api/admin/posts/${id}`, { data: { reason } }),
   broadcast: (data) => api.post('/api/admin/broadcast', data),
   getBroadcasts: () => api.get('/api/admin/broadcasts'),
+  uploadStockPhotos: (formData) => api.post('/api/admin/stock-photos', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  listStockPhotos: (params) => api.get('/api/admin/stock-photos', { params }),
+  updateStockPhoto: (id, data) => api.patch(`/api/admin/stock-photos/${id}`, data),
+  deleteStockPhoto: (id) => api.delete(`/api/admin/stock-photos/${id}`),
 };
 
 export const analyticsAPI = {
@@ -228,6 +233,16 @@ export const knowledgeAPI = {
   list: () => api.get('/api/knowledge'),
   save: (data) => api.post('/api/knowledge/save', data),
   importWebsite: (data) => api.post('/api/knowledge/import-website', data),
+  startCrawl: (url, mode) => api.post('/api/knowledge/crawl', { url, mode }),
+  getCrawlStatus: (jobId) => api.get(`/api/knowledge/crawl/${jobId}`),
+  importCrawl: (jobId, selectedUrls) => api.post(`/api/knowledge/crawl/${jobId}/import`, { selectedUrls }),
+  cancelCrawl: (jobId) => api.delete(`/api/knowledge/crawl/${jobId}`),
+  listCrawlJobs: () => api.get('/api/knowledge/crawls'),
+  savePrices: (items) => api.post('/api/knowledge/prices', { items }),
+  createEntry: (data) => api.post('/api/knowledge/entry', data),
+  updateEntry: (id, data) => api.put(`/api/knowledge/${id}`, data),
+  deleteEntry: (id) => api.delete(`/api/knowledge/${id}`),
+  uploadFile: (formData) => api.post('/api/knowledge/upload-file', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
 export const suggestionsAPIExtra = {
@@ -240,6 +255,27 @@ export const geoAPI = {
   getAudit: (id) => api.get(`/api/geo/audit/${id}`),
   getHistory: () => api.get('/api/geo/history'),
   getScore: () => api.get('/api/geo/score'),
+};
+
+export const studioAPI = {
+  getPhotos: (params) => api.get('/api/studio/photos', { params }),
+  getPhoto: (id) => api.get(`/api/studio/photos/${id}`),
+  format: (data) => api.post('/api/studio/format', data),
+  generate: (data) => api.post('/api/studio/generate', data),
+  getCreations: (params) => api.get('/api/studio/creations', { params }),
+  postCreation: (id, data) => api.post(`/api/studio/creations/${id}/post`, data),
+};
+
+export const receptionistAPI = {
+  getConfig: () => api.get('/api/receptionist/config'),
+  saveConfig: (data) => api.post('/api/receptionist/config', data),
+  getConversations: (params) => api.get('/api/receptionist/conversations', { params }),
+  getStats: () => api.get('/api/receptionist/stats'),
+  test: (message) => api.post('/api/receptionist/test', { message }),
+  getLeads: (params) => api.get('/api/receptionist/leads', { params }),
+  updateConversationStage: (id, stage) => api.patch(`/api/receptionist/conversations/${id}/stage`, { stage }),
+  getReviewActions: () => api.get('/api/receptionist/review-actions'),
+  skipReviewAction: (id) => api.post(`/api/receptionist/review-actions/${id}/skip`),
 };
 
 export default api;

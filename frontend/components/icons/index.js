@@ -975,6 +975,27 @@ export function IpLinkedIn({ size = 20, style, className }) {
   );
 }
 
+export function IpDownload({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+  return (
+    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </Ico>
+  );
+}
+
+export function IpPhotoStudio({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+  return (
+    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+      <circle cx="12" cy="14" r="3"/>
+      <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      <circle cx="18.5" cy="9.5" r="1" fill={color} stroke="none"/>
+    </Ico>
+  );
+}
+
 export function IpTikTok({ size = 20, style, className }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
@@ -986,5 +1007,24 @@ export function IpTikTok({ size = 20, style, className }) {
       {/* White foreground */}
       <path d="M9.5 15a2.5 2.5 0 1 0 2.5 2.5V5h2c.3 1.5 1.5 2.7 3 3v2a5 5 0 0 1-3-1V17a5 5 0 1 1-4.5-5z" fill="white"/>
     </svg>
+  );
+}
+
+export function IpPlay({ size = 20, color = 'currentColor', style, className }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style} className={className}>
+      <polygon points="5 3 19 12 5 21 5 3" fill={color} />
+    </svg>
+  );
+}
+
+export function IpLaugh({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+  return (
+    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+      <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth="3" strokeLinecap="round" />
+      <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth="3" strokeLinecap="round" />
+    </Ico>
   );
 }

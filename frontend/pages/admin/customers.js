@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { IpSearch, IpChevronRight, IpTeam, IpAdmin, IpSave } from '../../components/icons';
+import { IpSearch, IpChevronRight, IpTeam, IpAdmin, IpSave, IpChevronUp, IpChevronDown } from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Card, Button, Badge, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
@@ -186,7 +186,7 @@ export default function AdminCustomers() {
                     >
                       {label}
                       {key && sortBy === key && (
-                        <span style={{ marginLeft: 4, opacity: 0.7 }}>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        <span style={{ marginLeft: 4, opacity: 0.7 }}>{sortOrder === 'asc' ? <IpChevronUp size={12} /> : <IpChevronDown size={12} />}</span>
                       )}
                     </th>
                   ))}

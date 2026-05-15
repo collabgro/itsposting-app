@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import {
   IpPublish as UploadIcon, IpPhoto as ImageIcon, IpCarousel, IpVideo,
   IpCalendar as CalendarIcon, IpSave, IpFacebook, IpInstagram, IpGoogle,
-  IpLinkedIn, IpTikTok, IpFolderOpen, IpClose, IpSparkle,
+  IpLinkedIn, IpTikTok, IpFolderOpen, IpClose, IpSparkle, IpCheck, IpPlay,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Input, Textarea, SectionHeader, Skeleton, EmptyState } from '../components/ui';
@@ -247,7 +247,7 @@ export default function Upload() {
 
   const checkmark = (
     <div style={{ marginLeft: 'auto', width: 15, height: 15, borderRadius: '50%', background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+      <IpCheck size={8} style={{ color: '#fff' }} />
     </div>
   );
 
@@ -269,7 +269,7 @@ export default function Upload() {
             )}
             {file.file_type === 'video' && (
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)' }}>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                <IpPlay size={26} color="white" />
               </div>
             )}
           </div>

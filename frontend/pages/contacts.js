@@ -5,7 +5,7 @@ import { useTheme } from '../lib/theme';
 import { contactsAPI } from '../lib/api';
 import {
   IpTeam, IpPlus, IpSearch, IpEdit, IpDelete, IpFacebook,
-  IpInstagram, IpClose, IpCheck, IpUser,
+  IpInstagram, IpClose, IpCheck, IpUser, IpChevronLeft, IpChevronRight,
 } from '../components/icons';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ function ContactModal({ contact, onSave, onClose, t }) {
       <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, width: '100%', maxWidth: 460, maxHeight: '90vh', overflowY: 'auto', padding: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: t.text }}>{contact?.id ? 'Edit Contact' : 'Add Contact'}</h3>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 20 }}>×</button>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={20} /></button>
         </div>
 
         {error && (
@@ -173,7 +173,7 @@ function ContactDrawer({ contact, onClose, onUpdate, onDelete, t }) {
                 </div>
               </div>
             </div>
-            <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18 }}>×</button>
+            <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={18} /></button>
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
@@ -377,7 +377,7 @@ export default function ContactsPage() {
       {error && (
         <div style={{ padding: '10px 16px', background: `${t.error}15`, border: `1px solid ${t.error}33`, borderRadius: 8, fontSize: 12, color: t.error, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {error}
-          <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.error, fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
+          <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.error, padding: 0, lineHeight: 1 }}><IpClose size={16} /></button>
         </div>
       )}
 
@@ -494,14 +494,14 @@ export default function ContactsPage() {
               disabled={page === 1}
               style={{ padding: '6px 12px', borderRadius: 6, background: t.card, border: `1px solid ${t.border}`, color: page === 1 ? t.textMuted : t.text, fontSize: 12, cursor: page === 1 ? 'not-allowed' : 'pointer' }}
             >
-              ← Prev
+              <IpChevronLeft size={12} /> Prev
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={page * 25 >= total}
               style={{ padding: '6px 12px', borderRadius: 6, background: t.card, border: `1px solid ${t.border}`, color: page * 25 >= total ? t.textMuted : t.text, fontSize: 12, cursor: page * 25 >= total ? 'not-allowed' : 'pointer' }}
             >
-              Next →
+              Next <IpChevronRight size={12} />
             </button>
           </div>
         </div>

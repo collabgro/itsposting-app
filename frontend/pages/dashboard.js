@@ -43,11 +43,13 @@ export default function Dashboard() {
   const [loading,      setLoading]      = useState(true);
   const [briefingOpen, setBriefingOpen] = useState(true);
   const [geoScore,     setGeoScore]     = useState(null);
+  const [showTour,     setShowTour]     = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const token = localStorage.getItem('token');
     if (!token) { router.replace('/login'); return; }
+    if (!localStorage.getItem('tour_done')) { setTimeout(() => setShowTour(true), 800); }
 
     Promise.all([
       postsAPI.getAll({ limit: 100 }).catch(() => ({ data: [] })),
@@ -300,6 +302,12 @@ export default function Dashboard() {
         </div>
       </Layout>
 
+      {showTour && (
+        <DashboardTour
+          onClose={() => { localStorage.setItem('tour_done', '1'); setShowTour(false); }}
+          router={router}
+        />
+      )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </>
   );
@@ -383,6 +391,121 @@ function ContentHealthBar({ data, t, router }) {
           <span style={{ color: t.primary, fontWeight: 600 }}>PostCore: </span>{recommendation}
         </div>
       )}
+    </div>
+  );
+}
+
+const TOUR_STEPS = [
+  {
+    iconBg: 'rgba(124,92,252,0.15)',
+    iconColor: '#9B4FD4',
+    Icon: IpSparkle,
+    title: 'Meet PostCore, your AI advisor',
+    body: 'PostCore learns your trade, your season, and your location — then writes social posts that actually sound like you. No blank boxes, no guessing what to say.',
+  },
+  {
+    iconBg: 'rgba(196,75,184,0.15)',
+    iconColor: '#C44BB8',
+    Icon: IpPlus,
+    title: 'Generate a post in 60 seconds',
+    body: 'Tap the + button any time. PostCore asks 3 quick questions and returns 3 ready-to-use variations with images. Tap one, post it. Done.',
+  },
+  {
+    iconBg: 'rgba(59,130,246,0.15)',
+    iconColor: '#3B82F6',
+    Icon: IpCalendar,
+    title: 'Plan your week, post on autopilot',
+    body: 'Use the Calendar to schedule posts in advance. Posting 3× a week consistently is proven to get 5× more reach for local businesses.',
+  },
+  {
+    iconBg: 'linear-gradient(135deg,rgba(124,92,252,0.2),rgba(196,75,184,0.2))',
+    iconColor: '#C084FC',
+    Icon: IpSparkle,
+    title: "You've got 10 credits — let's go",
+    body: "Start with a before & after photo post — they get the most engagement for trade businesses. Your first post is on us.",
+  },
+];
+
+function DashboardTour({ onClose, router }) {
+  const { t } = useTheme();
+  const [step, setStep] = useState(0);
+
+  function dismiss() { onClose(); }
+  function next() { if (step < TOUR_STEPS.length - 1) setStep(s => s + 1); }
+  function goCreate() { onClose(); router.push('/wizard?onboarding=true'); }
+
+  const { iconBg, iconColor, Icon, title, body } = TOUR_STEPS[step];
+  const isLast = step === TOUR_STEPS.length - 1;
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9000,
+      background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+    }}>
+      <div style={{
+        background: t.card, border: `1px solid ${t.border}`,
+        borderRadius: 20, padding: '32px 28px',
+        maxWidth: 440, width: '100%',
+        boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 32px 80px rgba(0,0,0,0.6)',
+      }}>
+        {/* Step dots */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
+          {TOUR_STEPS.map((_, i) => (
+            <div key={i} style={{
+              height: 3, flex: i === step ? 2 : 1, borderRadius: 3,
+              background: i <= step
+                ? 'linear-gradient(90deg, #9B4FD4, #C44BB8)'
+                : t.border,
+              transition: 'all 400ms cubic-bezier(0.16,1,0.3,1)',
+            }} />
+          ))}
+        </div>
+
+        {/* Icon */}
+        <div style={{
+          width: 72, height: 72, borderRadius: 20,
+          background: iconBg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 20,
+        }}>
+          <Icon size={32} style={{ color: iconColor }} />
+        </div>
+
+        {/* Text */}
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.03em', color: t.text, marginBottom: 10 }}>
+          {title}
+        </div>
+        <div style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.6, marginBottom: 32 }}>
+          {body}
+        </div>
+
+        {/* Navigation */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button
+            onClick={dismiss}
+            style={{
+              padding: '10px 16px', background: 'transparent',
+              border: `1px solid ${t.border}`, borderRadius: 10,
+              color: t.textMuted, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            Skip tour
+          </button>
+          <button
+            onClick={isLast ? goCreate : next}
+            style={{
+              padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 6,
+              background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)',
+              border: 'none', borderRadius: 10, color: '#fff',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(155,79,212,0.35)',
+            }}
+          >
+            {isLast ? 'Create my first post →' : 'Next →'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import {
   IpCheck, IpCredits, IpSparkle, IpCrown, IpBilling, IpSchedule,
   IpTrendingUp, IpArrowUpRight, IpArrowDownRight, IpWarning, IpGift,
-  IpExternalLink, IpDollar,
+  IpExternalLink, IpDollar, IpClose,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Spinner, EmptyState } from '../components/ui';
@@ -422,7 +422,7 @@ export default function Billing() {
               <div style={{ fontSize: 13, fontWeight: 600, color: t.error, marginBottom: 2 }}>Checkout unavailable</div>
               <div style={{ fontSize: 12, color: t.textMuted }}>{upgradeError}</div>
             </div>
-            <button onClick={() => setUpgradeError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
+            <button onClick={() => setUpgradeError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: 0, lineHeight: 1 }}><IpClose size={16} /></button>
           </div>
         )}
 
@@ -492,7 +492,7 @@ export default function Billing() {
           {creditMsg && (
             <div style={{ marginTop: 16, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, fontSize: 12, color: t.textSecondary, lineHeight: 1.6 }}>
               {creditMsg}
-              <button onClick={() => setCreditMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 14 }}>×</button>
+              <button onClick={() => setCreditMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={14} /></button>
             </div>
           )}
         </Card>

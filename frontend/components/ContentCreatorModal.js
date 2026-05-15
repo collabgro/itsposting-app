@@ -255,8 +255,8 @@ export default function ContentCreatorModal({
                 <div style={{ display: 'flex', gap: 8, marginBottom: 20, padding: '10px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                   <IpCredits size={13} style={{ color: t.warning, flexShrink: 0 }} />
                   <span style={{ fontSize: 12, color: t.textMuted }}>Image sources:</span>
-                  <span style={{ fontSize: 12, color: providers.nanobanana?.available ? t.success : t.textMuted, fontWeight: 600 }}>{providers.nanobanana?.available ? '✓' : '○'} Image One</span>
-                  <span style={{ fontSize: 12, color: providers.midjourney?.available ? t.success : t.textMuted, fontWeight: 600 }}>{providers.midjourney?.available ? '✓' : '○'} Image Two</span>
+                  <span style={{ fontSize: 12, color: providers.nanobanana?.available ? t.success : t.textMuted, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>{providers.nanobanana?.available ? <IpCheck size={12} /> : '○'} Image One</span>
+                  <span style={{ fontSize: 12, color: providers.midjourney?.available ? t.success : t.textMuted, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>{providers.midjourney?.available ? <IpCheck size={12} /> : '○'} Image Two</span>
                 </div>
               )}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
@@ -410,7 +410,7 @@ export default function ContentCreatorModal({
               <div style={{ display: 'grid', gap: 8, maxWidth: 320, margin: '0 auto' }}>
                 {GEN_STEPS.map((s, i) => (
                   <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: doneSteps.includes(i) ? 'rgba(34,197,94,0.08)' : t.input, border: `1px solid ${doneSteps.includes(i) ? 'rgba(34,197,94,0.3)' : t.border}` }}>
-                    <div style={{ width: 18, height: 18, borderRadius: '50%', background: doneSteps.includes(i) ? t.success : t.textMuted, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0 }}>{doneSteps.includes(i) ? '✓' : i + 1}</div>
+                    <div style={{ width: 18, height: 18, borderRadius: '50%', background: doneSteps.includes(i) ? t.success : t.textMuted, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{doneSteps.includes(i) ? <IpCheck size={11} style={{ color: '#fff' }} /> : <span style={{ fontSize: 11 }}>{i + 1}</span>}</div>
                     <div style={{ fontSize: 13, color: t.text }}>{s}</div>
                   </div>
                 ))}

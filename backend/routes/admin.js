@@ -1,7 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
 const { authenticate, verifyAdmin } = require('../middleware/auth');
+const ImageResizer = require('../services/ImageResizer');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const AuditLog = require('../services/AuditLog');
@@ -661,6 +663,142 @@ module.exports = (pool) => {
         },
       });
     } catch (err) { res.status(500).json({ status: 'error', error: err.message }); }
+  });
+
+  // ── Stock Photo Library (admin-managed) ─────────────────────────────────────
+
+  const stockUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+      if (/jpeg|jpg|png|webp/.test(file.mimetype)) cb(null, true);
+      else cb(new Error('Only jpeg, png and webp images are accepted'));
+    },
+  });
+
+  // POST /api/admin/stock-photos
+  router.post('/stock-photos', stockUpload.array('files', 20), async (req, res) => {
+    try {
+      const { industry, category, tags: tagsRaw, title, description } = req.body;
+      if (!industry || !category) return res.status(400).json({ error: 'industry and category are required' });
+      if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'At least one image file is required' });
+
+      const tagsArr = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+      const created = [];
+
+      for (const file of req.files) {
+        // Resize to 1080×1350 master
+        const sharp = require('sharp');
+        const masterBuffer = await sharp(file.buffer)
+          .rotate()
+          .resize(1080, 1350, { fit: 'cover', position: 'centre' })
+          .jpeg({ quality: 85 })
+          .toBuffer();
+
+        // Generate 300px thumbnail
+        const thumbBuffer = await ImageResizer.generateThumbnail(file.buffer, 300, 400);
+
+        // Upload both to Cloudinary
+        const publicId = `itsposting/stock-photos/${industry}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const [url, thumbnail_url] = await Promise.all([
+          ImageResizer.uploadToCloudinary(masterBuffer, publicId),
+          ImageResizer.uploadToCloudinary(thumbBuffer, publicId + '_thumb'),
+        ]);
+
+        const { rows: [photo] } = await pool.query(
+          `INSERT INTO stock_photos (industry, category, tags, url, thumbnail_url, cloudinary_public_id, title, description, width, height, file_size_bytes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1080, 1350, $9)
+           RETURNING *`,
+          [industry, category, tagsArr, url, thumbnail_url, publicId, title || file.originalname, description || null, file.size]
+        );
+        created.push(photo);
+      }
+
+      await audit.log(req.admin.id, req.admin.email, 'stock_photos_upload', 'stock_photos', null, { count: created.length, industry, category }, req);
+      res.json({ created, count: created.length });
+    } catch (err) {
+      console.error('[Admin] POST /stock-photos:', err.message);
+      res.status(500).json({ error: err.message || 'Failed to upload stock photos' });
+    }
+  });
+
+  // GET /api/admin/stock-photos
+  router.get('/stock-photos', async (req, res) => {
+    try {
+      const { industry, category, search, active, limit: rawLimit = 40, offset: rawOffset = 0 } = req.query;
+      const limit = Math.min(parseInt(rawLimit) || 40, 100);
+      const offset = Math.max(parseInt(rawOffset) || 0, 0);
+
+      const conditions = [];
+      const params = [];
+      let p = 1;
+      if (industry) { conditions.push(`industry = $${p++}`); params.push(industry); }
+      if (category) { conditions.push(`category = $${p++}`); params.push(category); }
+      if (search)   { conditions.push(`(title ILIKE $${p++})`); params.push(`%${search}%`); }
+      if (active === 'true')  { conditions.push(`is_active = true`); }
+      if (active === 'false') { conditions.push(`is_active = false`); }
+
+      const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+      params.push(limit, offset);
+
+      const { rows: photos } = await pool.query(
+        `SELECT * FROM stock_photos ${where} ORDER BY created_at DESC LIMIT $${p} OFFSET $${p + 1}`,
+        params
+      );
+      const { rows: [{ count }] } = await pool.query(
+        `SELECT COUNT(*) FROM stock_photos ${where}`,
+        params.slice(0, -2)
+      );
+
+      res.json({ photos, total: parseInt(count) });
+    } catch (err) {
+      console.error('[Admin] GET /stock-photos:', err.message);
+      res.status(500).json({ error: 'Failed to fetch stock photos' });
+    }
+  });
+
+  // PATCH /api/admin/stock-photos/:id
+  router.patch('/stock-photos/:id', async (req, res) => {
+    try {
+      const photoId = parseInt(req.params.id);
+      const { industry, category, tags, title, description, is_active } = req.body;
+      const tagsArr = Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined);
+
+      const { rows: [photo] } = await pool.query(
+        `UPDATE stock_photos SET
+           industry    = COALESCE($1, industry),
+           category    = COALESCE($2, category),
+           tags        = COALESCE($3, tags),
+           title       = COALESCE($4, title),
+           description = COALESCE($5, description),
+           is_active   = COALESCE($6, is_active)
+         WHERE id = $7
+         RETURNING *`,
+        [industry || null, category || null, tagsArr || null, title || null, description || null, is_active !== undefined ? is_active : null, photoId]
+      );
+      if (!photo) return res.status(404).json({ error: 'Photo not found' });
+      res.json({ photo });
+    } catch (err) {
+      console.error('[Admin] PATCH /stock-photos/:id:', err.message);
+      res.status(500).json({ error: 'Failed to update photo' });
+    }
+  });
+
+  // DELETE /api/admin/stock-photos/:id  (soft-delete)
+  router.delete('/stock-photos/:id', async (req, res) => {
+    try {
+      const photoId = parseInt(req.params.id);
+      const { rowCount } = await pool.query(
+        'UPDATE stock_photos SET is_active = false WHERE id = $1',
+        [photoId]
+      );
+      if (!rowCount) return res.status(404).json({ error: 'Photo not found' });
+      await audit.log(req.admin.id, req.admin.email, 'stock_photo_delete', 'stock_photos', photoId, {}, req);
+      res.json({ success: true });
+    } catch (err) {
+      console.error('[Admin] DELETE /stock-photos/:id:', err.message);
+      res.status(500).json({ error: 'Failed to delete photo' });
+    }
   });
 
   return router;

@@ -12,7 +12,7 @@ import {
   IpEdit, IpSend, IpCopy,
   IpFacebook, IpInstagram, IpGoogle, IpAllPlatforms,
   IpLinkedIn, IpTikTok,
-  IpHeart, IpBusiness, IpWarning,
+  IpHeart, IpBusiness, IpWarning, IpLaugh,
   IpPhoto, IpTextCard,
 } from '../components/icons';
 import { useToast } from '../components/ui';
@@ -48,7 +48,7 @@ const ALL_PLATFORM_IDS = PLATFORMS.map(p => p.id);
 const TONES = [
   { id: 'friendly',     label: 'Friendly', Icon: IpHeart },
   { id: 'professional', label: 'Pro',      Icon: IpBusiness },
-  { id: 'funny',        label: 'Funny',    Icon: null, emoji: '😄' },
+  { id: 'funny',        label: 'Funny',    Icon: IpLaugh },
   { id: 'educational',  label: 'Expert',   Icon: IpSparkle },
   { id: 'urgent',       label: 'Urgent',   Icon: IpWarning },
 ];

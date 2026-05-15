@@ -24,6 +24,7 @@ const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 const { authenticate } = require('../middleware/auth');
 const DMPollingService = require('../services/DMPollingService');
+const ReceptionistService = require('../services/ReceptionistService');
 
 let industryKnowledge = {};
 try { industryKnowledge = require('../data/industryKnowledge'); } catch (_) {}
@@ -31,6 +32,7 @@ try { industryKnowledge = require('../data/industryKnowledge'); } catch (_) {}
 module.exports = function dmsRoutes(pool) {
   const router = express.Router();
   const dmService = new DMPollingService(pool);
+  const receptionistSvc = new ReceptionistService(pool);
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   // ──────────────────────────────────────────────────────
@@ -181,7 +183,10 @@ module.exports = function dmsRoutes(pool) {
             WHEN dc.human_agent_window_expires_at > NOW() THEN 'human_agent'
             ELSE 'closed'
           END AS messaging_window_status,
-          EXTRACT(EPOCH FROM (dc.window_expires_at - NOW())) AS window_seconds_remaining
+          EXTRACT(EPOCH FROM (dc.window_expires_at - NOW())) AS window_seconds_remaining,
+          (SELECT ai_handled FROM dm_messages
+           WHERE conversation_id = dc.id AND direction = 'outgoing'
+           ORDER BY COALESCE(sent_at, created_at) DESC LIMIT 1) AS last_message_ai_handled
          FROM dm_conversations dc
          WHERE ${where}
          ORDER BY dc.is_starred DESC, dc.last_message_at DESC NULLS LAST
@@ -285,76 +290,48 @@ module.exports = function dmsRoutes(pool) {
       const { tone = 'friendly' } = req.body;
 
       const convResult = await pool.query(
-        `SELECT dc.*, sa.account_name AS page_name
-         FROM dm_conversations dc
-         LEFT JOIN social_accounts sa ON sa.customer_id = dc.customer_id AND sa.platform = dc.platform
-         WHERE dc.id = $1 AND dc.customer_id = $2`,
+        `SELECT dc.* FROM dm_conversations dc WHERE dc.id=$1 AND dc.customer_id=$2`,
         [req.params.id, req.customerId]
       );
       if (!convResult.rows[0]) return res.status(404).json({ error: 'Conversation not found' });
 
-      const conv = convResult.rows[0];
-
       const messagesResult = await pool.query(
-        `SELECT direction, message_text, sent_at FROM dm_messages
-         WHERE conversation_id = $1
-         ORDER BY COALESCE(sent_at, created_at) DESC
-         LIMIT 5`,
+        `SELECT direction, message_text FROM dm_messages
+         WHERE conversation_id=$1 ORDER BY COALESCE(sent_at, created_at) DESC LIMIT 20`,
         [req.params.id]
       );
       const messages = messagesResult.rows.reverse();
       const lastIncoming = messages.filter(m => m.direction === 'incoming').at(-1);
       if (!lastIncoming) return res.status(400).json({ error: 'No incoming message to reply to' });
 
-      const customerResult = await pool.query(
-        'SELECT business_name, industry, location FROM customers WHERE id = $1',
-        [req.customerId]
-      );
-      const customer = customerResult.rows[0] || {};
-      const knowledge = industryKnowledge[customer.industry || 'general_contractor'] || {};
-      const detectedIntent = dmService.detectIntent(lastIncoming.message_text);
+      const detectedIntent = receptionistSvc.classifyIntent(lastIncoming.message_text);
 
-      const toneMap = {
-        professional: 'professional and trustworthy',
-        friendly: 'warm and friendly — like a helpful neighbour',
-        casual: 'casual and conversational',
-      };
+      // Build knowledge-enriched system prompt
+      const systemPrompt = await receptionistSvc.buildSystemPrompt(req.customerId);
 
-      const intentGuidance = {
-        price_inquiry: 'Do NOT give a specific price — offer a free estimate and explain you need to see the job first.',
-        availability: 'Be positive and prompt — invite them to call or text for a quick scheduling chat.',
-        service_area: 'Ask what city or neighbourhood they are in.',
-        emergency: 'Be empathetic and immediate — help them fast.',
-        feedback: 'Respond gratefully and personally.',
-        general: 'Respond helpfully to their question.',
-      };
-
-      const conversationContext = messages
-        .map(m => `${m.direction === 'incoming' ? 'Customer' : 'Business'}: ${m.message_text}`)
-        .join('\n');
+      const conversationHistory = messages.map(m => ({
+        role: m.direction === 'incoming' ? 'user' : 'assistant',
+        content: m.message_text,
+      }));
 
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 300,
-        system: `You are PostCore helping ${customer.business_name || 'a local business'} reply to a ${conv.platform} DM.
-
-Business: ${customer.business_name || 'Local Business'}
-Industry: ${customer.industry || 'local service business'}
-Tone: ${toneMap[tone] || toneMap.friendly}
-Intent detected: ${detectedIntent}
-Guidance: ${intentGuidance[detectedIntent] || intentGuidance.general}
-Trust signals: ${knowledge.trustSignals?.slice(0, 3).join(', ') || ''}
-
-Rules: Keep it SHORT (2-5 sentences max). Sound like a real local business owner.
-Never promise specific prices without seeing the job. Always include a clear next step.
-No bullet points — this is a casual DM. Respond with ONLY valid JSON: {"reply":"..."}`,
-        messages: [{ role: 'user', content: `Recent conversation:\n${conversationContext}\n\nWrite a ${tone} reply.` }],
+        temperature: 0.4,
+        system: systemPrompt + `\n\nTone requested: ${tone}. Respond with ONLY valid JSON: {"reply":"..."}`,
+        messages: conversationHistory,
       });
 
       const rawText = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
-      const parsed = JSON.parse(rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+      let draft;
+      try {
+        const parsed = JSON.parse(rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+        draft = parsed.reply;
+      } catch {
+        draft = rawText.trim();
+      }
 
-      res.json({ success: true, draft: parsed.reply, intent: detectedIntent, tone });
+      res.json({ success: true, draft, intent: detectedIntent, tone });
     } catch (err) {
       console.error('[DMs] AI reply error:', err);
       res.status(500).json({ error: 'Failed to generate AI reply' });

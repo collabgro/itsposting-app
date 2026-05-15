@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { IpSparkle } from '../components/icons';
 import { useTheme } from '../lib/theme';
-import { Button, Input } from '../components/ui';
 import { authAPI } from '../lib/api';
 
 const INDUSTRIES = [
@@ -23,14 +22,19 @@ const INDUSTRIES = [
 
 export default function Signup() {
   const router = useRouter();
-  const { t } = useTheme();
+  const { t, theme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [focusedField, setFocusedField] = useState(null);
   const [formData, setFormData] = useState({ businessName: '', industry: '', location: '', email: '', password: '' });
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+    setTimeout(() => setVisible(true), 80);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,16 +50,272 @@ export default function Signup() {
       const industryValue = INDUSTRIES.find(i => i.label === formData.industry)?.value || 'general_contractor';
       const { data } = await authAPI.register({ email: formData.email, password: formData.password, businessName: formData.businessName, industry: industryValue, location: formData.location });
       localStorage.setItem('token', data.token);
-      router.push('/wizard?onboarding=true');
+      localStorage.setItem('ip_onboard_name', formData.businessName);
+      router.push('/welcome');
     } catch (err) {
       setError(err.response?.data?.error || 'Signup failed');
       setLoading(false);
     }
   };
 
+  function iStyle(field) {
+    return {
+      width: '100%', padding: '12px 14px', boxSizing: 'border-box',
+      background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : t.input,
+      border: `1px solid ${focusedField === field ? 'rgba(124,92,252,0.6)' : t.borderStrong}`,
+      borderRadius: 10, color: t.text, fontSize: 14, outline: 'none',
+      boxShadow: focusedField === field ? '0 0 0 3px rgba(124,92,252,0.12)' : 'none',
+      transition: 'border-color 150ms, box-shadow 150ms',
+    };
+  }
+
   if (!mounted) return null;
 
-  return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.bg, padding: 20 }}><div style={{ width: '100%', maxWidth: 480 }}><div style={{ textAlign: 'center', marginBottom: 28 }}><div style={{ width: 48, height: 48, borderRadius: 12, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}><IpSparkle size={20} color="#fff" strokeWidth={2.5} /></div><h1 style={{ fontSize: 24, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>Its Posting</h1><div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 16 }}>{[1, 2].map((s) => <div key={s} style={{ height: 3, width: 48, borderRadius: 2, background: step >= s ? t.primary : t.border, transition: 'background 300ms' }} />)}</div></div><div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 28, width: '100%' }}>{error && <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: t.error, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>{error}</div>}<form onSubmit={handleSubmit}>{step === 1 && <><h2 style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 4, letterSpacing: '-0.02em' }}>Your Business</h2><p style={{ color: t.textMuted, fontSize: 13, marginBottom: 20 }}>We&apos;ll customize content for your industry</p><div style={{ marginBottom: 14 }}><label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>Business Name</label><Input type="text" required value={formData.businessName} onChange={(e) => setFormData({ ...formData, businessName: e.target.value })} placeholder="ABC Plumbing" /></div><div style={{ marginBottom: 14 }}><label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>Industry</label><select required value={formData.industry} onChange={(e) => setFormData({ ...formData, industry: e.target.value })} style={{ width: '100%', padding: '10px 14px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13 }}><option value="">Select industry</option>{INDUSTRIES.map((ind) => <option key={ind.value + ind.label} value={ind.label}>{ind.label}</option>)}</select></div><div style={{ marginBottom: 20 }}><label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>Location</label><Input type="text" required value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="Austin, TX" /></div><Button type="submit" variant="primary" style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: 14 }}>Continue →</Button></>}{step === 2 && <><h2 style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 4, letterSpacing: '-0.02em' }}>Create Account</h2><p style={{ color: t.textMuted, fontSize: 13, marginBottom: 20 }}>Start your 7-day free trial</p><div style={{ marginBottom: 14 }}><label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>Email</label><Input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="you@company.com" /></div><div style={{ marginBottom: 14 }}><label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>Password</label><Input type="password" required minLength={8} autoComplete="new-password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="At least 8 characters" /></div><div style={{ padding: '12px 14px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, marginBottom: 20, fontSize: 13, color: t.primary }}><IpSparkle size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} /><strong>10 free credits</strong> — generate posts immediately</div><div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}><Button type="button" variant="secondary" onClick={() => setStep(1)} style={{ padding: '12px 20px' }}>Back</Button><Button type="submit" variant="primary" disabled={loading} style={{ flex: 1, justifyContent: 'center', padding: '12px', fontSize: 14 }}>{loading ? 'Creating...' : 'Create Account'}</Button></div></>}{step === 1 && <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: t.textMuted }}>Have an account? <Link href="/login" style={{ color: t.primary, fontWeight: 600 }}>Sign in</Link></p>}</form></div></div></div>;
+  const tagline = step === 1 ? 'Built for local trades. Ready in 60 seconds.' : 'Start your 7-day free trial.';
+
+  return (
+    <div style={{
+      minHeight: '100vh', position: 'relative',
+      background: theme === 'dark' ? '#07070E' : t.bg,
+    }}>
+      {/* Ambient glow */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
+        background: `radial-gradient(ellipse 80% 50% at 50% -5%, rgba(124,92,252,${theme === 'dark' ? '0.28' : '0.12'}) 0%, transparent 65%)`,
+      }} />
+
+      {/* Content */}
+      <div style={{
+        position: 'relative', zIndex: 1, display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+        minHeight: '100vh', padding: 20,
+      }}>
+        <div style={{
+          width: '100%', maxWidth: 500,
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(28px)',
+          transition: 'opacity 700ms cubic-bezier(0.16,1,0.3,1), transform 700ms cubic-bezier(0.16,1,0.3,1)',
+        }}>
+
+          {/* Logo block */}
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <div style={{ display: 'inline-flex', position: 'relative', marginBottom: 20 }}>
+              <div style={{
+                position: 'absolute', inset: -10, borderRadius: 24,
+                background: 'radial-gradient(circle, rgba(124,92,252,0.4) 0%, transparent 70%)',
+                filter: 'blur(14px)',
+              }} />
+              <img
+                src="/itsposting-logo.png" alt="ItsPosting" width={64} height={64}
+                style={{ borderRadius: 18, display: 'block', position: 'relative', zIndex: 1 }}
+              />
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em', color: t.text }}>ItsPosting</div>
+            <div style={{ fontSize: 14, color: t.textMuted, marginTop: 6, letterSpacing: '-0.01em', transition: 'all 300ms ease' }}>
+              {tagline}
+            </div>
+
+            {/* Step indicator */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+              {[1, 2].map(s => (
+                <div key={s} style={{
+                  height: 4, borderRadius: 4,
+                  width: step >= s ? 48 : 24,
+                  background: step >= s
+                    ? 'linear-gradient(90deg, #9B4FD4, #C44BB8)'
+                    : theme === 'dark' ? 'rgba(255,255,255,0.1)' : t.border,
+                  transition: 'all 400ms cubic-bezier(0.16,1,0.3,1)',
+                }} />
+              ))}
+            </div>
+          </div>
+
+          {/* Card */}
+          <div style={{
+            background: t.card, border: `1px solid ${t.border}`,
+            borderRadius: 16, padding: '32px 28px',
+            boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 24px 64px rgba(0,0,0,0.4)',
+          }}>
+            {error && (
+              <div style={{
+                padding: '10px 14px', background: 'rgba(239,68,68,0.1)',
+                border: '1px solid rgba(239,68,68,0.3)', color: t.error,
+                borderRadius: 8, marginBottom: 20, fontSize: 13,
+              }}>
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              {step === 1 && (
+                <>
+                  {/* Business Name */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textMuted, marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      Business Name
+                    </label>
+                    <input
+                      type="text" required placeholder="ABC Plumbing"
+                      value={formData.businessName}
+                      onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                      onFocus={() => setFocusedField('businessName')}
+                      onBlur={() => setFocusedField(null)}
+                      style={iStyle('businessName')}
+                    />
+                  </div>
+
+                  {/* Industry */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textMuted, marginBottom: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      Industry
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                      {INDUSTRIES.map(ind => {
+                        const sel = formData.industry === ind.label;
+                        return (
+                          <button
+                            key={ind.label} type="button"
+                            onClick={() => setFormData({ ...formData, industry: ind.label })}
+                            style={{
+                              padding: '11px 6px',
+                              background: sel
+                                ? 'rgba(124,92,252,0.15)'
+                                : theme === 'dark' ? 'rgba(255,255,255,0.03)' : t.input,
+                              border: `1px solid ${sel ? 'rgba(124,92,252,0.55)' : theme === 'dark' ? 'rgba(255,255,255,0.07)' : t.border}`,
+                              borderRadius: 10, cursor: 'pointer', textAlign: 'center',
+                              color: sel ? '#C084FC' : t.textMuted,
+                              fontSize: 11, fontWeight: 700, lineHeight: 1.35,
+                              transition: 'all 150ms ease',
+                              boxShadow: sel ? '0 0 0 1px rgba(124,92,252,0.2)' : 'none',
+                            }}
+                          >
+                            {ind.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div style={{ marginBottom: 24 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textMuted, marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      City / Location
+                    </label>
+                    <input
+                      type="text" required placeholder="Austin, TX"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      onFocus={() => setFocusedField('location')}
+                      onBlur={() => setFocusedField(null)}
+                      style={iStyle('location')}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    style={{
+                      width: '100%', padding: '14px', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', gap: 6,
+                      fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
+                      background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)',
+                      border: 'none', borderRadius: 10, color: '#fff', cursor: 'pointer',
+                      boxShadow: '0 4px 24px rgba(155,79,212,0.4)',
+                      transition: 'opacity 150ms, box-shadow 150ms',
+                    }}
+                  >
+                    Continue →
+                  </button>
+                </>
+              )}
+
+              {step === 2 && (
+                <>
+                  {/* Email */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textMuted, marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      Email
+                    </label>
+                    <input
+                      type="email" required placeholder="you@company.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onFocus={() => setFocusedField('email')}
+                      onBlur={() => setFocusedField(null)}
+                      style={iStyle('email')}
+                    />
+                  </div>
+
+                  {/* Password */}
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textMuted, marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      Password
+                    </label>
+                    <input
+                      type="password" required minLength={8} autoComplete="new-password" placeholder="At least 8 characters"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onFocus={() => setFocusedField('password')}
+                      onBlur={() => setFocusedField(null)}
+                      style={iStyle('password')}
+                    />
+                  </div>
+
+                  {/* Free credits callout */}
+                  <div style={{
+                    padding: '12px 14px', background: t.primaryBg,
+                    borderLeft: '3px solid #9B4FD4',
+                    borderRadius: '0 8px 8px 0',
+                    marginBottom: 24, fontSize: 13, color: t.primary,
+                    display: 'flex', alignItems: 'center', gap: 8,
+                  }}>
+                    <IpSparkle size={14} style={{ flexShrink: 0 }} />
+                    <span><strong>10 free credits</strong> — generate posts immediately</span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      type="button" onClick={() => { setStep(1); setError(''); }}
+                      style={{
+                        padding: '14px 20px', background: 'transparent',
+                        border: `1px solid ${t.border}`, borderRadius: 10,
+                        color: t.textSecondary, fontSize: 14, fontWeight: 600,
+                        cursor: 'pointer', transition: 'border-color 150ms',
+                      }}
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      type="submit" disabled={loading}
+                      style={{
+                        flex: 1, padding: '14px', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', gap: 6,
+                        fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
+                        background: loading ? t.textDisabled : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)',
+                        border: 'none', borderRadius: 10, color: '#fff',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        boxShadow: loading ? 'none' : '0 4px 24px rgba(155,79,212,0.4)',
+                        transition: 'opacity 150ms, box-shadow 150ms',
+                      }}
+                    >
+                      {loading ? 'Creating…' : 'Create Account'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </form>
+          </div>
+
+          {step === 1 && (
+            <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: t.textMuted }}>
+              Have an account?{' '}
+              <Link href="/login" style={{ color: t.primary, fontWeight: 600 }}>Sign in →</Link>
+            </p>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export async function getServerSideProps() { return { props: {} }; }

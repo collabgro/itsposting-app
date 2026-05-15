@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
-import { dmsAPI } from '../lib/api';
+import { dmsAPI, receptionistAPI } from '../lib/api';
 import {
   IpInbox, IpFacebook, IpInstagram, IpRefresh, IpSend, IpSparkle,
   IpClose, IpWarning, IpPlus, IpDelete, IpEdit, IpCheck, IpSave, IpZap,
+  IpChevronRight, IpReview, IpArrowLeft, IpSchedule,
 } from '../components/icons';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -75,16 +76,23 @@ export default function InboxPage() {
   const [showAutoReplies, setShowAutoReplies] = useState(false);
   const [autoReplies, setAutoReplies] = useState([]);
   const [showMobileThread, setShowMobileThread] = useState(false);
+  const [receptionistConfig, setReceptionistConfig] = useState(null);
+  const [receptionistStats, setReceptionistStats] = useState({ aiHandledToday: 0, escalatedOpen: 0, pendingUnread: 0 });
+  const [receptionistPanelOpen, setReceptionistPanelOpen] = useState(true);
+  const [autoHandleToggling, setAutoHandleToggling] = useState(false);
   const [arLoading, setArLoading] = useState(false);
   const [arSaving, setArSaving] = useState(false);
   const [showAddRule, setShowAddRule] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
   const BLANK_RULE = { trigger_type: 'first_message', keywords: '', reply_text: '', delay_seconds: 0, send_only_once: true, is_active: true };
   const [newRule, setNewRule] = useState(BLANK_RULE);
+  const [showLeadsDropdown, setShowLeadsDropdown] = useState(false);
+  const [movingToLeads, setMovingToLeads] = useState(false);
+  const [leadsToast, setLeadsToast] = useState('');
 
   const threadEndRef = useRef(null);
 
-  useEffect(() => { loadStats(); loadConversations(); }, []);
+  useEffect(() => { loadStats(); loadConversations(); loadReceptionistInfo(); }, []);
   useEffect(() => { loadConversations(); }, [filter]);
 
   useEffect(() => {
@@ -92,6 +100,29 @@ export default function InboxPage() {
       threadEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+
+  async function loadReceptionistInfo() {
+    try {
+      const [configRes, statsRes] = await Promise.all([
+        receptionistAPI.getConfig().catch(() => ({ data: null })),
+        receptionistAPI.getStats().catch(() => ({ data: null })),
+      ]);
+      setReceptionistConfig(configRes.data || null);
+      setReceptionistStats(statsRes.data || { aiHandledToday: 0, escalatedOpen: 0, pendingUnread: 0 });
+    } catch (_) {}
+  }
+
+  async function toggleAutoHandle() {
+    if (!receptionistConfig || autoHandleToggling) return;
+    setAutoHandleToggling(true);
+    try {
+      const newVal = !receptionistConfig.auto_handle;
+      await receptionistAPI.saveConfig({ ...receptionistConfig, auto_handle: newVal });
+      setReceptionistConfig(prev => ({ ...prev, auto_handle: newVal }));
+    } catch (_) {} finally {
+      setAutoHandleToggling(false);
+    }
+  }
 
   async function loadStats() {
     try {
@@ -205,6 +236,23 @@ export default function InboxPage() {
     } catch (_) {}
   }
 
+  async function handleMoveToLeads(stage) {
+    if (!selected) return;
+    setMovingToLeads(true);
+    setShowLeadsDropdown(false);
+    try {
+      await receptionistAPI.updateConversationStage(selected.id, stage);
+      const stageLabels = { new: 'New', contacted: 'Contacted', qualified: 'Qualified', booked: 'Booked', completed: 'Completed' };
+      setLeadsToast(`Moved to ${stageLabels[stage] || stage}`);
+      setTimeout(() => setLeadsToast(''), 3000);
+    } catch (_) {
+      setLeadsToast('Failed to update stage');
+      setTimeout(() => setLeadsToast(''), 3000);
+    } finally {
+      setMovingToLeads(false);
+    }
+  }
+
   async function openAutoReplies() {
     setShowAutoReplies(true);
     setArLoading(true);
@@ -305,6 +353,65 @@ export default function InboxPage() {
         }}
           className="inbox-list-panel"
         >
+          {/* AI Receptionist Panel */}
+          <div style={{ borderBottom: `1px solid ${t.border}`, background: receptionistConfig?.enabled ? 'rgba(124,92,252,0.04)' : 'transparent', flexShrink: 0 }}>
+            <div
+              onClick={() => setReceptionistPanelOpen(p => !p)}
+              style={{ padding: '9px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <IpSparkle size={13} style={{ color: receptionistConfig?.enabled ? t.primary : t.textMuted }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: t.text }}>AI Receptionist</span>
+                <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 20, background: 'rgba(234,179,8,0.15)', color: '#ca8a04', letterSpacing: 0.3 }}>Beta</span>
+                {receptionistConfig?.enabled && (
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                )}
+              </div>
+              <IpChevronRight size={11} style={{ color: t.textMuted, transform: receptionistPanelOpen ? 'rotate(90deg)' : 'none', transition: 'transform 200ms' }} />
+            </div>
+
+            {receptionistPanelOpen && (
+              <div style={{ padding: '0 16px 10px' }}>
+                {!receptionistConfig ? (
+                  <div style={{ fontSize: 11, color: t.textMuted }}>
+                    Not configured.{' '}
+                    <a href="/receptionist" style={{ color: t.primary, textDecoration: 'none', fontWeight: 600 }}>Set up →</a>
+                  </div>
+                ) : !receptionistConfig.enabled ? (
+                  <div style={{ fontSize: 11, color: t.textMuted }}>
+                    Disabled.{' '}
+                    <a href="/receptionist" style={{ color: t.primary, textDecoration: 'none', fontWeight: 600 }}>Enable →</a>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>
+                      Handled <strong style={{ color: t.text }}>{receptionistStats.aiHandledToday}</strong> DMs today
+                      {receptionistStats.escalatedOpen > 0 && (
+                        <> · <strong style={{ color: t.error }}>{receptionistStats.escalatedOpen} escalated</strong></>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 11, color: t.textSecondary }}>Auto-handle</span>
+                      <button
+                        onClick={e => { e.stopPropagation(); toggleAutoHandle(); }}
+                        disabled={autoHandleToggling}
+                        title={receptionistConfig.auto_handle ? 'Disable auto-handle' : 'Enable auto-handle'}
+                        style={{ width: 34, height: 18, borderRadius: 9, background: receptionistConfig.auto_handle ? t.primary : t.border, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 200ms', flexShrink: 0 }}
+                      >
+                        <div style={{ position: 'absolute', top: 2, left: receptionistConfig.auto_handle ? 18 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 200ms ease' }} />
+                      </button>
+                    </div>
+                  </>
+                )}
+                <div style={{ marginTop: 7, padding: '5px 8px', borderRadius: 5, background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.2)' }}>
+                  <span style={{ fontSize: 10, color: '#92400e', lineHeight: 1.4, display: 'block' }}>
+                    Beta: AI responses are drafts unless auto-handle is enabled.
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Header */}
           <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -403,6 +510,12 @@ export default function InboxPage() {
                           {conv.urgency === 'urgent' && (
                             <span style={{ fontSize: 10, color: t.error, fontWeight: 600 }}>URGENT</span>
                           )}
+                          {conv.last_message_ai_handled && (
+                            <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: 'rgba(124,92,252,0.12)', color: t.primary }}>AI</span>
+                          )}
+                          {conv.status === 'escalated' && (
+                            <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: 'rgba(239,68,68,0.12)', color: t.error }}>ESC</span>
+                          )}
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -419,7 +532,7 @@ export default function InboxPage() {
                               style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: conv.is_starred ? t.warning : t.textMuted, fontSize: 14 }}
                               title={conv.is_starred ? 'Unstar' : 'Star'}
                             >
-                              ★
+                              <IpReview size={14} />
                             </button>
                           </div>
                         </div>
@@ -447,10 +560,10 @@ export default function InboxPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <button
                     onClick={() => { setShowMobileThread(false); setSelected(null); }}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 20, padding: '0 4px', display: 'none' }}
+                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: t.textMuted, padding: '0 4px', display: 'none' }}
                     className="mobile-back-btn"
                   >
-                    ←
+                    <IpArrowLeft size={20} />
                   </button>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: `linear-gradient(135deg, ${t.primary}, ${t.primaryHover})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff' }}>
                     {(selected.sender_name || '?').charAt(0).toUpperCase()}
@@ -464,7 +577,38 @@ export default function InboxPage() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {/* Move to Leads dropdown */}
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      onClick={() => setShowLeadsDropdown(d => !d)}
+                      disabled={movingToLeads}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 6, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, color: t.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      <IpSparkle size={12} />
+                      {movingToLeads ? 'Moving…' : 'Move to Leads'}
+                      <IpChevronRight size={10} style={{ transform: showLeadsDropdown ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 150ms' }} />
+                    </button>
+                    {showLeadsDropdown && (
+                      <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, zIndex: 100, minWidth: 160, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+                        {[
+                          { id: 'new',        label: 'New' },
+                          { id: 'contacted',  label: 'Contacted' },
+                          { id: 'qualified',  label: 'Qualified' },
+                          { id: 'booked',     label: 'Booked' },
+                          { id: 'completed',  label: 'Completed' },
+                        ].map(s => (
+                          <button key={s.id} onClick={() => handleMoveToLeads(s.id)}
+                            style={{ display: 'block', width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: 13, color: t.text, cursor: 'pointer', fontFamily: 'inherit' }}
+                            onMouseEnter={e => e.currentTarget.style.background = t.input}
+                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   {selected.status === 'open' && (
                     <button
                       onClick={() => markClosed(selected.id)}
@@ -508,8 +652,9 @@ export default function InboxPage() {
                             {msg.message_text}
                           </div>
                           <div style={{ fontSize: 10, color: t.textMuted, marginTop: 3, textAlign: isOut ? 'right' : 'left', display: 'flex', alignItems: 'center', gap: 4, justifyContent: isOut ? 'flex-end' : 'flex-start' }}>
-                            {isOut && msg.reply_type === 'auto_reply' && <span style={{ background: t.primaryBg, color: t.primary, padding: '1px 4px', borderRadius: 3 }}>Auto</span>}
-                            {isOut && msg.reply_type === 'ai_draft' && <span style={{ background: t.primaryBg, color: t.primary, padding: '1px 4px', borderRadius: 3 }}>PostCore</span>}
+                            {isOut && msg.ai_handled && <span style={{ background: 'rgba(124,92,252,0.12)', color: t.primary, padding: '1px 4px', borderRadius: 3, fontWeight: 600 }}>AI</span>}
+                            {isOut && !msg.ai_handled && msg.reply_type === 'auto_reply' && <span style={{ background: t.primaryBg, color: t.primary, padding: '1px 4px', borderRadius: 3 }}>Auto</span>}
+                            {isOut && !msg.ai_handled && msg.reply_type === 'ai_draft' && <span style={{ background: t.primaryBg, color: t.primary, padding: '1px 4px', borderRadius: 3 }}>PostCore</span>}
                             {timeAgo(msg.sent_at || msg.created_at)}
                           </div>
                         </div>
@@ -535,7 +680,7 @@ export default function InboxPage() {
                       <span style={{ fontSize: 11, fontWeight: 600, color: t.primary, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <IpSparkle size={12} /> PostCore suggestion
                       </span>
-                      <button onClick={() => setAiDraft(null)} style={{ border: 'none', background: 'none', color: t.textMuted, cursor: 'pointer', fontSize: 14 }}>×</button>
+                      <button onClick={() => setAiDraft(null)} style={{ border: 'none', background: 'none', color: t.textMuted, cursor: 'pointer' }}><IpClose size={14} /></button>
                     </div>
                     <p style={{ fontSize: 12, color: t.text, margin: 0, lineHeight: 1.5 }}>{aiDraft}</p>
                     <button
@@ -645,8 +790,8 @@ export default function InboxPage() {
                           </div>
                           <div style={{ fontSize: 13, color: t.text, lineHeight: 1.5, marginBottom: 6 }}>"{rule.reply_text}"</div>
                           <div style={{ display: 'flex', gap: 10, fontSize: 11, color: t.textMuted }}>
-                            {rule.delay_seconds > 0 && <span>⏱ {rule.delay_seconds >= 60 ? `${Math.round(rule.delay_seconds / 60)}m delay` : `${rule.delay_seconds}s delay`}</span>}
-                            {rule.send_only_once && <span>⚡ Once per user</span>}
+                            {rule.delay_seconds > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IpSchedule size={12} /> {rule.delay_seconds >= 60 ? `${Math.round(rule.delay_seconds / 60)}m delay` : `${rule.delay_seconds}s delay`}</span>}
+                            {rule.send_only_once && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IpZap size={12} /> Once per user</span>}
                             <span>Used {rule.times_triggered || 0}×</span>
                           </div>
                         </div>
@@ -755,6 +900,18 @@ export default function InboxPage() {
           .mobile-back-btn { display: block !important; }
         }
       `}</style>
+
+      {leadsToast && (
+        <div style={{
+          position: 'fixed', top: 24, right: 24, zIndex: 9999,
+          padding: '10px 18px', borderRadius: 8,
+          background: '#1e293b', color: '#fff',
+          fontSize: 13, fontWeight: 600,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+        }}>
+          {leadsToast}
+        </div>
+      )}
     </Layout>
   );
 }
