@@ -5,7 +5,7 @@ import {
   IpDashboard, IpWizard, IpSparkle, IpCreatePost, IpCalendar, IpDrafts,
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon, IpLogout,
-  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpTrendingUp,
+  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpTrendingUp, IpSearch,
 } from './icons';
 import { useTheme } from '../lib/theme';
 import { dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { name: 'Analytics',      href: '/analytics',      icon: IpAnalytics },
   { name: 'Reports',        href: '/reports',        icon: IpDrafts },
   { name: 'ROI Estimator',  href: '/roi',            icon: IpTrendingUp },
+  { name: 'GEO Audit',     href: '/geo-audit',      icon: IpSearch },
   { name: 'Inbox',          href: '/inbox',          icon: IpInbox, badgeKey: 'dmUnread' },
   { name: 'Teach PostCore', href: '/knowledge-base', icon: IpBusiness },
   { name: 'Contacts',   href: '/contacts',   icon: IpTeam },
@@ -43,6 +44,7 @@ export default function Layout({ children, title, subtitle, action }) {
   const [wsData, setWsData] = useState(null);
   const [wsDropdownOpen, setWsDropdownOpen] = useState(false);
   const [switchingWs, setSwitchingWs] = useState(null);
+  const [impersonatingAs, setImpersonatingAs] = useState(null);
 
   useEffect(() => {
     const updateMobile = () => setIsMobile(window.innerWidth < 900);
@@ -50,6 +52,7 @@ export default function Layout({ children, title, subtitle, action }) {
     window.addEventListener('resize', updateMobile);
     const token = localStorage.getItem('token');
     setHasToken(!!token);
+    setImpersonatingAs(localStorage.getItem('impersonating_as') || null);
     if (token) {
       const headers = { Authorization: `Bearer ${token}` };
       fetch('/api/auth/verify', { headers })
@@ -105,6 +108,14 @@ export default function Layout({ children, title, subtitle, action }) {
     router.push('/login');
   };
 
+  const exitImpersonation = () => {
+    const backup = localStorage.getItem('admin_backup_token');
+    if (backup) localStorage.setItem('token', backup);
+    localStorage.removeItem('admin_backup_token');
+    localStorage.removeItem('impersonating_as');
+    router.push('/admin/customers');
+  };
+
   const sidebarWidth = 240;
 
   // Hide Workspaces nav item when operating inside a workspace (not the main account)
@@ -113,10 +124,15 @@ export default function Layout({ children, title, subtitle, action }) {
 
   // Nav items + conditionally add admin link for admins
   const navItems = user?.is_admin
-    ? [...baseNavItems,
-        { name: 'Admin Portal', href: '/admin', icon: IpAdmin, isAdmin: true },
-        { name: 'Email Queue', href: '/admin/email-queue', icon: IpMail, isAdmin: true },
-        { name: 'Audit Log', href: '/admin/audit', icon: IpAdmin, isAdmin: true },
+    ? [
+        ...baseNavItems,
+        { isDivider: true, label: 'Admin' },
+        { name: 'Admin Portal',    href: '/admin',             icon: IpAdmin,     isAdmin: true },
+        { name: 'Customers',       href: '/admin/customers',   icon: IpTeam,      isAdmin: true },
+        { name: 'Post Moderation', href: '/admin/posts',       icon: IpDrafts,    isAdmin: true },
+        { name: 'Broadcast',       href: '/admin/broadcast',   icon: IpMail,      isAdmin: true },
+        { name: 'Email Queue',     href: '/admin/email-queue', icon: IpMail,      isAdmin: true },
+        { name: 'Audit Log',       href: '/admin/audit',       icon: IpAdmin,     isAdmin: true },
       ]
     : baseNavItems;
 
@@ -298,6 +314,13 @@ export default function Layout({ children, title, subtitle, action }) {
         <nav style={{ flex: 1, padding: '4px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ flex: 1 }}>
           {navItems.map((item) => {
+            if (item.isDivider) {
+              return (
+                <div key={`divider-${item.label}`} style={{ padding: '14px 14px 4px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  {item.label}
+                </div>
+              );
+            }
             const active = router.pathname === item.href || router.pathname.startsWith(item.href + '/');
             const hasSuggDot = item.showSuggBadge && unseenSugg > 0;
             return (
@@ -451,6 +474,23 @@ export default function Layout({ children, title, subtitle, action }) {
             {action}
           </div>
         </header>
+
+        {/* IMPERSONATION BANNER */}
+        {impersonatingAs && (
+          <div style={{
+            background: '#F59E0B', color: '#000', padding: '10px 24px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            fontSize: 13, fontWeight: 600, position: 'sticky', top: 64, zIndex: 39,
+          }}>
+            <span>⚠ Viewing as: {impersonatingAs} — all actions are real</span>
+            <button
+              onClick={exitImpersonation}
+              style={{ padding: '5px 14px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(0,0,0,0.25)', borderRadius: 6, color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Exit View
+            </button>
+          </div>
+        )}
 
         {/* PAGE CONTENT */}
         <div style={{

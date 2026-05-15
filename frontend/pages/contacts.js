@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import { ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { contactsAPI, dmsAPI } from '../lib/api';
+import { contactsAPI } from '../lib/api';
 import {
   IpTeam, IpPlus, IpSearch, IpEdit, IpDelete, IpFacebook,
   IpInstagram, IpClose, IpCheck, IpUser,
@@ -271,11 +272,14 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [selectedContact, setSelectedContact] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [error, setError] = useState('');
 
   useEffect(() => { load(); }, [page, search, leadFilter]);
 
   async function load() {
     setLoading(true);
+    setError('');
     try {
       const params = { page, limit: 25 };
       if (search) params.search = search;
@@ -284,7 +288,7 @@ export default function ContactsPage() {
       setContacts(res.data.contacts || []);
       setTotal(res.data.total || 0);
     } catch (_) {
-      setContacts([]);
+      setError('Failed to load contacts');
     } finally {
       setLoading(false);
     }
@@ -301,14 +305,18 @@ export default function ContactsPage() {
     setSelectedContact(updated);
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this contact? This cannot be undone.')) return;
+  function handleDelete(id) {
+    setConfirmDelete(id);
+  }
+
+  async function doDelete(id) {
     try {
       await contactsAPI.delete(id);
       setContacts(prev => prev.filter(c => c.id !== id));
       setTotal(prev => prev - 1);
       setSelectedContact(null);
     } catch (_) {}
+    setConfirmDelete(null);
   }
 
   async function handleStatusChange(id, newStatus) {
@@ -365,6 +373,13 @@ export default function ContactsPage() {
           ))}
         </div>
       </div>
+
+      {error && (
+        <div style={{ padding: '10px 16px', background: `${t.error}15`, border: `1px solid ${t.error}33`, borderRadius: 8, fontSize: 12, color: t.error, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {error}
+          <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.error, fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
+        </div>
+      )}
 
       {/* Table */}
       <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, overflow: 'hidden' }}>
@@ -508,6 +523,15 @@ export default function ContactsPage() {
           onClose={() => setSelectedContact(null)}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete Contact"
+          message="Delete this contact? This cannot be undone."
+          onConfirm={() => doDelete(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
         />
       )}
     </Layout>

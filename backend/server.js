@@ -27,6 +27,8 @@ const inboxRoutes = require('./routes/inbox');
 const knowledgeRoutes = require('./routes/knowledge');
 const webhookRoutes = require('./routes/webhooks');
 const workspaceRoutes = require('./routes/workspaces');
+const geoRoutes = require('./routes/geo');
+const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
 const EmailWorker = require('./services/EmailWorker');
 const SuggestionsEngine = require('./services/SuggestionsEngine');
@@ -145,6 +147,46 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_notifications_customer ON notifications(customer_id, read)`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS video_render_status VARCHAR(20) DEFAULT 'none'`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS video_provider VARCHAR(50)`,
+    // GEO Audit tables
+    `CREATE TABLE IF NOT EXISTS geo_audits (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      status VARCHAR(20) DEFAULT 'pending',
+      geo_score INTEGER DEFAULT 0,
+      citations_found INTEGER DEFAULT 0,
+      total_queries INTEGER DEFAULT 45,
+      industry VARCHAR(100),
+      location VARCHAR(255),
+      report_data JSONB,
+      is_free BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT NOW(),
+      completed_at TIMESTAMP
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_geo_audits_customer ON geo_audits(customer_id, created_at DESC)`,
+    `CREATE TABLE IF NOT EXISTS geo_citations (
+      id SERIAL PRIMARY KEY,
+      audit_id INTEGER REFERENCES geo_audits(id) ON DELETE CASCADE,
+      engine VARCHAR(20),
+      query_text TEXT,
+      response_excerpt TEXT,
+      business_mentioned BOOLEAN DEFAULT false,
+      mention_position INTEGER,
+      competitors_mentioned TEXT[],
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_geo_citations_audit ON geo_citations(audit_id)`,
+    `CREATE TABLE IF NOT EXISTS geo_tracking_scores (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      geo_score INTEGER,
+      citations_found INTEGER,
+      week_start DATE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_geo_tracking_customer ON geo_tracking_scores(customer_id, week_start DESC)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS geo_score INTEGER DEFAULT 0`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS last_geo_audit_at TIMESTAMP`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS free_geo_audit_used BOOLEAN DEFAULT false`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -155,7 +197,7 @@ console.log('══════════════════════�
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, message: 'Too many requests, please try again later.', standardHeaders: true, legacyHeaders: false });
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, skip: (req) => !!req.headers.authorization, message: 'Too many requests, please try again later.', standardHeaders: true, legacyHeaders: false });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many authentication attempts. Try again in 15 minutes.', skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
 const passwordResetLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, message: 'Too many password reset attempts. Try again in 1 hour.', standardHeaders: true, legacyHeaders: false });
 const generationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20, message: { error: 'Generation limit reached — wait an hour or upgrade your plan' }, standardHeaders: true, legacyHeaders: false });
@@ -206,6 +248,7 @@ app.use('/api/intelligence', intelligenceRoutes(pool));
 app.use('/api/inbox', inboxRoutes(pool));
 app.use('/api/knowledge', knowledgeRoutes(pool));
 app.use('/api/workspaces', workspaceRoutes(pool));
+app.use('/api/geo', geoRoutes(pool));
 
 app.get('/health', async (req, res) => {
   try {
@@ -310,6 +353,36 @@ cron.schedule('0 7 * * 1', async () => {
   } catch (e) { console.error('[cron] Briefings cron error:', e.message); }
 });
 console.log('📋 PostCoreAdvisor cron scheduled (Monday 7am UTC)');
+
+const geoAuditService = new GeoAuditService(pool);
+// Monday 6am UTC — re-audit Pro/Premium customers for weekly GEO tracking
+cron.schedule('0 6 * * 1', async () => {
+  console.log('[GeoAudit cron] Weekly tracking run starting...');
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, business_name, industry, location FROM customers
+       WHERE plan IN ('professional','premium') AND (suspended = false OR suspended IS NULL)
+         AND free_geo_audit_used = true AND location IS NOT NULL`
+    );
+    console.log(`[GeoAudit cron] Re-auditing ${rows.length} Pro/Premium customers`);
+    for (const c of rows) {
+      try {
+        const { rows: [audit] } = await pool.query(
+          `INSERT INTO geo_audits (customer_id, industry, location, is_free, status)
+           VALUES ($1, $2, $3, false, 'running') RETURNING id`,
+          [c.id, c.industry, c.location]
+        );
+        await geoAuditService.runAudit(c, audit.id);
+      } catch (e) {
+        console.error(`[GeoAudit cron] Failed for customer ${c.id}:`, e.message);
+      }
+    }
+    console.log('[GeoAudit cron] Weekly tracking complete');
+  } catch (e) {
+    console.error('[GeoAudit cron] Error:', e.message);
+  }
+});
+console.log('🔍 GeoAudit cron scheduled (Monday 6am UTC — Pro/Premium weekly tracking)');
 
 const PLAN_MONTHLY_CREDITS = { starter: 50, professional: 100, premium: 150 };
 

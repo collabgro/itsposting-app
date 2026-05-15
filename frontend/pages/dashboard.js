@@ -11,7 +11,7 @@ import {
 import Layout from '../components/Layout';
 import { Card, Button, SectionHeader, EmptyState, Spinner, Skeleton } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { postsAPI, intelligenceAPI } from '../lib/api';
+import { postsAPI, intelligenceAPI, geoAPI } from '../lib/api';
 import { format } from 'date-fns';
 
 const TYPE_ICON  = { static: IpDrafts, photo: IpPhoto, carousel: IpCarousel, video: IpVideo };
@@ -42,6 +42,7 @@ export default function Dashboard() {
   const [contentMix,   setContentMix]   = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [briefingOpen, setBriefingOpen] = useState(true);
+  const [geoScore,     setGeoScore]     = useState(null);
 
   useEffect(() => {
     setMounted(true);
@@ -54,12 +55,14 @@ export default function Dashboard() {
       intelligenceAPI.getMetrics().catch(() => ({ data: null })),
       intelligenceAPI.getBriefing().catch(() => ({ data: null })),
       intelligenceAPI.getContentHealth().catch(() => ({ data: null })),
-    ]).then(([p, u, m, b, cm]) => {
+      geoAPI.getScore().catch(() => ({ data: null })),
+    ]).then(([p, u, m, b, cm, g]) => {
       setAllPosts(Array.isArray(p.data) ? p.data : []);
       setUpcoming(Array.isArray(u.data) ? u.data : []);
       setMetrics(m.data);
       setBriefing(b.data);
       setContentMix(cm.data);
+      setGeoScore(g?.data || null);
       setLoading(false);
     });
   }, []);
@@ -181,6 +184,32 @@ export default function Dashboard() {
               <div style={{ fontSize: 11, color: t.textMuted }}>
                 {metrics?.postingStreak ? 'Keep posting to grow reach' : 'Post today to start'}
               </div>
+            </div>
+            {/* GEO Score card */}
+            <div
+              onClick={() => router.push('/geo-audit')}
+              style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', cursor: 'pointer', transition: 'background 150ms' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = t.card)}
+            >
+              <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>AI Visibility Score</div>
+              {geoScore && geoScore.score > 0 ? (
+                <>
+                  <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 3, color: geoScore.score >= 70 ? t.success : geoScore.score >= 40 ? t.warning : t.error }}>
+                    {geoScore.score}<span style={{ fontSize: 14, color: t.textMuted, fontWeight: 500 }}>/100</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: t.primary, fontWeight: 600 }}>
+                    Improve score →
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: t.text, marginBottom: 3 }}>—</div>
+                  <div style={{ fontSize: 11, color: t.primary, fontWeight: 600 }}>
+                    {geoScore?.freeAuditUsed ? 'Run audit →' : 'Free audit available →'}
+                  </div>
+                </>
+              )}
             </div>
           </>)}
         </div>

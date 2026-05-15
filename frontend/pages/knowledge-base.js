@@ -147,6 +147,7 @@ export default function KnowledgeBase() {
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error(err);
+      setImportWebsiteError('Failed to save. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -196,14 +197,14 @@ export default function KnowledgeBase() {
     >
       {/* Import success toast */}
       {importToast && (
-        <div style={{ position: 'fixed', top: 24, right: 24, zIndex: 9999, padding: '12px 20px', borderRadius: 10, background: '#22C55E', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ position: 'fixed', top: 24, right: 24, zIndex: 9999, padding: '12px 20px', borderRadius: 10, background: t.success, color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <IpCheck size={15} color="#fff" /> {importToast}
         </div>
       )}
 
       {/* Auto-detected import banner (shown when cached scrape data found on load) */}
       {importBanner && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 18px', background: 'rgba(124,92,252,0.08)', border: `1px solid rgba(124,92,252,0.25)`, borderRadius: 12, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '14px 18px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 12, marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2 }}>
               Website Intelligence found {importBanner.services.length} service{importBanner.services.length !== 1 ? 's' : ''}
@@ -224,9 +225,9 @@ export default function KnowledgeBase() {
 
       {/* Import error */}
       {importWebsiteError && (
-        <div style={{ padding: '10px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, fontSize: 12, color: '#EF4444', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '10px 16px', background: `${t.error}15`, border: `1px solid ${t.error}33`, borderRadius: 8, fontSize: 12, color: t.error, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {importWebsiteError}
-          <button onClick={() => setImportWebsiteError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
+          <button onClick={() => setImportWebsiteError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.error, fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
         </div>
       )}
 

@@ -513,12 +513,12 @@ export default function Settings() {
             </Button>
           </div>
           {urlChanged && (
-            <div style={{ padding: '8px 12px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 8, fontSize: 12, color: '#EAB308', marginBottom: 12 }}>
+            <div style={{ padding: '8px 12px', background: `${t.warning}15`, border: `1px solid ${t.warning}33`, borderRadius: 8, fontSize: 12, color: t.warning, marginBottom: 12 }}>
               New site detected — scan it to update your saved information.
             </div>
           )}
           {scrapedData && (
-            <div style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, padding: 16 }}>
+            <div style={{ background: `${t.success}15`, border: `1px solid ${t.success}33`, borderRadius: 10, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: t.success, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <IpCheck size={14} strokeWidth={2.5} /> {scrapedData.services?.length || 0} services extracted

@@ -58,7 +58,7 @@ export default function ROIEstimatorPage() {
           setAvgJobValue(String(bench.avgJobValue));
           setCloseRate(String(Math.round(bench.closeRate * 100)));
         }
-        setStats(overviewRes.data);
+        setStats(overviewRes.data?.summary || overviewRes.data || {});
       } catch {
         setStats({});
       } finally {
@@ -69,8 +69,8 @@ export default function ROIEstimatorPage() {
   }, []);
 
   const bench = INDUSTRY_BENCHMARKS[industry] || DEFAULT_BENCHMARK;
-  const totalReach = stats?.totalReach || stats?.total_reach || 0;
   const postCount = stats?.posted || stats?.total_posts || 0;
+  const totalReach = postCount * 150; // estimated: ~150 organic reach per post (industry average)
   const ctr = bench.ctr;
   const close = parseFloat(closeRate) / 100 || bench.closeRate;
   const jobVal = parseFloat(avgJobValue) || bench.avgJobValue;
@@ -161,7 +161,7 @@ export default function ROIEstimatorPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {[
-                { label: 'Local people who saw your posts', value: totalReach.toLocaleString(), color: t.info, width: '100%' },
+                { label: 'Estimated local reach (avg 150/post)', value: `~${totalReach.toLocaleString()}`, color: t.info, width: '100%' },
                 { label: 'Estimated profile/link clicks', value: estimatedClicks.toLocaleString(), color: t.primary, width: '75%' },
                 { label: 'Estimated enquiries / DMs', value: estimatedLeads.toLocaleString(), color: t.warning, width: '50%' },
                 { label: 'Estimated new customers', value: `${estimatedCustomersMin}–${estimatedCustomersMax}`, color: t.success, width: '30%' },
@@ -210,7 +210,7 @@ export default function ROIEstimatorPage() {
           <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>How This Is Calculated</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
-              ['Reach → Clicks', `${totalReach.toLocaleString()} reach × ${(ctr * 100).toFixed(1)}% industry CTR = ${estimatedClicks} estimated clicks`],
+              ['Reach → Clicks', `~${totalReach.toLocaleString()} estimated reach × ${(ctr * 100).toFixed(1)}% industry CTR = ${estimatedClicks} estimated clicks`],
               ['Clicks → Enquiries', `${estimatedClicks} clicks × 40% enquiry rate = ${estimatedLeads} estimated enquiries`],
               ['Enquiries → Customers', `${estimatedLeads} enquiries × ${Math.round(close * 100)}% close rate = ${estimatedCustomersMin}–${estimatedCustomersMax} customers`],
               ['Revenue', `${estimatedCustomersMin}–${estimatedCustomersMax} customers × ${fmt(jobVal)} avg job = ${range(revenueMin, revenueMax)}`],

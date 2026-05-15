@@ -257,7 +257,7 @@ export default function InboxPage() {
 
   async function toggleRuleActive(rule) {
     try {
-      await dmsAPI.updateAutoReply(rule.id, { ...rule, is_active: !rule.is_active });
+      await dmsAPI.updateAutoReply(rule.id, { isActive: !rule.is_active });
       setAutoReplies(prev => prev.map(r => r.id === rule.id ? { ...r, is_active: !r.is_active } : r));
     } catch (_) {}
   }
@@ -312,7 +312,7 @@ export default function InboxPage() {
                 <IpInbox size={18} style={{ color: t.primary }} />
                 <span style={{ fontWeight: 700, fontSize: 15, color: t.text }}>Inbox</span>
                 {stats.unreadCount > 0 && (
-                  <span style={{ minWidth: 20, height: 20, borderRadius: 10, background: '#EF4444', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                  <span style={{ minWidth: 20, height: 20, borderRadius: 10, background: t.error, color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
                     {stats.unreadCount}
                   </span>
                 )}
@@ -416,7 +416,7 @@ export default function InboxPage() {
                             )}
                             <button
                               onClick={e => toggleStar(conv.id, e)}
-                              style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: conv.is_starred ? '#F59E0B' : t.textMuted, fontSize: 14 }}
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: conv.is_starred ? t.warning : t.textMuted, fontSize: 14 }}
                               title={conv.is_starred ? 'Unstar' : 'Star'}
                             >
                               ★

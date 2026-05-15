@@ -144,6 +144,7 @@ export const mediaAPI = {
 export const adminAPI = {
   getStats: () => api.get('/api/admin/stats'),
   listCustomers: (params) => api.get('/api/admin/customers', { params }),
+  exportCustomers: () => api.get('/api/admin/export/customers', { responseType: 'blob' }),
   getCustomer: (id) => api.get(`/api/admin/customers/${id}`),
   updateCustomer: (id, data) => api.patch(`/api/admin/customers/${id}`, data),
   adjustCredits: (id, amount, reason) => api.post(`/api/admin/customers/${id}/credits`, { amount, reason }),
@@ -152,11 +153,16 @@ export const adminAPI = {
   resetPassword: (id, newPassword) => api.post(`/api/admin/customers/${id}/reset-password`, { newPassword }),
   promote: (id) => api.post(`/api/admin/customers/${id}/promote`),
   demote: (id) => api.post(`/api/admin/customers/${id}/demote`),
+  impersonate: (id) => api.post(`/api/admin/customers/${id}/impersonate`),
   getAuditLog: (params) => api.get('/api/admin/audit', { params }),
   getHealth: () => api.get('/api/admin/health'),
   getEmailQueue: (params) => api.get('/api/admin/email-queue', { params }),
   retryEmail: (id) => api.post(`/api/admin/email-queue/${id}/retry`),
   retryAllEmails: () => api.post('/api/admin/email-queue/retry-all'),
+  listPosts: (params) => api.get('/api/admin/posts', { params }),
+  deletePost: (id, reason) => api.delete(`/api/admin/posts/${id}`, { data: { reason } }),
+  broadcast: (data) => api.post('/api/admin/broadcast', data),
+  getBroadcasts: () => api.get('/api/admin/broadcasts'),
 };
 
 export const analyticsAPI = {
@@ -226,6 +232,14 @@ export const knowledgeAPI = {
 
 export const suggestionsAPIExtra = {
   getToday: () => api.get('/api/suggestions/today'),
+};
+
+export const geoAPI = {
+  runAudit: (data = {}) => api.post('/api/geo/audit', data),
+  getLatest: () => api.get('/api/geo/audit/latest'),
+  getAudit: (id) => api.get(`/api/geo/audit/${id}`),
+  getHistory: () => api.get('/api/geo/history'),
+  getScore: () => api.get('/api/geo/score'),
 };
 
 export default api;

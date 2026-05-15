@@ -12,16 +12,6 @@ import { billingAPI } from '../lib/api';
 
 const PLAN_ICONS = { trial: IpGift, starter: IpCredits, professional: IpSparkle, premium: IpCrown };
 
-const TX_META = {
-  bonus:               { label: 'Bonus',            color: '#22C55E', dir: 1 },
-  monthly_allocation:  { label: 'Monthly credits',  color: '#22C55E', dir: 1 },
-  admin_grant:         { label: 'Admin grant',       color: '#22C55E', dir: 1 },
-  admin_deduction:     { label: 'Admin deduction',   color: '#EF4444', dir: -1 },
-  usage:               { label: 'Used',              color: '#A0A0B0', dir: -1 },
-  purchase:            { label: 'Purchase',          color: '#22C55E', dir: 1 },
-  refund:              { label: 'Refund',            color: '#60A5FA', dir: 1 },
-};
-
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000) || 1}m ago`;
@@ -44,6 +34,15 @@ const CREDIT_PACKS = [
 export default function Billing() {
   const router = useRouter();
   const { t } = useTheme();
+  const TX_META = {
+    bonus:               { label: 'Bonus',            color: t.success,   dir: 1 },
+    monthly_allocation:  { label: 'Monthly credits',  color: t.primary,   dir: 1 },
+    admin_grant:         { label: 'Admin grant',       color: t.success,   dir: 1 },
+    admin_deduction:     { label: 'Admin deduction',   color: t.error,     dir: -1 },
+    usage:               { label: 'Used',              color: t.textMuted, dir: -1 },
+    purchase:            { label: 'Purchase',          color: t.primary,   dir: 1 },
+    refund:              { label: 'Refund',            color: t.success,   dir: 1 },
+  };
   const [mounted, setMounted] = useState(false);
   const [plans, setPlans] = useState([]);
   const [current, setCurrent] = useState(null);
@@ -261,11 +260,7 @@ export default function Billing() {
               <div style={{
                 height: '100%', borderRadius: 4, transition: 'width 600ms ease',
                 width: `${usagePct}%`,
-                background: usagePct >= 90
-                  ? 'linear-gradient(90deg, #EF4444, #DC2626)'
-                  : usagePct >= 70
-                  ? 'linear-gradient(90deg, #EAB308, #CA8A04)'
-                  : 'linear-gradient(90deg, #7C5CFC, #5B3FF0)',
+                background: usagePct >= 90 ? t.error : usagePct >= 70 ? t.warning : t.primary,
               }} />
             </div>
 
@@ -309,7 +304,7 @@ export default function Billing() {
               >
                 {c === 'monthly' ? 'Monthly' : 'Yearly'}
                 {c === 'yearly' && (
-                  <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, background: 'rgba(34,197,94,0.2)', color: '#22C55E', padding: '2px 6px', borderRadius: 4 }}>
+                  <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, background: `${t.success}33`, color: t.success, padding: '2px 6px', borderRadius: 4 }}>
                     Save 10%
                   </span>
                 )}
@@ -421,10 +416,10 @@ export default function Billing() {
         </div>
 
         {upgradeError && (
-          <div style={{ padding: '14px 18px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <IpWarning size={16} style={{ color: '#EF4444', flexShrink: 0, marginTop: 1 }} />
+          <div style={{ padding: '14px 18px', background: `${t.error}15`, border: `1px solid ${t.error}33`, borderRadius: 10, marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <IpWarning size={16} style={{ color: t.error, flexShrink: 0, marginTop: 1 }} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#EF4444', marginBottom: 2 }}>Checkout unavailable</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.error, marginBottom: 2 }}>Checkout unavailable</div>
               <div style={{ fontSize: 12, color: t.textMuted }}>{upgradeError}</div>
             </div>
             <button onClick={() => setUpgradeError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
@@ -532,10 +527,10 @@ export default function Billing() {
                   >
                     <div style={{
                       width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-                      background: positive ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                      background: positive ? `${t.success}1a` : `${t.error}1a`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      <Icon size={16} style={{ color: positive ? '#22C55E' : '#EF4444' }} />
+                      <Icon size={16} style={{ color: positive ? t.success : t.error }} />
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -548,7 +543,7 @@ export default function Billing() {
                     </div>
 
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'monospace', color: positive ? '#22C55E' : '#EF4444' }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'monospace', color: positive ? t.success : t.error }}>
                         {positive ? '+' : ''}{tx.amount}
                       </div>
                       <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
@@ -568,7 +563,7 @@ export default function Billing() {
       {showCancelModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: t.card, borderRadius: 16, padding: 32, maxWidth: 420, width: '100%', border: `1px solid ${t.border}` }}>
-            <IpWarning size={28} style={{ color: '#EF4444', display: 'block', margin: '0 auto 16px' }} />
+            <IpWarning size={28} style={{ color: t.error, display: 'block', margin: '0 auto 16px' }} />
             <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, textAlign: 'center', margin: '0 0 10px' }}>
               Cancel your subscription?
             </h3>
@@ -578,7 +573,7 @@ export default function Billing() {
               After that, your account returns to the free trial. We won't charge your card again.
             </p>
             {cancelError && (
-              <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, fontSize: 12, color: '#EF4444', marginBottom: 16 }}>
+              <div style={{ padding: '10px 14px', background: `${t.error}15`, border: `1px solid ${t.error}33`, borderRadius: 8, fontSize: 12, color: t.error, marginBottom: 16 }}>
                 {cancelError}
               </div>
             )}
@@ -593,7 +588,7 @@ export default function Billing() {
               </Button>
               <Button
                 onClick={handleCancelPlan}
-                style={{ flex: 1, justifyContent: 'center', background: '#EF4444', color: '#fff' }}
+                style={{ flex: 1, justifyContent: 'center', background: t.error, color: '#fff' }}
                 disabled={cancelling}
               >
                 {cancelling ? 'Cancelling…' : 'Yes, cancel'}

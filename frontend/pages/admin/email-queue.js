@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpMail, IpCheckCircle, IpSchedule, IpWarning, IpRefresh,
-  IpArrowLeft, IpSend,
+  IpArrowLeft, IpSend, IpSearch,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Card, Button, Badge, SectionHeader, StatCard, EmptyState, Spinner, ConfirmModal } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
+
+const PAGE_SIZE = 50;
 
 const STATUS_VARIANT = { sent: 'success', pending: 'warning', failed: 'error' };
 const STATUS_ICON = { sent: IpCheckCircle, pending: IpSchedule, failed: IpWarning };
@@ -19,33 +21,29 @@ const TEMPLATE_LABELS = {
   password_reset: 'Password Reset',
   password_reset_admin: 'Password Reset (Admin)',
   welcome: 'Welcome Email',
+  admin_broadcast: 'Admin Broadcast',
 };
 
 export default function EmailQueuePage() {
   const router = useRouter();
   const { t } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [data, setData] = useState({ emails: [], stats: {} });
+  const [data, setData] = useState({ emails: [], stats: {}, total: 0 });
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterTemplate, setFilterTemplate] = useState('');
+  const [filterRecipient, setFilterRecipient] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [confirmModal, setConfirmModal] = useState(null);
+  const [page, setPage] = useState(0);
 
-  useEffect(() => {
-    setMounted(true);
-    if (!localStorage.getItem('token')) { router.replace('/login'); return; }
-    load();
-  }, []);
-
-  useEffect(() => {
-    if (mounted) load();
-  }, [filterStatus]);
-
-  const load = async () => {
+  const load = useCallback(async (p = page) => {
     setLoading(true);
     try {
-      const params = { limit: 100 };
+      const params = { limit: PAGE_SIZE, offset: p * PAGE_SIZE };
       if (filterStatus) params.status = filterStatus;
+      if (filterTemplate) params.template = filterTemplate;
+      if (filterRecipient.trim()) params.recipient = filterRecipient.trim();
       const res = await adminAPI.getEmailQueue(params);
       setData(res.data);
     } catch (err) {
@@ -53,7 +51,29 @@ export default function EmailQueuePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, filterStatus, filterTemplate, filterRecipient]);
+
+  useEffect(() => {
+    setMounted(true);
+    if (!localStorage.getItem('token')) { router.replace('/login'); return; }
+  }, []);
+
+  // Debounce recipient search
+  useEffect(() => {
+    if (!mounted) return;
+    const timer = setTimeout(() => { setPage(0); load(0); }, 300);
+    return () => clearTimeout(timer);
+  }, [filterRecipient, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    setPage(0);
+    load(0);
+  }, [filterStatus, filterTemplate, mounted]);
+
+  useEffect(() => {
+    if (mounted) load(page);
+  }, [page, mounted]);
 
   const showMsg = (type, text) => {
     setMessage({ type, text });
@@ -64,7 +84,7 @@ export default function EmailQueuePage() {
     try {
       await adminAPI.retryEmail(id);
       showMsg('success', 'Email queued for retry');
-      load();
+      load(page);
     } catch (err) {
       showMsg('error', err.response?.data?.error || 'Retry failed');
     }
@@ -79,7 +99,7 @@ export default function EmailQueuePage() {
         try {
           const res = await adminAPI.retryAllEmails();
           showMsg('success', `${res.data.count} email(s) re-queued`);
-          load();
+          load(0);
         } catch {
           showMsg('error', 'Failed to retry all');
         }
@@ -90,19 +110,19 @@ export default function EmailQueuePage() {
   if (!mounted) return null;
 
   const stats = data.stats || {};
+  const total = data.total || 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const to = Math.min((page + 1) * PAGE_SIZE, total);
+
   const msgStyle = {
     success: { bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)', color: t.success },
     error: { bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', color: t.error },
   };
 
   const selectStyle = {
-    padding: '9px 12px',
-    background: t.input,
-    border: `1px solid ${t.borderStrong}`,
-    borderRadius: 8,
-    color: t.text,
-    fontSize: 13,
-    cursor: 'pointer',
+    padding: '9px 12px', background: t.input, border: `1px solid ${t.borderStrong}`,
+    borderRadius: 8, color: t.text, fontSize: 13,
   };
 
   return (
@@ -111,7 +131,7 @@ export default function EmailQueuePage() {
       subtitle="Outgoing notifications and status"
       action={
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="secondary" onClick={load}><IpRefresh size={13} /> Refresh</Button>
+          <Button variant="secondary" onClick={() => load(page)}><IpRefresh size={13} /> Refresh</Button>
           {parseInt(stats.failed) > 0 && (
             <Button variant="danger" onClick={handleRetryAll}>
               <IpRefresh size={13} /> Retry all failed ({stats.failed})
@@ -154,8 +174,28 @@ export default function EmailQueuePage() {
 
       {/* TABLE */}
       <Card style={{ padding: 0 }}>
-        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ padding: '14px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <SectionHeader icon={IpSend} title="Email log" style={{ flex: 1, margin: 0 }} />
+
+          {/* Recipient search */}
+          <div style={{ position: 'relative' }}>
+            <IpSearch size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: t.textMuted }} />
+            <input
+              type="text" placeholder="Filter by recipient..."
+              value={filterRecipient} onChange={(e) => setFilterRecipient(e.target.value)}
+              style={{ ...selectStyle, paddingLeft: 30, width: 200 }}
+            />
+          </div>
+
+          {/* Template filter */}
+          <select value={filterTemplate} onChange={(e) => setFilterTemplate(e.target.value)} style={selectStyle}>
+            <option value="">All templates</option>
+            {Object.entries(TEMPLATE_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+
+          {/* Status filter */}
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={selectStyle}>
             <option value="">All statuses</option>
             <option value="pending">Pending</option>
@@ -169,67 +209,96 @@ export default function EmailQueuePage() {
             <Spinner size={32} />
           </div>
         ) : data.emails.length === 0 ? (
-          <EmptyState icon={IpMail} title="No emails yet" subtitle="Notifications are queued here when admin actions are taken" />
+          <EmptyState icon={IpMail} title="No emails found" subtitle="Try adjusting your filters" />
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${t.border}` }}>
-                {['Recipient', 'Template', 'Status', 'Attempts', 'Scheduled', 'Sent / Failed reason', ''].map((h) => (
-                  <th key={h} style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: t.textMuted, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.emails.map((email) => {
-                const StatusIcon = STATUS_ICON[email.status] || Clock;
-                return (
-                  <tr key={email.id} style={{ borderBottom: `1px solid ${t.border}` }}>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: t.text }}>{email.to_email}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{ fontSize: 12, color: t.textSecondary }}>
-                        {TEMPLATE_LABELS[email.template_name] || email.template_name}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <Badge variant={STATUS_VARIANT[email.status] || 'default'}>
-                        <StatusIcon size={10} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                        {email.status}
-                      </Badge>
-                    </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, fontFamily: 'monospace', color: t.textMuted }}>
-                      {email.attempts}
-                    </td>
-                    <td style={{ padding: '12px 16px', fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap' }}>
-                      {new Date(email.scheduled_at).toLocaleString()}
-                    </td>
-                    <td style={{ padding: '12px 16px', maxWidth: 280 }}>
-                      {email.sent_at && (
-                        <span style={{ fontSize: 12, color: t.success }}>{new Date(email.sent_at).toLocaleString()}</span>
-                      )}
-                      {email.last_error && (
-                        <span style={{ fontSize: 11, color: t.error, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={email.last_error}>
-                          {email.last_error}
+          <>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${t.border}` }}>
+                  {['Recipient', 'Template', 'Status', 'Attempts', 'Scheduled', 'Sent / Error', ''].map((h) => (
+                    <th key={h} style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: t.textMuted, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.emails.map((email) => {
+                  const StatusIcon = STATUS_ICON[email.status] || IpSchedule;
+                  return (
+                    <tr key={email.id} style={{ borderBottom: `1px solid ${t.border}` }}>
+                      <td style={{ padding: '12px 16px', fontSize: 13, color: t.text }}>{email.to_email}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ fontSize: 12, color: t.textSecondary }}>
+                          {TEMPLATE_LABELS[email.template_name] || email.template_name}
                         </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      {email.status === 'failed' && (
-                        <button
-                          onClick={() => handleRetry(email.id)}
-                          style={{ padding: '5px 12px', background: 'rgba(124,92,252,0.1)', border: '1px solid rgba(124,92,252,0.3)', borderRadius: 6, color: t.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                        >
-                          <IpRefresh size={11} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                          Retry
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <Badge variant={STATUS_VARIANT[email.status] || 'default'}>
+                          <StatusIcon size={10} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                          {email.status}
+                        </Badge>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: 13, fontFamily: 'monospace', color: t.textMuted }}>
+                        {email.attempts}
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap' }}>
+                        {new Date(email.scheduled_at).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '12px 16px', maxWidth: 260 }}>
+                        {email.sent_at && (
+                          <span style={{ fontSize: 12, color: t.success }}>{new Date(email.sent_at).toLocaleString()}</span>
+                        )}
+                        {email.last_error && (
+                          <span
+                            style={{ fontSize: 11, color: t.error, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            title={email.last_error}
+                          >
+                            {email.last_error}
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        {email.status === 'failed' && (
+                          <button
+                            onClick={() => handleRetry(email.id)}
+                            style={{ padding: '5px 12px', background: 'rgba(124,92,252,0.1)', border: '1px solid rgba(124,92,252,0.3)', borderRadius: 6, color: t.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            <IpRefresh size={11} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                            Retry
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* PAGINATION */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: `1px solid ${t.border}` }}>
+              <span style={{ fontSize: 12, color: t.textMuted }}>
+                Showing {from}–{to} of {total} emails
+              </span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  disabled={page === 0}
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  style={{ padding: '6px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: page === 0 ? t.textMuted : t.text, fontSize: 12, cursor: page === 0 ? 'default' : 'pointer', opacity: page === 0 ? 0.5 : 1 }}
+                >
+                  ← Prev
+                </button>
+                <span style={{ fontSize: 12, color: t.textMuted }}>{page + 1} / {totalPages || 1}</span>
+                <button
+                  disabled={page >= totalPages - 1}
+                  onClick={() => setPage(p => p + 1)}
+                  style={{ padding: '6px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: page >= totalPages - 1 ? t.textMuted : t.text, fontSize: 12, cursor: page >= totalPages - 1 ? 'default' : 'pointer', opacity: page >= totalPages - 1 ? 0.5 : 1 }}
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </Card>
       {confirmModal && <ConfirmModal {...confirmModal} onCancel={() => setConfirmModal(null)} />}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpArrowLeft, IpPlus, IpPower, IpCheckCircle, IpBilling, IpHistory,
-  IpWarning, IpAdmin, IpEdit, IpClose, IpSave,
+  IpWarning, IpAdmin, IpEdit, IpClose, IpSave, IpTeam,
 } from '../../../components/icons';
 import Layout from '../../../components/Layout';
 import { Card, Button, Badge, SectionHeader, EmptyState, Spinner, ConfirmModal } from '../../../components/ui';
@@ -145,6 +145,18 @@ export default function AdminCustomerDetail() {
     });
   };
 
+  const handleImpersonate = async () => {
+    try {
+      const { data: impData } = await adminAPI.impersonate(id);
+      localStorage.setItem('admin_backup_token', localStorage.getItem('token'));
+      localStorage.setItem('impersonating_as', impData.businessName);
+      localStorage.setItem('token', impData.token);
+      router.push('/dashboard');
+    } catch (err) {
+      showMsg('error', err.response?.data?.error || 'Impersonation failed');
+    }
+  };
+
   if (!mounted || !data) {
     return (
       <Layout title="Customer">
@@ -196,6 +208,11 @@ export default function AdminCustomerDetail() {
               <IpPlus size={13} /> Credits
             </Button>
             <Button variant="secondary" size="sm" onClick={handleResetPassword}>Reset Password</Button>
+            {!c.is_admin && !c.suspended && (
+              <Button variant="primary" size="sm" onClick={handleImpersonate}>
+                <IpAdmin size={13} /> Login as Customer
+              </Button>
+            )}
             {!c.is_admin
               ? <Button variant="secondary" size="sm" onClick={handlePromote}><IpAdmin size={13} /> Make Admin</Button>
               : <Button variant="secondary" size="sm" onClick={handleDemote}>Remove Admin</Button>
@@ -222,6 +239,52 @@ export default function AdminCustomerDetail() {
           </div>
         )}
       </Card>
+
+      {/* ACCOUNT FAMILY — Parent */}
+      {data.parentAccount && (
+        <Card style={{ marginBottom: 20 }}>
+          <SectionHeader icon={IpTeam} title="Parent Account" subtitle="This workspace is under:" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 14 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg,#FB923C,#F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+              {(data.parentAccount.business_name || 'M').charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{data.parentAccount.business_name}</div>
+              <div style={{ fontSize: 11, color: t.textMuted }}>{data.parentAccount.email}</div>
+            </div>
+            <Badge variant={data.parentAccount.plan === 'premium' ? 'primary' : data.parentAccount.plan === 'professional' ? 'success' : 'default'}>
+              {data.parentAccount.plan || 'trial'}
+            </Badge>
+            <Button size="sm" variant="secondary" onClick={() => router.push(`/admin/customers/${data.parentAccount.id}`)}>
+              View Parent
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* ACCOUNT FAMILY — Sub-accounts */}
+      {data.workspaces && data.workspaces.length > 0 && (
+        <Card style={{ marginBottom: 20 }}>
+          <SectionHeader icon={IpTeam} title={`Sub-accounts (${data.workspaces.length})`} />
+          <div style={{ marginTop: 12 }}>
+            {data.workspaces.map((ws) => (
+              <div key={ws.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${t.border}` }}>
+                <div style={{ width: 32, height: 32, borderRadius: 7, background: 'linear-gradient(135deg,#7C5CFC,#5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                  {(ws.workspace_display_name || ws.business_name || 'W').charAt(0).toUpperCase()}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{ws.workspace_display_name || ws.business_name}</div>
+                  <div style={{ fontSize: 11, color: t.textMuted }}>{[ws.industry?.replace('_', ' '), ws.location].filter(Boolean).join(' · ') || 'No details'}</div>
+                </div>
+                <Badge variant={ws.status === 'active' ? 'success' : 'warning'}>{ws.status}</Badge>
+                <Button size="sm" variant="ghost" onClick={() => router.push(`/admin/customers/${ws.id}`)}>
+                  View
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* STATS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>

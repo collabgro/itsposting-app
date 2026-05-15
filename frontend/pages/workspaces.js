@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { Card, Button, SectionHeader, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { workspacesAPI } from '../lib/api';
+import { workspacesAPI, authAPI } from '../lib/api';
 import {
   IpTeam, IpPlus, IpSparkle, IpDelete, IpEdit, IpClose, IpCheck, IpWarning, IpInfo,
   IpBilling, IpCheckCircle,
@@ -140,10 +140,10 @@ export default function WorkspacesPage() {
     if (!token) { router.push('/login'); return; }
 
     Promise.all([
-      fetch('/api/auth/verify', { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+      authAPI.verify(),
       workspacesAPI.list(),
-    ]).then(([auth, wsRes]) => {
-      setCurrentUserId(auth?.customer?.id);
+    ]).then(([authRes, wsRes]) => {
+      setCurrentUserId(authRes.data?.id || authRes.data?.customer?.id);
       setData(wsRes.data);
     }).catch(() => setError('Failed to load workspaces')).finally(() => setLoading(false));
   }, []);
@@ -192,7 +192,7 @@ export default function WorkspacesPage() {
       }));
       setSuccessMsg('Workspace renamed.');
       setTimeout(() => setSuccessMsg(''), 3000);
-    } catch { /* swallow */ }
+    } catch { setError('Failed to rename workspace'); }
     setEditingId(null);
   }
 
@@ -224,14 +224,14 @@ export default function WorkspacesPage() {
         </div>
 
         {successMsg && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, marginBottom: 18, fontSize: 13, color: '#22c55e' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: `${t.success}1a`, border: `1px solid ${t.success}33`, borderRadius: 8, marginBottom: 18, fontSize: 13, color: t.success }}>
             <IpCheckCircle size={16} /> {successMsg}
           </div>
         )}
         {error && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, marginBottom: 18, fontSize: 13, color: '#ef4444' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: `${t.error}1a`, border: `1px solid ${t.error}33`, borderRadius: 8, marginBottom: 18, fontSize: 13, color: t.error }}>
             <IpWarning size={16} /> {error}
-            <button onClick={() => setError('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}><IpClose size={14} /></button>
+            <button onClick={() => setError('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: t.error }}><IpClose size={14} /></button>
           </div>
         )}
 

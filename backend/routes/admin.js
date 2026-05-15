@@ -1,6 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const { authenticate, verifyAdmin } = require('../middleware/auth');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const AuditLog = require('../services/AuditLog');
 const EmailQueue = require('../services/EmailQueue');
 const NotificationService = require('../services/NotificationService');
@@ -23,6 +26,8 @@ module.exports = (pool) => {
   };
 
   router.use(authenticate, adminOnly);
+
+  const ALLOWED_CUSTOMER_SORT = ['created_at', 'credits_balance', 'business_name', 'last_login_at'];
 
   // GET /api/admin/stats
   router.get('/stats', async (req, res) => {
@@ -82,32 +87,76 @@ module.exports = (pool) => {
   // GET /api/admin/customers
   router.get('/customers', async (req, res) => {
     try {
-      const { search, plan, status, suspended, limit = 50, offset = 0 } = req.query;
+      const { search, plan, status, suspended, account_type, limit = 50, offset = 0, sort_by, sort_order } = req.query;
 
-      let query = `
-        SELECT id, email, business_name, industry, location, plan, status,
-               credits_balance, suspended, suspension_reason,
-               is_admin, role, email_verified, created_at, last_login_at, trial_ends_at
-        FROM customers WHERE 1=1
-      `;
+      const sortCol = ALLOWED_CUSTOMER_SORT.includes(sort_by) ? sort_by : 'created_at';
+      const sortDir = sort_order === 'asc' ? 'ASC' : 'DESC';
+
+      let where = 'WHERE 1=1';
       const params = [];
       let p = 0;
 
-      if (search) { p++; query += ` AND (email ILIKE $${p} OR business_name ILIKE $${p})`; params.push(`%${search}%`); }
-      if (plan) { p++; query += ` AND plan = $${p}`; params.push(plan); }
-      if (status) { p++; query += ` AND status = $${p}`; params.push(status); }
-      if (suspended !== undefined && suspended !== '') { p++; query += ` AND suspended = $${p}`; params.push(suspended === 'true'); }
+      if (search) { p++; where += ` AND (c.email ILIKE $${p} OR c.business_name ILIKE $${p})`; params.push(`%${search}%`); }
+      if (plan) { p++; where += ` AND c.plan = $${p}`; params.push(plan); }
+      if (status) { p++; where += ` AND c.status = $${p}`; params.push(status); }
+      if (suspended !== undefined && suspended !== '') { p++; where += ` AND c.suspended = $${p}`; params.push(suspended === 'true'); }
+      if (account_type === 'main') where += ' AND c.parent_customer_id IS NULL';
+      if (account_type === 'workspace') where += ' AND c.parent_customer_id IS NOT NULL';
 
-      query += ` ORDER BY created_at DESC LIMIT $${p + 1} OFFSET $${p + 2}`;
-      params.push(parseInt(limit), parseInt(offset));
+      const countResult = await pool.query(
+        `SELECT COUNT(*) FROM customers c LEFT JOIN customers p ON c.parent_customer_id = p.id ${where}`,
+        params
+      );
 
-      const countQuery = query.replace(/SELECT[\s\S]+?FROM/, 'SELECT COUNT(*) FROM').replace(/ORDER BY[\s\S]+$/, '');
-      const [data, count] = await Promise.all([
-        pool.query(query, params),
-        pool.query(countQuery, params.slice(0, -2)),
-      ]);
+      const dataResult = await pool.query(
+        `SELECT c.id, c.email, c.business_name, c.workspace_display_name,
+                c.industry, c.location, c.plan, c.status,
+                c.credits_balance, c.suspended, c.suspension_reason,
+                c.is_admin, c.role, c.email_verified,
+                c.created_at, c.last_login_at, c.trial_ends_at,
+                c.parent_customer_id,
+                p.business_name AS parent_business_name,
+                (SELECT COUNT(*) FROM customers sub WHERE sub.parent_customer_id = c.id) AS workspace_count
+         FROM customers c
+         LEFT JOIN customers p ON c.parent_customer_id = p.id
+         ${where}
+         ORDER BY c.${sortCol} ${sortDir}
+         LIMIT $${p + 1} OFFSET $${p + 2}`,
+        [...params, parseInt(limit), parseInt(offset)]
+      );
 
-      res.json({ customers: data.rows, total: parseInt(count.rows[0].count), limit: parseInt(limit), offset: parseInt(offset) });
+      res.json({
+        customers: dataResult.rows,
+        total: parseInt(countResult.rows[0].count),
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/admin/export/customers — CSV download
+  router.get('/export/customers', async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT id, email, business_name, industry, location, plan, status,
+                credits_balance, suspended, created_at, last_login_at
+         FROM customers ORDER BY created_at DESC`
+      );
+
+      const header = 'id,email,business_name,industry,location,plan,status,credits_balance,suspended,created_at,last_login_at\n';
+      const rows = result.rows.map(r =>
+        [r.id, r.email, `"${(r.business_name || '').replace(/"/g, '""')}"`,
+         r.industry || '', r.location || '', r.plan, r.status,
+         r.credits_balance, r.suspended,
+         r.created_at ? new Date(r.created_at).toISOString() : '',
+         r.last_login_at ? new Date(r.last_login_at).toISOString() : ''].join(',')
+      ).join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="customers.csv"');
+      res.send(header + rows);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -116,20 +165,36 @@ module.exports = (pool) => {
   // GET /api/admin/customers/:id
   router.get('/customers/:id', async (req, res) => {
     try {
-      const [customer, posts, transactions, auditRows] = await Promise.all([
-        pool.query('SELECT * FROM customers WHERE id = $1', [req.params.id]),
-        pool.query('SELECT id, content_type, status, caption, created_at, credits_used FROM posts WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 20', [req.params.id]),
-        pool.query('SELECT * FROM credit_transactions WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 30', [req.params.id]),
-        pool.query('SELECT * FROM admin_audit_log WHERE target_type = $1 AND target_id = $2 ORDER BY created_at DESC LIMIT 30', ['customer', req.params.id]),
-      ]);
-
-      if (customer.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-      const c = customer.rows[0];
+      const customerId = parseInt(req.params.id);
+      const customerRes = await pool.query('SELECT * FROM customers WHERE id = $1', [customerId]);
+      if (customerRes.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+      const c = customerRes.rows[0];
       delete c.password_hash;
       delete c.email_verification_token;
       delete c.password_reset_token;
 
-      res.json({ customer: c, recentPosts: posts.rows, creditHistory: transactions.rows, adminActions: auditRows.rows });
+      const [posts, transactions, auditRows, parentRes, childrenRes] = await Promise.all([
+        pool.query('SELECT id, content_type, status, caption, created_at, credits_used FROM posts WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 20', [customerId]),
+        pool.query('SELECT * FROM credit_transactions WHERE customer_id = $1 ORDER BY created_at DESC LIMIT 30', [customerId]),
+        pool.query('SELECT * FROM admin_audit_log WHERE target_type = $1 AND target_id = $2 ORDER BY created_at DESC LIMIT 30', ['customer', customerId]),
+        c.parent_customer_id
+          ? pool.query('SELECT id, business_name, email, plan, status FROM customers WHERE id = $1', [c.parent_customer_id])
+          : Promise.resolve({ rows: [] }),
+        pool.query(
+          `SELECT id, business_name, workspace_display_name, industry, location, status, created_at
+           FROM customers WHERE parent_customer_id = $1 ORDER BY created_at ASC`,
+          [customerId]
+        ),
+      ]);
+
+      res.json({
+        customer: c,
+        recentPosts: posts.rows,
+        creditHistory: transactions.rows,
+        adminActions: auditRows.rows,
+        parentAccount: parentRes.rows[0] || null,
+        workspaces: childrenRes.rows,
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -185,7 +250,6 @@ module.exports = (pool) => {
       await client.query('COMMIT');
       await audit.log(req.admin.id, req.admin.email, 'adjust_credits', 'customer', id, { amount, reason, newBalance }, req);
 
-      // Queue notification email + in-app notification (non-blocking)
       emailQueue.notifyCreditsAdjusted(cur.rows[0], amount, newBalance, reason);
       notif.creditsAdjusted(id, amount, newBalance, reason);
 
@@ -211,7 +275,6 @@ module.exports = (pool) => {
       if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
       await audit.log(req.admin.id, req.admin.email, 'suspend_customer', 'customer', req.params.id, { reason }, req);
 
-      // Queue suspension notification + in-app
       emailQueue.notifySuspended(result.rows[0], reason);
       notif.accountSuspended(req.params.id, reason);
 
@@ -229,7 +292,6 @@ module.exports = (pool) => {
       if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
       await audit.log(req.admin.id, req.admin.email, 'reactivate_customer', 'customer', req.params.id, {}, req);
 
-      // Queue reactivation notification + in-app
       emailQueue.notifyReactivated(result.rows[0]);
       notif.accountReactivated(req.params.id);
 
@@ -250,7 +312,6 @@ module.exports = (pool) => {
       if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
       await audit.log(req.admin.id, req.admin.email, 'reset_password', 'customer', req.params.id, {}, req);
 
-      // Queue password reset notification + in-app
       emailQueue.notifyPasswordResetByAdmin(result.rows[0]);
       notif.passwordResetByAdmin(req.params.id);
 
@@ -285,15 +346,58 @@ module.exports = (pool) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  // POST /api/admin/customers/:id/impersonate
+  router.post('/customers/:id/impersonate', async (req, res) => {
+    try {
+      const target = await pool.query(
+        'SELECT id, email, business_name, is_admin, suspended FROM customers WHERE id = $1',
+        [req.params.id]
+      );
+      if (target.rows.length === 0) return res.status(404).json({ error: 'Customer not found' });
+      const c = target.rows[0];
+      if (c.is_admin) return res.status(400).json({ error: 'Cannot impersonate an admin account' });
+      if (c.suspended) return res.status(400).json({ error: 'Cannot impersonate a suspended account' });
+
+      const token = jwt.sign(
+        { id: c.id, email: c.email, impersonating: true, impersonatorId: req.admin.id },
+        JWT_SECRET,
+        { expiresIn: '15m' }
+      );
+
+      await audit.log(
+        req.admin.id, req.admin.email,
+        'impersonate', 'customer', req.params.id,
+        { admin_email: req.admin.email, customer_email: c.email },
+        req
+      );
+
+      res.json({ token, businessName: c.business_name || c.email });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   // GET /api/admin/audit
   router.get('/audit', async (req, res) => {
     try {
-      const { limit = 100, offset = 0 } = req.query;
-      const result = await pool.query(
-        'SELECT * FROM admin_audit_log ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-        [parseInt(limit), parseInt(offset)]
-      );
-      res.json(result.rows);
+      const { limit = 50, offset = 0, action_type, admin_email, date_from, date_to } = req.query;
+
+      let where = 'WHERE 1=1';
+      const params = [];
+      let p = 0;
+
+      if (action_type) { p++; where += ` AND action = $${p}`; params.push(action_type); }
+      if (admin_email) { p++; where += ` AND admin_email ILIKE $${p}`; params.push(`%${admin_email}%`); }
+      if (date_from) { p++; where += ` AND created_at >= $${p}`; params.push(date_from); }
+      if (date_to) { p++; where += ` AND created_at <= $${p}`; params.push(date_to); }
+
+      const [data, count] = await Promise.all([
+        pool.query(
+          `SELECT * FROM admin_audit_log ${where} ORDER BY created_at DESC LIMIT $${p + 1} OFFSET $${p + 2}`,
+          [...params, parseInt(limit), parseInt(offset)]
+        ),
+        pool.query(`SELECT COUNT(*) FROM admin_audit_log ${where}`, params),
+      ]);
+
+      res.json({ entries: data.rows, total: parseInt(count.rows[0].count), limit: parseInt(limit), offset: parseInt(offset) });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
@@ -302,19 +406,39 @@ module.exports = (pool) => {
   // GET /api/admin/email-queue
   router.get('/email-queue', async (req, res) => {
     try {
-      const { status, limit = 50, offset = 0 } = req.query;
-      const rows = await emailQueue.list({ status, limit, offset });
+      const { status, limit = 50, offset = 0, template, recipient } = req.query;
 
-      const statsRes = await pool.query(`
-        SELECT
-          COUNT(*) FILTER (WHERE status = 'pending') AS pending,
-          COUNT(*) FILTER (WHERE status = 'sent')    AS sent,
-          COUNT(*) FILTER (WHERE status = 'failed')  AS failed,
-          COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') AS last_24h
-        FROM email_queue
-      `);
+      let where = 'WHERE 1=1';
+      const params = [];
+      let p = 0;
 
-      res.json({ emails: rows, stats: statsRes.rows[0] });
+      if (status) { p++; where += ` AND eq.status = $${p}`; params.push(status); }
+      if (template) { p++; where += ` AND eq.template_name = $${p}`; params.push(template); }
+      if (recipient) { p++; where += ` AND eq.to_email ILIKE $${p}`; params.push(`%${recipient}%`); }
+
+      const [data, count, stats] = await Promise.all([
+        pool.query(
+          `SELECT eq.* FROM email_queue eq ${where} ORDER BY eq.created_at DESC LIMIT $${p + 1} OFFSET $${p + 2}`,
+          [...params, parseInt(limit), parseInt(offset)]
+        ),
+        pool.query(`SELECT COUNT(*) FROM email_queue eq ${where}`, params),
+        pool.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+            COUNT(*) FILTER (WHERE status = 'sent')    AS sent,
+            COUNT(*) FILTER (WHERE status = 'failed')  AS failed,
+            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') AS last_24h
+          FROM email_queue
+        `),
+      ]);
+
+      res.json({
+        emails: data.rows,
+        total: parseInt(count.rows[0].count),
+        stats: stats.rows[0],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
@@ -333,6 +457,176 @@ module.exports = (pool) => {
       const count = await emailQueue.retryAllFailed();
       await audit.log(req.admin.id, req.admin.email, 'retry_all_failed_emails', 'email_queue', null, { count }, req);
       res.json({ success: true, count });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── Post moderation ──────────────────────────────────────────────────────
+
+  // GET /api/admin/posts
+  router.get('/posts', async (req, res) => {
+    try {
+      const { customer_id, platform, status, content_type, date_from, date_to, limit = 25, offset = 0 } = req.query;
+
+      let where = 'WHERE 1=1';
+      const params = [];
+      let p = 0;
+
+      if (customer_id) { p++; where += ` AND p.customer_id = $${p}`; params.push(parseInt(customer_id)); }
+      if (platform) { p++; where += ` AND p.platform = $${p}`; params.push(platform); }
+      if (status) { p++; where += ` AND p.status = $${p}`; params.push(status); }
+      if (content_type) { p++; where += ` AND p.content_type = $${p}`; params.push(content_type); }
+      if (date_from) { p++; where += ` AND p.created_at >= $${p}`; params.push(date_from); }
+      if (date_to) { p++; where += ` AND p.created_at <= $${p}`; params.push(date_to); }
+
+      const [data, count] = await Promise.all([
+        pool.query(
+          `SELECT p.id, p.customer_id, c.business_name, c.email,
+                  LEFT(p.caption, 120) AS caption, p.platform, p.status,
+                  p.content_type, p.created_at, p.image_url
+           FROM posts p
+           JOIN customers c ON c.id = p.customer_id
+           ${where}
+           ORDER BY p.created_at DESC
+           LIMIT $${p + 1} OFFSET $${p + 2}`,
+          [...params, parseInt(limit), parseInt(offset)]
+        ),
+        pool.query(
+          `SELECT COUNT(*) FROM posts p JOIN customers c ON c.id = p.customer_id ${where}`,
+          params
+        ),
+      ]);
+
+      res.json({ posts: data.rows, total: parseInt(count.rows[0].count), limit: parseInt(limit), offset: parseInt(offset) });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // DELETE /api/admin/posts/:id
+  router.delete('/posts/:id', async (req, res) => {
+    try {
+      const { reason } = req.body;
+      if (!reason || reason.length < 5) return res.status(400).json({ error: 'Reason required (min 5 chars)' });
+
+      const post = await pool.query('SELECT id, customer_id, caption FROM posts WHERE id = $1', [req.params.id]);
+      if (post.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+
+      await pool.query(
+        `UPDATE posts SET status = 'removed_by_admin', updated_at = NOW() WHERE id = $1`,
+        [req.params.id]
+      );
+
+      await audit.log(
+        req.admin.id, req.admin.email,
+        'remove_post', 'post', req.params.id,
+        { reason, customer_id: post.rows[0].customer_id },
+        req
+      );
+
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── Broadcast / Announcements ────────────────────────────────────────────
+
+  // POST /api/admin/broadcast
+  router.post('/broadcast', async (req, res) => {
+    try {
+      const { title, message, target_segment, delivery_method } = req.body;
+      if (!title || !title.trim()) return res.status(400).json({ error: 'Title required' });
+      if (!message || !message.trim()) return res.status(400).json({ error: 'Message required' });
+      if (!target_segment) return res.status(400).json({ error: 'Target segment required' });
+      if (!delivery_method) return res.status(400).json({ error: 'Delivery method required' });
+
+      const VALID_SEGMENTS = ['all', 'trial', 'starter', 'professional', 'premium', 'inactive'];
+      const VALID_DELIVERY = ['notification', 'email', 'both'];
+      if (!VALID_SEGMENTS.includes(target_segment)) return res.status(400).json({ error: 'Invalid segment' });
+      if (!VALID_DELIVERY.includes(delivery_method)) return res.status(400).json({ error: 'Invalid delivery method' });
+
+      // Build segment query
+      let segWhere = 'WHERE suspended = false';
+      if (target_segment === 'trial') segWhere += ` AND status = 'trial'`;
+      else if (target_segment === 'starter') segWhere += ` AND plan = 'starter' AND status = 'active'`;
+      else if (target_segment === 'professional') segWhere += ` AND plan = 'professional' AND status = 'active'`;
+      else if (target_segment === 'premium') segWhere += ` AND plan = 'premium' AND status = 'active'`;
+      else if (target_segment === 'inactive') segWhere += ` AND (last_login_at < NOW() - INTERVAL '14 days' OR last_login_at IS NULL)`;
+
+      const targets = await pool.query(
+        `SELECT id, email, business_name FROM customers ${segWhere}`
+      );
+
+      const sendNotif = delivery_method === 'notification' || delivery_method === 'both';
+      const sendEmail = delivery_method === 'email' || delivery_method === 'both';
+
+      // Fire all notifications/emails non-blocking
+      for (const customer of targets.rows) {
+        if (sendNotif) {
+          notif.create(customer.id, 'system', title, message);
+        }
+        if (sendEmail) {
+          emailQueue.queue(customer.email, 'admin_broadcast', {
+            businessName: customer.business_name || customer.email,
+            title,
+            message,
+          });
+        }
+      }
+
+      // Ensure admin_broadcasts table exists and record this broadcast
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS admin_broadcasts (
+          id SERIAL PRIMARY KEY,
+          admin_id INTEGER REFERENCES customers(id),
+          title VARCHAR(255) NOT NULL,
+          message TEXT NOT NULL,
+          target_segment VARCHAR(50) NOT NULL,
+          delivery_method VARCHAR(20) NOT NULL,
+          sent_to_count INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+
+      await pool.query(
+        `INSERT INTO admin_broadcasts (admin_id, title, message, target_segment, delivery_method, sent_to_count)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [req.admin.id, title.trim(), message.trim(), target_segment, delivery_method, targets.rows.length]
+      );
+
+      await audit.log(
+        req.admin.id, req.admin.email,
+        'broadcast', 'system', null,
+        { title, target_segment, delivery_method, sentTo: targets.rows.length },
+        req
+      );
+
+      res.json({ success: true, sentTo: targets.rows.length });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // GET /api/admin/broadcasts
+  router.get('/broadcasts', async (req, res) => {
+    try {
+      // Table may not exist yet if no broadcast has been sent
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS admin_broadcasts (
+          id SERIAL PRIMARY KEY,
+          admin_id INTEGER REFERENCES customers(id),
+          title VARCHAR(255) NOT NULL,
+          message TEXT NOT NULL,
+          target_segment VARCHAR(50) NOT NULL,
+          delivery_method VARCHAR(20) NOT NULL,
+          sent_to_count INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+
+      const result = await pool.query(`
+        SELECT ab.*, c.email AS admin_email
+        FROM admin_broadcasts ab
+        LEFT JOIN customers c ON c.id = ab.admin_id
+        ORDER BY ab.created_at DESC
+        LIMIT 20
+      `);
+
+      res.json({ broadcasts: result.rows });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
