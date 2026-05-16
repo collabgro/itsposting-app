@@ -173,6 +173,12 @@ itsposting-app-main/
 - `twilio.js` — Twilio inbound SMS/WhatsApp webhooks (per-customer credentials; mounted at /api/twilio)
 - `gmb-messages.js` — Google Business Messages inbound webhook + verification (mounted at /api/gmb)
 - `studio.js` — AI-powered image studio (Sharp + Claude for branded card templates)
+- `apiKeys.js` — Developer API key management (create, list, revoke); enforces plan limits (Trial = 0, paid = 5)
+- `external.js` — External API v1 (mounted at /api/v1); all 16 endpoints require API key auth + scope
+
+### Backend middleware (all in backend/middleware/):
+- `auth.js` — JWT authentication, token revocation, admin verification, workspace billing resolution
+- `apiKey.js` — `authenticateApiKey(pool)` factory + `requireScope(scope)` helper; SHA-256 hash lookup; expands write→read implied scopes automatically
 
 ### Backend services (all in backend/services/):
 - `ClaudeService.js` — caption, carousel, video script, week plan generation
@@ -509,6 +515,8 @@ RESEND_API_KEY
 - **Sanitise user content before AI injection** — truncate to 600 chars max per entry, strip `<>\`` characters. See `sanitizeKb()` in `backend/services/ReceptionistService.js` for the pattern.
 - **Rate limiting applies to ALL users** — authenticated requests do NOT skip the global rate limiter.
 - **Security headers must stay enabled** — frontend via `next.config.js` `headers()`, backend via `helmet()` (CSP enabled). Do not disable either.
+- **API keys use SHA-256 hashing** — same pattern as password reset tokens; generate with `crypto.randomBytes(20).toString('hex')`, prefix `itspost_`, store only `crypto.createHash('sha256').update(rawKey).digest('hex')`. Never store or return the raw key after creation.
+- **API key scopes must be enforced on every external route** — use `requireScope('scope:name')` from `backend/middleware/apiKey.js`. Never expose billing, social OAuth tokens, admin operations, or password/auth via API keys.
 
 ---
 
@@ -1069,7 +1077,8 @@ CTA: Clear single action (not multiple options)
 - **Integration cards** — settings page has Twilio, Cal.com, Mailgun, and WhatsApp Business (Meta) cards with configure modals; credentials stored in receptionist_config, secrets never returned to frontend
 - **Studio route** — AI-powered branded image card generator (Sharp + Claude, mounted at /api/studio)
 - **`frontend/pages/wizard.js`** — dedicated wizard page, fully operational; text post hides media panel, 1 credit deducted
-- **Security hardening** — bcrypt rounds 12, hashed reset tokens, JWT Bearer-only, SELECT FOR UPDATE on credit deductions, HMAC webhook enforcement, CSP + security headers on frontend and backend, knowledge base content sanitisation (`b4e0450`)
+- **Security hardening** — bcrypt rounds 12, hashed reset tokens, JWT Bearer-only, SELECT FOR UPDATE on credit deductions, HMAC webhook enforcement, CSP + security headers on frontend and backend, knowledge base content sanitisation (`b4e0450`); round 2 adds JWT algorithm pinning, SSRF blocklist, token revocation after password reset, IDOR fix on analytics, DM auth defense-in-depth, limit/offset clamping, timing attack fix, admin bcrypt fix, broadcast rate limit (`0babf58`)
+- **Developer API Keys** — scoped API key system (`api_keys` table); `backend/middleware/apiKey.js` + `backend/routes/apiKeys.js` + `backend/routes/external.js`; 8 permission scopes; `/api/v1/` external route layer (16 endpoints); Settings UI with 3-step create modal + one-time key reveal + inline revoke; SHA-256 key hashing; Trial = 0 keys, paid = 5 keys
 
 ### 🔴 STILL TO BUILD:
 - **Video pipeline #2 completion** — Runway Gen-4 + Pika 2.2 integrations in VideoService.js
@@ -1078,6 +1087,51 @@ CTA: Clear single action (not multiple options)
 - **LinkedIn + TikTok posting** — routes exist; provider integrations needed
 - **Monthly report generator** — PDF generation via Resend (reports page is UI-only)
 - **PWA setup** — service worker + manifest for mobile job-site use
+
+---
+
+## DEVELOPER API KEYS
+
+**Backend:** `backend/routes/apiKeys.js` + `backend/middleware/apiKey.js` + `backend/routes/external.js` — BUILT
+**Frontend:** `frontend/pages/settings.js` (Developer API section) — BUILT
+
+Allows customers to create scoped API keys for connecting third-party tools (Zapier, Jobber, Housecall Pro, their website developer, etc.) without sharing their login credentials.
+
+### Key format & storage
+- Format: `itspost_` + 40 hex chars (`crypto.randomBytes(20).toString('hex')`)
+- Storage: `SHA-256(rawKey)` in `api_keys.key_hash` — raw key shown exactly once at creation
+- Display: first 18 chars shown as prefix (`itspost_a1b2c3d4e5`) — rest never revealed
+
+### Authentication
+API keys authenticate via the same `Authorization: Bearer` header as JWTs. The `authenticateApiKey(pool)` middleware distinguishes them by the `itspost_` prefix, so the same header works for both. Sets `req.customerId`, `req.apiKeyScopes`, `req.parentCustomerId` (workspace-aware).
+
+### The 8 scopes
+
+| Scope | What it unlocks |
+|---|---|
+| `posts:read` | GET /api/v1/posts, GET /api/v1/posts/:id |
+| `posts:write` | POST + PATCH /api/v1/posts (implies posts:read) |
+| `generate:write` | POST /api/v1/generate — AI caption generation, deducts 1 credit |
+| `analytics:read` | GET /api/v1/analytics/summary + /posts |
+| `media:write` | POST /api/v1/media/upload |
+| `contacts:read` | GET /api/v1/contacts |
+| `contacts:write` | POST + PATCH /api/v1/contacts (implies contacts:read) |
+| `knowledge:write` | GET + POST + PATCH + DELETE /api/v1/knowledge |
+
+**Never expose via API keys:** billing, social OAuth tokens, admin operations, workspace management, auth/passwords.
+
+### Plan limits
+- Trial: 0 keys (shown but blocked with upgrade prompt)
+- Starter / Professional / Premium: 5 keys each
+
+### External API base
+All external endpoints live at `/api/v1/`. Adding new external endpoints: add them to `backend/routes/external.js` with `requireScope('scope:name')` on each route.
+
+### DB table
+```sql
+api_keys (id, customer_id, name, key_prefix, key_hash, scopes TEXT[], expires_at, last_used_at, revoked_at, created_at)
+```
+Indexes on `customer_id` and `key_hash`. Created at server startup via the migrations array in `server.js`.
 
 ---
 

@@ -8,7 +8,7 @@ import {
 import Layout from '../components/Layout';
 import { Card, Button, Input, Badge, SectionHeader, Spinner, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { customerAPI, contentAPI, socialAPI, scraperAPI, receptionistAPI, dmsAPI } from '../lib/api';
+import { customerAPI, contentAPI, socialAPI, scraperAPI, receptionistAPI, dmsAPI, apiKeysAPI } from '../lib/api';
 import IntegrationSetupWizard from '../components/IntegrationSetupWizard';
 
 const TIMEZONES = [
@@ -552,6 +552,71 @@ export default function Settings() {
   const [dmsStats, setDmsStats] = useState(null);
   const [syncing, setSyncing] = useState(false);
 
+  // Developer API Keys
+  const [apiKeys, setApiKeys] = useState([]);
+  const [loadingKeys, setLoadingKeys] = useState(false);
+  const [showCreateKeyModal, setShowCreateKeyModal] = useState(false);
+  const [createKeyStep, setCreateKeyStep] = useState(1); // 1=name+expiry, 2=scopes, 3=reveal
+  const [newKeyForm, setNewKeyForm] = useState({ name: '', expiry: 'never', scopes: [] });
+  const [createKeyError, setCreateKeyError] = useState('');
+  const [createKeySaving, setCreateKeySaving] = useState(false);
+  const [createdRawKey, setCreatedRawKey] = useState(null);
+  const [revokingKeyId, setRevokingKeyId] = useState(null);
+  const [revokeConfirmId, setRevokeConfirmId] = useState(null);
+  const [keyCopied, setKeyCopied] = useState(false);
+
+  const openCreateKeyModal = () => {
+    setNewKeyForm({ name: '', expiry: 'never', scopes: [] });
+    setCreateKeyStep(1);
+    setCreateKeyError('');
+    setCreatedRawKey(null);
+    setKeyCopied(false);
+    setShowCreateKeyModal(true);
+  };
+
+  const toggleScope = (scope) => {
+    setNewKeyForm(f => ({
+      ...f,
+      scopes: f.scopes.includes(scope) ? f.scopes.filter(s => s !== scope) : [...f.scopes, scope],
+    }));
+  };
+
+  const handleCreateKey = async () => {
+    setCreateKeyError('');
+    setCreateKeySaving(true);
+    try {
+      const res = await apiKeysAPI.create({ name: newKeyForm.name, expiry: newKeyForm.expiry, scopes: newKeyForm.scopes });
+      setCreatedRawKey(res.data.rawKey);
+      setApiKeys(k => [res.data.key, ...k]);
+      setCreateKeyStep(3);
+    } catch (err) {
+      setCreateKeyError(err.response?.data?.error || 'Failed to create API key');
+    } finally {
+      setCreateKeySaving(false);
+    }
+  };
+
+  const handleRevokeKey = async (id) => {
+    setRevokingKeyId(id);
+    try {
+      await apiKeysAPI.revoke(id);
+      setApiKeys(k => k.filter(key => key.id !== id));
+      setRevokeConfirmId(null);
+    } catch {
+      showToast('Failed to revoke key', 'error');
+    } finally {
+      setRevokingKeyId(null);
+    }
+  };
+
+  const copyKey = () => {
+    if (createdRawKey) {
+      navigator.clipboard.writeText(createdRawKey).catch(() => {});
+      setKeyCopied(true);
+      setTimeout(() => setKeyCopied(false), 2000);
+    }
+  };
+
   const openIntegrationModal = (type) => {
     const cfg = receptionistConfig || {};
     if (type === 'twilio') setIntegrationForm({ twilioAccountSid: cfg.twilio_account_sid || '', twilioAuthToken: '', twilioPhoneNumber: cfg.twilio_phone_number || '', twilioWhatsappNumber: cfg.twilio_whatsapp_number || '' });
@@ -723,6 +788,19 @@ export default function Settings() {
       setLoading(false);
     }
     loadSocialAccounts();
+    loadApiKeys();
+  };
+
+  const loadApiKeys = async () => {
+    setLoadingKeys(true);
+    try {
+      const res = await apiKeysAPI.list();
+      setApiKeys(res.data.keys || []);
+    } catch {
+      // silently — non-critical
+    } finally {
+      setLoadingKeys(false);
+    }
   };
 
   const loadSocialAccounts = async () => {
@@ -1320,6 +1398,258 @@ export default function Settings() {
             <span style={{ fontSize: 11, color: t.textMuted }}>Pull latest messages from all connected platforms</span>
           </div>
         </Card>
+
+        {/* Developer API Keys */}
+        {(() => {
+          const SCOPE_DEFS = [
+            { group: 'Content', scopes: [
+              { value: 'posts:read',  label: 'View posts & schedule', desc: 'Read your posts, drafts, and scheduled content' },
+              { value: 'posts:write', label: 'Create & schedule posts', desc: 'Create posts and update existing ones (includes read)' },
+            ]},
+            { group: 'AI Generation', scopes: [
+              { value: 'generate:write', label: 'Generate AI content', desc: 'Generate captions using AI — uses 1 credit per call' },
+            ]},
+            { group: 'Analytics', scopes: [
+              { value: 'analytics:read', label: 'View analytics', desc: 'Read post performance and engagement stats' },
+            ]},
+            { group: 'Media', scopes: [
+              { value: 'media:write', label: 'Upload media', desc: 'Upload photos and videos to your media library' },
+            ]},
+            { group: 'Contacts', scopes: [
+              { value: 'contacts:read',  label: 'View contacts', desc: 'List and read your contacts' },
+              { value: 'contacts:write', label: 'Add & update contacts', desc: 'Create and update contacts (includes read)' },
+            ]},
+            { group: 'Knowledge Base', scopes: [
+              { value: 'knowledge:write', label: 'Update knowledge base', desc: 'Add and edit knowledge base entries' },
+            ]},
+          ];
+
+          const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+          const timeAgo = (d) => {
+            if (!d) return 'Never used';
+            const s = Math.floor((Date.now() - new Date(d)) / 1000);
+            if (s < 60) return 'Just now';
+            if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+            if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+            return `${Math.floor(s / 86400)}d ago`;
+          };
+
+          const isTrialUser = profile?.plan === 'trial';
+
+          return (
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ color: t.primary }}>
+                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Developer API</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: t.textMuted }}>
+                    Connect Zapier, Jobber, your website, or any custom tool.
+                    {isTrialUser && <span style={{ color: t.warning, marginLeft: 4 }}>Upgrade to a paid plan to create API keys.</span>}
+                  </div>
+                </div>
+                {!isTrialUser && (
+                  <Button variant="primary" size="sm" onClick={openCreateKeyModal} style={{ flexShrink: 0 }}>
+                    + Create Key
+                  </Button>
+                )}
+              </div>
+
+              {loadingKeys ? (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: t.textMuted, fontSize: 13 }}>Loading...</div>
+              ) : apiKeys.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: t.textMuted, fontSize: 13 }}>
+                  {isTrialUser
+                    ? 'API keys are available on Starter, Professional, and Premium plans.'
+                    : 'No API keys yet. Create one to start connecting external tools.'}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {apiKeys.map(key => (
+                    <div key={key.id} style={{ padding: '12px 14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 3 }}>{key.name}</div>
+                          <div style={{ fontSize: 11, fontFamily: 'monospace', color: t.textMuted, marginBottom: 5 }}>
+                            {key.key_prefix}...
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+                            {(key.scopes || []).map(s => (
+                              <span key={s} style={{ fontSize: 10, padding: '2px 7px', background: `${t.primary}15`, color: t.primary, borderRadius: 4, fontWeight: 500 }}>{s}</span>
+                            ))}
+                          </div>
+                          <div style={{ fontSize: 11, color: t.textMuted }}>
+                            Created {formatDate(key.created_at)}
+                            {' · '}
+                            {timeAgo(key.last_used_at)}
+                            {key.expires_at && <span> · Expires {formatDate(key.expires_at)}</span>}
+                            {!key.expires_at && <span> · No expiry</span>}
+                          </div>
+                        </div>
+                        <div>
+                          {revokeConfirmId === key.id ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 11, color: t.warning }}>Revoke?</span>
+                              <button
+                                onClick={() => handleRevokeKey(key.id)}
+                                disabled={revokingKeyId === key.id}
+                                style={{ fontSize: 11, padding: '4px 10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                              >
+                                {revokingKeyId === key.id ? '...' : 'Yes, revoke'}
+                              </button>
+                              <button
+                                onClick={() => setRevokeConfirmId(null)}
+                                style={{ fontSize: 11, padding: '4px 10px', background: t.border, color: t.text, border: 'none', borderRadius: 6, cursor: 'pointer' }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setRevokeConfirmId(key.id)}
+                              style={{ fontSize: 12, padding: '6px 12px', background: 'transparent', color: '#ef4444', border: `1px solid #ef444440`, borderRadius: 7, cursor: 'pointer' }}
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginTop: 14, fontSize: 11, color: t.textMuted }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }}>
+                  <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Use <code style={{ background: t.input, padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>Authorization: Bearer itspost_...</code> in your requests.
+                API base URL: <code style={{ background: t.input, padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>/api/v1/</code>
+              </div>
+
+              {/* Create Key Modal */}
+              {showCreateKeyModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                  <div style={{ background: t.card, borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                    {createKeyStep === 1 && (
+                      <>
+                        <div style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 6 }}>Create API Key — Name & Expiry</div>
+                        <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 20 }}>Give your key a clear name so you remember what it's for.</div>
+                        <div style={{ marginBottom: 16 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 6 }}>Key name</label>
+                          <Input
+                            value={newKeyForm.name}
+                            onChange={e => setNewKeyForm(f => ({ ...f, name: e.target.value }))}
+                            placeholder="e.g. Jobber Integration, My Website"
+                            autoFocus
+                          />
+                        </div>
+                        <div style={{ marginBottom: 20 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 8 }}>Expires after</label>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {[
+                              { val: '30d', label: '30 days' },
+                              { val: '90d', label: '90 days' },
+                              { val: '1y',  label: '1 year' },
+                              { val: 'never', label: 'Never' },
+                            ].map(opt => (
+                              <button
+                                key={opt.val}
+                                onClick={() => setNewKeyForm(f => ({ ...f, expiry: opt.val }))}
+                                style={{ padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${newKeyForm.expiry === opt.val ? t.primary : t.border}`, background: newKeyForm.expiry === opt.val ? `${t.primary}18` : t.input, color: newKeyForm.expiry === opt.val ? t.primary : t.text, fontSize: 13, cursor: 'pointer', fontWeight: newKeyForm.expiry === opt.val ? 600 : 400 }}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        {createKeyError && <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 12 }}>{createKeyError}</div>}
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                          <Button variant="secondary" size="sm" onClick={() => setShowCreateKeyModal(false)}>Cancel</Button>
+                          <Button variant="primary" size="sm" disabled={!newKeyForm.name.trim()} onClick={() => { setCreateKeyError(''); setCreateKeyStep(2); }}>Next: Permissions →</Button>
+                        </div>
+                      </>
+                    )}
+
+                    {createKeyStep === 2 && (
+                      <>
+                        <div style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 6 }}>Choose Permissions</div>
+                        <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 18 }}>Only grant what your integration actually needs.</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxHeight: 340, overflowY: 'auto', marginBottom: 18 }}>
+                          {SCOPE_DEFS.map(group => (
+                            <div key={group.group}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{group.group}</div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {group.scopes.map(scope => {
+                                  const checked = newKeyForm.scopes.includes(scope.value);
+                                  return (
+                                    <label key={scope.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 10px', borderRadius: 8, border: `1.5px solid ${checked ? t.primary : t.border}`, background: checked ? `${t.primary}0d` : t.input, cursor: 'pointer' }}>
+                                      <input type="checkbox" checked={checked} onChange={() => toggleScope(scope.value)} style={{ marginTop: 2, accentColor: t.primary, flexShrink: 0 }} />
+                                      <div>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{scope.label}</div>
+                                        <div style={{ fontSize: 11, color: t.textMuted }}>{scope.desc}</div>
+                                      </div>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {createKeyError && <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 12 }}>{createKeyError}</div>}
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                          <Button variant="secondary" size="sm" onClick={() => setCreateKeyStep(1)}>← Back</Button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            disabled={newKeyForm.scopes.length === 0 || createKeySaving}
+                            onClick={handleCreateKey}
+                          >
+                            {createKeySaving ? 'Creating...' : 'Create Key'}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+
+                    {createKeyStep === 3 && (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </div>
+                          <div style={{ fontSize: 17, fontWeight: 700, color: t.text }}>API Key Created</div>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 14, fontWeight: 500 }}>
+                          Copy this key now — you won't be able to see it again.
+                        </div>
+                        <div style={{ position: 'relative', marginBottom: 18 }}>
+                          <div style={{ padding: '12px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, fontFamily: 'monospace', fontSize: 12, color: t.text, wordBreak: 'break-all', paddingRight: 90 }}>
+                            {createdRawKey}
+                          </div>
+                          <button
+                            onClick={copyKey}
+                            style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, padding: '5px 12px', background: keyCopied ? '#22c55e' : t.primary, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, transition: 'background 0.2s' }}
+                          >
+                            {keyCopied ? 'Copied!' : 'Copy'}
+                          </button>
+                        </div>
+                        <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 18 }}>
+                          Use it in your requests: <code style={{ background: t.input, padding: '2px 6px', borderRadius: 4 }}>Authorization: Bearer {createdRawKey?.substring(0, 20)}...</code>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <Button variant="primary" size="sm" onClick={() => setShowCreateKeyModal(false)}>Done</Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </Card>
+          );
+        })()}
 
         {/* AI Receptionist Integrations */}
         {(() => {

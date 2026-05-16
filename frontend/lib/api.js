@@ -289,4 +289,10 @@ export const receptionistAPI = {
   skipReviewAction: (id) => api.post(`/api/receptionist/review-actions/${id}/skip`),
 };
 
+export const apiKeysAPI = {
+  list: () => api.get('/api/api-keys'),
+  create: (data) => api.post('/api/api-keys', data),
+  revoke: (id) => api.delete(`/api/api-keys/${id}`),
+};
+
 export default api;

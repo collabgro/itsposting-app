@@ -30,6 +30,8 @@ const workspaceRoutes = require('./routes/workspaces');
 const geoRoutes = require('./routes/geo');
 const studioRoutes = require('./routes/studio');
 const receptionistRoutes = require('./routes/receptionist');
+const apiKeysRoutes = require('./routes/apiKeys');
+const externalRoutes = require('./routes/external');
 const twilioRoutes = require('./routes/twilio');
 const gmbMessagesRoutes = require('./routes/gmb-messages');
 const GeoAuditService = require('./services/GeoAuditService');
@@ -338,6 +340,21 @@ console.log('══════════════════════�
     `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS account_username VARCHAR(255)`,
     `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS refresh_token TEXT`,
     `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS connected_at TIMESTAMP DEFAULT NOW()`,
+    // Developer API keys
+    `CREATE TABLE IF NOT EXISTS api_keys (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      name VARCHAR(100) NOT NULL,
+      key_prefix VARCHAR(20) NOT NULL,
+      key_hash VARCHAR(64) NOT NULL UNIQUE,
+      scopes TEXT[] NOT NULL DEFAULT '{}',
+      expires_at TIMESTAMPTZ,
+      last_used_at TIMESTAMPTZ,
+      revoked_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_api_keys_customer ON api_keys(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -416,6 +433,8 @@ app.use('/api/studio', studioRoutes(pool));
 app.use('/api/receptionist', receptionistRoutes(pool));
 app.use('/api/twilio', twilioRoutes(pool));
 app.use('/api/gmb', gmbMessagesRoutes(pool));
+app.use('/api/api-keys', apiKeysRoutes(pool));
+app.use('/api/v1', externalRoutes(pool));
 
 // Mailgun inbound email webhook — respond 200 immediately, process async
 app.post('/api/mailgun/inbound', express.urlencoded({ extended: true, limit: '5mb' }), async (req, res) => {
