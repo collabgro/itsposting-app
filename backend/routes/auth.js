@@ -181,22 +181,23 @@ module.exports = (pool) => {
 
       const customer = await pool.query('SELECT id FROM customers WHERE email = $1', [email]);
 
-      if (customer.rows.length > 0) {
-        const rawToken = crypto.randomBytes(32).toString('hex');
-        // Store only the SHA-256 hash — raw token travels only in the email link
-        const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-        const expires = new Date(Date.now() + 60 * 60 * 1000);
-
-        await pool.query(
-          'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE email = $3',
-          [hashedToken, expires, email]
-        );
-
-        emailQueue.notifyPasswordReset(email, rawToken);
-      } else {
-        // Equalise response time — prevent timing-based email enumeration
-        await bcrypt.hash('timing-equalizer', 12);
-      }
+      // Always run the bcrypt hash on BOTH branches so response time is equalised
+      // and attackers cannot enumerate registered emails via timing differences.
+      const [, bcryptDone] = await Promise.allSettled([
+        (async () => {
+          if (customer.rows.length > 0) {
+            const rawToken = crypto.randomBytes(32).toString('hex');
+            const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+            const expires = new Date(Date.now() + 60 * 60 * 1000);
+            await pool.query(
+              'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE email = $3',
+              [hashedToken, expires, email]
+            );
+            emailQueue.notifyPasswordReset(email, rawToken);
+          }
+        })(),
+        bcrypt.hash('timing-equalizer', 12),
+      ]);
 
       res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
     } catch (err) {

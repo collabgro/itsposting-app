@@ -16,6 +16,7 @@ const securityHeaders = [
   { key: 'X-XSS-Protection', value: '1; mode=block' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
   {
     key: 'Content-Security-Policy',
     value: [
@@ -37,7 +38,13 @@ const nextConfig = {
   poweredByHeader: false,
   outputFileTracingRoot: path.join(__dirname, '..'),
   images: {
-    remotePatterns: [{ protocol: 'https', hostname: '**' }],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+      { protocol: 'https', hostname: '*.googleusercontent.com' },
+      { protocol: 'https', hostname: 'replicate.delivery' },
+      { protocol: 'https', hostname: '*.replicate.delivery' },
+      { protocol: 'https', hostname: 'pbxt.replicate.delivery' },
+    ],
   },
   experimental: {
     optimizePackageImports: ['date-fns'],

@@ -47,7 +47,7 @@ const PORT = process.env.PORT || 3001;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/socialmedia',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
@@ -394,7 +394,9 @@ app.use(cors({
 }));
 // Webhooks must be registered BEFORE express.json() — they need raw body for HMAC verification
 app.use('/api/webhooks', webhookRoutes(pool));
-app.use(express.json({ limit: '10mb' }));
+// Upload/media routes use multer (no JSON body) — keep 10mb only for urlencoded (base64 previews).
+// All JSON routes are capped at 1mb to prevent memory-exhaustion via oversized payloads.
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use((req, res, next) => {

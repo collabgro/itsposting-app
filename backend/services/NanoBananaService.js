@@ -98,10 +98,23 @@ class NanoBananaService {
       throw new Error('NanoBanana not configured');
     }
 
+    // SSRF protection — only allow HTTPS URLs to known public hosts
+    try {
+      const parsed = new URL(imageUrl);
+      if (parsed.protocol !== 'https:') throw new Error('Only HTTPS image URLs are allowed');
+      const host = parsed.hostname.toLowerCase();
+      const BLOCKED = ['localhost', '127.', '0.0.0.0', '169.254.', '10.', '172.16.', '192.168.', '::1', '[::'];
+      if (BLOCKED.some(b => host.startsWith(b) || host === b.replace(/\.$/, ''))) {
+        throw new Error('Private/internal image URLs are not allowed');
+      }
+    } catch (e) {
+      throw new Error(`Invalid imageUrl: ${e.message}`);
+    }
+
     try {
       // Fetch the image and convert to base64
       const axios = require('axios');
-      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000 });
       const imageBase64 = Buffer.from(imageResponse.data).toString('base64');
       const mimeType = imageResponse.headers['content-type'] || 'image/jpeg';
 

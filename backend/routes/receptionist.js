@@ -217,7 +217,8 @@ module.exports = (pool) => {
   router.get('/conversations', async (req, res) => {
     try {
       const { status, platform, page = 1, limit = 20 } = req.query;
-      const offset = (parseInt(page) - 1) * parseInt(limit);
+      const safeLimit = Math.min(parseInt(limit) || 20, 100);
+      const offset = (parseInt(page) - 1) * safeLimit;
 
       const conditions = ['dc.customer_id=$1'];
       const params = [req.customerId];
@@ -238,7 +239,7 @@ module.exports = (pool) => {
          WHERE ${conditions.join(' AND ')}
          ORDER BY dc.last_message_at DESC NULLS LAST
          LIMIT $${idx} OFFSET $${idx + 1}`,
-        [...params, parseInt(limit), offset]
+        [...params, safeLimit, offset]
       );
 
       const count = await pool.query(

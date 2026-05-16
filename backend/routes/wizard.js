@@ -1428,6 +1428,22 @@ module.exports = (pool) => {
         return res.status(400).json({ error: 'Caption is required' });
       }
 
+      const angleInstructions = {
+        shorter: 'Rewrite this post to be 30-40% shorter while keeping all the key information.',
+        longer: 'Expand this post with more detail, context, and value — aim for 50% more content.',
+        funnier: 'Rewrite this with a touch of humor and personality while keeping it professional.',
+        more_local: null, // filled in after customer lookup
+        add_question: 'Rewrite this with a stronger, more engaging question at the end to drive comments.',
+      };
+
+      // Validate angle against whitelist before doing any DB work
+      if (angle && !Object.prototype.hasOwnProperty.call(angleInstructions, angle)) {
+        return res.status(400).json({ error: 'Invalid angle value.' });
+      }
+
+      // Sanitize caption: clamp length and strip control characters to prevent prompt injection
+      const safeCaption = caption.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').substring(0, 2000);
+
       const customerResult = await pool.query(
         'SELECT business_name, industry, location FROM customers WHERE id = $1',
         [req.customerId]
@@ -1435,24 +1451,20 @@ module.exports = (pool) => {
       const customer = customerResult.rows[0];
 
       const refreshBillingId = getBillingCustomerId(req);
-      const refreshCreditRow = await pool.query(
-        'SELECT credits_balance FROM customers WHERE id = $1',
+
+      // Atomic deduction — deduct BEFORE the Claude call; fail fast if insufficient credits
+      const deductResult = await pool.query(
+        'UPDATE customers SET credits_balance = credits_balance - 1 WHERE id = $1 AND credits_balance >= 1 RETURNING credits_balance',
         [refreshBillingId]
       );
-      if (!refreshCreditRow.rows[0] || refreshCreditRow.rows[0].credits_balance < 1) {
+      if (deductResult.rows.length === 0) {
         return res.status(402).json({
           error: 'Not enough credits. Refreshing a variation costs 1 credit. Please upgrade your plan.',
         });
       }
 
-      const angleInstructions = {
-        shorter: 'Rewrite this post to be 30-40% shorter while keeping all the key information.',
-        longer: 'Expand this post with more detail, context, and value — aim for 50% more content.',
-        funnier: 'Rewrite this with a touch of humor and personality while keeping it professional.',
-        more_local: `Rewrite this with stronger local references — mention ${customer.location || 'the local area'} naturally.`,
-        add_question: 'Rewrite this with a stronger, more engaging question at the end to drive comments.',
-      };
-
+      // Fill location-dependent instruction now that we have customer data
+      angleInstructions.more_local = `Rewrite this with stronger local references — mention ${customer.location || 'the local area'} naturally.`;
       const instruction = angleInstructions[angle] || 'Rewrite this post with a fresh angle.';
 
       const response = await anthropic.messages.create({
@@ -1461,18 +1473,13 @@ module.exports = (pool) => {
         system: `You are PostCore, rewriting social media posts for ${customer.business_name}, a ${customer.industry} business in ${customer.location}. Always sound human and authentic. Respond with ONLY valid JSON: { "caption": "rewritten post text" }`,
         messages: [{
           role: 'user',
-          content: `${instruction}\n\nOriginal post:\n${caption}`,
+          content: `${instruction}\n\nOriginal post:\n${safeCaption}`,
         }],
       });
 
       const rawText = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
-
-      await pool.query(
-        'UPDATE customers SET credits_balance = credits_balance - 1 WHERE id = $1 AND credits_balance >= 1',
-        [refreshBillingId]
-      );
 
       res.json({ success: true, caption: parsed.caption });
     } catch (err) {

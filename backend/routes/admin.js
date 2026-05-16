@@ -363,7 +363,7 @@ module.exports = (pool) => {
       if (c.suspended) return res.status(400).json({ error: 'Cannot impersonate a suspended account' });
 
       const token = jwt.sign(
-        { id: c.id, email: c.email, impersonating: true, impersonatorId: req.admin.id },
+        { customerId: c.id, email: c.email, impersonating: true, impersonatorId: req.admin.id },
         JWT_SECRET,
         { expiresIn: '15m' }
       );

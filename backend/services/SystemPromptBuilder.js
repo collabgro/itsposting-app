@@ -18,6 +18,17 @@
 
 const industryKnowledge = require('../data/industryKnowledge');
 
+// Strip content that could break prompt structure or inject new sections.
+// Allows normal business text; removes === headers and control chars.
+function sanitizeField(val, maxLen = 120) {
+  if (typeof val !== 'string') return '';
+  return val
+    .replace(/={2,}/g, '')          // strip === section header markers
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // strip non-printable control chars
+    .substring(0, maxLen)
+    .trim();
+}
+
 class SystemPromptBuilder {
   /**
    * @param {Object} customer  — full customer row from DB
@@ -69,11 +80,11 @@ class SystemPromptBuilder {
 
     let ctx = `=== BUSINESS CONTEXT ===
 You are writing social media content for:
-Business name: ${c.business_name || 'a local service business'}
-Industry: ${c.industry || 'home services'}
-Location: ${c.location || 'local area'}
-Brand tone: ${c.tone || 'professional and approachable'}
-Visual style: ${c.visual_style || 'modern and clean'}`;
+Business name: ${sanitizeField(c.business_name, 100) || 'a local service business'}
+Industry: ${sanitizeField(c.industry, 60) || 'home services'}
+Location: ${sanitizeField(c.location, 100) || 'local area'}
+Brand tone: ${sanitizeField(c.tone, 80) || 'professional and approachable'}
+Visual style: ${sanitizeField(c.visual_style, 80) || 'modern and clean'}`;
 
     if (services.length > 0) {
       ctx += `\n\nActual services this business offers (scraped from their website — reference these specifically):`;

@@ -300,7 +300,8 @@ Respond ONLY with valid JSON in this exact format:
     try {
       const { sort = 'recent', limit = 50 } = req.query;
       const safeLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
-      const orderBy = sort === 'best' ? 'performance_score DESC NULLS LAST' : 'created_at DESC';
+      const ORDER_MAP = { best: 'performance_score DESC NULLS LAST', recent: 'created_at DESC' };
+      const orderBy = ORDER_MAP[sort] || ORDER_MAP.recent;
 
       const { rows } = await pool.query(
         `SELECT id, caption, content_type, platform, status,
