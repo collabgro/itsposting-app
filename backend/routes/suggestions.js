@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto            = require('crypto');
 const express           = require('express');
 const { authenticate }  = require('../middleware/auth');
 const SuggestionsEngine = require('../services/SuggestionsEngine');
@@ -12,8 +13,10 @@ module.exports = (pool) => {
   // Called at 8am UTC by the server-side cron job.
   // Protected by x-cron-secret header.
   router.post('/generate-daily', async (req, res) => {
-    const cronSecret = req.headers['x-cron-secret'];
-    if (!process.env.CRON_SECRET || cronSecret !== process.env.CRON_SECRET) {
+    const cronSecret = req.headers['x-cron-secret'] || '';
+    const expected = process.env.CRON_SECRET || '';
+    if (!expected || cronSecret.length !== expected.length ||
+        !crypto.timingSafeEqual(Buffer.from(cronSecret), Buffer.from(expected))) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 

@@ -159,7 +159,10 @@ module.exports = (pool) => {
   // The response contains the webhook secret — save it as HEYGEN_WEBHOOK_SECRET in Railway.
   // ─────────────────────────────────────────────────────────────
   router.post('/heygen/register', express.json(), async (req, res) => {
-    const adminSecret = process.env.ADMIN_SECRET || process.env.JWT_SECRET;
+    const adminSecret = process.env.ADMIN_SECRET;
+    if (!adminSecret) {
+      return res.status(500).json({ error: 'ADMIN_SECRET environment variable not configured' });
+    }
     const provided = req.headers['x-admin-secret'] || req.body?.adminSecret;
     if (provided !== adminSecret) {
       return res.status(403).json({ error: 'Unauthorized' });
@@ -190,7 +193,7 @@ module.exports = (pool) => {
       );
 
       const secret = response.data?.data?.secret;
-      console.log('[HeyGen Webhook] Registered:', webhookUrl, '| secret:', secret);
+      console.log('[HeyGen Webhook] Registered:', webhookUrl, '| secret:', secret ? '***' : 'none');
 
       res.json({
         success: true,

@@ -20,7 +20,10 @@ function getCheckoutUrl(tier, cycle = 'monthly') {
 
 function verifyWebhookSignature(rawBody, signatureHeader, secret) {
   if (!secret) {
-    console.warn('[WhopService] WHOP_WEBHOOK_KEY not set — skipping signature check');
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('[WhopService] WHOP_WEBHOOK_KEY is required in production — refusing to process webhook');
+    }
+    console.warn('[WhopService] WHOP_WEBHOOK_KEY not set — skipping signature check (dev only)');
     return true;
   }
   const expected = crypto

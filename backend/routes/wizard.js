@@ -1367,9 +1367,9 @@ module.exports = (pool) => {
         'SELECT credits_balance FROM customers WHERE id = $1',
         [billingId]
       );
-      if (!creditRow.rows[0] || creditRow.rows[0].credits_balance < 1) {
+      if (!creditRow.rows[0] || creditRow.rows[0].credits_balance < 3) {
         return res.status(402).json({
-          error: 'Not enough credits. Quick posts cost 1 credit. Please upgrade your plan.',
+          error: 'Not enough credits. Quick photo posts cost 3 credits. Please upgrade your plan.',
         });
       }
 
@@ -1399,7 +1399,7 @@ module.exports = (pool) => {
 
       // Deduct 1 credit after successful generation
       await pool.query(
-        'UPDATE customers SET credits_balance = credits_balance - 1 WHERE id = $1 AND credits_balance >= 1',
+        'UPDATE customers SET credits_balance = credits_balance - 3 WHERE id = $1 AND credits_balance >= 3',
         [billingId]
       );
 
