@@ -341,10 +341,10 @@ console.log('══════════════════════�
   }
 })();
 
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet());
 app.use(compression());
 
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, skip: (req) => !!req.headers.authorization, message: 'Too many requests, please try again later.', standardHeaders: true, legacyHeaders: false });
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, message: 'Too many requests, please try again later.', standardHeaders: true, legacyHeaders: false });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many authentication attempts. Try again in 15 minutes.', skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
 const passwordResetLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, message: 'Too many password reset attempts. Try again in 1 hour.', standardHeaders: true, legacyHeaders: false });
 const generationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20, message: { error: 'Generation limit reached — wait an hour or upgrade your plan' }, standardHeaders: true, legacyHeaders: false });
@@ -361,7 +361,12 @@ app.use('/api/content/generate', generationLimiter);
 app.use(cors({
   origin: (origin, cb) => {
     const allowed = (process.env.FRONTEND_URL || 'http://localhost:5000').split(',').map(s => s.trim());
-    if (!origin || allowed.includes(origin)) return cb(null, true);
+    if (!origin) {
+      // In production require an Origin header; allow curl/tools locally
+      if (process.env.NODE_ENV === 'production') return cb(new Error('Origin header required'));
+      return cb(null, true);
+    }
+    if (allowed.includes(origin)) return cb(null, true);
     cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
@@ -431,20 +436,9 @@ app.post('/api/mailgun/inbound', express.urlencoded({ extended: true, limit: '5m
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      database: 'connected',
-      version: '2.1.0',
-      services: {
-        imageOne: !!process.env.GOOGLE_AI_API_KEY,
-        imageTwo: !!process.env.REPLICATE_API_TOKEN,
-        video: !!process.env.HEYGEN_API_KEY,
-        cloudinary: !!process.env.CLOUDINARY_CLOUD_NAME,
-      },
-    });
+    res.json({ status: 'ok', timestamp: new Date().toISOString(), database: 'connected', version: '2.1.0' });
   } catch (error) {
-    res.status(503).json({ status: 'error', database: 'disconnected', error: error.message });
+    res.status(503).json({ status: 'error', database: 'disconnected' });
   }
 });
 
@@ -460,7 +454,7 @@ app.get('/', (req, res) => {
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use((err, req, res, next) => {
   const errorId = Math.random().toString(36).substring(7);
-  console.error(JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', errorId, message: err.message, stack: err.stack, method: req.method, path: req.path, userId: req.customerId || null }));
+  console.error(JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', errorId, message: err.message, method: req.method, path: req.path, userId: req.customerId || null, ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }) }));
   res.setHeader('X-Error-ID', errorId);
   res.status(err.status || 500).json({ error: err.message || 'Internal server error', errorId, ...(process.env.NODE_ENV === 'development' && { stack: err.stack }) });
 });

@@ -159,7 +159,8 @@ module.exports = (pool) => {
   // The response contains the webhook secret — save it as HEYGEN_WEBHOOK_SECRET in Railway.
   // ─────────────────────────────────────────────────────────────
   router.post('/heygen/register', express.json(), async (req, res) => {
-    const adminSecret = process.env.ADMIN_SECRET || process.env.JWT_SECRET;
+    const adminSecret = process.env.ADMIN_SECRET;
+    if (!adminSecret) return res.status(503).json({ error: 'ADMIN_SECRET not configured on this server' });
     const provided = req.headers['x-admin-secret'] || req.body?.adminSecret;
     if (provided !== adminSecret) {
       return res.status(403).json({ error: 'Unauthorized' });
@@ -299,20 +300,23 @@ module.exports = (pool) => {
   router.get('/tiktok', (req, res) => {
     const { timestamp, nonce, client_token } = req.query;
     const secret = process.env.TIKTOK_APP_SECRET;
-    if (secret) {
-      if (!timestamp || !nonce) return res.sendStatus(403);
-      const sigStr = [nonce, timestamp].sort().join('\n');
-      const expected = crypto.createHmac('sha256', secret).update(sigStr).digest('hex');
-      if (client_token !== expected) {
-        console.warn('[TikTokWebhook] Verification failed — signature mismatch');
+    if (!secret) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[TikTokWebhook] TIKTOK_APP_SECRET not set in production — rejecting verification');
         return res.sendStatus(403);
       }
-      console.log('[TikTokWebhook] Verification challenge accepted');
-      return res.status(200).send(expected);
+      console.log('[TikTokWebhook] Verification accepted (no TIKTOK_APP_SECRET set — dev mode only)');
+      return res.sendStatus(200);
     }
-    // No secret set — accept during initial setup/testing
-    console.log('[TikTokWebhook] Verification accepted (no TIKTOK_APP_SECRET set)');
-    res.sendStatus(200);
+    if (!timestamp || !nonce) return res.sendStatus(403);
+    const sigStr = [nonce, timestamp].sort().join('\n');
+    const expected = crypto.createHmac('sha256', secret).update(sigStr).digest('hex');
+    if (client_token !== expected) {
+      console.warn('[TikTokWebhook] Verification failed — signature mismatch');
+      return res.sendStatus(403);
+    }
+    console.log('[TikTokWebhook] Verification challenge accepted');
+    return res.status(200).send(expected);
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -325,6 +329,10 @@ module.exports = (pool) => {
 
     try {
       const secret = process.env.TIKTOK_APP_SECRET;
+      if (!secret && process.env.NODE_ENV === 'production') {
+        console.error('[TikTokWebhook] TIKTOK_APP_SECRET not set in production — ignoring payload');
+        return;
+      }
       if (secret) {
         const sig = req.headers['x-tiktok-signature'];
         const ts = req.headers['x-tiktok-timestamp'] || '';

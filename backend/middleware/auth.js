@@ -8,13 +8,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
-  const queryToken = req.query.token;
-  
+
   let token;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.split(' ')[1];
-  } else if (queryToken) {
-    token = queryToken;
   } else {
     return res.status(401).json({ error: 'No authorization token provided' });
   }

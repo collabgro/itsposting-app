@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const { authenticate, verifyAdmin } = require('../middleware/auth');
@@ -699,7 +700,7 @@ module.exports = (pool) => {
         const thumbBuffer = await ImageResizer.generateThumbnail(file.buffer, 300, 400);
 
         // Upload both to Cloudinary
-        const publicId = `itsposting/stock-photos/${industry}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const publicId = `itsposting/stock-photos/${industry}/${crypto.randomBytes(16).toString('hex')}`;
         const [url, thumbnail_url] = await Promise.all([
           ImageResizer.uploadToCloudinary(masterBuffer, publicId),
           ImageResizer.uploadToCloudinary(thumbBuffer, publicId + '_thumb'),

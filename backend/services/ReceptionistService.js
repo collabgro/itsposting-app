@@ -49,18 +49,30 @@ class ReceptionistService {
     const currentMonth = new Date().getMonth() + 1;
     const seasonal = industryData.seasonalContent?.[currentMonth];
 
+    // Strip characters used in prompt injection and cap entry length
+    const sanitizeKb = (text, maxLen = 600) =>
+      typeof text === 'string' ? text.substring(0, maxLen).replace(/[<>`]/g, '').trim() : '';
+
     const servicesText = kb.services.slice(0, 15).map(s => {
-      try { const p = JSON.parse(s.content); return `- ${p.name || s.title}${p.priceRange ? ` (${p.priceRange})` : ''}`; }
-      catch { return `- ${s.title}`; }
+      try {
+        const p = JSON.parse(s.content);
+        const name = sanitizeKb(p.name || s.title);
+        const price = p.priceRange ? ` (${sanitizeKb(p.priceRange, 80)})` : '';
+        return `- ${name}${price}`;
+      }
+      catch { return `- ${sanitizeKb(s.title)}`; }
     }).join('\n');
 
     const faqText = kb.faqs.slice(0, 10).map(f => {
-      try { const p = JSON.parse(f.content); return `Q: ${p.q || f.title}\nA: ${p.a || ''}`; }
-      catch { return `Q: ${f.title}\nA: ${f.content}`; }
+      try {
+        const p = JSON.parse(f.content);
+        return `Q: ${sanitizeKb(p.q || f.title)}\nA: ${sanitizeKb(p.a || '', 400)}`;
+      }
+      catch { return `Q: ${sanitizeKb(f.title)}\nA: ${sanitizeKb(f.content, 400)}`; }
     }).join('\n\n');
 
-    const reviewsText = kb.reviews.slice(0, 5).map(r => `"${r.content}"`).join('\n');
-    const diffsText = kb.differentiators.slice(0, 3).map(d => d.content).join('\n');
+    const reviewsText = kb.reviews.slice(0, 5).map(r => `"${sanitizeKb(r.content, 300)}"`).join('\n');
+    const diffsText = kb.differentiators.slice(0, 3).map(d => sanitizeKb(d.content)).join('\n');
 
     const escalateKw = (config.escalate_keywords || HARD_ESCALATE_KEYWORDS).join(', ');
     const tone = config.tone || 'friendly';

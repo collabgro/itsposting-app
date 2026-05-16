@@ -146,6 +146,10 @@ module.exports = (pool) => {
       if (!req.files || req.files.length < 2)
         return res.status(400).json({ error: 'Carousel requires at least 2 files' });
 
+      const totalBytes = req.files.reduce((sum, f) => sum + f.size, 0);
+      if (totalBytes > 200 * 1024 * 1024)
+        return res.status(413).json({ error: 'Total upload size exceeds 200 MB' });
+
       const slides = await Promise.all(req.files.map(async (file, idx) => {
         const slideNumber = idx + 1;
         try {

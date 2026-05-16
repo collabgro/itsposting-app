@@ -45,7 +45,7 @@ module.exports = (pool) => {
         console.warn('[Auth] IP trial check skipped (table may not exist):', ipErr.message);
       }
 
-      const passwordHash = await bcrypt.hash(password, 10);
+      const passwordHash = await bcrypt.hash(password, 12);
 
       let parentCustomerId = null;
       if (parentRef) {
@@ -182,15 +182,17 @@ module.exports = (pool) => {
       const customer = await pool.query('SELECT id FROM customers WHERE email = $1', [email]);
 
       if (customer.rows.length > 0) {
-        const token = crypto.randomBytes(32).toString('hex');
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        // Store only the SHA-256 hash — raw token travels only in the email link
+        const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
         const expires = new Date(Date.now() + 60 * 60 * 1000);
 
         await pool.query(
           'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE email = $3',
-          [token, expires, email]
+          [hashedToken, expires, email]
         );
 
-        emailQueue.notifyPasswordReset(email, token);
+        emailQueue.notifyPasswordReset(email, rawToken);
       }
 
       res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
@@ -208,16 +210,17 @@ module.exports = (pool) => {
       if (!token || !newPassword) return res.status(400).json({ error: 'Token and new password required' });
       if (newPassword.length < 8) return res.status(400).json({ error: 'Password must be 8+ characters' });
 
+      const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
       const result = await pool.query(
         'SELECT id FROM customers WHERE password_reset_token = $1 AND password_reset_expires > NOW()',
-        [token]
+        [hashedToken]
       );
 
       if (result.rows.length === 0) {
         return res.status(400).json({ error: 'Invalid or expired reset token' });
       }
 
-      const hash = await bcrypt.hash(newPassword, 10);
+      const hash = await bcrypt.hash(newPassword, 12);
       await pool.query(
         'UPDATE customers SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL WHERE id = $2',
         [hash, result.rows[0].id]

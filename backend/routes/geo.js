@@ -56,27 +56,58 @@ module.exports = (pool) => {
         return res.status(409).json({ error: 'An audit is already running. Please wait for it to complete.', auditId: running.rows[0].id });
       }
 
+      // Use a serialised transaction with SELECT FOR UPDATE to prevent
+      // concurrent requests from both passing the credit balance check
+      // (race condition that would allow double-spending 5 credits).
       let isFree = false;
-      if (!billing.free_geo_audit_used) {
-        await pool.query('UPDATE customers SET free_geo_audit_used = true WHERE id = $1', [billingId]);
-        isFree = true;
-      } else {
-        if ((billing.credits_balance || 0) < 5) {
-          return res.status(402).json({ error: 'You need 5 credits to run a GEO Audit. Please purchase more credits or upgrade your plan.' });
-        }
-        await pool.query('UPDATE customers SET credits_balance = credits_balance - 5 WHERE id = $1', [billingId]);
-        await pool.query(
-          `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
-           VALUES ($1, 'usage', -5, $2, 'GEO Audit — AI visibility check')`,
-          [billingId, (billing.credits_balance || 0) - 5]
-        );
-      }
+      let audit;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
 
-      const { rows: [audit] } = await pool.query(
-        `INSERT INTO geo_audits (customer_id, industry, location, is_free, status, service_focus, known_competitors)
-         VALUES ($1, $2, $3, $4, 'running', $5, $6) RETURNING id`,
-        [customerId, customer.industry, location, isFree, serviceFocus, competitors]
-      );
+        const { rows: [billingLocked] } = await client.query(
+          'SELECT credits_balance, free_geo_audit_used FROM customers WHERE id = $1 FOR UPDATE',
+          [billingId]
+        );
+        if (!billingLocked) throw Object.assign(new Error('Billing account not found'), { status: 404 });
+
+        if (!billingLocked.free_geo_audit_used) {
+          await client.query('UPDATE customers SET free_geo_audit_used = true WHERE id = $1', [billingId]);
+          isFree = true;
+        } else {
+          if ((billingLocked.credits_balance || 0) < 5) {
+            throw Object.assign(
+              new Error('You need 5 credits to run a GEO Audit. Please purchase more credits or upgrade your plan.'),
+              { status: 402 }
+            );
+          }
+          await client.query(
+            'UPDATE customers SET credits_balance = credits_balance - 5 WHERE id = $1',
+            [billingId]
+          );
+          await client.query(
+            `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+             VALUES ($1, 'usage', -5, $2, 'GEO Audit — AI visibility check')`,
+            [billingId, (billingLocked.credits_balance || 0) - 5]
+          );
+        }
+
+        const { rows: [auditRow] } = await client.query(
+          `INSERT INTO geo_audits (customer_id, industry, location, is_free, status, service_focus, known_competitors)
+           VALUES ($1, $2, $3, $4, 'running', $5, $6) RETURNING id`,
+          [customerId, customer.industry, location, isFree, serviceFocus, competitors]
+        );
+        audit = auditRow;
+
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK');
+        if (txErr.status === 402) return res.status(402).json({ error: txErr.message });
+        if (txErr.status === 404) return res.status(404).json({ error: txErr.message });
+        throw txErr;
+      } finally {
+        client.release();
+      }
 
       // Merge body params into customer object for the audit
       const auditCustomer = { ...customer, business_name: businessName, location };
