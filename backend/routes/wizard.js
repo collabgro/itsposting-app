@@ -225,6 +225,13 @@ async function _refundCredits(pool, billingId, postId, amount) {
     console.log(`[Wizard] Refunded ${amount} credit(s) to customer ${billingId} for failed video post ${postId}`);
   } catch (refundErr) {
     console.error('[Wizard] Credit refund failed (manual review needed):', refundErr.message);
+    try {
+      await pool.query(
+        `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, description)
+         VALUES ($1, $2, 'refund_failed', $3, 'MANUAL REVIEW NEEDED: video generation failed but credit refund also failed')`,
+        [billingId, postId, amount]
+      );
+    } catch {}
   }
 }
 
@@ -1336,7 +1343,7 @@ module.exports = (pool) => {
   });
 
   // POST /api/wizard/quick — mobile quick post mode
-  router.post('/quick', authenticate, async (req, res) => {
+  router.post('/quick', authenticate, requireActiveAccount(pool), async (req, res) => {
     try {
       const { description, platform = 'facebook', tone = 'friendly' } = req.body;
 
@@ -1354,6 +1361,17 @@ module.exports = (pool) => {
       }
 
       const customer = customerResult.rows[0];
+
+      const billingId = getBillingCustomerId(req);
+      const creditRow = await pool.query(
+        'SELECT credits_balance FROM customers WHERE id = $1',
+        [billingId]
+      );
+      if (!creditRow.rows[0] || creditRow.rows[0].credits_balance < 1) {
+        return res.status(402).json({
+          error: 'Not enough credits. Quick posts cost 1 credit. Please upgrade your plan.',
+        });
+      }
 
       // Use SystemPromptBuilder for consistent quality
       const builder = new SystemPromptBuilder(customer, {
@@ -1378,6 +1396,12 @@ module.exports = (pool) => {
         .join('');
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
+
+      // Deduct 1 credit after successful generation
+      await pool.query(
+        'UPDATE customers SET credits_balance = credits_balance - 1 WHERE id = $1 AND credits_balance >= 1',
+        [billingId]
+      );
 
       // Extract from variation_a (SystemPromptBuilder format)
       res.json({
@@ -1410,6 +1434,17 @@ module.exports = (pool) => {
       );
       const customer = customerResult.rows[0];
 
+      const refreshBillingId = getBillingCustomerId(req);
+      const refreshCreditRow = await pool.query(
+        'SELECT credits_balance FROM customers WHERE id = $1',
+        [refreshBillingId]
+      );
+      if (!refreshCreditRow.rows[0] || refreshCreditRow.rows[0].credits_balance < 1) {
+        return res.status(402).json({
+          error: 'Not enough credits. Refreshing a variation costs 1 credit. Please upgrade your plan.',
+        });
+      }
+
       const angleInstructions = {
         shorter: 'Rewrite this post to be 30-40% shorter while keeping all the key information.',
         longer: 'Expand this post with more detail, context, and value — aim for 50% more content.',
@@ -1433,6 +1468,11 @@ module.exports = (pool) => {
       const rawText = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
+
+      await pool.query(
+        'UPDATE customers SET credits_balance = credits_balance - 1 WHERE id = $1 AND credits_balance >= 1',
+        [refreshBillingId]
+      );
 
       res.json({ success: true, caption: parsed.caption });
     } catch (err) {

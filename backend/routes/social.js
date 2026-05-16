@@ -546,6 +546,19 @@ module.exports = (pool) => {
       if (!postResult.rows[0]) return res.status(404).json({ error: 'Post not found' });
       const post = { ...postResult.rows[0], customer_id: req.customerId };
 
+      // Pre-validate that all requested platforms are connected for this customer
+      if (platforms?.length > 0) {
+        const connectedResult = await pool.query(
+          `SELECT platform FROM social_accounts WHERE customer_id = $1 AND platform = ANY($2::text[]) AND enabled = true`,
+          [req.customerId, platforms]
+        );
+        const connected = connectedResult.rows.map(r => r.platform);
+        const missing = platforms.filter(p => !connected.includes(p));
+        if (missing.length > 0) {
+          return res.status(422).json({ error: `Account not connected: ${missing.join(', ')}. Go to Settings → Social Accounts to connect them first.` });
+        }
+      }
+
       // Mark as publishing
       await pool.query(`UPDATE posts SET status = 'posting', updated_at = NOW() WHERE id = $1`, [postId]);
 

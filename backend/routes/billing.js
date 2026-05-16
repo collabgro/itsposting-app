@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, getBillingCustomerId } = require('../middleware/auth');
 const whop = require('../services/WhopService');
 const EmailQueue = require('../services/EmailQueue');
 const NotificationService = require('../services/NotificationService');
@@ -283,12 +283,13 @@ module.exports = (pool) => {
 
   router.get('/current', authenticate, async (req, res) => {
     try {
+      const billingId = getBillingCustomerId(req);
       const result = await pool.query(
         `SELECT plan, status, credits_balance, credits_used_this_month,
                 trial_ends_at, plan_changed_at, whop_membership_id,
                 billing_cycle, plan_expires_at, next_billing_date
          FROM customers WHERE id = $1`,
-        [req.customerId]
+        [billingId]
       );
       if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
       const customer = result.rows[0];

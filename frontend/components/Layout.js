@@ -85,7 +85,17 @@ export default function Layout({ children, title, subtitle, action }) {
         if (wsResult.status === 'fulfilled' && wsResult.value.data) setWsData(wsResult.value.data);
       })();
     }
-    return () => window.removeEventListener('resize', updateMobile);
+    const refreshCredits = async () => {
+      try {
+        const r = await authAPI.verify();
+        if (r.data?.customer) setUser(r.data.customer);
+      } catch {}
+    };
+    window.addEventListener('creditRefresh', refreshCredits);
+    return () => {
+      window.removeEventListener('resize', updateMobile);
+      window.removeEventListener('creditRefresh', refreshCredits);
+    };
   }, []);
 
   async function switchToWorkspace(wsId) {

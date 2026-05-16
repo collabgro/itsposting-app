@@ -199,10 +199,19 @@ module.exports = (pool) => {
 
       // Load customer + photo context
       const [{ rows: [customer] }, { rows: [photo] }] = await Promise.all([
-        pool.query('SELECT business_name, industry, location FROM customers WHERE id = $1', [req.customerId]),
+        pool.query('SELECT business_name, industry, location, brand_colors FROM customers WHERE id = $1', [req.customerId]),
         pool.query('SELECT title, description, industry, category, tags FROM stock_photos WHERE id = $1', [stockPhotoId]),
       ]);
       if (!photo) return res.status(404).json({ error: 'Stock photo not found' });
+
+      let brandColorHint = '';
+      if (customer?.brand_colors) {
+        try {
+          const bc = typeof customer.brand_colors === 'string' ? JSON.parse(customer.brand_colors) : customer.brand_colors;
+          const primary = bc.primary || bc.brand || bc.main;
+          if (primary) brandColorHint = `\nBrand primary color: ${primary} — prefer this for the overlay if it provides enough contrast.`;
+        } catch {}
+      }
 
       const systemPrompt = `You are PostCore, the AI advisor for ItsPosting — a social media platform for local trade businesses.
 The customer wants to create a social media graphic using a stock photo.
@@ -211,7 +220,7 @@ Your job is to format their request into clean, professional text overlay that g
 Business: ${customer?.business_name || 'Local Trade Business'}
 Industry: ${customer?.industry || photo.industry}
 Location: ${customer?.location || ''}
-Photo context: ${photo.title || ''} — category: ${photo.category}, tags: ${(photo.tags || []).join(', ')}
+Photo context: ${photo.title || ''} — category: ${photo.category}, tags: ${(photo.tags || []).join(', ')}${brandColorHint}
 
 Rules:
 - Title: maximum 8 words. Bold, punchy, scroll-stopping. This is the big text.
@@ -220,7 +229,7 @@ Rules:
 - Match the industry tone. A plumber sounds different from a landscaper.
 - Never use: "delve", "synergy", "leverage", "optimize", "utilize"
 - If the prompt is vague, use industry context to make it specific.
-- For overlay color, suggest a dark shade that contrasts with typical outdoor/trade photos.
+- For overlay color, prefer the customer's brand color if provided; otherwise suggest a dark shade that contrasts with typical outdoor/trade photos.
 
 Return ONLY valid JSON (no markdown fences):
 {

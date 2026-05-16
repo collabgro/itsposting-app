@@ -184,6 +184,7 @@ export default function PhotoStudio() {
   // ── Post modal state
   const [postModalOpen, setPostModalOpen] = useState(false);
   const [caption, setCaption] = useState('');
+  const [hashtags, setHashtags] = useState('');
   const [postPlatforms, setPostPlatforms] = useState(['facebook', 'instagram']);
   const [scheduleMode, setScheduleMode] = useState('draft');
   const [scheduledDate, setScheduledDate] = useState('');
@@ -298,7 +299,8 @@ export default function PhotoStudio() {
     if (!generatedId) return;
     setPosting(true); setError('');
     try {
-      await studioAPI.postCreation(generatedId, { caption, platforms: postPlatforms, scheduleMode, scheduledDate: scheduledDate || null });
+      const hashtagArr = hashtags.trim() ? hashtags.trim().split(/\s+/).map(h => h.startsWith('#') ? h : `#${h}`) : [];
+      await studioAPI.postCreation(generatedId, { caption, hashtags: hashtagArr, platforms: postPlatforms, scheduleMode, scheduledDate: scheduledDate || null });
       setPostModalOpen(false);
       setError('');
       alert(scheduleMode === 'now' ? 'Post published!' : scheduleMode === 'schedule' ? 'Post scheduled!' : 'Saved as draft!');
@@ -623,7 +625,12 @@ export default function PhotoStudio() {
             <label style={{ fontSize: 13, fontWeight: 600, color: t.text, display: 'block', marginBottom: 6 }}>Caption (optional)</label>
             <textarea value={caption} onChange={e => setCaption(e.target.value)} rows={3}
               placeholder="Add a caption for this post..."
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.inputBg || t.cardBg, color: t.text, fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', marginBottom: 16 }} />
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.inputBg || t.cardBg, color: t.text, fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', marginBottom: 12 }} />
+
+            <label style={{ fontSize: 13, fontWeight: 600, color: t.text, display: 'block', marginBottom: 6 }}>Hashtags (optional)</label>
+            <input type="text" value={hashtags} onChange={e => setHashtags(e.target.value)}
+              placeholder="#plumbing #local #austintx"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.inputBg || t.cardBg, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 16 }} />
 
             <label style={{ fontSize: 13, fontWeight: 600, color: t.text, display: 'block', marginBottom: 8 }}>Platforms</label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>

@@ -163,7 +163,7 @@ export default function Dashboard() {
             />
             <MetricCard t={t}
               label="Est. New Customers"
-              main={metrics ? `${metrics.estimatedNewCustomers.min}–${metrics.estimatedNewCustomers.max}` : '—'}
+              main={metrics?.estimatedNewCustomers ? `${metrics.estimatedNewCustomers.min}–${metrics.estimatedNewCustomers.max}` : '—'}
               sub={`Based on ${metrics ? 'industry' : '...'} averages`}
               disclaimer
             />

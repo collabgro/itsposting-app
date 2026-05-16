@@ -373,7 +373,7 @@ export default function Wizard() {
     if (quickPostResult) {
       try {
         const data = JSON.parse(quickPostResult);
-        if (data.result) {
+        if (data.result && (!data.timestamp || Date.now() - data.timestamp < 30 * 60 * 1000)) {
           setResults(data.result);
           setPlatform(data.platforms?.[0] || 'facebook');
           setTone(data.tone || 'friendly');
@@ -509,6 +509,7 @@ export default function Wizard() {
       setResults(genRes);
       setSelectedVariation('A');
       setStep('results');
+      window.dispatchEvent(new Event('creditRefresh'));
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
       setStep(6); // stay on platform step so the error banner is visible

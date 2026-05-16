@@ -11,7 +11,7 @@ module.exports = (pool) => {
    */
   router.get('/', authenticate, async (req, res) => {
     try {
-      const { status, platform, contentType, limit = 50, offset = 0 } = req.query;
+      const { status, platform, contentType, search, limit = 50, offset = 0 } = req.query;
 
       let query = 'SELECT * FROM posts WHERE customer_id = $1';
       const params = [req.customerId];
@@ -33,6 +33,12 @@ module.exports = (pool) => {
         paramCount++;
         query += ` AND content_type = $${paramCount}`;
         params.push(contentType);
+      }
+
+      if (search?.trim()) {
+        paramCount++;
+        query += ` AND caption ILIKE $${paramCount}`;
+        params.push(`%${search.trim()}%`);
       }
 
       query += ` ORDER BY scheduled_date DESC NULLS LAST, created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;

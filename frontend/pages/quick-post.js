@@ -179,6 +179,7 @@ export default function QuickPost() {
       setResult(data);
       setEditedCaption(data.variations?.a?.caption || data.caption || '');
       showToast('Post ready — choose a version below', 'success');
+      window.dispatchEvent(new Event('creditRefresh'));
     } catch (err) {
       setError(err.message || 'Something went wrong — please try again');
     } finally {
@@ -198,7 +199,18 @@ export default function QuickPost() {
     router.push('/upload?from=quick-post');
   };
   const handleOpenWizard = () => {
-    sessionStorage.setItem('quickPostResult', JSON.stringify({ result, platforms: selectedPlats, tone, prompt: JOB_TYPES.find(j => j.id === jobType)?.prompt || '' }));
+    const wizardResult = {
+      variations: {
+        a: {
+          caption: result?.caption || '',
+          hashtags: result?.hashtags || [],
+          imagePrompt: result?.imagePrompt || '',
+          engagementQuestion: result?.engagementQuestion || '',
+        },
+      },
+      fromQuickPost: true,
+    };
+    sessionStorage.setItem('quickPostResult', JSON.stringify({ result: wizardResult, platforms: selectedPlats, tone, prompt: JOB_TYPES.find(j => j.id === jobType)?.prompt || '', timestamp: Date.now() }));
     router.push('/wizard?from=quick-post');
   };
   const handleCopy = () => {

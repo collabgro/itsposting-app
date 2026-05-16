@@ -448,7 +448,10 @@ export default function ContentCreatorModal({
                 {generatedContent.hashtags?.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
                     {generatedContent.hashtags.map(tag => (
-                      <span key={tag} style={{ padding: '6px 10px', borderRadius: 999, background: t.primaryBg, color: t.primary, fontSize: 12 }}>{tag.startsWith('#') ? tag : `#${tag}`}</span>
+                      <span key={tag} onClick={() => removeHashtag(tag)} title="Click to remove" style={{ padding: '4px 10px', borderRadius: 999, background: t.primaryBg, color: t.primary, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', userSelect: 'none' }}>
+                        {tag.startsWith('#') ? tag : `#${tag}`}
+                        <span style={{ fontSize: 14, lineHeight: 1, opacity: 0.55 }}>×</span>
+                      </span>
                     ))}
                   </div>
                 )}
