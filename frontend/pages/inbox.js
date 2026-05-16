@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
-import { dmsAPI, receptionistAPI } from '../lib/api';
+import { dmsAPI, receptionistAPI, authAPI } from '../lib/api';
 import {
-  IpInbox, IpFacebook, IpInstagram, IpRefresh, IpSend, IpSparkle,
+  IpInbox, IpFacebook, IpInstagram, IpLinkedIn, IpTikTok, IpRefresh, IpSend, IpSparkle,
   IpClose, IpWarning, IpPlus, IpDelete, IpEdit, IpCheck, IpSave, IpZap,
   IpChevronRight, IpReview, IpArrowLeft, IpSchedule,
 } from '../components/icons';
@@ -19,17 +19,24 @@ function timeAgo(date) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function PlatformBadge({ platform, t }) {
-  const isIG = platform === 'instagram';
+const PLATFORM_META = {
+  facebook:  { color: '#1877F2', bg: 'rgba(24,119,242,0.12)',  Icon: IpFacebook,  label: 'Facebook' },
+  instagram: { color: '#E1306C', bg: 'rgba(225,48,108,0.12)', Icon: IpInstagram, label: 'Instagram' },
+  linkedin:  { color: '#0A66C2', bg: 'rgba(10,102,194,0.12)', Icon: IpLinkedIn,  label: 'LinkedIn' },
+  tiktok:    { color: '#010101', bg: 'rgba(1,1,1,0.08)',       Icon: IpTikTok,    label: 'TikTok' },
+};
+
+function PlatformBadge({ platform }) {
+  const meta = PLATFORM_META[platform] || PLATFORM_META.facebook;
+  const { color, bg, Icon, label } = meta;
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 3,
       padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600,
-      background: isIG ? 'rgba(225,48,108,0.12)' : 'rgba(24,119,242,0.12)',
-      color: isIG ? '#E1306C' : '#1877F2',
+      background: bg, color,
     }}>
-      {isIG ? <IpInstagram size={10} /> : <IpFacebook size={10} />}
-      {isIG ? 'Instagram' : 'Facebook'}
+      <Icon size={10} />
+      {label}
     </span>
   );
 }
@@ -61,7 +68,7 @@ export default function InboxPage() {
   const { t } = useTheme();
 
   const [conversations, setConversations] = useState([]);
-  const [stats, setStats] = useState({ unreadCount: 0, openCount: 0, facebookCount: 0, instagramCount: 0 });
+  const [stats, setStats] = useState({ unreadCount: 0, openCount: 0, facebookCount: 0, instagramCount: 0, linkedinCount: 0, tiktokCount: 0 });
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -89,10 +96,16 @@ export default function InboxPage() {
   const [showLeadsDropdown, setShowLeadsDropdown] = useState(false);
   const [movingToLeads, setMovingToLeads] = useState(false);
   const [leadsToast, setLeadsToast] = useState('');
+  const [user, setUser] = useState(null);
 
   const threadEndRef = useRef(null);
 
-  useEffect(() => { loadStats(); loadConversations(); loadReceptionistInfo(); }, []);
+  useEffect(() => {
+    loadStats();
+    loadConversations();
+    loadReceptionistInfo();
+    authAPI.verify().then(r => setUser(r.data.customer)).catch(() => {});
+  }, []);
   useEffect(() => { loadConversations(); }, [filter]);
 
   useEffect(() => {
@@ -137,6 +150,8 @@ export default function InboxPage() {
       const params = { limit: 30 };
       if (filter === 'facebook') params.platform = 'facebook';
       if (filter === 'instagram') params.platform = 'instagram';
+      if (filter === 'linkedin') params.platform = 'linkedin';
+      if (filter === 'tiktok') params.platform = 'tiktok';
       if (filter === 'unread') params.unread = 'true';
       if (filter === 'starred') params.starred = 'true';
       const res = await dmsAPI.list(params);
@@ -328,6 +343,8 @@ export default function InboxPage() {
     { key: 'unread', label: 'Unread', count: stats.unreadCount },
     { key: 'facebook', label: 'Facebook', count: stats.facebookCount },
     { key: 'instagram', label: 'Instagram', count: stats.instagramCount },
+    { key: 'linkedin', label: 'LinkedIn', count: stats.linkedinCount },
+    { key: 'tiktok', label: 'TikTok', count: stats.tiktokCount, lab: true },
     { key: 'starred', label: 'Starred' },
   ];
 
@@ -335,7 +352,7 @@ export default function InboxPage() {
   const windowClosed = selected && selected.messaging_window_status === 'closed';
 
   return (
-    <Layout title="Inbox" subtitle="Your Facebook & Instagram DMs in one place">
+    <Layout title="Inbox" subtitle="Your Facebook, Instagram, LinkedIn & TikTok DMs in one place">
       <div style={{ display: 'flex', height: 'calc(100vh - 128px)', gap: 0, borderRadius: 12, overflow: 'hidden', border: `1px solid ${t.border}` }}>
 
         {/* ── LEFT PANEL: Conversation List ── */}
@@ -446,27 +463,55 @@ export default function InboxPage() {
 
             {/* Filter tabs */}
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              {FILTERS.map(f => (
+              {FILTERS.map(f => {
+                const isLabLocked = f.lab && user !== null && !user.is_admin;
+                return (
                 <button
                   key={f.key}
-                  onClick={() => setFilter(f.key)}
+                  onClick={() => { if (isLabLocked) return; setFilter(f.key); }}
                   style={{
                     padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: filter === f.key ? 600 : 400,
                     background: filter === f.key ? t.primaryBg : 'transparent',
                     color: filter === f.key ? t.primary : t.textMuted,
                     border: filter === f.key ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
-                    cursor: 'pointer',
+                    cursor: isLabLocked ? 'default' : 'pointer',
+                    opacity: isLabLocked ? 0.6 : 1,
                   }}
                 >
                   {f.label}{f.count > 0 ? ` (${f.count})` : ''}
+                  {f.lab && (
+                    <span style={{
+                      fontSize: 8, fontWeight: 700, letterSpacing: 0.3,
+                      padding: '1px 4px', borderRadius: 3, marginLeft: 4,
+                      background: 'rgba(234,179,8,0.15)', color: '#ca8a04',
+                      verticalAlign: 'middle',
+                    }}>LAB</span>
+                  )}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           {/* Conversation list */}
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {loading ? (
+            {filter === 'tiktok' && user !== null && !user.is_admin ? (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', height: '100%', padding: 32, textAlign: 'center', gap: 12,
+              }}>
+                <IpTikTok size={40} style={{ color: t.textMuted, opacity: 0.25 }} />
+                <div style={{ fontWeight: 700, fontSize: 13, color: t.text }}>TikTok DM — Early Access</div>
+                <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.6, maxWidth: 220 }}>
+                  This feature is currently being tested by our team. It will be available to all customers soon.
+                </div>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+                  padding: '3px 8px', borderRadius: 4,
+                  background: 'rgba(234,179,8,0.15)', color: '#ca8a04',
+                }}>LAB FEATURE</span>
+              </div>
+            ) : loading ? (
               <div style={{ padding: 24, textAlign: 'center', color: t.textMuted, fontSize: 13 }}>Loading…</div>
             ) : conversations.length === 0 ? (
               <div style={{ padding: 32, textAlign: 'center' }}>
@@ -506,7 +551,7 @@ export default function InboxPage() {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                          <PlatformBadge platform={conv.platform} t={t} />
+                          <PlatformBadge platform={conv.platform} />
                           {conv.urgency === 'urgent' && (
                             <span style={{ fontSize: 10, color: t.error, fontWeight: 600 }}>URGENT</span>
                           )}
@@ -571,7 +616,7 @@ export default function InboxPage() {
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{selected.sender_name || 'Unknown'}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <PlatformBadge platform={selected.platform} t={t} />
+                      <PlatformBadge platform={selected.platform} />
                       <WindowStatus conv={selected} t={t} />
                     </div>
                   </div>

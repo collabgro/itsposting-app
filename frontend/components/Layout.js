@@ -9,8 +9,9 @@ import {
   IpPhotoStudio, IpWarning,
 } from './icons';
 import { useTheme } from '../lib/theme';
-import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
+import { authAPI, customerAPI, dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
 import NotificationBell from './NotificationBell';
+import { ConfirmModal } from './ui';
 
 const NAV_ITEMS = [
   { name: 'Dashboard',   href: '/dashboard',  icon: IpDashboard },
@@ -47,6 +48,13 @@ export default function Layout({ children, title, subtitle, action }) {
   const [wsDropdownOpen, setWsDropdownOpen] = useState(false);
   const [switchingWs, setSwitchingWs] = useState(null);
   const [impersonatingAs, setImpersonatingAs] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
+  const [inviteError, setInviteError] = useState('');
 
   useEffect(() => {
     const updateMobile = () => setIsMobile(window.innerWidth < 900);
@@ -107,6 +115,21 @@ export default function Layout({ children, title, subtitle, action }) {
   const handleLogout = () => {
     localStorage.removeItem('token');
     router.push('/login');
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    setInviteSending(true);
+    setInviteError('');
+    try {
+      await customerAPI.invite({ email: inviteEmail.trim() });
+      setInviteSent(true);
+      setTimeout(() => { setShowInviteModal(false); setInviteSent(false); setInviteEmail(''); }, 3000);
+    } catch (err) {
+      setInviteError(err.response?.data?.error || 'Failed to send invite');
+    } finally {
+      setInviteSending(false);
+    }
   };
 
   const exitImpersonation = () => {
@@ -190,8 +213,10 @@ export default function Layout({ children, title, subtitle, action }) {
               onClick={() => setWsDropdownOpen((v) => !v)}
               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8, background: t.card, border: `1px solid ${wsDropdownOpen ? t.primaryBorder : t.border}`, cursor: 'pointer', transition: 'border-color 150ms' }}
             >
-              <div style={{ width: 32, height: 32, borderRadius: 6, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff', flexShrink: 0 }}>
-                {(user.business_name || 'W').charAt(0).toUpperCase()}
+              <div style={{ width: 32, height: 32, borderRadius: 6, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                {(user.favicon_url || user.logo_url)
+                  ? <img src={user.favicon_url || user.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : (user.business_name || 'W').charAt(0).toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.business_name || 'Workspace'}</div>
@@ -234,8 +259,10 @@ export default function Layout({ children, title, subtitle, action }) {
                     onMouseEnter={(e) => { if (wsData.mainAccount.id !== user.id) e.currentTarget.style.background = t.cardHover; }}
                     onMouseLeave={(e) => { if (wsData.mainAccount.id !== user.id) e.currentTarget.style.background = 'transparent'; }}
                   >
-                    <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #FB923C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                      {(wsData.mainAccount.business_name || 'M').charAt(0).toUpperCase()}
+                    <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #FB923C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                      {(wsData.mainAccount.favicon_url || wsData.mainAccount.logo_url)
+                        ? <img src={wsData.mainAccount.favicon_url || wsData.mainAccount.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : (wsData.mainAccount.business_name || 'M').charAt(0).toUpperCase()}
                     </div>
                     <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wsData.mainAccount.business_name}</div>
@@ -266,8 +293,10 @@ export default function Layout({ children, title, subtitle, action }) {
                     onMouseEnter={(e) => { if (ws.id !== user.id) e.currentTarget.style.background = t.cardHover; }}
                     onMouseLeave={(e) => { if (ws.id !== user.id) e.currentTarget.style.background = 'transparent'; }}
                   >
-                    <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                      {(ws.workspace_display_name || ws.business_name || 'W').charAt(0).toUpperCase()}
+                    <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                      {(ws.favicon_url || ws.logo_url)
+                        ? <img src={ws.favicon_url || ws.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : (ws.workspace_display_name || ws.business_name || 'W').charAt(0).toUpperCase()}
                     </div>
                     <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.workspace_display_name || ws.business_name}</div>
@@ -380,7 +409,7 @@ export default function Layout({ children, title, subtitle, action }) {
           {isMobile && user && (
             <div style={{ padding: '8px 2px', borderTop: `1px solid ${t.border}`, marginTop: 8 }}>
               <button
-                onClick={handleLogout}
+                onClick={() => { setMobileNavOpen(false); setShowLogoutConfirm(true); }}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, color: t.textMuted, background: 'transparent', border: '1px solid transparent', cursor: 'pointer', transition: 'all 150ms ease' }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#ef4444'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted; }}
@@ -405,39 +434,81 @@ export default function Layout({ children, title, subtitle, action }) {
           </div>
         )}
 
-        {/* USER PROFILE */}
+        {/* USER PROFILE — clickable, opens popup */}
         {!isMobile && user && (
-          <div style={{ padding: '12px 12px 0', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8 }}>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #FB923C 0%, #F97316 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, color: '#fff', flexShrink: 0 }}>
-                {(user.business_name || user.email || 'U').charAt(0).toUpperCase()}
+          <div style={{ padding: '12px', borderTop: `1px solid ${t.border}`, flexShrink: 0, position: 'relative' }}>
+            {/* Profile popup backdrop */}
+            {showProfilePopup && (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setShowProfilePopup(false)} />
+            )}
+            {/* Profile popup card */}
+            {showProfilePopup && (
+              <div style={{
+                position: 'absolute', bottom: 'calc(100% + 8px)', left: 12, right: 12,
+                background: t.card, border: `1px solid ${t.border}`, borderRadius: 12,
+                boxShadow: '0 -8px 32px rgba(0,0,0,0.2)', zIndex: 200, overflow: 'hidden',
+              }}>
+                {/* Header */}
+                <div style={{ padding: '14px 16px', background: t.input, borderBottom: `1px solid ${t.border}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 8, background: 'linear-gradient(135deg, #FB923C 0%, #F97316 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                      {user.logo_url
+                        ? <img src={user.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : (user.business_name || user.email || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.business_name || 'User'}</div>
+                      <div style={{ fontSize: 11, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                    <span style={{ fontSize: 11, color: t.textMuted, textTransform: 'capitalize' }}>{user.plan || 'trial'} plan</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: t.primary }}>{user.credits_balance ?? 0} credits</span>
+                  </div>
+                </div>
+                {/* Actions */}
+                {[
+                  { label: 'Edit Settings', icon: IpSettings, onClick: () => { setShowProfilePopup(false); router.push('/settings'); } },
+                  { label: 'Billing & Plan', icon: IpBilling, onClick: () => { setShowProfilePopup(false); router.push('/billing'); } },
+                  { label: 'Workspaces', icon: IpTeam, onClick: () => { setShowProfilePopup(false); router.push('/workspaces'); } },
+                  { label: 'Invite someone', icon: IpPlus, onClick: () => { setShowProfilePopup(false); setShowInviteModal(true); } },
+                ].map(({ label, icon: Icon, onClick }) => (
+                  <button key={label} onClick={onClick}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', color: t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', textAlign: 'left', transition: 'background 150ms' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <Icon size={15} color={t.textMuted} /> {label}
+                  </button>
+                ))}
+                <div style={{ borderTop: `1px solid ${t.border}` }} />
+                <button
+                  onClick={() => { setShowProfilePopup(false); setShowLogoutConfirm(true); }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', color: '#ef4444', fontSize: 13, fontWeight: 500, cursor: 'pointer', textAlign: 'left', transition: 'background 150ms' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <IpLogout size={15} color="#ef4444" /> Log out
+                </button>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+            )}
+            {/* Clickable avatar row */}
+            <button
+              onClick={() => { setWsDropdownOpen(false); setShowProfilePopup(v => !v); }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8, background: showProfilePopup ? t.cardHover : 'transparent', border: 'none', cursor: 'pointer', transition: 'background 150ms' }}
+              onMouseEnter={(e) => { if (!showProfilePopup) e.currentTarget.style.background = t.cardHover; }}
+              onMouseLeave={(e) => { if (!showProfilePopup) e.currentTarget.style.background = 'transparent'; }}
+            >
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #FB923C 0%, #F97316 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                {user.logo_url
+                  ? <img src={user.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : (user.business_name || user.email || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.business_name || 'User'}</div>
                 <div style={{ fontSize: 11, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
               </div>
-            </div>
-            {user?.status !== 'trial' && (
-              <Link
-                href="/billing"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', marginTop: 6, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, color: t.primary, fontSize: 12, fontWeight: 600, textDecoration: 'none', transition: 'all 150ms ease' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = t.primary; e.currentTarget.style.color = '#fff'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.color = t.primary; }}
-              >
-                <IpBilling size={13} color="url(#brand-gradient)" /> Upgrade Plan
-              </Link>
-            )}
-          </div>
-        )}
-        {!isMobile && hasToken && (
-          <div style={{ padding: user ? '6px 12px 12px' : '12px 12px 12px', borderTop: user ? 'none' : `1px solid ${t.border}`, flexShrink: 0 }}>
-            <button
-              onClick={handleLogout}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 14px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.textMuted, fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 150ms ease' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#ef4444'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted; e.currentTarget.style.borderColor = t.border; }}
-            >
-              <IpLogout size={13} /> Log out
+              <IpChevronsUpDown size={14} color={t.textMuted} style={{ flexShrink: 0 }} />
             </button>
           </div>
         )}
@@ -511,6 +582,67 @@ export default function Layout({ children, title, subtitle, action }) {
           overflowX: 'hidden',
         }}>{children}</div>
       </main>
+
+      {/* LOGOUT CONFIRMATION */}
+      {showLogoutConfirm && (
+        <ConfirmModal
+          title="Log out?"
+          message="You'll need to sign in again to access your account."
+          confirmLabel="Log out"
+          confirmVariant="danger"
+          onConfirm={handleLogout}
+          onCancel={() => setShowLogoutConfirm(false)}
+        />
+      )}
+
+      {/* INVITE MODAL */}
+      {showInviteModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.32)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: t.text }}>Invite someone</h2>
+              <button onClick={() => { setShowInviteModal(false); setInviteEmail(''); setInviteSent(false); setInviteError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: 4 }}>
+                <IpClose size={18} />
+              </button>
+            </div>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: t.textMuted, lineHeight: 1.6 }}>
+              They'll receive a signup link. Once registered, they'll appear as a workspace member.
+            </p>
+            {inviteSent ? (
+              <div style={{ padding: '14px 16px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, color: '#22c55e', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
+                Invite sent to {inviteEmail}
+              </div>
+            ) : (
+              <>
+                <input
+                  type="email"
+                  placeholder="colleague@example.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendInvite()}
+                  style={{ width: '100%', padding: '11px 14px', boxSizing: 'border-box', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 14, outline: 'none', marginBottom: 12 }}
+                />
+                {inviteError && <p style={{ margin: '0 0 10px', fontSize: 12, color: '#ef4444' }}>{inviteError}</p>}
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={handleSendInvite}
+                    disabled={inviteSending || !inviteEmail.trim()}
+                    style={{ flex: 1, padding: '11px 0', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: inviteSending || !inviteEmail.trim() ? 'not-allowed' : 'pointer', opacity: inviteSending || !inviteEmail.trim() ? 0.6 : 1 }}
+                  >
+                    {inviteSending ? 'Sending…' : 'Send invite'}
+                  </button>
+                  <button
+                    onClick={() => router.push('/workspaces')}
+                    style={{ padding: '11px 16px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Workspaces
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

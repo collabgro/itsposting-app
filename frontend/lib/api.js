@@ -37,12 +37,17 @@ export const customerAPI = {
   getProfile: () => api.get('/api/customers/profile'),
   updateProfile: (data) => api.patch('/api/customers/profile', data),
   getSocialAccounts: () => api.get('/api/customers/social-accounts'),
+  invite: (data) => api.post('/api/customers/invite', data),
+  uploadAsset: (formData) => api.post('/api/customers/upload-asset', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
 };
 
 export const socialAPI = {
   getAccounts: () => api.get('/api/social/accounts'),
   getStatus: () => api.get('/api/social/status'),
   getConnectUrl: (platform) => `/api/social/connect/${platform}`,
+  getOAuthUrl: (platform) => api.get(`/api/social/connect-url/${platform}`),
   connectManual: (platform, data) => api.post('/api/social/connect/manual', { platform, ...data }),
   updateAccount: (id, data) => api.patch(`/api/social/accounts/${id}`, data),
   disconnect: (platform) => api.delete(`/api/social/accounts/${platform}`),
@@ -271,6 +276,10 @@ export const studioAPI = {
 export const receptionistAPI = {
   getConfig: () => api.get('/api/receptionist/config'),
   saveConfig: (data) => api.post('/api/receptionist/config', data),
+  testTwilio: (data) => api.post('/api/receptionist/test-twilio', data),
+  testMailgun: (data) => api.post('/api/receptionist/test-mailgun', data),
+  testCalcom: (data) => api.post('/api/receptionist/test-calcom', data),
+  testWhatsapp: (data) => api.post('/api/receptionist/test-whatsapp', data),
   getConversations: (params) => api.get('/api/receptionist/conversations', { params }),
   getStats: () => api.get('/api/receptionist/stats'),
   test: (message) => api.post('/api/receptionist/test', { message }),

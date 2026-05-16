@@ -1,9 +1,31 @@
 const express = require('express');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
 const { authenticate } = require('../middleware/auth');
+const EmailService = require('../services/EmailService');
 
+const storage = multer.memoryStorage();
+const uploadAssetMiddleware = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  },
+});
+
+const emailService = new EmailService();
 
 module.exports = (pool) => {
   const router = express.Router();
+
+  if (process.env.CLOUDINARY_CLOUD_NAME) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+  }
 
   /**
    * GET /api/customers/profile
@@ -12,7 +34,7 @@ module.exports = (pool) => {
     try {
       const result = await pool.query(
         `SELECT id, email, business_name, industry, location, phone, website,
-                logo_url, brand_colors, visual_style, tone, avatar_id, voice_id,
+                logo_url, favicon_url, brand_colors, visual_style, tone, avatar_id, voice_id,
                 preferred_image_provider, plan, status, credits_balance,
                 credits_used_this_month, trial_ends_at, auto_post_enabled,
                 auto_post_frequency, posting_times, timezone,
@@ -66,9 +88,10 @@ module.exports = (pool) => {
         autoPostFrequency,
         postingTimes,
         timezone,
+        logoUrl,
+        faviconUrl,
       } = req.body;
 
-      // Input length validation
       const MAX_LENGTHS = { businessName: 100, location: 200, phone: 30, website: 500, tone: 50, visualStyle: 100 };
       for (const [field, max] of Object.entries(MAX_LENGTHS)) {
         const val = req.body[field];
@@ -94,8 +117,10 @@ module.exports = (pool) => {
           auto_post_frequency = COALESCE($13, auto_post_frequency),
           posting_times = COALESCE($14, posting_times),
           timezone = COALESCE($15, timezone),
+          logo_url = CASE WHEN $16::text IS NOT NULL THEN $16::text ELSE logo_url END,
+          favicon_url = CASE WHEN $17::text IS NOT NULL THEN $17::text ELSE favicon_url END,
           updated_at = NOW()
-        WHERE id = $16
+        WHERE id = $18
         RETURNING *`,
         [
           businessName, industry, location, phone, website,
@@ -103,7 +128,10 @@ module.exports = (pool) => {
           visualStyle, tone, avatarId, voiceId, preferredImageProvider,
           autoPostEnabled, autoPostFrequency,
           postingTimes ? JSON.stringify(postingTimes) : null,
-          timezone, req.customerId
+          timezone,
+          logoUrl !== undefined ? logoUrl : null,
+          faviconUrl !== undefined ? faviconUrl : null,
+          req.customerId,
         ]
       );
 
@@ -112,6 +140,77 @@ module.exports = (pool) => {
       res.json(customer);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/customers/upload-asset
+   * Uploads a brand asset (logo or favicon) to Cloudinary.
+   * Does NOT write to media_library.
+   */
+  router.post('/upload-asset', authenticate, uploadAssetMiddleware.single('asset'), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+      const url = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          {
+            resource_type: 'image',
+            folder: `itsposting/brand-assets/${req.customerId}`,
+            quality: 'auto:best',
+            fetch_format: 'auto',
+          },
+          (err, result) => (err ? reject(err) : resolve(result.secure_url))
+        ).end(req.file.buffer);
+      });
+
+      res.json({ url });
+    } catch (error) {
+      console.error('[customers] upload-asset error:', error.message);
+      res.status(500).json({ error: 'Upload failed: ' + error.message });
+    }
+  });
+
+  /**
+   * POST /api/customers/invite
+   * Sends a signup invitation email. Invitee's account will be linked
+   * as a workspace sub-account via the ?ref= query param on the signup page.
+   */
+  router.post('/invite', authenticate, async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email?.trim()) return res.status(400).json({ error: 'Email is required' });
+
+      const customerRes = await pool.query(
+        'SELECT business_name FROM customers WHERE id = $1',
+        [req.customerId]
+      );
+      const bizName = customerRes.rows[0]?.business_name || 'A business';
+      const frontendUrl = process.env.FRONTEND_URL || 'https://app.itsposting.com';
+      const link = `${frontendUrl}/signup?ref=${req.customerId}&email=${encodeURIComponent(email.trim())}`;
+
+      await emailService.send({
+        to: email.trim(),
+        subject: `You've been invited to join ${bizName} on ItsPosting`,
+        html: `
+          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:540px;margin:40px auto;background:#16161D;border:1px solid #26262F;border-radius:12px;overflow:hidden">
+            <div style="padding:28px 32px;background:linear-gradient(135deg,#7C5CFC 0%,#5B3FF0 100%)">
+              <h1 style="margin:0;font-size:22px;font-weight:700;color:#fff">ItsPosting</h1>
+              <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.7)">AI Social Media Automation</p>
+            </div>
+            <div style="padding:28px 32px">
+              <p style="font-size:14px;line-height:1.7;color:#A0A0B0;margin:0 0 16px"><strong style="color:#E2E2E8">${bizName}</strong> has invited you to help manage their social media on ItsPosting.</p>
+              <a href="${link}" style="display:inline-block;margin:20px 0;padding:12px 24px;background:#7C5CFC;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">Accept invitation →</a>
+              <p style="font-size:12px;color:#555;margin:16px 0 0">This link pre-fills your email. You choose your own password. Once registered, you'll appear as a workspace member under ${bizName}.</p>
+            </div>
+          </div>`,
+        text: `${bizName} has invited you to join ItsPosting. Sign up here: ${link}`,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[customers] invite error:', error.message);
+      res.status(500).json({ error: 'Failed to send invite' });
     }
   });
 

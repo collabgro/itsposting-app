@@ -30,11 +30,18 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState(null);
   const [formData, setFormData] = useState({ businessName: '', industry: '', location: '', email: '', password: '' });
+  const [parentRef, setParentRef] = useState('');
 
   useEffect(() => {
     setMounted(true);
     setTimeout(() => setVisible(true), 80);
   }, []);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query.ref) setParentRef(router.query.ref);
+    if (router.query.email) setFormData(prev => ({ ...prev, email: router.query.email }));
+  }, [router.isReady, router.query.ref, router.query.email]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,7 +55,9 @@ export default function Signup() {
     setError('');
     try {
       const industryValue = INDUSTRIES.find(i => i.label === formData.industry)?.value || 'general_contractor';
-      const { data } = await authAPI.register({ email: formData.email, password: formData.password, businessName: formData.businessName, industry: industryValue, location: formData.location });
+      const payload = { email: formData.email, password: formData.password, businessName: formData.businessName, industry: industryValue, location: formData.location };
+      if (parentRef) payload.parentRef = parentRef;
+      const { data } = await authAPI.register(payload);
       localStorage.setItem('token', data.token);
       localStorage.setItem('ip_onboard_name', formData.businessName);
       router.push('/welcome');

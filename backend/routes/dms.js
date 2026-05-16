@@ -47,6 +47,8 @@ module.exports = function dmsRoutes(pool) {
           COUNT(*) FILTER (WHERE status = 'open') AS open_count,
           COUNT(*) FILTER (WHERE platform = 'facebook') AS facebook_count,
           COUNT(*) FILTER (WHERE platform = 'instagram') AS instagram_count,
+          COUNT(*) FILTER (WHERE platform = 'linkedin') AS linkedin_count,
+          COUNT(*) FILTER (WHERE platform = 'tiktok') AS tiktok_count,
           COUNT(*) FILTER (WHERE urgency = 'urgent') AS urgent_count
          FROM dm_conversations
          WHERE customer_id = $1`,
@@ -64,6 +66,8 @@ module.exports = function dmsRoutes(pool) {
         openCount: parseInt(result.rows[0]?.open_count || 0),
         facebookCount: parseInt(result.rows[0]?.facebook_count || 0),
         instagramCount: parseInt(result.rows[0]?.instagram_count || 0),
+        linkedinCount: parseInt(result.rows[0]?.linkedin_count || 0),
+        tiktokCount: parseInt(result.rows[0]?.tiktok_count || 0),
         urgentCount: parseInt(result.rows[0]?.urgent_count || 0),
         lastSync: syncResult.rows,
       });

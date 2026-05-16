@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpSave, IpCredits, IpPalette, IpGlobe, IpDelete, IpClose, IpWarning,
@@ -8,7 +8,8 @@ import {
 import Layout from '../components/Layout';
 import { Card, Button, Input, Badge, SectionHeader, Spinner, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { customerAPI, contentAPI, socialAPI, scraperAPI, receptionistAPI } from '../lib/api';
+import { customerAPI, contentAPI, socialAPI, scraperAPI, receptionistAPI, dmsAPI } from '../lib/api';
+import IntegrationSetupWizard from '../components/IntegrationSetupWizard';
 
 const TIMEZONES = [
   { value: 'America/New_York',    label: 'Eastern Time (ET)',    offset: 'UTC-5/4'   },
@@ -111,11 +112,12 @@ const PLATFORM_CONFIG = {
     tokenHelp: {
       title: 'How to get your Facebook Page Token:',
       steps: [
-        { text: 'Go to ', link: { url: 'https://developers.facebook.com/tools/explorer', label: 'Facebook Graph API Explorer' } },
-        { text: 'Select your Facebook App from the dropdown' },
-        { text: 'Click "Generate Access Token" and select your Page' },
-        { text: 'Grant all requested permissions' },
+        { text: 'Go to ', link: { url: 'https://developers.facebook.com/apps/creation/', label: 'Facebook Developers' }, suffix: ' → Create App → Business type (required first step)' },
+        { text: 'In your app, click Add Product → Facebook Login → Set Up' },
+        { text: 'Go to ', link: { url: 'https://developers.facebook.com/tools/explorer/', label: 'Graph API Explorer' }, suffix: ' → select your App → Page Access Token' },
+        { text: 'Add permissions: pages_manage_posts, pages_read_engagement, pages_messaging → Generate' },
         { text: 'Copy the Page Access Token and paste below' },
+        { text: 'Note: pages_manage_posts and pages_messaging (required for Inbox DMs) require Facebook App Review for non-developer accounts' },
       ],
       pageIdLabel: 'Page ID',
       pageIdHelp: 'Found in your Facebook Page settings → About → Page ID',
@@ -131,7 +133,7 @@ const PLATFORM_CONFIG = {
       steps: [
         { text: 'Go to ', link: { url: 'https://developers.facebook.com/tools/explorer', label: 'Facebook Graph API Explorer' } },
         { text: 'Select your App → click "Generate Access Token"' },
-        { text: 'Enable instagram_basic and instagram_content_publish permissions' },
+        { text: 'Enable instagram_basic, instagram_content_publish, and instagram_manage_messages permissions (instagram_manage_messages required for Inbox DMs)' },
         { text: 'Copy the Access Token and paste below' },
       ],
       pageIdLabel: 'Instagram Business Account ID',
@@ -163,15 +165,18 @@ const PLATFORM_CONFIG = {
     color: '#0A66C2',
     description: 'Post to your company page',
     tokenHelp: {
-      title: 'How to get your LinkedIn Access Token:',
+      title: 'LinkedIn requires Partner Program access (2–8 weeks)',
+      badge: '⏱ Partnership approval required — not instant',
       steps: [
-        { text: 'Go to LinkedIn Developer Portal and create an app (requires company page)' },
-        { text: 'Enable the "Share on LinkedIn" and "Marketing Developer Platform" products' },
-        { text: 'Under "Auth" tab, generate an access token with w_member_social permission' },
-        { text: 'Paste the access token below' },
+        { text: '⚠️ LinkedIn does NOT offer public API access. You must apply to the LinkedIn Partner Program first.' },
+        { text: 'Apply at ', link: { url: 'https://developer.linkedin.com/partner-programs', label: 'LinkedIn Partner Programs' }, suffix: ' — select the Social Sharing tier' },
+        { text: 'Create an app at ', link: { url: 'https://www.linkedin.com/developers/apps/new', label: 'LinkedIn Developers' }, suffix: ' — requires a Company LinkedIn Page' },
+        { text: 'In your app → Products → request "Share on LinkedIn" (posting) and "Messaging on LinkedIn" (for Inbox DMs) — submit justification for your scheduling use case' },
+        { text: 'Once approved (2–8 weeks), generate an access token under the Auth tab' },
+        { text: 'Paste the access token (must include w_organization_social + w_messaging scopes) and your Company URN (urn:li:organization:XXXXXXXX) below' },
       ],
-      pageIdLabel: 'Company Page ID (e.g. urn:li:organization:12345678)',
-      pageIdHelp: 'Found in your LinkedIn Company Page admin URL after /company/',
+      pageIdLabel: 'Company URN (e.g. urn:li:organization:12345678)',
+      pageIdHelp: 'Find the numeric ID in your LinkedIn Company Page URL after /company/',
     },
   },
   tiktok: {
@@ -180,17 +185,328 @@ const PLATFORM_CONFIG = {
     color: '#010101',
     description: 'Post to your business account',
     tokenHelp: {
-      title: 'How to connect TikTok:',
+      title: 'TikTok Content Posting API (2–6 week review)',
+      badge: '⏱ App review required — posts are private until approved',
       steps: [
-        { text: 'Go to TikTok for Business developer portal and create an app' },
-        { text: 'Enable the Content Posting API product in your app settings' },
-        { text: 'Generate a user access token with video.publish scope' },
-        { text: 'Paste the access token below' },
+        { text: 'Register a TikTok developer account at ', link: { url: 'https://developers.tiktok.com/', label: 'developers.tiktok.com' } },
+        { text: 'Create an app at ', link: { url: 'https://developers.tiktok.com/apps/', label: 'Manage Apps' }, suffix: ' → Create App' },
+        { text: 'Under Scopes, request "Content Posting API" — describe your scheduling/management use case clearly' },
+        { text: 'TikTok review takes 2–6 weeks. Until approved + audited, all posts will be private-only.' },
+        { text: 'Once approved, generate a user access token with video.publish scope' },
+        { text: 'Paste the access token and your TikTok Open ID below' },
       ],
       pageIdLabel: 'TikTok Open ID (your account ID)',
       pageIdHelp: 'Found in TikTok for Business → Account Settings → Open ID',
     },
   },
+};
+
+// ─── Integration Wizard Configs ──────────────────────────────────────────────
+
+const TWILIO_WIZARD = {
+  title: 'Twilio SMS',
+  slides: [
+    {
+      heading: 'Create a free Twilio account',
+      subtext: 'Twilio handles all your SMS sending. The trial includes $15 credit.\n\nTrial note: During trial, all SMS include a "Sent from a Twilio trial account" prefix, and you can only message verified phone numbers. Upgrade to a paid plan to remove these limits.',
+      callout: { platformName: 'twilio.com', highlight: 'Sign Up Free', color: '#F54B24' },
+      linkButton: { label: 'Open Twilio sign-up ↗', url: 'https://www.twilio.com/try-twilio' },
+    },
+    {
+      heading: 'Find your Account SID and Auth Token',
+      subtext: 'Both credentials are on your Twilio Console dashboard under "Account Info". Click the eye icon next to Auth Token to reveal it.',
+      callout: { platformName: 'Twilio Console', highlight: 'Account SID + Auth Token', color: '#F54B24', note: 'Click the eye icon to reveal Auth Token' },
+      linkButton: { label: 'Open Twilio Console ↗', url: 'https://console.twilio.com/' },
+    },
+    {
+      heading: 'Buy an SMS phone number',
+      subtext: 'In the Twilio Console, go to Phone Numbers → Manage → Buy a Number. Filter by SMS capability and choose a local number (around $1/month).',
+      callout: { platformName: 'Twilio Console', highlight: 'Phone Numbers → Buy a Number', color: '#F54B24' },
+      linkButton: { label: 'Buy a Twilio number ↗', url: 'https://console.twilio.com/us1/develop/phone-numbers/manage/search' },
+    },
+    {
+      heading: 'Enter your Twilio credentials',
+      subtext: 'Paste the Account SID, Auth Token, and phone number you just copied. Click "Test connection" to verify before saving.',
+      isCredentialSlide: true,
+    },
+  ],
+};
+const TWILIO_FIELDS = [
+  { key: 'twilioAccountSid', label: 'Account SID', type: 'text', placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', required: true, helpText: 'Starts with "AC" — found on your Twilio Console dashboard' },
+  { key: 'twilioAuthToken', label: 'Auth Token', type: 'password', placeholder: 'Leave blank to keep existing', helpText: 'Click the eye icon in Twilio Console to reveal it' },
+  { key: 'twilioPhoneNumber', label: 'SMS Phone Number', type: 'text', placeholder: '+15551234567', required: true, helpText: 'The phone number you bought, in E.164 format' },
+  { key: 'twilioWhatsappNumber', label: 'WhatsApp Number', type: 'text', placeholder: 'whatsapp:+15551234567', hint: 'optional', helpText: 'Include the "whatsapp:" prefix — only if you use Twilio for WhatsApp' },
+];
+
+const MAILGUN_WIZARD = {
+  title: 'Mailgun',
+  slides: [
+    {
+      heading: 'Create a Mailgun account',
+      subtext: 'Mailgun handles inbound and outbound email for your AI Receptionist — so customers can email you and get an instant reply.',
+      callout: { platformName: 'mailgun.com', highlight: 'Sign Up', color: '#C23B22' },
+      linkButton: { label: 'Open Mailgun sign-up ↗', url: 'https://signup.mailgun.com/new/signup' },
+    },
+    {
+      heading: 'Add and verify your sending domain',
+      subtext: 'In Mailgun → Sending → Domains → Add New Domain. Use a subdomain like mail.yourbusiness.com.\n\nMailgun will show you DNS records to add to your domain registrar. Add them, then click Verify.',
+      callout: { platformName: 'Mailgun Dashboard', highlight: 'Sending → Domains → Add Domain', color: '#C23B22', note: 'Use a subdomain, e.g. mail.yourbusiness.com' },
+      linkButton: { label: 'Open Mailgun Domains ↗', url: 'https://app.mailgun.com/mg/sending/domains' },
+    },
+    {
+      heading: 'Get your API key + set up inbound routing',
+      subtext: 'API Key: Mailgun → Settings → API Security → Add New Key. Copy the Private API Key.\n\nInbound routing: Mailgun → Receiving → Create Route → Forward → paste the webhook URL below.',
+      callout: { platformName: 'Mailgun Dashboard', highlight: 'Receiving → Routes → Create Route', color: '#C23B22' },
+      linkButton: { label: 'Open Mailgun Routes ↗', url: 'https://app.mailgun.com/mg/receiving/routes' },
+      webhookUrl: 'https://api.itsposting.com/api/mailgun/inbound',
+    },
+    {
+      heading: 'Enter your Mailgun credentials',
+      subtext: 'Paste your Private API Key, the domain you verified, and the email address you want to receive from.',
+      isCredentialSlide: true,
+    },
+  ],
+};
+const MAILGUN_FIELDS = [
+  { key: 'mailgunApiKey', label: 'Private API Key', type: 'password', placeholder: 'Leave blank to keep existing', required: true, helpText: 'Mailgun → Settings → API Security. Use the Private key (not Public).' },
+  { key: 'mailgunDomain', label: 'Domain', type: 'text', placeholder: 'mail.yourbusiness.com', required: true, helpText: 'The subdomain you added and verified in Mailgun' },
+  { key: 'mailgunFromEmail', label: 'From Email Address', type: 'email', placeholder: 'hello@mail.yourbusiness.com', required: true, helpText: 'Emails will appear to come from this address' },
+];
+
+const CALCOM_WIZARD = {
+  title: 'Cal.com',
+  slides: [
+    {
+      heading: 'Create a Cal.com account',
+      subtext: 'Cal.com is your appointment booking page. Your AI Receptionist will automatically share the booking link when customers ask to schedule.',
+      callout: { platformName: 'cal.com', highlight: 'Get Started Free', color: '#111827' },
+      linkButton: { label: 'Open Cal.com sign-up ↗', url: 'https://cal.com/signup' },
+    },
+    {
+      heading: 'Find your API key and booking URL',
+      subtext: 'API key: Cal.com → Settings → Security → API Keys → Add.\n\nImportant: Copy the key immediately — it is shown only once.\n\nBooking URL: your public page URL, e.g. cal.com/yourname',
+      callout: { platformName: 'Cal.com Settings', highlight: 'Security → API Keys → Add', color: '#111827', note: 'Copy immediately — shown only once' },
+      linkButton: { label: 'Open Cal.com API Keys ↗', url: 'https://app.cal.com/settings/security/api-keys' },
+    },
+    {
+      heading: 'Enter your Cal.com credentials',
+      subtext: 'Paste your API key and your public booking page URL.',
+      isCredentialSlide: true,
+    },
+  ],
+};
+const CALCOM_FIELDS = [
+  { key: 'calcomApiKey', label: 'API Key', type: 'password', placeholder: 'Leave blank to keep existing', required: true, helpText: 'Starts with "cal_" — copied from Cal.com Settings → Security → API Keys' },
+  { key: 'bookingLink', label: 'Booking Page URL', type: 'url', placeholder: 'https://cal.com/yourbusiness', required: true, helpText: 'Your public Cal.com booking page (shared with customers)' },
+];
+
+const WHATSAPP_WIZARD = {
+  title: 'WhatsApp Business',
+  slides: [
+    {
+      heading: 'Create a Meta Business Suite account',
+      subtext: 'WhatsApp Business API credentials live inside Meta Business Suite — separate from your personal Facebook account. If you already have a Meta Business account, you can skip this step.',
+      callout: { platformName: 'Meta Business Suite', highlight: 'Create Account', color: '#25D366' },
+      linkButton: { label: 'Open Meta Business Suite ↗', url: 'https://business.facebook.com/' },
+    },
+    {
+      heading: 'Create a Facebook Developer App',
+      subtext: 'Go to developers.facebook.com → My Apps → Create App → select Business type. Give it a name like "My Business Messaging".\n\nThis app is the technical container for your WhatsApp integration.',
+      callout: { platformName: 'Facebook Developers', highlight: 'Create App → Business type', color: '#25D366' },
+      linkButton: { label: 'Open Facebook Developers ↗', url: 'https://developers.facebook.com/apps/creation/' },
+    },
+    {
+      heading: 'Add WhatsApp → find your Phone Number ID',
+      subtext: 'In your new app → Add Product → WhatsApp → Set Up.\n\nIn the WhatsApp → API Setup tab, you will see your Phone Number ID — a long numeric string. Copy it.',
+      callout: { platformName: 'Facebook App Dashboard', highlight: 'WhatsApp → API Setup → Phone Number ID', color: '#25D366', note: 'Long numeric ID — not your phone number' },
+      linkButton: { label: 'Open your apps ↗', url: 'https://developers.facebook.com/apps/' },
+    },
+    {
+      heading: 'Create a System User with a permanent token',
+      subtext: 'Regular tokens expire in 60 days. A System User token never expires.\n\nIn Meta Business Suite → Settings → System Users → Add → name it → Generate Token → select your App → check whatsapp_business_messaging permission.',
+      callout: { platformName: 'Meta Business Suite', highlight: 'Settings → System Users → Generate Token', color: '#25D366', note: 'Permanent token — copy and store safely' },
+      linkButton: { label: 'Open System Users ↗', url: 'https://business.facebook.com/settings/system-users' },
+    },
+    {
+      heading: 'Enter your WhatsApp credentials',
+      subtext: 'Paste the Phone Number ID and System User access token you copied.',
+      isCredentialSlide: true,
+      warningNote: 'US businesses: Meta paused WhatsApp marketing messages for US phone numbers (April 2025). Transactional/utility messages still work.',
+    },
+  ],
+};
+const WHATSAPP_FIELDS = [
+  { key: 'metaWaPhoneNumberId', label: 'Phone Number ID', type: 'text', placeholder: '1234567890123456', required: true, helpText: 'Found in WhatsApp → API Setup. It\'s a long numeric string.' },
+  { key: 'metaWaAccessToken', label: 'Permanent Access Token', type: 'password', placeholder: 'Leave blank to keep existing', required: true, helpText: 'System User token from Meta Business Suite → System Users → Generate Token' },
+  { key: 'metaWaBusinessId', label: 'Business Account ID', type: 'text', placeholder: 'Your WhatsApp Business Account ID', hint: 'optional' },
+];
+
+// ─── Social Platform Wizard Configs ──────────────────────────────────────────
+
+const FACEBOOK_SOCIAL_WIZARD = {
+  title: 'Facebook',
+  slides: [
+    {
+      heading: 'Create a Facebook Developer App',
+      subtext: 'All Facebook page posting goes through the Facebook Developer API. Create a free developer app — it takes 2 minutes.\n\nNote: pages_manage_posts permission requires Facebook App Review for pages you don\'t already have developer access to.',
+      callout: { platformName: 'Facebook Developers', highlight: 'My Apps → Create App → Business', color: '#1877F2' },
+      linkButton: { label: 'Open Facebook Developers ↗', url: 'https://developers.facebook.com/apps/creation/' },
+    },
+    {
+      heading: 'Add Facebook Login to your app',
+      subtext: 'In your app dashboard → Add Product → Facebook Login → Set Up. This unlocks the permission scopes you\'ll need to generate a page access token.',
+      callout: { platformName: 'App Dashboard', highlight: 'Add Product → Facebook Login → Set Up', color: '#1877F2' },
+      linkButton: { label: 'Open your apps ↗', url: 'https://developers.facebook.com/apps/' },
+    },
+    {
+      heading: 'Generate a Page Access Token',
+      subtext: 'Go to Graph API Explorer → select your App → change token type to "Page Access Token" → choose your page → add permissions: pages_manage_posts, pages_read_engagement, pages_messaging → click Generate.\n\npages_messaging is required to receive DMs in the ItsPosting Inbox.',
+      callout: { platformName: 'Graph API Explorer', highlight: 'Page Access Token → Generate', color: '#1877F2', note: 'Select your business page from the dropdown' },
+      linkButton: { label: 'Open Graph API Explorer ↗', url: 'https://developers.facebook.com/tools/explorer/' },
+    },
+    {
+      heading: 'Paste your token and connect',
+      subtext: 'Paste the Page Access Token you generated. Click "Test connection" to verify it can reach your page.',
+      isCredentialSlide: true,
+      warningNote: 'pages_manage_posts and pages_messaging (required for Inbox DMs) require Facebook App Review for pages where you aren\'t already a developer. Graph API Explorer tokens expire in 60 days — use a System User token for production.',
+    },
+  ],
+};
+const FACEBOOK_SOCIAL_FIELDS = [
+  { key: 'accessToken', label: 'Page Access Token', type: 'password', placeholder: 'EAAxxxxxxxx...', required: true, helpText: 'Generated via Graph API Explorer → Page Access Token' },
+  { key: 'pageId', label: 'Page ID', type: 'text', placeholder: '123456789012345', hint: 'optional — auto-filled on test', helpText: 'Facebook Page → About → Page Transparency → Page ID' },
+  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: "Mike's Plumbing", hint: 'optional — auto-filled on test' },
+];
+
+const INSTAGRAM_SOCIAL_WIZARD = {
+  title: 'Instagram',
+  slides: [
+    {
+      heading: 'Switch to a Professional account',
+      subtext: 'Instagram publishing via API requires a Professional account (Business or Creator) linked to a Facebook Page.\n\nIf you already have a Business account, skip this step.',
+      callout: { platformName: 'Instagram', highlight: 'Settings → Account → Professional Account', color: '#E1306C' },
+      linkButton: { label: 'Switch to Professional ↗', url: 'https://www.instagram.com/accounts/convert_to_ia/' },
+    },
+    {
+      heading: 'Generate a token with Instagram permissions',
+      subtext: 'Go to Graph API Explorer → select your Facebook Developer App → Generate User Token → add permissions: instagram_basic, instagram_content_publish, instagram_manage_messages, pages_read_engagement → Generate.\n\ninstagram_manage_messages is required to receive DMs in the ItsPosting Inbox. Your Instagram Business Account ID will auto-fill when you test.',
+      callout: { platformName: 'Graph API Explorer', highlight: 'instagram_basic + instagram_content_publish + instagram_manage_messages', color: '#E1306C', note: 'instagram_manage_messages required for Inbox DMs' },
+      linkButton: { label: 'Open Graph API Explorer ↗', url: 'https://developers.facebook.com/tools/explorer/' },
+    },
+    {
+      heading: 'Paste your token and connect',
+      subtext: 'Paste the access token you generated. Test connection will verify it and auto-fill your Instagram Business Account ID.',
+      isCredentialSlide: true,
+    },
+  ],
+};
+const INSTAGRAM_SOCIAL_FIELDS = [
+  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'EAAxxxxxxxx...', required: true, helpText: 'From Graph API Explorer with instagram_basic + instagram_content_publish + instagram_manage_messages permissions' },
+  { key: 'pageId', label: 'Instagram Business Account ID', type: 'text', placeholder: '17841400000000001', hint: 'optional — auto-filled on test', helpText: 'Auto-filled when you click Test connection' },
+  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: '@mikes.plumbing', hint: 'optional — auto-filled on test' },
+];
+
+const GOOGLE_SOCIAL_WIZARD = {
+  title: 'Google Business Profile',
+  slides: [
+    {
+      heading: 'Enable the Business Profile API',
+      subtext: 'Go to Google Cloud Console → APIs & Services → Library → search for "Business Profile API" → click Enable. If you don\'t have a project yet, create one first.',
+      callout: { platformName: 'Google Cloud Console', highlight: 'API Library → Business Profile API → Enable', color: '#4285F4' },
+      linkButton: { label: 'Open API Library ↗', url: 'https://console.cloud.google.com/apis/library/' },
+    },
+    {
+      heading: 'Generate an access token via OAuth Playground',
+      subtext: 'Go to Google OAuth Playground → in the left panel, enter the scope:\nhttps://www.googleapis.com/auth/business.manage\n\nClick Authorize APIs → sign in with your Google account → click "Exchange authorization code for tokens" → copy the Access Token.',
+      callout: { platformName: 'OAuth Playground', highlight: 'googleapis.com/auth/business.manage → Authorize', color: '#4285F4', note: 'Copy the Access Token, not the Refresh Token' },
+      linkButton: { label: 'Open OAuth Playground ↗', url: 'https://developers.google.com/oauthplayground' },
+    },
+    {
+      heading: 'Find your Business Account ID',
+      subtext: 'Your Business Account ID is visible in your Google Business Profile dashboard URL, or under Business Profile → Info → Advanced settings.',
+      callout: { platformName: 'Google Business Profile', highlight: 'Info → Advanced settings → Account ID', color: '#4285F4' },
+      linkButton: { label: 'Open Business Profile ↗', url: 'https://business.google.com/' },
+    },
+    {
+      heading: 'Paste your token and connect',
+      subtext: 'Paste the access token from OAuth Playground and your Business Account ID.',
+      isCredentialSlide: true,
+      warningNote: 'OAuth Playground tokens expire in 1 hour. For a long-lived connection, you need to set up Google OAuth credentials in Cloud Console and use a refresh token.',
+    },
+  ],
+};
+const GOOGLE_SOCIAL_FIELDS = [
+  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'ya29.xxxxxxxxxx...', required: true, helpText: 'From Google OAuth Playground — expires in 1 hour' },
+  { key: 'pageId', label: 'Business Account ID', type: 'text', placeholder: '1234567890', hint: 'optional — auto-filled on test', helpText: 'Found in Google Business Profile URL or Advanced settings' },
+  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: "Mike's Plumbing", hint: 'optional — auto-filled on test' },
+];
+
+const LINKEDIN_SOCIAL_WIZARD = {
+  title: 'LinkedIn',
+  slides: [
+    {
+      heading: 'LinkedIn requires Partner Program access',
+      badge: '⏱ 2-8 week approval process',
+      subtext: 'Unlike other platforms, LinkedIn does not offer public API access for posting. To post via API you must apply to the LinkedIn Partner Program — a formal approval process.\n\nThe Social Sharing tier is what you need. Approval typically takes 2-8 weeks.',
+      callout: { platformName: 'LinkedIn Developer Portal', highlight: 'Partner Programs → Social Sharing tier', color: '#0A66C2' },
+      linkButton: { label: 'Apply to Partner Program ↗', url: 'https://developer.linkedin.com/partner-programs' },
+    },
+    {
+      heading: 'Create a developer app and apply for the product',
+      subtext: 'Create an app at LinkedIn Developers (requires a Company LinkedIn Page).\n\nIn your app → Products → find "Share on LinkedIn" → click Select → submit your application explaining your posting use case. Also request "Messaging on LinkedIn" to receive DMs in the ItsPosting Inbox.\n\nOnce approved, LinkedIn grants your app the posting and messaging permissions.',
+      callout: { platformName: 'LinkedIn Developer App', highlight: 'Products → Share on LinkedIn → Pending review', color: '#0A66C2', note: 'Describe scheduling / management use case clearly' },
+      linkButton: { label: 'Open LinkedIn Developers ↗', url: 'https://www.linkedin.com/developers/apps/new' },
+    },
+    {
+      heading: 'Enter your LinkedIn credentials',
+      subtext: 'Once approved, generate an access token under your app → Auth → OAuth 2.0 Tools. Ensure the token includes w_organization_social (posting) and w_messaging (Inbox DMs) scopes.\n\nYour Company URN is in the format urn:li:organization:XXXXXXXX — the numeric ID is in your LinkedIn Company Page URL.',
+      isCredentialSlide: true,
+      warningNote: 'Tokens expire — use a refresh token workflow for production. Generate via your app → Auth → OAuth 2.0 Tools after Partner Program approval.',
+    },
+  ],
+};
+const LINKEDIN_SOCIAL_FIELDS = [
+  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'AQV...', required: true, helpText: 'Generated via LinkedIn Developer App → Auth → OAuth 2.0 Tools (requires Partner Program approval)' },
+  { key: 'pageId', label: 'Company URN', type: 'text', placeholder: 'urn:li:organization:12345678', helpText: 'Find the numeric ID in your LinkedIn Company Page URL after /company/' },
+  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: "Mike's Plumbing", hint: 'optional — auto-filled on test' },
+];
+
+const TIKTOK_SOCIAL_WIZARD = {
+  title: 'TikTok',
+  slides: [
+    {
+      heading: 'Register a TikTok Developer account',
+      badge: '⏱ 2-6 week app review required',
+      subtext: 'TikTok posting requires the Content Posting API. Register at developers.tiktok.com using a TikTok for Business account.\n\nUntil your app passes TikTok\'s audit, all posts will be private-only (visible only to you).',
+      callout: { platformName: 'TikTok Developer Portal', highlight: 'Register Developer Account', color: '#ff0050' },
+      linkButton: { label: 'Open TikTok Developers ↗', url: 'https://developers.tiktok.com/' },
+    },
+    {
+      heading: 'Create an app and request Content Posting API',
+      subtext: 'Manage Apps → Create App → under Scopes, find and request "Content Posting API".\n\nDescribe your scheduling/management use case clearly — vague descriptions get rejected. Review takes 2-6 weeks.',
+      callout: { platformName: 'TikTok Developer Portal', highlight: 'Manage Apps → Scopes → Content Posting API', color: '#ff0050', note: 'Explain your scheduling use case clearly' },
+      linkButton: { label: 'Open TikTok Apps ↗', url: 'https://developers.tiktok.com/apps/' },
+    },
+    {
+      heading: 'Enter your TikTok credentials',
+      subtext: 'Once approved, generate a user access token with video.publish scope. Your Open ID identifies your TikTok account.',
+      isCredentialSlide: true,
+      warningNote: 'Until your TikTok app passes audit, all posts will be private-only and only visible to you.',
+    },
+  ],
+};
+const TIKTOK_SOCIAL_FIELDS = [
+  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'act.example...', required: true, helpText: 'Generated after app approval — must have video.publish scope' },
+  { key: 'pageId', label: 'Open ID', type: 'text', placeholder: 'MS4wLjABAAAA...', hint: 'optional — auto-filled on test', helpText: 'Your TikTok account identifier — found in TikTok for Business → Account Settings' },
+  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: '@mikes.plumbing', hint: 'optional — auto-filled on test' },
+];
+
+const SOCIAL_WIZARD_MAP = {
+  facebook:        { wizard: FACEBOOK_SOCIAL_WIZARD,  fields: FACEBOOK_SOCIAL_FIELDS },
+  instagram:       { wizard: INSTAGRAM_SOCIAL_WIZARD, fields: INSTAGRAM_SOCIAL_FIELDS },
+  google_business: { wizard: GOOGLE_SOCIAL_WIZARD,    fields: GOOGLE_SOCIAL_FIELDS },
+  linkedin:        { wizard: LINKEDIN_SOCIAL_WIZARD,  fields: LINKEDIN_SOCIAL_FIELDS },
+  tiktok:          { wizard: TIKTOK_SOCIAL_WIZARD,    fields: TIKTOK_SOCIAL_FIELDS },
 };
 
 export default function Settings() {
@@ -225,14 +541,16 @@ export default function Settings() {
   const [createError,   setCreateError]   = useState('');
   const [deletingAutomationId, setDeletingAutomationId] = useState(null);
 
-  // Manual token modal state
-  const [setupModal, setSetupModal] = useState(null);
-  const [manualToken, setManualToken] = useState('');
-  const [manualPageId, setManualPageId] = useState('');
-  const [manualName, setManualName] = useState('');
-  const [manualSaving, setManualSaving] = useState(false);
-  const [tokenVerifying, setTokenVerifying] = useState(false);
-  const [tokenVerified, setTokenVerified] = useState(null); // null | { valid, accountName, error }
+  // Brand asset upload
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [faviconUploading, setFaviconUploading] = useState(false);
+  const logoInputRef = useRef(null);
+  const faviconInputRef = useRef(null);
+
+  // Social platform wizard modal
+  const [socialWizardModal, setSocialWizardModal] = useState(null); // null | 'facebook' | 'instagram' | 'google_business' | 'linkedin' | 'tiktok'
+  const [dmsStats, setDmsStats] = useState(null);
+  const [syncing, setSyncing] = useState(false);
 
   const openIntegrationModal = (type) => {
     const cfg = receptionistConfig || {};
@@ -359,7 +677,7 @@ export default function Settings() {
   useEffect(() => {
     const { connected, error } = router.query;
     if (connected) {
-      const names = { facebook: 'Facebook & Instagram', google: 'Business Profile' };
+      const names = { facebook: 'Facebook & Instagram', google: 'Business Profile', linkedin: 'LinkedIn', tiktok: 'TikTok' };
       showToast(`${names[connected] || connected} connected successfully!`);
       router.replace('/settings', undefined, { shallow: true });
       loadSocialAccounts();
@@ -370,6 +688,10 @@ export default function Settings() {
         google_denied: 'Connection was cancelled',
         facebook_failed: 'Failed to connect Facebook. Please try again.',
         google_failed: 'Failed to connect Google. Please try again.',
+        linkedin_denied: 'Connection was cancelled',
+        linkedin_failed: 'Failed to connect LinkedIn. Please try again.',
+        tiktok_denied: 'Connection was cancelled',
+        tiktok_failed: 'Failed to connect TikTok. Please try again.',
       };
       showToast(msgs[error] || `Connection error: ${error}`, 'error');
       router.replace('/settings', undefined, { shallow: true });
@@ -378,16 +700,18 @@ export default function Settings() {
 
   const loadData = async () => {
     try {
-      const [profileRes, providersRes, scrapedRes, receptionistRes] = await Promise.all([
+      const [profileRes, providersRes, scrapedRes, receptionistRes, dmsRes] = await Promise.all([
         customerAPI.getProfile(),
         contentAPI.getProviders().catch(() => ({ data: {} })),
         scraperAPI.getData().catch(() => ({ data: { hasData: false } })),
         receptionistAPI.getConfig().catch(() => ({ data: { config: null } })),
+        dmsAPI.getStats().catch(() => ({ data: null })),
       ]);
       setProfile(profileRes.data);
       setTimezone(profileRes.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
       setProviders(providersRes.data);
       setReceptionistConfig(receptionistRes.data?.config || null);
+      setDmsStats(dmsRes.data);
       if (scrapedRes.data.hasData) {
         setScrapedData(scrapedRes.data);
         setScraperUrl(scrapedRes.data.website || '');
@@ -453,47 +777,46 @@ export default function Settings() {
   };
 
   const handleConnect = (platform) => {
-    setManualToken('');
-    setManualPageId('');
-    setManualName('');
-    setTokenVerified(null);
-    setSetupModal(platform);
+    setSocialWizardModal(platform);
   };
 
-  const handleVerifyToken = async () => {
-    if (!manualToken.trim()) return;
-    setTokenVerifying(true);
-    setTokenVerified(null);
+  const handleOAuthConnect = async (platform) => {
     try {
-      const { data } = await socialAPI.verifyToken(setupModal, manualToken.trim(), manualPageId.trim() || undefined);
-      setTokenVerified(data);
-      if (data.valid && data.accountName && !manualName) setManualName(data.accountName);
-      if (data.valid && data.accountId && !manualPageId) setManualPageId(data.accountId);
+      const res = await socialAPI.getOAuthUrl(platform);
+      window.location.href = res.data.url;
     } catch {
-      setTokenVerified({ valid: false, error: 'Could not reach the platform — check your token.' });
-    } finally {
-      setTokenVerifying(false);
+      showToast('Failed to start OAuth — try "Enter Tokens" instead', 'error');
     }
   };
 
-  const handleManualSave = async () => {
-    if (!manualToken.trim()) { showToast('Access token is required', 'error'); return; }
-    if (manualToken.trim().length < 10) { showToast('Token seems too short — please check it', 'error'); return; }
-    setManualSaving(true);
+  const handleSyncNow = async () => {
+    setSyncing(true);
     try {
-      await socialAPI.connectManual(setupModal, {
-        accessToken: manualToken.trim(),
-        pageId: manualPageId.trim(),
-        accountName: manualName.trim(),
-      });
-      showToast(`${PLATFORM_CONFIG[setupModal]?.label} connected successfully!`);
-      setSetupModal(null);
-      setTokenVerified(null);
-      loadSocialAccounts();
-    } catch (err) {
-      showToast(err.response?.data?.error || err.message || 'Failed to save token', 'error');
+      await dmsAPI.sync();
+      const res = await dmsAPI.getStats();
+      setDmsStats(res.data);
+      showToast('Inbox synced successfully');
+    } catch {
+      showToast('Failed to sync inbox', 'error');
     } finally {
-      setManualSaving(false);
+      setSyncing(false);
+    }
+  };
+
+  const handleAssetUpload = async (file, field) => {
+    if (!file) return;
+    const setUploading = field === 'logo_url' ? setLogoUploading : setFaviconUploading;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('asset', file);
+      const res = await customerAPI.uploadAsset(formData);
+      setProfile(prev => ({ ...prev, [field]: res.data.url }));
+      showToast(field === 'logo_url' ? 'Logo uploaded' : 'Brand icon uploaded');
+    } catch {
+      showToast('Upload failed', 'error');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -545,6 +868,8 @@ export default function Settings() {
         tone: profile.tone,
         preferredImageProvider: profile.preferred_image_provider,
         timezone,
+        logoUrl: profile.logo_url ?? undefined,
+        faviconUrl: profile.favicon_url ?? undefined,
       });
       showToast('Settings saved!');
     } catch {
@@ -578,7 +903,7 @@ export default function Settings() {
   const urlChanged = scrapedData && scraperUrl.trim() &&
     (scraperUrl.startsWith('http') ? scraperUrl.trim() : 'https://' + scraperUrl.trim()) !== scrapedData.website;
 
-  const platformConfig = setupModal ? PLATFORM_CONFIG[setupModal] : null;
+  // platformConfig removed — setupModal replaced by socialWizardModal + IntegrationSetupWizard
 
   return (
     <Layout
@@ -624,6 +949,74 @@ export default function Settings() {
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>Website</label>
               <Input type="url" placeholder="https://" value={profile.website || ''} onChange={(e) => setProfile({ ...profile, website: e.target.value })} />
+            </div>
+          </div>
+
+          {/* Brand Assets */}
+          <div style={{ marginTop: 20, paddingTop: 20, borderTop: `1px solid ${t.border}` }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Assets</label>
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+              {/* Logo */}
+              <div>
+                <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 8 }}>Business Logo</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 72, height: 72, borderRadius: 12, border: `1px solid ${t.border}`, background: t.input, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                    {profile.logo_url
+                      ? <img src={profile.logo_url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: 11, color: t.textMuted }}>No logo</span>}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+                      onChange={(e) => e.target.files[0] && handleAssetUpload(e.target.files[0], 'logo_url')} />
+                    <button onClick={() => logoInputRef.current?.click()} disabled={logoUploading}
+                      style={{ padding: '7px 14px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, color: t.primary, fontSize: 12, fontWeight: 600, cursor: logoUploading ? 'not-allowed' : 'pointer', opacity: logoUploading ? 0.6 : 1 }}>
+                      {logoUploading ? 'Uploading…' : 'Upload logo'}
+                    </button>
+                    {profile.logo_url && (
+                      <button onClick={async () => {
+                        setProfile(p => ({ ...p, logo_url: '' }));
+                        try { await customerAPI.updateProfile({ logoUrl: '' }); showToast('Logo removed'); }
+                        catch { showToast('Failed to remove logo', 'error'); }
+                      }}
+                        style={{ padding: '5px 14px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.error || '#ef4444', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6 }}>Used in emails and reports</div>
+              </div>
+
+              {/* Favicon / Brand Icon */}
+              <div>
+                <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 8 }}>Brand Icon <span style={{ fontSize: 11, color: t.primary }}>(workspace switcher)</span></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                    {profile.favicon_url
+                      ? <img src={profile.favicon_url} alt="Brand icon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: 11, color: t.textMuted }}>Icon</span>}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <input ref={faviconInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+                      onChange={(e) => e.target.files[0] && handleAssetUpload(e.target.files[0], 'favicon_url')} />
+                    <button onClick={() => faviconInputRef.current?.click()} disabled={faviconUploading}
+                      style={{ padding: '7px 14px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, color: t.primary, fontSize: 12, fontWeight: 600, cursor: faviconUploading ? 'not-allowed' : 'pointer', opacity: faviconUploading ? 0.6 : 1 }}>
+                      {faviconUploading ? 'Uploading…' : 'Upload icon'}
+                    </button>
+                    {profile.favicon_url && (
+                      <button onClick={async () => {
+                        setProfile(p => ({ ...p, favicon_url: '' }));
+                        try { await customerAPI.updateProfile({ faviconUrl: '' }); showToast('Brand icon removed'); }
+                        catch { showToast('Failed to remove brand icon', 'error'); }
+                      }}
+                        style={{ padding: '5px 14px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.error || '#ef4444', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6 }}>Square image, at least 64×64px</div>
+              </div>
             </div>
           </div>
         </Card>
@@ -811,6 +1204,7 @@ export default function Settings() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {Object.entries(PLATFORM_CONFIG).map(([platform, config]) => {
               const connected = socialAccounts.find((a) => a.platform === platform);
+              const oauthAvailable = socialStatus?.[platform]?.oauthAvailable;
               return (
                 <div key={platform} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -836,23 +1230,94 @@ export default function Settings() {
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    {connected && (
-                      <button type="button" onClick={() => handleToggleAutoPost(connected)}
-                        style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: connected.auto_post ? 'rgba(34,197,94,0.1)' : t.card, border: `1px solid ${connected.auto_post ? 'rgba(34,197,94,0.3)' : t.border}`, color: connected.auto_post ? t.success : t.textMuted, cursor: 'pointer' }}>
-                        {connected.auto_post ? 'Auto On' : 'Auto Off'}
-                      </button>
-                    )}
-                    {connected
-                      ? <Button variant="ghost" size="sm" onClick={() => handleDisconnect(platform)} disabled={disconnecting === platform} style={{ color: t.error, fontSize: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {connected ? (
+                      <>
+                        <button type="button" onClick={() => handleToggleAutoPost(connected)}
+                          style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: connected.auto_post ? 'rgba(34,197,94,0.1)' : t.card, border: `1px solid ${connected.auto_post ? 'rgba(34,197,94,0.3)' : t.border}`, color: connected.auto_post ? t.success : t.textMuted, cursor: 'pointer' }}>
+                          {connected.auto_post ? 'Auto On' : 'Auto Off'}
+                        </button>
+                        <Button variant="ghost" size="sm" onClick={() => handleConnect(platform)} style={{ fontSize: 12 }}>
+                          Update Tokens
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDisconnect(platform)} disabled={disconnecting === platform} style={{ color: t.error, fontSize: 12 }}>
                           {disconnecting === platform ? 'Disconnecting...' : 'Disconnect'}
                         </Button>
-                      : <Button variant="secondary" size="sm" onClick={() => handleConnect(platform)}>Connect</Button>
-                    }
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => oauthAvailable ? handleOAuthConnect(platform) : undefined}
+                            style={{
+                              padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                              cursor: oauthAvailable ? 'pointer' : 'not-allowed',
+                              background: oauthAvailable ? config.color : t.card,
+                              color: oauthAvailable ? '#fff' : t.textMuted,
+                              border: `1px solid ${oauthAvailable ? config.color : t.border}`,
+                              opacity: oauthAvailable ? 1 : 0.65,
+                              display: 'flex', alignItems: 'center', gap: 6,
+                            }}
+                          >
+                            <config.Icon size={13} style={{ color: oauthAvailable ? '#fff' : t.textMuted }} />
+                            Connect
+                          </button>
+                          {!oauthAvailable && (
+                            <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: '#D97706', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 5, padding: '2px 6px', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+                              SOON
+                            </span>
+                          )}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={() => handleConnect(platform)} style={{ fontSize: 12, color: t.textMuted }}>
+                          Enter Tokens
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               );
             })}
+          </div>
+        </Card>
+
+        {/* Inbox Sync */}
+        <Card>
+          <SectionHeader icon={IpShare} title="Inbox Sync" subtitle="Sync incoming messages from social platforms into your Inbox" />
+          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 14 }}>
+            DM sync uses your connected social accounts above — no additional setup needed. Facebook and Instagram messages sync automatically.
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              { platform: 'facebook', label: 'Facebook Messenger', Icon: IpFacebook, color: '#1877F2' },
+              { platform: 'instagram', label: 'Instagram DMs', Icon: IpInstagram, color: '#E1306C' },
+            ].map(({ platform, label, Icon, color }) => {
+              const isConnected = socialAccounts.find(a => a.platform === platform);
+              return (
+                <div key={platform} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 9, background: `${color}15`, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon size={18} style={{ color }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{label}</div>
+                      <div style={{ fontSize: 11, color: isConnected ? t.success : t.textMuted }}>
+                        {isConnected ? 'Account connected — syncing enabled' : 'Connect account above to enable sync'}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: t.textMuted }}>
+                    {dmsStats ? `${dmsStats[platform + '_count'] || 0} messages` : '—'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Button variant="secondary" size="sm" onClick={handleSyncNow} disabled={syncing}>
+              {syncing ? 'Syncing...' : 'Sync Now'}
+            </Button>
+            <span style={{ fontSize: 11, color: t.textMuted }}>Pull latest messages from all connected platforms</span>
           </div>
         </Card>
 
@@ -1241,8 +1706,113 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Integration Configure Modals */}
-      {integrationModal && (
+      {/* Integration Configure Modals — step-by-step wizard */}
+      {integrationModal && (() => {
+        const cfg = receptionistConfig || {};
+        const wizardMap = {
+          twilio: {
+            wizard: TWILIO_WIZARD,
+            fields: TWILIO_FIELDS,
+            initial: { twilioAccountSid: cfg.twilio_account_sid || '', twilioAuthToken: '', twilioPhoneNumber: cfg.twilio_phone_number || '', twilioWhatsappNumber: cfg.twilio_whatsapp_number || '' },
+            test: (vals) => receptionistAPI.testTwilio({ accountSid: vals.twilioAccountSid, authToken: vals.twilioAuthToken }),
+            color: '#F54B24',
+            logo: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#F54B24" /><circle cx="8.5" cy="8.5" r="2" fill="white" /><circle cx="15.5" cy="8.5" r="2" fill="white" /><circle cx="8.5" cy="15.5" r="2" fill="white" /><circle cx="15.5" cy="15.5" r="2" fill="white" /></svg>,
+            isUpdate: !!(cfg.twilio_account_sid),
+          },
+          meta_whatsapp: {
+            wizard: WHATSAPP_WIZARD,
+            fields: WHATSAPP_FIELDS,
+            initial: { metaWaPhoneNumberId: cfg.meta_wa_phone_number_id || '', metaWaAccessToken: '', metaWaBusinessId: cfg.meta_wa_business_id || '' },
+            test: (vals) => receptionistAPI.testWhatsapp({ phoneNumberId: vals.metaWaPhoneNumberId, accessToken: vals.metaWaAccessToken }),
+            color: '#25D366',
+            logo: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#25D366" /><path d="M17.5 14.5c-.3.8-1.5 1.5-2.5 1.7-.7.1-1.5.1-4.5-1.5s-4-4-4.2-4.7c-.2-.7 0-1.7.7-2.3.3-.3.7-.5 1-.5h.5c.4 0 .8.3 1 .7l.8 1.8c.2.4.1.9-.2 1.2l-.3.4c.4.7 1 1.3 1.7 1.7l.4-.3c.3-.3.8-.4 1.2-.2l1.8.8c.4.2.7.6.7 1v.5c-.1.3-.1.6-.1.7z" fill="white" /></svg>,
+            isUpdate: !!(cfg.meta_wa_phone_number_id),
+          },
+          calcom: {
+            wizard: CALCOM_WIZARD,
+            fields: CALCOM_FIELDS,
+            initial: { calcomApiKey: '', bookingLink: cfg.booking_link || '' },
+            test: (vals) => receptionistAPI.testCalcom({ apiKey: vals.calcomApiKey }),
+            color: '#111827',
+            logo: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2" stroke="#fff" strokeWidth="1.8" /><path d="M3 9h18" stroke="#fff" strokeWidth="1.8" /><path d="M8 2v4M16 2v4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" /><circle cx="12" cy="14" r="1.5" fill="#fff" /></svg>,
+            isUpdate: !!(cfg.calcom_api_key),
+          },
+          mailgun: {
+            wizard: MAILGUN_WIZARD,
+            fields: MAILGUN_FIELDS,
+            initial: { mailgunApiKey: '', mailgunDomain: cfg.mailgun_domain || '', mailgunFromEmail: cfg.mailgun_from_email || '' },
+            test: (vals) => receptionistAPI.testMailgun({ apiKey: vals.mailgunApiKey, domain: vals.mailgunDomain }),
+            color: '#C23B22',
+            logo: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="16" rx="3" fill="#C23B22" /><path d="M2 7l10 7 10-7" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>,
+            isUpdate: !!(cfg.mailgun_domain),
+          },
+        };
+        const entry = wizardMap[integrationModal];
+        if (!entry) return null;
+        return (
+          <IntegrationSetupWizard
+            wizardConfig={entry.wizard}
+            formFields={entry.fields}
+            initialValues={entry.initial}
+            onSave={async (formValues) => {
+              await receptionistAPI.saveConfig(formValues);
+              const res = await receptionistAPI.getConfig();
+              setReceptionistConfig(res.data?.config || null);
+              setIntegrationModal(null);
+              showToast('Integration saved successfully');
+            }}
+            onTestConnection={entry.test}
+            onClose={() => setIntegrationModal(null)}
+            isUpdate={entry.isUpdate}
+            accentColor={entry.color}
+            logo={entry.logo}
+          />
+        );
+      })()}
+
+      {/* Social Platform Wizard */}
+      {socialWizardModal && (() => {
+        const config = PLATFORM_CONFIG[socialWizardModal];
+        const wizardEntry = SOCIAL_WIZARD_MAP[socialWizardModal];
+        if (!config || !wizardEntry) return null;
+        const connected = socialAccounts.find(a => a.platform === socialWizardModal);
+        const platform = socialWizardModal;
+        return (
+          <IntegrationSetupWizard
+            wizardConfig={wizardEntry.wizard}
+            formFields={wizardEntry.fields}
+            initialValues={{}}
+            onSave={async (vals) => {
+              await socialAPI.connectManual(platform, {
+                accessToken: vals.accessToken,
+                pageId: vals.pageId || '',
+                accountName: vals.accountName || '',
+              });
+              showToast(`${config.label} connected successfully!`);
+              setSocialWizardModal(null);
+              loadSocialAccounts();
+            }}
+            onTestConnection={async (vals) => {
+              const res = await socialAPI.verifyToken(platform, vals.accessToken, vals.pageId || undefined);
+              const d = res.data;
+              return {
+                data: {
+                  success: d.valid,
+                  detail: d.valid ? `Connected as "${d.accountName || d.accountId || 'account'}"` : undefined,
+                  error: !d.valid ? (d.error || 'Token invalid or expired') : undefined,
+                },
+              };
+            }}
+            onClose={() => setSocialWizardModal(null)}
+            isUpdate={!!connected}
+            accentColor={config.color}
+            logo={<config.Icon size={20} style={{ color: '#fff' }} />}
+          />
+        );
+      })()}
+
+      {/* LEGACY integration modal code — no longer rendered (replaced by wizard above) */}
+      {false && integrationModal && (
         <div onClick={() => setIntegrationModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, padding: 28, maxWidth: 500, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
 
@@ -1401,8 +1971,8 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Manual Token Modal */}
-      {setupModal && platformConfig && (
+      {/* Manual Token Modal — replaced by socialWizardModal + IntegrationSetupWizard */}
+      {false && null && (
         <div onClick={() => { setSetupModal(null); setTokenVerified(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(4px)' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 18, padding: 0, maxWidth: 560, width: '100%', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
 
@@ -1426,6 +1996,14 @@ export default function Settings() {
 
             <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
+              {/* Warning badge for platforms requiring approval */}
+              {platformConfig.tokenHelp.badge && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.35)', fontSize: 12, fontWeight: 600, color: '#d97706' }}>
+                  <IpWarning size={13} style={{ color: '#d97706' }} />
+                  {platformConfig.tokenHelp.badge}
+                </div>
+              )}
+
               {/* Step-by-step instructions */}
               <div style={{ background: t.input, borderRadius: 12, border: `1px solid ${t.border}`, overflow: 'hidden' }}>
                 <div style={{ padding: '12px 16px', borderBottom: `1px solid ${t.border}`, fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -1444,6 +2022,7 @@ export default function Settings() {
                             {step.link.label} ↗
                           </a>
                         )}
+                        {step.suffix && <span>{step.suffix}</span>}
                       </div>
                     </div>
                   ))}

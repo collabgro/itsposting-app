@@ -13,6 +13,10 @@ const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
 const NotificationService = require('../services/NotificationService');
+const DMPollingService = require('../services/DMPollingService');
+
+const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET;
+const FACEBOOK_WEBHOOK_VERIFY_TOKEN = process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN;
 
 module.exports = (pool) => {
   const router = express.Router();
@@ -201,6 +205,178 @@ module.exports = (pool) => {
       const detail = err.response?.data;
       console.error('[HeyGen Webhook] Registration failed:', JSON.stringify(detail));
       res.status(500).json({ error: 'Registration failed', detail });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // GET /api/webhooks/facebook  — Meta webhook verification challenge
+  // Facebook calls this once when you register the webhook URL in the App dashboard.
+  // Set FACEBOOK_WEBHOOK_VERIFY_TOKEN in Railway to any string you choose,
+  // then copy that same string into Facebook App → Webhooks → Verify Token.
+  // ─────────────────────────────────────────────────────────────
+  router.get('/facebook', (req, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (mode === 'subscribe' && token === FACEBOOK_WEBHOOK_VERIFY_TOKEN) {
+      console.log('[MetaWebhook] Verification challenge accepted');
+      return res.status(200).send(challenge);
+    }
+    console.warn('[MetaWebhook] Verification failed — token mismatch or wrong mode');
+    res.sendStatus(403);
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // POST /api/webhooks/facebook  — Meta real-time message events
+  // Handles Facebook Messenger (object: "page") and Instagram (object: "instagram").
+  // ACKs immediately then processes async — Meta retries if response > 20s.
+  // ─────────────────────────────────────────────────────────────
+  router.post('/facebook', express.raw({ type: 'application/json' }), async (req, res) => {
+    res.sendStatus(200);
+
+    try {
+      if (FACEBOOK_APP_SECRET) {
+        const sig = req.headers['x-hub-signature-256'];
+        if (!sig) {
+          console.warn('[MetaWebhook] Missing X-Hub-Signature-256 header — ignoring');
+          return;
+        }
+        const expected = 'sha256=' + crypto.createHmac('sha256', FACEBOOK_APP_SECRET).update(req.body).digest('hex');
+        if (expected !== sig) {
+          console.warn('[MetaWebhook] Signature mismatch — ignoring payload');
+          return;
+        }
+      }
+
+      let body;
+      try {
+        body = JSON.parse(req.body.toString('utf8'));
+      } catch {
+        console.warn('[MetaWebhook] Non-JSON body received');
+        return;
+      }
+
+      const { object, entry } = body;
+      if (!entry || !Array.isArray(entry)) return;
+
+      const platform = object === 'instagram' ? 'instagram' : object === 'page' ? 'facebook' : null;
+      if (!platform) {
+        console.log('[MetaWebhook] Unhandled object type:', object);
+        return;
+      }
+
+      const dmService = new DMPollingService(pool);
+
+      for (const pageEntry of entry) {
+        const pageId = pageEntry.id;
+        const messagingEvents = pageEntry.messaging || [];
+
+        for (const event of messagingEvents) {
+          if (!event.message || event.message.is_echo) continue;
+
+          const senderId = event.sender?.id;
+          const messageId = event.message?.mid;
+          const messageText = event.message?.text || '';
+          const timestamp = event.timestamp || Date.now();
+
+          if (!senderId || !messageId) continue;
+
+          await dmService.processWebhookEvent({ pageId, platform, senderId, senderName: null, messageId, messageText, timestamp });
+        }
+      }
+    } catch (err) {
+      console.error('[MetaWebhook] Processing error:', err.message);
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // GET /api/webhooks/tiktok  — TikTok endpoint ownership verification
+  // TikTok sends timestamp, nonce, client_token query params.
+  // Server must return HMAC-SHA256(sorted(nonce, timestamp), TIKTOK_APP_SECRET).
+  // If TIKTOK_APP_SECRET is not set, always accepts (safe for local testing).
+  // ─────────────────────────────────────────────────────────────
+  router.get('/tiktok', (req, res) => {
+    const { timestamp, nonce, client_token } = req.query;
+    const secret = process.env.TIKTOK_APP_SECRET;
+    if (secret) {
+      if (!timestamp || !nonce) return res.sendStatus(403);
+      const sigStr = [nonce, timestamp].sort().join('\n');
+      const expected = crypto.createHmac('sha256', secret).update(sigStr).digest('hex');
+      if (client_token !== expected) {
+        console.warn('[TikTokWebhook] Verification failed — signature mismatch');
+        return res.sendStatus(403);
+      }
+      console.log('[TikTokWebhook] Verification challenge accepted');
+      return res.status(200).send(expected);
+    }
+    // No secret set — accept during initial setup/testing
+    console.log('[TikTokWebhook] Verification accepted (no TIKTOK_APP_SECRET set)');
+    res.sendStatus(200);
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // POST /api/webhooks/tiktok  — TikTok Business Messaging real-time events
+  // Requires TikTok Business Messaging Partner Program approval.
+  // Event type handled: messaging.message (inbound message from TikTok user)
+  // ─────────────────────────────────────────────────────────────
+  router.post('/tiktok', express.raw({ type: 'application/json' }), async (req, res) => {
+    res.sendStatus(200);
+
+    try {
+      const secret = process.env.TIKTOK_APP_SECRET;
+      if (secret) {
+        const sig = req.headers['x-tiktok-signature'];
+        const ts = req.headers['x-tiktok-timestamp'] || '';
+        if (!sig) {
+          console.warn('[TikTokWebhook] Missing x-tiktok-signature header — ignoring');
+          return;
+        }
+        const expected = crypto.createHmac('sha256', secret).update(ts + req.body.toString()).digest('hex');
+        if (expected !== sig) {
+          console.warn('[TikTokWebhook] Signature mismatch — ignoring payload');
+          return;
+        }
+      }
+
+      let body;
+      try {
+        body = JSON.parse(req.body.toString('utf8'));
+      } catch {
+        console.warn('[TikTokWebhook] Non-JSON body received');
+        return;
+      }
+
+      const { event, data } = body;
+      if (event !== 'messaging.message' || !data) {
+        console.log('[TikTokWebhook] Unhandled event type:', event);
+        return;
+      }
+
+      const {
+        business_id: pageId,
+        conversation_id: convId,
+        sender_open_id: senderId,
+        message_id: messageId,
+        create_time: ts,
+        content,
+      } = data;
+      const messageText = content?.body?.text || content?.text || '';
+      if (!pageId || !convId || !messageId) return;
+
+      const dmService = new DMPollingService(pool);
+      await dmService.processWebhookEvent({
+        pageId,
+        platform: 'tiktok',
+        senderId: senderId || convId,
+        senderName: null,
+        messageId,
+        messageText,
+        timestamp: ts ? ts * 1000 : Date.now(),
+        threadId: convId, // TikTok canonical thread = conversation_id
+      });
+    } catch (err) {
+      console.error('[TikTokWebhook] Processing error:', err.message);
     }
   });
 

@@ -445,5 +445,76 @@ module.exports = (pool) => {
     }
   });
 
+  // ── POST /api/receptionist/test-twilio ───────────────────────────
+  router.post('/test-twilio', async (req, res) => {
+    try {
+      const { accountSid, authToken } = req.body;
+      if (!accountSid || !authToken) return res.json({ success: false, error: 'Account SID and Auth Token required' });
+      const twilio = require('twilio');
+      const client = twilio(accountSid, authToken);
+      const account = await client.api.accounts(accountSid).fetch();
+      res.json({ success: true, detail: `Connected as "${account.friendlyName}" (${account.status})` });
+    } catch (err) {
+      res.json({ success: false, error: err.message || 'Invalid Twilio credentials' });
+    }
+  });
+
+  // ── POST /api/receptionist/test-mailgun ──────────────────────────
+  router.post('/test-mailgun', async (req, res) => {
+    try {
+      const { apiKey, domain } = req.body;
+      if (!apiKey || !domain) return res.json({ success: false, error: 'API key and domain required' });
+      const axios = require('axios');
+      const resp = await axios.get(`https://api.mailgun.net/v3/domains/${domain}`, {
+        auth: { username: 'api', password: apiKey },
+        timeout: 10000,
+      });
+      const state = resp.data?.state || 'active';
+      res.json({ success: true, detail: `Domain "${domain}" is ${state}` });
+    } catch (err) {
+      const status = err.response?.status;
+      const msg = status === 401 ? 'Invalid API key'
+        : status === 404 ? `Domain "${req.body.domain}" not found in Mailgun`
+        : err.message;
+      res.json({ success: false, error: msg });
+    }
+  });
+
+  // ── POST /api/receptionist/test-whatsapp ─────────────────────────
+  router.post('/test-whatsapp', async (req, res) => {
+    try {
+      const { phoneNumberId, accessToken } = req.body;
+      if (!phoneNumberId || !accessToken) return res.json({ success: false, error: 'Phone Number ID and Access Token required' });
+      const axios = require('axios');
+      const resp = await axios.get(`https://graph.facebook.com/v21.0/${phoneNumberId}`, {
+        params: { access_token: accessToken },
+        timeout: 10000,
+      });
+      const name = resp.data?.display_phone_number || resp.data?.verified_name || phoneNumberId;
+      res.json({ success: true, detail: `Connected — WhatsApp number: ${name}` });
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.message || 'Invalid credentials';
+      res.json({ success: false, error: msg });
+    }
+  });
+
+  // ── POST /api/receptionist/test-calcom ───────────────────────────
+  router.post('/test-calcom', async (req, res) => {
+    try {
+      const { apiKey } = req.body;
+      if (!apiKey) return res.json({ success: false, error: 'API key required' });
+      const axios = require('axios');
+      const resp = await axios.get('https://api.cal.com/v1/me', {
+        params: { apiKey },
+        timeout: 10000,
+      });
+      const user = resp.data?.user;
+      res.json({ success: true, detail: `Connected as ${user?.name || user?.email || 'Cal.com user'}` });
+    } catch (err) {
+      const msg = err.response?.status === 401 ? 'Invalid API key' : err.message;
+      res.json({ success: false, error: msg });
+    }
+  });
+
   return router;
 };

@@ -5,8 +5,12 @@ const SocialPublisher = require('../services/SocialPublisher');
 
 const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID;
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_CLIENT_ID       = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET   = process.env.GOOGLE_CLIENT_SECRET;
+const LINKEDIN_CLIENT_ID     = process.env.LINKEDIN_CLIENT_ID;
+const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
+const TIKTOK_CLIENT_KEY      = process.env.TIKTOK_CLIENT_KEY;
+const TIKTOK_CLIENT_SECRET   = process.env.TIKTOK_CLIENT_SECRET;
 
 function getBaseUrl(req) {
   const domain = process.env.REPLIT_DEV_DOMAIN || process.env.FRONTEND_URL;
@@ -37,13 +41,45 @@ module.exports = (pool) => {
 
   router.get('/status', authenticate, (req, res) => {
     res.json({
-      facebook:        { configured: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
-      instagram:       { configured: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
-      google_business: { configured: !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) },
-      linkedin:        { configured: true, manualOnly: true },
-      tiktok:          { configured: true, manualOnly: true },
-      manual:          { configured: true },
+      facebook:        { oauthAvailable: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
+      instagram:       { oauthAvailable: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
+      google_business: { oauthAvailable: !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) },
+      linkedin:        { oauthAvailable: !!(LINKEDIN_CLIENT_ID && LINKEDIN_CLIENT_SECRET) },
+      tiktok:          { oauthAvailable: !!(TIKTOK_CLIENT_KEY && TIKTOK_CLIENT_SECRET) },
     });
+  });
+
+  // Returns the OAuth authorization URL as JSON so the frontend can initiate
+  // OAuth via axios (with JWT header) then navigate with window.location.href.
+  router.get('/connect-url/:platform', authenticate, (req, res) => {
+    const { platform } = req.params;
+    const baseUrl = getBaseUrl(req);
+    const state = Buffer.from(JSON.stringify({ customerId: req.customerId })).toString('base64');
+
+    const fbScope = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_messaging', 'instagram_basic', 'instagram_content_publish', 'instagram_manage_messages', 'public_profile'].join(',');
+    const googleScope = ['https://www.googleapis.com/auth/business.manage', 'https://www.googleapis.com/auth/userinfo.profile'].join(' ');
+
+    const urls = {
+      facebook: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET
+        ? `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/facebook')}&scope=${encodeURIComponent(fbScope)}&state=${encodeURIComponent(state)}&response_type=code`
+        : null,
+      instagram: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET
+        ? `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/facebook')}&scope=${encodeURIComponent(fbScope)}&state=${encodeURIComponent(state)}&response_type=code`
+        : null,
+      google_business: GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET
+        ? `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/google')}&scope=${encodeURIComponent(googleScope)}&state=${encodeURIComponent(state)}&response_type=code&access_type=offline&prompt=consent`
+        : null,
+      linkedin: LINKEDIN_CLIENT_ID
+        ? `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/linkedin')}&scope=${encodeURIComponent('openid profile email w_member_social')}&state=${encodeURIComponent(state)}`
+        : null,
+      tiktok: TIKTOK_CLIENT_KEY
+        ? `https://www.tiktok.com/v2/auth/authorize/?client_key=${TIKTOK_CLIENT_KEY}&response_type=code&scope=${encodeURIComponent('user.info.basic,video.publish,video.upload')}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/tiktok')}&state=${encodeURIComponent(state)}`
+        : null,
+    };
+
+    const url = urls[platform];
+    if (!url) return res.status(400).json({ error: 'OAuth not configured for this platform' });
+    res.json({ url });
   });
 
   router.get('/connect/facebook', authenticate, (req, res) => {
@@ -60,8 +96,10 @@ module.exports = (pool) => {
       'pages_show_list',
       'pages_read_engagement',
       'pages_manage_posts',
+      'pages_messaging',
       'instagram_basic',
       'instagram_content_publish',
+      'instagram_manage_messages',
       'public_profile',
     ].join(',');
     const authUrl =
@@ -242,6 +280,143 @@ module.exports = (pool) => {
     } catch (error) {
       console.error('Google OAuth error:', error.response?.data || error.message);
       res.redirect(`${frontendBase}/settings?error=google_failed`);
+    }
+  });
+
+  // ─── LinkedIn OAuth ────────────────────────────────────────────────────────
+
+  router.get('/callback/linkedin', async (req, res) => {
+    const { code, state, error: oauthError } = req.query;
+    const frontendBase = process.env.FRONTEND_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
+
+    if (oauthError) return res.redirect(`${frontendBase}/settings?error=linkedin_denied`);
+    if (!code || !state) return res.redirect(`${frontendBase}/settings?error=linkedin_invalid`);
+
+    let customerId;
+    try {
+      const decoded = JSON.parse(Buffer.from(decodeURIComponent(state), 'base64').toString());
+      customerId = decoded.customerId;
+    } catch {
+      return res.redirect(`${frontendBase}/settings?error=linkedin_state_invalid`);
+    }
+
+    try {
+      const redirectUri = `${getBaseUrl(req)}/api/social/callback/linkedin`;
+
+      const params = new URLSearchParams({
+        grant_type:    'authorization_code',
+        code,
+        redirect_uri:  redirectUri,
+        client_id:     LINKEDIN_CLIENT_ID,
+        client_secret: LINKEDIN_CLIENT_SECRET,
+      });
+
+      const tokenRes = await axios.post(
+        'https://www.linkedin.com/oauth/v2/accessToken',
+        params.toString(),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 }
+      );
+
+      const { access_token, expires_in } = tokenRes.data;
+      const expiresAt = new Date(Date.now() + (expires_in || 5184000) * 1000);
+
+      const profileRes = await axios.get('https://api.linkedin.com/v2/userinfo', {
+        headers: { Authorization: `Bearer ${access_token}` },
+        timeout: 10000,
+      });
+
+      const { sub, name, picture } = profileRes.data;
+      const authorUrn = `urn:li:person:${sub}`;
+
+      await pool.query(
+        `INSERT INTO social_accounts
+           (customer_id, platform, access_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
+         VALUES ($1, 'linkedin', $2, $3, $4, $5, $6, true, true)
+         ON CONFLICT (customer_id, platform) DO UPDATE SET
+           access_token = EXCLUDED.access_token,
+           token_expires_at = EXCLUDED.token_expires_at,
+           account_id = EXCLUDED.account_id,
+           account_name = EXCLUDED.account_name,
+           profile_image_url = EXCLUDED.profile_image_url,
+           updated_at = NOW()`,
+        [customerId, access_token, expiresAt, authorUrn, name || 'LinkedIn Account', picture || null]
+      );
+
+      res.redirect(`${frontendBase}/settings?connected=linkedin`);
+    } catch (error) {
+      console.error('LinkedIn OAuth error:', error.response?.data || error.message);
+      res.redirect(`${frontendBase}/settings?error=linkedin_failed`);
+    }
+  });
+
+  // ─── TikTok OAuth ──────────────────────────────────────────────────────────
+
+  router.get('/callback/tiktok', async (req, res) => {
+    const { code, state, error: oauthError } = req.query;
+    const frontendBase = process.env.FRONTEND_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
+
+    if (oauthError) return res.redirect(`${frontendBase}/settings?error=tiktok_denied`);
+    if (!code || !state) return res.redirect(`${frontendBase}/settings?error=tiktok_invalid`);
+
+    let customerId;
+    try {
+      const decoded = JSON.parse(Buffer.from(decodeURIComponent(state), 'base64').toString());
+      customerId = decoded.customerId;
+    } catch {
+      return res.redirect(`${frontendBase}/settings?error=tiktok_state_invalid`);
+    }
+
+    try {
+      const redirectUri = `${getBaseUrl(req)}/api/social/callback/tiktok`;
+
+      const params = new URLSearchParams({
+        client_key:    TIKTOK_CLIENT_KEY,
+        client_secret: TIKTOK_CLIENT_SECRET,
+        code,
+        grant_type:    'authorization_code',
+        redirect_uri:  redirectUri,
+      });
+
+      const tokenRes = await axios.post(
+        'https://open.tiktokapis.com/v2/oauth/token/',
+        params.toString(),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 }
+      );
+
+      const { access_token, refresh_token, open_id, expires_in } = tokenRes.data?.data || {};
+      if (!access_token) throw new Error(tokenRes.data?.error?.message || 'TikTok token exchange failed');
+
+      const expiresAt = new Date(Date.now() + (expires_in || 86400) * 1000);
+
+      const userRes = await axios.get('https://open.tiktokapis.com/v2/user/info/', {
+        headers: { Authorization: `Bearer ${access_token}` },
+        params:  { fields: 'open_id,display_name,avatar_url' },
+        timeout: 10000,
+      });
+
+      const user = userRes.data?.data?.user || {};
+      const displayName = user.display_name || 'TikTok Account';
+      const avatarUrl   = user.avatar_url   || null;
+
+      await pool.query(
+        `INSERT INTO social_accounts
+           (customer_id, platform, access_token, refresh_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
+         VALUES ($1, 'tiktok', $2, $3, $4, $5, $6, $7, true, true)
+         ON CONFLICT (customer_id, platform) DO UPDATE SET
+           access_token = EXCLUDED.access_token,
+           refresh_token = COALESCE(EXCLUDED.refresh_token, social_accounts.refresh_token),
+           token_expires_at = EXCLUDED.token_expires_at,
+           account_id = EXCLUDED.account_id,
+           account_name = EXCLUDED.account_name,
+           profile_image_url = EXCLUDED.profile_image_url,
+           updated_at = NOW()`,
+        [customerId, access_token, refresh_token || null, expiresAt, open_id, displayName, avatarUrl]
+      );
+
+      res.redirect(`${frontendBase}/settings?connected=tiktok`);
+    } catch (error) {
+      console.error('TikTok OAuth error:', error.response?.data || error.message);
+      res.redirect(`${frontendBase}/settings?error=tiktok_failed`);
     }
   });
 

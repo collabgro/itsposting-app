@@ -13,7 +13,7 @@ module.exports = (pool) => {
    */
   router.post('/register', async (req, res) => {
     try {
-      const { email, password, businessName, industry, location } = req.body;
+      const { email, password, businessName, industry, location, parentRef } = req.body;
 
       if (!email || !password || !businessName) {
         return res.status(400).json({ error: 'Missing required fields' });
@@ -47,11 +47,17 @@ module.exports = (pool) => {
 
       const passwordHash = await bcrypt.hash(password, 10);
 
+      let parentCustomerId = null;
+      if (parentRef) {
+        const parentCheck = await pool.query('SELECT id FROM customers WHERE id = $1', [parseInt(parentRef, 10) || 0]);
+        if (parentCheck.rows.length) parentCustomerId = parentCheck.rows[0].id;
+      }
+
       const result = await pool.query(
-        `INSERT INTO customers (email, password_hash, business_name, industry, location)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO customers (email, password_hash, business_name, industry, location, parent_customer_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id, email, business_name, industry, location, plan, credits_balance, status`,
-        [email, passwordHash, businessName, industry || 'other', location || '']
+        [email, passwordHash, businessName, industry || 'other', location || '', parentCustomerId]
       );
 
       const customer = result.rows[0];
@@ -145,15 +151,16 @@ module.exports = (pool) => {
         return res.status(403).json({ error: 'Account suspended' });
       }
 
-      // Sub-accounts share the parent's credit pool
+      // Sub-accounts share the parent's credit pool and admin status
       if (customer.parent_customer_id) {
         const parentRow = await pool.query(
-          `SELECT credits_balance, free_geo_audit_used FROM customers WHERE id = $1`,
+          `SELECT credits_balance, free_geo_audit_used, is_admin FROM customers WHERE id = $1`,
           [customer.parent_customer_id]
         );
         if (parentRow.rows.length) {
           customer.credits_balance = parentRow.rows[0].credits_balance;
           customer.free_geo_audit_used = parentRow.rows[0].free_geo_audit_used;
+          customer.is_admin = customer.is_admin || parentRow.rows[0].is_admin;
           customer.is_sub_account = true;
         }
       }
