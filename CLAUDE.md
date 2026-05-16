@@ -51,7 +51,9 @@ Critical principles:
 - Loading screen: rotating messages showing real progress
 - Result screen: same page, no redirects
 
-**Status:** Backend (`backend/routes/wizard.js`) — BUILT and live. Frontend dedicated wizard page still to be wired up (currently accessible via ContentCreatorModal.js).
+**Status:** Backend (`backend/routes/wizard.js`) — BUILT and live. Frontend (`frontend/pages/wizard.js`) — BUILT and live. Full dedicated wizard page operational; ContentCreatorModal.js retained as a secondary entry point.
+
+**Text Post (static) behavior:** When `contentTypeSelection === 'static'`, the wizard skips NanoBanana entirely, deducts 1 credit, returns `mediaUrl: null`, and the results screen hides the left media panel — showing only the 3 caption variations at full width.
 
 ---
 
@@ -217,6 +219,7 @@ itsposting-app-main/
 - `upload.js` — manual upload + library picker
 - `media.js` — 10GB media library
 - `quick-post.js` — mobile-optimised single-screen post creation
+- `wizard.js` — dedicated full-page AI content creation wizard (multi-step, all content types)
 - `billing.js` — plan management
 - `settings.js` — profile, branding, scraper
 - `reports.js` — monthly reports
@@ -348,11 +351,14 @@ DATABASE_URL                    # Railway Postgres connection string
 
 # Auth
 JWT_SECRET                      # 32+ char secret
+ADMIN_SECRET                    # Required for /api/webhooks/heygen/register — no fallback to JWT_SECRET
 
 # Server
 PORT=8080                       # Always 8080 on Railway
 NODE_ENV                        # development | production
 FRONTEND_URL                    # Deployed frontend Railway URL
+BACKEND_URL                     # Public Railway backend URL — used for HeyGen webhook self-registration
+CRON_SECRET                     # Protects cron-triggered endpoints (suggestions, auto-post); required in production
 
 # AI — Text
 ANTHROPIC_API_KEY               # Claude API key
@@ -364,9 +370,18 @@ IMAGE_PROVIDER=nanobanana       # 'nanobanana' | 'midjourney' | 'auto'
 
 # AI — Video
 HEYGEN_API_KEY                  # Avatar/talking-head video generation
+HEYGEN_WEBHOOK_SECRET           # HMAC secret for verifying HeyGen webhook payloads (from /heygen/register)
+HEYGEN_VOICE_ID                 # Optional — pre-configured HeyGen voice ID (auto-fetched if not set)
+HEYGEN_AVATAR_ID                # Optional — pre-configured HeyGen avatar ID (auto-fetched if not set)
+HEYGEN_TEST_MODE=false          # Set true to generate watermarked test videos (saves HeyGen credits)
 VEO_API_KEY                     # Veo cinematic video generation (pipeline #2)
 RUNWAY_API_KEY                  # Runway Gen-4 fallback video
 PIKA_API_KEY                    # Pika 2.2 fallback video
+
+# Webhooks & Social
+FACEBOOK_APP_SECRET             # Facebook webhook HMAC signature verification (X-Hub-Signature-256)
+FACEBOOK_WEBHOOK_VERIFY_TOKEN   # Facebook webhook setup challenge token (any string you choose)
+TIKTOK_APP_SECRET               # TikTok webhook signature verification; required in production
 
 # Storage
 CLOUDINARY_CLOUD_NAME
@@ -483,6 +498,17 @@ RESEND_API_KEY
 - On validation failure: retry once → imageFailed: true in response (caption-only mode)
 - Validation is ONLY for media files — NOT for captions, hashtags, or engagement questions
 - The validateMedia() helper lives in `backend/routes/wizard.js` and is reused by all wizard endpoints
+
+### Security
+- **bcrypt rounds: always 12** — never 10. If you see `bcrypt.hash(password, 10)` anywhere, fix it.
+- **Hash password reset tokens before storing:** generate `rawToken = crypto.randomBytes(32).toString('hex')`, store `crypto.createHash('sha256').update(rawToken).digest('hex')` in DB, email the raw token. On reset, hash the incoming token to look it up.
+- **JWT via Authorization header only** — never accept tokens via query string (`?token=`); they appear in server access logs and browser history.
+- **Credit deductions must use SELECT FOR UPDATE** — wrap in `BEGIN/COMMIT` transaction: `SELECT credits_balance FROM customers WHERE id=$1 FOR UPDATE` before any UPDATE. See `backend/routes/geo.js` for the reference implementation.
+- **Production webhooks must verify HMAC signatures** — never process a payload if the signature header is missing or mismatched. If the required secret env var is not set in production, return 403; do not silently ignore.
+- **ADMIN_SECRET is required for admin webhook endpoints** — never fall back to JWT_SECRET. If `ADMIN_SECRET` is unset, return 503.
+- **Sanitise user content before AI injection** — truncate to 600 chars max per entry, strip `<>\`` characters. See `sanitizeKb()` in `backend/services/ReceptionistService.js` for the pattern.
+- **Rate limiting applies to ALL users** — authenticated requests do NOT skip the global rate limiter.
+- **Security headers must stay enabled** — frontend via `next.config.js` `headers()`, backend via `helmet()` (CSP enabled). Do not disable either.
 
 ---
 
@@ -603,7 +629,7 @@ Business knowledge base content if provided
 ## THE GUIDED CREATION WIZARD
 
 **Backend:** `backend/routes/wizard.js` — BUILT
-**Frontend:** Currently served via `ContentCreatorModal.js` — dedicated `frontend/pages/wizard.js` still to be created
+**Frontend:** `frontend/pages/wizard.js` — BUILT
 
 **Core principle:** NO blank prompt boxes. Ever. Local business owners are not
 copywriters. Remove the blank box entirely and replace with guided choices.
@@ -1042,9 +1068,10 @@ CTA: Clear single action (not multiple options)
 - **Channel selector** — automation modals always show SMS / WhatsApp / Email; unconfigured channels shown as disabled with "(not configured)" label so users know what to set up
 - **Integration cards** — settings page has Twilio, Cal.com, Mailgun, and WhatsApp Business (Meta) cards with configure modals; credentials stored in receptionist_config, secrets never returned to frontend
 - **Studio route** — AI-powered branded image card generator (Sharp + Claude, mounted at /api/studio)
+- **`frontend/pages/wizard.js`** — dedicated wizard page, fully operational; text post hides media panel, 1 credit deducted
+- **Security hardening** — bcrypt rounds 12, hashed reset tokens, JWT Bearer-only, SELECT FOR UPDATE on credit deductions, HMAC webhook enforcement, CSP + security headers on frontend and backend, knowledge base content sanitisation (`b4e0450`)
 
 ### 🔴 STILL TO BUILD:
-- **`frontend/pages/wizard.js`** — dedicated wizard page (backend is done; currently in modal)
 - **Video pipeline #2 completion** — Runway Gen-4 + Pika 2.2 integrations in VideoService.js
 - **Facebook + Instagram live OAuth + posting** — social.js exists; live posting needs OAuth flows
 - **Google Business Profile live posting** — endpoint exists; GBP API integration needed
@@ -1087,4 +1114,4 @@ Done. 10 seconds. No thinking required.
 
 ---
 
-*Last updated: May 2026 (v2) | ItsPosting.com*
+*Last updated: May 2026 (v2.1) | ItsPosting.com*
