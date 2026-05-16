@@ -231,6 +231,8 @@ export default function Settings() {
   const [manualPageId, setManualPageId] = useState('');
   const [manualName, setManualName] = useState('');
   const [manualSaving, setManualSaving] = useState(false);
+  const [tokenVerifying, setTokenVerifying] = useState(false);
+  const [tokenVerified, setTokenVerified] = useState(null); // null | { valid, accountName, error }
 
   const openIntegrationModal = (type) => {
     const cfg = receptionistConfig || {};
@@ -454,7 +456,24 @@ export default function Settings() {
     setManualToken('');
     setManualPageId('');
     setManualName('');
+    setTokenVerified(null);
     setSetupModal(platform);
+  };
+
+  const handleVerifyToken = async () => {
+    if (!manualToken.trim()) return;
+    setTokenVerifying(true);
+    setTokenVerified(null);
+    try {
+      const { data } = await socialAPI.verifyToken(setupModal, manualToken.trim(), manualPageId.trim() || undefined);
+      setTokenVerified(data);
+      if (data.valid && data.accountName && !manualName) setManualName(data.accountName);
+      if (data.valid && data.accountId && !manualPageId) setManualPageId(data.accountId);
+    } catch {
+      setTokenVerified({ valid: false, error: 'Could not reach the platform — check your token.' });
+    } finally {
+      setTokenVerifying(false);
+    }
   };
 
   const handleManualSave = async () => {
@@ -469,6 +488,7 @@ export default function Settings() {
       });
       showToast(`${PLATFORM_CONFIG[setupModal]?.label} connected successfully!`);
       setSetupModal(null);
+      setTokenVerified(null);
       loadSocialAccounts();
     } catch (err) {
       showToast(err.response?.data?.error || err.message || 'Failed to save token', 'error');
@@ -1383,79 +1403,114 @@ export default function Settings() {
 
       {/* Manual Token Modal */}
       {setupModal && platformConfig && (
-        <div onClick={() => setSetupModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, padding: 28, maxWidth: 540, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div onClick={() => { setSetupModal(null); setTokenVerified(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(4px)' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 18, padding: 0, maxWidth: 560, width: '100%', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
 
-            {/* Modal Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${platformConfig.color}15`, border: `1px solid ${platformConfig.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <platformConfig.Icon size={18} style={{ color: platformConfig.color }} />
+            {/* Colored header band */}
+            <div style={{ padding: '22px 28px 18px', borderBottom: `1px solid ${t.border}`, background: `${platformConfig.color}10` }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 12, background: `${platformConfig.color}20`, border: `1.5px solid ${platformConfig.color}50`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <platformConfig.Icon size={20} style={{ color: platformConfig.color }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: t.text }}>Connect {platformConfig.label}</div>
+                    <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>Follow the steps below — takes about 2 minutes</div>
+                  </div>
+                </div>
+                <button onClick={() => { setSetupModal(null); setTokenVerified(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: 4 }}>
+                  <IpClose size={18} />
+                </button>
               </div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text }}>Connect {platformConfig.label}</h3>
-            </div>
-            <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Follow the steps below to get your access token.</p>
-
-            {/* Step by step */}
-            <div style={{ marginBottom: 20, padding: 16, background: t.input, borderRadius: 12, border: `1px solid ${t.border}` }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 12 }}>{platformConfig.tokenHelp.title}</div>
-              <ol style={{ paddingLeft: 18, margin: 0 }}>
-                {platformConfig.tokenHelp.steps.map((step, i) => (
-                  <li key={i} style={{ fontSize: 12, color: t.textMuted, lineHeight: 2.2 }}>
-                    {step.text}
-                    {step.link && (
-                      <a href={step.link.url} target="_blank" rel="noreferrer" style={{ color: t.primary, fontWeight: 600 }}>
-                        {step.link.label}
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ol>
             </div>
 
-            {/* Form */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+              {/* Step-by-step instructions */}
+              <div style={{ background: t.input, borderRadius: 12, border: `1px solid ${t.border}`, overflow: 'hidden' }}>
+                <div style={{ padding: '12px 16px', borderBottom: `1px solid ${t.border}`, fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {platformConfig.tokenHelp.title}
+                </div>
+                <div style={{ padding: '4px 0' }}>
+                  {platformConfig.tokenHelp.steps.map((step, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 16px', borderBottom: i < platformConfig.tokenHelp.steps.length - 1 ? `1px solid ${t.border}` : 'none' }}>
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: `${platformConfig.color}20`, border: `1px solid ${platformConfig.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 11, fontWeight: 700, color: platformConfig.color }}>
+                        {i + 1}
+                      </div>
+                      <div style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.6, paddingTop: 2 }}>
+                        {step.text}
+                        {step.link && (
+                          <a href={step.link.url} target="_blank" rel="noreferrer" style={{ color: platformConfig.color, fontWeight: 600, textDecoration: 'none', marginLeft: 2 }}>
+                            {step.link.label} ↗
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Token input + Test button */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Access Token <span style={{ color: t.error }}>*</span>
                 </label>
                 <textarea
                   value={manualToken}
-                  onChange={(e) => setManualToken(e.target.value)}
+                  onChange={(e) => { setManualToken(e.target.value); setTokenVerified(null); }}
                   placeholder="Paste your access token here..."
                   rows={3}
-                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${manualToken && manualToken.length < 10 ? t.error : t.border}`, borderRadius: 8, color: t.text, fontSize: 12, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${tokenVerified?.valid === false ? t.error : tokenVerified?.valid ? 'rgba(34,197,94,0.5)' : t.border}`, borderRadius: 8, color: t.text, fontSize: 12, fontFamily: 'monospace', resize: 'none', outline: 'none', boxSizing: 'border-box', transition: 'border-color 150ms' }}
                 />
-                {manualToken && manualToken.length < 10 && (
-                  <div style={{ fontSize: 11, color: t.error, marginTop: 4 }}>Token seems too short — please check it</div>
+                {/* Verify result banner */}
+                {tokenVerified && (
+                  <div style={{ marginTop: 8, padding: '9px 12px', borderRadius: 8, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, background: tokenVerified.valid ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${tokenVerified.valid ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)'}`, color: tokenVerified.valid ? t.success : t.error }}>
+                    {tokenVerified.valid ? <IpCheck size={13} /> : <IpWarning size={13} />}
+                    {tokenVerified.valid
+                      ? `Token valid — connected as "${tokenVerified.accountName}"`
+                      : `Token failed: ${tokenVerified.error}`}
+                  </div>
                 )}
+                <button
+                  onClick={handleVerifyToken}
+                  disabled={tokenVerifying || manualToken.trim().length < 10}
+                  style={{ marginTop: 8, padding: '8px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: manualToken.trim().length < 10 ? 'not-allowed' : 'pointer', opacity: manualToken.trim().length < 10 ? 0.4 : 1 }}>
+                  {tokenVerifying ? 'Testing...' : '🔍 Test connection'}
+                </button>
               </div>
+
+              {/* Page ID */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 4 }}>
-                  {platformConfig.tokenHelp.pageIdLabel} <span style={{ color: t.textMuted, fontWeight: 400 }}>(optional)</span>
+                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {platformConfig.tokenHelp.pageIdLabel}
+                  {' '}<span style={{ color: t.textMuted, fontWeight: 400, textTransform: 'none', letterSpacing: 'normal' }}>(optional — auto-filled on test)</span>
                 </label>
                 <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>{platformConfig.tokenHelp.pageIdHelp}</div>
                 <input type="text" value={manualPageId} onChange={(e) => setManualPageId(e.target.value)} placeholder="e.g. 123456789"
-                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
+                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
               </div>
+
+              {/* Account Name */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 4 }}>
-                  Account Name <span style={{ color: t.textMuted, fontWeight: 400 }}>(optional)</span>
+                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Display Name <span style={{ color: t.textMuted, fontWeight: 400, textTransform: 'none', letterSpacing: 'normal' }}>(auto-filled on test)</span>
                 </label>
-                <input type="text" value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="e.g. My Business Page"
-                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
+                <input type="text" value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="e.g. Mike's Plumbing"
+                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
               </div>
+
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => setSetupModal(null)}
-                style={{ padding: '9px 18px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            {/* Footer actions */}
+            <div style={{ padding: '16px 28px', borderTop: `1px solid ${t.border}`, display: 'flex', gap: 10, justifyContent: 'flex-end', background: t.input }}>
+              <button onClick={() => { setSetupModal(null); setTokenVerified(null); }}
+                style={{ padding: '10px 20px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 Cancel
               </button>
               <button onClick={handleManualSave}
                 disabled={manualSaving || !manualToken.trim() || manualToken.trim().length < 10}
-                style={{ padding: '9px 20px', background: platformConfig.color, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: manualSaving || !manualToken.trim() || manualToken.trim().length < 10 ? 0.5 : 1 }}>
-                {manualSaving ? 'Connecting...' : `Connect ${platformConfig.label}`}
+                style={{ padding: '10px 22px', background: platformConfig.color, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: manualSaving || manualToken.trim().length < 10 ? 'not-allowed' : 'pointer', opacity: manualSaving || manualToken.trim().length < 10 ? 0.5 : 1 }}>
+                {manualSaving ? 'Connecting...' : `Save & Connect ${platformConfig.label}`}
               </button>
             </div>
           </div>

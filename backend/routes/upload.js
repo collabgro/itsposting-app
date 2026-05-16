@@ -6,6 +6,7 @@ const cloudinary = require('cloudinary').v2;
 const { authenticate } = require('../middleware/auth');
 const ImageResizer = require('../services/ImageResizer');
 const { convertToUTC, isValidTimezone } = require('../utils/timezone');
+const SocialPublisher = require('../services/SocialPublisher');
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -229,13 +230,52 @@ module.exports = (pool) => {
         }
       }
       await client.query('COMMIT');
+
+      // Immediately publish when publishNow=true — don't wait for the 5-min cron
+      let publishResult = null;
+      if (publishNow === true || publishNow === 'true') {
+        try {
+          const publisher = new SocialPublisher(pool);
+          const postForPublish = { ...post, customer_id: req.customerId };
+          const selectedPlatforms = Array.isArray(platforms) && platforms.length
+            ? platforms : null;
+
+          const result = selectedPlatforms
+            ? await publisher.publishToPlatforms(postForPublish, selectedPlatforms)
+            : await publisher.publishPost(postForPublish);
+
+          const succeeded = Object.keys(result.platformPostIds);
+          if (succeeded.length > 0) {
+            await pool.query(
+              `UPDATE posts SET status = 'posted', posted_at = NOW(),
+               platform_post_ids = $1, updated_at = NOW() WHERE id = $2`,
+              [JSON.stringify(result.platformPostIds), post.id]
+            );
+            post.status = 'posted';
+          } else if (result.errors.length > 0) {
+            await pool.query(
+              `UPDATE posts SET status = 'failed',
+               error_message = $1, updated_at = NOW() WHERE id = $2`,
+              [result.errors.map(e => `${e.platform}: ${e.message}`).join('; '), post.id]
+            );
+            post.status = 'failed';
+          }
+          publishResult = result;
+        } catch (pubErr) {
+          console.error('[Upload] Immediate publish error:', pubErr.message);
+          // Post stays scheduled — cron will retry
+        }
+      }
+
+      const isPublishNow = publishNow === true || publishNow === 'true';
       res.json({
         success: true,
         post,
+        publishResult,
         message: scheduledDate
           ? `Scheduled for ${new Date(scheduledDate).toLocaleString()}`
-          : (publishNow === true || publishNow === 'true')
-            ? 'Published! Post queued for immediate publishing.'
+          : isPublishNow
+            ? `Posted to ${publishResult ? Object.keys(publishResult.platformPostIds).join(', ') || 'platforms' : 'platforms'}!`
             : 'Saved as draft (ready to post)',
         creditsUsed: 0,
       });

@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const { authenticate } = require('../middleware/auth');
+const SocialPublisher = require('../services/SocialPublisher');
 
 const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID;
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET;
@@ -330,6 +331,74 @@ module.exports = (pool) => {
       res.json({ success: true, platform, message: `${platform} connected successfully` });
     } catch (error) {
       console.error('Manual connect error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/social/verify-token
+   * Test that a token actually works before saving it.
+   */
+  router.post('/verify-token', authenticate, async (req, res) => {
+    try {
+      const { platform, accessToken, accountId } = req.body;
+      if (!platform || !accessToken) {
+        return res.status(400).json({ error: 'platform and accessToken are required' });
+      }
+      const publisher = new SocialPublisher(pool);
+      const result = await publisher.verifyToken(platform, accessToken.trim(), accountId?.trim());
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ valid: false, error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/social/publish
+   * Immediately publish a saved post to selected platforms.
+   * Body: { postId, platforms? }
+   */
+  router.post('/publish', authenticate, async (req, res) => {
+    try {
+      const { postId, platforms } = req.body;
+      if (!postId) return res.status(400).json({ error: 'postId is required' });
+
+      // Fetch the post and verify ownership
+      const postResult = await pool.query(
+        `SELECT * FROM posts WHERE id = $1 AND customer_id = $2`,
+        [postId, req.customerId]
+      );
+      if (!postResult.rows[0]) return res.status(404).json({ error: 'Post not found' });
+      const post = { ...postResult.rows[0], customer_id: req.customerId };
+
+      // Mark as publishing
+      await pool.query(`UPDATE posts SET status = 'posting', updated_at = NOW() WHERE id = $1`, [postId]);
+
+      const publisher = new SocialPublisher(pool);
+      const { platformPostIds, errors } = platforms?.length
+        ? await publisher.publishToPlatforms(post, platforms)
+        : await publisher.publishPost(post);
+
+      const succeeded = Object.keys(platformPostIds);
+      const allFailed = succeeded.length === 0 && errors.length > 0;
+
+      if (allFailed) {
+        await pool.query(
+          `UPDATE posts SET status = 'failed', error_message = $1, updated_at = NOW() WHERE id = $2`,
+          [errors.map(e => `${e.platform}: ${e.message}`).join('; '), postId]
+        );
+        return res.status(502).json({ success: false, errors });
+      }
+
+      await pool.query(
+        `UPDATE posts SET status = 'posted', posted_at = NOW(),
+          platform_post_ids = $1, updated_at = NOW() WHERE id = $2`,
+        [JSON.stringify(platformPostIds), postId]
+      );
+
+      res.json({ success: true, posted: succeeded, errors, platformPostIds });
+    } catch (error) {
+      console.error('[social/publish]', error.message);
       res.status(500).json({ error: error.message });
     }
   });

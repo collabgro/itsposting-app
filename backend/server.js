@@ -325,6 +325,15 @@ console.log('══════════════════════�
     `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_phone_number_id TEXT`,
     `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_access_token TEXT`,
     `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_business_id TEXT`,
+    // Social publishing
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS auto_post_enabled BOOLEAN DEFAULT true`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS error_message TEXT`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS platform_post_ids JSONB`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS posted_at TIMESTAMP`,
+    `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS account_username VARCHAR(255)`,
+    `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS refresh_token TEXT`,
+    `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS connected_at TIMESTAMP DEFAULT NOW()`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -349,7 +358,14 @@ app.use('/api/wizard/refresh', generationLimiter);
 app.use('/api/wizard/regenerate-image', generationLimiter);
 app.use('/api/content/generate', generationLimiter);
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+  origin: (origin, cb) => {
+    const allowed = (process.env.FRONTEND_URL || 'http://localhost:5000').split(',').map(s => s.trim());
+    if (!origin || allowed.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true,
+}));
 // Webhooks must be registered BEFORE express.json() — they need raw body for HMAC verification
 app.use('/api/webhooks', webhookRoutes(pool));
 app.use(express.json({ limit: '10mb' }));

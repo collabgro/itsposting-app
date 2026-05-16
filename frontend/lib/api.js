@@ -46,6 +46,8 @@ export const socialAPI = {
   connectManual: (platform, data) => api.post('/api/social/connect/manual', { platform, ...data }),
   updateAccount: (id, data) => api.patch(`/api/social/accounts/${id}`, data),
   disconnect: (platform) => api.delete(`/api/social/accounts/${platform}`),
+  verifyToken: (platform, accessToken, accountId) => api.post('/api/social/verify-token', { platform, accessToken, accountId }),
+  publish: (postId, platforms) => api.post('/api/social/publish', { postId, platforms }),
 };
 
 export const scraperAPI = {

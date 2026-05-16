@@ -1,24 +1,19 @@
-/**
- * ItsPosting — Quick Post
- * Mobile-first single-screen flow: job site to social in 30 seconds.
- */
-
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useTheme } from '../lib/theme';
 import Layout from '../components/Layout';
 import {
-  IpSparkle, IpCheck, IpRefresh,
+  IpSparkle, IpCheck, IpRefresh, IpPlus,
   IpEdit, IpSend, IpCopy,
-  IpFacebook, IpInstagram, IpGoogle, IpAllPlatforms,
+  IpFacebook, IpInstagram, IpGoogle,
   IpLinkedIn, IpTikTok,
   IpHeart, IpBusiness, IpWarning, IpLaugh,
   IpPhoto, IpTextCard,
+  IpCheckCircle, IpInfo, IpDollar, IpCalendar, IpTeam,
 } from '../components/icons';
 import { useToast } from '../components/ui';
 import { contentAPI } from '../lib/api';
 
-// ─── Spinner ──────────────────────────────────────────────────────────────────
 function Spinner({ color = '#fff', size = 16 }) {
   return (
     <div style={{
@@ -30,20 +25,58 @@ function Spinner({ color = '#fff', size = 16 }) {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+
 const CONTENT_TYPES = [
-  { id: 'static', label: 'Text Card',  sublabel: '1 credit',  Icon: IpTextCard },
-  { id: 'photo',  label: 'Photo Post', sublabel: '3 credits', Icon: IpPhoto },
+  { id: 'static', label: 'Text Card',  cost: '1 credit',  Icon: IpTextCard },
+  { id: 'photo',  label: 'Photo Post', cost: '3 credits', Icon: IpPhoto },
+];
+
+const JOB_TYPES = [
+  {
+    id: 'job_done',  label: 'Finished a Job',     Icon: IpCheckCircle,
+    prompt: 'Just completed a job',
+    color: '#22C55E',
+    detailHint: 'E.g. replaced water heater, fixed burst pipe, emergency call...',
+  },
+  {
+    id: 'review',    label: 'Got a 5-Star Review', Icon: IpSparkle,
+    prompt: 'Received a 5-star customer review',
+    color: '#EAB308',
+    detailHint: 'Who left it? Long-time customer, first-time client, referral...',
+  },
+  {
+    id: 'tip',       label: 'Sharing a Tip',       Icon: IpInfo,
+    prompt: 'Sharing a helpful maintenance or safety tip',
+    color: '#3B82F6',
+    detailHint: 'What\'s the tip? E.g. check your water pressure monthly...',
+  },
+  {
+    id: 'deal',      label: 'Running a Deal',      Icon: IpDollar,
+    prompt: 'Running a special promotion or discount',
+    color: '#F472B6',
+    detailHint: 'What\'s the offer? E.g. 10% off first service this month...',
+  },
+  {
+    id: 'seasonal',  label: 'Seasonal Content',    Icon: IpCalendar,
+    prompt: 'Seasonal content relevant to this time of year',
+    color: '#A78BFA',
+    detailHint: 'Any specific angle? E.g. winter pipe protection, summer AC prep...',
+  },
+  {
+    id: 'team',      label: 'Team Moment',          Icon: IpTeam,
+    prompt: 'Showcasing our team or behind the scenes',
+    color: '#FB923C',
+    detailHint: 'Who or what are you showcasing?',
+  },
 ];
 
 const PLATFORMS = [
-  { id: 'facebook',        shortLabel: 'FB', Icon: IpFacebook },
-  { id: 'instagram',       shortLabel: 'IG', Icon: IpInstagram },
-  { id: 'linkedin',        shortLabel: 'LI', Icon: IpLinkedIn },
-  { id: 'tiktok',          shortLabel: 'TK', Icon: IpTikTok },
-  { id: 'google_business', shortLabel: 'GB', Icon: IpGoogle },
+  { id: 'facebook',        shortLabel: 'FB', Icon: IpFacebook,  color: '#1877F2' },
+  { id: 'instagram',       shortLabel: 'IG', Icon: IpInstagram, color: '#E1306C' },
+  { id: 'google_business', shortLabel: 'GB', Icon: IpGoogle,    color: '#4285F4' },
+  { id: 'linkedin',        shortLabel: 'LI', Icon: IpLinkedIn,  color: '#0A66C2' },
+  { id: 'tiktok',          shortLabel: 'TK', Icon: IpTikTok,    color: '#69C9D0' },
 ];
-
-const ALL_PLATFORM_IDS = PLATFORMS.map(p => p.id);
 
 const TONES = [
   { id: 'friendly',     label: 'Friendly', Icon: IpHeart },
@@ -51,14 +84,6 @@ const TONES = [
   { id: 'funny',        label: 'Funny',    Icon: IpLaugh },
   { id: 'educational',  label: 'Expert',   Icon: IpSparkle },
   { id: 'urgent',       label: 'Urgent',   Icon: IpWarning },
-];
-
-const PLACEHOLDERS = [
-  'Just finished a new concrete driveway in Springfield...',
-  'Replaced a burst water heater in North Austin today...',
-  'Cleared a badly blocked drain for a family this morning...',
-  'Installed a new AC unit before the summer heat hits...',
-  'Finished a full roof replacement — customer is thrilled...',
 ];
 
 const LOADING_MSGS = {
@@ -76,53 +101,37 @@ const LOADING_MSGS = {
   ],
 };
 
-// ─── FieldLabel with optional step number ─────────────────────────────────────
-function FieldLabel({ t, children, step }) {
-  return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10, letterSpacing: '-0.01em' }}>
-      {step && (
-        <span style={{ width: 20, height: 20, borderRadius: '50%', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, color: t.primary, fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          {step}
-        </span>
-      )}
-      {children}
-    </label>
-  );
-}
-
 // ─── Main Component ────────────────────────────────────────────────────────────
+
 export default function QuickPost() {
   const router = useRouter();
-  const { t } = useTheme();
+  const { t, theme } = useTheme();
   const { showToast } = useToast();
 
   const [mounted,       setMounted]       = useState(false);
   const [contentType,   setContentType]   = useState('static');
-  const [prompt,        setPrompt]        = useState('');
+  const [jobType,       setJobType]       = useState(null);
+  const [details,       setDetails]       = useState('');
+  const [showDetails,   setShowDetails]   = useState(false);
   const [selectedPlats, setSelectedPlats] = useState(['facebook', 'instagram', 'google_business']);
   const [tone,          setTone]          = useState('friendly');
   const [generating,    setGenerating]    = useState(false);
   const [loadMsgIdx,    setLoadMsgIdx]    = useState(0);
   const [result,        setResult]        = useState(null);
   const [error,         setError]         = useState('');
+  const [shake,         setShake]         = useState(false);
   const [activeVar,     setActiveVar]     = useState('a');
   const [editing,       setEditing]       = useState(false);
   const [editedCaption, setEditedCaption] = useState('');
   const [copied,        setCopied]        = useState(false);
-  const [phIdx,         setPhIdx]         = useState(0);
 
   const loadMsgTimer = useRef(null);
-  const phTimer      = useRef(null);
-  const textareaRef  = useRef(null);
 
   useEffect(() => {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
-    phTimer.current = setInterval(() => setPhIdx(i => (i + 1) % PLACEHOLDERS.length), 3500);
-    return () => { clearInterval(phTimer.current); clearInterval(loadMsgTimer.current); };
+    return () => clearInterval(loadMsgTimer.current);
   }, []);
-
-  useEffect(() => { if (prompt) clearInterval(phTimer.current); }, [prompt]);
 
   useEffect(() => {
     if (generating) {
@@ -138,14 +147,10 @@ export default function QuickPost() {
 
   if (!mounted) return null;
 
-  const allSelected = selectedPlats.length === ALL_PLATFORM_IDS.length;
-  const creditCost  = contentType === 'photo' ? 3 : 1;
+  const creditCost = contentType === 'photo' ? 3 : 1;
+  const dark = theme === 'dark';
 
   const togglePlatform = (id) => {
-    if (id === 'all') {
-      setSelectedPlats(allSelected ? ['facebook'] : [...ALL_PLATFORM_IDS]);
-      return;
-    }
     setSelectedPlats(prev =>
       prev.includes(id)
         ? prev.length > 1 ? prev.filter(p => p !== id) : prev
@@ -154,13 +159,21 @@ export default function QuickPost() {
   };
 
   const handleGenerate = async () => {
-    const text = prompt.trim();
-    if (!text) { setError('Tell PostCore what just happened — one sentence is enough.'); textareaRef.current?.focus(); return; }
+    if (!jobType) {
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      setError('Pick what happened today');
+      return;
+    }
+    const jt = JOB_TYPES.find(j => j.id === jobType);
+    const detailSuffix = details.trim() ? ` — ${details.trim()}` : '';
+    const assembled = `${jt.prompt}${detailSuffix}`;
+
     setError(''); setResult(null); setEditing(false); setActiveVar('a'); setGenerating(true);
     try {
       const { data } = await contentAPI.generate({
         contentType,
-        prompt: `${text} [Tone: ${tone}]`,
+        prompt: `${assembled} [Tone: ${tone}]`,
         options: { platforms: selectedPlats, tone, quickPost: true },
       });
       setResult(data);
@@ -185,18 +198,28 @@ export default function QuickPost() {
     router.push('/upload?from=quick-post');
   };
   const handleOpenWizard = () => {
-    sessionStorage.setItem('quickPostResult', JSON.stringify({ result, platforms: selectedPlats, tone, prompt }));
+    sessionStorage.setItem('quickPostResult', JSON.stringify({ result, platforms: selectedPlats, tone, prompt: JOB_TYPES.find(j => j.id === jobType)?.prompt || '' }));
     router.push('/wizard?from=quick-post');
   };
   const handleCopy = () => {
     navigator.clipboard.writeText(getCaption()).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2200); });
   };
   const handleReset = () => {
-    setResult(null); setError(''); setEditing(false); setPrompt(''); setActiveVar('a');
-    setTimeout(() => textareaRef.current?.focus(), 100);
+    setResult(null); setError(''); setEditing(false);
+    setJobType(null); setDetails(''); setShowDetails(false); setActiveVar('a');
   };
 
   const platformChips = PLATFORMS.filter(p => selectedPlats.includes(p.id));
+  const selectedJob   = JOB_TYPES.find(j => j.id === jobType);
+
+  // ─── Shared input style ───────────────────────────────────────────────────
+  const iStyle = {
+    width: '100%', padding: '10px 14px', boxSizing: 'border-box',
+    background: dark ? 'rgba(255,255,255,0.04)' : t.input,
+    border: `1px solid ${t.borderStrong}`, borderRadius: 10,
+    color: t.text, fontSize: 13, fontFamily: 'inherit',
+    lineHeight: 1.6, resize: 'none', outline: 'none',
+  };
 
   return (
     <Layout
@@ -208,118 +231,222 @@ export default function QuickPost() {
         </button>
       }
     >
-      <div style={{ maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 48 }}>
+      <div style={{ maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 48 }}>
 
-        {/* ── Step 1: Content type ───────────────────────────────────── */}
+        {/* ── Content type (small secondary toggle) ─────────────────── */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {CONTENT_TYPES.map(ct => {
+            const sel = contentType === ct.id;
+            return (
+              <button
+                key={ct.id}
+                onClick={() => { setContentType(ct.id); setResult(null); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px',
+                  borderRadius: 10, cursor: 'pointer', transition: 'all 150ms',
+                  border: sel ? `1px solid ${t.primary}` : `1px solid ${t.border}`,
+                  background: sel ? t.primaryBg : 'transparent',
+                  color: sel ? t.primary : t.textMuted,
+                  fontSize: 12, fontWeight: 600,
+                }}
+              >
+                <ct.Icon size={14} color={sel ? t.primary : t.textMuted} />
+                {ct.label}
+                <span style={{ fontSize: 10, opacity: 0.7, fontWeight: 500 }}>{ct.cost}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Job type cards ─────────────────────────────────────────── */}
         <div>
-          <FieldLabel t={t} step="1">Content type</FieldLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {CONTENT_TYPES.map(ct => {
-              const sel = contentType === ct.id;
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.01em' }}>
+              What&apos;s happening today?
+            </span>
+            {error && !jobType && (
+              <span style={{ fontSize: 11, color: t.error, fontWeight: 600 }}>{error}</span>
+            )}
+          </div>
+          <div
+            style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10,
+              animation: shake ? 'qp-shake 400ms ease' : 'none',
+            }}
+          >
+            {JOB_TYPES.map(jt => {
+              const sel = jobType === jt.id;
+              const JtIcon = jt.Icon;
               return (
                 <button
-                  key={ct.id}
-                  onClick={() => { setContentType(ct.id); setResult(null); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 12, border: sel ? `2px solid ${t.primary}` : `1px solid ${t.border}`, background: sel ? t.primaryBg : t.card, cursor: 'pointer', transition: 'all 150ms', textAlign: 'left' }}
+                  key={jt.id}
+                  onClick={() => { setJobType(jt.id); setError(''); }}
+                  style={{
+                    padding: '14px 12px',
+                    background: sel
+                      ? `${jt.color}18`
+                      : dark ? 'rgba(255,255,255,0.03)' : t.card,
+                    border: `1px solid ${sel ? jt.color + '55' : dark ? 'rgba(255,255,255,0.07)' : t.border}`,
+                    borderRadius: 14, cursor: 'pointer', textAlign: 'center',
+                    transition: 'all 150ms ease',
+                    boxShadow: sel ? `0 0 0 1px ${jt.color}25` : 'none',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                  }}
                 >
-                  <ct.Icon size={22} color={sel ? 'url(#brand-gradient)' : t.textMuted} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: sel ? t.primary : t.text }}>{ct.label}</div>
-                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>{ct.sublabel}</div>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10,
+                    background: sel ? `${jt.color}25` : dark ? 'rgba(255,255,255,0.06)' : t.input,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 150ms',
+                  }}>
+                    <JtIcon size={18} style={{ color: sel ? jt.color : t.textMuted }} />
                   </div>
+                  <span style={{
+                    fontSize: 12, fontWeight: 700, lineHeight: 1.3,
+                    color: sel ? jt.color : t.text,
+                  }}>
+                    {jt.label}
+                  </span>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* ── Step 2: Prompt ─────────────────────────────────────────── */}
+        {/* ── Add details (optional, collapsible) ───────────────────── */}
         <div>
-          <FieldLabel t={t} step="2">What just happened?</FieldLabel>
-          <textarea
-            ref={textareaRef}
-            value={prompt}
-            onChange={e => { setPrompt(e.target.value); if (error) setError(''); }}
-            placeholder={PLACEHOLDERS[phIdx]}
-            maxLength={400}
-            rows={4}
-            style={{ width: '100%', boxSizing: 'border-box', padding: '14px 16px', background: t.input, border: `2px solid ${error ? t.error : t.borderStrong}`, borderRadius: 12, color: t.text, fontSize: 16, fontFamily: 'inherit', lineHeight: 1.6, resize: 'none', transition: 'border-color 150ms', WebkitAppearance: 'none' }}
-            onFocus={e => (e.target.style.borderColor = t.primary)}
-            onBlur={e => (e.target.style.borderColor = error ? t.error : t.borderStrong)}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
-            <span style={{ fontSize: 11, color: error ? t.error : t.textMuted }}>{error || 'One sentence is enough — PostCore handles the rest'}</span>
-            <span style={{ fontSize: 11, color: t.textMuted }}>{prompt.length}/400</span>
-          </div>
+          <button
+            onClick={() => setShowDetails(s => !s)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              color: t.textMuted, fontSize: 12, fontWeight: 600,
+            }}
+          >
+            <IpPlus size={12} style={{ color: t.textMuted }} />
+            Add details (optional)
+            <span style={{ fontSize: 11, opacity: 0.7, fontWeight: 400 }}>
+              {showDetails ? '▲' : '▸'}
+            </span>
+          </button>
+          {showDetails && (
+            <textarea
+              rows={2}
+              maxLength={200}
+              placeholder={selectedJob?.detailHint || 'Any extra context for PostCore...'}
+              value={details}
+              onChange={e => setDetails(e.target.value)}
+              style={{ ...iStyle, marginTop: 10 }}
+            />
+          )}
         </div>
 
-        {/* ── Step 3: Platforms ──────────────────────────────────────── */}
+        {/* ── Platform row (compact icon toggles) ───────────────────── */}
         <div>
-          <FieldLabel t={t} step="3">Where are we posting?</FieldLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            Platforms
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {PLATFORMS.map(p => {
-              const sel = selectedPlats.includes(p.id);
+              const active = selectedPlats.includes(p.id);
+              const PIcon = p.Icon;
               return (
                 <button
                   key={p.id}
                   onClick={() => togglePlatform(p.id)}
-                  style={{ height: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, border: sel ? `2px solid ${t.primary}` : `1px solid ${t.border}`, background: sel ? t.primaryBg : t.card, cursor: 'pointer', transition: 'all 150ms' }}
+                  title={p.shortLabel}
+                  style={{
+                    width: 54, height: 54, borderRadius: 12,
+                    background: active
+                      ? `${p.color}22`
+                      : dark ? 'rgba(255,255,255,0.04)' : t.input,
+                    border: `2px solid ${active ? p.color : (dark ? 'rgba(255,255,255,0.08)' : t.border)}`,
+                    cursor: 'pointer', display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 3,
+                    transition: 'all 150ms',
+                    boxShadow: active ? `0 0 0 3px ${p.color}25` : 'none',
+                  }}
                 >
-                  <p.Icon size={20} color={sel ? 'url(#brand-gradient)' : t.textMuted} />
-                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: sel ? t.primary : t.textMuted }}>{p.shortLabel}</span>
+                  <PIcon size={16} style={{ color: active ? p.color : t.textMuted }} />
+                  <span style={{
+                    fontSize: 9, fontWeight: 800, letterSpacing: '0.05em',
+                    color: active ? p.color : t.textMuted,
+                    lineHeight: 1,
+                  }}>
+                    {p.shortLabel}
+                  </span>
                 </button>
               );
             })}
-            <button
-              onClick={() => togglePlatform('all')}
-              style={{ height: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, border: allSelected ? `2px solid ${t.primary}` : `1px solid ${t.border}`, background: allSelected ? t.primaryBg : t.card, cursor: 'pointer', transition: 'all 150ms' }}
-            >
-              <IpAllPlatforms size={20} color={allSelected ? 'url(#brand-gradient)' : t.textMuted} />
-              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: allSelected ? t.primary : t.textMuted }}>All</span>
-            </button>
           </div>
         </div>
 
-        {/* ── Step 4: Tone ───────────────────────────────────────────── */}
+        {/* ── Tone chips ────────────────────────────────────────────── */}
         <div>
-          <FieldLabel t={t} step="4">What is the tone?</FieldLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            Tone
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {TONES.map(tn => {
               const sel = tone === tn.id;
+              const TIcon = tn.Icon;
               return (
                 <button
                   key={tn.id}
                   onClick={() => setTone(tn.id)}
-                  title={tn.label}
-                  style={{ height: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, border: sel ? `2px solid ${t.primary}` : `1px solid ${t.border}`, background: sel ? t.primaryBg : t.card, cursor: 'pointer', transition: 'all 150ms' }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px',
+                    borderRadius: 20, cursor: 'pointer', transition: 'all 120ms',
+                    border: sel ? `1px solid ${t.primary}` : `1px solid ${t.border}`,
+                    background: sel ? t.primaryBg : 'transparent',
+                    color: sel ? t.primary : t.textMuted,
+                    fontSize: 12, fontWeight: 600,
+                  }}
                 >
-                  {tn.Icon
-                    ? <tn.Icon size={22} color={sel ? 'url(#brand-gradient)' : t.textMuted} />
-                    : <span style={{ fontSize: 20, lineHeight: 1 }}>{tn.emoji}</span>
-                  }
-                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: sel ? t.primary : t.textMuted }}>{tn.label}</span>
+                  <TIcon size={13} style={{ color: sel ? t.primary : t.textMuted }} />
+                  {tn.label}
                 </button>
               );
             })}
           </div>
         </div>
+
+        {/* ── Error (API failure) ───────────────────────────────────── */}
+        {error && jobType && (
+          <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 10, fontSize: 13, color: t.error }}>
+            {error}
+          </div>
+        )}
 
         {/* ── Generate button ────────────────────────────────────────── */}
         {!result && (
           <button
             onClick={handleGenerate}
             disabled={generating}
-            style={{ width: '100%', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: generating ? t.textDisabled : t.primary, color: '#fff', border: 'none', borderRadius: 14, fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', cursor: generating ? 'not-allowed' : 'pointer', transition: 'all 200ms', boxShadow: generating ? 'none' : '0 4px 24px rgba(124,92,252,0.32)' }}
+            style={{
+              width: '100%', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              background: generating || !jobType
+                ? dark ? 'rgba(255,255,255,0.06)' : t.input
+                : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)',
+              color: generating || !jobType ? t.textMuted : '#fff',
+              border: `1px solid ${generating || !jobType ? t.border : 'transparent'}`,
+              borderRadius: 14, fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em',
+              cursor: generating ? 'not-allowed' : 'pointer',
+              transition: 'all 200ms',
+              boxShadow: generating || !jobType ? 'none' : '0 4px 24px rgba(155,79,212,0.35)',
+            }}
           >
             {generating ? (
-              <><Spinner size={17} />{LOADING_MSGS[contentType][loadMsgIdx]}</>
+              <><Spinner size={17} color={t.textMuted} />{LOADING_MSGS[contentType][loadMsgIdx]}</>
             ) : (
               <>
-                <IpSparkle size={17} color="#fff" />
-                Generate Post
-                <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.75, background: 'rgba(255,255,255,0.15)', padding: '2px 8px', borderRadius: 20, marginLeft: 2 }}>
-                  {creditCost} credit{creditCost > 1 ? 's' : ''}
-                </span>
+                <IpSparkle size={17} style={{ color: jobType ? '#fff' : t.textMuted }} />
+                {jobType ? 'Generate Post' : 'Choose what happened ↑'}
+                {jobType && (
+                  <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.8, background: 'rgba(255,255,255,0.15)', padding: '2px 8px', borderRadius: 20, marginLeft: 2 }}>
+                    {creditCost} credit{creditCost > 1 ? 's' : ''}
+                  </span>
+                )}
               </>
             )}
           </button>
@@ -336,10 +463,21 @@ export default function QuickPost() {
                   <IpCheck size={12} color="#fff" />
                 </div>
                 <span style={{ fontSize: 13, fontWeight: 700, color: t.text, flexShrink: 0 }}>Post ready</span>
+                {selectedJob && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                    background: `${selectedJob.color}18`,
+                    color: selectedJob.color,
+                    border: `1px solid ${selectedJob.color}40`,
+                    flexShrink: 0,
+                  }}>
+                    {selectedJob.label}
+                  </span>
+                )}
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {platformChips.map(p => (
                     <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 20, background: t.input, border: `1px solid ${t.border}` }}>
-                      <p.Icon size={10} color={t.textMuted} />
+                      <p.Icon size={10} style={{ color: t.textMuted }} />
                       <span style={{ fontSize: 9, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase' }}>{p.shortLabel}</span>
                     </span>
                   ))}
@@ -349,7 +487,7 @@ export default function QuickPost() {
                 onClick={handleReset}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
               >
-                <IpRefresh size={12} color={t.textMuted} /> Try again
+                <IpRefresh size={12} style={{ color: t.textMuted }} /> Try again
               </button>
             </div>
 
@@ -402,9 +540,8 @@ export default function QuickPost() {
                 <textarea
                   value={editedCaption}
                   onChange={e => setEditedCaption(e.target.value)}
-                  autoFocus
-                  rows={6}
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', background: t.input, border: `2px solid ${t.primary}`, borderRadius: 10, color: t.text, fontSize: 14, fontFamily: 'inherit', lineHeight: 1.65, resize: 'vertical' }}
+                  autoFocus rows={6}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', background: t.input, border: `2px solid ${t.primary}`, borderRadius: 10, color: t.text, fontSize: 14, fontFamily: 'inherit', lineHeight: 1.65, resize: 'vertical', outline: 'none' }}
                 />
               ) : (
                 <p style={{ fontSize: 14, color: t.textSecondary, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{getCaption()}</p>
@@ -434,36 +571,30 @@ export default function QuickPost() {
             <div style={{ padding: '10px 12px 12px', borderTop: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button
                 onClick={handlePostNow}
-                style={{ width: '100%', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: t.primary, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', transition: 'opacity 150ms', boxShadow: '0 2px 12px rgba(124,92,252,0.28)' }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
-                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                style={{ width: '100%', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 12px rgba(124,92,252,0.28)' }}
               >
                 <IpSend size={15} color="#fff" /> Post Now
               </button>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                 <button
                   onClick={() => { if (!editing) setEditedCaption(getCaption()); setEditing(v => !v); }}
-                  style={{ height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: t.card, color: t.textSecondary, border: `1px solid ${t.border}`, borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'opacity 150ms' }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                  style={{ height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: t.card, color: t.textSecondary, border: `1px solid ${t.border}`, borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                 >
-                  <IpEdit size={13} color={t.textSecondary} /> {editing ? 'Done' : 'Edit'}
+                  <IpEdit size={13} style={{ color: t.textSecondary }} /> {editing ? 'Done' : 'Edit'}
                 </button>
                 <button
                   onClick={handleOpenWizard}
-                  style={{ height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: t.card, color: t.textSecondary, border: `1px solid ${t.border}`, borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'opacity 150ms' }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                  style={{ height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: t.card, color: t.textSecondary, border: `1px solid ${t.border}`, borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
                 >
-                  <IpSparkle size={13} color={t.textSecondary} /> Wizard
+                  <IpSparkle size={13} style={{ color: t.textSecondary }} /> Wizard
                 </button>
                 <button
                   onClick={handleCopy}
                   style={{ height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: copied ? 'rgba(34,197,94,0.08)' : t.card, color: copied ? t.success : t.textSecondary, border: `1px solid ${copied ? t.success : t.border}`, borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms' }}
                 >
                   {copied
-                    ? <><IpCheck size={13} color={t.success} />Copied</>
-                    : <><IpCopy size={13} color={t.textSecondary} />Copy</>
+                    ? <><IpCheck size={13} style={{ color: t.success }} />Copied</>
+                    : <><IpCopy size={13} style={{ color: t.textSecondary }} />Copy</>
                   }
                 </button>
               </div>
@@ -472,7 +603,10 @@ export default function QuickPost() {
         )}
 
       </div>
-      <style>{`@keyframes qp-spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes qp-spin  { to { transform: rotate(360deg); } }
+        @keyframes qp-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
+      `}</style>
     </Layout>
   );
 }
