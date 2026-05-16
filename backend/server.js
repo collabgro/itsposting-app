@@ -70,7 +70,10 @@ console.log('Environment: NODE_ENV =', process.env.NODE_ENV || 'development');
 console.log('Services configured:');
 console.log('  🖼️  Image generation:', process.env.GOOGLE_AI_API_KEY ? '✓ NanoBanana' : '✗ Not configured');
 console.log('  🖼️  Premium images:', process.env.REPLICATE_API_TOKEN ? '✓ Midjourney' : '✗ Not configured');
-console.log('  🎥 Video generation:', process.env.HEYGEN_API_KEY ? '✓ HeyGen configured' : '✗ HEYGEN_API_KEY not set');
+console.log('  🎥 Video — Veo 3.1 Fast (primary):', process.env.VEO_ENABLED === 'true' && process.env.GOOGLE_AI_API_KEY ? '✓ Enabled' : '✗ Set VEO_ENABLED=true + GOOGLE_AI_API_KEY');
+console.log('  🎥 Video — Runway Gen-4 (fallback #1):', process.env.RUNWAY_API_KEY ? '✓ Configured' : '✗ RUNWAY_API_KEY not set');
+console.log('  🎥 Video — Pika 2.2 (fallback #2):', process.env.PIKA_API_KEY ? '✓ Configured' : '✗ PIKA_API_KEY not set');
+console.log('  🎥 Video — HeyGen (avatar / final fallback):', process.env.HEYGEN_API_KEY ? '✓ Configured' : '✗ HEYGEN_API_KEY not set');
 if (process.env.HEYGEN_API_KEY) {
   console.log('     - Voice ID:', process.env.HEYGEN_VOICE_ID ? '✓ Pre-configured' : '⚠️  Will auto-fetch from API');
   console.log('     - Avatar ID:', process.env.HEYGEN_AVATAR_ID ? '✓ Pre-configured' : '⚠️  Will auto-fetch from API');

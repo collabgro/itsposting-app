@@ -186,8 +186,10 @@ itsposting-app-main/
 - `NanoBananaService.js` — Google Gemini 2.5 Flash image generation
 - `MidjourneyService.js` — Replicate/Midjourney premium images
 - `HeyGenService.js` — AI avatar video generation
-- `VeoService.js` — Veo video generation (cinematic pipeline)
-- `VideoService.js` — video orchestration across providers
+- `VeoService.js` — Veo 3.1 Fast video generation (cinematic pipeline primary)
+- `RunwayService.js` — Runway Gen-4 image-to-video (cinematic pipeline fallback #1)
+- `PikaService.js` — Pika 2.2 image-to-video (cinematic pipeline fallback #2)
+- `VideoService.js` — video orchestration: Veo → Runway → Pika → HeyGen fallback chain
 - `ImageResizer.js` — Sharp-based 3-variant image processing (FB/IG/GB)
 - `GeoAuditService.js` — runs 15 AI questions × 3 engines GEO visibility audit
 - `SuggestionsEngine.js` — generates proactive PostCore suggestions
@@ -850,7 +852,7 @@ upload all to Cloudinary → return URLs. Always 'cover' fit — never distort, 
 
 ---
 
-## VIDEO CONTENT PIPELINE (PLANNED — NEXT BUILD)
+## VIDEO CONTENT PIPELINE (BUILT)
 
 Two separate pipelines for different video types:
 
@@ -871,8 +873,8 @@ Step 2: Animate to video
         Pika 2.2              ← Fallback #2 (social-first, authentic feel)
 ```
 
-`VeoService.js` and `VideoService.js` already exist as the foundation.
-Runway and Pika integrations still to be completed.
+`VeoService.js`, `RunwayService.js`, `PikaService.js`, and `VideoService.js` are all built.
+Full fallback chain active: Veo → Runway → Pika → HeyGen.
 
 ---
 
@@ -1065,7 +1067,9 @@ CTA: Clear single action (not multiple options)
 - Reports page + ROI estimator
 - DMs + Inbox + Contacts pages
 - IndustryBenchmarks.js
-- VeoService.js + VideoService.js foundation (pipeline #2 partial)
+- **Video pipeline #2** — VeoService.js (Veo 3.1 Fast primary) + RunwayService.js (Runway Gen-4 fallback #1) + PikaService.js (Pika 2.2 fallback #2) + HeyGen final fallback; full chain in VideoService.js
+- **Social posting (all 5 platforms)** — SocialPublisher.js: Facebook, Instagram (3-step container flow), Google Business Profile, LinkedIn (with image upload), TikTok; AutoPostScheduler.js for scheduled posting; OAuth flows in social.js for all 5 platforms
+- **PWA** — manifest.json, sw.js (cache-first for assets, network-first for nav, API calls always live), icons (192px + 512px), install banner with 7-day dismiss, meta tags in _app.js
 - Whop billing — WhopService.js + full webhook handler (activation, renewal, deactivation, credit packs)
 - **AI Receptionist** — ReceptionistService.js (intent classification, AI reply generation, escalation); receptionist.js route (config, conversations, leads pipeline, review actions); settings UI (full configuration panel)
 - **SMS/WhatsApp inbox** — TwilioService.js + twilio.js inbound webhook; per-customer Twilio credentials; SMS conversation threading (sms_conversations + sms_messages)
@@ -1081,12 +1085,8 @@ CTA: Clear single action (not multiple options)
 - **Developer API Keys** — scoped API key system (`api_keys` table); `backend/middleware/apiKey.js` + `backend/routes/apiKeys.js` + `backend/routes/external.js`; 8 permission scopes; `/api/v1/` external route layer (16 endpoints); Settings UI with 3-step create modal + one-time key reveal + inline revoke; SHA-256 key hashing; Trial = 0 keys, paid = 5 keys
 
 ### 🔴 STILL TO BUILD:
-- **Video pipeline #2 completion** — Runway Gen-4 + Pika 2.2 integrations in VideoService.js
-- **Facebook + Instagram live OAuth + posting** — social.js exists; live posting needs OAuth flows
-- **Google Business Profile live posting** — endpoint exists; GBP API integration needed
-- **LinkedIn + TikTok posting** — routes exist; provider integrations needed
 - **Monthly report generator** — PDF generation via Resend (reports page is UI-only)
-- **PWA setup** — service worker + manifest for mobile job-site use
+- **Token refresh** — OAuth tokens for Google/TikTok stored but not auto-refreshed on expiry
 
 ---
 
