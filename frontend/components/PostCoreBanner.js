@@ -12,14 +12,15 @@ export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => { loadSuggestions(); }, []);
 
   const loadSuggestions = async () => {
     setLoading(true);
+    setLoadFailed(false);
     try {
       const res = await suggestionsAPI.getAll();
-      // API returns { suggestions: [...], generated: bool }
       const data = res.data?.suggestions || [];
       if (data.length === 0) {
         await generateFresh();
@@ -28,6 +29,7 @@ export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
       }
     } catch (err) {
       console.error('[PostCoreBanner] load error:', err.message);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -35,11 +37,13 @@ export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
 
   const generateFresh = async () => {
     setGenerating(true);
+    setLoadFailed(false);
     try {
       const res = await suggestionsAPI.generate();
       setSuggestions(res.data?.suggestions || []);
     } catch (err) {
       console.error('[PostCoreBanner] generate error:', err.message);
+      setLoadFailed(true);
     } finally {
       setGenerating(false);
     }
@@ -64,7 +68,7 @@ export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
     setSuggestions(prev => prev.filter(s => s.id !== id));
   };
 
-  if (!loading && !generating && suggestions.length === 0) {
+  if (!loading && !generating && !loadFailed && suggestions.length === 0) {
     return null;
   }
 
@@ -147,6 +151,19 @@ export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
                   style={{ height: 120, borderRadius: 12, background: t.input, animation: 'pulse 1.5s ease-in-out infinite' }}
                 />
               ))}
+            </div>
+          ) : loadFailed && suggestions.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0' }}>
+              <span style={{ fontSize: 13, color: t.textMuted }}>Couldn't load suggestions.</span>
+              <button
+                onClick={loadSuggestions}
+                style={{
+                  fontSize: 13, fontWeight: 600, color: t.primary,
+                  background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px',
+                }}
+              >
+                Retry
+              </button>
             </div>
           ) : (
             suggestions.map(suggestion => (

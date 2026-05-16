@@ -1,7 +1,25 @@
 const express = require('express');
 const axios = require('axios');
+const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
 const SocialPublisher = require('../services/SocialPublisher');
+
+// OAuth state — HMAC-signed so attackers can't forge customerId in the state parameter.
+function createOAuthState(customerId) {
+  const data = JSON.stringify({ customerId, ts: Date.now() });
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET || 'fallback-secret').update(data).digest('hex');
+  return Buffer.from(JSON.stringify({ data, sig })).toString('base64');
+}
+
+function verifyOAuthState(stateParam) {
+  const outer = JSON.parse(Buffer.from(decodeURIComponent(stateParam), 'base64').toString());
+  if (!outer.data || !outer.sig) throw new Error('Malformed state');
+  const expectedSig = crypto.createHmac('sha256', process.env.JWT_SECRET || 'fallback-secret').update(outer.data).digest('hex');
+  if (!crypto.timingSafeEqual(Buffer.from(expectedSig, 'hex'), Buffer.from(outer.sig, 'hex'))) {
+    throw new Error('State signature invalid');
+  }
+  return JSON.parse(outer.data);
+}
 
 const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID;
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET;
@@ -54,7 +72,7 @@ module.exports = (pool) => {
   router.get('/connect-url/:platform', authenticate, (req, res) => {
     const { platform } = req.params;
     const baseUrl = getBaseUrl(req);
-    const state = Buffer.from(JSON.stringify({ customerId: req.customerId })).toString('base64');
+    const state = createOAuthState(req.customerId);
 
     const fbScope = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_messaging', 'instagram_basic', 'instagram_content_publish', 'instagram_manage_messages', 'public_profile'].join(',');
     const googleScope = ['https://www.googleapis.com/auth/business.manage', 'https://www.googleapis.com/auth/userinfo.profile'].join(' ');
@@ -91,7 +109,7 @@ module.exports = (pool) => {
     }
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/social/callback/facebook`;
-    const state = Buffer.from(JSON.stringify({ customerId: req.customerId })).toString('base64');
+    const state = createOAuthState(req.customerId);
     const scope = [
       'pages_show_list',
       'pages_read_engagement',
@@ -121,7 +139,7 @@ module.exports = (pool) => {
 
     let customerId;
     try {
-      const decoded = JSON.parse(Buffer.from(decodeURIComponent(state), 'base64').toString());
+      const decoded = verifyOAuthState(state);
       customerId = decoded.customerId;
     } catch {
       return res.redirect(`${frontendBase}/settings?error=facebook_state_invalid`);
@@ -209,7 +227,7 @@ module.exports = (pool) => {
     }
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/social/callback/google`;
-    const state = Buffer.from(JSON.stringify({ customerId: req.customerId })).toString('base64');
+    const state = createOAuthState(req.customerId);
     const scope = [
       'https://www.googleapis.com/auth/business.manage',
       'https://www.googleapis.com/auth/userinfo.profile',
@@ -235,7 +253,7 @@ module.exports = (pool) => {
 
     let customerId;
     try {
-      const decoded = JSON.parse(Buffer.from(decodeURIComponent(state), 'base64').toString());
+      const decoded = verifyOAuthState(state);
       customerId = decoded.customerId;
     } catch {
       return res.redirect(`${frontendBase}/settings?error=google_state_invalid`);
@@ -294,7 +312,7 @@ module.exports = (pool) => {
 
     let customerId;
     try {
-      const decoded = JSON.parse(Buffer.from(decodeURIComponent(state), 'base64').toString());
+      const decoded = verifyOAuthState(state);
       customerId = decoded.customerId;
     } catch {
       return res.redirect(`${frontendBase}/settings?error=linkedin_state_invalid`);
@@ -360,7 +378,7 @@ module.exports = (pool) => {
 
     let customerId;
     try {
-      const decoded = JSON.parse(Buffer.from(decodeURIComponent(state), 'base64').toString());
+      const decoded = verifyOAuthState(state);
       customerId = decoded.customerId;
     } catch {
       return res.redirect(`${frontendBase}/settings?error=tiktok_state_invalid`);

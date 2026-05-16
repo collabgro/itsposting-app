@@ -163,20 +163,29 @@ class RunwayService {
       return videoUrl;
     }
 
-    return new Promise((resolve) => {
+    const attempt = () => new Promise((resolve, reject) => {
       cloudinary.uploader.upload(
         videoUrl,
         { resource_type: 'video', folder: 'itsposting/runway', quality: 'auto:best' },
         (error, result) => {
-          if (error) {
-            console.warn('[Runway] Cloudinary upload failed, using direct URL:', error.message);
-            resolve(videoUrl);
-          } else {
-            resolve(result.secure_url);
-          }
+          if (error) reject(error);
+          else resolve(result.secure_url);
         }
       );
     });
+
+    try {
+      return await attempt();
+    } catch (firstErr) {
+      console.warn('[Runway] Cloudinary upload failed (retrying in 3s):', firstErr.message);
+      await this._sleep(3000);
+      try {
+        return await attempt();
+      } catch (secondErr) {
+        console.error('[Runway] Cloudinary upload failed after retry — video URL is temporary and will expire:', secondErr.message);
+        return videoUrl;
+      }
+    }
   }
 
   _sleep(ms) {

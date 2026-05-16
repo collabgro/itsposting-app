@@ -182,24 +182,29 @@ class VeoService {
       return videoUrl;
     }
 
-    return new Promise((resolve, reject) => {
+    const attempt = () => new Promise((resolve, reject) => {
       cloudinary.uploader.upload(
         videoUrl,
-        {
-          resource_type: 'video',
-          folder: 'itsposting/veo',
-          quality: 'auto:best',
-        },
+        { resource_type: 'video', folder: 'itsposting/veo', quality: 'auto:best' },
         (error, result) => {
-          if (error) {
-            console.warn('[Veo] Cloudinary upload failed, using direct URL:', error.message);
-            resolve(videoUrl); // return raw URL rather than failing completely
-          } else {
-            resolve(result.secure_url);
-          }
+          if (error) reject(error);
+          else resolve(result.secure_url);
         }
       );
     });
+
+    try {
+      return await attempt();
+    } catch (firstErr) {
+      console.warn('[Veo] Cloudinary upload failed (retrying in 3s):', firstErr.message);
+      await this._sleep(3000);
+      try {
+        return await attempt();
+      } catch (secondErr) {
+        console.error('[Veo] Cloudinary upload failed after retry — video URL is temporary and will expire:', secondErr.message);
+        return videoUrl;
+      }
+    }
   }
 
   _sleep(ms) {

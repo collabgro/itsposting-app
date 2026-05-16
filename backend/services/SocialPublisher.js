@@ -136,18 +136,18 @@ class SocialPublisher {
     return publishRes.data.id;
   }
 
-  async _waitForIgContainer(igUserId, creationId, token, maxWaitMs = 30000) {
+  async _waitForIgContainer(igUserId, creationId, token, maxWaitMs = 45000) {
     const start = Date.now();
     while (Date.now() - start < maxWaitMs) {
       const statusRes = await axios.get(
         `https://graph.facebook.com/v18.0/${creationId}`,
-        { params: { fields: 'status_code', access_token: token } }
+        { params: { fields: 'status_code', access_token: token }, timeout: 10000 }
       );
       if (statusRes.data.status_code === 'FINISHED') return;
-      if (statusRes.data.status_code === 'ERROR') throw new Error('Instagram media container failed');
+      if (statusRes.data.status_code === 'ERROR') throw new Error('Instagram media container processing failed');
       await new Promise(r => setTimeout(r, 3000));
     }
-    // Proceed anyway after timeout — Instagram sometimes still works
+    throw new Error('Instagram media container timed out — container not ready after 45s');
   }
 
   async postToGoogleBusiness(account, post) {

@@ -1350,6 +1350,9 @@ module.exports = (pool) => {
       if (!description || description.trim().length < 5) {
         return res.status(400).json({ error: 'Please describe what happened in at least a few words.' });
       }
+      if (description.length > 2000) {
+        return res.status(400).json({ error: 'Description is too long (max 2000 characters).' });
+      }
 
       const customerResult = await pool.query(
         'SELECT id, business_name, industry, location, tone, visual_style FROM customers WHERE id = $1',
@@ -1397,11 +1400,14 @@ module.exports = (pool) => {
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
-      // Deduct 1 credit after successful generation
-      await pool.query(
-        'UPDATE customers SET credits_balance = credits_balance - 3 WHERE id = $1 AND credits_balance >= 3',
+      // Deduct 3 credits atomically — reject if another concurrent request beat us
+      const quickDeduct = await pool.query(
+        'UPDATE customers SET credits_balance = credits_balance - 3, credits_used_this_month = credits_used_this_month + 3 WHERE id = $1 AND credits_balance >= 3 RETURNING credits_balance',
         [billingId]
       );
+      if (quickDeduct.rows.length === 0) {
+        return res.status(402).json({ error: 'Not enough credits. Quick photo posts cost 3 credits. Please upgrade your plan.' });
+      }
 
       // Extract from variation_a (SystemPromptBuilder format)
       res.json({

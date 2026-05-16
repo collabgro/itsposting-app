@@ -1043,6 +1043,16 @@ export default function Wizard() {
                 <Icon name="warning" size={15} color="#EF4444" /> {error}
               </div>
             )}
+            {(() => {
+              const ct = CONTENT_TYPES.find(c => c.id === contentType);
+              if (!ct) return null;
+              return (
+                <div style={{ padding: '10px 14px', background: t.surfaceHover, borderRadius: 8, fontSize: 13, color: t.textMuted, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <IpSparkle size={14} color={t.primary} />
+                  This will use <strong style={{ color: t.text }}>&nbsp;{ct.credits} credit{ct.credits !== 1 ? 's' : ''}</strong> from your balance.
+                </div>
+              );
+            })()}
             <WizardNav
               t={t} onBack={handleBack} onNext={handleNext} canNext={canProceed()}
               nextLabel={<><IpSparkle size={14} /> Generate Posts</>}

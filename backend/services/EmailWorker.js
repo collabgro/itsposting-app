@@ -101,7 +101,7 @@ class EmailWorker {
          SET status = $1,
              attempts = $2,
              last_error = $3,
-             scheduled_at = NOW() + ($4 || ' minutes')::INTERVAL
+             scheduled_at = NOW() + make_interval(mins => $4)
          WHERE id = $5`,
         [isFatal ? 'failed' : 'pending', newAttempts, err.message, backoffMinutes, id]
       );

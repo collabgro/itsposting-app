@@ -381,6 +381,7 @@ app.use('/api/wizard/generate', generationLimiter);
 app.use('/api/wizard/refresh', generationLimiter);
 app.use('/api/wizard/regenerate-image', generationLimiter);
 app.use('/api/content/generate', generationLimiter);
+app.use('/api/v1/generate', generationLimiter);
 
 app.use(cors({
   origin: (origin, cb) => {

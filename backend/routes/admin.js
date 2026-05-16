@@ -244,7 +244,11 @@ module.exports = (pool) => {
       const cur = await client.query('SELECT credits_balance, email, business_name FROM customers WHERE id = $1', [id]);
       if (cur.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Not found' }); }
 
-      const newBalance = Math.max(0, parseInt(cur.rows[0].credits_balance) + amount);
+      const newBalance = parseInt(cur.rows[0].credits_balance) + amount;
+      if (newBalance < 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `Cannot deduct ${Math.abs(amount)} credits — customer only has ${cur.rows[0].credits_balance}.` });
+      }
       await client.query('UPDATE customers SET credits_balance = $1 WHERE id = $2', [newBalance, id]);
       await client.query(
         `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)

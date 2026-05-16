@@ -41,19 +41,17 @@ export default function Dashboard() {
   const [briefing,     setBriefing]     = useState(null);
   const [contentMix,   setContentMix]   = useState(null);
   const [loading,      setLoading]      = useState(true);
+  const [loadError,    setLoadError]    = useState(false);
   const [briefingOpen, setBriefingOpen] = useState(true);
   const [geoScore,     setGeoScore]     = useState(null);
   const [showTour,     setShowTour]     = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    const token = localStorage.getItem('token');
-    if (!token) { router.replace('/login'); return; }
-    if (!localStorage.getItem('tour_done')) { setTimeout(() => setShowTour(true), 800); }
-
+  const loadDashboard = () => {
+    setLoadError(false);
+    setLoading(true);
     Promise.all([
-      postsAPI.getAll({ limit: 100 }).catch(() => ({ data: [] })),
-      postsAPI.getUpcoming().catch(() => ({ data: [] })),
+      postsAPI.getAll({ limit: 100 }),
+      postsAPI.getUpcoming(),
       intelligenceAPI.getMetrics().catch(() => ({ data: null })),
       intelligenceAPI.getBriefing().catch(() => ({ data: null })),
       intelligenceAPI.getContentHealth().catch(() => ({ data: null })),
@@ -66,7 +64,18 @@ export default function Dashboard() {
       setContentMix(cm.data);
       setGeoScore(g?.data || null);
       setLoading(false);
+    }).catch(() => {
+      setLoadError(true);
+      setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    setMounted(true);
+    const token = localStorage.getItem('token');
+    if (!token) { router.replace('/login'); return; }
+    if (!localStorage.getItem('tour_done')) { setTimeout(() => setShowTour(true), 800); }
+    loadDashboard();
   }, []);
 
   const dismissBriefing = async () => {
@@ -77,6 +86,19 @@ export default function Dashboard() {
   };
 
   if (!mounted) return null;
+
+  if (loadError) {
+    return (
+      <Layout>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 16, padding: 40 }}>
+          <div style={{ fontSize: 15, color: '#EF4444' }}>Failed to load dashboard data.</div>
+          <button onClick={loadDashboard} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366F1', color: '#fff', cursor: 'pointer', fontSize: 14 }}>
+            Retry
+          </button>
+        </div>
+      </Layout>
+    );
+  }
 
   const today   = new Date();
   const year    = today.getFullYear();

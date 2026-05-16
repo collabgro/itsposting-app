@@ -74,10 +74,18 @@ class AutoPostScheduler {
           this.notifier.postFailed(post.customer_id, post.id, e.platform, e.message).catch(() => {});
         }
       } else {
+        // Some platforms succeeded. Store partial error info so nothing is silently lost.
+        const partialErrMsg = errors.length > 0
+          ? errors.map(e => `${e.platform}: ${e.message}`).join('; ')
+          : null;
+        if (partialErrMsg) {
+          console.warn(`[AutoPostScheduler] Post #${post.id} partial failure: ${partialErrMsg}`);
+        }
+
         await this.pool.query(
           `UPDATE posts SET status = 'posted', posted_at = NOW(),
-            platform_post_ids = $1, updated_at = NOW() WHERE id = $2`,
-          [JSON.stringify(platformPostIds), post.id]
+            platform_post_ids = $1, error_message = $2, updated_at = NOW() WHERE id = $3`,
+          [JSON.stringify(platformPostIds), partialErrMsg, post.id]
         );
         console.log(`✅ Posted #${post.id} to ${Object.keys(platformPostIds).join(', ')}`);
 
@@ -90,6 +98,10 @@ class AutoPostScheduler {
           this.emailQueue.notifyPostPublished(customerObj, platform).catch(err =>
             console.error('[AutoPostScheduler] Email queue error:', err.message)
           );
+        }
+        // Notify about any platforms that failed even though overall post succeeded
+        for (const e of errors) {
+          this.notifier.postFailed(post.customer_id, post.id, e.platform, e.message).catch(() => {});
         }
       }
     } catch (err) {

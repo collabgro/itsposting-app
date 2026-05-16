@@ -221,6 +221,7 @@ class HeyGenService {
       try {
         const response = await axios.get(`${this.baseUrl}/video/status/${videoId}`, {
           headers: { 'X-Api-Key': this.apiKey },
+          timeout: 15000,
         });
 
         const data = response.data.data || response.data;
