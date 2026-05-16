@@ -124,29 +124,14 @@ class ManualContentGenerator {
       customer, prompt, 'static', options.platform || 'instagram'
     );
 
-    const imageService = this.getImageService(customer);
-    const backgroundPrompt = captionData.imagePrompt
-      || `Beautiful gradient background using brand colors ${customer.brand_colors?.primary || 'blue'} and ${customer.brand_colors?.secondary || 'green'}, abstract elegant design, 1080x1080 square, no text, professional`;
-
-    let imageResult = null;
-    if (imageService) {
-      try {
-        imageResult = await imageService.service.generateFromPrompt(customer, backgroundPrompt);
-      } catch (err) {
-        console.error('[ManualContentGenerator] static image generation failed:', err.message || err);
-      }
-    }
-
     return {
       contentType: 'static',
       caption: captionData.caption,
       hashtags: captionData.hashtags,
       overlayText: captionData.overlay_text,
-      mediaUrl: imageResult?.url || null,
-      provider: imageResult?.provider || imageService?.name || 'none',
-      model: imageResult?.model || null,
+      mediaUrl: null,
       variations: captionData.variations || null,
-      imagePrompt: backgroundPrompt,
+      imagePrompt: null,
     };
   }
 
