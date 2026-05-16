@@ -6,7 +6,11 @@ if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
-function authenticate(req, res, next) {
+// Injected at server startup via setPool() — enables password-change revocation checks
+let _pool = null;
+function setPool(pool) { _pool = pool; }
+
+async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
 
   let token;
@@ -15,16 +19,35 @@ function authenticate(req, res, next) {
   } else {
     return res.status(401).json({ error: 'No authorization token provided' });
   }
-  
+
+  let decoded;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.customerId = decoded.customerId;
-    req.email = decoded.email;
-    req.parentCustomerId = decoded.parentCustomerId || null;
-    next();
+    decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
   } catch (error) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
+
+  // If pool is available, invalidate tokens issued before a password reset
+  if (_pool && decoded.customerId) {
+    try {
+      const { rows } = await _pool.query(
+        'SELECT password_changed_at FROM customers WHERE id = $1',
+        [decoded.customerId]
+      );
+      const changedAt = rows[0]?.password_changed_at;
+      if (changedAt) {
+        const changedAtSec = Math.floor(new Date(changedAt).getTime() / 1000);
+        if (decoded.iat < changedAtSec) {
+          return res.status(401).json({ error: 'Session expired — please log in again' });
+        }
+      }
+    } catch { /* DB unavailable — allow through, don't block all traffic */ }
+  }
+
+  req.customerId = decoded.customerId;
+  req.email = decoded.email;
+  req.parentCustomerId = decoded.parentCustomerId || null;
+  next();
 }
 
 function generateToken(customerId, email, extra = {}) {
@@ -69,4 +92,4 @@ function requireActiveAccount(pool) {
   };
 }
 
-module.exports = { authenticate, generateToken, getBillingCustomerId, verifyAdmin, requireActiveAccount };
+module.exports = { authenticate, setPool, generateToken, getBillingCustomerId, verifyAdmin, requireActiveAccount };

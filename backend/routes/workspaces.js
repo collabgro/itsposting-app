@@ -1,4 +1,6 @@
 const express = require('express');
+const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 const { authenticate, generateToken } = require('../middleware/auth');
 
 const WORKSPACE_LIMITS = {
@@ -83,6 +85,8 @@ module.exports = (pool) => {
 
       // Generate a unique email for the workspace account (not user-facing, just for DB uniqueness)
       const wsEmail = `workspace-${parentId}-${Date.now()}@internal.itsposting.com`;
+      // Use an irreversible random hash — workspace accounts are accessed only via parent JWT switch
+      const wsPasswordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
 
       const insert = await pool.query(
         `INSERT INTO customers (
@@ -93,7 +97,7 @@ module.exports = (pool) => {
          RETURNING id, business_name, workspace_display_name, industry, location, status, created_at`,
         [
           wsEmail,
-          'workspace-no-direct-login',
+          wsPasswordHash,
           businessName.trim(),
           displayName?.trim() || null,
           industry || null,

@@ -56,6 +56,10 @@ pool.query('SELECT NOW()', (err, res) => {
   else console.log('✅ Database connected at', res.rows[0].now);
 });
 
+// Give authenticate middleware access to pool for token revocation checks
+const { setPool: setAuthPool } = require('./middleware/auth');
+setAuthPool(pool);
+
 // Startup diagnostics
 console.log('\n═══════════════════════════════════════════');
 console.log('🚀 ItsPosting Backend Startup Diagnostics');
@@ -455,8 +459,7 @@ app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
 app.use((err, req, res, next) => {
   const errorId = Math.random().toString(36).substring(7);
   console.error(JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', errorId, message: err.message, method: req.method, path: req.path, userId: req.customerId || null, ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }) }));
-  res.setHeader('X-Error-ID', errorId);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error', errorId, ...(process.env.NODE_ENV === 'development' && { stack: err.stack }) });
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
 async function runTrialExpiry() {
@@ -680,6 +683,21 @@ cron.schedule('0 8 * * 1', async () => {
   } catch (e) { console.error('[Receptionist] Weekly re-crawl error:', e.message); }
 });
 console.log('🕷️ Receptionist weekly re-crawl cron scheduled (Monday 8am UTC)');
+
+// Schema migrations — non-blocking, safe to run on every startup
+pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ').catch(() => {});
+
+// Purge stale password reset tokens (expired > 1 hour ago) — runs at startup and daily
+async function purgeExpiredResetTokens() {
+  try {
+    const r = await pool.query(
+      "UPDATE customers SET password_reset_token = NULL, password_reset_expires = NULL WHERE password_reset_expires < NOW()"
+    );
+    if (r.rowCount > 0) console.log(`[cron] Cleared ${r.rowCount} expired password reset token(s)`);
+  } catch (e) { /* ignore — table may not have column yet */ }
+}
+purgeExpiredResetTokens();
+cron.schedule('0 3 * * *', purgeExpiredResetTokens);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`

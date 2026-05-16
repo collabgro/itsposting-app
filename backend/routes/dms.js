@@ -167,7 +167,9 @@ module.exports = function dmsRoutes(pool) {
   router.get('/', authenticate, async (req, res) => {
     try {
       const { platform, status, unread, starred, page = 1, limit = 20 } = req.query;
-      const offset = (parseInt(page) - 1) * parseInt(limit);
+      const safeLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+      const safePage = Math.max(parseInt(page) || 1, 1);
+      const offset = (safePage - 1) * safeLimit;
 
       const conditions = ['dc.customer_id = $1'];
       const params = [req.customerId];
@@ -195,7 +197,7 @@ module.exports = function dmsRoutes(pool) {
          WHERE ${where}
          ORDER BY dc.is_starred DESC, dc.last_message_at DESC NULLS LAST
          LIMIT $${idx} OFFSET $${idx + 1}`,
-        [...params, parseInt(limit), offset]
+        [...params, safeLimit, offset]
       );
 
       const countResult = await pool.query(
@@ -237,11 +239,12 @@ module.exports = function dmsRoutes(pool) {
       if (!convResult.rows[0]) return res.status(404).json({ error: 'Conversation not found' });
 
       const messagesResult = await pool.query(
-        `SELECT * FROM dm_messages
-         WHERE conversation_id = $1
-         ORDER BY COALESCE(sent_at, created_at) ASC
+        `SELECT dm.* FROM dm_messages dm
+         JOIN dm_conversations dc ON dc.id = dm.conversation_id
+         WHERE dm.conversation_id = $1 AND dc.customer_id = $2
+         ORDER BY COALESCE(dm.sent_at, dm.created_at) ASC
          LIMIT 100`,
-        [req.params.id]
+        [req.params.id, req.customerId]
       );
 
       await pool.query(

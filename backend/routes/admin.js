@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const rateLimit = require('express-rate-limit');
 const { authenticate, verifyAdmin } = require('../middleware/auth');
 const ImageResizer = require('../services/ImageResizer');
 
@@ -307,7 +308,7 @@ module.exports = (pool) => {
     try {
       const { newPassword } = req.body;
       if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Password must be 8+ chars' });
-      const hash = await bcrypt.hash(newPassword, 10);
+      const hash = await bcrypt.hash(newPassword, 12);
       const result = await pool.query(
         'UPDATE customers SET password_hash = $1 WHERE id = $2 RETURNING email, business_name',
         [hash, req.params.id]
@@ -530,8 +531,17 @@ module.exports = (pool) => {
 
   // ─── Broadcast / Announcements ────────────────────────────────────────────
 
+  const broadcastLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    keyGenerator: (req) => `broadcast-${req.admin?.id || 'unknown'}`,
+    message: { error: 'Broadcast rate limit: max 5 per hour' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   // POST /api/admin/broadcast
-  router.post('/broadcast', async (req, res) => {
+  router.post('/broadcast', broadcastLimiter, async (req, res) => {
     try {
       const { title, message, target_segment, delivery_method } = req.body;
       if (!title || !title.trim()) return res.status(400).json({ error: 'Title required' });

@@ -12,6 +12,8 @@ module.exports = (pool) => {
   router.get('/', authenticate, async (req, res) => {
     try {
       const { status, platform, contentType, search, limit = 50, offset = 0 } = req.query;
+      const safeLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
+      const safeOffset = Math.max(parseInt(offset) || 0, 0);
 
       let query = 'SELECT * FROM posts WHERE customer_id = $1';
       const params = [req.customerId];
@@ -42,7 +44,7 @@ module.exports = (pool) => {
       }
 
       query += ` ORDER BY scheduled_date DESC NULLS LAST, created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
-      params.push(limit, offset);
+      params.push(safeLimit, safeOffset);
 
       const result = await pool.query(query, params);
       res.json(result.rows);
@@ -140,6 +142,10 @@ module.exports = (pool) => {
   router.patch('/:id', authenticate, async (req, res) => {
     try {
       const { caption, scheduledDate, timezone, platform, platforms, status } = req.body;
+
+      if (caption !== undefined && caption.length > 5000) {
+        return res.status(400).json({ error: 'Caption too long (max 5000 characters)' });
+      }
 
       let utcScheduledDate = null;
       let resolvedTimezone = null;

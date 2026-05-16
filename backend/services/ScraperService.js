@@ -39,11 +39,32 @@ class ScraperService {
     }
   }
 
+  _isPrivateHost(hostname) {
+    const blocked = [
+      /^127\./,
+      /^10\./,
+      /^192\.168\./,
+      /^172\.(1[6-9]|2[0-9]|3[01])\./,
+      /^169\.254\./,
+      /^::1$/,
+      /^fc00:/i,
+      /^fe80:/i,
+    ];
+    const blockedNames = ['localhost', 'metadata.google.internal', 'instance-data.ec2.internal'];
+    return blocked.some(p => p.test(hostname)) || blockedNames.includes(hostname.toLowerCase());
+  }
+
   async fetchPage(url) {
+    const urlObj = new URL(url);
+    if (this._isPrivateHost(urlObj.hostname)) {
+      throw new Error('URL resolves to a private or reserved address');
+    }
     const response = await axios.get(url, {
       timeout: this.timeout,
       headers: { 'User-Agent': this.userAgent, 'Accept': 'text/html,application/xhtml+xml' },
-      maxRedirects: 5,
+      maxRedirects: 3,
+      maxContentLength: 10 * 1024 * 1024,
+      maxBodyLength: 10 * 1024 * 1024,
       validateStatus: (s) => s < 400,
     });
     return { html: response.data, finalUrl: response.request.res?.responseUrl || url };

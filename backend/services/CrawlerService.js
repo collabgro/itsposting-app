@@ -35,6 +35,21 @@ class CrawlerService {
     this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   }
 
+  _isPrivateHost(hostname) {
+    const blocked = [
+      /^127\./,
+      /^10\./,
+      /^192\.168\./,
+      /^172\.(1[6-9]|2[0-9]|3[01])\./,
+      /^169\.254\./,
+      /^::1$/,
+      /^fc00:/i,
+      /^fe80:/i,
+    ];
+    const blockedNames = ['localhost', 'metadata.google.internal', 'instance-data.ec2.internal'];
+    return blocked.some(p => p.test(hostname)) || blockedNames.includes(hostname.toLowerCase());
+  }
+
   // ── Public entry point ───────────────────────────────────────────
   async crawl(customerId, url, mode, plan = 'starter') {
     const allowedModes = PLAN_ALLOWED_MODES[plan] || PLAN_ALLOWED_MODES.starter;
@@ -43,6 +58,15 @@ class CrawlerService {
     }
 
     const normalizedUrl = this._normalizeUrl(url);
+    try {
+      const { hostname } = new URL(normalizedUrl);
+      if (this._isPrivateHost(hostname)) {
+        throw new Error('URL resolves to a private or reserved address');
+      }
+    } catch (e) {
+      if (e.message.includes('private or reserved')) throw e;
+      throw new Error('Invalid URL');
+    }
     const { rows: [job] } = await this.pool.query(
       `INSERT INTO crawl_jobs (customer_id, url, mode, status, started_at, created_at)
        VALUES ($1, $2, $3, 'running', NOW(), NOW()) RETURNING id`,

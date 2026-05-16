@@ -193,6 +193,9 @@ module.exports = (pool) => {
         );
 
         emailQueue.notifyPasswordReset(email, rawToken);
+      } else {
+        // Equalise response time — prevent timing-based email enumeration
+        await bcrypt.hash('timing-equalizer', 12);
       }
 
       res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
@@ -222,7 +225,7 @@ module.exports = (pool) => {
 
       const hash = await bcrypt.hash(newPassword, 12);
       await pool.query(
-        'UPDATE customers SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL WHERE id = $2',
+        'UPDATE customers SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL, password_changed_at = NOW() WHERE id = $2',
         [hash, result.rows[0].id]
       );
 

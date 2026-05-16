@@ -44,6 +44,7 @@ module.exports = (pool) => {
   router.get('/posts', async (req, res) => {
     try {
       const { sort = 'recent', platform, contentType, limit = 50 } = req.query;
+      const safeLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
 
       let orderBy = 'p.created_at DESC';
       if (sort === 'best') orderBy = 'p.performance_score DESC NULLS LAST';
@@ -62,7 +63,7 @@ module.exports = (pool) => {
       if (contentType) { pIdx++; query += ` AND p.content_type = $${pIdx}`; params.push(contentType); }
 
       query += ` ORDER BY ${orderBy} LIMIT $${pIdx + 1}`;
-      params.push(parseInt(limit));
+      params.push(safeLimit);
 
       const result = await pool.query(query, params);
       res.json(result.rows);
@@ -313,8 +314,8 @@ module.exports = (pool) => {
 
       const newTotal = parseInt(likes) + parseInt(comments) + parseInt(shares);
       await pool.query(
-        'UPDATE posts SET engagement = $1::jsonb, performance_score = $2, last_metrics_sync = NOW() WHERE id = $3',
-        [JSON.stringify({ likes, comments, shares }), newTotal, req.params.id]
+        'UPDATE posts SET engagement = $1::jsonb, performance_score = $2, last_metrics_sync = NOW() WHERE id = $3 AND customer_id = $4',
+        [JSON.stringify({ likes, comments, shares }), newTotal, req.params.id, req.customerId]
       );
 
       res.json({ success: true });
