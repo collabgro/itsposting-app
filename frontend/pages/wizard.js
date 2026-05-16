@@ -1102,8 +1102,8 @@ export default function Wizard() {
             {/* Two-column layout */}
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
 
-              {/* ── LEFT: Media panel (40%) ── */}
-              <div style={{ flex: '0 0 280px', minWidth: 220 }}>
+              {/* ── LEFT: Media panel — hidden for text/static posts ── */}
+              {results.contentTypeSelection !== 'static' && <div style={{ flex: '0 0 280px', minWidth: 220 }}>
 
                 {/* Image/video failed banner */}
                 {results.imageFailed && (
@@ -1176,7 +1176,7 @@ export default function Wizard() {
                     <IpRefresh size={13} /> Regenerate Image
                   </button>
                 )}
-              </div>
+              </div>}
 
               {/* ── RIGHT: Variations + actions (60%) ── */}
               <div style={{ flex: 1, minWidth: 280 }}>
