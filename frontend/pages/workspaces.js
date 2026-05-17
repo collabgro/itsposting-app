@@ -161,8 +161,8 @@ export default function WorkspacesPage() {
       const res = wsId === 'main' ? await workspacesAPI.switchToMain() : await workspacesAPI.switchTo(wsId);
       localStorage.setItem('token', res.data.token);
       window.location.href = '/dashboard';
-    } catch {
-      setError('Failed to switch workspace');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to switch workspace. Please try again.');
       setSwitching(null);
     }
   }

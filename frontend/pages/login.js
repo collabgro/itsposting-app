@@ -122,9 +122,14 @@ export default function Login() {
               </div>
 
               <div style={{ marginBottom: 24 }}>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textMuted, marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  Password
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                    Password
+                  </label>
+                  <Link href="/forgot-password" style={{ fontSize: 12, color: '#9B7FFF', textDecoration: 'none' }}>
+                    Forgot password?
+                  </Link>
+                </div>
                 <input
                   type="password" required autoComplete="current-password" placeholder="••••••••"
                   value={formData.password}
