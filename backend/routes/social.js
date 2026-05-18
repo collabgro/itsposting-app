@@ -74,7 +74,7 @@ module.exports = (pool) => {
     const baseUrl = getBaseUrl(req);
     const state = createOAuthState(req.customerId);
 
-    const fbScope = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_messaging', 'instagram_basic', 'instagram_content_publish', 'instagram_manage_messages', 'public_profile'].join(',');
+    const fbScope = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_messaging', 'instagram_basic', 'instagram_content_publish', 'instagram_manage_messages', 'instagram_manage_insights', 'read_insights', 'pages_read_user_content', 'public_profile'].join(',');
     const googleScope = ['https://www.googleapis.com/auth/business.manage', 'https://www.googleapis.com/auth/userinfo.profile'].join(' ');
 
     const urls = {
@@ -118,6 +118,9 @@ module.exports = (pool) => {
       'instagram_basic',
       'instagram_content_publish',
       'instagram_manage_messages',
+      'instagram_manage_insights',
+      'read_insights',
+      'pages_read_user_content',
       'public_profile',
     ].join(',');
     const authUrl =

@@ -390,5 +390,30 @@ module.exports = (pool) => {
     }
   });
 
+  // POST /api/analytics/sync-metrics
+  // Fetches real engagement data from Facebook/Instagram Graph API and writes to DB.
+  // Body: { postIds?: number[] } — if omitted, syncs recent 30-day posts.
+  router.post('/sync-metrics', async (req, res) => {
+    try {
+      const MetricsSyncService = require('../services/MetricsSyncService');
+      const syncService = new MetricsSyncService(pool);
+      const { postIds } = req.body || {};
+      let result;
+      if (Array.isArray(postIds) && postIds.length) {
+        const capped = postIds.slice(0, 50);
+        const results = await Promise.all(
+          capped.map(id => syncService.syncPost(id, req.customerId).catch(e => ({ synced: false, error: e.message })))
+        );
+        result = { synced: results.filter(r => r.synced).length, total: capped.length };
+      } else {
+        result = await syncService.syncRecentPosts(req.customerId);
+      }
+      res.json(result);
+    } catch (err) {
+      console.error('[analytics] sync-metrics error:', err);
+      res.status(500).json({ error: 'Sync failed' });
+    }
+  });
+
   return router;
 };

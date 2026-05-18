@@ -11,7 +11,7 @@ import {
 import Layout from '../components/Layout';
 import { Card, Button, SectionHeader, EmptyState, Spinner, Skeleton } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { postsAPI, intelligenceAPI, geoAPI } from '../lib/api';
+import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI } from '../lib/api';
 import { format } from 'date-fns';
 
 const TYPE_ICON  = { static: IpDrafts, photo: IpPhoto, carousel: IpCarousel, video: IpVideo };
@@ -57,13 +57,21 @@ export default function Dashboard() {
       intelligenceAPI.getContentHealth().catch(() => ({ data: null })),
       geoAPI.getScore().catch(() => ({ data: null })),
     ]).then(([p, u, m, b, cm, g]) => {
-      setAllPosts(Array.isArray(p.data) ? p.data : []);
+      const posts = Array.isArray(p.data) ? p.data : [];
+      setAllPosts(posts);
       setUpcoming(Array.isArray(u.data) ? u.data : []);
       setMetrics(m.data);
       setBriefing(b.data);
       setContentMix(cm.data);
       setGeoScore(g?.data || null);
       setLoading(false);
+
+      // Background metrics sync: if we have posted content but zero reach, pull real data
+      const totalPosts = posts.filter(p => p.status === 'posted').length;
+      const totalReach = m.data?.totalReach || 0;
+      if (totalPosts > 0 && totalReach === 0) {
+        analyticsAPI.syncMetrics().catch(() => {});
+      }
     }).catch(() => {
       setLoadError(true);
       setLoading(false);
@@ -176,18 +184,12 @@ export default function Dashboard() {
         {/* ── 2. Business Metrics Row ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 16 }}>
           {loading ? (
-            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={86} borderRadius={12} />)
+            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} height={86} borderRadius={12} />)
           ) : (<>
             <MetricCard t={t}
               label="People Reached"
               main={fmt(metrics?.totalReach)}
               sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local est.` : 'No data yet'}
-            />
-            <MetricCard t={t}
-              label="Est. New Customers"
-              main={metrics?.estimatedNewCustomers ? `${metrics.estimatedNewCustomers.min}–${metrics.estimatedNewCustomers.max}` : '—'}
-              sub={`Based on ${metrics ? 'industry' : '...'} averages`}
-              disclaimer
             />
             <MetricCard t={t}
               label="Engagement Rate"

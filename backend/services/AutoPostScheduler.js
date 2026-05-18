@@ -89,6 +89,14 @@ class AutoPostScheduler {
         );
         console.log(`✅ Posted #${post.id} to ${Object.keys(platformPostIds).join(', ')}`);
 
+        // Sync real engagement metrics 5 minutes after publish
+        setTimeout(() => {
+          const MetricsSyncService = require('./MetricsSyncService');
+          new MetricsSyncService(this.pool).syncPost(post.id, post.customer_id).catch(err =>
+            console.warn(`[AutoPostScheduler] Metrics sync failed for post ${post.id}:`, err.message)
+          );
+        }, 5 * 60 * 1000);
+
         const customerObj = {
           email: post.customer_email,
           business_name: post.customer_business_name,

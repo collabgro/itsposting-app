@@ -189,6 +189,7 @@ export const analyticsAPI = {
   getStreak: () => api.get('/api/analytics/streak'),
   updateStreak: () => api.post('/api/analytics/streak/update'),
   getMonthlyStats: () => api.get('/api/analytics/monthly-stats'),
+  syncMetrics: (data = {}) => api.post('/api/analytics/sync-metrics', data),
 };
 
 export const dmsAPI = {

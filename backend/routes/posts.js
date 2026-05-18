@@ -202,6 +202,17 @@ module.exports = (pool) => {
         } catch (streakErr) {
           console.error('[ContentMixTracker] streak update failed:', streakErr.message);
         }
+
+        // Sync real engagement metrics 5 minutes after publish (gives platforms time to process)
+        const postIds = updatedPost.platform_post_ids;
+        if (postIds && Object.keys(postIds).length) {
+          setTimeout(() => {
+            const MetricsSyncService = require('../services/MetricsSyncService');
+            new MetricsSyncService(pool).syncPost(req.params.id, req.customerId).catch(err =>
+              console.warn(`[posts] Delayed metrics sync failed for post ${req.params.id}:`, err.message)
+            );
+          }, 5 * 60 * 1000);
+        }
       }
 
       res.json(updatedPost);
