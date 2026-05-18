@@ -391,11 +391,16 @@ export default function QuickPost() {
 
         {/* ── Platform row ──────────────────────────────────────────── */}
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', letterSpacing: '0.04em' }}>03</span>
-            Platforms
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', letterSpacing: '0.04em' }}>03</span>
+              Platforms
+            </div>
+            <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 500 }}>
+              {selectedPlats.length} of {PLATFORMS.length} selected
+            </span>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
             {PLATFORMS.map(p => {
               const active = selectedPlats.includes(p.id);
               const PIcon = p.Icon;
@@ -405,22 +410,44 @@ export default function QuickPost() {
                   onClick={() => togglePlatform(p.id)}
                   title={p.label}
                   style={{
-                    width: 72, minHeight: 78, borderRadius: 12, padding: '12px 10px',
+                    position: 'relative',
+                    padding: '20px 10px 18px',
                     background: active
-                      ? `${p.color}22`
-                      : dark ? 'rgba(255,255,255,0.04)' : t.input,
+                      ? `${p.color}18`
+                      : dark ? 'rgba(255,255,255,0.03)' : t.card,
                     border: `2px solid ${active ? p.color : (dark ? 'rgba(255,255,255,0.08)' : t.border)}`,
-                    cursor: 'pointer', display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: 5,
-                    transition: 'all 150ms',
-                    boxShadow: active ? `0 0 0 3px ${p.color}25` : 'none',
+                    borderRadius: 16, cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 10,
+                    transition: 'all 160ms ease',
+                    boxShadow: active ? `0 0 0 3px ${p.color}28, 0 4px 16px ${p.color}18` : 'none',
                   }}
                 >
-                  <PIcon size={20} style={{ color: active ? p.color : t.textMuted }} />
+                  {/* Selected checkmark badge */}
+                  {active && (
+                    <div style={{
+                      position: 'absolute', top: 8, right: 8,
+                      width: 18, height: 18, borderRadius: '50%',
+                      background: p.color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <IpCheck size={10} color="#fff" />
+                    </div>
+                  )}
+                  {/* Icon container */}
+                  <div style={{
+                    width: 52, height: 52, borderRadius: 14,
+                    background: active ? `${p.color}22` : dark ? 'rgba(255,255,255,0.06)' : t.input,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 160ms',
+                    border: `1px solid ${active ? p.color + '40' : 'transparent'}`,
+                  }}>
+                    <PIcon size={26} style={{ color: active ? p.color : t.textMuted }} />
+                  </div>
                   <span style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.02em', textAlign: 'center',
-                    color: active ? p.color : t.textMuted,
-                    lineHeight: 1.2, maxWidth: 60,
+                    fontSize: 12, fontWeight: 700, letterSpacing: '0.01em', textAlign: 'center',
+                    color: active ? p.color : t.textSecondary,
+                    lineHeight: 1.2,
                   }}>
                     {p.label}
                   </span>

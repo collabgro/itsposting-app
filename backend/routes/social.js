@@ -88,7 +88,7 @@ module.exports = (pool) => {
         ? `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/google')}&scope=${encodeURIComponent(googleScope)}&state=${encodeURIComponent(state)}&response_type=code&access_type=offline&prompt=consent`
         : null,
       linkedin: LINKEDIN_CLIENT_ID
-        ? `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/linkedin')}&scope=${encodeURIComponent('openid profile email w_member_social')}&state=${encodeURIComponent(state)}`
+        ? `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/linkedin')}&scope=${encodeURIComponent('openid profile email w_member_social w_organization_social r_organization_social')}&state=${encodeURIComponent(state)}`
         : null,
       tiktok: TIKTOK_CLIENT_KEY
         ? `https://www.tiktok.com/v2/auth/authorize/?client_key=${TIKTOK_CLIENT_KEY}&response_type=code&scope=${encodeURIComponent('user.info.basic,video.publish,video.upload')}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/tiktok')}&state=${encodeURIComponent(state)}`
