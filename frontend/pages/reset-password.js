@@ -47,8 +47,10 @@ export default function ResetPassword() {
       setSuccess(true);
     } catch (err) {
       const msg = err.response?.data?.error || '';
-      if (err.response?.status === 400 || msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('invalid')) {
+      if (err.response?.status === 400) {
         setError('This reset link has expired or is invalid. Please request a new one.');
+      } else if (!err.response) {
+        setError('Could not reach the server. Please check that the backend is running.');
       } else {
         setError(msg || 'Something went wrong. Please try again.');
       }

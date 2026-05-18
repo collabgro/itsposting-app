@@ -711,6 +711,8 @@ console.log('🕷️ Receptionist weekly re-crawl cron scheduled (Monday 8am UTC
 
 // Schema migrations — non-blocking, safe to run on every startup
 pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ').catch(() => {});
+pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(64)').catch(() => {});
+pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ').catch(() => {});
 
 // Purge stale password reset tokens (expired > 1 hour ago) — runs at startup and daily
 async function purgeExpiredResetTokens() {

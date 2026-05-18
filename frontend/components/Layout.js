@@ -65,15 +65,28 @@ export default function Layout({ children, title, subtitle, action }) {
     setImpersonatingAs(localStorage.getItem('impersonating_as') || null);
     if (token) {
       (async () => {
-        try {
-          const r = await authAPI.verify();
-          if (r.data?.customer) setUser(r.data.customer);
-        } catch (err) {
-          if (err.response?.status === 401 || err.response?.status === 403) {
-            localStorage.removeItem('token');
-            router.push('/login');
-            return;
+        const tryVerify = async () => {
+          try {
+            const r = await authAPI.verify();
+            if (r.data?.customer) setUser(r.data.customer);
+            return true;
+          } catch (err) {
+            if (err.response?.status === 401 || err.response?.status === 403) {
+              localStorage.removeItem('token');
+              router.push('/login');
+              return false;
+            }
+            return null; // non-401/403: signal to retry
           }
+        };
+
+        let result = await tryVerify();
+        if (result === false) return; // redirected to login
+        if (result === null) {
+          // Transient error (likely 500 from backend starting up) — retry once after 2s
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          result = await tryVerify();
+          if (result === false) return;
         }
         const [dmsResult, suggResult, wsResult] = await Promise.allSettled([
           dmsAPI.getStats(),
@@ -217,6 +230,17 @@ export default function Layout({ children, title, subtitle, action }) {
         </div>
 
         {/* WORKSPACE SWITCHER */}
+        {!isMobile && hasToken && !user && (
+          <div style={{ padding: '12px', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8, background: t.card, border: `1px solid ${t.border}` }}>
+              <div style={{ width: 32, height: 32, borderRadius: 6, background: t.border, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ height: 12, borderRadius: 4, background: t.border, width: '70%', marginBottom: 4 }} />
+                <div style={{ height: 10, borderRadius: 4, background: t.border, width: '50%' }} />
+              </div>
+            </div>
+          </div>
+        )}
         {!isMobile && user && (
           <div style={{ padding: '12px', borderBottom: `1px solid ${t.border}`, flexShrink: 0, position: 'relative' }}>
             <div
