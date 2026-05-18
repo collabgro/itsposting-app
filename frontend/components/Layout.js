@@ -36,21 +36,31 @@ const MODULE_ROUTES = {
 };
 
 const NAV_ITEMS = [
-  { name: 'Dashboard',   href: '/dashboard',  icon: IpDashboard },
-  { name: 'Quick Post',  href: '/quick-post', icon: IpZap, isQuickPost: true },
-  { name: 'Post Wizard', href: '/wizard',     icon: IpWizard,     showSuggBadge: true },
-  { name: 'Create Post', href: '/upload',     icon: IpCreatePost },
-  { name: 'Calendar',    href: '/calendar',   icon: IpCalendar },
-  { name: 'Drafts',      href: '/history',    icon: IpDrafts },
-  { name: 'Media Library', href: '/media',    icon: IpMediaLibrary },
-  { name: 'Analytics',      href: '/analytics',      icon: IpAnalytics },
+  { name: 'Dashboard',     href: '/dashboard',      icon: IpDashboard },
+
+  { isDivider: true, label: 'Create' },
+  { name: 'Quick Post',    href: '/quick-post',     icon: IpZap,          isQuickPost: true },
+  { name: 'Post Wizard',   href: '/wizard',         icon: IpWizard,       showSuggBadge: true },
+  { name: 'Upload',        href: '/upload',         icon: IpCreatePost },
+
+  { isDivider: true, label: 'Manage' },
+  { name: 'Calendar',      href: '/calendar',       icon: IpCalendar },
+  { name: 'Drafts',        href: '/history',        icon: IpDrafts },
+  { name: 'Media Library', href: '/media',          icon: IpMediaLibrary },
+
+  { isDivider: true, label: 'Insights' },
+  { name: 'Analytics',     href: '/analytics',      icon: IpAnalytics },
   { name: 'GEO Audit',     href: '/geo-audit',      icon: IpSearch },
-  { name: 'Inbox',          href: '/inbox',          icon: IpInbox, badgeKey: 'dmUnread' },
+
+  { isDivider: true, label: 'Engage' },
+  { name: 'Inbox',         href: '/inbox',          icon: IpInbox,        badgeKey: 'dmUnread' },
+  { name: 'Contacts',      href: '/contacts',       icon: IpTeam },
+
+  { isDivider: true, label: 'Account' },
   { name: 'Teach PostCore', href: '/knowledge-base', icon: IpBusiness },
-  { name: 'Contacts',   href: '/contacts',   icon: IpTeam },
-  { name: 'Workspaces', href: '/workspaces', icon: IpTeam, isWorkspaceNav: true },
-  { name: 'Billing',    href: '/billing',    icon: IpBilling },
-  { name: 'Settings',   href: '/settings',   icon: IpSettings },
+  { name: 'Workspaces',    href: '/workspaces',     icon: IpTeam,         isWorkspaceNav: true },
+  { name: 'Billing',       href: '/billing',        icon: IpBilling },
+  { name: 'Settings',      href: '/settings',       icon: IpSettings },
 ];
 
 export default function Layout({ children, title, subtitle, action }) {
@@ -380,13 +390,13 @@ export default function Layout({ children, title, subtitle, action }) {
         {!isMobile && (
           <div style={{ padding: '12px', flexShrink: 0 }}>
             <button
-              onClick={() => router.push('/upload')}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 500, transition: 'all 150ms ease', cursor: 'pointer' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.primaryBorder; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }}
+              onClick={() => router.push('/wizard')}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 14px', background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, transition: 'opacity 150ms ease', cursor: 'pointer', boxShadow: '0 2px 12px rgba(155,79,212,0.35)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
             >
-              <IpPlus size={16} strokeWidth={2.5} color="url(#brand-gradient)" />
-              <span>Create new post</span>
+              <IpPlus size={15} color="#fff" />
+              Create new post
             </button>
           </div>
         )}
@@ -397,7 +407,7 @@ export default function Layout({ children, title, subtitle, action }) {
           {visibleNavItems.map((item) => {
             if (item.isDivider) {
               return (
-                <div key={`divider-${item.label}`} style={{ padding: '14px 14px 4px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                <div key={`divider-${item.label}`} style={{ padding: '16px 10px 5px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.09em', opacity: 0.6 }}>
                   {item.label}
                 </div>
               );
@@ -410,7 +420,7 @@ export default function Layout({ children, title, subtitle, action }) {
                 href={item.href}
                 style={{
                   display: 'flex', alignItems: 'center',
-                  gap: 12, padding: '10px 14px', marginBottom: 2,
+                  gap: 12, padding: '9px 12px', marginBottom: 1,
                   borderRadius: 8, fontSize: 13, fontWeight: active ? 600 : 500,
                   color: active ? t.text : t.textSecondary,
                   background: active ? (item.isAdmin ? 'rgba(124,92,252,0.15)' : t.primaryBg) : 'transparent',

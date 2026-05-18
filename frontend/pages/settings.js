@@ -880,34 +880,6 @@ export default function Settings() {
           )}
         </Card>
 
-        {/* Image Source */}
-        <Card>
-          <SectionHeader icon={IpSparkle} title="Image Source" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-            {[
-              { id: 'nanobanana', name: 'Image One', desc: 'Fast, affordable image generation', speed: providers?.nanobanana?.speed || '3-8 seconds', cost: '~$0.039/image', note: 'Recommended — cheaper & faster', noteColor: t.success },
-              { id: 'midjourney', name: 'Image Two', desc: 'Premium artistic output', speed: providers?.midjourney?.speed || '15-20 seconds', cost: '~$0.08/image', note: providers?.midjourney?.available ? 'Premium artistic quality' : 'Requires setup', noteColor: providers?.midjourney?.available ? t.primary : t.warning },
-            ].map((p) => {
-              const selected = profile.preferred_image_provider === p.id;
-              return (
-                <button key={p.id} onClick={() => setProfile({ ...profile, preferred_image_provider: p.id })}
-                  style={{ padding: 16, border: `2px solid ${selected ? t.primary : t.border}`, background: selected ? t.primaryBg : t.input, borderRadius: 10, textAlign: 'left', cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{p.name}</span>
-                    <Badge variant={providers?.[p.id]?.available ? 'success' : 'warning'}>
-                      {providers?.[p.id]?.available ? 'Active' : 'Not configured'}
-                    </Badge>
-                  </div>
-                  <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{p.desc}</div>
-                  <div style={{ fontSize: 12, color: t.textMuted, marginTop: 8 }}>{p.speed}</div>
-                  <div style={{ fontSize: 12, color: t.textMuted }}>{p.cost}</div>
-                  <div style={{ fontSize: 12, color: p.noteColor, marginTop: 4, fontWeight: 500 }}>{p.note}</div>
-                </button>
-              );
-            })}
-          </div>
-        </Card>
-
         {/* Branding */}
         <Card>
           <SectionHeader icon={IpPalette} title="Branding" />
@@ -1088,46 +1060,6 @@ export default function Settings() {
                 </div>
               );
             })}
-          </div>
-        </Card>
-
-        {/* Inbox Sync */}
-        <Card>
-          <SectionHeader icon={IpShare} title="Inbox Sync" subtitle="Sync incoming messages from social platforms into your Inbox" />
-          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 14 }}>
-            DM sync uses your connected social accounts above — no additional setup needed. Facebook and Instagram messages sync automatically.
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              { platform: 'facebook', label: 'Facebook Messenger', Icon: IpFacebook, color: '#1877F2' },
-              { platform: 'instagram', label: 'Instagram DMs', Icon: IpInstagram, color: '#E1306C' },
-            ].map(({ platform, label, Icon, color }) => {
-              const isConnected = socialAccounts.find(a => a.platform === platform);
-              return (
-                <div key={platform} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 9, background: `${color}15`, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Icon size={18} style={{ color }} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{label}</div>
-                      <div style={{ fontSize: 11, color: isConnected ? t.success : t.textMuted }}>
-                        {isConnected ? 'Account connected — syncing enabled' : 'Connect account above to enable sync'}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 12, color: t.textMuted }}>
-                    {dmsStats ? `${dmsStats[platform + '_count'] || 0} messages` : '—'}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Button variant="secondary" size="sm" onClick={handleSyncNow} disabled={syncing}>
-              {syncing ? 'Syncing...' : 'Sync Now'}
-            </Button>
-            <span style={{ fontSize: 11, color: t.textMuted }}>Pull latest messages from all connected platforms</span>
           </div>
         </Card>
 
