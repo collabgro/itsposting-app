@@ -556,15 +556,10 @@ export default function QuickPost() {
                       alt="Generated"
                       style={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 12, display: 'block' }}
                     />
-                    {result.provider && (
-                      <span style={{ position: 'absolute', bottom: 8, right: 8, fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 20, background: 'rgba(0,0,0,0.55)', color: '#fff', backdropFilter: 'blur(4px)' }}>
-                        {result.provider === 'nanobanana' ? 'NanoBanana · Gemini 2.5 Flash' : result.provider}
-                      </span>
-                    )}
                   </div>
                 ) : (
                   <div style={{ height: 72, borderRadius: 12, background: t.input, border: `1px dashed ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 12, color: t.textMuted }}>Image unavailable — caption ready to use</span>
+                    <span style={{ fontSize: 12, color: t.textMuted }}>Image could not be generated — your text is ready</span>
                   </div>
                 )}
               </div>

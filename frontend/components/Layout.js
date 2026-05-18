@@ -391,7 +391,7 @@ export default function Layout({ children, title, subtitle, action }) {
           <div style={{ padding: '12px', flexShrink: 0 }}>
             <button
               onClick={() => router.push('/wizard')}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 14px', background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, transition: 'opacity 150ms ease', cursor: 'pointer', boxShadow: '0 2px 12px rgba(155,79,212,0.35)' }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 14px', background: `linear-gradient(135deg, ${t.primary} 0%, ${t.primaryHover} 100%)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, transition: 'opacity 150ms ease', cursor: 'pointer', boxShadow: `0 2px 12px ${t.primaryBorder}` }}
               onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
               onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
             >

@@ -173,7 +173,7 @@ export default function History() {
           <IpSearch size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted, pointerEvents: 'none' }} />
           <input
             type="text"
-            placeholder="Search by caption…"
+            placeholder="Search your posts…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ width: '100%', paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', transition: 'border-color 150ms' }}
@@ -394,7 +394,7 @@ export default function History() {
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
                     }}>
-                      {post.caption || <span style={{ color: t.textMuted, fontStyle: 'italic' }}>No caption</span>}
+                      {post.caption || <span style={{ color: t.textMuted, fontStyle: 'italic' }}>No text preview</span>}
                     </p>
 
                     {/* Row 3: engagement + actions */}
@@ -407,7 +407,7 @@ export default function History() {
                         </>
                       )}
                       {post.credits_used === 0 && <span style={{ color: t.success, fontSize: 11 }}>Free</span>}
-                      {post.credits_used > 0 && <span style={{ fontSize: 11 }}>{post.credits_used} cr</span>}
+                      {post.credits_used > 0 && <span style={{ fontSize: 11 }}>{post.credits_used} credit{post.credits_used === 1 ? '' : 's'}</span>}
 
                       {/* Action buttons */}
                       <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>

@@ -595,7 +595,7 @@ export default function Settings() {
       const res = await socialAPI.getOAuthUrl(platform);
       window.location.href = res.data.url;
     } catch {
-      showToast('Failed to start OAuth — try "Enter Tokens" instead', 'error');
+      showToast('Connection failed — try "Manual setup" instead', 'error');
     }
   };
 
@@ -1003,7 +1003,7 @@ export default function Settings() {
                         {connected && connected.token_expires_at && (() => {
                           const daysLeft = Math.floor((new Date(connected.token_expires_at) - new Date()) / 86400000);
                           return daysLeft >= 0 && daysLeft <= 7
-                            ? <Badge variant="warning">Expires in {daysLeft}d</Badge>
+                            ? <Badge variant="warning">Reconnect in {daysLeft} day{daysLeft === 1 ? '' : 's'}</Badge>
                             : null;
                         })()}
                       </div>
@@ -1017,10 +1017,10 @@ export default function Settings() {
                       <>
                         <button type="button" onClick={() => handleToggleAutoPost(connected)}
                           style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: connected.auto_post ? 'rgba(34,197,94,0.1)' : t.card, border: `1px solid ${connected.auto_post ? 'rgba(34,197,94,0.3)' : t.border}`, color: connected.auto_post ? t.success : t.textMuted, cursor: 'pointer' }}>
-                          {connected.auto_post ? 'Auto On' : 'Auto Off'}
+                          {connected.auto_post ? 'Auto-post: On' : 'Auto-post: Off'}
                         </button>
                         <Button variant="ghost" size="sm" onClick={() => handleConnect(platform)} style={{ fontSize: 12 }}>
-                          Update Tokens
+                          Reconnect
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDisconnect(platform)} disabled={disconnecting === platform} style={{ color: t.error, fontSize: 12 }}>
                           {disconnecting === platform ? 'Disconnecting...' : 'Disconnect'}
@@ -1047,12 +1047,12 @@ export default function Settings() {
                           </button>
                           {!oauthAvailable && (
                             <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: '#D97706', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 5, padding: '2px 6px', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-                              SOON
+                              Coming soon
                             </span>
                           )}
                         </div>
                         <Button variant="ghost" size="sm" onClick={() => handleConnect(platform)} style={{ fontSize: 12, color: t.textMuted }}>
-                          Enter Tokens
+                          Manual setup
                         </Button>
                       </>
                     )}
@@ -1132,7 +1132,9 @@ export default function Settings() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {apiKeys.map(key => (
+                  {(() => {
+                    const scopeLabelMap = Object.fromEntries(SCOPE_DEFS.flatMap(g => g.scopes).map(sc => [sc.value, sc.label]));
+                    return apiKeys.map(key => (
                     <div key={key.id} style={{ padding: '12px 14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}` }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1142,7 +1144,7 @@ export default function Settings() {
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
                             {(key.scopes || []).map(s => (
-                              <span key={s} style={{ fontSize: 10, padding: '2px 7px', background: `${t.primary}15`, color: t.primary, borderRadius: 4, fontWeight: 500 }}>{s}</span>
+                              <span key={s} style={{ fontSize: 10, padding: '2px 7px', background: `${t.primary}15`, color: t.primary, borderRadius: 4, fontWeight: 500 }}>{scopeLabelMap[s] || s}</span>
                             ))}
                           </div>
                           <div style={{ fontSize: 11, color: t.textMuted }}>
@@ -1182,7 +1184,8 @@ export default function Settings() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  ));
+                  })()}
                 </div>
               )}
 

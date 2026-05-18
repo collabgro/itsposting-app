@@ -209,7 +209,7 @@ export default function Dashboard() {
             <MetricCard t={t}
               label="People Reached"
               main={fmt(metrics?.totalReach)}
-              sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local est.` : 'No data yet'}
+              sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local people` : 'No data yet'}
             />
             <MetricCard t={t}
               label="Engagement Rate"
@@ -371,7 +371,7 @@ export default function Dashboard() {
                             return null;
                           })}
                         </div>
-                        <div style={{ fontSize: 12, color: t.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{post.caption || 'No caption'}</div>
+                        <div style={{ fontSize: 12, color: t.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{post.caption || 'No text preview'}</div>
                         <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>{format(new Date(post.scheduled_date), 'MMM d, h:mm a')}</div>
                       </div>
                     </div>

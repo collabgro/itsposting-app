@@ -784,7 +784,7 @@ export default function Analytics() {
                           </div>
                         )}
                         <p style={{ margin: '0 0 10px', fontSize: 13, color: t.text, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                          {bestPost.caption || 'No caption'}
+                          {bestPost.caption || 'No text preview'}
                         </p>
                         <div style={{ display: 'flex', gap: 14, fontSize: 12, color: t.textSecondary }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><IpHeart size={12} />{bestPost.likes || 0}</span>

@@ -357,7 +357,7 @@ export default function IntegrationSetupWizard({
                     ) : testStatus === 'success' ? (
                       <><IpCheck size={14} />Connection verified</>
                     ) : (
-                      '🔍 Test connection'
+                      'Test connection'
                     )}
                   </button>
                   {testDetail && (

@@ -473,9 +473,9 @@ export default function Billing() {
               <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>Top up your balance anytime — added instantly, never expire</p>
             </div>
             <div style={{ display: 'flex', gap: 16, fontSize: 12, color: t.textMuted }}>
-              <span>Photo post = 3 cr</span>
-              <span>Carousel = 5 cr</span>
-              <span>Video = 10 cr</span>
+              <span>Photo post = 3 credits</span>
+              <span>Carousel = 5 credits</span>
+              <span>Video = 10 credits</span>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>

@@ -739,7 +739,7 @@ export default function Wizard() {
                       id: 'avatar',
                       Icon: IpUser,
                       label: 'Avatar Video',
-                      desc: 'AI presenter talks to camera about your business — powered by HeyGen',
+                      desc: 'AI presenter talks to camera about your business',
                       tag: null,
                     },
                   ].map(vt => {
@@ -1051,7 +1051,7 @@ export default function Wizard() {
             {/* Include CTA toggle */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, marginBottom: 32 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Include business phone / CTA</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Include phone number & call to action</div>
                 <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>Add a call-to-action pointing to your contact info</div>
               </div>
               <Toggle value={includeCTA} onChange={setIncludeCTA} t={t} />
@@ -1173,8 +1173,8 @@ export default function Wizard() {
             )}
 
             <div style={{ marginBottom: 24, textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: t.text, marginBottom: 4 }}>🎉 Your posts are ready!</div>
-              <div style={{ fontSize: 13, color: t.textMuted }}>PostCore generated 3 variations — pick your favourite</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: t.text, marginBottom: 4 }}>Your posts are ready</div>
+              <div style={{ fontSize: 13, color: t.textMuted }}>3 versions ready — pick whichever sounds most like you</div>
             </div>
 
             {/* Two-column layout */}
@@ -1326,7 +1326,7 @@ export default function Wizard() {
                             {variation.engagementQuestion && !isEditing && (
                               <div style={{ padding: '10px 12px', background: 'rgba(234,179,8,0.08)', borderRadius: 6, borderLeft: '3px solid #EAB308', marginBottom: 10 }}>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#EAB308', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
-                                  <Icon name="message" size={11} color="#EAB308" /> Engagement Question
+                                  <Icon name="message" size={11} color="#EAB308" /> Suggested question
                                 </div>
                                 <div style={{ fontSize: 12, color: t.text, fontStyle: 'italic' }}>{variation.engagementQuestion}</div>
                               </div>
@@ -1385,7 +1385,7 @@ export default function Wizard() {
                         <Icon name="edit" size={14} /> Edit
                       </button>
                       <button onClick={() => { showToast('success', 'Draft saved — find it in History'); setTimeout(handleReset, 1800); }} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <IpArrowLeft size={14} /> Save Draft
+                        <IpArrowLeft size={14} /> Save for Later
                       </button>
                     </>
                   )}
@@ -1559,7 +1559,7 @@ function VariationCard({ label, variation, t, copiedId, onCopy, onUse, selected,
       {/* Engagement question */}
       {variation.engagementQuestion && (
         <div style={{ padding: '12px 20px', background: 'rgba(234,179,8,0.08)', borderBottom: `1px solid ${t.border}`, borderLeft: '3px solid #EAB308' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#EAB308', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="message" size={12} color="#EAB308" /> Engagement Question</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#EAB308', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="message" size={12} color="#EAB308" /> Suggested question</div>
           <div style={{ fontSize: 13, color: t.text, fontStyle: 'italic' }}>{variation.engagementQuestion}</div>
         </div>
       )}

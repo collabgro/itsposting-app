@@ -268,7 +268,7 @@ export default function ContentCreatorModal({
                       style={{ padding: 20, border: `2px solid ${t.border}`, background: t.input, borderRadius: 14, textAlign: 'left', cursor: canAfford ? 'pointer' : 'not-allowed', opacity: canAfford ? 1 : 0.45, transition: 'all 150ms' }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
                         <Icon size={22} color={canAfford ? 'url(#brand-gradient)' : t.textMuted} />
-                        <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: t.primaryBg, color: t.primary, border: `1px solid ${t.primaryBorder}`, fontFamily: 'monospace' }}>{type.credits} cr</span>
+                        <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: t.primaryBg, color: t.primary, border: `1px solid ${t.primaryBorder}`, fontFamily: 'monospace' }}>{type.credits} credit{type.credits === 1 ? '' : 's'}</span>
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 4 }}>{type.name}</div>
                       <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5 }}>{type.desc}</div>
@@ -459,10 +459,10 @@ export default function ContentCreatorModal({
                   <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 12, background: 'rgba(244,67,54,0.1)', border: '1px solid rgba(244,67,54,0.2)', color: '#B8323E', fontSize: 12 }}>{generatedContent.videoError}</div>
                 )}
                 {!generatedContent.mediaUrl && generatedContent.contentType !== 'video' && (
-                  <div style={{ marginTop: 14, fontSize: 12, color: t.textMuted }}>No image was generated. Set GOOGLE_AI_API_KEY to enable image generation.</div>
+                  <div style={{ marginTop: 14, fontSize: 12, color: t.textMuted }}>Image could not be generated — your caption is ready to use.</div>
                 )}
                 {generatedContent.contentType === 'video' && !generatedContent.mediaUrl && (
-                  <div style={{ marginTop: 14, fontSize: 12, color: t.textMuted }}>Video pending — HeyGen generates it when HEYGEN_API_KEY is configured.</div>
+                  <div style={{ marginTop: 14, fontSize: 12, color: t.textMuted }}>Your video is being generated — this usually takes 1–2 minutes.</div>
                 )}
                 {generatedContent.script && (
                   <div style={{ marginTop: 16, padding: 14, borderRadius: 14, background: t.input, border: `1px solid ${t.border}` }}>
