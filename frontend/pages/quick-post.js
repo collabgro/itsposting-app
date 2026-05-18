@@ -415,13 +415,16 @@ export default function QuickPost() {
           </div>
         </div>
 
+        {/* ── Divider ───────────────────────────────────────────────── */}
+        <hr style={{ border: 'none', borderTop: `1px solid ${t.border}`, margin: 0 }} />
+
         {/* ── Tone chips ────────────────────────────────────────────── */}
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', letterSpacing: '0.04em' }}>04</span>
             Tone
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
             {TONES.map(tn => {
               const sel = tone === tn.id;
               const TIcon = tn.Icon;
@@ -430,16 +433,17 @@ export default function QuickPost() {
                   key={tn.id}
                   onClick={() => setTone(tn.id)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '11px 16px',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: 6, padding: '12px 8px',
                     borderRadius: 12, cursor: 'pointer', transition: 'all 120ms',
                     border: sel ? `1px solid ${t.primary}` : `1px solid ${t.border}`,
                     background: sel ? t.primaryBg : 'transparent',
                   }}
                 >
-                  <TIcon size={14} style={{ color: sel ? t.primary : t.textMuted, flexShrink: 0 }} />
-                  <div style={{ textAlign: 'left' }}>
+                  <TIcon size={16} style={{ color: sel ? t.primary : t.textMuted, flexShrink: 0 }} />
+                  <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: sel ? t.primary : t.text, lineHeight: 1 }}>{tn.label}</div>
-                    <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2, lineHeight: 1 }}>{tn.desc}</div>
+                    <div style={{ fontSize: 10, color: t.textMuted, marginTop: 3, lineHeight: 1.3 }}>{tn.desc}</div>
                   </div>
                 </button>
               );
