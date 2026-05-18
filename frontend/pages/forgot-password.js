@@ -172,4 +172,3 @@ export default function ForgotPassword() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

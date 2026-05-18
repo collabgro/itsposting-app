@@ -147,14 +147,27 @@ export default function Dashboard() {
         action={
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" onClick={() => router.push('/wizard')}>
-              <IpSparkle size={14} color="url(#brand-gradient)" /> Create
+              <IpSparkle size={14} color="url(#brand-gradient)" /> Post Wizard
             </Button>
             <Button variant="primary" onClick={() => router.push('/upload')}>
-              <IpPlus size={14} strokeWidth={2.5} /> Create Post
+              <IpPlus size={14} strokeWidth={2.5} /> Upload
             </Button>
           </div>
         }
       >
+
+        {/* ── 0. First-time user welcome banner ── */}
+        {!loading && allPosts.length === 0 && (
+          <div style={{ background: `linear-gradient(135deg, ${t.primary}18 0%, ${t.primaryHover}10 100%)`, border: `1px solid ${t.primaryBorder}`, borderRadius: 16, padding: '24px 28px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: t.text, marginBottom: 6 }}>Welcome — let's make your first post</div>
+              <div style={{ fontSize: 13, color: t.textMuted, maxWidth: 460 }}>You have 10 free credits. A photo post takes under 2 minutes — pick what happened today and we'll write the caption and create the image.</div>
+            </div>
+            <Button variant="primary" onClick={() => router.push('/quick-post')} style={{ whiteSpace: 'nowrap', padding: '12px 24px', fontSize: 14, fontWeight: 700 }}>
+              <IpSparkle size={14} color="#fff" /> Make your first post
+            </Button>
+          </div>
+        )}
 
         {/* ── 1. PostCore Briefing Banner ── */}
         {showBrief && bd && (
@@ -178,7 +191,7 @@ export default function Dashboard() {
                   <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.5, marginBottom: 8 }}>{s.observation}</div>
                   {s.action && (
                     <button onClick={() => router.push('/wizard')} style={{ fontSize: 11, fontWeight: 700, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                      {s.actionLabel || 'Create Post'} →
+                      {s.actionLabel || 'Create a Post'} →
                     </button>
                   )}
                 </div>
@@ -225,21 +238,21 @@ export default function Dashboard() {
               onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
               onMouseLeave={(e) => (e.currentTarget.style.background = t.card)}
             >
-              <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>AI Visibility Score</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>Search Visibility</div>
               {geoScore && geoScore.score > 0 ? (
                 <>
                   <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 3, color: geoScore.score >= 70 ? t.success : geoScore.score >= 40 ? t.warning : t.error }}>
                     {geoScore.score}<span style={{ fontSize: 14, color: t.textMuted, fontWeight: 500 }}>/100</span>
                   </div>
                   <div style={{ fontSize: 11, color: t.primary, fontWeight: 600 }}>
-                    Improve score →
+                    See how to improve →
                   </div>
                 </>
               ) : (
                 <>
                   <div style={{ fontSize: 20, fontWeight: 800, color: t.text, marginBottom: 3 }}>—</div>
                   <div style={{ fontSize: 11, color: t.primary, fontWeight: 600 }}>
-                    {geoScore?.freeAuditUsed ? 'Run audit →' : 'Free audit available →'}
+                    {geoScore?.freeAuditUsed ? 'Check your score →' : 'Get your free score →'}
                   </div>
                 </>
               )}
@@ -320,9 +333,9 @@ export default function Dashboard() {
             </div>
             {filteredUpcoming.length === 0 ? (
               upcoming.length === 0 ? (
-                <EmptyState icon={IpCalendar} title="Your schedule is open"
-                  subtitle="PostCore recommends posting 3–6× per week. Create your first scheduled post."
-                  action={<Button variant="primary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={12} /> Generate a Post</Button>} />
+                <EmptyState icon={IpCalendar} title="Nothing scheduled yet"
+                  subtitle="Posting 3× a week gets local businesses 5× more reach. Let's schedule your first one."
+                  action={<Button variant="primary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={12} /> Create a Post</Button>} />
               ) : (
                 <div style={{ padding: '24px 20px', textAlign: 'center', color: t.textMuted, fontSize: 13 }}>
                   No scheduled posts for this platform.
@@ -407,9 +420,9 @@ function MetricCard({ t, label, main, sub, subColor, disclaimer }) {
 }
 
 const TARGET_MIX = [
-  { key: 'educational', label: 'Educational',  color: '#3B82F6', target: 70 },
-  { key: 'socialProof', label: 'Social proof', color: '#22C55E', target: 20 },
-  { key: 'promotional', label: 'Promotional',  color: '#EAB308', target: 10 },
+  { key: 'educational', label: 'How-to Tips',    color: '#3B82F6', target: 70 },
+  { key: 'socialProof', label: 'Customer Wins',  color: '#22C55E', target: 20 },
+  { key: 'promotional', label: 'Special Offers', color: '#EAB308', target: 10 },
 ];
 
 function ContentHealthBar({ data, t, router }) {
@@ -420,7 +433,7 @@ function ContentHealthBar({ data, t, router }) {
   if (!total) {
     return (
       <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 8 }}>Content mix — target</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 8 }}>Content Balance</div>
         <div style={{ height: 7, borderRadius: 4, overflow: 'hidden', display: 'flex', gap: 1, marginBottom: 8 }}>
           {TARGET_MIX.map(s => <div key={s.key} style={{ width: `${s.target}%`, background: s.color, opacity: 0.35 }} />)}
         </div>
@@ -432,22 +445,22 @@ function ContentHealthBar({ data, t, router }) {
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic' }}>Target mix — start posting to track your actual ratio</div>
+        <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic' }}>Post a few times and we'll show whether your content mix is on track</div>
       </div>
     );
   }
 
   const allSegments = [
-    { key: 'educational', label: 'Educational',  color: '#3B82F6', target: 70 },
-    { key: 'socialProof', label: 'Social proof', color: '#22C55E', target: 20 },
-    { key: 'promotional', label: 'Promotional',  color: '#EAB308', target: 10 },
+    { key: 'educational', label: 'How-to Tips',    color: '#3B82F6', target: 70 },
+    { key: 'socialProof', label: 'Customer Wins',  color: '#22C55E', target: 20 },
+    { key: 'promotional', label: 'Special Offers', color: '#EAB308', target: 10 },
   ];
   const segments = allSegments.filter(s => mix[s.key] > 0);
 
   return (
     <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary }}>Content mix — last 30 posts</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary }}>Content Balance — last 30 posts</div>
         {gaps.length > 0 && (
           <button onClick={() => router.push('/wizard')} style={{ fontSize: 11, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
             Fix balance →
@@ -473,7 +486,7 @@ function ContentHealthBar({ data, t, router }) {
       </div>
       {recommendation && (
         <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic' }}>
-          <span style={{ color: t.primary, fontWeight: 600 }}>PostCore: </span>{recommendation}
+          <span style={{ color: t.primary, fontWeight: 600 }}>Tip: </span>{recommendation}
         </div>
       )}
     </div>
@@ -595,4 +608,3 @@ function DashboardTour({ onClose, router }) {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

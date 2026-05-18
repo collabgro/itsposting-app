@@ -11,6 +11,11 @@ import { useTheme } from '../lib/theme';
 import { billingAPI } from '../lib/api';
 
 const PLAN_ICONS = { trial: IpGift, starter: IpCredits, professional: IpSparkle, premium: IpCrown };
+const PLAN_TAGLINES = {
+  starter:      'Good for 1-person businesses just getting started',
+  professional: 'Best for businesses posting 3× or more per week',
+  premium:      'For businesses serious about growing their online presence',
+};
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -293,7 +298,7 @@ export default function Billing() {
               <div>
                 <span style={{ color: t.textMuted }}>Remaining: </span>
                 <span style={{ color: t.primary, fontWeight: 700, fontFamily: 'monospace' }}>{balance}</span>
-                <span style={{ color: t.textMuted }}> · plan: {planCredits}/mo</span>
+                <span style={{ color: t.textMuted }}> · plan includes {planCredits}/mo</span>
               </div>
               {usagePct >= 80 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: t.warning, fontSize: 12, fontWeight: 600 }}>
@@ -308,7 +313,7 @@ export default function Billing() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, margin: '0 0 4px' }}>
-              {isTrial ? 'Choose a plan to get started' : 'Available plans'}
+              {isTrial ? 'Pick the right plan for your business' : 'Your plan options'}
             </h3>
             <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>
               Payments processed securely by Whop. Cancel anytime.
@@ -389,6 +394,9 @@ export default function Billing() {
 
                 <PlanIcon size={20} color="url(#brand-gradient)" style={{ marginBottom: 10 }} />
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, margin: '0 0 4px' }}>{plan.name}</h3>
+                {PLAN_TAGLINES[plan.id] && (
+                  <p style={{ fontSize: 12, color: t.textMuted, margin: '0 0 10px', lineHeight: 1.4 }}>{PLAN_TAGLINES[plan.id]}</p>
+                )}
 
                 <div style={{ marginBottom: 4 }}>
                   <span style={{ fontSize: 30, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>${price}</span>
@@ -420,15 +428,18 @@ export default function Billing() {
                 </ul>
 
                 <Button
-                  onClick={() => !isCurrent && !isDowngrade && handleUpgrade(plan)}
-                  disabled={isCurrent || isDowngrade || !!checkingOut}
+                  onClick={() => {
+                    if (isDowngrade) { window.location.href = 'mailto:support@itsposting.com?subject=Downgrade request'; return; }
+                    if (!isCurrent) handleUpgrade(plan);
+                  }}
+                  disabled={isCurrent || !!checkingOut}
                   variant={isCurrent ? 'secondary' : plan.popular ? 'primary' : 'secondary'}
                   style={{ width: '100%', justifyContent: 'center', padding: '11px', gap: 6 }}
                 >
                   {isCurrent ? (
                     <><IpCheck size={13} strokeWidth={3} /> Current plan</>
                   ) : isDowngrade ? (
-                    'Contact us to downgrade'
+                    'Email us to downgrade'
                   ) : isCheckingOut ? (
                     <><img src="/icon-192.png" alt="" style={{ width: 13, height: 13, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} /> Redirecting...</>
                   ) : (
@@ -506,8 +517,7 @@ export default function Billing() {
                   )}
                   <div style={{ fontSize: 28, fontWeight: 800, color: t.primary, fontFamily: 'monospace', lineHeight: 1 }}>{pack.amount}</div>
                   <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 8 }}>credits</div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: t.text, marginBottom: 2 }}>${pack.price}</div>
-                  <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>${costPerCredit}/credit</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: t.text, marginBottom: 6 }}>${pack.price}</div>
                   <div style={{ fontSize: 10, color: t.textSecondary, padding: '3px 6px', background: 'rgba(124,92,252,0.08)', borderRadius: 6 }}>{context}</div>
                   {isActive && <div style={{ fontSize: 10, color: t.primary, marginTop: 6, fontWeight: 600 }}>Redirecting…</div>}
                 </button>
@@ -573,7 +583,7 @@ export default function Billing() {
                         {positive ? '+' : ''}{tx.amount}
                       </div>
                       <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
-                        bal: {tx.balance_after}
+                        After: {tx.balance_after}
                       </div>
                     </div>
                   </div>
@@ -627,4 +637,3 @@ export default function Billing() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

@@ -93,7 +93,7 @@ export default function GeoAuditReport() {
 
   if (loading) {
     return (
-      <Layout title="GEO Audit Report" action={<Button variant="ghost" onClick={() => router.push('/geo-audit')}>← Back</Button>}>
+      <Layout title="AI Visibility Report" action={<Button variant="ghost" onClick={() => router.push('/geo-audit')}>← Back</Button>}>
         <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
           <Spinner size={40} />
         </div>
@@ -103,20 +103,20 @@ export default function GeoAuditReport() {
 
   if (error || !audit) {
     return (
-      <Layout title="GEO Audit Report" action={<Button variant="ghost" onClick={() => router.push('/geo-audit')}>← Back</Button>}>
-        <EmptyState icon={IpWarning} title="Report not found" subtitle={error || 'This audit may have been removed.'} action={<Button onClick={() => router.push('/geo-audit')}>Back to GEO Audit</Button>} />
+      <Layout title="AI Visibility Report" action={<Button variant="ghost" onClick={() => router.push('/geo-audit')}>← Back</Button>}>
+        <EmptyState icon={IpWarning} title="Report not found" subtitle={error || 'This audit may have been removed.'} action={<Button onClick={() => router.push('/geo-audit')}>Back to AI Visibility</Button>} />
       </Layout>
     );
   }
 
   if (audit.status === 'running') {
     return (
-      <Layout title="GEO Audit Report" action={<Button variant="ghost" onClick={() => router.push('/geo-audit')}>← Back</Button>}>
+      <Layout title="AI Visibility Report" action={<Button variant="ghost" onClick={() => router.push('/geo-audit')}>← Back</Button>}>
         <Card style={{ maxWidth: 480, margin: '40px auto', textAlign: 'center', padding: 40 }}>
           <Spinner size={48} />
           <p style={{ margin: '20px 0 0', color: t.textMuted, fontSize: 14 }}>Audit is still running…</p>
           <Button variant="secondary" style={{ marginTop: 16 }} onClick={() => router.push('/geo-audit')}>
-            ← Back to GEO Audit
+            ← Back to AI Visibility
           </Button>
         </Card>
       </Layout>
@@ -145,7 +145,7 @@ export default function GeoAuditReport() {
 
   return (
     <Layout
-      title="GEO Audit Report"
+      title="AI Visibility Report"
       subtitle={`${audit.industry || ''} · ${audit.location || ''}`}
       action={
         <div style={{ display: 'flex', gap: 8 }}>
@@ -334,7 +334,7 @@ export default function GeoAuditReport() {
             </div>
             <div style={{ marginTop: 14, padding: '12px 14px', background: `${t.primary}10`, borderRadius: 8, border: `1px solid ${t.primary}30` }}>
               <p style={{ margin: 0, fontSize: 12, color: t.textSecondary, lineHeight: 1.6 }}>
-                <strong style={{ color: t.text }}>PostCore tip: </strong>
+                <strong style={{ color: t.text }}>Tip: </strong>
                 {trustSignals[0]
                   ? `"${trustSignals[0].signal}" appeared in ${trustSignals[0].count} of ${trustSignals[0].total || 45} searches. If you don't have content that demonstrates this, create one today using the wizard below.`
                   : 'Create content that demonstrates your credentials — licensed, insured, and years of experience. These are what the AI looks for when recommending a business.'}
@@ -441,4 +441,3 @@ export default function GeoAuditReport() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

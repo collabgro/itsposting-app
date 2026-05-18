@@ -43,7 +43,7 @@ const MODULES = [
   { group: 'Insights',    items: [
     { id: 'analytics',     label: 'Analytics' },
     { id: 'reports',       label: 'Reports & ROI' },
-    { id: 'geo_audit',     label: 'GEO Audit' },
+    { id: 'geo_audit',     label: 'AI Visibility' },
   ]},
   { group: 'Engagement',  items: [
     { id: 'inbox',         label: 'Inbox & DMs' },
@@ -51,7 +51,7 @@ const MODULES = [
     { id: 'contacts',      label: 'Contacts' },
   ]},
   { group: 'Settings',    items: [
-    { id: 'knowledge_base', label: 'Teach PostCore' },
+    { id: 'knowledge_base', label: 'Knowledge Base' },
     { id: 'settings',      label: 'Business Settings' },
   ]},
 ];

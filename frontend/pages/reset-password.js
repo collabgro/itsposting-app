@@ -242,4 +242,3 @@ export default function ResetPassword() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

@@ -57,7 +57,7 @@ export default function KnowledgeBase() {
   ];
 
   return (
-    <Layout title="PostCore Knowledge Base" subtitle="Train PostCore with your business information">
+    <Layout title="Knowledge Base" subtitle="Train your AI with your business information">
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: `1px solid ${t.border}` }}>
         {tabs.map(tab => (
@@ -1600,4 +1600,3 @@ function AiResponseTab({ t }) {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

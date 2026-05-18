@@ -20,9 +20,9 @@ const ROLE_DEFAULTS = {
 const MODULE_LABELS = {
   wizard: 'Post Wizard', upload: 'Create & Upload', calendar: 'Calendar',
   history: 'History & Drafts', media: 'Media Library', studio: 'Photo Studio',
-  analytics: 'Analytics', reports: 'Reports & ROI', geo_audit: 'GEO Audit',
+  analytics: 'Analytics', reports: 'Reports & ROI', geo_audit: 'AI Visibility',
   inbox: 'Inbox & DMs', receptionist: 'AI Receptionist', contacts: 'Contacts',
-  knowledge_base: 'Teach PostCore', settings: 'Business Settings',
+  knowledge_base: 'Knowledge Base', settings: 'Business Settings',
 };
 
 // page state machine:  loading | invalid | ready_new | ready_existing | submitting | success

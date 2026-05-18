@@ -1291,4 +1291,3 @@ function PhotoCard({ photo, selected, onSelect, t }) {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

@@ -1627,4 +1627,3 @@ export default function Settings() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

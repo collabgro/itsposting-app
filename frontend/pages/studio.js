@@ -7,4 +7,3 @@ export default function StudioRedirect() {
   return null;
 }
 
-export async function getServerSideProps() { return { props: {} }; }

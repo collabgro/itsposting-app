@@ -66,7 +66,7 @@ export default function App({ Component, pageProps }) {
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       navigator.serviceWorker
         .register('/sw.js')
-        .then(() => console.log('[SW] Registered'))
+        .then(() => {})
         .catch(err => console.warn('[SW] Registration failed:', err));
     }
   }, []);

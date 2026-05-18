@@ -342,12 +342,12 @@ export default function Upload() {
 
   return (
     <Layout
-      title="Create Post"
+      title="Upload"
       subtitle="Upload your own content"
       action={
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button variant="secondary" onClick={() => router.push('/wizard')}>
-            <IpSparkle size={14} color="url(#brand-gradient)" /> Create with AI
+            <IpSparkle size={14} color="url(#brand-gradient)" /> Post Wizard
           </Button>
           <Button variant="secondary" onClick={() => router.push('/calendar')}>View Calendar</Button>
         </div>
@@ -718,4 +718,3 @@ export default function Upload() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

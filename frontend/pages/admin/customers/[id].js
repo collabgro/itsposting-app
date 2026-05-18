@@ -489,4 +489,3 @@ function PasswordModal({ onClose, onSubmit, t }) {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

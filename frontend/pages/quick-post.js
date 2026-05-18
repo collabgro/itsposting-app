@@ -12,7 +12,7 @@ import {
   IpCheckCircle, IpInfo, IpDollar, IpCalendar, IpTeam,
 } from '../components/icons';
 import { useToast } from '../components/ui';
-import { contentAPI } from '../lib/api';
+import { contentAPI, socialAPI } from '../lib/api';
 
 function Spinner({ color = '#fff', size = 16 }) {
   return (
@@ -88,16 +88,16 @@ const TONES = [
 
 const LOADING_MSGS = {
   static: [
-    'Reading the room for your industry...',
-    'Writing like a local expert...',
-    'Adding that authentic local touch...',
-    'Crafting your post right now...',
+    'Writing your caption...',
+    'Tailoring it to your industry...',
+    'Adding a local touch...',
+    'Almost done...',
   ],
   photo: [
-    'Reading the room for your industry...',
     'Writing your caption...',
-    'Generating your image...',
-    'Almost there — polishing the details...',
+    'Creating your image...',
+    'Adding a local touch...',
+    'Almost done...',
   ],
 };
 
@@ -123,6 +123,8 @@ export default function QuickPost() {
   const [editing,       setEditing]       = useState(false);
   const [editedCaption, setEditedCaption] = useState('');
   const [copied,        setCopied]        = useState(false);
+  const [posting,       setPosting]       = useState(false);
+  const [posted,        setPosted]        = useState(false);
 
   const loadMsgTimer = useRef(null);
 
@@ -190,12 +192,25 @@ export default function QuickPost() {
   const getHashtags = () => result?.variations?.[activeVar]?.hashtags || result?.hashtags || [];
   const getEngQ     = () => result?.variations?.[activeVar]?.engagementQuestion || null;
 
-  const handlePostNow = () => {
-    sessionStorage.setItem('quickPostData', JSON.stringify({
-      caption: getCaption(), hashtags: getHashtags(),
-      platforms: selectedPlats, tone, mediaUrl: result?.mediaUrl || null,
-    }));
-    router.push('/upload?from=quick-post');
+  const handlePostNow = async () => {
+    if (!result?.postId) return;
+    setPosting(true);
+    try {
+      const pubRes = await socialAPI.publish(result.postId, selectedPlats);
+      const { posted: postedTo = [], errors = [] } = pubRes.data;
+      if (postedTo.length > 0) {
+        setPosted(true);
+        showToast(`Published to ${postedTo.join(', ')}!`, 'success');
+        window.dispatchEvent(new Event('creditRefresh'));
+      } else {
+        const msg = errors.map(e => `${e.platform}: ${e.message}`).join('; ') || 'Publish failed — check your connected accounts';
+        showToast(msg, 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Could not publish — please try again', 'error');
+    } finally {
+      setPosting(false);
+    }
   };
   const handleOpenWizard = () => {
     const wizardResult = {
@@ -216,7 +231,7 @@ export default function QuickPost() {
     navigator.clipboard.writeText(getCaption()).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2200); });
   };
   const handleReset = () => {
-    setResult(null); setError(''); setEditing(false);
+    setResult(null); setError(''); setEditing(false); setPosted(false);
     setJobType(null); setDetails(''); setShowDetails(false); setActiveVar('a');
   };
 
@@ -609,12 +624,24 @@ export default function QuickPost() {
 
             {/* Action buttons */}
             <div style={{ padding: '10px 12px 12px', borderTop: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button
-                onClick={handlePostNow}
-                style={{ width: '100%', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 12px rgba(124,92,252,0.28)' }}
-              >
-                <IpSend size={15} color="#fff" /> Post Now
-              </button>
+              {posted ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ width: '100%', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, fontSize: 14, fontWeight: 700, color: t.success }}>
+                    <IpCheck size={16} style={{ color: t.success }} /> Posted successfully!
+                  </div>
+                  <button onClick={handleReset} style={{ width: '100%', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: t.input, color: t.textSecondary, border: `1px solid ${t.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    Post another
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handlePostNow}
+                  disabled={posting || !result?.postId}
+                  style={{ width: '100%', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: posting ? 'rgba(124,92,252,0.6)' : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: posting ? 'not-allowed' : 'pointer', boxShadow: '0 2px 12px rgba(124,92,252,0.28)', transition: 'all 150ms' }}
+                >
+                  {posting ? <><Spinner size={15} /> Publishing…</> : <><IpSend size={15} color="#fff" /> Post Now</>}
+                </button>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                 <button
                   onClick={() => { if (!editing) setEditedCaption(getCaption()); setEditing(v => !v); }}
@@ -651,4 +678,3 @@ export default function QuickPost() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

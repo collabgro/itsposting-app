@@ -332,4 +332,3 @@ export default function AdminPostsPage() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

@@ -296,4 +296,3 @@ export default function AdminCustomers() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

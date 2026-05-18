@@ -170,4 +170,3 @@ export default function Welcome() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

@@ -306,4 +306,3 @@ export default function EmailQueuePage() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

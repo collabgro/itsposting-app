@@ -160,10 +160,10 @@ export default function History() {
         action={
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button variant="secondary" onClick={() => router.push('/wizard')}>
-              <IpSparkle size={13} color="url(#brand-gradient)" /> Create
+              <IpSparkle size={13} color="url(#brand-gradient)" /> Post Wizard
             </Button>
             <Button variant="primary" onClick={() => router.push('/upload')}>
-              <IpPlus size={14} strokeWidth={2.5} /> Create Post
+              <IpPlus size={14} strokeWidth={2.5} /> Upload
             </Button>
           </div>
         }
@@ -286,7 +286,7 @@ export default function History() {
               }
               action={
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                  <Button variant="secondary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={12} /> Create</Button>
+                  <Button variant="secondary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={12} /> Post Wizard</Button>
                   <Button variant="secondary" size="sm" onClick={() => router.push('/upload')}>Manual upload</Button>
                 </div>
               }
@@ -474,4 +474,3 @@ export default function History() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

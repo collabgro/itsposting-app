@@ -221,24 +221,26 @@ itsposting-app-main/
 - `index.js` — auth redirect
 - `login.js` — authentication
 - `signup.js` — 2-step onboarding
-- `dashboard.js` — main dashboard with PostCore suggestions banner
-- `calendar.js` — month calendar view
-- `history.js` — post history / drafts
-- `upload.js` — manual upload + library picker
-- `media.js` — 10GB media library
-- `quick-post.js` — mobile-optimised single-screen post creation
+- `dashboard.js` — main dashboard; shows first-time welcome banner when 0 posts; PostCore briefing + suggestions
+- `calendar.js` — month calendar view; header buttons: "Post Wizard" + "Upload"
+- `history.js` — post history / drafts; header buttons: "Post Wizard" + "Upload"
+- `upload.js` — manual upload + library picker; page title "Upload"
+- `media.js` — 10GB media library + Photo Studio tab
+- `quick-post.js` — single-screen post creation; only Text Card + Photo Post (carousel/video removed); "Post Now" publishes directly without redirect
 - `wizard.js` — dedicated full-page AI content creation wizard (multi-step, all content types)
-- `billing.js` — plan management
-- `settings.js` — profile, branding, scraper
-- `reports.js` — monthly reports
-- `roi.js` — ROI estimator
-- `workspaces.js` — multi-account workspace switcher UI
+- `billing.js` — plan management; each plan card has a plain-English tagline; "Email us to downgrade" links to support email
+- `settings.js` — profile, branding, social connections, integrations (Image Source + Inbox Sync sections removed)
+- `reports.js` — redirects to /analytics?tab=monthly
+- `roi.js` — redirects to /analytics
+- `receptionist.js` — redirects to /knowledge-base?tab=ai-response
+- `workspaces.js` — multi-account workspace switcher UI; permission labels use plain names (AI Visibility, Knowledge Base)
 - `contacts.js` — contacts management
-- `knowledge-base.js` — Teach PostCore knowledge base UI
-- `analytics/index.js` — analytics overview
+- `knowledge-base.js` — Knowledge Base UI (page title: "Knowledge Base"); train AI with business info, FAQs, pricing, docs, AI Receptionist config
+- `analytics/index.js` — analytics overview; content type labels use display names (Text Card, Photo, etc.)
 - `analytics/posts/[id].js` — per-post performance detail
-- `geo-audit/index.js` — GEO Audit dashboard (run, configure, results card)
-- `geo-audit/[id].js` — full GEO Audit report by ID
+- `geo-audit/index.js` — AI Visibility dashboard (page title: "AI Visibility"); run/configure visibility checks
+- `geo-audit/[id].js` — AI Visibility Report (page title: "AI Visibility Report")
+- `studio.js` — Photo Studio (standalone entry point, also accessible via media.js tab)
 - `admin/index.js` — admin dashboard
 - `admin/customers.js` — customer list
 - `admin/customers/[id].js` — customer detail + impersonation

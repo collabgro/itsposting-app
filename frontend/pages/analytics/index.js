@@ -693,7 +693,7 @@ export default function Analytics() {
                             <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpHeart size={10} /> {eng.likes || 0}</span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpComment size={10} /> {eng.comments || 0}</span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpShare size={10} /> {eng.shares || 0}</span>
-                            <span style={{ color: meta.color, fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>{p.content_type}</span>
+                            <span style={{ color: meta.color, fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>{meta.label || p.content_type}</span>
                             {p.posted_at && <span>{format(new Date(p.posted_at), 'MMM d, yyyy')}</span>}
                           </div>
                         </div>
@@ -902,4 +902,3 @@ export default function Analytics() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

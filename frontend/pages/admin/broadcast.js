@@ -321,4 +321,3 @@ export default function BroadcastPage() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

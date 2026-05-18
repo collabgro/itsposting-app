@@ -212,7 +212,7 @@ export default function GeoAuditPage() {
 
   return (
     <Layout
-      title="GEO Audit"
+      title="AI Visibility"
       subtitle="AI visibility across ChatGPT, Claude & Perplexity"
       action={<Button variant="ghost" onClick={() => router.push('/dashboard')}>← Dashboard</Button>}
     >
@@ -220,7 +220,7 @@ export default function GeoAuditPage() {
         /* ── LOADING STATE ── */
         <Card style={{ maxWidth: 480, margin: '40px auto', textAlign: 'center' }}>
           <div style={{ marginBottom: 24 }}><Spinner size={48} /></div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>Running your GEO Audit...</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>Checking your AI visibility...</div>
           <div style={{ fontSize: 13, color: t.textMuted, minHeight: 20, transition: 'opacity 300ms' }}>
             {LOADING_MESSAGES[loadingMsg]}
           </div>
@@ -263,7 +263,7 @@ export default function GeoAuditPage() {
           <Card style={{ marginBottom: 16 }}>
             <SectionHeader
               icon={IpEdit}
-              title={hasCompleted ? 'Run Another Audit' : 'Set Up Your GEO Audit'}
+              title={hasCompleted ? 'Run Another Check' : 'Set Up Your Visibility Check'}
               subtitle="Pre-filled from your profile — adjust anything before running"
             />
 
@@ -407,7 +407,7 @@ export default function GeoAuditPage() {
             <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${t.border}` }}>
               <Button onClick={handleRunAudit} style={{ justifyContent: 'center', width: '100%' }}>
                 <IpSearch size={15} style={{ marginRight: 8 }} />
-                {isFree ? 'Run Free GEO Audit' : 'Run GEO Audit — 5 credits'}
+                {isFree ? 'Run Free Visibility Check' : 'Run Visibility Check — 5 credits'}
               </Button>
               <div style={{ textAlign: 'center', marginTop: 8, fontSize: 11, color: t.textMuted }}>
                 15 questions × 3 AI engines · takes about 60–90 seconds
@@ -454,4 +454,3 @@ export default function GeoAuditPage() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }

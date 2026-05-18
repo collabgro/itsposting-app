@@ -17,6 +17,7 @@ import {
 
 const TYPE_ICON  = { static: IpDrafts, photo: ImageIcon, carousel: IpCarousel, video: IpVideo };
 const TYPE_COLOR  = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
+const TYPE_LABEL = { static: 'Text Card', photo: 'Photo', carousel: 'Carousel', video: 'Video' };
 const STATUS_DOT  = { posted: '#22C55E', scheduled: '#F59E0B', draft: '#94A3B8', failed: '#EF4444', posting: '#60A5FA' };
 const STATUS_VAR = { posted: 'success', scheduled: 'warning', draft: 'default', failed: 'error' };
 const PLATFORM_ICONS = {
@@ -203,8 +204,8 @@ export default function Calendar() {
         subtitle="Schedule and manage your posts"
         action={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="secondary" onClick={() => router.push('/wizard')}><IpSparkle size={13} color="url(#brand-gradient)" /> AI Generate</Button>
-            <Button variant="primary"   onClick={() => router.push('/upload')}><IpPlus size={14} strokeWidth={2.5} /> Create Post</Button>
+            <Button variant="secondary" onClick={() => router.push('/wizard')}><IpSparkle size={13} color="url(#brand-gradient)" /> Post Wizard</Button>
+            <Button variant="primary"   onClick={() => router.push('/upload')}><IpPlus size={14} strokeWidth={2.5} /> Upload</Button>
           </div>
         }
       >
@@ -422,7 +423,7 @@ export default function Calendar() {
                   {Object.entries(TYPE_COLOR).map(([type, color]) => (
                     <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: t.textMuted }}>
                       <div style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                      {TYPE_LABEL[type] || type.charAt(0).toUpperCase() + type.slice(1)}
                     </div>
                   ))}
                 </div>
@@ -490,7 +491,7 @@ export default function Calendar() {
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: typeColor, textTransform: 'uppercase' }}>{post.content_type}</span>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: typeColor, textTransform: 'uppercase' }}>{TYPE_LABEL[post.content_type] || post.content_type}</span>
                               <Badge variant={STATUS_VAR[post.status] || 'default'}>{post.status}</Badge>
                             </div>
                             {post.scheduled_date && (
@@ -634,4 +635,3 @@ export default function Calendar() {
   );
 }
 
-export async function getServerSideProps() { return { props: {} }; }
