@@ -13,6 +13,30 @@ import { authAPI, customerAPI, dmsAPI, suggestionsAPI, workspacesAPI } from '../
 import NotificationBell from './NotificationBell';
 import { ConfirmModal } from './ui';
 
+const ROLE_PERMISSIONS = {
+  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:true, geo_audit:true, inbox:true, receptionist:true, contacts:true, knowledge_base:true, settings:true },
+  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:false, geo_audit:false, inbox:true, receptionist:false, contacts:false, knowledge_base:false, settings:false },
+  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, reports:true, geo_audit:false, inbox:false, receptionist:false, contacts:false, knowledge_base:false, settings:false },
+};
+
+const MODULE_ROUTES = {
+  wizard:         ['/wizard', '/quick-post'],
+  upload:         ['/upload'],
+  calendar:       ['/calendar'],
+  history:        ['/history'],
+  media:          ['/media'],
+  studio:         ['/studio'],
+  analytics:      ['/analytics'],
+  reports:        ['/reports', '/roi'],
+  geo_audit:      ['/geo-audit'],
+  inbox:          ['/inbox'],
+  receptionist:   ['/receptionist'],
+  contacts:       ['/contacts'],
+  knowledge_base: ['/knowledge-base'],
+  settings:       ['/settings'],
+  billing:        ['__never__'],
+};
+
 const NAV_ITEMS = [
   { name: 'Dashboard',   href: '/dashboard',  icon: IpDashboard },
   { name: 'Quick Post',  href: '/quick-post', icon: IpZap, isQuickPost: true },
@@ -21,7 +45,6 @@ const NAV_ITEMS = [
   { name: 'Calendar',    href: '/calendar',   icon: IpCalendar },
   { name: 'Drafts',      href: '/history',    icon: IpDrafts },
   { name: 'Media Library', href: '/media',    icon: IpMediaLibrary },
-  { name: 'Photo Studio', href: '/studio',    icon: IpPhotoStudio },
   { name: 'Analytics',      href: '/analytics',      icon: IpAnalytics },
   { name: 'Reports',        href: '/reports',        icon: IpDrafts },
   { name: 'ROI Estimator',  href: '/roi',            icon: IpTrendingUp },
@@ -183,6 +206,21 @@ export default function Layout({ children, title, subtitle, action }) {
         { name: 'Stock Photos',    href: '/admin/stock-photos', icon: IpPhotoStudio, isAdmin: true },
       ]
     : baseNavItems;
+
+  // Permission filter for sub-accounts (team members)
+  const isSubAccount = !!user?.parent_customer_id;
+  const effectivePerms = isSubAccount
+    ? (user.workspace_permissions || ROLE_PERMISSIONS[user.workspace_role || 'viewer'])
+    : null;
+  const visibleNavItems = !effectivePerms
+    ? navItems
+    : navItems.filter(item => {
+        if (item.isDivider || !item.href) return true;
+        const mod = Object.entries(MODULE_ROUTES).find(([, hrefs]) => hrefs.includes(item.href))?.[0];
+        if (!mod) return true;
+        if (mod === 'billing') return false;
+        return effectivePerms[mod] !== false;
+      });
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: t.bg, color: t.text }}>
@@ -381,7 +419,7 @@ export default function Layout({ children, title, subtitle, action }) {
         {/* NAVIGATION */}
         <nav style={{ flex: 1, padding: '4px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ flex: 1 }}>
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             if (item.isDivider) {
               return (
                 <div key={`divider-${item.label}`} style={{ padding: '14px 14px 4px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -564,7 +602,7 @@ export default function Layout({ children, title, subtitle, action }) {
             {title && <h1 style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>{title}</h1>}
             {subtitle && <p style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{subtitle}</p>}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {isMobile && (
               <button onClick={() => setMobileNavOpen(true)} style={{ width: 36, height: 36, borderRadius: 8, background: t.card, border: `1px solid ${t.border}`, color: t.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <IpMenu size={16} />
@@ -580,15 +618,28 @@ export default function Layout({ children, title, subtitle, action }) {
             >
               {theme === 'dark' ? <IpSun size={16} /> : <IpMoon size={16} />}
             </button>
-            {user && (
+            {user && !isMobile && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 13 }}>
+                <span style={{ color: t.textMuted }}>Credits:</span>
+                <span style={{ color: t.primary, fontWeight: 700, fontFamily: 'monospace' }}>{user.credits_balance ?? 0}</span>
+              </div>
+            )}
+            {!isMobile && action}
+          </div>
+        </header>
+
+        {/* ACTION SUB-BAR — mobile only, shows page action buttons below the header */}
+        {isMobile && action && (
+          <div style={{ padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.bg, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', position: 'sticky', top: 64, zIndex: 39 }}>
+            {user && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 12 }}>
                 <span style={{ color: t.textMuted }}>Credits:</span>
                 <span style={{ color: t.primary, fontWeight: 700, fontFamily: 'monospace' }}>{user.credits_balance ?? 0}</span>
               </div>
             )}
             {action}
           </div>
-        </header>
+        )}
 
         {/* IMPERSONATION BANNER */}
         {impersonatingAs && (

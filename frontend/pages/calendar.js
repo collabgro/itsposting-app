@@ -4,19 +4,20 @@ import {
   IpChevronLeft, IpChevronRight, IpPlus, IpCalendar as CalendarIcon,
   IpClose, IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
   IpFacebook, IpInstagram, IpGoogle, IpLinkedIn, IpTikTok,
-  IpSchedule, IpSparkle, IpDelete,
+  IpSchedule, IpSparkle, IpDelete, IpCheck,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Badge, Skeleton } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { postsAPI } from '../lib/api';
+import { postsAPI, socialAPI } from '../lib/api';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   isSameDay, addMonths, subMonths, startOfWeek, endOfWeek,
 } from 'date-fns';
 
 const TYPE_ICON  = { static: IpDrafts, photo: ImageIcon, carousel: IpCarousel, video: IpVideo };
-const TYPE_COLOR = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
+const TYPE_COLOR  = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
+const STATUS_DOT  = { posted: '#22C55E', scheduled: '#F59E0B', draft: '#94A3B8', failed: '#EF4444', posting: '#60A5FA' };
 const STATUS_VAR = { posted: 'success', scheduled: 'warning', draft: 'default', failed: 'error' };
 const PLATFORM_ICONS = {
   facebook:        { icon: IpFacebook,  color: '#1877F2' },
@@ -42,6 +43,8 @@ export default function Calendar() {
   const [posts, setPosts]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [selectedDay, setSelectedDay]   = useState(null);
+  const [platformFilter, setPlatformFilter] = useState('all');
+  const [statusFilter, setStatusFilter]     = useState('all');
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -73,7 +76,12 @@ export default function Calendar() {
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
-  const getPostsForDay = (day) => posts.filter(p => p.scheduled_date && isSameDay(new Date(p.scheduled_date), day));
+  const filteredPosts = posts.filter(p => {
+    if (platformFilter !== 'all' && !parsePlatforms(p.platforms).includes(platformFilter)) return false;
+    if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+    return true;
+  });
+  const getPostsForDay = (day) => filteredPosts.filter(p => p.scheduled_date && isSameDay(new Date(p.scheduled_date), day));
 
   const selectedDayPosts = selectedDay ? getPostsForDay(selectedDay) : [];
 
@@ -83,10 +91,18 @@ export default function Calendar() {
   };
 
   const handleAddOnDay = () => {
-    router.push('/wizard');
+    const dateStr = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : '';
+    router.push(dateStr ? `/upload?scheduleDate=${dateStr}` : '/upload');
   };
 
-  const [deletingPost, setDeletingPost] = useState(null);
+  const [deletingPost, setDeletingPost]     = useState(null);
+  const [publishingPost, setPublishingPost] = useState(null);
+  const [calToast, setCalToast]             = useState(null);
+  const [reschedulingPost, setReschedulingPost] = useState(null);
+  const [rescheduleDate, setRescheduleDate]     = useState('');
+  const [rescheduleTime, setRescheduleTime]     = useState('');
+  const [editingCaption, setEditingCaption]     = useState(null);
+  const [editCaptionText, setEditCaptionText]   = useState('');
   const handleDeletePost = async (postId) => {
     if (!confirm('Delete this post? This cannot be undone.')) return;
     setDeletingPost(postId);
@@ -103,6 +119,50 @@ export default function Calendar() {
       });
     } catch (e) { console.error(e); }
     finally { setDeletingPost(null); }
+  };
+
+  const showCalToast = (msg, type = 'success') => {
+    setCalToast({ msg, type });
+    setTimeout(() => setCalToast(null), 3500);
+  };
+
+  const handlePublishNow = async (post) => {
+    const platforms = parsePlatforms(post.platforms);
+    setPublishingPost(post.id);
+    try {
+      await socialAPI.publish(post.id, platforms.length > 0 ? platforms : undefined);
+      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: 'posted' } : p));
+      showCalToast('Post published!');
+    } catch (e) {
+      showCalToast(e.response?.data?.error || 'Failed to publish', 'error');
+    } finally {
+      setPublishingPost(null);
+    }
+  };
+
+  const handleReschedule = async (post) => {
+    if (!rescheduleDate || !rescheduleTime) return;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    try {
+      await postsAPI.update(post.id, { scheduledDate: `${rescheduleDate}T${rescheduleTime}`, timezone: tz });
+      const newDate = new Date(`${rescheduleDate}T${rescheduleTime}`).toISOString();
+      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, scheduled_date: newDate } : p));
+      setReschedulingPost(null);
+      showCalToast('Rescheduled!');
+    } catch (e) {
+      showCalToast(e.response?.data?.error || 'Failed to reschedule', 'error');
+    }
+  };
+
+  const handleSaveCaption = async (post) => {
+    try {
+      await postsAPI.update(post.id, { caption: editCaptionText });
+      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, caption: editCaptionText } : p));
+      setEditingCaption(null);
+      showCalToast('Caption saved!');
+    } catch (e) {
+      showCalToast('Failed to save caption', 'error');
+    }
   };
 
   const handleMonthChange = (e) => {
@@ -133,6 +193,11 @@ export default function Calendar() {
 
   return (
     <>
+      {calToast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, padding: '10px 20px', borderRadius: 10, background: calToast.type === 'error' ? '#EF4444' : '#22C55E', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.25)', whiteSpace: 'nowrap' }}>
+          {calToast.msg}
+        </div>
+      )}
       <Layout
         title="Calendar"
         subtitle="Schedule and manage your posts"
@@ -143,6 +208,62 @@ export default function Calendar() {
           </div>
         }
       >
+        {/* ── Filter bar ── */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Platform */}
+          <div style={{ display: 'flex', gap: 3, background: t.card, border: `1px solid ${t.border}`, borderRadius: 9, padding: 3 }}>
+            <button onClick={() => setPlatformFilter('all')}
+              style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+                background: platformFilter === 'all' ? t.primaryBg : 'transparent',
+                color: platformFilter === 'all' ? t.primary : t.textMuted,
+                border: platformFilter === 'all' ? `1px solid ${t.primaryBorder}` : '1px solid transparent' }}>
+              All
+            </button>
+            {[
+              { id: 'facebook',        Icon: IpFacebook,  color: '#1877F2', label: 'Facebook'        },
+              { id: 'instagram',       Icon: IpInstagram, color: '#E1306C', label: 'Instagram'       },
+              { id: 'tiktok',          Icon: IpTikTok,    color: '#010101', label: 'TikTok'          },
+              { id: 'linkedin',        Icon: IpLinkedIn,  color: '#0A66C2', label: 'LinkedIn'        },
+              { id: 'google_business', Icon: IpGoogle,    color: '#4285F4', label: 'Google Business' },
+            ].map(({ id, Icon, color, label }) => (
+              <button key={id} onClick={() => setPlatformFilter(id)} title={label}
+                style={{ width: 30, height: 30, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                  background: platformFilter === id ? `${color}18` : 'transparent',
+                  border: platformFilter === id ? `1px solid ${color}55` : '1px solid transparent',
+                  color: platformFilter === id ? color : t.textMuted }}>
+                <Icon size={13} />
+              </button>
+            ))}
+          </div>
+
+          <div style={{ width: 1, height: 20, background: t.border, flexShrink: 0 }} />
+
+          {/* Status */}
+          <div style={{ display: 'flex', gap: 3, background: t.card, border: `1px solid ${t.border}`, borderRadius: 9, padding: 3 }}>
+            {[
+              { id: 'all',       label: 'All'       },
+              { id: 'scheduled', label: 'Scheduled' },
+              { id: 'draft',     label: 'Drafts'    },
+              { id: 'posted',    label: 'Posted'    },
+            ].map(opt => (
+              <button key={opt.id} onClick={() => setStatusFilter(opt.id)}
+                style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+                  background: statusFilter === opt.id ? t.primaryBg : 'transparent',
+                  color: statusFilter === opt.id ? t.primary : t.textMuted,
+                  border: statusFilter === opt.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent' }}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {(platformFilter !== 'all' || statusFilter !== 'all') && (
+            <button onClick={() => { setPlatformFilter('all'); setStatusFilter('all'); }}
+              style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '5px 8px', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+              Clear
+            </button>
+          )}
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: selectedDay ? '1fr 320px' : '1fr', gap: 20, transition: 'all 300ms' }}>
 
           {/* ── CALENDAR ─────────────────────────────────────── */}
@@ -206,14 +327,18 @@ export default function Calendar() {
             ) : (
               <div style={{ padding: 16 }}>
                 {/* Empty month banner */}
-                {!loading && posts.filter(p => p.scheduled_date && new Date(p.scheduled_date).getMonth() === currentMonth.getMonth() && new Date(p.scheduled_date).getFullYear() === currentMonth.getFullYear()).length === 0 && (
+                {!loading && filteredPosts.filter(p => p.scheduled_date && new Date(p.scheduled_date).getMonth() === currentMonth.getMonth() && new Date(p.scheduled_date).getFullYear() === currentMonth.getFullYear()).length === 0 && (
                   <div style={{ marginBottom: 12, padding: '10px 14px', background: t.input, borderRadius: 8, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 13, color: t.textMuted }}>
-                      No posts scheduled for {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                      {platformFilter !== 'all' || statusFilter !== 'all'
+                        ? 'No posts match these filters'
+                        : `No posts scheduled for ${MONTHS[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`}
                     </span>
-                    <button onClick={() => router.push('/wizard')} style={{ fontSize: 12, fontWeight: 600, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
-                      Schedule one →
-                    </button>
+                    {platformFilter === 'all' && statusFilter === 'all' && (
+                      <button onClick={() => router.push('/wizard')} style={{ fontSize: 12, fontWeight: 600, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                        Schedule one →
+                      </button>
+                    )}
                   </div>
                 )}
                 {/* Day headers */}
@@ -276,6 +401,7 @@ export default function Calendar() {
                                   display: 'flex', alignItems: 'center', gap: 3,
                                 }}
                               >
+                                <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_DOT[post.status] || '#94A3B8', flexShrink: 0 }} />
                                 <TypeIcon size={8} />
                                 <span>{caption ? caption.slice(0, 20) : format(new Date(post.scheduled_date), 'h:mm a')}</span>
                               </div>
@@ -378,9 +504,40 @@ export default function Calendar() {
 
                         {/* Caption */}
                         {post.caption && (
-                          <p style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.6, margin: '0 0 10px' }}>
-                            {post.caption.slice(0, 120)}{post.caption.length > 120 ? '…' : ''}
-                          </p>
+                          editingCaption === post.id ? (
+                            <div style={{ marginBottom: 10 }}>
+                              <textarea
+                                value={editCaptionText}
+                                onChange={e => setEditCaptionText(e.target.value)}
+                                rows={4}
+                                style={{ width: '100%', fontSize: 12, lineHeight: 1.6, padding: '6px 8px', borderRadius: 6, border: `1px solid ${t.primaryBorder}`, background: t.input, color: t.text, resize: 'vertical', boxSizing: 'border-box' }}
+                              />
+                              <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                                <button onClick={() => handleSaveCaption(post)}
+                                  style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, color: t.primary, cursor: 'pointer' }}>
+                                  Save
+                                </button>
+                                <button onClick={() => setEditingCaption(null)}
+                                  style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: t.input, border: `1px solid ${t.border}`, color: t.textSecondary, cursor: 'pointer' }}>
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ marginBottom: 10 }}>
+                              <p style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.6, margin: '0 0 4px' }}>
+                                {post.caption.slice(0, 120)}{post.caption.length > 120 ? '…' : ''}
+                              </p>
+                              {(post.status === 'scheduled' || post.status === 'draft') && (
+                                <button
+                                  onClick={() => { setEditCaptionText(post.caption); setEditingCaption(post.id); }}
+                                  style={{ fontSize: 11, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+                                >
+                                  Edit caption
+                                </button>
+                              )}
+                            </div>
+                          )
                         )}
 
                         {/* Platforms */}
@@ -396,14 +553,67 @@ export default function Calendar() {
                           </div>
                         )}
 
-                        {/* Delete */}
-                        <button
-                          onClick={() => handleDeletePost(post.id)}
-                          disabled={deletingPost === post.id}
-                          style={{ padding: '4px 10px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, fontSize: 11, fontWeight: 600, color: '#EF4444', cursor: deletingPost === post.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: deletingPost === post.id ? 0.5 : 1 }}
-                        >
-                          <IpDelete size={11} /> {deletingPost === post.id ? 'Deleting…' : 'Delete'}
-                        </button>
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-start', flexDirection: 'column' }}>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {(post.status === 'scheduled' || post.status === 'draft' || post.status === 'failed') && (
+                              <button
+                                onClick={() => handlePublishNow(post)}
+                                disabled={publishingPost === post.id}
+                                style={{
+                                  padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                  display: 'flex', alignItems: 'center', gap: 4,
+                                  background: post.status === 'failed' ? 'rgba(245,158,11,0.10)' : 'rgba(34,197,94,0.10)',
+                                  border: `1px solid ${post.status === 'failed' ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.25)'}`,
+                                  color: post.status === 'failed' ? '#F59E0B' : '#22C55E',
+                                  cursor: publishingPost === post.id ? 'not-allowed' : 'pointer',
+                                  opacity: publishingPost === post.id ? 0.6 : 1,
+                                }}
+                              >
+                                <IpCheck size={11} strokeWidth={3} />
+                                {publishingPost === post.id ? '…' : post.status === 'failed' ? 'Retry' : 'Publish Now'}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeletePost(post.id)}
+                              disabled={deletingPost === post.id}
+                              style={{ padding: '4px 10px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, fontSize: 11, fontWeight: 600, color: '#EF4444', cursor: deletingPost === post.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: deletingPost === post.id ? 0.5 : 1 }}
+                            >
+                              <IpDelete size={11} /> {deletingPost === post.id ? 'Deleting…' : 'Delete'}
+                            </button>
+                          </div>
+                          {/* Reschedule */}
+                          {(post.status === 'scheduled' || post.status === 'draft') && (
+                            reschedulingPost === post.id ? (
+                              <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <input type="date" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)}
+                                  style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text }} />
+                                <input type="time" value={rescheduleTime} onChange={e => setRescheduleTime(e.target.value)}
+                                  style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text }} />
+                                <button onClick={() => handleReschedule(post)}
+                                  style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, color: t.primary, cursor: 'pointer' }}>
+                                  Save
+                                </button>
+                                <button onClick={() => setReschedulingPost(null)}
+                                  style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: t.input, border: `1px solid ${t.border}`, color: t.textSecondary, cursor: 'pointer' }}>
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  const d = new Date(post.scheduled_date);
+                                  setRescheduleDate(d.toISOString().slice(0, 10));
+                                  setRescheduleTime(d.toISOString().slice(11, 16));
+                                  setReschedulingPost(post.id);
+                                }}
+                                style={{ padding: '4px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, fontSize: 11, fontWeight: 600, color: t.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                              >
+                                <IpSchedule size={11} /> Reschedule
+                              </button>
+                            )
+                          )}
+                        </div>
                       </div>
                     );
                   })}

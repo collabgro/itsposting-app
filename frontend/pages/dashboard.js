@@ -4,7 +4,7 @@ import {
   IpCalendar, IpSchedule, IpSparkle, IpPlus,
   IpTrendingUp, IpTrendingDown,
   IpDrafts, IpPhoto, IpCarousel, IpVideo,
-  IpFacebook, IpInstagram, IpGlobe,
+  IpFacebook, IpInstagram, IpGlobe, IpLinkedIn, IpTikTok,
   IpArrowRight, IpFlame, IpTeam, IpAnalytics,
   IpClose, IpInfo,
 } from '../components/icons';
@@ -13,6 +13,7 @@ import { Card, Button, SectionHeader, EmptyState, Spinner, Skeleton } from '../c
 import { useTheme } from '../lib/theme';
 import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI } from '../lib/api';
 import { format } from 'date-fns';
+import PostPreviewModal from '../components/PostPreviewModal';
 
 const TYPE_ICON  = { static: IpDrafts, photo: IpPhoto, carousel: IpCarousel, video: IpVideo };
 const TYPE_COLOR = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
@@ -34,17 +35,19 @@ export default function Dashboard() {
   const router = useRouter();
   const { t }  = useTheme();
 
-  const [mounted,      setMounted]      = useState(false);
-  const [allPosts,     setAllPosts]     = useState([]);
-  const [upcoming,     setUpcoming]     = useState([]);
-  const [metrics,      setMetrics]      = useState(null);
-  const [briefing,     setBriefing]     = useState(null);
-  const [contentMix,   setContentMix]   = useState(null);
-  const [loading,      setLoading]      = useState(true);
-  const [loadError,    setLoadError]    = useState(false);
-  const [briefingOpen, setBriefingOpen] = useState(true);
-  const [geoScore,     setGeoScore]     = useState(null);
-  const [showTour,     setShowTour]     = useState(false);
+  const [mounted,        setMounted]        = useState(false);
+  const [allPosts,       setAllPosts]       = useState([]);
+  const [upcoming,       setUpcoming]       = useState([]);
+  const [metrics,        setMetrics]        = useState(null);
+  const [briefing,       setBriefing]       = useState(null);
+  const [contentMix,     setContentMix]     = useState(null);
+  const [loading,        setLoading]        = useState(true);
+  const [loadError,      setLoadError]      = useState(false);
+  const [briefingOpen,   setBriefingOpen]   = useState(true);
+  const [geoScore,       setGeoScore]       = useState(null);
+  const [showTour,       setShowTour]       = useState(false);
+  const [upcomingFilter, setUpcomingFilter] = useState('all');
+  const [previewPostId,  setPreviewPostId]  = useState(null);
 
   const loadDashboard = () => {
     setLoadError(false);
@@ -131,6 +134,10 @@ export default function Dashboard() {
   // Loading handled inline with skeleton cards — no full-page spinner needed
 
   const bd = briefing?.briefing_data;
+
+  const filteredUpcoming = upcomingFilter === 'all'
+    ? upcoming
+    : upcoming.filter(p => parsePlatforms(p.platforms).includes(upcomingFilter));
 
   return (
     <>
@@ -279,44 +286,81 @@ export default function Dashboard() {
           </Card>
 
           <Card padding={0} style={{ overflow: 'hidden' }}>
-            <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <IpSchedule size={15} color="url(#brand-gradient)" />
+            <div style={{ padding: '16px 20px 12px', borderBottom: `1px solid ${t.border}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <IpSchedule size={15} color="url(#brand-gradient)" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Upcoming posts</div>
+                    <div style={{ fontSize: 12, color: t.textMuted }}>Next 30 days</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Upcoming posts</div>
-                  <div style={{ fontSize: 12, color: t.textMuted }}>Next 30 days</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <select
+                    value={upcomingFilter}
+                    onChange={e => setUpcomingFilter(e.target.value)}
+                    style={{ fontSize: 12, background: t.input, color: t.text, border: `1px solid ${t.border}`, borderRadius: 7, padding: '5px 8px', cursor: 'pointer', outline: 'none' }}
+                  >
+                    <option value="all">All platforms</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="google_business">Google Business</option>
+                  </select>
+                  {upcoming.length > 0 && (
+                    <button onClick={() => router.push('/history?filter=scheduled')} style={{ fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+                      View all <IpArrowRight size={12} />
+                    </button>
+                  )}
                 </div>
               </div>
-              {upcoming.length > 0 && <button onClick={() => router.push('/history?filter=scheduled')} style={{ fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>View all <IpArrowRight size={12} /></button>}
             </div>
-            {upcoming.length === 0 ? (
-              <EmptyState icon={IpCalendar} title="Your schedule is open"
-                subtitle="PostCore recommends posting 3–6× per week. Create your first scheduled post."
-                action={<Button variant="primary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={12} /> Generate a Post</Button>} />
+            {filteredUpcoming.length === 0 ? (
+              upcoming.length === 0 ? (
+                <EmptyState icon={IpCalendar} title="Your schedule is open"
+                  subtitle="PostCore recommends posting 3–6× per week. Create your first scheduled post."
+                  action={<Button variant="primary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={12} /> Generate a Post</Button>} />
+              ) : (
+                <div style={{ padding: '24px 20px', textAlign: 'center', color: t.textMuted, fontSize: 13 }}>
+                  No scheduled posts for this platform.
+                </div>
+              )
             ) : (
               <div>
-                {upcoming.slice(0, 4).map(post => {
+                {filteredUpcoming.slice(0, 4).map(post => {
                   const TI = TYPE_ICON[post.content_type] || IpDrafts;
                   const tc = TYPE_COLOR[post.content_type] || t.primary;
                   const pp = parsePlatforms(post.platforms);
+                  const fmtLabel = post.content_type === 'static' ? 'TEXT' : (post.content_type || '').toUpperCase();
                   return (
-                    <div key={post.id} onClick={() => router.push('/history')}
+                    <div key={post.id} onClick={() => setPreviewPostId(post.id)}
                       style={{ display: 'flex', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${t.border}`, cursor: 'pointer', alignItems: 'center' }}
                       onMouseEnter={e => (e.currentTarget.style.background = t.cardHover)}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <div style={{ width: 44, height: 44, borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {post.media_url ? <img src={post.media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} /> : <TI size={18} style={{ color: tc, opacity: 0.6 }} />}
+                      <div style={{ width: 72, height: 72, borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                        {post.media_url
+                          ? <img src={post.media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} />
+                          : <TI size={22} style={{ color: tc, opacity: 0.5 }} />}
+                        <div style={{ position: 'absolute', bottom: 3, left: 3, fontSize: 8, fontWeight: 800, background: 'rgba(0,0,0,0.62)', color: '#fff', borderRadius: 3, padding: '1px 4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          {fmtLabel}
+                        </div>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: tc, textTransform: 'uppercase' }}>{post.content_type}</span>
-                          {pp.slice(0, 2).map(pid => { const pm = PLAT_ICONS[pid]; if (!pm) return null; const PI = pm.icon; return <PI key={pid} size={11} style={{ color: pm.color }} />; })}
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginBottom: 5 }}>
+                          {pp.slice(0, 3).map(pid => {
+                            const pm = PLAT_ICONS[pid];
+                            if (pm) { const PI = pm.icon; return <PI key={pid} size={12} style={{ color: pm.color }} />; }
+                            if (pid === 'linkedin')  return <IpLinkedIn key={pid} size={12} style={{ color: '#0A66C2' }} />;
+                            if (pid === 'tiktok')    return <IpTikTok   key={pid} size={12} style={{ color: '#010101' }} />;
+                            return null;
+                          })}
                         </div>
                         <div style={{ fontSize: 12, color: t.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{post.caption || 'No caption'}</div>
+                        <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>{format(new Date(post.scheduled_date), 'MMM d, h:mm a')}</div>
                       </div>
-                      <div style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>{format(new Date(post.scheduled_date), 'MMM d, h:mm a')}</div>
                     </div>
                   );
                 })}
@@ -332,6 +376,18 @@ export default function Dashboard() {
           router={router}
         />
       )}
+
+      {previewPostId && upcoming.find(p => p.id === previewPostId) && (
+        <PostPreviewModal
+          post={upcoming.find(p => p.id === previewPostId)}
+          allPosts={upcoming}
+          onClose={() => setPreviewPostId(null)}
+          onNavigate={setPreviewPostId}
+          onUpdate={updated => setUpcoming(prev => prev.map(p => p.id === updated.id ? updated : p))}
+          onDelete={id => { setUpcoming(prev => prev.filter(p => p.id !== id)); setPreviewPostId(null); }}
+        />
+      )}
+
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </>
   );

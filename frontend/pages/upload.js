@@ -59,6 +59,15 @@ export default function Upload() {
   const [libraryLoading, setLibraryLoading] = useState(false);
 
   useEffect(() => {
+    if (!router.isReady) return;
+    const { scheduleDate: qDate } = router.query;
+    if (qDate) {
+      setScheduleDate(qDate);
+      setScheduleMode('scheduled');
+    }
+  }, [router.isReady]);
+
+  useEffect(() => {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
     const preSelected = sessionStorage.getItem('selectedMediaFile');
@@ -184,10 +193,25 @@ export default function Upload() {
         platforms, scheduledDate: scheduledDateTime,
         publishNow: scheduleMode === 'now',
       });
-      const successMsg = scheduleMode === 'now'
-        ? 'Published! Your post is queued for immediate publishing.'
-        : postData.message + ' · 0 credits used';
-      setMessage({ type: 'success', text: successMsg });
+      let successMsg, msgType = 'success';
+      if (scheduleMode === 'now') {
+        const r = postData.publishResult;
+        const succeeded = Object.keys(r?.platformPostIds || {});
+        const failed = r?.errors || [];
+        if (succeeded.length === 0 && failed.length > 0) {
+          msgType = 'error';
+          successMsg = 'Publish failed: ' + failed.map(e => `${e.platform}: ${e.message}`).join('; ');
+        } else if (succeeded.length > 0 && failed.length > 0) {
+          successMsg = `Published to ${succeeded.join(', ')}. Failed: ${failed.map(e => e.platform).join(', ')}.`;
+        } else if (succeeded.length > 0) {
+          successMsg = `Published to ${succeeded.join(', ')}!`;
+        } else {
+          successMsg = 'Published successfully!';
+        }
+      } else {
+        successMsg = 'Scheduled! · 0 credits used';
+      }
+      setMessage({ type: msgType, text: successMsg });
       setTimeout(() => {
         setFiles([]); setPreviews([]); setCaption(''); setHashtags('');
         setScheduleDate(''); setMessage({ type: '', text: '' });

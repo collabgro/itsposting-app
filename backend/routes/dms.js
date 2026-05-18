@@ -390,5 +390,82 @@ module.exports = function dmsRoutes(pool) {
     }
   });
 
+  // ──────────────────────────────────────────────────────
+  // SAVE DM SENDER AS CONTACT
+  // ──────────────────────────────────────────────────────
+
+  router.post('/:id/contact', authenticate, async (req, res) => {
+    try {
+      const convResult = await pool.query(
+        'SELECT * FROM dm_conversations WHERE id = $1 AND customer_id = $2',
+        [req.params.id, req.customerId]
+      );
+      if (!convResult.rows[0]) return res.status(404).json({ error: 'Conversation not found' });
+      const conv = convResult.rows[0];
+
+      // If already linked, return the existing contact
+      if (conv.contact_id) {
+        const linked = await pool.query('SELECT * FROM contacts WHERE id = $1', [conv.contact_id]);
+        if (linked.rows[0]) return res.json({ success: true, contact: linked.rows[0], existed: true });
+      }
+
+      // Look for a contact that matches this sender's platform ID
+      const psidCol = conv.platform === 'instagram' ? 'instagram_igsid' : 'facebook_psid';
+      let contact = null;
+
+      if (conv.sender_platform_id && (conv.platform === 'facebook' || conv.platform === 'instagram')) {
+        const existing = await pool.query(
+          `SELECT * FROM contacts WHERE customer_id = $1 AND ${psidCol} = $2 LIMIT 1`,
+          [req.customerId, conv.sender_platform_id]
+        );
+        if (existing.rows[0]) contact = existing.rows[0];
+      }
+
+      // Create contact if not found
+      if (!contact) {
+        const insertCols = ['customer_id', 'name', 'source', 'source_platform', 'lead_status', 'first_contact_at', 'last_contact_at', 'created_at', 'updated_at'];
+        const insertVals = [req.customerId, conv.sender_name || 'Unknown', `${conv.platform}_dm`, conv.platform, 'new', 'NOW()', 'NOW()', 'NOW()', 'NOW()'];
+        const params = [req.customerId, conv.sender_name || 'Unknown', `${conv.platform}_dm`, conv.platform];
+        let idx = params.length + 1;
+
+        let extraCols = '';
+        if (conv.sender_platform_id && (conv.platform === 'facebook' || conv.platform === 'instagram')) {
+          extraCols += `, ${psidCol}`;
+          params.push(conv.sender_platform_id); idx++;
+        }
+        if (conv.sender_profile_pic) {
+          extraCols += ', profile_pic_url';
+          params.push(conv.sender_profile_pic); idx++;
+        }
+
+        const psidInsert = conv.sender_platform_id && (conv.platform === 'facebook' || conv.platform === 'instagram')
+          ? `, $${params.indexOf(conv.sender_platform_id) + 1}` : '';
+        const picInsert = conv.sender_profile_pic
+          ? `, $${params.indexOf(conv.sender_profile_pic) + 1}` : '';
+
+        const insertResult = await pool.query(
+          `INSERT INTO contacts
+            (customer_id, name, source, source_platform, lead_status${extraCols},
+             first_contact_at, last_contact_at, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, 'new'${psidInsert}${picInsert}, NOW(), NOW(), NOW(), NOW())
+           RETURNING *`,
+          params
+        );
+        contact = insertResult.rows[0];
+      }
+
+      // Link the conversation to the contact
+      await pool.query(
+        'UPDATE dm_conversations SET contact_id = $1, updated_at = NOW() WHERE id = $2',
+        [contact.id, conv.id]
+      );
+
+      res.json({ success: true, contact, existed: false });
+    } catch (err) {
+      console.error('[DMs] Save contact error:', err);
+      res.status(500).json({ error: 'Failed to save contact' });
+    }
+  });
+
   return router;
 };

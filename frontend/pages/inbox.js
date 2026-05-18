@@ -96,6 +96,8 @@ export default function InboxPage() {
   const [showLeadsDropdown, setShowLeadsDropdown] = useState(false);
   const [movingToLeads, setMovingToLeads] = useState(false);
   const [leadsToast, setLeadsToast] = useState('');
+  const [savingContact, setSavingContact] = useState(false);
+  const [savedContact, setSavedContact] = useState(null);
   const [user, setUser] = useState(null);
 
   const threadEndRef = useRef(null);
@@ -168,12 +170,14 @@ export default function InboxPage() {
     setMessages([]);
     setAiDraft(null);
     setSendError(null);
+    setSavedContact(null);
     setShowMobileThread(true);
     setMsgLoading(true);
     try {
       const res = await dmsAPI.getConversation(conv.id);
       setMessages(res.data.messages || []);
       setSelected(res.data.conversation);
+      setSavedContact(res.data.conversation.contact_id ? { id: res.data.conversation.contact_id } : null);
       setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, is_read: true } : c));
     } catch (_) {} finally {
       setMsgLoading(false);
@@ -249,6 +253,23 @@ export default function InboxPage() {
       setConversations(prev => prev.map(c => c.id === convId ? { ...c, status: 'closed' } : c));
       if (selected?.id === convId) setSelected(prev => ({ ...prev, status: 'closed' }));
     } catch (_) {}
+  }
+
+  async function handleSaveContact() {
+    if (!selected || savingContact) return;
+    setSavingContact(true);
+    try {
+      const res = await dmsAPI.saveContact(selected.id);
+      setSavedContact(res.data.contact);
+      setSelected(prev => ({ ...prev, contact_id: res.data.contact.id }));
+      setLeadsToast(res.data.existed ? 'Already in contacts' : 'Contact saved!');
+      setTimeout(() => setLeadsToast(''), 3000);
+    } catch (_) {
+      setLeadsToast('Failed to save contact');
+      setTimeout(() => setLeadsToast(''), 3000);
+    } finally {
+      setSavingContact(false);
+    }
   }
 
   async function handleMoveToLeads(stage) {
@@ -654,6 +675,23 @@ export default function InboxPage() {
                       </div>
                     )}
                   </div>
+                  {/* Add / View Contact */}
+                  {savedContact ? (
+                    <a href="/contacts"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 6, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', color: '#16a34a', fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                      <IpCheck size={12} /> In Contacts
+                    </a>
+                  ) : (
+                    <button
+                      onClick={handleSaveContact}
+                      disabled={savingContact}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 6, background: t.card, border: `1px solid ${t.border}`, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: savingContact ? 'not-allowed' : 'pointer', opacity: savingContact ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                    >
+                      <IpPlus size={12} strokeWidth={2.5} />
+                      {savingContact ? 'Saving…' : 'Add Contact'}
+                    </button>
+                  )}
+
                   {selected.status === 'open' && (
                     <button
                       onClick={() => markClosed(selected.id)}

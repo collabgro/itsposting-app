@@ -61,7 +61,18 @@ class AutoPostScheduler {
     );
 
     try {
-      const { platformPostIds, errors } = await this.publisher.publishPost(post);
+      let platformIds = [];
+      try {
+        if (post.platforms) {
+          const parsed = typeof post.platforms === 'string'
+            ? JSON.parse(post.platforms) : post.platforms;
+          if (Array.isArray(parsed) && parsed.length > 0) platformIds = parsed;
+        }
+      } catch {}
+
+      const { platformPostIds, errors } = platformIds.length
+        ? await this.publisher.publishToPlatforms(post, platformIds)
+        : await this.publisher.publishPost(post);
       const allFailed = errors.length > 0 && Object.keys(platformPostIds).length === 0;
 
       if (allFailed) {

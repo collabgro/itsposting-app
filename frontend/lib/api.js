@@ -130,6 +130,9 @@ export const workspacesAPI = {
   rename: (id, name) => api.patch(`/api/workspaces/${id}`, { name }),
   switchTo: (id) => api.post(`/api/workspaces/${id}/switch`),
   switchToMain: () => api.post('/api/workspaces/main/switch'),
+  getMembers: () => api.get('/api/workspaces/members'),
+  updateMember: (id, data) => api.patch(`/api/workspaces/members/${id}`, data),
+  removeMember: (id) => api.delete(`/api/workspaces/members/${id}`),
 };
 
 export const mediaAPI = {
@@ -206,6 +209,7 @@ export const dmsAPI = {
   createAutoReply: (data) => api.post('/api/dms/auto-replies', data),
   updateAutoReply: (id, data) => api.patch(`/api/dms/auto-replies/${id}`, data),
   deleteAutoReply: (id) => api.delete(`/api/dms/auto-replies/${id}`),
+  saveContact: (id) => api.post(`/api/dms/${id}/contact`),
 };
 
 export const contactsAPI = {

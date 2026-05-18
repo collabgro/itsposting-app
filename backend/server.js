@@ -133,6 +133,8 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_wizard_sessions_expires  ON wizard_sessions(expires_at)`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS parent_customer_id INTEGER REFERENCES customers(id)`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS workspace_display_name VARCHAR(100)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS workspace_role VARCHAR(20) DEFAULT 'editor'`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS workspace_permissions JSONB DEFAULT NULL`,
     `CREATE INDEX IF NOT EXISTS idx_customers_parent ON customers(parent_customer_id)`,
     `CREATE TABLE IF NOT EXISTS admin_audit_log (
       id          SERIAL PRIMARY KEY,
@@ -389,6 +391,10 @@ app.use(cors({
     if (!origin) {
       // In production require an Origin header; allow curl/tools locally
       if (process.env.NODE_ENV === 'production') return cb(new Error('Origin header required'));
+      return cb(null, true);
+    }
+    // In development, allow any localhost port so devs aren't blocked by FRONTEND_URL mismatches
+    if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin)) {
       return cb(null, true);
     }
     if (allowed.includes(origin)) return cb(null, true);

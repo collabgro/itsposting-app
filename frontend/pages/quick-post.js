@@ -2,13 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useTheme } from '../lib/theme';
 import Layout from '../components/Layout';
+import Icon from '../components/Icon';
 import {
-  IpSparkle, IpCheck, IpRefresh, IpPlus,
+  IpSparkle, IpCheck, IpRefresh,
   IpEdit, IpSend, IpCopy,
   IpFacebook, IpInstagram, IpGoogle,
   IpLinkedIn, IpTikTok,
   IpHeart, IpBusiness, IpWarning, IpLaugh,
-  IpPhoto, IpTextCard,
   IpCheckCircle, IpInfo, IpDollar, IpCalendar, IpTeam,
 } from '../components/icons';
 import { useToast } from '../components/ui';
@@ -27,43 +27,45 @@ function Spinner({ color = '#fff', size = 16 }) {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CONTENT_TYPES = [
-  { id: 'static', label: 'Text Card',  cost: '1 credit',  Icon: IpTextCard },
-  { id: 'photo',  label: 'Photo Post', cost: '3 credits', Icon: IpPhoto },
+  { id: 'static',   icon: 'text_post',  label: 'Text Card',  desc: 'Simple text-only, no image', cost: '1 credit'   },
+  { id: 'photo',    icon: 'photo_post', label: 'Photo Post', desc: 'AI generates a real photo',  cost: '3 credits'  },
+  { id: 'carousel', icon: 'carousel',   label: 'Carousel',   desc: 'Multiple slide story',       cost: '5 credits',  wizardOnly: true },
+  { id: 'video',    icon: 'video',      label: 'Video',      desc: 'AI-generated video content', cost: '10 credits', wizardOnly: true },
 ];
 
 const JOB_TYPES = [
   {
-    id: 'job_done',  label: 'Finished a Job',     Icon: IpCheckCircle,
+    id: 'job_done',  label: 'Finished a Job',     desc: 'Show off a completed project',     Icon: IpCheckCircle,
     prompt: 'Just completed a job',
     color: '#22C55E',
     detailHint: 'E.g. replaced water heater, fixed burst pipe, emergency call...',
   },
   {
-    id: 'review',    label: 'Got a 5-Star Review', Icon: IpSparkle,
+    id: 'review',    label: 'Got a 5-Star Review', desc: 'Turn 5 stars into new customers',  Icon: IpSparkle,
     prompt: 'Received a 5-star customer review',
     color: '#EAB308',
     detailHint: 'Who left it? Long-time customer, first-time client, referral...',
   },
   {
-    id: 'tip',       label: 'Sharing a Tip',       Icon: IpInfo,
+    id: 'tip',       label: 'Sharing a Tip',       desc: 'Teach, build trust, get saves',    Icon: IpInfo,
     prompt: 'Sharing a helpful maintenance or safety tip',
     color: '#3B82F6',
     detailHint: 'What\'s the tip? E.g. check your water pressure monthly...',
   },
   {
-    id: 'deal',      label: 'Running a Deal',      Icon: IpDollar,
+    id: 'deal',      label: 'Running a Deal',      desc: 'Announce an offer or discount',    Icon: IpDollar,
     prompt: 'Running a special promotion or discount',
     color: '#F472B6',
     detailHint: 'What\'s the offer? E.g. 10% off first service this month...',
   },
   {
-    id: 'seasonal',  label: 'Seasonal Content',    Icon: IpCalendar,
+    id: 'seasonal',  label: 'Seasonal Content',    desc: 'Post what matters this month',     Icon: IpCalendar,
     prompt: 'Seasonal content relevant to this time of year',
     color: '#A78BFA',
     detailHint: 'Any specific angle? E.g. winter pipe protection, summer AC prep...',
   },
   {
-    id: 'team',      label: 'Team Moment',          Icon: IpTeam,
+    id: 'team',      label: 'Team Moment',         desc: 'Put a face to your business',      Icon: IpTeam,
     prompt: 'Showcasing our team or behind the scenes',
     color: '#FB923C',
     detailHint: 'Who or what are you showcasing?',
@@ -71,19 +73,19 @@ const JOB_TYPES = [
 ];
 
 const PLATFORMS = [
-  { id: 'facebook',        shortLabel: 'FB', Icon: IpFacebook,  color: '#1877F2' },
-  { id: 'instagram',       shortLabel: 'IG', Icon: IpInstagram, color: '#E1306C' },
-  { id: 'google_business', shortLabel: 'GB', Icon: IpGoogle,    color: '#4285F4' },
-  { id: 'linkedin',        shortLabel: 'LI', Icon: IpLinkedIn,  color: '#0A66C2' },
-  { id: 'tiktok',          shortLabel: 'TK', Icon: IpTikTok,    color: '#69C9D0' },
+  { id: 'facebook',        label: 'Facebook',    shortLabel: 'FB', Icon: IpFacebook,  color: '#1877F2' },
+  { id: 'instagram',       label: 'Instagram',   shortLabel: 'IG', Icon: IpInstagram, color: '#E1306C' },
+  { id: 'google_business', label: 'Google Biz',  shortLabel: 'GB', Icon: IpGoogle,    color: '#4285F4' },
+  { id: 'linkedin',        label: 'LinkedIn',    shortLabel: 'LI', Icon: IpLinkedIn,  color: '#0A66C2' },
+  { id: 'tiktok',          label: 'TikTok',      shortLabel: 'TK', Icon: IpTikTok,    color: '#69C9D0' },
 ];
 
 const TONES = [
-  { id: 'friendly',     label: 'Friendly', Icon: IpHeart },
-  { id: 'professional', label: 'Pro',      Icon: IpBusiness },
-  { id: 'funny',        label: 'Funny',    Icon: IpLaugh },
-  { id: 'educational',  label: 'Expert',   Icon: IpSparkle },
-  { id: 'urgent',       label: 'Urgent',   Icon: IpWarning },
+  { id: 'friendly',     label: 'Friendly', desc: 'Warm & conversational',   Icon: IpHeart },
+  { id: 'professional', label: 'Pro',      desc: 'Polished & credible',      Icon: IpBusiness },
+  { id: 'funny',        label: 'Funny',    desc: 'Light-hearted & witty',    Icon: IpLaugh },
+  { id: 'educational',  label: 'Expert',   desc: 'Informative & insightful', Icon: IpSparkle },
+  { id: 'urgent',       label: 'Urgent',   desc: 'Time-sensitive & direct',  Icon: IpWarning },
 ];
 
 const LOADING_MSGS = {
@@ -112,7 +114,6 @@ export default function QuickPost() {
   const [contentType,   setContentType]   = useState('static');
   const [jobType,       setJobType]       = useState(null);
   const [details,       setDetails]       = useState('');
-  const [showDetails,   setShowDetails]   = useState(false);
   const [selectedPlats, setSelectedPlats] = useState(['facebook', 'instagram', 'google_business']);
   const [tone,          setTone]          = useState('friendly');
   const [generating,    setGenerating]    = useState(false);
@@ -245,35 +246,76 @@ export default function QuickPost() {
     >
       <div style={{ maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 48 }}>
 
-        {/* ── Content type (small secondary toggle) ─────────────────── */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          {CONTENT_TYPES.map(ct => {
-            const sel = contentType === ct.id;
-            return (
-              <button
-                key={ct.id}
-                onClick={() => { setContentType(ct.id); setResult(null); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px',
-                  borderRadius: 10, cursor: 'pointer', transition: 'all 150ms',
-                  border: sel ? `1px solid ${t.primary}` : `1px solid ${t.border}`,
-                  background: sel ? t.primaryBg : 'transparent',
-                  color: sel ? t.primary : t.textMuted,
-                  fontSize: 12, fontWeight: 600,
-                }}
-              >
-                <ct.Icon size={14} color={sel ? t.primary : t.textMuted} />
-                {ct.label}
-                <span style={{ fontSize: 10, opacity: 0.7, fontWeight: 500 }}>{ct.cost}</span>
-              </button>
-            );
-          })}
+        {/* ── Content type cards ─────────────────────────────────────── */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+            Content type
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {CONTENT_TYPES.map(ct => {
+              const sel = !ct.wizardOnly && contentType === ct.id;
+              const handleCtClick = () => {
+                if (ct.wizardOnly) {
+                  showToast('Carousel & video are in the full Wizard →', 'info');
+                  router.push('/wizard');
+                  return;
+                }
+                setContentType(ct.id);
+                setResult(null);
+              };
+              return (
+                <button
+                  key={ct.id}
+                  onClick={handleCtClick}
+                  style={{
+                    padding: '16px 14px',
+                    background: sel ? t.primaryBg : (dark ? 'rgba(255,255,255,0.03)' : t.card),
+                    border: `1px solid ${sel ? t.primary : (dark ? 'rgba(255,255,255,0.07)' : t.border)}`,
+                    borderRadius: 14, cursor: 'pointer', textAlign: 'left',
+                    transition: 'all 150ms ease',
+                    boxShadow: sel ? `0 0 0 1px ${t.primary}22` : 'none',
+                    display: 'flex', flexDirection: 'column', gap: 10,
+                    position: 'relative', overflow: 'hidden',
+                  }}
+                >
+                  {ct.wizardOnly && (
+                    <span style={{ position: 'absolute', top: 7, right: 7, fontSize: 9, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 4, padding: '1px 5px', letterSpacing: '0.03em' }}>
+                      WIZARD
+                    </span>
+                  )}
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 10,
+                    background: sel ? `${t.primary}20` : (dark ? 'rgba(255,255,255,0.06)' : t.input),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background 150ms',
+                  }}>
+                    <Icon name={ct.icon} size={22} style={{ color: sel ? t.primary : t.textMuted }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: sel ? t.primary : t.text, marginBottom: 2 }}>
+                      {ct.label}
+                    </div>
+                    <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.3 }}>{ct.desc}</div>
+                  </div>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 12, width: 'fit-content',
+                    background: sel ? `${t.primary}18` : (dark ? 'rgba(255,255,255,0.06)' : t.input),
+                    color: sel ? t.primary : t.textMuted,
+                    border: `1px solid ${sel ? t.primaryBorder : 'transparent'}`,
+                  }}>
+                    {ct.cost}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ── Job type cards ─────────────────────────────────────────── */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.01em' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '1px 7px', letterSpacing: '0.04em' }}>01</span>
               What&apos;s happening today?
             </span>
             {error && !jobType && (
@@ -294,7 +336,7 @@ export default function QuickPost() {
                   key={jt.id}
                   onClick={() => { setJobType(jt.id); setError(''); }}
                   style={{
-                    padding: '14px 12px',
+                    padding: '16px 12px',
                     background: sel
                       ? `${jt.color}18`
                       : dark ? 'rgba(255,255,255,0.03)' : t.card,
@@ -313,49 +355,43 @@ export default function QuickPost() {
                   }}>
                     <JtIcon size={18} style={{ color: sel ? jt.color : t.textMuted }} />
                   </div>
-                  <span style={{
-                    fontSize: 12, fontWeight: 700, lineHeight: 1.3,
-                    color: sel ? jt.color : t.text,
-                  }}>
-                    {jt.label}
-                  </span>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, lineHeight: 1.3, color: sel ? jt.color : t.text }}>
+                      {jt.label}
+                    </div>
+                    <div style={{ fontSize: 10, color: t.textMuted, lineHeight: 1.3, marginTop: 3 }}>
+                      {jt.desc}
+                    </div>
+                  </div>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* ── Add details (optional, collapsible) ───────────────────── */}
-        <div>
-          <button
-            onClick={() => setShowDetails(s => !s)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-              color: t.textMuted, fontSize: 12, fontWeight: 600,
-            }}
-          >
-            <IpPlus size={12} style={{ color: t.textMuted }} />
-            Add details (optional)
-            <span style={{ fontSize: 11, opacity: 0.7, fontWeight: 400 }}>
-              {showDetails ? '▲' : '▸'}
-            </span>
-          </button>
-          {showDetails && (
+        {/* ── Add details (auto-reveals on job type selection) ──────── */}
+        {jobType && (
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '1px 7px', letterSpacing: '0.04em' }}>02</span>
+              Add details
+              <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 500 }}>(optional)</span>
+            </div>
             <textarea
               rows={2}
               maxLength={200}
               placeholder={selectedJob?.detailHint || 'Any extra context for PostCore...'}
               value={details}
               onChange={e => setDetails(e.target.value)}
-              style={{ ...iStyle, marginTop: 10 }}
+              style={{ ...iStyle }}
             />
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* ── Platform row (compact icon toggles) ───────────────────── */}
+        {/* ── Platform row ──────────────────────────────────────────── */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '1px 7px', letterSpacing: '0.04em' }}>03</span>
             Platforms
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -366,26 +402,26 @@ export default function QuickPost() {
                 <button
                   key={p.id}
                   onClick={() => togglePlatform(p.id)}
-                  title={p.shortLabel}
+                  title={p.label}
                   style={{
-                    width: 54, height: 54, borderRadius: 12,
+                    width: 64, minHeight: 72, borderRadius: 12, padding: '10px 8px',
                     background: active
                       ? `${p.color}22`
                       : dark ? 'rgba(255,255,255,0.04)' : t.input,
                     border: `2px solid ${active ? p.color : (dark ? 'rgba(255,255,255,0.08)' : t.border)}`,
                     cursor: 'pointer', display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: 3,
+                    alignItems: 'center', justifyContent: 'center', gap: 5,
                     transition: 'all 150ms',
                     boxShadow: active ? `0 0 0 3px ${p.color}25` : 'none',
                   }}
                 >
-                  <PIcon size={16} style={{ color: active ? p.color : t.textMuted }} />
+                  <PIcon size={18} style={{ color: active ? p.color : t.textMuted }} />
                   <span style={{
-                    fontSize: 9, fontWeight: 800, letterSpacing: '0.05em',
+                    fontSize: 9, fontWeight: 700, letterSpacing: '0.02em', textAlign: 'center',
                     color: active ? p.color : t.textMuted,
-                    lineHeight: 1,
+                    lineHeight: 1.2, maxWidth: 52,
                   }}>
-                    {p.shortLabel}
+                    {p.label}
                   </span>
                 </button>
               );
@@ -395,7 +431,8 @@ export default function QuickPost() {
 
         {/* ── Tone chips ────────────────────────────────────────────── */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '1px 7px', letterSpacing: '0.04em' }}>04</span>
             Tone
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -407,16 +444,17 @@ export default function QuickPost() {
                   key={tn.id}
                   onClick={() => setTone(tn.id)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px',
-                    borderRadius: 20, cursor: 'pointer', transition: 'all 120ms',
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px',
+                    borderRadius: 12, cursor: 'pointer', transition: 'all 120ms',
                     border: sel ? `1px solid ${t.primary}` : `1px solid ${t.border}`,
                     background: sel ? t.primaryBg : 'transparent',
-                    color: sel ? t.primary : t.textMuted,
-                    fontSize: 12, fontWeight: 600,
                   }}
                 >
-                  <TIcon size={13} style={{ color: sel ? t.primary : t.textMuted }} />
-                  {tn.label}
+                  <TIcon size={14} style={{ color: sel ? t.primary : t.textMuted, flexShrink: 0 }} />
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: sel ? t.primary : t.text, lineHeight: 1 }}>{tn.label}</div>
+                    <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2, lineHeight: 1 }}>{tn.desc}</div>
+                  </div>
                 </button>
               );
             })}

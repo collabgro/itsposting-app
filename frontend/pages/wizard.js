@@ -9,7 +9,7 @@ import {
 import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
-import api, { customerAPI } from '../lib/api';
+import api, { customerAPI, socialAPI } from '../lib/api';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
 const CONTENT_TYPES = [
@@ -127,14 +127,14 @@ const RECOMMENDED_FORMATS = {
     { id: 'li-post',      platform: 'linkedin',        label: 'LinkedIn Post',        sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
   ],
   photo: [
-    { id: 'ig-45',        platform: 'instagram',       label: 'Instagram Post',       sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
-    { id: 'ig-story',     platform: 'instagram',       label: 'Instagram Story',      sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
-    { id: 'fb-landscape', platform: 'facebook',        label: 'Facebook Post',        sublabel: '1200 × 630 · 16:9',  width: 1200, height: 630  },
+    { id: 'ig-45',     platform: 'instagram', label: 'Instagram Post',  sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
+    { id: 'ig-story',  platform: 'instagram', label: 'Instagram Story', sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'fb-square', platform: 'facebook',  label: 'Facebook Square', sublabel: '1080 × 1080 · 1:1',  width: 1080, height: 1080 },
   ],
   carousel: [
-    { id: 'ig-45',        platform: 'instagram',       label: 'Instagram Post',       sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
-    { id: 'li-post',      platform: 'linkedin',        label: 'LinkedIn Post',        sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
-    { id: 'fb-landscape', platform: 'facebook',        label: 'Facebook Post',        sublabel: '1200 × 630 · 16:9',  width: 1200, height: 630  },
+    { id: 'ig-45',     platform: 'instagram', label: 'Instagram Post',  sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
+    { id: 'li-post',   platform: 'linkedin',  label: 'LinkedIn Post',   sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
+    { id: 'fb-square', platform: 'facebook',  label: 'Facebook Square', sublabel: '1080 × 1080 · 1:1',  width: 1080, height: 1080 },
   ],
   video: [
     { id: 'tt-video',  platform: 'tiktok',    label: 'TikTok Video',    sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
@@ -151,8 +151,8 @@ const FORMAT_PLATFORM_COLORS = {
 
 const FORMAT_TYPE_FILTER = {
   video:    ['ig-reel', 'ig-story', 'fb-story', 'tt-video', 'tt-story', 'li-video'],
-  carousel: ['ig-45', 'ig-square', 'li-post', 'fb-square', 'fb-landscape'],
-  photo:    null,
+  carousel: ['ig-45', 'ig-square', 'li-post', 'fb-square'],
+  photo:    ['ig-45', 'ig-story', 'ig-reel', 'ig-square', 'fb-story', 'fb-square', 'li-post', 'gb-45'],
   static:   ['ig-45', 'fb-landscape', 'li-post', 'gb-45', 'fb-square'],
 };
 
@@ -170,10 +170,25 @@ function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md',
 
   const ContentOverlay = ({ W, H }) => {
     if (contentType === 'video') {
-      const cx = W / 2, cy = H * 0.45;
+      const isReel = H / W >= 1.6;
+      const cx = W / 2, cy = H * (isReel ? 0.48 : 0.45);
       const r = Math.min(W, H) * 0.14;
       const tx = cx + r * 0.35, ty = cy;
       const pt = `${cx - r * 0.5},${cy - r * 0.65} ${tx + r * 0.5},${ty} ${cx - r * 0.5},${cy + r * 0.65}`;
+      if (isReel) {
+        const segW = (W - 12) / 3;
+        return (
+          <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }} fill="none">
+            <rect x={6}             y={7} width={segW - 2} height={2} rx="1" fill="rgba(255,255,255,0.55)" />
+            <rect x={6 + segW}      y={7} width={segW - 2} height={2} rx="1" fill="rgba(255,255,255,0.90)" />
+            <rect x={6 + segW * 2}  y={7} width={segW - 2} height={2} rx="1" fill="rgba(255,255,255,0.55)" />
+            <rect x={8} y={H - 14} width={W * 0.55} height={3} rx="1.5" fill="rgba(255,255,255,0.55)" />
+            <rect x={8} y={H - 9}  width={W * 0.35} height={2} rx="1"   fill="rgba(255,255,255,0.35)" />
+            <circle cx={cx} cy={cy} r={r * 1.5} fill="rgba(0,0,0,0.28)" />
+            <polygon points={pt} fill="rgba(255,255,255,0.92)" />
+          </svg>
+        );
+      }
       return (
         <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }} fill="none">
           <circle cx={cx} cy={cy} r={r * 1.5} fill="rgba(0,0,0,0.28)" />
@@ -211,16 +226,31 @@ function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md',
           position: 'absolute', top: bTop, left: bx, width: cW, height: cH,
           borderRadius: 3, overflow: 'hidden',
         }}>
-          {/* Image area ~60% */}
-          <div style={{ height: '60%', background: `linear-gradient(160deg, ${platformColor}60, ${platformColor}35)`, position: 'relative' }}>
-            <div style={{ height: '100%', background: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${platformColor}12 8px, ${platformColor}12 9px)` }} />
-            <ContentOverlay W={cW} H={cH * 0.6} />
-          </div>
-          {/* Caption area */}
-          <div style={{ flex: 1, background: `${platformColor}14`, padding: '5px 6px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <div style={{ height: 2.5, background: `${platformColor}80`, borderRadius: 2, width: '70%' }} />
-            <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '50%' }} />
-          </div>
+          {contentType === 'static' ? (
+            <div style={{ height: '100%', background: `linear-gradient(160deg, ${platformColor}40, ${platformColor}20)`, padding: '6px 5px', display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <div style={{ height: 3.5, background: `${platformColor}cc`, borderRadius: 2, width: '80%' }} />
+              <div style={{ height: 3.5, background: `${platformColor}cc`, borderRadius: 2, width: '68%' }} />
+              <div style={{ marginTop: 2, height: 2, background: `${platformColor}75`, borderRadius: 2, width: '95%' }} />
+              <div style={{ height: 2, background: `${platformColor}75`, borderRadius: 2, width: '88%' }} />
+              <div style={{ height: 2, background: `${platformColor}75`, borderRadius: 2, width: '73%' }} />
+              <div style={{ marginTop: 2, height: 2, background: `${platformColor}50`, borderRadius: 2, width: '90%' }} />
+              <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '82%' }} />
+              <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '60%' }} />
+            </div>
+          ) : (
+            <>
+              {/* Image area ~60% */}
+              <div style={{ height: '60%', background: `linear-gradient(160deg, ${platformColor}60, ${platformColor}35)`, position: 'relative' }}>
+                <div style={{ height: '100%', background: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${platformColor}12 8px, ${platformColor}12 9px)` }} />
+                <ContentOverlay W={cW} H={cH * 0.6} />
+              </div>
+              {/* Caption area */}
+              <div style={{ flex: 1, background: `${platformColor}14`, padding: '5px 6px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <div style={{ height: 2.5, background: `${platformColor}80`, borderRadius: 2, width: '70%' }} />
+                <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '50%' }} />
+              </div>
+            </>
+          )}
         </div>
         {/* Platform badge */}
         {PlatformIcon && (
@@ -236,16 +266,31 @@ function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md',
   return (
     <div style={{ position: 'relative', width: cW, height: cH, flexShrink: 0 }}>
       <div style={{ position: 'absolute', inset: 0, borderRadius: 7, border: '1.5px solid #D0D0D0', background: '#F5F5F5', overflow: 'hidden' }}>
-        {/* Image area ~58% */}
-        <div style={{ height: '58%', background: `linear-gradient(135deg, ${platformColor}60, ${platformColor}35)`, position: 'relative' }}>
-          <div style={{ height: '100%', background: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${platformColor}12 8px, ${platformColor}12 9px)` }} />
-          <ContentOverlay W={cW} H={cH * 0.58} />
-        </div>
-        {/* Caption lines */}
-        <div style={{ padding: '5px 7px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ height: 2.5, background: `${platformColor}80`, borderRadius: 2, width: '68%' }} />
-          <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '48%' }} />
-        </div>
+        {contentType === 'static' ? (
+          <div style={{ height: '100%', background: `linear-gradient(135deg, ${platformColor}40, ${platformColor}20)`, padding: '6px 5px', display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            <div style={{ height: 3.5, background: `${platformColor}cc`, borderRadius: 2, width: '80%' }} />
+            <div style={{ height: 3.5, background: `${platformColor}cc`, borderRadius: 2, width: '68%' }} />
+            <div style={{ marginTop: 2, height: 2, background: `${platformColor}75`, borderRadius: 2, width: '95%' }} />
+            <div style={{ height: 2, background: `${platformColor}75`, borderRadius: 2, width: '88%' }} />
+            <div style={{ height: 2, background: `${platformColor}75`, borderRadius: 2, width: '73%' }} />
+            <div style={{ marginTop: 2, height: 2, background: `${platformColor}50`, borderRadius: 2, width: '90%' }} />
+            <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '82%' }} />
+            <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '60%' }} />
+          </div>
+        ) : (
+          <>
+            {/* Image area ~58% */}
+            <div style={{ height: '58%', background: `linear-gradient(135deg, ${platformColor}60, ${platformColor}35)`, position: 'relative' }}>
+              <div style={{ height: '100%', background: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${platformColor}12 8px, ${platformColor}12 9px)` }} />
+              <ContentOverlay W={cW} H={cH * 0.58} />
+            </div>
+            {/* Caption lines */}
+            <div style={{ padding: '5px 7px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ height: 2.5, background: `${platformColor}80`, borderRadius: 2, width: '68%' }} />
+              <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '48%' }} />
+            </div>
+          </>
+        )}
       </div>
       {/* Platform badge */}
       {PlatformIcon && (
@@ -329,6 +374,8 @@ export default function Wizard() {
   const [copiedId, setCopiedId] = useState(null);
   const [selectedVariation, setSelectedVariation] = useState('A');
 
+  const [connectedPlatforms, setConnectedPlatforms] = useState(null); // null = not yet loaded
+
   // Result screen action state
   const [actionLoading, setActionLoading] = useState(false);
   const [actionToast, setActionToast] = useState(null);
@@ -350,6 +397,10 @@ export default function Wizard() {
         setProfileTimezone(d.timezone || '');
       })
       .catch(() => {});
+
+    socialAPI.getAccounts()
+      .then(r => setConnectedPlatforms((r.data || []).filter(a => a.enabled).map(a => a.platform)))
+      .catch(() => setConnectedPlatforms([]));
 
     // Handle navigation from dashboard suggestion banner
     const suggestionPost = sessionStorage.getItem('suggestionPost');
@@ -532,10 +583,27 @@ export default function Wizard() {
     if (!results?.postId) return;
     setActionLoading(true);
     try {
-      await apiPatch(`/api/posts/${results.postId}`, { status: 'posted' });
-      showToast('success', 'Post published!');
+      const rawPlatform = results.platform;
+      const platforms = rawPlatform === 'all'
+        ? ['facebook', 'instagram', 'google_business']
+        : rawPlatform ? [rawPlatform] : [];
+
+      if (platforms.length > 0) {
+        const pubRes = await api.post('/api/social/publish', { postId: results.postId, platforms });
+        const { posted = [], errors = [] } = pubRes.data;
+        if (posted.length > 0 && errors.length === 0) {
+          showToast('success', `Published to ${posted.join(', ')}!`);
+        } else if (posted.length > 0) {
+          showToast('success', `Published to ${posted.join(', ')}. Some platforms failed.`);
+        } else {
+          showToast('error', errors.map(e => `${e.platform}: ${e.message}`).join('; ') || 'Publish failed');
+        }
+      } else {
+        await apiPatch(`/api/posts/${results.postId}`, { status: 'posted' });
+        showToast('success', 'Post published!');
+      }
     } catch (err) {
-      showToast('error', err.message || 'Failed to publish');
+      showToast('error', err.response?.data?.error || err.message || 'Failed to publish');
     } finally {
       setActionLoading(false);
     }
@@ -1158,19 +1226,45 @@ export default function Wizard() {
                   )}
                 </div>
 
-                {/* Platform badges */}
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                  {(results.platform === 'all' ? ['facebook', 'instagram', 'google_business'] : [results.platform]).map(p => {
-                    const config = PLATFORMS.find(x => x.id === p);
-                    if (!config) return null;
-                    const PIcon = config.icon;
-                    return (
-                      <span key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, background: config.bg, border: `1px solid ${config.border}`, fontSize: 11, fontWeight: 600, color: config.color }}>
-                        <PIcon size={12} style={{ color: config.color }} /> {config.label}
-                      </span>
-                    );
-                  })}
-                </div>
+                {/* Platform badges with connection status */}
+                {(() => {
+                  const targetPlatforms = results.platform === 'all'
+                    ? ['facebook', 'instagram', 'google_business']
+                    : [results.platform].filter(Boolean);
+                  const noneConnected = connectedPlatforms !== null && connectedPlatforms.length > 0
+                    && !targetPlatforms.some(p => connectedPlatforms.includes(p));
+                  return (
+                    <>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: noneConnected ? 8 : 12 }}>
+                        {targetPlatforms.map(p => {
+                          const config = PLATFORMS.find(x => x.id === p);
+                          if (!config) return null;
+                          const PIcon = config.icon;
+                          const isConnected = connectedPlatforms === null || connectedPlatforms.includes(p);
+                          return (
+                            <span key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, background: isConnected ? config.bg : t.input, border: `1px solid ${isConnected ? config.border : t.border}`, fontSize: 11, fontWeight: 600, color: isConnected ? config.color : t.textMuted, opacity: isConnected ? 1 : 0.65 }}>
+                              <PIcon size={12} style={{ color: isConnected ? config.color : t.textMuted }} />
+                              {config.label}
+                              {connectedPlatforms !== null && (
+                                isConnected
+                                  ? <IpCheck size={10} strokeWidth={3} style={{ color: config.color }} />
+                                  : <span style={{ fontSize: 9 }}>not connected</span>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      {noneConnected && (
+                        <div style={{ fontSize: 12, color: '#F59E0B', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, padding: '8px 10px', background: 'rgba(245,158,11,0.08)', borderRadius: 8, border: '1px solid rgba(245,158,11,0.25)' }}>
+                          <span>⚠</span>
+                          <span>No accounts connected for these platforms.{' '}
+                            <a href="/settings" style={{ color: t.primary, textDecoration: 'underline' }}>Connect in Settings →</a>
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {/* Regenerate image button */}
                 {results.postId && results.contentTypeSelection !== 'video' && results.contentTypeSelection !== 'static' && (
@@ -1272,17 +1366,26 @@ export default function Wizard() {
                     </>
                   ) : (
                     <>
-                      <button onClick={handlePostNow} disabled={actionLoading || !results.postId} style={{ flex: 1, minWidth: 100, padding: '10px 14px', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        <Icon name="send" size={14} color="#fff" /> Post Now
-                      </button>
+                      {(() => {
+                        const targetPlatforms = results.platform === 'all'
+                          ? ['facebook', 'instagram', 'google_business']
+                          : [results.platform].filter(Boolean);
+                        const noneConnected = connectedPlatforms !== null && connectedPlatforms.length > 0
+                          && !targetPlatforms.some(p => connectedPlatforms.includes(p));
+                        return (
+                          <button onClick={handlePostNow} disabled={actionLoading || !results.postId || noneConnected} style={{ flex: 1, minWidth: 100, padding: '10px 14px', background: noneConnected ? t.textDisabled : t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: (actionLoading || noneConnected) ? 'not-allowed' : 'pointer', opacity: (actionLoading || noneConnected) ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                            <Icon name="send" size={14} color="#fff" /> Post Now
+                          </button>
+                        );
+                      })()}
                       <button onClick={() => setShowScheduleModal(true)} disabled={actionLoading || !results.postId} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: actionLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Icon name="schedule" size={14} /> Schedule
                       </button>
                       <button onClick={handleEditStart} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Icon name="edit" size={14} /> Edit
                       </button>
-                      <button onClick={handleReset} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <IpArrowLeft size={14} /> Start Over
+                      <button onClick={() => { showToast('success', 'Draft saved — find it in History'); setTimeout(handleReset, 1800); }} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <IpArrowLeft size={14} /> Save Draft
                       </button>
                     </>
                   )}

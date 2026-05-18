@@ -63,11 +63,13 @@ module.exports = (pool) => {
       const customer = result.rows[0];
       const token = generateToken(customer.id, customer.email);
 
-      await pool.query(
-        `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
-         VALUES ($1, 'bonus', 10, 10, 'Welcome bonus - 10 free credits')`,
-        [customer.id]
-      );
+      if (!parentCustomerId) {
+        await pool.query(
+          `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+           VALUES ($1, 'bonus', 10, 10, 'Welcome bonus - 10 free credits')`,
+          [customer.id]
+        );
+      }
 
       // Record this IP → customer registration (non-blocking, fail silently)
       pool.query(
@@ -137,7 +139,8 @@ module.exports = (pool) => {
       const result = await pool.query(
         `SELECT id, email, business_name, industry, location, plan, status, credits_balance,
                 brand_colors, visual_style, tone, avatar_id, voice_id, preferred_image_provider,
-                is_admin, role, suspended, parent_customer_id, free_geo_audit_used
+                is_admin, role, suspended, parent_customer_id, free_geo_audit_used,
+                workspace_role, workspace_permissions
          FROM customers WHERE id = $1`,
         [req.customerId]
       );

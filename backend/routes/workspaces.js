@@ -156,6 +156,78 @@ module.exports = (pool) => {
     }
   });
 
+  // ── GET /api/workspaces/members ─────────────────────────────────────────────
+  // List all team members (sub-accounts linked via parent_customer_id).
+  router.get('/members', authenticate, async (req, res) => {
+    try {
+      const parentId = mainCustomerId(req);
+      const rows = await pool.query(
+        `SELECT id, email, business_name, workspace_role, workspace_permissions,
+                created_at, last_posted_at, status
+         FROM customers
+         WHERE parent_customer_id = $1 AND status != 'inactive'
+         ORDER BY created_at ASC`,
+        [parentId]
+      );
+      res.json({ members: rows.rows });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── PATCH /api/workspaces/members/:memberId ──────────────────────────────────
+  // Update a team member's role and/or custom permissions.
+  router.patch('/members/:memberId', authenticate, async (req, res) => {
+    try {
+      const parentId = mainCustomerId(req);
+      const memberId = parseInt(req.params.memberId);
+      const { role, permissions } = req.body;
+
+      const check = await pool.query(
+        'SELECT id FROM customers WHERE id = $1 AND parent_customer_id = $2',
+        [memberId, parentId]
+      );
+      if (!check.rows.length) return res.status(404).json({ error: 'Member not found' });
+
+      await pool.query(
+        `UPDATE customers
+         SET workspace_role = COALESCE($1, workspace_role),
+             workspace_permissions = $2,
+             updated_at = NOW()
+         WHERE id = $3`,
+        [role || null, permissions ? JSON.stringify(permissions) : null, memberId]
+      );
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── DELETE /api/workspaces/members/:memberId ─────────────────────────────────
+  // Revoke member access — disconnects without deleting their account.
+  router.delete('/members/:memberId', authenticate, async (req, res) => {
+    try {
+      const parentId = mainCustomerId(req);
+      const memberId = parseInt(req.params.memberId);
+
+      const check = await pool.query(
+        'SELECT id FROM customers WHERE id = $1 AND parent_customer_id = $2',
+        [memberId, parentId]
+      );
+      if (!check.rows.length) return res.status(404).json({ error: 'Member not found' });
+
+      await pool.query(
+        `UPDATE customers
+         SET parent_customer_id = NULL, workspace_role = NULL, workspace_permissions = NULL, updated_at = NOW()
+         WHERE id = $1`,
+        [memberId]
+      );
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── POST /api/workspaces/main/switch ─────────────────────────────────────────
   // Switch back to the main account from a workspace context.
   router.post('/main/switch', authenticate, async (req, res) => {
