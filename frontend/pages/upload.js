@@ -9,11 +9,14 @@ import Layout from '../components/Layout';
 import { Card, Button, Input, Textarea, SectionHeader, Skeleton, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { mediaAPI, uploadAPI } from '../lib/api';
+import {
+  CHAR_LIMITS, PLATFORM_META, MOCKUP_MAP, PlatformTab,
+} from '../components/PostMockups';
 
 const CONTENT_TYPES = [
-  { id: 'photo',    label: 'Photo',    icon: ImageIcon, desc: '1 image' },
-  { id: 'carousel', label: 'Carousel', icon: IpCarousel, desc: '2–10 images' },
-  { id: 'video',    label: 'Video',    icon: IpVideo,   desc: '1 video' },
+  { id: 'photo',    label: 'Photo',    icon: ImageIcon },
+  { id: 'carousel', label: 'Carousel', icon: IpCarousel },
+  { id: 'video',    label: 'Video',    icon: IpVideo },
 ];
 
 const PLATFORMS = [
@@ -41,12 +44,14 @@ export default function Upload() {
   const { t } = useTheme();
   const fileInputRef = useRef(null);
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [contentType, setContentType] = useState('photo');
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [caption, setCaption] = useState('');
   const [hashtags, setHashtags] = useState('');
   const [platforms, setPlatforms] = useState(['facebook', 'instagram']);
+  const [previewPlatform, setPreviewPlatform] = useState('facebook');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('09:00');
   const [scheduleMode, setScheduleMode] = useState('draft');
@@ -69,7 +74,12 @@ export default function Upload() {
 
   useEffect(() => {
     setMounted(true);
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
+
     const preSelected = sessionStorage.getItem('selectedMediaFile');
     if (preSelected) {
       try {
@@ -100,7 +110,16 @@ export default function Upload() {
         sessionStorage.removeItem('wizardPost');
       } catch {}
     }
+
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Keep previewPlatform in sync with selected platforms
+  useEffect(() => {
+    if (!platforms.includes(previewPlatform)) {
+      setPreviewPlatform(platforms[0] || 'facebook');
+    }
+  }, [platforms]);
 
   const handleFileSelect = (e) => {
     const selected = Array.from(e.target.files);
@@ -227,8 +246,8 @@ export default function Upload() {
   if (!mounted) return null;
 
   // ── computed ──────────────────────────────────────────────────────────────
-  const hashtagCount = hashtags.split(/[\s,]+/).filter(h => h.startsWith('#')).length;
   const allSelected = platforms.length === ALL_PLATFORM_IDS.length;
+  const charLimit = CHAR_LIMITS[previewPlatform] || 63206;
 
   const scheduledPreview = scheduleDate && scheduleTime
     ? new Date(`${scheduleDate}T${scheduleTime}`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -250,7 +269,6 @@ export default function Upload() {
     return result;
   })();
 
-  // Library picker computed
   const libFolderNamesSet = new Set(libraryFolders.map(f => f.folder));
   const looseLibraryFiles = libraryFiles.filter(f => !f.folder || !libFolderNamesSet.has(f.folder));
   const folderLibraryFiles = libraryFolder ? libraryFiles.filter(f => f.folder === libraryFolder) : [];
@@ -269,11 +287,23 @@ export default function Upload() {
     fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
   });
 
-  const checkmark = (
-    <div style={{ marginLeft: 'auto', width: 15, height: 15, borderRadius: '50%', background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <IpCheck size={8} style={{ color: '#fff' }} />
-    </div>
-  );
+  // Live preview post object (synthetic — drives mockup)
+  const hashtagArr = hashtags.split(/[\s,]+/).map(h => h.trim().replace(/^#/, '')).filter(Boolean);
+  const previewPost = {
+    content_type: contentType,
+    media_url: previews[0] || null,
+    media_urls: previews,
+    hashtags: hashtagArr,
+    platforms,
+    caption,
+  };
+
+  const ActiveMockup = MOCKUP_MAP[previewPlatform];
+
+  const submitLabel = uploading ? 'Saving…'
+    : scheduleMode === 'later' ? 'Schedule Post'
+    : scheduleMode === 'now'   ? 'Publish Now'
+    : 'Save Draft';
 
   const renderLibraryGrid = (fileList) => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
@@ -310,11 +340,6 @@ export default function Upload() {
     </div>
   );
 
-  const submitLabel = uploading ? 'Saving…'
-    : scheduleMode === 'later' ? 'Schedule Post'
-    : scheduleMode === 'now'   ? 'Publish Now'
-    : 'Save Draft';
-
   return (
     <Layout
       title="Create Post"
@@ -328,21 +353,7 @@ export default function Upload() {
         </div>
       }
     >
-      <div style={{ maxWidth: 720, margin: '0 auto', width: '100%' }}>
-
-        {/* AI upsell banner */}
-        <div style={{ padding: '14px 18px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <IpSparkle size={18} color="url(#brand-gradient)" />
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Generate content instead</div>
-              <div style={{ fontSize: 12, color: t.textMuted }}>Use credits to auto-generate captions, images, carousels, or videos</div>
-            </div>
-          </div>
-          <Button variant="primary" size="sm" onClick={() => router.push('/wizard')}>
-            <IpSparkle size={14} /> Open Creator
-          </Button>
-        </div>
+      <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
 
         {message.text && (
           <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13, background: msgStyle[message.type]?.bg, border: `1px solid ${msgStyle[message.type]?.border}`, color: msgStyle[message.type]?.color }}>
@@ -351,210 +362,253 @@ export default function Upload() {
         )}
 
         <form onSubmit={handleSubmit}>
+          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
 
-          {/* ── Content Type ── */}
-          <Card style={{ marginBottom: 16 }}>
-            <SectionHeader icon={UploadIcon} title="Content Type" />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-              {CONTENT_TYPES.map(opt => (
-                <button
-                  key={opt.id} type="button"
-                  onClick={() => { setContentType(opt.id); setFiles([]); setPreviews([]); }}
-                  style={{ padding: 16, border: `2px solid ${contentType === opt.id ? t.primary : t.border}`, background: contentType === opt.id ? t.primaryBg : t.input, borderRadius: 10, cursor: 'pointer', textAlign: 'center' }}
-                >
-                  <opt.icon size={20} strokeWidth={2} color={contentType === opt.id ? 'url(#brand-gradient)' : t.textMuted} style={{ margin: '0 auto 6px' }} />
-                  <div style={{ fontWeight: 600, fontSize: 13, color: t.text }}>{opt.label}</div>
-                  <div style={{ fontSize: 11, color: t.textMuted }}>{opt.desc}</div>
-                </button>
-              ))}
-            </div>
-          </Card>
+            {/* ══ LEFT — Compose ══════════════════════════════════════════════ */}
+            <div style={{ flex: '0 0 46%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          {/* ── Upload ── */}
-          <Card style={{ marginBottom: 16 }}>
-            <SectionHeader icon={ImageIcon} title={contentType === 'carousel' ? 'Upload Files (2–10)' : 'Upload File'} />
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-              <button
-                type="button" onClick={() => fileInputRef.current?.click()}
-                style={{ flex: '1 1 200px', padding: 14, background: t.input, border: `2px dashed ${t.borderStrong}`, borderRadius: 8, color: t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-              >
-                <UploadIcon size={16} /> Upload from device
-              </button>
-              <button
-                type="button" onClick={openLibrary}
-                style={{ flex: '1 1 200px', padding: 14, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-              >
-                <IpFolderOpen size={16} /> Choose from library
-              </button>
-            </div>
-            <input
-              ref={fileInputRef} type="file"
-              accept={contentType === 'video' ? 'video/*' : 'image/*'}
-              multiple={contentType === 'carousel'}
-              onChange={handleFileSelect} style={{ display: 'none' }}
-            />
+              {/* Post to — platform selector */}
+              <Card>
+                <SectionHeader icon={IpFacebook} title="Post to" />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {PLATFORMS.map(({ id, name, icon: PlatIcon }) => {
+                    const sel = platforms.includes(id);
+                    const meta = PLATFORM_META[id];
+                    return (
+                      <button
+                        key={id} type="button" onClick={() => togglePlatform(id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 7,
+                          padding: '7px 13px', borderRadius: 8, cursor: 'pointer',
+                          border: `1.5px solid ${sel ? meta.color : t.border}`,
+                          background: sel ? `${meta.color}15` : t.input,
+                          transition: 'all 150ms',
+                        }}
+                      >
+                        <PlatIcon size={14} style={{ color: sel ? meta.color : t.textMuted, flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: sel ? t.text : t.textMuted }}>{name}</span>
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button" onClick={toggleAllPlatforms}
+                    style={{
+                      padding: '7px 13px', borderRadius: 8, cursor: 'pointer',
+                      border: `1.5px solid ${allSelected ? t.primary : t.border}`,
+                      background: allSelected ? t.primaryBg : t.input,
+                      fontSize: 12, fontWeight: 700,
+                      color: allSelected ? t.primary : t.textMuted,
+                      transition: 'all 150ms',
+                    }}
+                  >
+                    All
+                  </button>
+                </div>
+                {platforms.length === 0 && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: t.error }}>Select at least one platform</div>
+                )}
+              </Card>
 
-            {/* Preview grid with ✕ remove */}
-            {previews.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8, marginTop: 4 }}>
-                {previews.map((url, idx) => (
-                  <div key={idx} style={{ aspectRatio: '1/1', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, position: 'relative' }}>
-                    {contentType === 'video'
-                      ? <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls />
-                      : <img src={url} alt={`preview ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    }
-                    {files[idx]?.libraryFileId && (
-                      <div style={{ position: 'absolute', bottom: 4, left: 4, padding: '2px 6px', background: 'rgba(124,92,252,0.9)', borderRadius: 4, fontSize: 9, color: '#fff', fontWeight: 600 }}>LIB</div>
-                    )}
-                    {/* ✕ deselect */}
+              {/* Caption + Hashtags */}
+              <Card>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Caption</label>
+                  <span style={{ fontSize: 11, color: caption.length > charLimit ? t.error : t.textMuted, fontWeight: caption.length > charLimit ? 700 : 400 }}>
+                    {caption.length.toLocaleString()} / {charLimit.toLocaleString()}
+                  </span>
+                </div>
+                <Textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Write a caption…" rows={7} />
+                <div style={{ marginTop: 10 }}>
+                  <Input value={hashtags} onChange={e => setHashtags(e.target.value)} placeholder="#social #marketing #yourcity" />
+                </div>
+              </Card>
+
+              {/* Media */}
+              <Card>
+                <SectionHeader icon={UploadIcon} title="Media" />
+
+                {/* Content type compact buttons */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                  {CONTENT_TYPES.map(opt => (
                     <button
-                      type="button" onClick={() => removeFile(idx)}
-                      style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.72)', border: 'none', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, padding: 0 }}
+                      key={opt.id} type="button"
+                      onClick={() => { setContentType(opt.id); setFiles([]); setPreviews([]); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 7,
+                        padding: '7px 13px', borderRadius: 8, cursor: 'pointer',
+                        border: `1.5px solid ${contentType === opt.id ? t.primary : t.border}`,
+                        background: contentType === opt.id ? t.primaryBg : t.input,
+                        transition: 'all 150ms',
+                      }}
                     >
-                      <IpClose size={9} />
+                      <opt.icon size={15} color={contentType === opt.id ? 'url(#brand-gradient)' : t.textMuted} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: contentType === opt.id ? t.text : t.textMuted }}>{opt.label}</span>
                     </button>
-                  </div>
-                ))}
-                {/* Add-more tile for carousel */}
-                {contentType === 'carousel' && files.length < 10 && (
+                  ))}
+                </div>
+
+                {/* Upload buttons */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: previews.length > 0 ? 14 : 0, flexWrap: 'wrap' }}>
+                  <button
+                    type="button" onClick={() => fileInputRef.current?.click()}
+                    style={{ flex: '1 1 160px', padding: 12, background: t.input, border: `2px dashed ${t.borderStrong}`, borderRadius: 8, color: t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  >
+                    <UploadIcon size={15} /> Upload from device
+                  </button>
                   <button
                     type="button" onClick={openLibrary}
-                    style={{ aspectRatio: '1/1', borderRadius: 8, background: t.input, border: `2px dashed ${t.border}`, color: t.textMuted, fontSize: 24, fontWeight: 300, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >+</button>
-                )}
-              </div>
-            )}
-
-            {contentType === 'carousel' && files.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 12, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>{files.length} / 10 images</span>
-                {files.length < 2 && (
-                  <span style={{ color: t.warning }}>— need at least 2 for a carousel</span>
-                )}
-              </div>
-            )}
-          </Card>
-
-          {/* ── Caption & Hashtags ── */}
-          <Card style={{ marginBottom: 16 }}>
-            <SectionHeader icon={IpSave} title="Caption & Hashtags" />
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Caption</label>
-                <span style={{ fontSize: 11, color: caption.length > 2000 ? t.error : t.textMuted }}>{caption.length} chars</span>
-              </div>
-              <Textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Write a caption…" rows={5} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hashtags</label>
-                {hashtagCount > 0 && <span style={{ fontSize: 11, color: t.textMuted }}>{hashtagCount} tags</span>}
-              </div>
-              <Input value={hashtags} onChange={e => setHashtags(e.target.value)} placeholder="#social #marketing" />
-            </div>
-          </Card>
-
-          {/* ── Platforms ── */}
-          <Card style={{ marginBottom: 16 }}>
-            <SectionHeader icon={IpFacebook} title="Platforms" />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-              {PLATFORMS.map(({ id, name, icon: Icon }) => {
-                const sel = platforms.includes(id);
-                return (
-                  <button
-                    key={id} type="button" onClick={() => togglePlatform(id)}
-                    style={{ padding: '11px 10px', border: `2px solid ${sel ? t.primary : t.border}`, background: sel ? t.primaryBg : t.input, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 150ms' }}
+                    style={{ flex: '1 1 160px', padding: 12, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                   >
-                    <Icon size={15} style={{ color: sel ? t.primary : t.textMuted, flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: sel ? t.text : t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                    {sel && checkmark}
+                    <IpFolderOpen size={15} /> Choose from library
                   </button>
-                );
-              })}
-              {/* All toggle (6th cell) */}
-              <button
-                type="button" onClick={toggleAllPlatforms}
-                style={{ padding: '11px 10px', border: `2px solid ${allSelected ? t.primary : t.border}`, background: allSelected ? t.primaryBg : t.input, borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 150ms' }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 700, color: allSelected ? t.primary : t.textMuted }}>All</span>
-                {allSelected && checkmark}
-              </button>
-            </div>
-            {platforms.length === 0 && (
-              <div style={{ marginTop: 8, fontSize: 12, color: t.error }}>Select at least one platform</div>
-            )}
-            {platforms.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 12, color: t.textMuted }}>
-                {platforms.length} platform{platforms.length !== 1 ? 's' : ''} selected
-              </div>
-            )}
-          </Card>
-
-          {/* ── Schedule ── */}
-          <Card style={{ marginBottom: 16 }}>
-            <SectionHeader icon={CalendarIcon} title="When to Post" />
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: scheduleMode === 'later' ? 18 : 0 }}>
-              <Button type="button" variant={scheduleMode === 'draft' ? 'primary' : 'secondary'} onClick={() => setScheduleMode('draft')}>
-                Save as Draft
-              </Button>
-              <Button type="button" variant={scheduleMode === 'now' ? 'primary' : 'secondary'} onClick={() => setScheduleMode('now')}>
-                Publish Now
-              </Button>
-              <Button type="button" variant={scheduleMode === 'later' ? 'primary' : 'secondary'} onClick={() => setScheduleMode('later')}>
-                Schedule for Later
-              </Button>
-            </div>
-
-            {scheduleMode === 'later' && (
-              <div>
-                {/* Date */}
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-                    {quickDates.map(qd => (
-                      <button key={qd.value} type="button" onClick={() => setScheduleDate(qd.value)} style={chipStyle(scheduleDate === qd.value)}>
-                        {qd.label}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }}
-                  />
                 </div>
+                <input
+                  ref={fileInputRef} type="file"
+                  accept={contentType === 'video' ? 'video/*' : 'image/*'}
+                  multiple={contentType === 'carousel'}
+                  onChange={handleFileSelect} style={{ display: 'none' }}
+                />
 
-                {/* Time */}
-                <div style={{ marginBottom: scheduledPreview ? 12 : 0 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Time</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-                    {TIME_SLOTS.map(ts => (
-                      <button key={ts.value} type="button" onClick={() => setScheduleTime(ts.value)} style={chipStyle(scheduleTime === ts.value)}>
-                        {ts.label}
-                      </button>
+                {/* Preview grid */}
+                {previews.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>
+                    {previews.map((url, idx) => (
+                      <div key={idx} style={{ aspectRatio: '1/1', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, position: 'relative' }}>
+                        {contentType === 'video'
+                          ? <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls />
+                          : <img src={url} alt={`preview ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        }
+                        {files[idx]?.libraryFileId && (
+                          <div style={{ position: 'absolute', bottom: 4, left: 4, padding: '2px 6px', background: 'rgba(124,92,252,0.9)', borderRadius: 4, fontSize: 9, color: '#fff', fontWeight: 600 }}>LIB</div>
+                        )}
+                        <button
+                          type="button" onClick={() => removeFile(idx)}
+                          style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.72)', border: 'none', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, padding: 0 }}
+                        >
+                          <IpClose size={9} />
+                        </button>
+                      </div>
                     ))}
-                  </div>
-                  <input
-                    type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
-                    style={{ padding: '8px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13 }}
-                  />
-                </div>
-
-                {/* Confirmation banner */}
-                {scheduledPreview && (
-                  <div style={{ padding: '10px 14px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, fontSize: 13, color: t.primary, fontWeight: 600 }}>
-                    📅 Scheduled for {scheduledPreview}
+                    {contentType === 'carousel' && files.length < 10 && (
+                      <button
+                        type="button" onClick={openLibrary}
+                        style={{ aspectRatio: '1/1', borderRadius: 8, background: t.input, border: `2px dashed ${t.border}`, color: t.textMuted, fontSize: 24, fontWeight: 300, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >+</button>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
-          </Card>
+                {contentType === 'carousel' && files.length > 0 && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>{files.length} / 10 images</span>
+                    {files.length < 2 && <span style={{ color: t.warning }}>— need at least 2</span>}
+                  </div>
+                )}
+              </Card>
 
-          {/* ── Actions ── */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
-            <Button type="button" variant="secondary" onClick={() => router.push('/dashboard')}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={uploading || platforms.length === 0}>
-              {submitLabel}
-            </Button>
+              {/* Schedule */}
+              <Card>
+                <SectionHeader icon={CalendarIcon} title="When to Post" />
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: scheduleMode === 'later' ? 18 : 0 }}>
+                  <Button type="button" variant={scheduleMode === 'draft' ? 'primary' : 'secondary'} onClick={() => setScheduleMode('draft')}>
+                    Save as Draft
+                  </Button>
+                  <Button type="button" variant={scheduleMode === 'now' ? 'primary' : 'secondary'} onClick={() => setScheduleMode('now')}>
+                    Publish Now
+                  </Button>
+                  <Button type="button" variant={scheduleMode === 'later' ? 'primary' : 'secondary'} onClick={() => setScheduleMode('later')}>
+                    Schedule for Later
+                  </Button>
+                </div>
+
+                {scheduleMode === 'later' && (
+                  <div>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                        {quickDates.map(qd => (
+                          <button key={qd.value} type="button" onClick={() => setScheduleDate(qd.value)} style={chipStyle(scheduleDate === qd.value)}>
+                            {qd.label}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
+                        style={{ width: '100%', padding: '8px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div style={{ marginBottom: scheduledPreview ? 12 : 0 }}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Time</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                        {TIME_SLOTS.map(ts => (
+                          <button key={ts.value} type="button" onClick={() => setScheduleTime(ts.value)} style={chipStyle(scheduleTime === ts.value)}>
+                            {ts.label}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
+                        style={{ padding: '8px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13 }}
+                      />
+                    </div>
+                    {scheduledPreview && (
+                      <div style={{ padding: '10px 14px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, fontSize: 13, color: t.primary, fontWeight: 600 }}>
+                        📅 Scheduled for {scheduledPreview}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+                <Button type="button" variant="secondary" onClick={() => router.push('/dashboard')}>Cancel</Button>
+                <Button type="submit" variant="primary" disabled={uploading || platforms.length === 0}>
+                  {submitLabel}
+                </Button>
+              </div>
+            </div>
+
+            {/* ══ RIGHT — Live Preview ════════════════════════════════════════ */}
+            <div style={{ flex: 1, minWidth: 0, position: isMobile ? 'static' : 'sticky', top: 20 }}>
+              <Card>
+                <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>Post Preview</div>
+
+                {/* Platform tabs — only selected platforms */}
+                {platforms.length > 0 ? (
+                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
+                    {platforms.filter(pid => MOCKUP_MAP[pid]).map(pid => (
+                      <PlatformTab key={pid} pid={pid} isActive={previewPlatform === pid} onClick={setPreviewPlatform} t={t} />
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: 16, fontSize: 12, color: t.textMuted }}>Select platforms on the left to preview</div>
+                )}
+
+                {/* Mockup area */}
+                <div style={{ background: t.bg || '#0A0A0F', borderRadius: 10, padding: 20, minHeight: 280 }}>
+                  {ActiveMockup && (caption || previews.length > 0) ? (
+                    <ActiveMockup post={previewPost} caption={caption} />
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 240, gap: 12, textAlign: 'center' }}>
+                      <div style={{ width: 48, height: 48, borderRadius: '50%', background: t.input, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <IpSave size={20} color={t.textMuted} />
+                      </div>
+                      <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>
+                        Start typing your caption or<br />upload media to see a preview
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Char limit note for active preview platform */}
+                {platforms.length > 0 && (
+                  <div style={{ marginTop: 10, fontSize: 11, color: t.textMuted, textAlign: 'right' }}>
+                    {PLATFORM_META[previewPlatform]?.label} · {charLimit.toLocaleString()} char limit
+                  </div>
+                )}
+              </Card>
+            </div>
+
           </div>
         </form>
       </div>
@@ -569,7 +623,6 @@ export default function Upload() {
             style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, width: '100%', maxWidth: 820, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
             <div style={{ padding: '16px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 12 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Choose from Library</div>
@@ -594,14 +647,12 @@ export default function Upload() {
               </div>
             </div>
 
-            {/* Body */}
             <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
               {libraryLoading ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
                   {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} height={130} borderRadius={10} />)}
                 </div>
               ) : libraryFolder !== null ? (
-                // ── Inside a folder ──
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                     <button
@@ -617,7 +668,6 @@ export default function Upload() {
                   ) : renderLibraryGrid(folderLibraryFiles)}
                 </>
               ) : (
-                // ── Root view ──
                 <>
                   {libraryFolders.length > 0 && (
                     <>
@@ -638,7 +688,6 @@ export default function Upload() {
                           </div>
                         ))}
                       </div>
-                      {/* Separator */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0' }}>
                         <div style={{ flex: 1, height: 1, background: t.border }} />
                         <span style={{ fontSize: 10, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -648,7 +697,6 @@ export default function Upload() {
                       </div>
                     </>
                   )}
-
                   {looseLibraryFiles.length === 0 && libraryFolders.length === 0 ? (
                     <EmptyState
                       icon={IpFolderOpen}

@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { Card, Button, SectionHeader, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { workspacesAPI, authAPI, customerAPI } from '../lib/api';
+import { workspacesAPI, authAPI } from '../lib/api';
 import {
   IpTeam, IpPlus, IpSparkle, IpDelete, IpEdit, IpClose, IpCheck, IpWarning, IpInfo,
   IpBilling, IpCheckCircle, IpSettings,
@@ -171,19 +171,39 @@ function CreateWorkspaceModal({ onClose, onCreate }) {
 function InviteModal({ onClose, onInvited }) {
   const { t } = useTheme();
   const [email, setEmail] = useState('');
+  const [role, setRole] = useState('editor');
+  const [permissions, setPermissions] = useState(null);
+  const [showCustom, setShowCustom] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [sentEmail, setSentEmail] = useState('');
   const [error, setError] = useState('');
+
+  const effectivePerms = permissions || ROLE_DEFAULTS[role];
+
+  function handleRoleSelect(newRole) {
+    setRole(newRole);
+    setPermissions(null);
+  }
+
+  function toggleModule(modId) {
+    const base = permissions || ROLE_DEFAULTS[role];
+    setPermissions({ ...base, [modId]: !base[modId] });
+  }
+
+  const hasCustom = isCustom(role, permissions);
+  const totalEnabled = Object.values(effectivePerms).filter(Boolean).length;
 
   async function handleSend() {
     if (!email.trim()) return;
     setSending(true);
     setError('');
     try {
-      await customerAPI.invite({ email: email.trim() });
+      await workspacesAPI.invite({ email: email.trim(), role, permissions: permissions || null });
+      setSentEmail(email.trim());
       setSent(true);
-      onInvited && onInvited(email.trim());
-      setTimeout(onClose, 2800);
+      onInvited && onInvited({ email: email.trim(), role, permissions: permissions || null });
+      setTimeout(onClose, 3000);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to send invite');
     } finally {
@@ -193,35 +213,100 @@ function InviteModal({ onClose, onInvited }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.32)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: t.text }}>Invite a team member</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: 4 }}><IpClose size={18} /></button>
-        </div>
-        <p style={{ margin: '0 0 20px', fontSize: 13, color: t.textMuted, lineHeight: 1.6 }}>
-          They'll receive a signup link. Once registered they'll appear as a team member you can manage.
-        </p>
-        {sent ? (
-          <div style={{ padding: '14px 16px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, color: '#22c55e', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
-            Invite sent to {email}
+      <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 18, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.36)' }}>
+
+        {/* Header */}
+        <div style={{ padding: '22px 24px 18px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: t.text }}>Invite a team member</h2>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textMuted }}>They'll get a private link — no need to create a separate business account.</p>
           </div>
-        ) : (
-          <>
-            <input type="email" placeholder="colleague@example.com" value={email} onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              style={{ width: '100%', padding: '11px 14px', boxSizing: 'border-box', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 14, outline: 'none', marginBottom: 12 }} />
-            {error && <p style={{ margin: '0 0 10px', fontSize: 12, color: '#ef4444' }}>{error}</p>}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={handleSend} disabled={sending || !email.trim()}
-                style={{ flex: 1, padding: '11px 0', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: sending || !email.trim() ? 'not-allowed' : 'pointer', opacity: sending || !email.trim() ? 0.6 : 1 }}>
-                {sending ? 'Sending…' : 'Send invite'}
-              </button>
-              <button onClick={onClose} style={{ padding: '11px 16px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                Cancel
-              </button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: 4, flexShrink: 0 }}><IpClose size={20} /></button>
+        </div>
+
+        <div style={{ padding: '22px 24px' }}>
+          {sent ? (
+            <div style={{ padding: '18px 16px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 12, color: '#22c55e', fontSize: 14, fontWeight: 600, textAlign: 'center', lineHeight: 1.6 }}>
+              Invite sent to {sentEmail}<br />
+              <span style={{ fontSize: 12, fontWeight: 400, color: '#22c55e', opacity: 0.8 }}>They'll receive a link to join as {ROLE_META[role]?.label}.</span>
             </div>
-          </>
-        )}
+          ) : (
+            <>
+              {/* Email */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Email address</label>
+                <input type="email" placeholder="colleague@example.com" value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  style={{ width: '100%', padding: '11px 14px', boxSizing: 'border-box', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 14, outline: 'none' }} />
+              </div>
+
+              {/* Role selector */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Role</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  {Object.entries(ROLE_META).map(([key, meta]) => {
+                    const active = role === key;
+                    return (
+                      <button key={key} onClick={() => handleRoleSelect(key)}
+                        style={{ padding: '12px 10px', borderRadius: 10, border: `2px solid ${active ? meta.color : t.border}`, background: active ? meta.bg : t.input, cursor: 'pointer', textAlign: 'left', transition: 'all 160ms ease' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: active ? meta.color : t.text, marginBottom: 4 }}>{meta.label}</div>
+                        <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.5 }}>{meta.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Customize modules (collapsible) */}
+              <div style={{ marginBottom: 20 }}>
+                <button onClick={() => setShowCustom(v => !v)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: 0, marginBottom: showCustom ? 12 : 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Module access</span>
+                  {hasCustom && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: 'rgba(245,158,11,0.15)', color: '#D97706', border: '1px solid rgba(245,158,11,0.3)' }}>Custom</span>}
+                  <span style={{ fontSize: 11, color: t.textMuted, marginLeft: 4 }}>{totalEnabled} / 14</span>
+                  <span style={{ fontSize: 11, color: t.primary, marginLeft: 'auto' }}>{showCustom ? 'Hide' : 'Customize →'}</span>
+                </button>
+
+                {showCustom && (
+                  <div style={{ background: t.input, borderRadius: 10, padding: '14px 16px', border: `1px solid ${t.border}` }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                      {MODULES.map(({ group, items }) => (
+                        <div key={group} style={{ marginBottom: 14 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{group}</div>
+                          {items.map(({ id, label }) => {
+                            const enabled = effectivePerms[id] !== false;
+                            return (
+                              <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '4px 0', cursor: 'pointer' }}>
+                                <div onClick={() => toggleModule(id)} style={{ width: 17, height: 17, borderRadius: 5, border: `2px solid ${enabled ? t.primary : t.border}`, background: enabled ? t.primary : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all 140ms ease' }}>
+                                  {enabled && <IpCheck size={10} color="#fff" />}
+                                </div>
+                                <span style={{ fontSize: 12, color: enabled ? t.text : t.textMuted, userSelect: 'none' }}>{label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                    <p style={{ margin: '10px 0 0', fontSize: 11, color: t.textMuted }}>Billing is always hidden regardless of role.</p>
+                  </div>
+                )}
+              </div>
+
+              {error && <p style={{ margin: '0 0 14px', fontSize: 13, color: '#ef4444' }}>{error}</p>}
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={handleSend} disabled={sending || !email.trim()}
+                  style={{ flex: 1, padding: '12px 0', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: sending || !email.trim() ? 'not-allowed' : 'pointer', opacity: sending || !email.trim() ? 0.6 : 1 }}>
+                  {sending ? 'Sending…' : `Send invite as ${ROLE_META[role]?.label}`}
+                </button>
+                <button onClick={onClose} style={{ padding: '12px 16px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -411,6 +496,7 @@ export default function WorkspacesPage() {
   const [editingMember, setEditingMember] = useState(null);
   const [showInvite, setShowInvite] = useState(false);
   const [pendingInvites, setPendingInvites] = useState([]);
+  const [membersLoaded, setMembersLoaded] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -425,13 +511,22 @@ export default function WorkspacesPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab !== 'team' || members.length > 0 || membersLoading) return;
+    if (!router.isReady) return;
+    if (router.query.tab === 'team') setActiveTab('team');
+  }, [router.isReady, router.query.tab]);
+
+  useEffect(() => {
+    if (activeTab !== 'team' || membersLoaded || membersLoading) return;
     setMembersLoading(true);
-    workspacesAPI.getMembers()
-      .then(r => setMembers(r.data.members || []))
+    Promise.all([workspacesAPI.getMembers(), workspacesAPI.getInvitations()])
+      .then(([membersRes, invitesRes]) => {
+        setMembers(membersRes.data.members || []);
+        setPendingInvites(invitesRes.data.invitations || []);
+        setMembersLoaded(true);
+      })
       .catch(() => setError('Failed to load team members'))
       .finally(() => setMembersLoading(false));
-  }, [activeTab]);
+  }, [activeTab, membersLoaded]);
 
   const mainAccount = data?.mainAccount;
   const workspaces = (data?.workspaces || []).filter((w) => w.status !== 'inactive');
@@ -491,6 +586,7 @@ export default function WorkspacesPage() {
   function handleMemberSaved(updated) {
     setMembers(prev => prev.map(m => m.id === updated.id ? updated : m));
     setEditingMember(null);
+    setMembersLoaded(false);
     setSuccessMsg('Team member updated.');
     setTimeout(() => setSuccessMsg(''), 3000);
   }
@@ -498,12 +594,31 @@ export default function WorkspacesPage() {
   function handleMemberRemoved(id) {
     setMembers(prev => prev.filter(m => m.id !== id));
     setEditingMember(null);
+    setMembersLoaded(false);
     setSuccessMsg('Team member removed.');
     setTimeout(() => setSuccessMsg(''), 3000);
   }
 
-  function handleInvited(email) {
-    setPendingInvites(prev => [...prev, email]);
+  function handleInvited({ email, role, permissions }) {
+    setPendingInvites(prev => [...prev, {
+      id: `optimistic-${Date.now()}`,
+      email,
+      role: role || 'editor',
+      permissions: permissions || null,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      created_at: new Date().toISOString(),
+    }]);
+    setMembersLoaded(false);
+  }
+
+  async function handleCancelInvite(inviteId) {
+    try {
+      await workspacesAPI.cancelInvitation(inviteId);
+      setPendingInvites(prev => prev.filter(i => i.id !== inviteId));
+      setMembersLoaded(false);
+    } catch {
+      setError('Failed to cancel invite');
+    }
   }
 
   if (loading) {
@@ -535,7 +650,7 @@ export default function WorkspacesPage() {
         <div style={{ display: 'flex', gap: 6, marginBottom: 24, background: t.input, borderRadius: 10, padding: 4, width: 'fit-content' }}>
           {[
             { key: 'workspaces', label: `Workspaces (${totalUsed})` },
-            { key: 'team',       label: `Team Members (${members.length + pendingInvites.length})` },
+            { key: 'team',       label: `Team Members (${members.length})${pendingInvites.length ? ` · ${pendingInvites.length} pending` : ''}` },
           ].map(({ key, label }) => {
             const active = activeTab === key;
             return (
@@ -693,19 +808,35 @@ export default function WorkspacesPage() {
               <div style={{ padding: '20px 0', color: t.textMuted, fontSize: 14 }}>Loading team members…</div>
             )}
 
-            {/* Pending invites (optimistic) */}
-            {pendingInvites.map(email => (
-              <Card key={email} style={{ marginBottom: 12, opacity: 0.65 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: t.input, border: `1px dashed ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: t.textMuted, flexShrink: 0 }}>?</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: t.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
-                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>Invite sent — waiting for signup</div>
+            {/* Pending invites */}
+            {pendingInvites.map(invite => {
+              const rm = ROLE_META[invite.role || 'editor'];
+              const daysLeft = Math.max(0, Math.ceil((new Date(invite.expires_at) - Date.now()) / (1000 * 60 * 60 * 24)));
+              const isOptimistic = String(invite.id).startsWith('optimistic-');
+              return (
+                <Card key={invite.id} style={{ marginBottom: 12, opacity: 0.75 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: t.input, border: `1px dashed ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: t.textMuted, flexShrink: 0 }}>?</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: t.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{invite.email}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: rm.bg, color: rm.color }}>{rm.label}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: 'rgba(245,158,11,0.12)', color: '#D97706', border: '1px solid rgba(245,158,11,0.25)' }}>Pending</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
+                        Invite sent — waiting for them to accept{daysLeft > 0 ? ` · expires in ${daysLeft}d` : ''}
+                      </div>
+                    </div>
+                    {isOnMainAccount && !isOptimistic && (
+                      <button onClick={() => handleCancelInvite(invite.id)}
+                        style={{ padding: '6px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+                        Cancel
+                      </button>
+                    )}
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: 'rgba(245,158,11,0.12)', color: '#D97706', border: '1px solid rgba(245,158,11,0.25)' }}>Pending</span>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
 
             {/* Active members */}
             {!membersLoading && members.length === 0 && pendingInvites.length === 0 && (

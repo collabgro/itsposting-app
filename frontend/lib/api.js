@@ -133,6 +133,14 @@ export const workspacesAPI = {
   getMembers: () => api.get('/api/workspaces/members'),
   updateMember: (id, data) => api.patch(`/api/workspaces/members/${id}`, data),
   removeMember: (id) => api.delete(`/api/workspaces/members/${id}`),
+  invite: (data) => api.post('/api/workspaces/invite', data),
+  getInvitations: () => api.get('/api/workspaces/invitations'),
+  cancelInvitation: (id) => api.delete(`/api/workspaces/invitations/${id}`),
+};
+
+export const inviteAPI = {
+  getInvite: (token) => api.get(`/api/auth/invite/${token}`),
+  acceptInvite: (token, data) => api.post(`/api/auth/invite/${token}/accept`, data),
 };
 
 export const mediaAPI = {
@@ -281,10 +289,6 @@ export const studioAPI = {
 export const receptionistAPI = {
   getConfig: () => api.get('/api/receptionist/config'),
   saveConfig: (data) => api.post('/api/receptionist/config', data),
-  testTwilio: (data) => api.post('/api/receptionist/test-twilio', data),
-  testMailgun: (data) => api.post('/api/receptionist/test-mailgun', data),
-  testCalcom: (data) => api.post('/api/receptionist/test-calcom', data),
-  testWhatsapp: (data) => api.post('/api/receptionist/test-whatsapp', data),
   getConversations: (params) => api.get('/api/receptionist/conversations', { params }),
   getStats: () => api.get('/api/receptionist/stats'),
   test: (message) => api.post('/api/receptionist/test', { message }),

@@ -98,6 +98,15 @@ class EmailQueue {
     });
   }
 
+  /** Called when a workspace invite is sent */
+  async notifyWorkspaceInvite({ toEmail, inviterBusinessName, roleLabel, acceptUrl }) {
+    await this.queue(toEmail, 'workspace_invite', {
+      inviterBusinessName,
+      roleLabel,
+      acceptUrl,
+    });
+  }
+
   /** Called by PostCoreAdvisor on Monday mornings */
   async notifyPostCoreBriefing(customer, briefingData) {
     const sections = briefingData?.sections || [];

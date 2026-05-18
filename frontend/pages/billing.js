@@ -40,8 +40,10 @@ export default function Billing() {
     admin_grant:         { label: 'Admin grant',       color: t.success,   dir: 1 },
     admin_deduction:     { label: 'Admin deduction',   color: t.error,     dir: -1 },
     usage:               { label: 'Used',              color: t.textMuted, dir: -1 },
+    debit:               { label: 'Post generated',    color: t.textMuted, dir: -1 },
     purchase:            { label: 'Purchase',          color: t.primary,   dir: 1 },
     refund:              { label: 'Refund',            color: t.success,   dir: 1 },
+    refund_failed:       { label: 'Refund failed',     color: t.error,     dir: -1 },
   };
   const [mounted, setMounted] = useState(false);
   const [plans, setPlans] = useState([]);
@@ -66,18 +68,35 @@ export default function Billing() {
 
   const loadData = async () => {
     try {
-      const [plansRes, currentRes, historyRes] = await Promise.all([
+      const [plansRes, currentRes, historyRes] = await Promise.allSettled([
         billingAPI.getPlans().then(r => r.data),
         billingAPI.getCurrent().then(r => r.data),
         billingAPI.getHistory().then(r => r.data),
       ]);
-      const resolvedPlans = Array.isArray(plansRes) ? plansRes : [];
-      setPlans(resolvedPlans);
-      if (resolvedPlans.length === 0) setPlansError(true);
-      setCurrent(currentRes);
-      setHistory(Array.isArray(historyRes) ? historyRes : []);
+
+      if (plansRes.status === 'fulfilled') {
+        const resolvedPlans = Array.isArray(plansRes.value) ? plansRes.value : [];
+        setPlans(resolvedPlans);
+        if (resolvedPlans.length === 0) setPlansError(true);
+      } else {
+        console.error('[Billing] plans fetch failed:', plansRes.reason);
+        setPlansError(true);
+      }
+
+      if (currentRes.status === 'fulfilled') {
+        setCurrent(currentRes.value);
+        if (currentRes.value?.billingCycle) setCycle(currentRes.value.billingCycle);
+      } else {
+        console.error('[Billing] current fetch failed:', currentRes.reason);
+      }
+
+      if (historyRes.status === 'fulfilled') {
+        setHistory(Array.isArray(historyRes.value) ? historyRes.value : []);
+      } else {
+        console.error('[Billing] history fetch failed:', historyRes.reason);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('[Billing] loadData error:', err);
       setPlansError(true);
     } finally {
       setLoading(false);
@@ -193,8 +212,14 @@ export default function Billing() {
                 )}
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1 }}>${current?.currentPlan?.price ?? 0}</div>
-                <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>per month</div>
+                <div style={{ fontSize: 34, fontWeight: 800, lineHeight: 1 }}>
+                  ${current?.billingCycle === 'yearly'
+                    ? (current?.currentPlan?.yearlyPrice ?? current?.currentPlan?.price ?? 0)
+                    : (current?.currentPlan?.price ?? 0)}
+                </div>
+                <div style={{ opacity: 0.7, fontSize: 12, marginTop: 2 }}>
+                  {current?.billingCycle === 'yearly' ? 'per month · billed yearly' : 'per month'}
+                </div>
               </div>
             </div>
 
@@ -323,7 +348,7 @@ export default function Billing() {
             </button>
           </div>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 24, paddingTop: 14 }}>
           {nonTrialPlans.map(plan => {
             const isCurrent = current?.currentPlan?.id === plan.id;
             const isDowngrade = !isTrial && !isCurrent &&
@@ -513,16 +538,17 @@ export default function Billing() {
             />
           ) : (
             <div>
-              {history.map(tx => {
+              {history.map((tx, idx) => {
                 const meta = TX_META[tx.transaction_type] || { label: tx.transaction_type, color: t.textMuted, dir: 1 };
-                const positive = meta.dir > 0 || tx.amount > 0;
+                const positive = tx.amount >= 0;
                 const Icon = positive ? IpArrowUpRight : IpArrowDownRight;
                 return (
                   <div
                     key={tx.id}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 14,
-                      padding: '13px 20px', borderBottom: `1px solid ${t.border}`,
+                      padding: '13px 20px',
+                      borderBottom: idx < history.length - 1 ? `1px solid ${t.border}` : 'none',
                     }}
                   >
                     <div style={{

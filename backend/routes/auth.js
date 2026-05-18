@@ -239,5 +239,215 @@ module.exports = (pool) => {
     }
   });
 
+  /**
+   * GET /api/auth/invite/:token — PUBLIC
+   * Returns invite details so the frontend can render the accept page.
+   */
+  router.get('/invite/:token', async (req, res) => {
+    try {
+      const tokenHash = crypto.createHash('sha256').update(req.params.token).digest('hex');
+      const result = await pool.query(
+        `SELECT wi.id, wi.email, wi.role, wi.permissions, wi.status, wi.expires_at,
+                c.business_name AS inviter_business_name
+         FROM workspace_invitations wi
+         JOIN customers c ON c.id = wi.inviter_id
+         WHERE wi.token_hash = $1`,
+        [tokenHash]
+      );
+
+      if (!result.rows.length) return res.status(404).json({ error: 'Invite not found' });
+      const invite = result.rows[0];
+
+      if (invite.status !== 'pending') {
+        return res.status(410).json({
+          error: invite.status === 'accepted'
+            ? 'This invite has already been accepted.'
+            : 'This invite has been cancelled.',
+          status: invite.status,
+        });
+      }
+      if (new Date(invite.expires_at) < new Date()) {
+        return res.status(410).json({ error: 'This invite has expired. Ask the account owner to send a new one.', expired: true });
+      }
+
+      const existingCheck = await pool.query('SELECT id FROM customers WHERE email = $1', [invite.email]);
+
+      res.json({
+        invite: {
+          id: invite.id,
+          email: invite.email,
+          role: invite.role,
+          permissions: invite.permissions,
+          inviterBusinessName: invite.inviter_business_name,
+          expiresAt: invite.expires_at,
+        },
+        existingAccount: existingCheck.rows.length > 0,
+      });
+    } catch (err) {
+      console.error('[Auth] Get invite error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/auth/invite/:token/accept — PUBLIC
+   * Accept an invitation. Creates account (new user) or links existing account.
+   * Body: { password }  — email always comes from the invite record, never from body.
+   */
+  router.post('/invite/:token/accept', async (req, res) => {
+    const client = await pool.connect();
+    try {
+      const { password } = req.body;
+      if (!password || password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      }
+
+      const tokenHash = crypto.createHash('sha256').update(req.params.token).digest('hex');
+
+      // Re-validate invite fresh from DB (don't trust frontend state)
+      const inviteResult = await pool.query(
+        `SELECT wi.id, wi.email, wi.role, wi.permissions, wi.status, wi.expires_at, wi.accepted_by,
+                wi.inviter_id, c.business_name AS inviter_business_name
+         FROM workspace_invitations wi
+         JOIN customers c ON c.id = wi.inviter_id
+         WHERE wi.token_hash = $1`,
+        [tokenHash]
+      );
+
+      if (!inviteResult.rows.length) return res.status(404).json({ error: 'Invite not found' });
+      const invite = inviteResult.rows[0];
+
+      if (invite.status === 'accepted') {
+        // Idempotent retry — re-issue JWT if same user re-submits
+        if (invite.accepted_by) {
+          const existingCustomer = await pool.query('SELECT * FROM customers WHERE id = $1', [invite.accepted_by]);
+          if (existingCustomer.rows.length) {
+            const valid = await bcrypt.compare(password, existingCustomer.rows[0].password_hash);
+            if (valid) {
+              const c = existingCustomer.rows[0];
+              delete c.password_hash;
+              delete c.password_reset_token;
+              return res.json({ customer: c, token: generateToken(c.id, c.email) });
+            }
+          }
+        }
+        return res.status(410).json({ error: 'This invite link has already been used.' });
+      }
+
+      if (invite.status !== 'pending') {
+        return res.status(410).json({ error: 'This invite has been cancelled.' });
+      }
+      if (new Date(invite.expires_at) < new Date()) {
+        return res.status(410).json({ error: 'This invite has expired. Ask the account owner to send a new one.' });
+      }
+
+      await client.query('BEGIN');
+
+      const existingCustomer = await client.query(
+        'SELECT id, email, password_hash, suspended, parent_customer_id FROM customers WHERE email = $1',
+        [invite.email]
+      );
+
+      let customer;
+
+      if (existingCustomer.rows.length > 0) {
+        // ── Branch A: existing user ──────────────────────────────────────────
+        const existing = existingCustomer.rows[0];
+        const valid = await bcrypt.compare(password, existing.password_hash);
+        if (!valid) {
+          await client.query('ROLLBACK');
+          return res.status(401).json({ error: 'Incorrect password' });
+        }
+        if (existing.suspended) {
+          await client.query('ROLLBACK');
+          return res.status(403).json({ error: 'Your account is suspended. Contact support.' });
+        }
+        if (existing.parent_customer_id) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'Your account is already linked to another workspace.' });
+        }
+
+        await client.query(
+          `UPDATE customers
+           SET parent_customer_id = $1, workspace_role = $2, workspace_permissions = $3,
+               updated_at = NOW()
+           WHERE id = $4`,
+          [invite.inviter_id, invite.role, invite.permissions ? JSON.stringify(invite.permissions) : null, existing.id]
+        );
+        await client.query('UPDATE customers SET last_login_at = NOW() WHERE id = $1', [existing.id]);
+
+        const refreshed = await client.query(
+          `SELECT id, email, business_name, industry, location, plan, status, credits_balance,
+                  parent_customer_id, workspace_role, workspace_permissions
+           FROM customers WHERE id = $1`,
+          [existing.id]
+        );
+        customer = refreshed.rows[0];
+      } else {
+        // ── Branch B: new user ───────────────────────────────────────────────
+        // IP trial limit check (non-blocking on failure)
+        const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'unknown';
+        try {
+          const ipCheck = await client.query(
+            'SELECT COUNT(*) FROM trial_ip_registrations WHERE ip_address = $1',
+            [clientIp]
+          );
+          if (parseInt(ipCheck.rows[0].count, 10) >= 2) {
+            await client.query('ROLLBACK');
+            return res.status(429).json({ error: 'Trial limit reached for this network. Please contact support.' });
+          }
+        } catch (_) { /* table may not exist — allow */ }
+
+        const passwordHash = await bcrypt.hash(password, 12);
+        const businessName = invite.email.split('@')[0];
+
+        const insertResult = await client.query(
+          `INSERT INTO customers
+             (email, password_hash, business_name, industry, location,
+              parent_customer_id, workspace_role, workspace_permissions,
+              status, plan, credits_balance)
+           VALUES ($1, $2, $3, 'other', '', $4, $5, $6, 'active', 'trial', 0)
+           RETURNING id, email, business_name, industry, location, plan,
+                     credits_balance, status, parent_customer_id,
+                     workspace_role, workspace_permissions`,
+          [
+            invite.email,
+            passwordHash,
+            businessName,
+            invite.inviter_id,
+            invite.role,
+            invite.permissions ? JSON.stringify(invite.permissions) : null,
+          ]
+        );
+        customer = insertResult.rows[0];
+
+        // Record trial IP (non-blocking)
+        client.query(
+          'INSERT INTO trial_ip_registrations (ip_address, customer_id) VALUES ($1, $2)',
+          [clientIp, customer.id]
+        ).catch(() => {});
+      }
+
+      // Mark invite accepted
+      await client.query(
+        `UPDATE workspace_invitations
+         SET status = 'accepted', accepted_at = NOW(), accepted_by = $1
+         WHERE id = $2`,
+        [customer.id, invite.id]
+      );
+
+      await client.query('COMMIT');
+
+      const token = generateToken(customer.id, customer.email);
+      res.json({ customer, token });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('[Auth] Accept invite error:', err);
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
+  });
+
   return router;
 };

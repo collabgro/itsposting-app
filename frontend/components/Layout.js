@@ -9,14 +9,14 @@ import {
   IpPhotoStudio, IpWarning,
 } from './icons';
 import { useTheme } from '../lib/theme';
-import { authAPI, customerAPI, dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
+import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
 import NotificationBell from './NotificationBell';
 import { ConfirmModal } from './ui';
 
 const ROLE_PERMISSIONS = {
-  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:true, inbox:true, receptionist:true, contacts:true, knowledge_base:true, settings:true },
-  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:false, inbox:true, receptionist:false, contacts:false, knowledge_base:false, settings:false },
-  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, geo_audit:false, inbox:false, receptionist:false, contacts:false, knowledge_base:false, settings:false },
+  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:true, inbox:true, contacts:true, knowledge_base:true, settings:true },
+  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:false, inbox:true, contacts:false, knowledge_base:false, settings:false },
+  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, geo_audit:false, inbox:false, contacts:false, knowledge_base:false, settings:false },
 };
 
 const MODULE_ROUTES = {
@@ -29,7 +29,6 @@ const MODULE_ROUTES = {
   analytics:      ['/analytics'],
   geo_audit:      ['/geo-audit'],
   inbox:          ['/inbox'],
-  receptionist:   ['/receptionist'],
   contacts:       ['/contacts'],
   knowledge_base: ['/knowledge-base'],
   settings:       ['/settings'],
@@ -47,7 +46,6 @@ const NAV_ITEMS = [
   { name: 'Analytics',      href: '/analytics',      icon: IpAnalytics },
   { name: 'GEO Audit',     href: '/geo-audit',      icon: IpSearch },
   { name: 'Inbox',          href: '/inbox',          icon: IpInbox, badgeKey: 'dmUnread' },
-  { name: 'AI Receptionist', href: '/receptionist', icon: IpSparkle, betaBadge: true },
   { name: 'Teach PostCore', href: '/knowledge-base', icon: IpBusiness },
   { name: 'Contacts',   href: '/contacts',   icon: IpTeam },
   { name: 'Workspaces', href: '/workspaces', icon: IpTeam, isWorkspaceNav: true },
@@ -70,11 +68,6 @@ export default function Layout({ children, title, subtitle, action }) {
   const [impersonatingAs, setImpersonatingAs] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteSending, setInviteSending] = useState(false);
-  const [inviteSent, setInviteSent] = useState(false);
-  const [inviteError, setInviteError] = useState('');
 
   useEffect(() => {
     const updateMobile = () => setIsMobile(window.innerWidth < 900);
@@ -158,21 +151,6 @@ export default function Layout({ children, title, subtitle, action }) {
   const handleLogout = () => {
     localStorage.removeItem('token');
     router.push('/login');
-  };
-
-  const handleSendInvite = async () => {
-    if (!inviteEmail.trim()) return;
-    setInviteSending(true);
-    setInviteError('');
-    try {
-      await customerAPI.invite({ email: inviteEmail.trim() });
-      setInviteSent(true);
-      setTimeout(() => { setShowInviteModal(false); setInviteSent(false); setInviteEmail(''); }, 3000);
-    } catch (err) {
-      setInviteError(err.response?.data?.error || 'Failed to send invite');
-    } finally {
-      setInviteSending(false);
-    }
   };
 
   const exitImpersonation = () => {
@@ -540,7 +518,7 @@ export default function Layout({ children, title, subtitle, action }) {
                   { label: 'Edit Settings', icon: IpSettings, onClick: () => { setShowProfilePopup(false); router.push('/settings'); } },
                   { label: 'Billing & Plan', icon: IpBilling, onClick: () => { setShowProfilePopup(false); router.push('/billing'); } },
                   { label: 'Workspaces', icon: IpTeam, onClick: () => { setShowProfilePopup(false); router.push('/workspaces'); } },
-                  { label: 'Invite someone', icon: IpPlus, onClick: () => { setShowProfilePopup(false); setShowInviteModal(true); } },
+                  { label: 'Invite someone', icon: IpPlus, onClick: () => { setShowProfilePopup(false); router.push('/workspaces?tab=team'); } },
                 ].map(({ label, icon: Icon, onClick }) => (
                   <button key={label} onClick={onClick}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'transparent', border: 'none', color: t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', textAlign: 'left', transition: 'background 150ms' }}
@@ -677,54 +655,6 @@ export default function Layout({ children, title, subtitle, action }) {
         />
       )}
 
-      {/* INVITE MODAL */}
-      {showInviteModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, padding: 28, width: '100%', maxWidth: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.32)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: t.text }}>Invite someone</h2>
-              <button onClick={() => { setShowInviteModal(false); setInviteEmail(''); setInviteSent(false); setInviteError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: 4 }}>
-                <IpClose size={18} />
-              </button>
-            </div>
-            <p style={{ margin: '0 0 20px', fontSize: 13, color: t.textMuted, lineHeight: 1.6 }}>
-              They'll receive a signup link. Once registered, they'll appear as a workspace member.
-            </p>
-            {inviteSent ? (
-              <div style={{ padding: '14px 16px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, color: '#22c55e', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
-                Invite sent to {inviteEmail}
-              </div>
-            ) : (
-              <>
-                <input
-                  type="email"
-                  placeholder="colleague@example.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendInvite()}
-                  style={{ width: '100%', padding: '11px 14px', boxSizing: 'border-box', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 14, outline: 'none', marginBottom: 12 }}
-                />
-                {inviteError && <p style={{ margin: '0 0 10px', fontSize: 12, color: '#ef4444' }}>{inviteError}</p>}
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button
-                    onClick={handleSendInvite}
-                    disabled={inviteSending || !inviteEmail.trim()}
-                    style={{ flex: 1, padding: '11px 0', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: inviteSending || !inviteEmail.trim() ? 'not-allowed' : 'pointer', opacity: inviteSending || !inviteEmail.trim() ? 0.6 : 1 }}
-                  >
-                    {inviteSending ? 'Sending…' : 'Send invite'}
-                  </button>
-                  <button
-                    onClick={() => router.push('/workspaces')}
-                    style={{ padding: '11px 16px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Workspaces
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

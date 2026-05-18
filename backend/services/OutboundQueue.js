@@ -7,8 +7,6 @@
  */
 
 const { enqueueOutbound, getOutboundQueue, getConnection } = require('./QueueService');
-const TwilioService = require('./TwilioService');
-const MetaWhatsAppService = require('./MetaWhatsAppService');
 const ReceptionistService = require('./ReceptionistService');
 
 let Worker;
@@ -186,29 +184,8 @@ class OutboundQueue {
         .replace(/\{business_name\}/g, businessName)
         .replace(/\{booking_link\}/g, cfg.booking_link || '');
 
-      // Send via appropriate channel
-      const phone = contact.phone;
-      if (phone) {
-        if (platform === 'whatsapp' && cfg.meta_wa_phone_number_id && cfg.meta_wa_access_token) {
-          const metaWA = new MetaWhatsAppService({
-            phoneNumberId: cfg.meta_wa_phone_number_id,
-            accessToken:   cfg.meta_wa_access_token,
-          });
-          await metaWA.sendMessage(phone, messageText);
-        } else {
-          const twilioSvc = new TwilioService({
-            accountSid:    cfg.twilio_account_sid,
-            authToken:     cfg.twilio_auth_token,
-            phoneNumber:   cfg.twilio_phone_number,
-            whatsappNumber: cfg.twilio_whatsapp_number,
-          });
-          if (platform === 'whatsapp') {
-            await twilioSvc.sendWhatsApp(phone, messageText);
-          } else {
-            await twilioSvc.sendSMS(phone, messageText);
-          }
-        }
-      }
+      // SMS/WhatsApp sending removed — jobs are logged only
+      console.log(`[OutboundQueue] Job ${outboundJobId} (${jobType}) prepared for ${contact.name || contactId}: ${messageText.substring(0, 80)}`);
 
       // Mark done
       if (outboundJobId) {

@@ -4,6 +4,7 @@ import {
   IpPlus, IpDelete, IpRefresh, IpSearch, IpCheckCircle, IpCloseCircle, IpCheck,
   IpGlobe, IpFAQ, IpEdit, IpDollar, IpFolderOpen, IpCopy, IpClose,
   IpExternalLink, IpComment, IpLoader,
+  IpSparkle, IpFacebook, IpInstagram, IpGoogle,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Card, Button, Input, Textarea, Spinner } from '../components/ui';
@@ -29,17 +30,30 @@ export default function KnowledgeBase() {
     if (!localStorage.getItem('token')) router.replace('/login');
   }, []);
 
+  useEffect(() => {
+    const valid = ['all', 'crawler', 'faq', 'tables', 'richtext', 'files', 'ai-response'];
+    if (router.query.tab && valid.includes(router.query.tab)) {
+      setActiveTab(router.query.tab);
+    }
+  }, [router.query.tab]);
+
   if (!mounted) return null;
 
   const refresh = () => setRefreshKey(k => k + 1);
 
+  const handleTabChange = (id) => {
+    setActiveTab(id);
+    router.push({ query: { tab: id } }, undefined, { shallow: true });
+  };
+
   const tabs = [
-    { id: 'all',      label: 'All' },
-    { id: 'crawler',  label: 'Web Crawler' },
-    { id: 'faq',      label: 'FAQ' },
-    { id: 'tables',   label: 'Tables' },
-    { id: 'richtext', label: 'Rich Text' },
-    { id: 'files',    label: 'File Upload' },
+    { id: 'all',         label: 'All' },
+    { id: 'crawler',     label: 'Web Crawler' },
+    { id: 'faq',         label: 'FAQ' },
+    { id: 'tables',      label: 'Tables' },
+    { id: 'richtext',    label: 'Rich Text' },
+    { id: 'files',       label: 'File Upload' },
+    { id: 'ai-response', label: 'AI Response' },
   ];
 
   return (
@@ -49,7 +63,7 @@ export default function KnowledgeBase() {
         {tabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             style={{
               padding: '10px 18px', fontSize: 13, fontWeight: activeTab === tab.id ? 600 : 500,
               color: activeTab === tab.id ? '#1A56DB' : t.textSecondary,
@@ -65,12 +79,13 @@ export default function KnowledgeBase() {
 
       {/* Tab content */}
       <div style={{ paddingBottom: 120 }}>
-        {activeTab === 'all'      && <AllTab      t={t} refreshKey={refreshKey} onSwitchTab={setActiveTab} />}
-        {activeTab === 'crawler'  && <WebCrawlerTab t={t} refreshKey={refreshKey} onImportComplete={() => { refresh(); setActiveTab('all'); }} />}
-        {activeTab === 'faq'      && <FaqTab      t={t} refreshKey={refreshKey} />}
-        {activeTab === 'tables'   && <TablesTab   t={t} />}
-        {activeTab === 'richtext' && <RichTextTab t={t} refreshKey={refreshKey} />}
-        {activeTab === 'files'    && <FilesTab    t={t} refreshKey={refreshKey} onRefresh={refresh} />}
+        {activeTab === 'all'         && <AllTab        t={t} refreshKey={refreshKey} onSwitchTab={handleTabChange} />}
+        {activeTab === 'crawler'     && <WebCrawlerTab t={t} refreshKey={refreshKey} onImportComplete={() => { refresh(); handleTabChange('all'); }} />}
+        {activeTab === 'faq'         && <FaqTab        t={t} refreshKey={refreshKey} />}
+        {activeTab === 'tables'      && <TablesTab     t={t} />}
+        {activeTab === 'richtext'    && <RichTextTab   t={t} refreshKey={refreshKey} />}
+        {activeTab === 'files'       && <FilesTab      t={t} refreshKey={refreshKey} onRefresh={refresh} />}
+        {activeTab === 'ai-response' && <AiResponseTab t={t} />}
       </div>
 
       {/* Persistent bottom test bar */}
@@ -1317,6 +1332,269 @@ function TestBar({ t }) {
           ))}
           <span style={{ fontSize: 10, color: t.textMuted, marginLeft: 4 }}>Enter to run · Shift+Enter new line</span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AI Response Tab ──────────────────────────────────────────────────────────
+
+const TIMEZONES = [
+  'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+  'America/Phoenix', 'America/Anchorage', 'Pacific/Honolulu',
+  'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Amsterdam',
+  'Asia/Dubai', 'Asia/Karachi', 'Asia/Kolkata', 'Asia/Bangkok', 'Asia/Singapore',
+  'Asia/Tokyo', 'Australia/Sydney', 'Pacific/Auckland',
+];
+
+function ToggleRow({ label, sub, value, onChange, t }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${t.border}` }}>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{label}</div>
+        {sub && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{sub}</div>}
+      </div>
+      <button
+        onClick={() => onChange(!value)}
+        style={{
+          width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+          background: value ? '#1A56DB' : t.border,
+          position: 'relative', transition: 'background 200ms', flexShrink: 0,
+        }}
+      >
+        <span style={{
+          position: 'absolute', top: 2, left: value ? 22 : 2, width: 20, height: 20,
+          borderRadius: '50%', background: '#fff', transition: 'left 200ms',
+        }} />
+      </button>
+    </div>
+  );
+}
+
+function AiResponseTab({ t }) {
+  const [form, setForm] = useState({
+    enabled: false, auto_handle: false, tone: 'friendly',
+    active_platforms: { facebook: false, instagram: false, google: false },
+    escalate_keywords: [], business_hours_start: '09:00', business_hours_end: '17:00',
+    timezone: 'America/New_York', after_hours_message: '',
+  });
+  const [stats, setStats] = useState({ aiHandledToday: 0, escalatedOpen: 0, pendingUnread: 0 });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+  const [keyword, setKeyword] = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      receptionistAPI.getConfig().catch(() => null),
+      receptionistAPI.getStats().catch(() => null),
+    ]).then(([cfgRes, statsRes]) => {
+      const cfg = cfgRes?.data?.config;
+      if (cfg) {
+        const ap = cfg.active_platforms || {};
+        setForm({
+          enabled: !!cfg.enabled,
+          auto_handle: !!cfg.auto_handle,
+          tone: cfg.tone || 'friendly',
+          active_platforms: typeof ap === 'object' && !Array.isArray(ap)
+            ? { facebook: !!ap.facebook, instagram: !!ap.instagram, google: !!ap.google }
+            : { facebook: false, instagram: false, google: false },
+          escalate_keywords: Array.isArray(cfg.escalate_keywords) ? cfg.escalate_keywords : [],
+          business_hours_start: cfg.business_hours_start || '09:00',
+          business_hours_end: cfg.business_hours_end || '17:00',
+          timezone: cfg.timezone || 'America/New_York',
+          after_hours_message: cfg.after_hours_message || '',
+        });
+      }
+      if (statsRes?.data) setStats(statsRes.data);
+      setLoading(false);
+    });
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await receptionistAPI.saveConfig({
+        enabled: form.enabled,
+        autoHandle: form.auto_handle,
+        tone: form.tone,
+        activePlatforms: form.active_platforms,
+        escalateKeywords: form.escalate_keywords,
+        businessHoursStart: form.business_hours_start,
+        businessHoursEnd: form.business_hours_end,
+        timezone: form.timezone,
+        afterHoursMessage: form.after_hours_message,
+      });
+      setSaveMsg('Settings saved');
+      setTimeout(() => setSaveMsg(''), 3000);
+    } catch (_) {
+      setSaveMsg('Failed to save');
+      setTimeout(() => setSaveMsg(''), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addKeyword = () => {
+    const kw = keyword.trim().replace(/,$/, '');
+    if (kw && !form.escalate_keywords.includes(kw)) {
+      setForm(f => ({ ...f, escalate_keywords: [...f.escalate_keywords, kw] }));
+    }
+    setKeyword('');
+  };
+
+  const removeKeyword = (kw) => {
+    setForm(f => ({ ...f, escalate_keywords: f.escalate_keywords.filter(k => k !== kw) }));
+  };
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><Spinner size={24} /></div>;
+
+  const sectionHeader = (text) => (
+    <div style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 28, marginBottom: 8 }}>{text}</div>
+  );
+
+  const TONES = [
+    { id: 'friendly', label: 'Friendly' },
+    { id: 'professional', label: 'Professional' },
+    { id: 'casual', label: 'Casual' },
+    { id: 'expert', label: 'Expert' },
+  ];
+
+  const PLATFORMS = [
+    { id: 'facebook',  label: 'Facebook DMs',    Icon: IpFacebook },
+    { id: 'instagram', label: 'Instagram DMs',   Icon: IpInstagram },
+    { id: 'google',    label: 'Google Business', Icon: IpGoogle },
+  ];
+
+  return (
+    <div style={{ maxWidth: 680 }}>
+      {/* Stats row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 8 }}>
+        {[
+          { label: 'AI Handled Today', value: stats.aiHandledToday },
+          { label: 'Escalated Open',   value: stats.escalatedOpen },
+          { label: 'Pending Unread',   value: stats.pendingUnread },
+        ].map(s => (
+          <div key={s.label} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 18px' }}>
+            <div style={{ fontSize: 24, fontWeight: 700, color: t.text }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* AI Handling */}
+      {sectionHeader('AI Handling')}
+      <ToggleRow label="Enable AI Handling" sub="PostCore will auto-reply to incoming DMs" value={form.enabled} onChange={v => setForm(f => ({ ...f, enabled: v }))} t={t} />
+      <ToggleRow label="Auto-Reply" sub="Send replies automatically without approval" value={form.auto_handle} onChange={v => setForm(f => ({ ...f, auto_handle: v }))} t={t} />
+
+      {/* Tone */}
+      {sectionHeader('Tone')}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {TONES.map(tone => (
+          <button
+            key={tone.id}
+            onClick={() => setForm(f => ({ ...f, tone: tone.id }))}
+            style={{
+              padding: '8px 18px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              background: form.tone === tone.id ? '#1A56DB' : t.card,
+              color: form.tone === tone.id ? '#fff' : t.textSecondary,
+              border: `1.5px solid ${form.tone === tone.id ? '#1A56DB' : t.border}`,
+              transition: 'all 150ms',
+            }}
+          >
+            {tone.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Active Platforms */}
+      {sectionHeader('Active Platforms')}
+      {PLATFORMS.map(p => (
+        <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${t.border}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <p.Icon size={18} style={{ color: t.textSecondary }} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{p.label}</span>
+          </div>
+          <button
+            onClick={() => setForm(f => ({ ...f, active_platforms: { ...f.active_platforms, [p.id]: !f.active_platforms[p.id] } }))}
+            style={{
+              width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+              background: form.active_platforms[p.id] ? '#1A56DB' : t.border,
+              position: 'relative', transition: 'background 200ms',
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: 2, left: form.active_platforms[p.id] ? 22 : 2, width: 20, height: 20,
+              borderRadius: '50%', background: '#fff', transition: 'left 200ms',
+            }} />
+          </button>
+        </div>
+      ))}
+
+      {/* Escalation Keywords */}
+      {sectionHeader('Escalation Keywords')}
+      <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 10 }}>PostCore stops auto-replying and alerts you when these words appear in a message.</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+        {form.escalate_keywords.map(kw => (
+          <span key={kw} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 20, fontSize: 12, color: '#ef4444' }}>
+            {kw}
+            <button onClick={() => removeKeyword(kw)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 0, lineHeight: 1, fontSize: 13 }}>×</button>
+          </span>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          value={keyword}
+          onChange={e => setKeyword(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addKeyword(); } }}
+          placeholder="Type keyword and press Enter..."
+          style={{ flex: 1, padding: '9px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+        />
+        <button onClick={addKeyword} style={{ padding: '9px 16px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Add</button>
+      </div>
+
+      {/* Business Hours */}
+      {sectionHeader('Business Hours')}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 140 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Opens</label>
+          <input type="time" value={form.business_hours_start} onChange={e => setForm(f => ({ ...f, business_hours_start: e.target.value }))}
+            style={{ width: '100%', padding: '9px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 140 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Closes</label>
+          <input type="time" value={form.business_hours_end} onChange={e => setForm(f => ({ ...f, business_hours_end: e.target.value }))}
+            style={{ width: '100%', padding: '9px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ flex: 2, minWidth: 200 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Timezone</label>
+          <select value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}
+            style={{ width: '100%', padding: '9px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
+            {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* After-Hours Message */}
+      {sectionHeader('After-Hours Message')}
+      <textarea
+        value={form.after_hours_message}
+        onChange={e => setForm(f => ({ ...f, after_hours_message: e.target.value }))}
+        placeholder="Thanks for reaching out! We're outside business hours right now. We'll get back to you first thing tomorrow."
+        rows={3}
+        style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+      />
+
+      {/* Save */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 24 }}>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{ padding: '10px 28px', background: '#1A56DB', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+        >
+          {saving ? 'Saving…' : 'Save Settings'}
+        </button>
+        {saveMsg && <span style={{ fontSize: 13, color: saveMsg.includes('Failed') ? '#ef4444' : '#22c55e', fontWeight: 600 }}>{saveMsg}</span>}
       </div>
     </div>
   );

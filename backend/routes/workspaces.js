@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const { authenticate, generateToken } = require('../middleware/auth');
+const EmailQueue = require('../services/EmailQueue');
 
 const WORKSPACE_LIMITS = {
   trial: 1,
@@ -10,8 +11,11 @@ const WORKSPACE_LIMITS = {
   premium: 3,
 };
 
+const VALID_ROLES = ['manager', 'editor', 'viewer'];
+
 module.exports = (pool) => {
   const router = express.Router();
+  const emailQueue = new EmailQueue(pool);
 
   // Helper: resolve the main (billing) customer ID for the current request.
   // If req.parentCustomerId is set, the caller is in a workspace context.
@@ -222,6 +226,95 @@ module.exports = (pool) => {
          WHERE id = $1`,
         [memberId]
       );
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/workspaces/invite ─────────────────────────────────────────────
+  // Create a workspace invitation with role/permissions pre-selected.
+  router.post('/invite', authenticate, async (req, res) => {
+    try {
+      const parentId = mainCustomerId(req);
+      const { email, role = 'editor', permissions = null } = req.body;
+
+      if (!email || !email.trim()) return res.status(400).json({ error: 'Email is required' });
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!VALID_ROLES.includes(role)) return res.status(400).json({ error: 'Role must be manager, editor, or viewer' });
+
+      // Reject if already an active member
+      const memberCheck = await pool.query(
+        `SELECT id FROM customers WHERE email = $1 AND parent_customer_id = $2 AND status != 'inactive'`,
+        [normalizedEmail, parentId]
+      );
+      if (memberCheck.rows.length) return res.status(409).json({ error: 'This person is already a team member.' });
+
+      // Cancel any previous pending invite for the same email
+      await pool.query(
+        `UPDATE workspace_invitations SET status = 'cancelled' WHERE inviter_id = $1 AND email = $2 AND status = 'pending'`,
+        [parentId, normalizedEmail]
+      );
+
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      const insert = await pool.query(
+        `INSERT INTO workspace_invitations (inviter_id, email, token_hash, role, permissions, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [parentId, normalizedEmail, tokenHash, role, permissions ? JSON.stringify(permissions) : null, expiresAt]
+      );
+
+      const inviterRow = await pool.query('SELECT business_name FROM customers WHERE id = $1', [parentId]);
+      const inviterName = inviterRow.rows[0]?.business_name || 'Someone';
+      const acceptUrl = `${process.env.FRONTEND_URL}/accept-invite?token=${rawToken}`;
+
+      emailQueue.notifyWorkspaceInvite({
+        toEmail: normalizedEmail,
+        inviterBusinessName: inviterName,
+        roleLabel: role.charAt(0).toUpperCase() + role.slice(1),
+        acceptUrl,
+      });
+
+      res.json({ success: true, inviteId: insert.rows[0].id });
+    } catch (err) {
+      console.error('[Workspaces] Invite error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── GET /api/workspaces/invitations ──────────────────────────────────────────
+  // List all pending (non-expired) invitations for this account.
+  router.get('/invitations', authenticate, async (req, res) => {
+    try {
+      const parentId = mainCustomerId(req);
+      const rows = await pool.query(
+        `SELECT id, email, role, permissions, status, expires_at, created_at
+         FROM workspace_invitations
+         WHERE inviter_id = $1 AND status = 'pending' AND expires_at > NOW()
+         ORDER BY created_at DESC`,
+        [parentId]
+      );
+      res.json({ invitations: rows.rows });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── DELETE /api/workspaces/invitations/:id ────────────────────────────────────
+  // Cancel a pending invitation.
+  router.delete('/invitations/:id', authenticate, async (req, res) => {
+    try {
+      const parentId = mainCustomerId(req);
+      const inviteId = parseInt(req.params.id);
+      const result = await pool.query(
+        `UPDATE workspace_invitations SET status = 'cancelled'
+         WHERE id = $1 AND inviter_id = $2 AND status = 'pending'
+         RETURNING id`,
+        [inviteId, parentId]
+      );
+      if (!result.rows.length) return res.status(404).json({ error: 'Invite not found or already cancelled' });
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: err.message });

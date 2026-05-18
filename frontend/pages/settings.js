@@ -1430,11 +1430,10 @@ export default function Settings() {
         );
       })()}
 
-      {/* REMOVED: AI Receptionist integration + automation dead code */}
-      {false && null && (<div><div>
-
-            {/* Twilio form */}
-            {integrationModal === 'twilio' && (
+      {false && null && (
+        <div>
+          <div>
+            {integrationModal === '_removed' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Account SID</label>

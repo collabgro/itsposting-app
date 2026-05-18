@@ -32,8 +32,7 @@ const studioRoutes = require('./routes/studio');
 const receptionistRoutes = require('./routes/receptionist');
 const apiKeysRoutes = require('./routes/apiKeys');
 const externalRoutes = require('./routes/external');
-const twilioRoutes = require('./routes/twilio');
-const gmbMessagesRoutes = require('./routes/gmb-messages');
+
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
 const EmailWorker = require('./services/EmailWorker');
@@ -336,6 +335,10 @@ console.log('══════════════════════�
     `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_phone_number_id TEXT`,
     `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_access_token TEXT`,
     `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_business_id TEXT`,
+    // Billing columns
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS plan_changed_at TIMESTAMP`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS billing_cycle VARCHAR(20) DEFAULT 'monthly'`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS next_billing_date TIMESTAMP`,
     // Social publishing
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS auto_post_enabled BOOLEAN DEFAULT true`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0`,
@@ -360,6 +363,23 @@ console.log('══════════════════════�
     )`,
     `CREATE INDEX IF NOT EXISTS idx_api_keys_customer ON api_keys(customer_id)`,
     `CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash)`,
+    // Workspace invitations — proper token-based invite system
+    `CREATE TABLE IF NOT EXISTS workspace_invitations (
+      id          SERIAL PRIMARY KEY,
+      inviter_id  INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      email       VARCHAR(255) NOT NULL,
+      token_hash  VARCHAR(64) NOT NULL UNIQUE,
+      role        VARCHAR(20) NOT NULL DEFAULT 'editor',
+      permissions JSONB DEFAULT NULL,
+      status      VARCHAR(20) NOT NULL DEFAULT 'pending',
+      expires_at  TIMESTAMPTZ NOT NULL,
+      accepted_at TIMESTAMPTZ DEFAULT NULL,
+      accepted_by INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      created_at  TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_invitations_inviter ON workspace_invitations(inviter_id, status)`,
+    `CREATE INDEX IF NOT EXISTS idx_invitations_hash    ON workspace_invitations(token_hash)`,
+    `CREATE INDEX IF NOT EXISTS idx_invitations_email   ON workspace_invitations(email, status)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -443,30 +463,9 @@ app.use('/api/workspaces', workspaceRoutes(pool));
 app.use('/api/geo', geoRoutes(pool));
 app.use('/api/studio', studioRoutes(pool));
 app.use('/api/receptionist', receptionistRoutes(pool));
-app.use('/api/twilio', twilioRoutes(pool));
-app.use('/api/gmb', gmbMessagesRoutes(pool));
 app.use('/api/api-keys', apiKeysRoutes(pool));
 app.use('/api/v1', externalRoutes(pool));
 
-// Mailgun inbound email webhook — respond 200 immediately, process async
-app.post('/api/mailgun/inbound', express.urlencoded({ extended: true, limit: '5mb' }), async (req, res) => {
-  res.sendStatus(200);
-  try {
-    const recipient = req.body.recipient || '';
-    const domain = recipient.split('@')[1];
-    if (!domain) return;
-    const { rows } = await pool.query(
-      `SELECT customer_id FROM receptionist_config WHERE mailgun_domain=$1 AND mailgun_api_key IS NOT NULL`,
-      [domain]
-    );
-    if (!rows.length) return;
-    const ReceptionistService = require('./services/ReceptionistService');
-    const svc = new ReceptionistService(pool);
-    await svc.handleIncomingEmail(rows[0].customer_id, req.body);
-  } catch (err) {
-    console.error('[Mailgun inbound]', err.message);
-  }
-});
 
 app.get('/health', async (req, res) => {
   try {

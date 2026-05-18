@@ -29,27 +29,10 @@ module.exports = (pool) => {
       if (!rows[0]) return res.json({ config: null });
 
       const cfg = rows[0];
-      // Never expose raw secrets — return masked booleans instead
       res.json({
         config: {
           ...cfg,
-          twilio_auth_token: undefined,
-          calcom_api_key: undefined,
-          mailgun_api_key: undefined,
-          meta_wa_access_token: undefined,
-          has_twilio_configured: !!(cfg.twilio_account_sid && cfg.twilio_auth_token && cfg.twilio_phone_number),
-          has_calcom_configured: !!cfg.calcom_api_key,
-          has_mailgun_configured: !!(cfg.mailgun_api_key && cfg.mailgun_domain),
-          has_meta_wa_configured: !!(cfg.meta_wa_phone_number_id && cfg.meta_wa_access_token),
-          // Expose non-secret fields for pre-filling configure forms
-          twilio_account_sid: cfg.twilio_account_sid || null,
-          twilio_phone_number: cfg.twilio_phone_number || null,
-          twilio_whatsapp_number: cfg.twilio_whatsapp_number || null,
           booking_link: cfg.booking_link || null,
-          mailgun_domain: cfg.mailgun_domain || null,
-          mailgun_from_email: cfg.mailgun_from_email || null,
-          meta_wa_phone_number_id: cfg.meta_wa_phone_number_id || null,
-          meta_wa_business_id: cfg.meta_wa_business_id || null,
           automation_config: cfg.automation_config || getDefaultAutomations(),
         },
       });
@@ -66,13 +49,7 @@ module.exports = (pool) => {
         enabled, autoHandle, activePlatforms, tone,
         escalateKeywords, bookingLink,
         businessHoursStart, businessHoursEnd, timezone, afterHoursMessage,
-        // Per-customer credentials
-        twilioAccountSid, twilioAuthToken, twilioPhoneNumber, twilioWhatsappNumber,
-        calcomApiKey,
-        mailgunApiKey, mailgunDomain, mailgunFromEmail,
         automationConfig,
-        // Meta WhatsApp Business API credentials
-        metaWaPhoneNumberId, metaWaAccessToken, metaWaBusinessId,
       } = req.body;
 
       const { rows } = await pool.query(
@@ -80,12 +57,8 @@ module.exports = (pool) => {
            (customer_id, enabled, auto_handle, active_platforms, tone,
             escalate_keywords, booking_link,
             business_hours_start, business_hours_end, timezone, after_hours_message,
-            twilio_account_sid, twilio_auth_token, twilio_phone_number, twilio_whatsapp_number,
-            calcom_api_key, mailgun_api_key, mailgun_domain, mailgun_from_email,
-            automation_config,
-            meta_wa_phone_number_id, meta_wa_access_token, meta_wa_business_id,
-            created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,NOW(),NOW())
+            automation_config, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())
          ON CONFLICT (customer_id) DO UPDATE SET
            enabled = COALESCE(EXCLUDED.enabled, receptionist_config.enabled),
            auto_handle = COALESCE(EXCLUDED.auto_handle, receptionist_config.auto_handle),
@@ -97,18 +70,7 @@ module.exports = (pool) => {
            business_hours_end = COALESCE(EXCLUDED.business_hours_end, receptionist_config.business_hours_end),
            timezone = COALESCE(EXCLUDED.timezone, receptionist_config.timezone),
            after_hours_message = COALESCE(EXCLUDED.after_hours_message, receptionist_config.after_hours_message),
-           twilio_account_sid = COALESCE(EXCLUDED.twilio_account_sid, receptionist_config.twilio_account_sid),
-           twilio_auth_token = COALESCE(EXCLUDED.twilio_auth_token, receptionist_config.twilio_auth_token),
-           twilio_phone_number = COALESCE(EXCLUDED.twilio_phone_number, receptionist_config.twilio_phone_number),
-           twilio_whatsapp_number = COALESCE(EXCLUDED.twilio_whatsapp_number, receptionist_config.twilio_whatsapp_number),
-           calcom_api_key = COALESCE(EXCLUDED.calcom_api_key, receptionist_config.calcom_api_key),
-           mailgun_api_key = COALESCE(EXCLUDED.mailgun_api_key, receptionist_config.mailgun_api_key),
-           mailgun_domain = COALESCE(EXCLUDED.mailgun_domain, receptionist_config.mailgun_domain),
-           mailgun_from_email = COALESCE(EXCLUDED.mailgun_from_email, receptionist_config.mailgun_from_email),
            automation_config = COALESCE(EXCLUDED.automation_config, receptionist_config.automation_config),
-           meta_wa_phone_number_id = COALESCE(EXCLUDED.meta_wa_phone_number_id, receptionist_config.meta_wa_phone_number_id),
-           meta_wa_access_token = COALESCE(EXCLUDED.meta_wa_access_token, receptionist_config.meta_wa_access_token),
-           meta_wa_business_id = COALESCE(EXCLUDED.meta_wa_business_id, receptionist_config.meta_wa_business_id),
            updated_at = NOW()
          RETURNING *`,
         [
@@ -123,18 +85,7 @@ module.exports = (pool) => {
           businessHoursEnd || null,
           timezone || null,
           afterHoursMessage || null,
-          twilioAccountSid || null,
-          twilioAuthToken || null,
-          twilioPhoneNumber || null,
-          twilioWhatsappNumber || null,
-          calcomApiKey || null,
-          mailgunApiKey || null,
-          mailgunDomain || null,
-          mailgunFromEmail || null,
           automationConfig ? JSON.stringify(automationConfig) : null,
-          metaWaPhoneNumberId || null,
-          metaWaAccessToken || null,
-          metaWaBusinessId || null,
         ]
       );
 
@@ -143,22 +94,7 @@ module.exports = (pool) => {
         success: true,
         config: {
           ...cfg,
-          twilio_auth_token: undefined,
-          calcom_api_key: undefined,
-          mailgun_api_key: undefined,
-          meta_wa_access_token: undefined,
-          has_twilio_configured: !!(cfg.twilio_account_sid && cfg.twilio_auth_token && cfg.twilio_phone_number),
-          has_calcom_configured: !!cfg.calcom_api_key,
-          has_mailgun_configured: !!(cfg.mailgun_api_key && cfg.mailgun_domain),
-          has_meta_wa_configured: !!(cfg.meta_wa_phone_number_id && cfg.meta_wa_access_token),
-          twilio_account_sid: cfg.twilio_account_sid || null,
-          twilio_phone_number: cfg.twilio_phone_number || null,
-          twilio_whatsapp_number: cfg.twilio_whatsapp_number || null,
           booking_link: cfg.booking_link || null,
-          mailgun_domain: cfg.mailgun_domain || null,
-          mailgun_from_email: cfg.mailgun_from_email || null,
-          meta_wa_phone_number_id: cfg.meta_wa_phone_number_id || null,
-          meta_wa_business_id: cfg.meta_wa_business_id || null,
           automation_config: cfg.automation_config || getDefaultAutomations(),
         },
       });
@@ -443,77 +379,6 @@ module.exports = (pool) => {
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ── POST /api/receptionist/test-twilio ───────────────────────────
-  router.post('/test-twilio', async (req, res) => {
-    try {
-      const { accountSid, authToken } = req.body;
-      if (!accountSid || !authToken) return res.json({ success: false, error: 'Account SID and Auth Token required' });
-      const twilio = require('twilio');
-      const client = twilio(accountSid, authToken);
-      const account = await client.api.accounts(accountSid).fetch();
-      res.json({ success: true, detail: `Connected as "${account.friendlyName}" (${account.status})` });
-    } catch (err) {
-      res.json({ success: false, error: err.message || 'Invalid Twilio credentials' });
-    }
-  });
-
-  // ── POST /api/receptionist/test-mailgun ──────────────────────────
-  router.post('/test-mailgun', async (req, res) => {
-    try {
-      const { apiKey, domain } = req.body;
-      if (!apiKey || !domain) return res.json({ success: false, error: 'API key and domain required' });
-      const axios = require('axios');
-      const resp = await axios.get(`https://api.mailgun.net/v3/domains/${domain}`, {
-        auth: { username: 'api', password: apiKey },
-        timeout: 10000,
-      });
-      const state = resp.data?.state || 'active';
-      res.json({ success: true, detail: `Domain "${domain}" is ${state}` });
-    } catch (err) {
-      const status = err.response?.status;
-      const msg = status === 401 ? 'Invalid API key'
-        : status === 404 ? `Domain "${req.body.domain}" not found in Mailgun`
-        : err.message;
-      res.json({ success: false, error: msg });
-    }
-  });
-
-  // ── POST /api/receptionist/test-whatsapp ─────────────────────────
-  router.post('/test-whatsapp', async (req, res) => {
-    try {
-      const { phoneNumberId, accessToken } = req.body;
-      if (!phoneNumberId || !accessToken) return res.json({ success: false, error: 'Phone Number ID and Access Token required' });
-      const axios = require('axios');
-      const resp = await axios.get(`https://graph.facebook.com/v21.0/${phoneNumberId}`, {
-        params: { access_token: accessToken },
-        timeout: 10000,
-      });
-      const name = resp.data?.display_phone_number || resp.data?.verified_name || phoneNumberId;
-      res.json({ success: true, detail: `Connected — WhatsApp number: ${name}` });
-    } catch (err) {
-      const msg = err.response?.data?.error?.message || err.message || 'Invalid credentials';
-      res.json({ success: false, error: msg });
-    }
-  });
-
-  // ── POST /api/receptionist/test-calcom ───────────────────────────
-  router.post('/test-calcom', async (req, res) => {
-    try {
-      const { apiKey } = req.body;
-      if (!apiKey) return res.json({ success: false, error: 'API key required' });
-      const axios = require('axios');
-      const resp = await axios.get('https://api.cal.com/v1/me', {
-        params: { apiKey },
-        timeout: 10000,
-      });
-      const user = resp.data?.user;
-      res.json({ success: true, detail: `Connected as ${user?.name || user?.email || 'Cal.com user'}` });
-    } catch (err) {
-      const msg = err.response?.status === 401 ? 'Invalid API key' : err.message;
-      res.json({ success: false, error: msg });
     }
   });
 

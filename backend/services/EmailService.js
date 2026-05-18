@@ -274,6 +274,23 @@ const TEMPLATES = {
     text: `Hi {{businessName}},\n\nYour post is now live on {{platform}}.\n\nView analytics at: {{analyticsUrl}}`,
   },
 
+  workspace_invite: {
+    subject: "You've been invited to join {{inviterBusinessName}} on ItsPosting",
+    html: `
+      <p>Hi there,</p>
+      <p><strong>{{inviterBusinessName}}</strong> has invited you to join their team on ItsPosting as a <strong style="color:#7C5CFC;">{{roleLabel}}</strong>.</p>
+      <p>Click the button below to accept the invitation and set up your account. It takes less than a minute.</p>
+      <a href="{{acceptUrl}}" class="btn">Accept invitation →</a>
+      <p style="font-size:13px;color:#666;">This invitation expires in <strong style="color:#E2E2E8;">7 days</strong>. If you already have an ItsPosting account, just log in on the next page — you'll be linked automatically.</p>
+      <div class="box">
+        <p style="margin:0;font-size:12px;color:#666;">If the button doesn't work, copy and paste this link:</p>
+        <code>{{acceptUrl}}</code>
+      </div>
+      <p style="font-size:12px;color:#555;">If you weren't expecting this invitation, you can safely ignore this email.</p>
+    `,
+    text: `{{inviterBusinessName}} has invited you to join their team on ItsPosting as a {{roleLabel}}.\n\nAccept the invitation here (expires in 7 days):\n{{acceptUrl}}\n\nIf you already have an account, just log in on the next page.\n\nIf you weren't expecting this, you can ignore this email.`,
+  },
+
   postcore_briefing: {
     subject: 'Your weekly PostCore briefing',
     html: `
