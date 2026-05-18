@@ -1,4 +1,5 @@
 const THEME_TO_BUCKET = {
+  // Educational — tips, how-tos, seasonal advice, community content
   educational_tip:      'educational',
   maintenance_tip:      'educational',
   faq:                  'educational',
@@ -6,18 +7,23 @@ const THEME_TO_BUCKET = {
   how_to:               'educational',
   tip:                  'educational',
   educational:          'educational',
+  share_tip:            'educational',
+  seasonal:             'educational',
+  seasonal_warning:     'educational',
+  community:            'educational',
+  local_highlight:      'educational',
+  community_event:      'educational',
+  // Social Proof — completed jobs, testimonials, before/afters
   customer_testimonial: 'socialProof',
   testimonial:          'socialProof',
   review:               'socialProof',
+  got_review:           'socialProof',
   project_showcase:     'socialProof',
   before_after:         'socialProof',
   job_completed:        'socialProof',
+  job_finished:         'socialProof',
   team_spotlight:       'socialProof',
-  seasonal:             'seasonal',
-  seasonal_warning:     'seasonal',
-  community:            'seasonal',
-  local_highlight:      'seasonal',
-  community_event:      'seasonal',
+  // Promotional — offers, announcements, service features
   promotion:            'promotional',
   service_feature:      'promotional',
   customer_value:       'promotional',
@@ -32,28 +38,26 @@ const CONTENT_TYPE_TO_BUCKET = {
   video:    'promotional',
 };
 
+// 70/20/10 rule — non-negotiable per CLAUDE.md
 const IDEAL_MIX = {
-  educational: 0.30,
-  socialProof: 0.25,
-  seasonal:    0.20,
-  promotional: 0.25,
+  educational: 0.70,
+  socialProof: 0.20,
+  promotional: 0.10,
 };
 
-const LOW_THRESHOLD  = 0.10;
+const LOW_THRESHOLD  = 0.05; // flag if a bucket is less than half its ideal target
 const HIGH_THRESHOLD = 0.60;
 
 const BUCKET_LABELS = {
   educational: 'Educational',
   socialProof: 'Social Proof',
-  seasonal:    'Seasonal',
   promotional: 'Promotional',
 };
 
 const BUCKET_COLORS = {
-  educational: '#7C5CFC',
+  educational: '#3B82F6',
   socialProof: '#22C55E',
-  seasonal:    '#3B82F6',
-  promotional: '#F59E0B',
+  promotional: '#EAB308',
 };
 
 function classifyPost(post) {
@@ -66,11 +70,11 @@ function buildRecommendation(mix, gaps, overloaded) {
     return 'Your content mix is well balanced. Keep it up!';
   }
   const parts = [];
-  if (overloaded.includes('promotional')) parts.push("You're posting too many promotional posts — audiences disengage from constant selling.");
-  if (gaps.includes('educational'))       parts.push('Add more educational tips — they get 2x more saves than promotional posts.');
-  if (gaps.includes('socialProof'))       parts.push('Share more customer results and before/after projects to build trust.');
-  if (gaps.includes('seasonal'))          parts.push('Add seasonal content — it creates urgency and feels timely to your audience.');
-  if (overloaded.includes('educational')) parts.push('Balance your tips with some promotions and customer stories.');
+  if (overloaded.includes('promotional')) parts.push("You're posting too many promotional posts — audiences disengage from constant selling. Aim for 1 promo per 10 posts.");
+  if (overloaded.includes('educational')) parts.push('Good on tips, but mix in more customer results and before/after projects to build trust.');
+  if (gaps.includes('educational'))       parts.push('Post more educational tips — they get 2x more saves and keep your audience coming back.');
+  if (gaps.includes('socialProof'))       parts.push('Share more customer results, reviews, and before/after projects to build trust.');
+  if (gaps.includes('promotional'))       parts.push('You can add a light promotional post — offers and announcements remind customers you\'re available.');
   return parts.join(' ') || 'Try mixing in different content types for better engagement.';
 }
 
@@ -108,7 +112,7 @@ class ContentMixTracker {
 
     const posts = result.rows;
     const total = posts.length;
-    const counts = { educational: 0, socialProof: 0, seasonal: 0, promotional: 0 };
+    const counts = { educational: 0, socialProof: 0, promotional: 0 };
 
     for (const post of posts) counts[classifyPost(post)]++;
 

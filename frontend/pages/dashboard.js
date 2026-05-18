@@ -382,10 +382,9 @@ function ContentHealthBar({ data, t, router }) {
   }
 
   const allSegments = [
-    { key: 'educational', label: 'Educational',  color: '#3B82F6' },
-    { key: 'socialProof', label: 'Social proof', color: '#22C55E' },
-    { key: 'seasonal',    label: 'Seasonal',     color: '#A78BFA' },
-    { key: 'promotional', label: 'Promotional',  color: '#EAB308' },
+    { key: 'educational', label: 'Educational',  color: '#3B82F6', target: 70 },
+    { key: 'socialProof', label: 'Social proof', color: '#22C55E', target: 20 },
+    { key: 'promotional', label: 'Promotional',  color: '#EAB308', target: 10 },
   ];
   const segments = allSegments.filter(s => mix[s.key] > 0);
 
@@ -402,15 +401,21 @@ function ContentHealthBar({ data, t, router }) {
       <div style={{ height: 7, borderRadius: 4, overflow: 'hidden', display: 'flex', gap: 1, marginBottom: 8 }}>
         {segments.map(s => <div key={s.key} style={{ width: `${mix[s.key]}%`, background: s.color, transition: 'width 400ms ease' }} title={`${s.label}: ${mix[s.key]}%`} />)}
       </div>
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: gaps.length ? 8 : 0 }}>
-        {segments.map(s => (
-          <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
-            <span style={{ fontSize: 11, color: t.textMuted }}>{s.label} {mix[s.key]}%</span>
-          </div>
-        ))}
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: (gaps.length || recommendation) ? 8 : 0 }}>
+        {allSegments.map(s => {
+          const actual = mix[s.key] || 0;
+          const off = actual < s.target - 10 || actual > s.target + 10;
+          return (
+            <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, opacity: actual ? 1 : 0.3 }} />
+              <span style={{ fontSize: 11, color: off ? s.color : t.textMuted, fontWeight: off ? 600 : 400 }}>
+                {s.label} {actual}%<span style={{ opacity: 0.5 }}> / {s.target}%</span>
+              </span>
+            </div>
+          );
+        })}
       </div>
-      {gaps.length > 0 && (
+      {recommendation && (
         <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic' }}>
           <span style={{ color: t.primary, fontWeight: 600 }}>PostCore: </span>{recommendation}
         </div>
