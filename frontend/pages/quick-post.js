@@ -242,7 +242,7 @@ export default function QuickPost() {
         </button>
       }
     >
-      <div style={{ maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 36, paddingBottom: 48 }}>
+      <div style={{ maxWidth: 780, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 36, paddingBottom: 48 }}>
 
         {/* ── Content type cards ─────────────────────────────────────── */}
         <div>
