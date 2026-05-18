@@ -18,6 +18,7 @@ export default function AdminCustomerDetail() {
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -83,6 +84,17 @@ export default function AdminCustomerDetail() {
         }
       },
     });
+  };
+
+  const handleChangePlan = async (planData) => {
+    try {
+      await adminAPI.changePlan(id, planData);
+      showMsg('success', `Plan changed to ${planData.plan}`);
+      setShowPlanModal(false);
+      load();
+    } catch (err) {
+      showMsg('error', err.response?.data?.error || 'Failed to change plan');
+    }
   };
 
   const handleUpdate = async (fields) => {
@@ -203,6 +215,9 @@ export default function AdminCustomerDetail() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button variant="secondary" size="sm" onClick={() => setShowEditModal(true)}>
               <IpEdit size={13} /> Edit
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowPlanModal(true)}>
+              <IpBilling size={13} /> Change Plan
             </Button>
             <Button variant="secondary" size="sm" onClick={() => setShowCreditsModal(true)}>
               <IpPlus size={13} /> Credits
@@ -363,6 +378,7 @@ export default function AdminCustomerDetail() {
       {showCreditsModal && <CreditsModal onClose={() => setShowCreditsModal(false)} onSubmit={handleAdjustCredits} t={t} />}
       {showSuspendModal && <SuspendModal onClose={() => setShowSuspendModal(false)} onSubmit={handleSuspend} t={t} />}
       {showEditModal && <EditModal customer={c} onClose={() => setShowEditModal(false)} onSubmit={handleUpdate} t={t} />}
+      {showPlanModal && <ChangePlanModal customer={c} onClose={() => setShowPlanModal(false)} onSubmit={handleChangePlan} t={t} />}
       {showPasswordModal && <PasswordModal onClose={() => setShowPasswordModal(false)} onSubmit={handleResetPasswordSubmit} t={t} />}
       {confirmModal && <ConfirmModal {...confirmModal} onCancel={() => setConfirmModal(null)} />}
     </Layout>
@@ -454,6 +470,115 @@ function EditModal({ customer: c, onClose, onSubmit, t }) {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
           <button onClick={() => onSubmit(form)} style={{ padding: '8px 16px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Save changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChangePlanModal({ customer: c, onClose, onSubmit, t }) {
+  const PLANS = [
+    { id: 'trial',        name: 'Trial',        credits: 10,  price: 'Free'    },
+    { id: 'starter',      name: 'Starter',      credits: 50,  price: '$20/mo'  },
+    { id: 'professional', name: 'Professional', credits: 100, price: '$40/mo'  },
+    { id: 'premium',      name: 'Premium',      credits: 150, price: '$60/mo'  },
+  ];
+  const [selectedPlan, setSelectedPlan] = useState(c.plan || 'trial');
+  const [billingCycle, setBillingCycle] = useState(c.billing_cycle || 'monthly');
+  const [allocateCredits, setAllocateCredits] = useState(true);
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState('');
+
+  const chosen = PLANS.find((p) => p.id === selectedPlan);
+
+  const submit = () => {
+    if (reason.trim().length < 3) { setError('Reason required (min 3 chars)'); return; }
+    setError('');
+    onSubmit({ plan: selectedPlan, billingCycle: selectedPlan === 'trial' ? 'monthly' : billingCycle, allocateCredits, reason: reason.trim() });
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 24, maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 4 }}>Change Plan</h3>
+        <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16 }}>
+          Currently on: <strong style={{ color: t.text }}>{c.plan || 'trial'}</strong>
+        </p>
+
+        {/* Plan cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+          {PLANS.map((p) => (
+            <div
+              key={p.id}
+              onClick={() => setSelectedPlan(p.id)}
+              style={{
+                padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
+                border: `2px solid ${selectedPlan === p.id ? t.primary : t.border}`,
+                background: selectedPlan === p.id ? `${t.primary}15` : t.input,
+                transition: 'border-color 0.15s',
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2 }}>{p.name}</div>
+              <div style={{ fontSize: 11, color: t.textMuted }}>{p.credits} credits · {p.price}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Billing cycle toggle (hidden for trial) */}
+        {selectedPlan !== 'trial' && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 8 }}>Billing cycle</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {['monthly', 'yearly'].map((cycle) => (
+                <button
+                  key={cycle}
+                  onClick={() => setBillingCycle(cycle)}
+                  style={{
+                    padding: '7px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                    border: `1px solid ${billingCycle === cycle ? t.primary : t.border}`,
+                    background: billingCycle === cycle ? t.primary : 'transparent',
+                    color: billingCycle === cycle ? '#fff' : t.text,
+                  }}
+                >
+                  {cycle.charAt(0).toUpperCase() + cycle.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Allocate credits checkbox */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={allocateCredits}
+            onChange={(e) => setAllocateCredits(e.target.checked)}
+            style={{ width: 16, height: 16, cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: 13, color: t.text }}>
+            Allocate plan credits now
+            {allocateCredits && chosen && (
+              <span style={{ color: t.success, marginLeft: 6, fontWeight: 600 }}>+{chosen.credits} credits</span>
+            )}
+          </span>
+        </label>
+
+        {/* Reason */}
+        <div style={{ marginBottom: error ? 8 : 16 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 6 }}>Reason (audit log)</label>
+          <textarea
+            placeholder="e.g. Admin override — onboarding gift"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${error ? t.error : t.borderStrong}`, borderRadius: 8, color: t.text, fontFamily: 'inherit', resize: 'vertical', fontSize: 13 }}
+          />
+        </div>
+        {error && <div style={{ fontSize: 12, color: t.error, marginBottom: 12 }}>{error}</div>}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={submit} style={{ padding: '8px 16px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Save Changes</button>
         </div>
       </div>
     </div>

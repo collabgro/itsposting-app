@@ -732,7 +732,7 @@ export default function Wizard() {
                       id: 'services',
                       Icon: IpVideo,
                       label: 'Services Video',
-                      desc: 'Animated scene showing your work — powered by Veo 3.1',
+                      desc: 'Animated scene showing your work in action',
                       tag: 'Recommended',
                     },
                     {

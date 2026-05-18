@@ -193,6 +193,7 @@ export const adminAPI = {
   listStockPhotos: (params) => api.get('/api/admin/stock-photos', { params }),
   updateStockPhoto: (id, data) => api.patch(`/api/admin/stock-photos/${id}`, data),
   deleteStockPhoto: (id) => api.delete(`/api/admin/stock-photos/${id}`),
+  changePlan: (id, data) => api.post(`/api/admin/customers/${id}/plan`, data),
 };
 
 export const analyticsAPI = {

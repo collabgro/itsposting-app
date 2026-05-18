@@ -712,6 +712,7 @@ The psychology:
 
 **Backend:** `backend/routes/geo.js` + `backend/services/GeoAuditService.js` — BUILT
 **Frontend:** `frontend/pages/geo-audit/index.js` + `frontend/pages/geo-audit/[id].js` — BUILT
+**Frontend label:** "AI Visibility" — all user-facing text uses this name; backend API routes/DB tables still use `geo` terminology internally
 
 GEO (Generative Engine Optimisation) audits measure how visible the business is
 across AI answer engines (ChatGPT, Gemini, Perplexity, etc.).
@@ -1085,6 +1086,12 @@ CTA: Clear single action (not multiple options)
 - **`frontend/pages/wizard.js`** — dedicated wizard page, fully operational; text post hides media panel, 1 credit deducted
 - **Security hardening** — bcrypt rounds 12, hashed reset tokens, JWT Bearer-only, SELECT FOR UPDATE on credit deductions, HMAC webhook enforcement, CSP + security headers on frontend and backend, knowledge base content sanitisation (`b4e0450`); round 2 adds JWT algorithm pinning, SSRF blocklist, token revocation after password reset, IDOR fix on analytics, DM auth defense-in-depth, limit/offset clamping, timing attack fix, admin bcrypt fix, broadcast rate limit (`0babf58`); round 3 adds impersonation JWT field fix (customerId), DB SSL rejectUnauthorized:true, atomic credit deduction in /wizard/refresh, angle whitelist + caption sanitisation against prompt injection, SSRF protection in NanoBananaService.editImage, ORDER BY lookup-map in external.js, customer field sanitisation in SystemPromptBuilder, HSTS header, restricted Next.js image remotePatterns, receptionist pagination cap (100), global JSON body limit 1mb, parallel timing equaliser in forgot-password
 - **Developer API Keys** — scoped API key system (`api_keys` table); `backend/middleware/apiKey.js` + `backend/routes/apiKeys.js` + `backend/routes/external.js`; 8 permission scopes; `/api/v1/` external route layer (16 endpoints); Settings UI with 3-step create modal + one-time key reveal + inline revoke; SHA-256 key hashing; Trial = 0 keys, paid = 5 keys
+- **UI/UX polish pass** — plain-English labels throughout (no jargon); navigation restructured with section dividers (Create, Manage, Grow, Business, Admin); "GEO Audit" renamed "AI Visibility" everywhere in the frontend; "Teach PostCore" renamed "Knowledge Base"; "Create Post" renamed "Upload"; content type badges show "Text Card" instead of "static" across all pages
+- **Quick Post direct publish** — "Post Now" calls `socialAPI.publish()` directly instead of redirecting to /upload; inline success banner + "Post another" flow; no sessionStorage hack
+- **Performance optimization** — 26 empty `getServerSideProps() { return { props: {} } }` removed across all pages; pages now use Next.js static optimization; all data still fetched client-side via useEffect
+- **Settings cleanup** — removed "Image Source" and "Inbox Sync" sections from settings.js (non-functional placeholders)
+- **First-time user welcome banner** — dashboard shows a contextual welcome card (with CTA to Quick Post) when the customer has zero posts
+- **Billing plan taglines** — each plan card shows a plain-English description of who the plan is for
 
 ### 🔴 STILL TO BUILD:
 - **Monthly report generator** — PDF generation via Resend (reports page is UI-only)
@@ -1170,4 +1177,4 @@ Done. 10 seconds. No thinking required.
 
 ---
 
-*Last updated: May 2026 (v2.1) | ItsPosting.com*
+*Last updated: May 2026 (v2.2) | ItsPosting.com*

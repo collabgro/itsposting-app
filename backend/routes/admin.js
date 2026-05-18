@@ -231,6 +231,76 @@ module.exports = (pool) => {
     }
   });
 
+  // POST /api/admin/customers/:id/plan
+  router.post('/customers/:id/plan', async (req, res) => {
+    const PLAN_CREDITS = { trial: 10, starter: 50, professional: 100, premium: 150 };
+    const client = await pool.connect();
+    try {
+      const { plan, billingCycle = 'monthly', allocateCredits = true, reason } = req.body;
+      const id = req.params.id;
+
+      if (!PLAN_CREDITS.hasOwnProperty(plan)) {
+        return res.status(400).json({ error: 'Invalid plan. Must be trial, starter, professional, or premium.' });
+      }
+      if (!reason || reason.trim().length < 3) {
+        return res.status(400).json({ error: 'Reason required (min 3 chars)' });
+      }
+
+      await client.query('BEGIN');
+      const cur = await client.query('SELECT id, credits_balance, plan FROM customers WHERE id = $1 FOR UPDATE', [id]);
+      if (cur.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Customer not found' }); }
+
+      const currentBalance = parseInt(cur.rows[0].credits_balance) || 0;
+      const planCredits = PLAN_CREDITS[plan];
+      const newBalance = allocateCredits ? currentBalance + planCredits : currentBalance;
+
+      const now = new Date();
+      let expiresAt;
+      if (plan === 'trial') {
+        expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      } else if (billingCycle === 'yearly') {
+        expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+      } else {
+        expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      }
+
+      await client.query(
+        `UPDATE customers SET
+          plan = $1,
+          status = 'active',
+          billing_cycle = $2,
+          plan_expires_at = $3,
+          next_billing_date = $3,
+          plan_changed_at = NOW(),
+          credits_used_this_month = 0,
+          credits_balance = $4,
+          updated_at = NOW()
+         WHERE id = $5`,
+        [plan, plan === 'trial' ? null : billingCycle, expiresAt, newBalance, id]
+      );
+
+      if (allocateCredits) {
+        await client.query(
+          `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+           VALUES ($1, 'admin_grant', $2, $3, $4)`,
+          [id, planCredits, newBalance, `[ADMIN] Plan changed to ${plan} — ${reason.trim()}`]
+        );
+      }
+
+      await client.query('COMMIT');
+      await audit.log(req.admin.id, req.admin.email, 'change_plan', 'customer', id, { plan, billingCycle, allocateCredits, reason, newBalance }, req);
+
+      const updated = await pool.query('SELECT * FROM customers WHERE id = $1', [id]);
+      delete updated.rows[0].password_hash;
+      res.json(updated.rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
+  });
+
   // POST /api/admin/customers/:id/credits
   router.post('/customers/:id/credits', async (req, res) => {
     const client = await pool.connect();
