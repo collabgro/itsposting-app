@@ -21,6 +21,13 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       if (window.location.pathname !== '/login') window.location.href = '/login';
     }
+    if (error.response?.status === 429) {
+      // Attach a readable message so page-level error states show something useful
+      const retryAfter = error.response.headers?.['retry-after'];
+      error.message = retryAfter
+        ? `Too many requests — please wait ${retryAfter} seconds and try again.`
+        : 'Too many requests — please wait a moment and try again.';
+    }
     return Promise.reject(error);
   }
 );

@@ -10,6 +10,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 let _pool = null;
 function setPool(pool) { _pool = pool; }
 
+// Short-lived cache for password_changed_at — avoids a DB hit on every API request.
+// TTL: 5 minutes. Invalidated immediately on password reset via invalidatePwCache().
+const _pwCache = new Map(); // customerId -> { changedAtSec: number, expiresAt: number }
+const PW_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function invalidatePwCache(customerId) {
+  _pwCache.delete(customerId);
+}
+
 async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
 
@@ -27,19 +36,25 @@ async function authenticate(req, res, next) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  // If pool is available, invalidate tokens issued before a password reset
+  // Invalidate tokens issued before a password reset.
+  // Uses a 5-min cache so we don't query the DB on every single API call.
   if (_pool && decoded.customerId) {
     try {
-      const { rows } = await _pool.query(
-        'SELECT password_changed_at FROM customers WHERE id = $1',
-        [decoded.customerId]
-      );
-      const changedAt = rows[0]?.password_changed_at;
-      if (changedAt) {
-        const changedAtSec = Math.floor(new Date(changedAt).getTime() / 1000);
-        if (decoded.iat < changedAtSec) {
-          return res.status(401).json({ error: 'Session expired — please log in again' });
-        }
+      const now = Date.now();
+      let cached = _pwCache.get(decoded.customerId);
+      if (!cached || cached.expiresAt < now) {
+        const { rows } = await _pool.query(
+          'SELECT password_changed_at FROM customers WHERE id = $1',
+          [decoded.customerId]
+        );
+        const changedAt = rows[0]?.password_changed_at;
+        const changedAtSec = changedAt ? Math.floor(new Date(changedAt).getTime() / 1000) : 0;
+        cached = { changedAtSec, expiresAt: now + PW_CACHE_TTL_MS };
+        _pwCache.set(decoded.customerId, cached);
+      }
+      if (cached.changedAtSec && decoded.iat < cached.changedAtSec) {
+        _pwCache.delete(decoded.customerId);
+        return res.status(401).json({ error: 'Session expired — please log in again' });
       }
     } catch { /* DB unavailable — allow through, don't block all traffic */ }
   }
@@ -92,4 +107,4 @@ function requireActiveAccount(pool) {
   };
 }
 
-module.exports = { authenticate, setPool, generateToken, getBillingCustomerId, verifyAdmin, requireActiveAccount };
+module.exports = { authenticate, setPool, generateToken, getBillingCustomerId, verifyAdmin, requireActiveAccount, invalidatePwCache };

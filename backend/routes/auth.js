@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { generateToken, authenticate } = require('../middleware/auth');
+const { generateToken, authenticate, invalidatePwCache } = require('../middleware/auth');
 const EmailQueue = require('../services/EmailQueue');
 
 module.exports = (pool) => {
@@ -232,6 +232,9 @@ module.exports = (pool) => {
         'UPDATE customers SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL, password_changed_at = NOW() WHERE id = $2',
         [hash, result.rows[0].id]
       );
+
+      // Immediately evict from cache so the old token is rejected on the next request
+      invalidatePwCache(result.rows[0].id);
 
       res.json({ success: true, message: 'Password updated successfully' });
     } catch (err) {

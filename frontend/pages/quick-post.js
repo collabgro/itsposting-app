@@ -27,10 +27,8 @@ function Spinner({ color = '#fff', size = 16 }) {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CONTENT_TYPES = [
-  { id: 'static',   icon: 'text_post',  label: 'Text Card',  desc: 'Simple text-only, no image', cost: '1 credit'   },
-  { id: 'photo',    icon: 'photo_post', label: 'Photo Post', desc: 'AI generates a real photo',  cost: '3 credits'  },
-  { id: 'carousel', icon: 'carousel',   label: 'Carousel',   desc: 'Multiple slide story',       cost: '5 credits',  wizardOnly: true },
-  { id: 'video',    icon: 'video',      label: 'Video',      desc: 'AI-generated video content', cost: '10 credits', wizardOnly: true },
+  { id: 'static', icon: 'text_post',  label: 'Text Card',  desc: 'Simple text-only, no image', cost: '1 credit'  },
+  { id: 'photo',  icon: 'photo_post', label: 'Photo Post', desc: 'AI generates a real photo',  cost: '3 credits' },
 ];
 
 const JOB_TYPES = [
@@ -244,61 +242,46 @@ export default function QuickPost() {
         </button>
       }
     >
-      <div style={{ maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 48 }}>
+      <div style={{ maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 36, paddingBottom: 48 }}>
 
         {/* ── Content type cards ─────────────────────────────────────── */}
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 16 }}>
             Content type
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {CONTENT_TYPES.map(ct => {
-              const sel = !ct.wizardOnly && contentType === ct.id;
-              const handleCtClick = () => {
-                if (ct.wizardOnly) {
-                  showToast('Carousel & video are in the full Wizard →', 'info');
-                  router.push('/wizard');
-                  return;
-                }
-                setContentType(ct.id);
-                setResult(null);
-              };
+              const sel = contentType === ct.id;
               return (
                 <button
                   key={ct.id}
-                  onClick={handleCtClick}
+                  onClick={() => { setContentType(ct.id); setResult(null); }}
                   style={{
-                    padding: '16px 14px',
+                    padding: '20px 18px',
                     background: sel ? t.primaryBg : (dark ? 'rgba(255,255,255,0.03)' : t.card),
                     border: `1px solid ${sel ? t.primary : (dark ? 'rgba(255,255,255,0.07)' : t.border)}`,
                     borderRadius: 14, cursor: 'pointer', textAlign: 'left',
                     transition: 'all 150ms ease',
                     boxShadow: sel ? `0 0 0 1px ${t.primary}22` : 'none',
-                    display: 'flex', flexDirection: 'column', gap: 10,
-                    position: 'relative', overflow: 'hidden',
+                    display: 'flex', flexDirection: 'column', gap: 12,
                   }}
                 >
-                  {ct.wizardOnly && (
-                    <span style={{ position: 'absolute', top: 7, right: 7, fontSize: 9, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 4, padding: '1px 5px', letterSpacing: '0.03em' }}>
-                      WIZARD
-                    </span>
-                  )}
                   <div style={{
-                    width: 40, height: 40, borderRadius: 10,
+                    width: 48, height: 48, borderRadius: 12,
                     background: sel ? `${t.primary}20` : (dark ? 'rgba(255,255,255,0.06)' : t.input),
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'background 150ms',
                   }}>
-                    <Icon name={ct.icon} size={22} style={{ color: sel ? t.primary : t.textMuted }} />
+                    <Icon name={ct.icon} size={26} style={{ color: sel ? t.primary : t.textMuted }} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: sel ? t.primary : t.text, marginBottom: 2 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: sel ? t.primary : t.text, marginBottom: 3 }}>
                       {ct.label}
                     </div>
-                    <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.3 }}>{ct.desc}</div>
+                    <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.4 }}>{ct.desc}</div>
                   </div>
                   <span style={{
-                    fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 12, width: 'fit-content',
+                    fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 12, width: 'fit-content',
                     background: sel ? `${t.primary}18` : (dark ? 'rgba(255,255,255,0.06)' : t.input),
                     color: sel ? t.primary : t.textMuted,
                     border: `1px solid ${sel ? t.primaryBorder : 'transparent'}`,
@@ -313,9 +296,9 @@ export default function QuickPost() {
 
         {/* ── Job type cards ─────────────────────────────────────────── */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '1px 7px', letterSpacing: '0.04em' }}>01</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', letterSpacing: '0.04em' }}>01</span>
               What&apos;s happening today?
             </span>
             {error && !jobType && (
@@ -324,7 +307,7 @@ export default function QuickPost() {
           </div>
           <div
             style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10,
+              display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12,
               animation: shake ? 'qp-shake 400ms ease' : 'none',
             }}
           >
@@ -336,7 +319,7 @@ export default function QuickPost() {
                   key={jt.id}
                   onClick={() => { setJobType(jt.id); setError(''); }}
                   style={{
-                    padding: '16px 12px',
+                    padding: '14px 10px',
                     background: sel
                       ? `${jt.color}18`
                       : dark ? 'rgba(255,255,255,0.03)' : t.card,
@@ -348,7 +331,7 @@ export default function QuickPost() {
                   }}
                 >
                   <div style={{
-                    width: 36, height: 36, borderRadius: 10,
+                    width: 38, height: 38, borderRadius: 10,
                     background: sel ? `${jt.color}25` : dark ? 'rgba(255,255,255,0.06)' : t.input,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'background 150ms',
@@ -371,27 +354,30 @@ export default function QuickPost() {
 
         {/* ── Add details (auto-reveals on job type selection) ──────── */}
         {jobType && (
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '1px 7px', letterSpacing: '0.04em' }}>02</span>
-              Add details
-              <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 500 }}>(optional)</span>
+          <>
+            <hr style={{ border: 'none', borderTop: `1px solid ${t.border}`, margin: 0 }} />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', letterSpacing: '0.04em' }}>02</span>
+                Add details
+                <span style={{ fontSize: 12, color: t.textMuted, fontWeight: 500 }}>(optional)</span>
+              </div>
+              <textarea
+                rows={3}
+                maxLength={200}
+                placeholder={selectedJob?.detailHint || 'Any extra context for PostCore...'}
+                value={details}
+                onChange={e => setDetails(e.target.value)}
+                style={{ ...iStyle, padding: '12px 16px', fontSize: 14 }}
+              />
             </div>
-            <textarea
-              rows={2}
-              maxLength={200}
-              placeholder={selectedJob?.detailHint || 'Any extra context for PostCore...'}
-              value={details}
-              onChange={e => setDetails(e.target.value)}
-              style={{ ...iStyle }}
-            />
-          </div>
+          </>
         )}
 
         {/* ── Platform row ──────────────────────────────────────────── */}
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '1px 7px', letterSpacing: '0.04em' }}>03</span>
+          <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', letterSpacing: '0.04em' }}>03</span>
             Platforms
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -404,7 +390,7 @@ export default function QuickPost() {
                   onClick={() => togglePlatform(p.id)}
                   title={p.label}
                   style={{
-                    width: 64, minHeight: 72, borderRadius: 12, padding: '10px 8px',
+                    width: 72, minHeight: 78, borderRadius: 12, padding: '12px 10px',
                     background: active
                       ? `${p.color}22`
                       : dark ? 'rgba(255,255,255,0.04)' : t.input,
@@ -415,11 +401,11 @@ export default function QuickPost() {
                     boxShadow: active ? `0 0 0 3px ${p.color}25` : 'none',
                   }}
                 >
-                  <PIcon size={18} style={{ color: active ? p.color : t.textMuted }} />
+                  <PIcon size={20} style={{ color: active ? p.color : t.textMuted }} />
                   <span style={{
-                    fontSize: 9, fontWeight: 700, letterSpacing: '0.02em', textAlign: 'center',
+                    fontSize: 10, fontWeight: 700, letterSpacing: '0.02em', textAlign: 'center',
                     color: active ? p.color : t.textMuted,
-                    lineHeight: 1.2, maxWidth: 52,
+                    lineHeight: 1.2, maxWidth: 60,
                   }}>
                     {p.label}
                   </span>
@@ -431,11 +417,11 @@ export default function QuickPost() {
 
         {/* ── Tone chips ────────────────────────────────────────────── */}
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '1px 7px', letterSpacing: '0.04em' }}>04</span>
+          <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', letterSpacing: '0.04em' }}>04</span>
             Tone
           </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {TONES.map(tn => {
               const sel = tone === tn.id;
               const TIcon = tn.Icon;
@@ -444,7 +430,7 @@ export default function QuickPost() {
                   key={tn.id}
                   onClick={() => setTone(tn.id)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px',
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '11px 16px',
                     borderRadius: 12, cursor: 'pointer', transition: 'all 120ms',
                     border: sel ? `1px solid ${t.primary}` : `1px solid ${t.border}`,
                     background: sel ? t.primaryBg : 'transparent',

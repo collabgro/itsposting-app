@@ -1,6 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { authenticate, generateToken } = require('../middleware/auth');
 const EmailQueue = require('../services/EmailQueue');
 
