@@ -50,14 +50,14 @@ const NAV_ITEMS = [
 
   { isDivider: true, label: 'Insights' },
   { name: 'Analytics',     href: '/analytics',      icon: IpAnalytics },
-  { name: 'GEO Audit',     href: '/geo-audit',      icon: IpSearch },
+  { name: 'AI Visibility', href: '/geo-audit',      icon: IpSearch },
 
   { isDivider: true, label: 'Engage' },
   { name: 'Inbox',         href: '/inbox',          icon: IpInbox,        badgeKey: 'dmUnread' },
   { name: 'Contacts',      href: '/contacts',       icon: IpTeam },
 
   { isDivider: true, label: 'Account' },
-  { name: 'Teach PostCore', href: '/knowledge-base', icon: IpBusiness },
+  { name: 'Knowledge Base', href: '/knowledge-base', icon: IpBusiness },
   { name: 'Workspaces',    href: '/workspaces',     icon: IpTeam,         isWorkspaceNav: true },
   { name: 'Billing',       href: '/billing',        icon: IpBilling },
   { name: 'Settings',      href: '/settings',       icon: IpSettings },
