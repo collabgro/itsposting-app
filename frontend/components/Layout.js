@@ -5,7 +5,7 @@ import {
   IpDashboard, IpWizard, IpSparkle, IpCreatePost, IpCalendar, IpDrafts,
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon, IpLogout,
-  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpTrendingUp, IpSearch,
+  IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpSearch,
   IpPhotoStudio, IpWarning,
 } from './icons';
 import { useTheme } from '../lib/theme';
@@ -14,9 +14,9 @@ import NotificationBell from './NotificationBell';
 import { ConfirmModal } from './ui';
 
 const ROLE_PERMISSIONS = {
-  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:true, geo_audit:true, inbox:true, receptionist:true, contacts:true, knowledge_base:true, settings:true },
-  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:false, geo_audit:false, inbox:true, receptionist:false, contacts:false, knowledge_base:false, settings:false },
-  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, reports:true, geo_audit:false, inbox:false, receptionist:false, contacts:false, knowledge_base:false, settings:false },
+  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:true, inbox:true, receptionist:true, contacts:true, knowledge_base:true, settings:true },
+  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:false, inbox:true, receptionist:false, contacts:false, knowledge_base:false, settings:false },
+  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, geo_audit:false, inbox:false, receptionist:false, contacts:false, knowledge_base:false, settings:false },
 };
 
 const MODULE_ROUTES = {
@@ -27,7 +27,6 @@ const MODULE_ROUTES = {
   media:          ['/media'],
   studio:         ['/studio'],
   analytics:      ['/analytics'],
-  reports:        ['/reports', '/roi'],
   geo_audit:      ['/geo-audit'],
   inbox:          ['/inbox'],
   receptionist:   ['/receptionist'],
@@ -46,8 +45,6 @@ const NAV_ITEMS = [
   { name: 'Drafts',      href: '/history',    icon: IpDrafts },
   { name: 'Media Library', href: '/media',    icon: IpMediaLibrary },
   { name: 'Analytics',      href: '/analytics',      icon: IpAnalytics },
-  { name: 'Reports',        href: '/reports',        icon: IpDrafts },
-  { name: 'ROI Estimator',  href: '/roi',            icon: IpTrendingUp },
   { name: 'GEO Audit',     href: '/geo-audit',      icon: IpSearch },
   { name: 'Inbox',          href: '/inbox',          icon: IpInbox, badgeKey: 'dmUnread' },
   { name: 'AI Receptionist', href: '/receptionist', icon: IpSparkle, betaBadge: true },

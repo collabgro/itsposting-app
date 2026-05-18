@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import {
   IpTrendingUp, IpHeart, IpComment, IpShare, IpAnalytics, IpChevronRight,
   IpSchedule, IpSparkle, IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
-  IpReview, IpCalendar, IpInfo, IpCheck, IpRefresh, IpTeam,
+  IpCalendar, IpInfo, IpCheck, IpRefresh,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Card, Button, Badge, StatCard, SectionHeader, EmptyState, Spinner } from '../../components/ui';
