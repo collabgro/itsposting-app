@@ -55,18 +55,24 @@ export default function Calendar() {
 
   useEffect(() => { if (mounted) loadPosts(); }, [currentMonth]);
 
+  const monthStart  = startOfMonth(currentMonth);
+  const monthEnd    = endOfMonth(currentMonth);
+  const visibleFrom = startOfWeek(monthStart);
+  const visibleTo   = endOfWeek(monthEnd);
+  const days        = eachDayOfInterval({ start: visibleFrom, end: visibleTo });
+
   const loadPosts = async () => {
     setLoading(true);
     try {
-      const res = await postsAPI.getAll({ limit: 200 });
+      const res = await postsAPI.getAll({
+        from:  visibleFrom.toISOString(),
+        to:    visibleTo.toISOString(),
+        limit: 200,
+      });
       setPosts(Array.isArray(res.data) ? res.data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
-
-  const monthStart  = startOfMonth(currentMonth);
-  const monthEnd    = endOfMonth(currentMonth);
-  const days        = eachDayOfInterval({ start: startOfWeek(monthStart), end: endOfWeek(monthEnd) });
   const getPostsForDay = (day) => posts.filter(p => p.scheduled_date && isSameDay(new Date(p.scheduled_date), day));
 
   const selectedDayPosts = selectedDay ? getPostsForDay(selectedDay) : [];

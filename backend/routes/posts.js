@@ -11,7 +11,7 @@ module.exports = (pool) => {
    */
   router.get('/', authenticate, async (req, res) => {
     try {
-      const { status, platform, contentType, search, limit = 50, offset = 0 } = req.query;
+      const { status, platform, contentType, search, from, to, limit = 50, offset = 0 } = req.query;
       const safeLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
       const safeOffset = Math.max(parseInt(offset) || 0, 0);
 
@@ -41,6 +41,24 @@ module.exports = (pool) => {
         paramCount++;
         query += ` AND caption ILIKE $${paramCount}`;
         params.push(`%${search.trim()}%`);
+      }
+
+      if (from) {
+        const fromDate = new Date(from);
+        if (!isNaN(fromDate)) {
+          paramCount++;
+          query += ` AND COALESCE(scheduled_date, created_at) >= $${paramCount}`;
+          params.push(fromDate.toISOString());
+        }
+      }
+
+      if (to) {
+        const toDate = new Date(to);
+        if (!isNaN(toDate)) {
+          paramCount++;
+          query += ` AND COALESCE(scheduled_date, created_at) <= $${paramCount}`;
+          params.push(toDate.toISOString());
+        }
       }
 
       query += ` ORDER BY scheduled_date DESC NULLS LAST, created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
