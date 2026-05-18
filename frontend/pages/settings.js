@@ -321,7 +321,7 @@ const LINKEDIN_SOCIAL_WIZARD = {
       heading: 'Step 3 — Generate your access token',
       subtext: '1. In your app, go to the "Auth" tab → scroll to "OAuth 2.0 Tools"\n2. Under scopes, select all three:\n   • w_member_social (post as yourself)\n   • w_organization_social (post as your company page)\n   • r_organization_social (read company analytics)\n3. Click "Request access token" → sign in → authorize → copy the token\n4. Find your Company URN: go to your LinkedIn Company Page, copy the number from the URL (after /company/) and format it as:\n   urn:li:organization:XXXXXXXX\n\nPaste both below.',
       isCredentialSlide: true,
-      warningNote: 'LinkedIn tokens expire — reconnect when prompted. For production use, set up a refresh token workflow via your app → Auth → OAuth 2.0 Tools.',
+      warningNote: 'LinkedIn tokens expire after 60 days — reconnect when prompted. Community Management API approval is required before this step will work.',
     },
   ],
 };
@@ -349,9 +349,9 @@ const TIKTOK_SOCIAL_WIZARD = {
     },
     {
       heading: 'Step 3 — Get your access token',
-      subtext: '1. After approval, go to your app → "Manage" → "Tokens"\n2. Click "Generate access token"\n3. Select all three scopes: video.publish, video.upload, user.info.basic\n4. Click "Authorize" → sign in with your TikTok account → copy the access token\n5. Your Open ID will also appear on the same screen — copy it too\n\nPaste both below.',
+      subtext: '1. After approval, go to your app → "Manage" → "Tokens"\n2. Click "Generate access token"\n3. Select the posting scopes — look for: video.publish (required), video.upload, user.info.basic\n4. Click "Authorize" → sign in with your TikTok account → copy the access token\n5. Your Open ID will also appear on the same screen — copy it too\n\nPaste both below.',
       isCredentialSlide: true,
-      warningNote: 'Until your TikTok app passes audit, all posts will be private-only and only visible to you. Once audit is passed, posts publish publicly.',
+      warningNote: 'Until your TikTok app passes audit, all posts will be private-only. Once approved, posts publish publicly. Scope names may vary slightly — check your app\'s Scopes section for exact names.',
     },
   ],
 };
