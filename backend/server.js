@@ -46,7 +46,10 @@ const PORT = process.env.PORT || 3001;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/socialmedia',
-  ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')
+  ssl: process.env.DATABASE_URL &&
+    !process.env.DATABASE_URL.includes('localhost') &&
+    !process.env.DATABASE_URL.includes('127.0.0.1') &&
+    !process.env.DATABASE_URL.includes('.railway.internal')
     ? { rejectUnauthorized: false }
     : false,
   max: 20,
