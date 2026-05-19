@@ -391,16 +391,65 @@ export default function QuickPost() {
 
         {/* ── Platform row ──────────────────────────────────────────── */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', letterSpacing: '0.04em' }}>03</span>
               Platforms
             </div>
             <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 500 }}>
-              {selectedPlats.length} of {PLATFORMS.length} selected
+              {selectedPlats.length === PLATFORMS.length ? 'All platforms' : `${selectedPlats.length} of ${PLATFORMS.length} selected`}
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16 }}>
+
+            {/* All card */}
+            {(() => {
+              const allActive = selectedPlats.length === PLATFORMS.length;
+              return (
+                <button
+                  onClick={() => allActive ? setSelectedPlats([PLATFORMS[0].id]) : setSelectedPlats(PLATFORMS.map(p => p.id))}
+                  title="All platforms"
+                  style={{
+                    position: 'relative',
+                    padding: '24px 10px 22px',
+                    background: allActive
+                      ? 'rgba(155,79,212,0.14)'
+                      : dark ? 'rgba(255,255,255,0.03)' : t.card,
+                    border: `2px solid ${allActive ? '#9B4FD4' : (dark ? 'rgba(255,255,255,0.08)' : t.border)}`,
+                    borderRadius: 18, cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 12,
+                    transition: 'all 160ms ease',
+                    boxShadow: allActive ? '0 0 0 3px rgba(155,79,212,0.22), 0 4px 18px rgba(155,79,212,0.18)' : 'none',
+                  }}
+                >
+                  {allActive && (
+                    <div style={{ position: 'absolute', top: 9, right: 9, width: 20, height: 20, borderRadius: '50%', background: '#9B4FD4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <IpCheck size={11} color="#fff" />
+                    </div>
+                  )}
+                  <div style={{
+                    width: 60, height: 60, borderRadius: 16,
+                    background: allActive ? 'rgba(155,79,212,0.22)' : dark ? 'rgba(255,255,255,0.06)' : t.input,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: `1px solid ${allActive ? 'rgba(155,79,212,0.45)' : 'transparent'}`,
+                    transition: 'background 160ms',
+                  }}>
+                    {/* Mini 2×2 grid of platform dots */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                      {PLATFORMS.slice(0, 4).map((pp) => (
+                        <div key={pp.id} style={{ width: 10, height: 10, borderRadius: 3, background: allActive ? pp.color : (dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)'), transition: 'background 160ms' }} />
+                      ))}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.01em', textAlign: 'center', color: allActive ? '#9B4FD4' : t.textSecondary, lineHeight: 1.2 }}>
+                    All
+                  </span>
+                </button>
+              );
+            })()}
+
+            {/* Individual platform cards */}
             {PLATFORMS.map(p => {
               const active = selectedPlats.includes(p.id);
               const PIcon = p.Icon;
@@ -411,44 +460,33 @@ export default function QuickPost() {
                   title={p.label}
                   style={{
                     position: 'relative',
-                    padding: '20px 10px 18px',
+                    padding: '24px 10px 22px',
                     background: active
                       ? `${p.color}18`
                       : dark ? 'rgba(255,255,255,0.03)' : t.card,
                     border: `2px solid ${active ? p.color : (dark ? 'rgba(255,255,255,0.08)' : t.border)}`,
-                    borderRadius: 16, cursor: 'pointer',
+                    borderRadius: 18, cursor: 'pointer',
                     display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: 10,
+                    alignItems: 'center', justifyContent: 'center', gap: 12,
                     transition: 'all 160ms ease',
-                    boxShadow: active ? `0 0 0 3px ${p.color}28, 0 4px 16px ${p.color}18` : 'none',
+                    boxShadow: active ? `0 0 0 3px ${p.color}28, 0 4px 18px ${p.color}18` : 'none',
                   }}
                 >
-                  {/* Selected checkmark badge */}
                   {active && (
-                    <div style={{
-                      position: 'absolute', top: 8, right: 8,
-                      width: 18, height: 18, borderRadius: '50%',
-                      background: p.color,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <IpCheck size={10} color="#fff" />
+                    <div style={{ position: 'absolute', top: 9, right: 9, width: 20, height: 20, borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <IpCheck size={11} color="#fff" />
                     </div>
                   )}
-                  {/* Icon container */}
                   <div style={{
-                    width: 52, height: 52, borderRadius: 14,
+                    width: 60, height: 60, borderRadius: 16,
                     background: active ? `${p.color}22` : dark ? 'rgba(255,255,255,0.06)' : t.input,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'background 160ms',
                     border: `1px solid ${active ? p.color + '40' : 'transparent'}`,
                   }}>
-                    <PIcon size={26} style={{ color: active ? p.color : t.textMuted }} />
+                    <PIcon size={30} style={{ color: active ? p.color : t.textMuted }} />
                   </div>
-                  <span style={{
-                    fontSize: 12, fontWeight: 700, letterSpacing: '0.01em', textAlign: 'center',
-                    color: active ? p.color : t.textSecondary,
-                    lineHeight: 1.2,
-                  }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.01em', textAlign: 'center', color: active ? p.color : t.textSecondary, lineHeight: 1.2 }}>
                     {p.label}
                   </span>
                 </button>
