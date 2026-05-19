@@ -49,7 +49,7 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL &&
     !process.env.DATABASE_URL.includes('localhost') &&
     !process.env.DATABASE_URL.includes('127.0.0.1')
-    ? { rejectUnauthorized: false }
+    ? { rejectUnauthorized: false, ciphers: 'DEFAULT:@SECLEVEL=0' }
     : false,
   max: 20,
   idleTimeoutMillis: 30000,
