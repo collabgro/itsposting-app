@@ -520,7 +520,18 @@ export default function WorkspacesPage() {
     setMembersLoading(true);
     Promise.all([workspacesAPI.getMembers(), workspacesAPI.getInvitations()])
       .then(([membersRes, invitesRes]) => {
-        setMembers(membersRes.data.members || []);
+        // Normalize both Type A (workspace profiles) and Type B (invited members) to a common shape.
+        // Type A returns workspace_role/workspace_permissions; Type B returns role/permissions.
+        const normalize = (m) => ({
+          ...m,
+          workspace_role:        m.workspace_role        || m.role        || 'editor',
+          workspace_permissions: m.workspace_permissions || m.permissions || null,
+        });
+        const allMembers = [
+          ...(membersRes.data.workspaceProfiles || []),
+          ...(membersRes.data.members || []),
+        ].map(normalize);
+        setMembers(allMembers);
         setPendingInvites(invitesRes.data.invitations || []);
         setMembersLoaded(true);
       })

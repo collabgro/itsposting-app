@@ -65,12 +65,12 @@ module.exports = (pool) => {
               ELSE 0
             END) AS mrr
           FROM customers
-          WHERE status = 'active' AND suspended = false
+          WHERE status = 'active' AND suspended = false AND is_admin = false
           GROUP BY plan
         `),
         pool.query(`
           SELECT id, email, business_name, plan, status, created_at, suspended
-          FROM customers ORDER BY created_at DESC LIMIT 10
+          FROM customers WHERE is_admin = false ORDER BY created_at DESC LIMIT 10
         `),
       ]);
 
