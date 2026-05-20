@@ -72,6 +72,7 @@ class SocialPublisher {
   // ─── Router ───────────────────────────────────────────────────────────────
 
   async postToPlatform(account, post) {
+    account = await this._refreshTokenIfNeeded(account);
     switch (account.platform) {
       case 'facebook':        return this.postToFacebook(account, post);
       case 'instagram':       return this.postToInstagram(account, post);
@@ -294,6 +295,75 @@ class SocialPublisher {
     const publishId = initRes.data?.data?.publish_id;
     if (!publishId) throw new Error(initRes.data?.error?.message || 'TikTok post initiation failed');
     return publishId;
+  }
+
+  // ─── Token refresh ────────────────────────────────────────────────────────
+
+  // Refresh Google or TikTok access token when it has expired or is within 5 minutes
+  // of expiry. Updates social_accounts in the DB and returns a fresh account object.
+  // Falls through silently on failure — the post attempt will then fail with a natural
+  // API error, which is more informative than a generic refresh error.
+  async _refreshTokenIfNeeded(account) {
+    const { platform, refresh_token, token_expires_at } = account;
+    if (platform !== 'google_business' && platform !== 'tiktok') return account;
+    if (!refresh_token) return account;
+
+    const BUFFER_MS = 5 * 60 * 1000; // 5 minutes
+    const expiresAt = token_expires_at ? new Date(token_expires_at).getTime() : 0;
+    if (expiresAt - Date.now() >= BUFFER_MS) return account; // still fresh
+
+    let newAccessToken, newRefreshToken, newExpiresIn;
+    try {
+      if (platform === 'google_business') {
+        const res = await axios.post(
+          'https://oauth2.googleapis.com/token',
+          new URLSearchParams({
+            client_id:     process.env.GOOGLE_CLIENT_ID,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET,
+            refresh_token,
+            grant_type:    'refresh_token',
+          }),
+          { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 }
+        );
+        newAccessToken  = res.data.access_token;
+        newRefreshToken = res.data.refresh_token || refresh_token; // Google rarely rotates the refresh token
+        newExpiresIn    = res.data.expires_in || 3600;
+      } else {
+        const res = await axios.post(
+          'https://open.tiktokapis.com/v2/oauth/token/',
+          new URLSearchParams({
+            client_key:    process.env.TIKTOK_CLIENT_KEY,
+            client_secret: process.env.TIKTOK_CLIENT_SECRET,
+            grant_type:    'refresh_token',
+            refresh_token,
+          }),
+          { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 }
+        );
+        const data      = res.data?.data || res.data;
+        newAccessToken  = data.access_token;
+        newRefreshToken = data.refresh_token || refresh_token;
+        newExpiresIn    = data.expires_in || 86400;
+      }
+    } catch (err) {
+      console.error(`[SocialPublisher] Token refresh failed for ${platform} (id=${account.id}):`, err.response?.data || err.message);
+      return account;
+    }
+
+    if (!newAccessToken) return account;
+
+    const newExpiresAt = new Date(Date.now() + newExpiresIn * 1000);
+    await this.pool.query(
+      `UPDATE social_accounts
+       SET access_token     = $1,
+           refresh_token    = $2,
+           token_expires_at = $3,
+           updated_at       = NOW()
+       WHERE id = $4`,
+      [newAccessToken, newRefreshToken, newExpiresAt, account.id]
+    );
+
+    console.log(`[SocialPublisher] Token refreshed for ${platform} (id=${account.id}), expires ${newExpiresAt.toISOString()}`);
+    return { ...account, access_token: newAccessToken, refresh_token: newRefreshToken, token_expires_at: newExpiresAt };
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────

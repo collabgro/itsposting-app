@@ -444,6 +444,19 @@ console.log('══════════════════════�
        AND c.email NOT LIKE 'workspace-%@internal.itsposting.com'
        AND c.status != 'inactive'
      ON CONFLICT (workspace_id, member_id) DO NOTHING`,
+    // workspace_id on invitations — lets owner invite someone to a specific sub-workspace
+    `ALTER TABLE workspace_invitations
+       ADD COLUMN IF NOT EXISTS workspace_id INTEGER REFERENCES customers(id) ON DELETE SET NULL`,
+    // Clear stale legacy columns from Type B rows now tracked in workspace_members.
+    // Type A rows (fake workspace emails) are excluded — they still need parent_customer_id.
+    `UPDATE customers
+     SET parent_customer_id    = NULL,
+         workspace_role        = NULL,
+         workspace_permissions = NULL,
+         updated_at            = NOW()
+     WHERE parent_customer_id IS NOT NULL
+       AND email NOT LIKE 'workspace-%@internal.itsposting.com'
+       AND status != 'inactive'`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }

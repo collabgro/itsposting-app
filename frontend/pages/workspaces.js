@@ -168,11 +168,12 @@ function CreateWorkspaceModal({ onClose, onCreate }) {
 
 // ─── Invite modal ────────────────────────────────────────────────────────────
 
-function InviteModal({ onClose, onInvited }) {
+function InviteModal({ onClose, onInvited, workspaces = [] }) {
   const { t } = useTheme();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('editor');
   const [permissions, setPermissions] = useState(null);
+  const [targetWorkspaceId, setTargetWorkspaceId] = useState(null);
   const [showCustom, setShowCustom] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -199,7 +200,7 @@ function InviteModal({ onClose, onInvited }) {
     setSending(true);
     setError('');
     try {
-      await workspacesAPI.invite({ email: email.trim(), role, permissions: permissions || null });
+      await workspacesAPI.invite({ email: email.trim(), role, permissions: permissions || null, workspaceId: targetWorkspaceId });
       setSentEmail(email.trim());
       setSent(true);
       onInvited && onInvited({ email: email.trim(), role, permissions: permissions || null });
@@ -232,6 +233,20 @@ function InviteModal({ onClose, onInvited }) {
             </div>
           ) : (
             <>
+              {/* Target workspace selector — only shown when owner has sub-workspaces */}
+              {workspaces.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Target workspace</label>
+                  <select value={targetWorkspaceId || ''} onChange={(e) => setTargetWorkspaceId(e.target.value ? parseInt(e.target.value) : null)}
+                    style={{ width: '100%', padding: '11px 14px', boxSizing: 'border-box', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                    <option value="">Main account</option>
+                    {workspaces.map((ws) => (
+                      <option key={ws.id} value={ws.id}>{ws.workspace_display_name || ws.business_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Email */}
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Email address</label>
@@ -497,14 +512,16 @@ export default function WorkspacesPage() {
   const [showInvite, setShowInvite] = useState(false);
   const [pendingInvites, setPendingInvites] = useState([]);
   const [membersLoaded, setMembersLoaded] = useState(false);
+  const [memberships, setMemberships] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { router.push('/login'); return; }
-    Promise.all([authAPI.verify(), workspacesAPI.list()])
-      .then(([authRes, wsRes]) => {
+    Promise.all([authAPI.verify(), workspacesAPI.list(), workspacesAPI.myMemberships()])
+      .then(([authRes, wsRes, membershipsRes]) => {
         setCurrentUserId(authRes.data?.id || authRes.data?.customer?.id);
         setData(wsRes.data);
+        setMemberships(membershipsRes.data.memberships || []);
       })
       .catch(() => setError('Failed to load workspaces'))
       .finally(() => setLoading(false));
@@ -788,6 +805,39 @@ export default function WorkspacesPage() {
               </Card>
             ))}
 
+            {/* Shared with you — workspaces this user was invited to by other accounts */}
+            {memberships.length > 0 && (
+              <>
+                <SectionHeader title="Shared with you" subtitle="Workspaces you've been invited to" style={{ marginTop: 28, marginBottom: 14 }} />
+                {memberships.map((m) => {
+                  const rm = ROLE_META[m.role || 'editor'];
+                  const wsName = m.workspace_display_name || m.business_name;
+                  return (
+                    <Card key={m.membership_id} style={{ marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div style={{ width: 42, height: 42, borderRadius: 10, background: 'linear-gradient(135deg, #0EA5E9, #0284C7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                          {(wsName || 'W').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{wsName}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: rm.bg, color: rm.color }}>{rm.label}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: t.textMuted, marginTop: 3 }}>
+                            {[m.industry?.replace('_', ' '), m.location].filter(Boolean).join(' · ') || 'No industry set'}
+                            {' · '}by {m.owner_business_name}
+                          </div>
+                        </div>
+                        <Button variant="secondary" onClick={() => handleSwitch(m.workspace_id)} disabled={!!switching}>
+                          {switching === m.workspace_id ? 'Switching…' : 'Switch'}
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </>
+            )}
+
             {/* Upgrade prompt when at limit */}
             {!canAddMore && nextPlan && isOnMainAccount && (
               <Card style={{ background: t.primaryBg, borderColor: t.primaryBorder }}>
@@ -903,7 +953,7 @@ export default function WorkspacesPage() {
       </div>
 
       {showCreate && <CreateWorkspaceModal onClose={() => setShowCreate(false)} onCreate={handleCreated} />}
-      {showInvite && <InviteModal onClose={() => setShowInvite(false)} onInvited={handleInvited} />}
+      {showInvite && <InviteModal workspaces={workspaces} onClose={() => setShowInvite(false)} onInvited={handleInvited} />}
       {editingMember && (
         <MemberPermissionModal
           member={editingMember}

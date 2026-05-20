@@ -285,11 +285,21 @@ module.exports = (pool) => {
   router.post('/invite', authenticate, async (req, res) => {
     try {
       const parentId = mainCustomerId(req);
-      const { email, role = 'editor', permissions = null } = req.body;
+      const { email, role = 'editor', permissions = null, workspaceId = null } = req.body;
 
       if (!email || !email.trim()) return res.status(400).json({ error: 'Email is required' });
       const normalizedEmail = email.trim().toLowerCase();
       if (!VALID_ROLES.includes(role)) return res.status(400).json({ error: 'Role must be manager, editor, or viewer' });
+
+      let targetWorkspaceId = null;
+      if (workspaceId) {
+        const wsCheck = await pool.query(
+          `SELECT id FROM customers WHERE id = $1 AND parent_customer_id = $2`,
+          [workspaceId, parentId]
+        );
+        if (!wsCheck.rows.length) return res.status(403).json({ error: 'Invalid workspace' });
+        targetWorkspaceId = workspaceId;
+      }
 
       // Reject if already an active member (check both old-style and new workspace_members)
       const [oldMemberCheck, newMemberCheck] = await Promise.all([
@@ -319,9 +329,9 @@ module.exports = (pool) => {
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       const insert = await pool.query(
-        `INSERT INTO workspace_invitations (inviter_id, email, token_hash, role, permissions, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [parentId, normalizedEmail, tokenHash, role, permissions ? JSON.stringify(permissions) : null, expiresAt]
+        `INSERT INTO workspace_invitations (inviter_id, email, token_hash, role, permissions, expires_at, workspace_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [parentId, normalizedEmail, tokenHash, role, permissions ? JSON.stringify(permissions) : null, expiresAt, targetWorkspaceId]
       );
 
       const inviterRow = await pool.query('SELECT business_name FROM customers WHERE id = $1', [parentId]);
@@ -407,6 +417,28 @@ module.exports = (pool) => {
       // Issue a clean JWT with no workspace context
       const token = generateToken(main.id, main.email);
       res.json({ token });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── GET /api/workspaces/my-memberships ──────────────────────────────────────
+  // Returns all workspaces this user has been invited to (as a member, not as an owner).
+  router.get('/my-memberships', authenticate, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT wm.id AS membership_id, wm.workspace_id, wm.owner_id,
+                wm.role, wm.permissions, wm.joined_at,
+                c.business_name, c.workspace_display_name, c.industry, c.location,
+                o.business_name AS owner_business_name
+         FROM workspace_members wm
+         JOIN customers c ON c.id = wm.workspace_id
+         JOIN customers o ON o.id = wm.owner_id
+         WHERE wm.member_id = $1 AND wm.revoked_at IS NULL
+         ORDER BY wm.joined_at ASC`,
+        [req.customerId]
+      );
+      res.json({ memberships: result.rows });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

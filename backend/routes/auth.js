@@ -154,17 +154,21 @@ module.exports = (pool) => {
         return res.status(403).json({ error: 'Account suspended' });
       }
 
-      // Sub-accounts (Type A — auto-created workspace profiles) share the parent's credit pool
-      if (customer.parent_customer_id) {
+      // Share the billing owner's credit pool.
+      // Covers Type A (parent_customer_id in DB) and Type B transition — old 30-day JWTs
+      // carry parentCustomerId for up to 30 days after the legacy column is cleared.
+      if (customer.parent_customer_id || req.parentCustomerId) {
+        const ownerIdToUse = customer.parent_customer_id || req.parentCustomerId;
         const parentRow = await pool.query(
           `SELECT credits_balance, free_geo_audit_used, is_admin FROM customers WHERE id = $1`,
-          [customer.parent_customer_id]
+          [ownerIdToUse]
         );
         if (parentRow.rows.length) {
           customer.credits_balance     = parentRow.rows[0].credits_balance;
           customer.free_geo_audit_used = parentRow.rows[0].free_geo_audit_used;
           customer.is_admin            = customer.is_admin || parentRow.rows[0].is_admin;
-          customer.is_sub_account      = true;
+          customer.is_sub_account      = !!customer.parent_customer_id;
+          customer.is_member           = !customer.parent_customer_id && !!req.parentCustomerId;
         }
       } else if (req.ownerId) {
         // Invited member (Type B) operating in workspace context — pull credits from workspace owner
@@ -262,9 +266,12 @@ module.exports = (pool) => {
       const tokenHash = crypto.createHash('sha256').update(req.params.token).digest('hex');
       const result = await pool.query(
         `SELECT wi.id, wi.email, wi.role, wi.permissions, wi.status, wi.expires_at,
-                c.business_name AS inviter_business_name
+                wi.workspace_id,
+                c.business_name AS inviter_business_name,
+                ws.business_name AS workspace_business_name
          FROM workspace_invitations wi
          JOIN customers c ON c.id = wi.inviter_id
+         LEFT JOIN customers ws ON ws.id = wi.workspace_id
          WHERE wi.token_hash = $1`,
         [tokenHash]
       );
@@ -293,6 +300,8 @@ module.exports = (pool) => {
           role: invite.role,
           permissions: invite.permissions,
           inviterBusinessName: invite.inviter_business_name,
+          workspaceId: invite.workspace_id,
+          workspaceBusinessName: invite.workspace_business_name,
           expiresAt: invite.expires_at,
         },
         existingAccount: existingCheck.rows.length > 0,
@@ -321,7 +330,7 @@ module.exports = (pool) => {
       // Re-validate invite fresh from DB (don't trust frontend state)
       const inviteResult = await pool.query(
         `SELECT wi.id, wi.email, wi.role, wi.permissions, wi.status, wi.expires_at, wi.accepted_by,
-                wi.inviter_id, c.business_name AS inviter_business_name
+                wi.inviter_id, wi.workspace_id, c.business_name AS inviter_business_name
          FROM workspace_invitations wi
          JOIN customers c ON c.id = wi.inviter_id
          WHERE wi.token_hash = $1`,
@@ -344,7 +353,7 @@ module.exports = (pool) => {
               return res.json({
                 customer: c,
                 token: generateToken(c.id, c.email, {
-                  workspaceId: invite.inviter_id,
+                  workspaceId: invite.workspace_id || invite.inviter_id,
                   ownerId:     invite.inviter_id,
                 }),
               });
@@ -431,6 +440,8 @@ module.exports = (pool) => {
         ).catch(() => {});
       }
 
+      const targetWorkspaceId = invite.workspace_id || invite.inviter_id;
+
       // Create workspace membership row (idempotent — un-revokes if member was previously removed)
       await client.query(
         `INSERT INTO workspace_members
@@ -442,7 +453,7 @@ module.exports = (pool) => {
                          permissions = EXCLUDED.permissions,
                          updated_at  = NOW()`,
         [
-          invite.inviter_id,
+          targetWorkspaceId,
           customer.id,
           invite.inviter_id,
           invite.role,
@@ -463,7 +474,7 @@ module.exports = (pool) => {
 
       // Issue a workspace-context JWT — ownerId enables getBillingCustomerId to resolve to the owner
       const token = generateToken(customer.id, customer.email, {
-        workspaceId: invite.inviter_id,
+        workspaceId: targetWorkspaceId,
         ownerId:     invite.inviter_id,
       });
       res.json({ customer, token });

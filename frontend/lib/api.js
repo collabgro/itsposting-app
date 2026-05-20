@@ -143,6 +143,7 @@ export const workspacesAPI = {
   invite: (data) => api.post('/api/workspaces/invite', data),
   getInvitations: () => api.get('/api/workspaces/invitations'),
   cancelInvitation: (id) => api.delete(`/api/workspaces/invitations/${id}`),
+  myMemberships: () => api.get('/api/workspaces/my-memberships'),
 };
 
 export const inviteAPI = {

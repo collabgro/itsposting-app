@@ -1092,10 +1092,7 @@ CTA: Clear single action (not multiple options)
 - **Settings cleanup** — removed "Image Source" and "Inbox Sync" sections from settings.js (non-functional placeholders)
 - **First-time user welcome banner** — dashboard shows a contextual welcome card (with CTA to Quick Post) when the customer has zero posts
 - **Billing plan taglines** — each plan card shows a plain-English description of who the plan is for
-
-### 🔴 STILL TO BUILD:
-- **Monthly report generator** — PDF generation via Resend (reports page is UI-only)
-- **Token refresh** — OAuth tokens for Google/TikTok stored but not auto-refreshed on expiry
+- **OAuth token auto-refresh** — Google and TikTok access tokens are refreshed automatically before every post when expired or within 5 min of expiry; new tokens written back to `social_accounts` (SocialPublisher._refreshTokenIfNeeded)
 
 ---
 
