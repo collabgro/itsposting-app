@@ -39,13 +39,13 @@ module.exports = (pool) => {
       const [users, posts, revenue, recent] = await Promise.all([
         pool.query(`
           SELECT
-            COUNT(*) AS total,
-            COUNT(*) FILTER (WHERE status = 'trial') AS trial,
-            COUNT(*) FILTER (WHERE status = 'active') AS active,
-            COUNT(*) FILTER (WHERE suspended = true) AS suspended,
-            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS new_this_week,
-            COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') AS new_this_month,
-            COUNT(*) FILTER (WHERE last_login_at > NOW() - INTERVAL '7 days') AS active_this_week
+            COUNT(*) FILTER (WHERE is_admin = false) AS total,
+            COUNT(*) FILTER (WHERE is_admin = false AND status = 'trial') AS trial,
+            COUNT(*) FILTER (WHERE is_admin = false AND status = 'active') AS active,
+            COUNT(*) FILTER (WHERE is_admin = false AND suspended = true) AS suspended,
+            COUNT(*) FILTER (WHERE is_admin = false AND created_at > NOW() - INTERVAL '7 days') AS new_this_week,
+            COUNT(*) FILTER (WHERE is_admin = false AND created_at > NOW() - INTERVAL '30 days') AS new_this_month,
+            COUNT(*) FILTER (WHERE is_admin = false AND last_login_at > NOW() - INTERVAL '7 days') AS active_this_week
           FROM customers
         `),
         pool.query(`
@@ -104,8 +104,10 @@ module.exports = (pool) => {
       if (plan) { p++; where += ` AND c.plan = $${p}`; params.push(plan); }
       if (status) { p++; where += ` AND c.status = $${p}`; params.push(status); }
       if (suspended !== undefined && suspended !== '') { p++; where += ` AND c.suspended = $${p}`; params.push(suspended === 'true'); }
-      if (account_type === 'main') where += ' AND c.parent_customer_id IS NULL';
-      if (account_type === 'workspace') where += ' AND c.parent_customer_id IS NOT NULL';
+      if (account_type === 'main')      where += ' AND c.parent_customer_id IS NULL AND c.is_admin = false';
+      else if (account_type === 'workspace') where += ' AND c.parent_customer_id IS NOT NULL';
+      else if (account_type === 'admin')     where += ' AND c.is_admin = true';
+      else                                   where += ' AND c.is_admin = false'; // default: exclude platform admins from customer view
 
       const countResult = await pool.query(
         `SELECT COUNT(*) FROM customers c LEFT JOIN customers p ON c.parent_customer_id = p.id ${where}`,
@@ -146,7 +148,7 @@ module.exports = (pool) => {
       const result = await pool.query(
         `SELECT id, email, business_name, industry, location, plan, status,
                 credits_balance, suspended, created_at, last_login_at
-         FROM customers ORDER BY created_at DESC`
+         FROM customers WHERE is_admin = false ORDER BY created_at DESC`
       );
 
       const header = 'id,email,business_name,industry,location,plan,status,credits_balance,suspended,created_at,last_login_at\n';
@@ -399,29 +401,104 @@ module.exports = (pool) => {
 
   // POST /api/admin/customers/:id/promote
   router.post('/customers/:id/promote', async (req, res) => {
+    const client = await pool.connect();
     try {
-      const result = await pool.query(
-        `UPDATE customers SET is_admin = true, role = 'admin' WHERE id = $1 RETURNING email`,
-        [req.params.id]
+      const { role = 'support' } = req.body;
+      const VALID_ADMIN_ROLES = ['super_admin', 'support', 'finance'];
+      if (!VALID_ADMIN_ROLES.includes(role)) {
+        return res.status(400).json({ error: 'Role must be super_admin, support, or finance' });
+      }
+
+      // Only super_admin can promote; legacy is_admin without a platform_admins row is treated as super_admin
+      const callerRole = req.admin.admin_role || (req.admin.is_admin ? 'super_admin' : null);
+      if (callerRole !== 'super_admin') {
+        return res.status(403).json({ error: 'Only super_admin can promote users' });
+      }
+
+      const targetId = parseInt(req.params.id);
+      const check = await pool.query('SELECT id, email FROM customers WHERE id = $1', [targetId]);
+      if (!check.rows.length) return res.status(404).json({ error: 'Not found' });
+
+      await client.query('BEGIN');
+      // Upsert into platform_admins — handles re-promote after a previous demote
+      await client.query(
+        `INSERT INTO platform_admins (customer_id, admin_role, granted_by, granted_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (customer_id) DO UPDATE
+           SET admin_role  = EXCLUDED.admin_role,
+               granted_by  = EXCLUDED.granted_by,
+               granted_at  = NOW(),
+               revoked_at  = NULL,
+               updated_at  = NOW()`,
+        [targetId, role, req.admin.id]
       );
-      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-      await audit.log(req.admin.id, req.admin.email, 'promote_admin', 'customer', req.params.id, {}, req);
+      // Keep is_admin flag in sync as a fast-path cache
+      await client.query(
+        `UPDATE customers SET is_admin = true, role = $1 WHERE id = $2`,
+        [role, targetId]
+      );
+      await client.query('COMMIT');
+
+      await audit.log(req.admin.id, req.admin.email, 'promote_admin', 'customer', req.params.id, { role }, req);
       res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) {
+      await client.query('ROLLBACK');
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
   });
 
   // POST /api/admin/customers/:id/demote
   router.post('/customers/:id/demote', async (req, res) => {
+    const client = await pool.connect();
     try {
-      if (parseInt(req.params.id) === req.admin.id) return res.status(400).json({ error: 'Cannot demote yourself' });
-      const result = await pool.query(
-        `UPDATE customers SET is_admin = false, role = 'customer' WHERE id = $1 RETURNING email`,
-        [req.params.id]
+      const targetId = parseInt(req.params.id);
+      if (targetId === req.admin.id) return res.status(400).json({ error: 'Cannot demote yourself' });
+
+      const callerRole = req.admin.admin_role || (req.admin.is_admin ? 'super_admin' : null);
+      if (callerRole !== 'super_admin') {
+        return res.status(403).json({ error: 'Only super_admin can demote users' });
+      }
+
+      // Prevent locking out all super_admins
+      const otherSuperAdmins = await pool.query(
+        `SELECT COUNT(*) FROM platform_admins
+         WHERE admin_role = 'super_admin' AND revoked_at IS NULL AND customer_id != $1`,
+        [targetId]
       );
-      if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+      if (parseInt(otherSuperAdmins.rows[0].count) === 0) {
+        // Check if the target is actually a super_admin before blocking
+        const targetRow = await pool.query(
+          `SELECT admin_role FROM platform_admins WHERE customer_id = $1 AND revoked_at IS NULL`,
+          [targetId]
+        );
+        if (targetRow.rows[0]?.admin_role === 'super_admin') {
+          return res.status(400).json({ error: 'Cannot demote the last super_admin' });
+        }
+      }
+
+      await client.query('BEGIN');
+      const pa = await client.query(
+        `UPDATE platform_admins SET revoked_at = NOW(), updated_at = NOW()
+         WHERE customer_id = $1 AND revoked_at IS NULL RETURNING id`,
+        [targetId]
+      );
+      await client.query(
+        `UPDATE customers SET is_admin = false, role = 'customer' WHERE id = $1`,
+        [targetId]
+      );
+      await client.query('COMMIT');
+
+      if (!pa.rows.length) return res.status(404).json({ error: 'Admin record not found' });
       await audit.log(req.admin.id, req.admin.email, 'demote_admin', 'customer', req.params.id, {}, req);
       res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) {
+      await client.query('ROLLBACK');
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
   });
 
   // POST /api/admin/customers/:id/impersonate

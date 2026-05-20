@@ -161,19 +161,40 @@ module.exports = (pool) => {
   });
 
   // ── GET /api/workspaces/members ─────────────────────────────────────────────
-  // List all team members (sub-accounts linked via parent_customer_id).
+  // List all team members — both workspace profiles (Type A) and invited members (Type B).
   router.get('/members', authenticate, async (req, res) => {
     try {
       const parentId = mainCustomerId(req);
-      const rows = await pool.query(
-        `SELECT id, email, business_name, workspace_role, workspace_permissions,
-                created_at, last_posted_at, status
+
+      // Type A: auto-created workspace business profiles (fake internal emails)
+      const profilesResult = await pool.query(
+        `SELECT id, email, business_name, workspace_display_name, workspace_role AS role,
+                workspace_permissions AS permissions, created_at, status,
+                'workspace_profile' AS member_type
          FROM customers
-         WHERE parent_customer_id = $1 AND status != 'inactive'
+         WHERE parent_customer_id = $1
+           AND email LIKE 'workspace-%@internal.itsposting.com'
+           AND status != 'inactive'
          ORDER BY created_at ASC`,
         [parentId]
       );
-      res.json({ members: rows.rows });
+
+      // Type B: invited real users from workspace_members table
+      const membersResult = await pool.query(
+        `SELECT wm.id AS membership_id, c.id, c.email, c.business_name,
+                wm.role, wm.permissions, wm.joined_at AS created_at,
+                c.last_login_at, c.status, 'invited_member' AS member_type
+         FROM workspace_members wm
+         JOIN customers c ON c.id = wm.member_id
+         WHERE wm.owner_id = $1 AND wm.revoked_at IS NULL
+         ORDER BY wm.joined_at ASC`,
+        [parentId]
+      );
+
+      res.json({
+        members: membersResult.rows,
+        workspaceProfiles: profilesResult.rows,
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -187,20 +208,35 @@ module.exports = (pool) => {
       const memberId = parseInt(req.params.memberId);
       const { role, permissions } = req.body;
 
-      const check = await pool.query(
-        'SELECT id FROM customers WHERE id = $1 AND parent_customer_id = $2',
-        [memberId, parentId]
-      );
-      if (!check.rows.length) return res.status(404).json({ error: 'Member not found' });
+      if (role && !VALID_ROLES.includes(role)) {
+        return res.status(400).json({ error: 'Role must be manager, editor, or viewer' });
+      }
 
-      await pool.query(
-        `UPDATE customers
-         SET workspace_role = COALESCE($1, workspace_role),
-             workspace_permissions = $2,
-             updated_at = NOW()
-         WHERE id = $3`,
-        [role || null, permissions ? JSON.stringify(permissions) : null, memberId]
+      // Try new workspace_members table first (invited members)
+      const wmUpdate = await pool.query(
+        `UPDATE workspace_members
+         SET role        = COALESCE($1, role),
+             permissions = COALESCE($2, permissions),
+             updated_at  = NOW()
+         WHERE member_id = $3 AND owner_id = $4 AND revoked_at IS NULL
+         RETURNING id`,
+        [role || null, permissions ? JSON.stringify(permissions) : null, memberId, parentId]
       );
+
+      if (!wmUpdate.rows.length) {
+        // Fall back to old-style customers row (Type A workspace profiles)
+        const legacyUpdate = await pool.query(
+          `UPDATE customers
+           SET workspace_role        = COALESCE($1, workspace_role),
+               workspace_permissions = COALESCE($2, workspace_permissions),
+               updated_at            = NOW()
+           WHERE id = $3 AND parent_customer_id = $4
+           RETURNING id`,
+          [role || null, permissions ? JSON.stringify(permissions) : null, memberId, parentId]
+        );
+        if (!legacyUpdate.rows.length) return res.status(404).json({ error: 'Member not found' });
+      }
+
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -214,18 +250,30 @@ module.exports = (pool) => {
       const parentId = mainCustomerId(req);
       const memberId = parseInt(req.params.memberId);
 
-      const check = await pool.query(
-        'SELECT id FROM customers WHERE id = $1 AND parent_customer_id = $2',
-        [memberId, parentId]
+      // Try soft-revoke on workspace_members first (invited members — Type B)
+      const wmRevoke = await pool.query(
+        `UPDATE workspace_members
+         SET revoked_at = NOW(), revoked_by = $1, updated_at = NOW()
+         WHERE member_id = $2 AND owner_id = $3 AND revoked_at IS NULL
+         RETURNING id`,
+        [parentId, memberId, parentId]
       );
-      if (!check.rows.length) return res.status(404).json({ error: 'Member not found' });
 
-      await pool.query(
-        `UPDATE customers
-         SET parent_customer_id = NULL, workspace_role = NULL, workspace_permissions = NULL, updated_at = NOW()
-         WHERE id = $1`,
-        [memberId]
-      );
+      if (!wmRevoke.rows.length) {
+        // Fall back to old-style: clear parent_customer_id (Type A workspace profiles)
+        const legacyClear = await pool.query(
+          `UPDATE customers
+           SET parent_customer_id    = NULL,
+               workspace_role        = NULL,
+               workspace_permissions = NULL,
+               updated_at            = NOW()
+           WHERE id = $1 AND parent_customer_id = $2
+           RETURNING id`,
+          [memberId, parentId]
+        );
+        if (!legacyClear.rows.length) return res.status(404).json({ error: 'Member not found' });
+      }
+
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -243,12 +291,22 @@ module.exports = (pool) => {
       const normalizedEmail = email.trim().toLowerCase();
       if (!VALID_ROLES.includes(role)) return res.status(400).json({ error: 'Role must be manager, editor, or viewer' });
 
-      // Reject if already an active member
-      const memberCheck = await pool.query(
-        `SELECT id FROM customers WHERE email = $1 AND parent_customer_id = $2 AND status != 'inactive'`,
-        [normalizedEmail, parentId]
-      );
-      if (memberCheck.rows.length) return res.status(409).json({ error: 'This person is already a team member.' });
+      // Reject if already an active member (check both old-style and new workspace_members)
+      const [oldMemberCheck, newMemberCheck] = await Promise.all([
+        pool.query(
+          `SELECT id FROM customers WHERE email = $1 AND parent_customer_id = $2 AND status != 'inactive'`,
+          [normalizedEmail, parentId]
+        ),
+        pool.query(
+          `SELECT wm.id FROM workspace_members wm
+           JOIN customers c ON c.id = wm.member_id
+           WHERE c.email = $1 AND wm.owner_id = $2 AND wm.revoked_at IS NULL`,
+          [normalizedEmail, parentId]
+        ),
+      ]);
+      if (oldMemberCheck.rows.length || newMemberCheck.rows.length) {
+        return res.status(409).json({ error: 'This person is already a team member.' });
+      }
 
       // Cancel any previous pending invite for the same email
       await pool.query(
@@ -322,19 +380,31 @@ module.exports = (pool) => {
   });
 
   // ── POST /api/workspaces/main/switch ─────────────────────────────────────────
-  // Switch back to the main account from a workspace context.
+  // Switch back to the main account from any workspace context.
+  // Type A (auto-created sub-account): main account is parentCustomerId.
+  // Type B (invited member): main account is their own customerId (just strip workspace context).
   router.post('/main/switch', authenticate, async (req, res) => {
     try {
-      const parentId = req.parentCustomerId;
-      if (!parentId) {
+      if (!req.parentCustomerId && !req.ownerId) {
         return res.status(400).json({ error: 'Already on the main account' });
       }
+
+      let mainId;
+      if (req.parentCustomerId) {
+        // Type A: the main account IS the parent
+        mainId = req.parentCustomerId;
+      } else {
+        // Type B: the main account IS the member's own account (strip workspace context)
+        mainId = req.customerId;
+      }
+
       const result = await pool.query(
         `SELECT id, email FROM customers WHERE id = $1`,
-        [parentId]
+        [mainId]
       );
       if (!result.rows.length) return res.status(404).json({ error: 'Main account not found' });
       const main = result.rows[0];
+      // Issue a clean JWT with no workspace context
       const token = generateToken(main.id, main.email);
       res.json({ token });
     } catch (err) {
@@ -343,25 +413,48 @@ module.exports = (pool) => {
   });
 
   // ── POST /api/workspaces/:id/switch ─────────────────────────────────────────
-  // Switch into a workspace — returns a JWT with parentCustomerId set.
+  // Switch into a workspace — supports both Type A (auto-created) and Type B (invited member) access.
   router.post('/:id/switch', authenticate, async (req, res) => {
     try {
-      const parentId = mainCustomerId(req);
-      const wsId = parseInt(req.params.id);
+      const callerId  = req.customerId;
+      const parentId  = mainCustomerId(req);
+      const wsId      = parseInt(req.params.id);
 
-      const result = await pool.query(
+      // Type A: auto-created workspace profile owned by the caller's main account
+      let wsResult = await pool.query(
         `SELECT id, email, business_name, status, suspended
          FROM customers
          WHERE id = $1 AND parent_customer_id = $2`,
         [wsId, parentId]
       );
-      if (!result.rows.length) return res.status(404).json({ error: 'Workspace not found' });
-      const ws = result.rows[0];
+
+      if (wsResult.rows.length) {
+        const ws = wsResult.rows[0];
+        if (ws.suspended) return res.status(403).json({ error: 'This workspace is inactive' });
+        // Old-style JWT — parentCustomerId is the billing account
+        const token = generateToken(ws.id, ws.email, { parentCustomerId: parentId });
+        return res.json({ token, workspaceName: ws.business_name });
+      }
+
+      // Type B: caller is an invited member of workspace wsId
+      const memberResult = await pool.query(
+        `SELECT wm.owner_id, c.id, c.email, c.business_name, c.status, c.suspended
+         FROM workspace_members wm
+         JOIN customers c ON c.id = wm.workspace_id
+         WHERE wm.member_id = $1 AND wm.workspace_id = $2 AND wm.revoked_at IS NULL`,
+        [callerId, wsId]
+      );
+
+      if (!memberResult.rows.length) return res.status(404).json({ error: 'Workspace not found' });
+      const ws = memberResult.rows[0];
       if (ws.suspended) return res.status(403).json({ error: 'This workspace is inactive' });
 
-      // Issue workspace-scoped JWT — parentCustomerId carries the billing account
-      const token = generateToken(ws.id, ws.email, { parentCustomerId: parentId });
-      res.json({ token, workspaceName: ws.business_name });
+      // New-style JWT — ownerId carries the billing account, workspaceId tracks which workspace
+      const token = generateToken(callerId, req.email, {
+        workspaceId: wsId,
+        ownerId:     ws.owner_id,
+      });
+      return res.json({ token, workspaceName: ws.business_name });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

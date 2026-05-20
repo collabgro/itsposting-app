@@ -154,17 +154,28 @@ module.exports = (pool) => {
         return res.status(403).json({ error: 'Account suspended' });
       }
 
-      // Sub-accounts share the parent's credit pool and admin status
+      // Sub-accounts (Type A — auto-created workspace profiles) share the parent's credit pool
       if (customer.parent_customer_id) {
         const parentRow = await pool.query(
           `SELECT credits_balance, free_geo_audit_used, is_admin FROM customers WHERE id = $1`,
           [customer.parent_customer_id]
         );
         if (parentRow.rows.length) {
-          customer.credits_balance = parentRow.rows[0].credits_balance;
+          customer.credits_balance     = parentRow.rows[0].credits_balance;
           customer.free_geo_audit_used = parentRow.rows[0].free_geo_audit_used;
-          customer.is_admin = customer.is_admin || parentRow.rows[0].is_admin;
-          customer.is_sub_account = true;
+          customer.is_admin            = customer.is_admin || parentRow.rows[0].is_admin;
+          customer.is_sub_account      = true;
+        }
+      } else if (req.ownerId) {
+        // Invited member (Type B) operating in workspace context — pull credits from workspace owner
+        const ownerRow = await pool.query(
+          `SELECT credits_balance, free_geo_audit_used FROM customers WHERE id = $1`,
+          [req.ownerId]
+        );
+        if (ownerRow.rows.length) {
+          customer.credits_balance     = ownerRow.rows[0].credits_balance;
+          customer.free_geo_audit_used = ownerRow.rows[0].free_geo_audit_used;
+          customer.is_member           = true;
         }
       }
 
@@ -321,7 +332,7 @@ module.exports = (pool) => {
       const invite = inviteResult.rows[0];
 
       if (invite.status === 'accepted') {
-        // Idempotent retry — re-issue JWT if same user re-submits
+        // Idempotent retry — re-issue workspace JWT if same user re-submits
         if (invite.accepted_by) {
           const existingCustomer = await pool.query('SELECT * FROM customers WHERE id = $1', [invite.accepted_by]);
           if (existingCustomer.rows.length) {
@@ -330,7 +341,13 @@ module.exports = (pool) => {
               const c = existingCustomer.rows[0];
               delete c.password_hash;
               delete c.password_reset_token;
-              return res.json({ customer: c, token: generateToken(c.id, c.email) });
+              return res.json({
+                customer: c,
+                token: generateToken(c.id, c.email, {
+                  workspaceId: invite.inviter_id,
+                  ownerId:     invite.inviter_id,
+                }),
+              });
             }
           }
         }
@@ -347,7 +364,7 @@ module.exports = (pool) => {
       await client.query('BEGIN');
 
       const existingCustomer = await client.query(
-        'SELECT id, email, password_hash, suspended, parent_customer_id FROM customers WHERE email = $1',
+        'SELECT id, email, password_hash, suspended FROM customers WHERE email = $1',
         [invite.email]
       );
 
@@ -365,27 +382,20 @@ module.exports = (pool) => {
           await client.query('ROLLBACK');
           return res.status(403).json({ error: 'Your account is suspended. Contact support.' });
         }
-        if (existing.parent_customer_id) {
+
+        // Block only if already an active member of THIS specific workspace (multi-workspace is allowed)
+        const alreadyMember = await client.query(
+          `SELECT id FROM workspace_members
+           WHERE member_id = $1 AND workspace_id = $2 AND revoked_at IS NULL`,
+          [existing.id, invite.inviter_id]
+        );
+        if (alreadyMember.rows.length) {
           await client.query('ROLLBACK');
-          return res.status(409).json({ error: 'Your account is already linked to another workspace.' });
+          return res.status(409).json({ error: 'Your account is already a member of this workspace.' });
         }
 
-        await client.query(
-          `UPDATE customers
-           SET parent_customer_id = $1, workspace_role = $2, workspace_permissions = $3,
-               updated_at = NOW()
-           WHERE id = $4`,
-          [invite.inviter_id, invite.role, invite.permissions ? JSON.stringify(invite.permissions) : null, existing.id]
-        );
         await client.query('UPDATE customers SET last_login_at = NOW() WHERE id = $1', [existing.id]);
-
-        const refreshed = await client.query(
-          `SELECT id, email, business_name, industry, location, plan, status, credits_balance,
-                  parent_customer_id, workspace_role, workspace_permissions
-           FROM customers WHERE id = $1`,
-          [existing.id]
-        );
-        customer = refreshed.rows[0];
+        customer = existing;
       } else {
         // ── Branch B: new user ───────────────────────────────────────────────
         // IP trial limit check (non-blocking on failure)
@@ -404,23 +414,13 @@ module.exports = (pool) => {
         const passwordHash = await bcrypt.hash(password, 12);
         const businessName = invite.email.split('@')[0];
 
+        // New accounts are created clean — no parent_customer_id, they are first-class accounts
         const insertResult = await client.query(
           `INSERT INTO customers
-             (email, password_hash, business_name, industry, location,
-              parent_customer_id, workspace_role, workspace_permissions,
-              status, plan, credits_balance)
-           VALUES ($1, $2, $3, 'other', '', $4, $5, $6, 'active', 'trial', 0)
-           RETURNING id, email, business_name, industry, location, plan,
-                     credits_balance, status, parent_customer_id,
-                     workspace_role, workspace_permissions`,
-          [
-            invite.email,
-            passwordHash,
-            businessName,
-            invite.inviter_id,
-            invite.role,
-            invite.permissions ? JSON.stringify(invite.permissions) : null,
-          ]
+             (email, password_hash, business_name, industry, location, status, plan, credits_balance)
+           VALUES ($1, $2, $3, 'other', '', 'active', 'trial', 0)
+           RETURNING id, email, business_name, industry, location, plan, credits_balance, status`,
+          [invite.email, passwordHash, businessName]
         );
         customer = insertResult.rows[0];
 
@@ -430,6 +430,26 @@ module.exports = (pool) => {
           [clientIp, customer.id]
         ).catch(() => {});
       }
+
+      // Create workspace membership row (idempotent — un-revokes if member was previously removed)
+      await client.query(
+        `INSERT INTO workspace_members
+           (workspace_id, member_id, owner_id, role, permissions, invited_by, joined_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         ON CONFLICT (workspace_id, member_id)
+           DO UPDATE SET revoked_at  = NULL,
+                         role        = EXCLUDED.role,
+                         permissions = EXCLUDED.permissions,
+                         updated_at  = NOW()`,
+        [
+          invite.inviter_id,
+          customer.id,
+          invite.inviter_id,
+          invite.role,
+          invite.permissions ? JSON.stringify(invite.permissions) : null,
+          invite.inviter_id,
+        ]
+      );
 
       // Mark invite accepted
       await client.query(
@@ -441,7 +461,11 @@ module.exports = (pool) => {
 
       await client.query('COMMIT');
 
-      const token = generateToken(customer.id, customer.email);
+      // Issue a workspace-context JWT — ownerId enables getBillingCustomerId to resolve to the owner
+      const token = generateToken(customer.id, customer.email, {
+        workspaceId: invite.inviter_id,
+        ownerId:     invite.inviter_id,
+      });
       res.json({ customer, token });
     } catch (err) {
       await client.query('ROLLBACK');

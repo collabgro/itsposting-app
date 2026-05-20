@@ -59,9 +59,11 @@ async function authenticate(req, res, next) {
     } catch { /* DB unavailable — allow through, don't block all traffic */ }
   }
 
-  req.customerId = decoded.customerId;
-  req.email = decoded.email;
+  req.customerId       = decoded.customerId;
+  req.email            = decoded.email;
   req.parentCustomerId = decoded.parentCustomerId || null;
+  req.workspaceId      = decoded.workspaceId      || null; // new: invited-member workspace context
+  req.ownerId          = decoded.ownerId          || null; // new: billing owner for invited members
   next();
 }
 
@@ -70,20 +72,33 @@ function generateToken(customerId, email, extra = {}) {
 }
 
 // Returns the customer ID to use for billing/credit operations.
-// When operating inside a workspace, credits come from the parent account.
+// Checks in priority order: invited-member owner → legacy sub-account parent → own account.
 function getBillingCustomerId(req) {
-  return req.parentCustomerId || req.customerId;
+  if (req.ownerId)          return req.ownerId;
+  if (req.parentCustomerId) return req.parentCustomerId;
+  return req.customerId;
 }
 
-async function verifyAdmin(pool, customerId) {
+// requiredRole is optional — pass 'super_admin' to gate super-admin-only actions.
+// LEFT JOIN means this safely degrades if platform_admins table is empty (falls back to is_admin flag).
+async function verifyAdmin(pool, customerId, requiredRole = null) {
   const result = await pool.query(
-    'SELECT id, email, is_admin, role, suspended FROM customers WHERE id = $1',
+    `SELECT c.id, c.email, c.is_admin, c.role, c.suspended,
+            pa.admin_role, pa.revoked_at
+     FROM customers c
+     LEFT JOIN platform_admins pa
+            ON pa.customer_id = c.id AND pa.revoked_at IS NULL
+     WHERE c.id = $1`,
     [customerId]
   );
   if (result.rows.length === 0) throw new Error('User not found');
   const user = result.rows[0];
   if (user.suspended) throw new Error('Account suspended');
-  if (!user.is_admin) throw new Error('Admin access required');
+  // Accept either the new platform_admins row OR the legacy is_admin flag
+  if (!user.admin_role && !user.is_admin) throw new Error('Admin access required');
+  if (requiredRole && user.admin_role && user.admin_role !== requiredRole) {
+    throw new Error(`Requires ${requiredRole} role`);
+  }
   return user;
 }
 

@@ -384,6 +384,66 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_invitations_inviter ON workspace_invitations(inviter_id, status)`,
     `CREATE INDEX IF NOT EXISTS idx_invitations_hash    ON workspace_invitations(token_hash)`,
     `CREATE INDEX IF NOT EXISTS idx_invitations_email   ON workspace_invitations(email, status)`,
+    // Platform admins — separate role-aware table, decoupled from the customers billing row
+    `CREATE TABLE IF NOT EXISTS platform_admins (
+      id                   SERIAL PRIMARY KEY,
+      customer_id          INTEGER NOT NULL UNIQUE REFERENCES customers(id) ON DELETE CASCADE,
+      admin_role           VARCHAR(30) NOT NULL DEFAULT 'support'
+                             CHECK (admin_role IN ('super_admin', 'support', 'finance')),
+      granted_by           INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      granted_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      revoked_at           TIMESTAMPTZ DEFAULT NULL,
+      notes                TEXT,
+      last_admin_action_at TIMESTAMPTZ DEFAULT NULL,
+      created_at           TIMESTAMPTZ DEFAULT NOW(),
+      updated_at           TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_platform_admins_active
+       ON platform_admins(customer_id) WHERE revoked_at IS NULL`,
+    `CREATE INDEX IF NOT EXISTS idx_platform_admins_role
+       ON platform_admins(admin_role) WHERE revoked_at IS NULL`,
+    // Backfill existing is_admin customers into platform_admins (idempotent)
+    `INSERT INTO platform_admins (customer_id, admin_role, notes, granted_at)
+     SELECT id,
+       CASE WHEN role = 'super_admin' THEN 'super_admin'
+            WHEN role = 'finance'     THEN 'finance'
+            ELSE 'support' END,
+       'Migrated from customers.is_admin flag',
+       COALESCE(created_at, NOW())
+     FROM customers WHERE is_admin = true
+     ON CONFLICT (customer_id) DO NOTHING`,
+    // Workspace members — proper many-to-many join table for invited team members
+    // Replaces the overloaded parent_customer_id pattern for real invited users
+    `CREATE TABLE IF NOT EXISTS workspace_members (
+      id           SERIAL PRIMARY KEY,
+      workspace_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      member_id    INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      owner_id     INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      role         VARCHAR(20) NOT NULL DEFAULT 'editor'
+                     CHECK (role IN ('manager', 'editor', 'viewer')),
+      permissions  JSONB DEFAULT NULL,
+      invited_by   INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      joined_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      revoked_at   TIMESTAMPTZ DEFAULT NULL,
+      revoked_by   INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      created_at   TIMESTAMPTZ DEFAULT NOW(),
+      updated_at   TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (workspace_id, member_id)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_members_member
+       ON workspace_members(member_id) WHERE revoked_at IS NULL`,
+    `CREATE INDEX IF NOT EXISTS idx_workspace_members_owner
+       ON workspace_members(owner_id) WHERE revoked_at IS NULL`,
+    // Backfill existing real-user invited members into workspace_members (idempotent)
+    // Type A rows (fake workspace emails) are intentionally excluded
+    `INSERT INTO workspace_members (workspace_id, member_id, owner_id, role, permissions, joined_at)
+     SELECT c.parent_customer_id, c.id, c.parent_customer_id,
+            COALESCE(c.workspace_role, 'editor'), c.workspace_permissions, c.created_at
+     FROM customers c
+     WHERE c.parent_customer_id IS NOT NULL
+       AND c.email NOT LIKE 'workspace-%@internal.itsposting.com'
+       AND c.status != 'inactive'
+     ON CONFLICT (workspace_id, member_id) DO NOTHING`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
