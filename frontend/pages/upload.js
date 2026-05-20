@@ -231,11 +231,13 @@ export default function Upload() {
         successMsg = 'Scheduled! · 0 credits used';
       }
       setMessage({ type: msgType, text: successMsg });
-      setTimeout(() => {
-        setFiles([]); setPreviews([]); setCaption(''); setHashtags('');
-        setScheduleDate(''); setMessage({ type: '', text: '' });
-        router.push('/calendar');
-      }, 2000);
+      if (msgType !== 'error') {
+        setTimeout(() => {
+          setFiles([]); setPreviews([]); setCaption(''); setHashtags('');
+          setScheduleDate(''); setMessage({ type: '', text: '' });
+          router.push('/calendar');
+        }, 2000);
+      }
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
     } finally {

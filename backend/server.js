@@ -32,6 +32,7 @@ const studioRoutes = require('./routes/studio');
 const receptionistRoutes = require('./routes/receptionist');
 const apiKeysRoutes = require('./routes/apiKeys');
 const externalRoutes = require('./routes/external');
+const gmbMessagesRoutes = require('./routes/gmb-messages');
 
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
@@ -324,6 +325,7 @@ console.log('══════════════════════�
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS twilio_whatsapp_number VARCHAR(50)`,
     // Phase 2 — unique constraint for sms_conversations upsert
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_sms_convs_unique ON sms_conversations(customer_id, platform, contact_phone)`,
+    `ALTER TABLE dm_conversations ADD COLUMN IF NOT EXISTS external_conversation_id VARCHAR(255)`,
     // Phase 2 — unique constraint for dm_conversations GMB upsert
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_dm_convs_unique ON dm_conversations(customer_id, platform, external_conversation_id)`,
     // Per-customer credentials — stored in receptionist_config, not server env vars
@@ -545,6 +547,7 @@ app.use('/api/studio', studioRoutes(pool));
 app.use('/api/receptionist', receptionistRoutes(pool));
 app.use('/api/api-keys', apiKeysRoutes(pool));
 app.use('/api/v1', externalRoutes(pool));
+app.use('/api/gmb', gmbMessagesRoutes(pool));
 
 
 app.get('/health', async (req, res) => {

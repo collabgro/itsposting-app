@@ -31,11 +31,9 @@ const TIKTOK_CLIENT_KEY      = process.env.TIKTOK_CLIENT_KEY;
 const TIKTOK_CLIENT_SECRET   = process.env.TIKTOK_CLIENT_SECRET;
 
 function getBaseUrl(req) {
-  const domain = process.env.REPLIT_DEV_DOMAIN || process.env.FRONTEND_URL;
-  if (domain) {
-    const host = domain.replace(/^https?:\/\//, '');
-    return `https://${host}`;
-  }
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL.replace(/\/$/, '');
+  const domain = process.env.REPLIT_DEV_DOMAIN;
+  if (domain) return `https://${domain.replace(/^https?:\/\//, '')}`;
   return `${req.protocol}://${req.get('host')}`;
 }
 
@@ -137,15 +135,15 @@ module.exports = (pool) => {
     const { code, state, error: oauthError } = req.query;
     const frontendBase = process.env.FRONTEND_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
 
-    if (oauthError) return res.redirect(`${frontendBase}/settings?error=facebook_denied`);
-    if (!code || !state) return res.redirect(`${frontendBase}/settings?error=facebook_invalid`);
+    if (oauthError) return res.redirect(`${frontendBase}/auth/callback?error=facebook_denied`);
+    if (!code || !state) return res.redirect(`${frontendBase}/auth/callback?error=facebook_invalid`);
 
     let customerId;
     try {
       const decoded = verifyOAuthState(state);
       customerId = decoded.customerId;
     } catch {
-      return res.redirect(`${frontendBase}/settings?error=facebook_state_invalid`);
+      return res.redirect(`${frontendBase}/auth/callback?error=facebook_state_invalid`);
     }
 
     try {
@@ -199,6 +197,13 @@ module.exports = (pool) => {
       const pages = pagesRes.data?.data || [];
       if (pages.length > 0) {
         const page = pages[0];
+        // Update facebook row with actual Page ID + page access token
+        await pool.query(
+          `UPDATE social_accounts SET account_id=$1, account_name=$2, access_token=$3, updated_at=NOW()
+           WHERE customer_id=$4 AND platform='facebook'`,
+          [page.id, page.name, page.access_token, customerId]
+        );
+        // Store instagram row with same page credentials
         await pool.query(
           `INSERT INTO social_accounts
              (customer_id, platform, access_token, token_expires_at, account_id, account_username, account_name, enabled, auto_post)
@@ -214,10 +219,10 @@ module.exports = (pool) => {
         );
       }
 
-      res.redirect(`${frontendBase}/settings?connected=facebook`);
+      res.redirect(`${frontendBase}/auth/callback?connected=facebook`);
     } catch (error) {
       console.error('Facebook OAuth error:', error.response?.data || error.message);
-      res.redirect(`${frontendBase}/settings?error=facebook_failed`);
+      res.redirect(`${frontendBase}/auth/callback?error=facebook_failed`);
     }
   });
 
@@ -251,15 +256,15 @@ module.exports = (pool) => {
     const { code, state, error: oauthError } = req.query;
     const frontendBase = process.env.FRONTEND_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
 
-    if (oauthError) return res.redirect(`${frontendBase}/settings?error=google_denied`);
-    if (!code || !state) return res.redirect(`${frontendBase}/settings?error=google_invalid`);
+    if (oauthError) return res.redirect(`${frontendBase}/auth/callback?error=google_denied`);
+    if (!code || !state) return res.redirect(`${frontendBase}/auth/callback?error=google_invalid`);
 
     let customerId;
     try {
       const decoded = verifyOAuthState(state);
       customerId = decoded.customerId;
     } catch {
-      return res.redirect(`${frontendBase}/settings?error=google_state_invalid`);
+      return res.redirect(`${frontendBase}/auth/callback?error=google_state_invalid`);
     }
 
     try {
@@ -297,10 +302,10 @@ module.exports = (pool) => {
         [customerId, access_token, refresh_token || null, expiresAt, googleId, name, picture || null]
       );
 
-      res.redirect(`${frontendBase}/settings?connected=google`);
+      res.redirect(`${frontendBase}/auth/callback?connected=google`);
     } catch (error) {
       console.error('Google OAuth error:', error.response?.data || error.message);
-      res.redirect(`${frontendBase}/settings?error=google_failed`);
+      res.redirect(`${frontendBase}/auth/callback?error=google_failed`);
     }
   });
 
@@ -310,15 +315,15 @@ module.exports = (pool) => {
     const { code, state, error: oauthError } = req.query;
     const frontendBase = process.env.FRONTEND_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
 
-    if (oauthError) return res.redirect(`${frontendBase}/settings?error=linkedin_denied`);
-    if (!code || !state) return res.redirect(`${frontendBase}/settings?error=linkedin_invalid`);
+    if (oauthError) return res.redirect(`${frontendBase}/auth/callback?error=linkedin_denied`);
+    if (!code || !state) return res.redirect(`${frontendBase}/auth/callback?error=linkedin_invalid`);
 
     let customerId;
     try {
       const decoded = verifyOAuthState(state);
       customerId = decoded.customerId;
     } catch {
-      return res.redirect(`${frontendBase}/settings?error=linkedin_state_invalid`);
+      return res.redirect(`${frontendBase}/auth/callback?error=linkedin_state_invalid`);
     }
 
     try {
@@ -363,10 +368,10 @@ module.exports = (pool) => {
         [customerId, access_token, expiresAt, authorUrn, name || 'LinkedIn Account', picture || null]
       );
 
-      res.redirect(`${frontendBase}/settings?connected=linkedin`);
+      res.redirect(`${frontendBase}/auth/callback?connected=linkedin`);
     } catch (error) {
       console.error('LinkedIn OAuth error:', error.response?.data || error.message);
-      res.redirect(`${frontendBase}/settings?error=linkedin_failed`);
+      res.redirect(`${frontendBase}/auth/callback?error=linkedin_failed`);
     }
   });
 
@@ -376,15 +381,15 @@ module.exports = (pool) => {
     const { code, state, error: oauthError } = req.query;
     const frontendBase = process.env.FRONTEND_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`;
 
-    if (oauthError) return res.redirect(`${frontendBase}/settings?error=tiktok_denied`);
-    if (!code || !state) return res.redirect(`${frontendBase}/settings?error=tiktok_invalid`);
+    if (oauthError) return res.redirect(`${frontendBase}/auth/callback?error=tiktok_denied`);
+    if (!code || !state) return res.redirect(`${frontendBase}/auth/callback?error=tiktok_invalid`);
 
     let customerId;
     try {
       const decoded = verifyOAuthState(state);
       customerId = decoded.customerId;
     } catch {
-      return res.redirect(`${frontendBase}/settings?error=tiktok_state_invalid`);
+      return res.redirect(`${frontendBase}/auth/callback?error=tiktok_state_invalid`);
     }
 
     try {
@@ -434,10 +439,10 @@ module.exports = (pool) => {
         [customerId, access_token, refresh_token || null, expiresAt, open_id, displayName, avatarUrl]
       );
 
-      res.redirect(`${frontendBase}/settings?connected=tiktok`);
+      res.redirect(`${frontendBase}/auth/callback?connected=tiktok`);
     } catch (error) {
       console.error('TikTok OAuth error:', error.response?.data || error.message);
-      res.redirect(`${frontendBase}/settings?error=tiktok_failed`);
+      res.redirect(`${frontendBase}/auth/callback?error=tiktok_failed`);
     }
   });
 

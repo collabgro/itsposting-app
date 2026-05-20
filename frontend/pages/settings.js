@@ -474,28 +474,30 @@ export default function Settings() {
   }, []);
 
   useEffect(() => {
-    const { connected, error } = router.query;
-    if (connected) {
-      const names = { facebook: 'Facebook & Instagram', google: 'Business Profile', linkedin: 'LinkedIn', tiktok: 'TikTok' };
-      showToast(`${names[connected] || connected} connected successfully!`);
-      router.replace('/settings', undefined, { shallow: true });
-      loadSocialAccounts();
-    }
-    if (error) {
-      const msgs = {
-        facebook_denied: 'Connection was cancelled',
-        google_denied: 'Connection was cancelled',
-        facebook_failed: 'Failed to connect Facebook. Please try again.',
-        google_failed: 'Failed to connect Google. Please try again.',
-        linkedin_denied: 'Connection was cancelled',
-        linkedin_failed: 'Failed to connect LinkedIn. Please try again.',
-        tiktok_denied: 'Connection was cancelled',
-        tiktok_failed: 'Failed to connect TikTok. Please try again.',
-      };
-      showToast(msgs[error] || `Connection error: ${error}`, 'error');
-      router.replace('/settings', undefined, { shallow: true });
-    }
-  }, [router.query]);
+    const names = { facebook: 'Facebook & Instagram', google: 'Business Profile', linkedin: 'LinkedIn', tiktok: 'TikTok' };
+    const msgs = {
+      facebook_denied: 'Connection was cancelled',
+      google_denied: 'Connection was cancelled',
+      facebook_failed: 'Failed to connect Facebook. Please try again.',
+      google_failed: 'Failed to connect Google. Please try again.',
+      linkedin_denied: 'Connection was cancelled',
+      linkedin_failed: 'Failed to connect LinkedIn. Please try again.',
+      tiktok_denied: 'Connection was cancelled',
+      tiktok_failed: 'Failed to connect TikTok. Please try again.',
+    };
+    const handler = (e) => {
+      if (e.data?.type !== 'oauth_callback') return;
+      if (e.data.connected) {
+        showToast(`${names[e.data.connected] || e.data.connected} connected successfully!`);
+        loadSocialAccounts();
+      }
+      if (e.data.error) {
+        showToast(msgs[e.data.error] || `Connection error: ${e.data.error}`, 'error');
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -593,7 +595,8 @@ export default function Settings() {
   const handleOAuthConnect = async (platform) => {
     try {
       const res = await socialAPI.getOAuthUrl(platform);
-      window.location.href = res.data.url;
+      const popup = window.open(res.data.url, 'oauth_popup', 'width=600,height=700,scrollbars=yes');
+      if (!popup) window.location.href = res.data.url;
     } catch {
       showToast('Connection failed — try "Manual setup" instead', 'error');
     }
