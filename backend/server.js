@@ -283,64 +283,11 @@ console.log('══════════════════════�
     `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS appointment_at TIMESTAMP`,
     `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS cal_event_id VARCHAR(255)`,
     `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_ai_summary TEXT`,
-    // AI Receptionist — SMS / WhatsApp conversations (Phase 2)
-    `CREATE TABLE IF NOT EXISTS sms_conversations (
-      id SERIAL PRIMARY KEY,
-      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
-      platform VARCHAR(20) NOT NULL,
-      contact_phone VARCHAR(30) NOT NULL,
-      contact_name VARCHAR(255),
-      status VARCHAR(20) DEFAULT 'open',
-      last_message_at TIMESTAMP,
-      created_at TIMESTAMP DEFAULT NOW()
-    )`,
-    `CREATE INDEX IF NOT EXISTS idx_sms_convs_customer ON sms_conversations(customer_id, last_message_at DESC)`,
-    `CREATE TABLE IF NOT EXISTS sms_messages (
-      id SERIAL PRIMARY KEY,
-      conversation_id INTEGER REFERENCES sms_conversations(id) ON DELETE CASCADE,
-      direction VARCHAR(10) NOT NULL,
-      body TEXT NOT NULL,
-      sent_at TIMESTAMP DEFAULT NOW(),
-      ai_handled BOOLEAN DEFAULT false
-    )`,
-    `CREATE INDEX IF NOT EXISTS idx_sms_msgs_conv ON sms_messages(conversation_id, sent_at)`,
-    // AI Receptionist — outbound job tracking (Phase 3)
-    `CREATE TABLE IF NOT EXISTS outbound_jobs (
-      id SERIAL PRIMARY KEY,
-      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
-      contact_id INTEGER,
-      job_type VARCHAR(50) NOT NULL,
-      platform VARCHAR(20),
-      scheduled_for TIMESTAMP NOT NULL,
-      sent_at TIMESTAMP,
-      status VARCHAR(20) DEFAULT 'pending',
-      payload JSONB,
-      created_at TIMESTAMP DEFAULT NOW()
-    )`,
-    `CREATE INDEX IF NOT EXISTS idx_outbound_jobs_customer ON outbound_jobs(customer_id, status, scheduled_for)`,
     // AI Receptionist — track which DM messages were AI-auto-handled
     `ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS ai_handled BOOLEAN DEFAULT false`,
-    // Phase 2 — Twilio phone numbers on customers
-    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS twilio_phone_number VARCHAR(30)`,
-    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS twilio_whatsapp_number VARCHAR(50)`,
-    // Phase 2 — unique constraint for sms_conversations upsert
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_sms_convs_unique ON sms_conversations(customer_id, platform, contact_phone)`,
     `ALTER TABLE dm_conversations ADD COLUMN IF NOT EXISTS external_conversation_id VARCHAR(255)`,
     // Phase 2 — unique constraint for dm_conversations GMB upsert
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_dm_convs_unique ON dm_conversations(customer_id, platform, external_conversation_id)`,
-    // Per-customer credentials — stored in receptionist_config, not server env vars
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS twilio_account_sid TEXT`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS twilio_auth_token TEXT`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS twilio_phone_number VARCHAR(30)`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS twilio_whatsapp_number VARCHAR(50)`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS calcom_api_key TEXT`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS mailgun_api_key TEXT`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS mailgun_domain VARCHAR(255)`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS mailgun_from_email VARCHAR(255)`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS automation_config JSONB`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_phone_number_id TEXT`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_access_token TEXT`,
-    `ALTER TABLE receptionist_config ADD COLUMN IF NOT EXISTS meta_wa_business_id TEXT`,
     // Billing columns
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS plan_changed_at TIMESTAMP`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS billing_cycle VARCHAR(20) DEFAULT 'monthly'`,
@@ -757,17 +704,6 @@ cron.schedule('0 2 * * *', async () => {
 
 const dmPollingService = new DMPollingService(pool);
 dmPollingService.start();
-
-// ── AI Receptionist — Outbound Queue (Phase 3) ─────────────────────────────
-const OutboundQueue = require('./services/OutboundQueue');
-const outboundQueue = new OutboundQueue(pool);
-
-// Start BullMQ worker (no-op if REDIS_URL not set)
-outboundQueue.startWorker();
-
-// Cron fallback: poll DB for overdue outbound jobs every 15 min when Redis absent
-cron.schedule('*/15 * * * *', () => outboundQueue.processPendingJobs().catch(e => console.error('[OutboundQueue cron]', e.message)));
-console.log('📤 OutboundQueue cron scheduled (15-min fallback)');
 
 // Weekly re-crawl: every Monday 8am UTC for customers with receptionist enabled
 cron.schedule('0 8 * * 1', async () => {

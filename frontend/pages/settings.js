@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpSave, IpCredits, IpPalette, IpGlobe, IpDelete, IpClose, IpWarning,
@@ -74,10 +74,10 @@ const TIMEZONES = [
   { value: 'Pacific/Auckland',    label: 'New Zealand (NZST)',    offset: 'UTC+12/13' },
   { value: 'Pacific/Fiji',        label: 'Fiji',                  offset: 'UTC+12'    },
   { value: 'Pacific/Guam',        label: 'Guam',                  offset: 'UTC+10'    },
-  { value: 'America/Sao_Paulo',   label: 'Brasília (BRT)',        offset: 'UTC-3'     },
+  { value: 'America/Sao_Paulo',   label: 'BrasÃ­lia (BRT)',        offset: 'UTC-3'     },
   { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires', offset: 'UTC-3'  },
   { value: 'America/Santiago',    label: 'Santiago',              offset: 'UTC-4/3'   },
-  { value: 'America/Bogota',      label: 'Bogotá',                offset: 'UTC-5'     },
+  { value: 'America/Bogota',      label: 'BogotÃ¡',                offset: 'UTC-5'     },
   { value: 'America/Lima',        label: 'Lima',                  offset: 'UTC-5'     },
   { value: 'America/Mexico_City', label: 'Mexico City',           offset: 'UTC-6/5'   },
   { value: 'America/Toronto',     label: 'Toronto (ET)',          offset: 'UTC-5/4'   },
@@ -112,15 +112,15 @@ const PLATFORM_CONFIG = {
     tokenHelp: {
       title: 'How to get your Facebook Page Token:',
       steps: [
-        { text: 'Go to ', link: { url: 'https://developers.facebook.com/apps/creation/', label: 'Facebook Developers' }, suffix: ' → Create App → Business type (required first step)' },
-        { text: 'In your app, click Add Product → Facebook Login → Set Up' },
-        { text: 'Go to ', link: { url: 'https://developers.facebook.com/tools/explorer/', label: 'Graph API Explorer' }, suffix: ' → select your App → Page Access Token' },
-        { text: 'Add permissions: pages_manage_posts, pages_read_engagement, pages_messaging → Generate' },
+        { text: 'Go to ', link: { url: 'https://developers.facebook.com/apps/creation/', label: 'Facebook Developers' }, suffix: ' â†’ Create App â†’ Business type (required first step)' },
+        { text: 'In your app, click Add Product â†’ Facebook Login â†’ Set Up' },
+        { text: 'Go to ', link: { url: 'https://developers.facebook.com/tools/explorer/', label: 'Graph API Explorer' }, suffix: ' â†’ select your App â†’ Page Access Token' },
+        { text: 'Add permissions: pages_manage_posts, pages_read_engagement, pages_messaging â†’ Generate' },
         { text: 'Copy the Page Access Token and paste below' },
         { text: 'Note: pages_manage_posts and pages_messaging (required for Inbox DMs) require Facebook App Review for non-developer accounts' },
       ],
       pageIdLabel: 'Page ID',
-      pageIdHelp: 'Found in your Facebook Page settings → About → Page ID',
+      pageIdHelp: 'Found in your Facebook Page settings â†’ About â†’ Page ID',
     },
   },
   instagram: {
@@ -132,12 +132,12 @@ const PLATFORM_CONFIG = {
       title: 'How to get your Instagram Token:',
       steps: [
         { text: 'Go to ', link: { url: 'https://developers.facebook.com/tools/explorer', label: 'Facebook Graph API Explorer' } },
-        { text: 'Select your App → click "Generate Access Token"' },
+        { text: 'Select your App â†’ click "Generate Access Token"' },
         { text: 'Enable instagram_basic, instagram_content_publish, and instagram_manage_messages permissions (instagram_manage_messages required for Inbox DMs)' },
         { text: 'Copy the Access Token and paste below' },
       ],
       pageIdLabel: 'Instagram Business Account ID',
-      pageIdHelp: 'Found in Instagram Settings → Account → Professional Account',
+      pageIdHelp: 'Found in Instagram Settings â†’ Account â†’ Professional Account',
     },
   },
   google_business: {
@@ -165,14 +165,14 @@ const PLATFORM_CONFIG = {
     color: '#0A66C2',
     description: 'Post to your company page',
     tokenHelp: {
-      title: 'LinkedIn requires Partner Program access (2–8 weeks)',
-      badge: '⏱ Partnership approval required — not instant',
+      title: 'LinkedIn requires Partner Program access (2â€“8 weeks)',
+      badge: 'â± Partnership approval required â€” not instant',
       steps: [
-        { text: '⚠️ LinkedIn does NOT offer public API access. You must apply to the LinkedIn Partner Program first.' },
-        { text: 'Apply at ', link: { url: 'https://developer.linkedin.com/partner-programs', label: 'LinkedIn Partner Programs' }, suffix: ' — select the Social Sharing tier' },
-        { text: 'Create an app at ', link: { url: 'https://www.linkedin.com/developers/apps/new', label: 'LinkedIn Developers' }, suffix: ' — requires a Company LinkedIn Page' },
-        { text: 'In your app → Products → request "Share on LinkedIn" (posting) and "Messaging on LinkedIn" (for Inbox DMs) — submit justification for your scheduling use case' },
-        { text: 'Once approved (2–8 weeks), generate an access token under the Auth tab' },
+        { text: 'âš ï¸ LinkedIn does NOT offer public API access. You must apply to the LinkedIn Partner Program first.' },
+        { text: 'Apply at ', link: { url: 'https://developer.linkedin.com/partner-programs', label: 'LinkedIn Partner Programs' }, suffix: ' â€” select the Social Sharing tier' },
+        { text: 'Create an app at ', link: { url: 'https://www.linkedin.com/developers/apps/new', label: 'LinkedIn Developers' }, suffix: ' â€” requires a Company LinkedIn Page' },
+        { text: 'In your app â†’ Products â†’ request "Share on LinkedIn" (posting) and "Messaging on LinkedIn" (for Inbox DMs) â€” submit justification for your scheduling use case' },
+        { text: 'Once approved (2â€“8 weeks), generate an access token under the Auth tab' },
         { text: 'Paste the access token (must include w_organization_social + w_messaging scopes) and your Company URN (urn:li:organization:XXXXXXXX) below' },
       ],
       pageIdLabel: 'Company URN (e.g. urn:li:organization:12345678)',
@@ -185,180 +185,180 @@ const PLATFORM_CONFIG = {
     color: '#010101',
     description: 'Post to your business account',
     tokenHelp: {
-      title: 'TikTok Content Posting API (2–6 week review)',
-      badge: '⏱ App review required — posts are private until approved',
+      title: 'TikTok Content Posting API (2â€“6 week review)',
+      badge: 'â± App review required â€” posts are private until approved',
       steps: [
         { text: 'Register a TikTok developer account at ', link: { url: 'https://developers.tiktok.com/', label: 'developers.tiktok.com' } },
-        { text: 'Create an app at ', link: { url: 'https://developers.tiktok.com/apps/', label: 'Manage Apps' }, suffix: ' → Create App' },
-        { text: 'Under Scopes, request "Content Posting API" — describe your scheduling/management use case clearly' },
-        { text: 'TikTok review takes 2–6 weeks. Until approved + audited, all posts will be private-only.' },
+        { text: 'Create an app at ', link: { url: 'https://developers.tiktok.com/apps/', label: 'Manage Apps' }, suffix: ' â†’ Create App' },
+        { text: 'Under Scopes, request "Content Posting API" â€” describe your scheduling/management use case clearly' },
+        { text: 'TikTok review takes 2â€“6 weeks. Until approved + audited, all posts will be private-only.' },
         { text: 'Once approved, generate a user access token with video.publish scope' },
         { text: 'Paste the access token and your TikTok Open ID below' },
       ],
       pageIdLabel: 'TikTok Open ID (your account ID)',
-      pageIdHelp: 'Found in TikTok for Business → Account Settings → Open ID',
+      pageIdHelp: 'Found in TikTok for Business â†’ Account Settings â†’ Open ID',
     },
   },
 };
 
-// ─── Social Platform Wizard Configs ──────────────────────────────────────────
+// â”€â”€â”€ Social Platform Wizard Configs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const FACEBOOK_SOCIAL_WIZARD = {
   title: 'Facebook',
   slides: [
     {
-      heading: 'Step 1 — Create a Facebook Developer App',
-      subtext: '1. Click "Open Facebook Developers" below and sign in with your Facebook account\n2. Click "Create App" in the top-right corner\n3. Choose "Business" as the app type → click Next\n4. Give your app any name (e.g. "My Business Posting") → click "Create App"\n\nYou only need to do this once — the same app is used for both Facebook and Instagram.',
-      callout: { platformName: 'Facebook Developers', highlight: 'Create App → Business → Next', color: '#1877F2', note: 'Any name works — e.g. "My Business Posting"' },
-      linkButton: { label: 'Open Facebook Developers ↗', url: 'https://developers.facebook.com/apps/creation/' },
+      heading: 'Step 1 â€” Create a Facebook Developer App',
+      subtext: '1. Click "Open Facebook Developers" below and sign in with your Facebook account\n2. Click "Create App" in the top-right corner\n3. Choose "Business" as the app type â†’ click Next\n4. Give your app any name (e.g. "My Business Posting") â†’ click "Create App"\n\nYou only need to do this once â€” the same app is used for both Facebook and Instagram.',
+      callout: { platformName: 'Facebook Developers', highlight: 'Create App â†’ Business â†’ Next', color: '#1877F2', note: 'Any name works â€” e.g. "My Business Posting"' },
+      linkButton: { label: 'Open Facebook Developers â†—', url: 'https://developers.facebook.com/apps/creation/' },
     },
     {
-      heading: 'Step 2 — Add Facebook Login to your app',
-      subtext: '1. In your new app dashboard, scroll down to "Add Products to Your App"\n2. Find "Facebook Login" → click "Set Up"\n3. Select "Web" as the platform\n4. You can skip the Quick Start guide — just close or skip it\n\nThis step unlocks the permission scopes you need in the next step.',
-      callout: { platformName: 'App Dashboard', highlight: 'Add Products → Facebook Login → Set Up', color: '#1877F2', note: 'Select "Web" then skip the Quick Start' },
-      linkButton: { label: 'Open your apps ↗', url: 'https://developers.facebook.com/apps/' },
+      heading: 'Step 2 â€” Add Facebook Login to your app',
+      subtext: '1. In your new app dashboard, scroll down to "Add Products to Your App"\n2. Find "Facebook Login" â†’ click "Set Up"\n3. Select "Web" as the platform\n4. You can skip the Quick Start guide â€” just close or skip it\n\nThis step unlocks the permission scopes you need in the next step.',
+      callout: { platformName: 'App Dashboard', highlight: 'Add Products â†’ Facebook Login â†’ Set Up', color: '#1877F2', note: 'Select "Web" then skip the Quick Start' },
+      linkButton: { label: 'Open your apps â†—', url: 'https://developers.facebook.com/apps/' },
     },
     {
-      heading: 'Step 3 — Generate your Page Access Token',
-      subtext: '1. Click "Open Graph API Explorer" below and sign in\n2. Top-left: click the "Meta App" dropdown → select your app\n3. Click "User or Page" dropdown → change to "Page Access Token"\n4. A list of your pages appears — select your business page\n5. Click "+ Add a Permission" and add ALL of these one by one:\n   • pages_show_list\n   • pages_manage_posts\n   • pages_read_engagement\n   • pages_read_user_content\n   • pages_messaging\n   • read_insights\n6. Click "Generate Access Token" → approve the popup\n7. Copy the long token that appears at the top',
-      callout: { platformName: 'Graph API Explorer', highlight: 'Page Access Token → select your page → add 6 permissions → Generate', color: '#1877F2', note: 'Must add all 6 permissions before generating' },
-      linkButton: { label: 'Open Graph API Explorer ↗', url: 'https://developers.facebook.com/tools/explorer/' },
+      heading: 'Step 3 â€” Generate your Page Access Token',
+      subtext: '1. Click "Open Graph API Explorer" below and sign in\n2. Top-left: click the "Meta App" dropdown â†’ select your app\n3. Click "User or Page" dropdown â†’ change to "Page Access Token"\n4. A list of your pages appears â€” select your business page\n5. Click "+ Add a Permission" and add ALL of these one by one:\n   â€¢ pages_show_list\n   â€¢ pages_manage_posts\n   â€¢ pages_read_engagement\n   â€¢ pages_read_user_content\n   â€¢ pages_messaging\n   â€¢ read_insights\n6. Click "Generate Access Token" â†’ approve the popup\n7. Copy the long token that appears at the top',
+      callout: { platformName: 'Graph API Explorer', highlight: 'Page Access Token â†’ select your page â†’ add 6 permissions â†’ Generate', color: '#1877F2', note: 'Must add all 6 permissions before generating' },
+      linkButton: { label: 'Open Graph API Explorer â†—', url: 'https://developers.facebook.com/tools/explorer/' },
     },
     {
-      heading: 'Step 4 — Paste your token and connect',
-      subtext: 'Paste the token you copied. Click "Test connection" — we\'ll verify it works and auto-fill your Page ID.',
+      heading: 'Step 4 â€” Paste your token and connect',
+      subtext: 'Paste the token you copied. Click "Test connection" â€” we\'ll verify it works and auto-fill your Page ID.',
       isCredentialSlide: true,
-      warningNote: 'Graph API Explorer tokens expire in 60 days. For a permanent connection, generate a System User token via Business Manager → System Users, or reconnect using the "Connect" button once OAuth is live.',
+      warningNote: 'Graph API Explorer tokens expire in 60 days. For a permanent connection, generate a System User token via Business Manager â†’ System Users, or reconnect using the "Connect" button once OAuth is live.',
     },
   ],
 };
 const FACEBOOK_SOCIAL_FIELDS = [
-  { key: 'accessToken', label: 'Page Access Token', type: 'password', placeholder: 'EAAxxxxxxxx...', required: true, helpText: 'Generated via Graph API Explorer → Page Access Token' },
-  { key: 'pageId', label: 'Page ID', type: 'text', placeholder: '123456789012345', hint: 'optional — auto-filled on test', helpText: 'Facebook Page → About → Page Transparency → Page ID' },
-  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: "Mike's Plumbing", hint: 'optional — auto-filled on test' },
+  { key: 'accessToken', label: 'Page Access Token', type: 'password', placeholder: 'EAAxxxxxxxx...', required: true, helpText: 'Generated via Graph API Explorer â†’ Page Access Token' },
+  { key: 'pageId', label: 'Page ID', type: 'text', placeholder: '123456789012345', hint: 'optional â€” auto-filled on test', helpText: 'Facebook Page â†’ About â†’ Page Transparency â†’ Page ID' },
+  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: "Mike's Plumbing", hint: 'optional â€” auto-filled on test' },
 ];
 
 const INSTAGRAM_SOCIAL_WIZARD = {
   title: 'Instagram',
   slides: [
     {
-      heading: 'Step 1 — Set up a Professional account',
-      subtext: 'Instagram posting via API requires a Business or Creator account linked to a Facebook Page.\n\n→ Already a Business account linked to a Facebook Page? Skip to Step 2.\n\n1. Open Instagram on your phone\n2. Go to Settings → Account → "Switch to Professional Account"\n3. Choose "Business"\n4. Connect it to your Facebook Business Page when prompted\n\nThis is a one-time setup on Instagram — takes under 2 minutes.',
-      callout: { platformName: 'Instagram', highlight: 'Settings → Account → Switch to Professional Account', color: '#E1306C', note: 'Choose "Business" then connect your Facebook Page' },
-      linkButton: { label: 'Switch to Professional ↗', url: 'https://www.instagram.com/accounts/convert_to_ia/' },
+      heading: 'Step 1 â€” Set up a Professional account',
+      subtext: 'Instagram posting via API requires a Business or Creator account linked to a Facebook Page.\n\nâ†’ Already a Business account linked to a Facebook Page? Skip to Step 2.\n\n1. Open Instagram on your phone\n2. Go to Settings â†’ Account â†’ "Switch to Professional Account"\n3. Choose "Business"\n4. Connect it to your Facebook Business Page when prompted\n\nThis is a one-time setup on Instagram â€” takes under 2 minutes.',
+      callout: { platformName: 'Instagram', highlight: 'Settings â†’ Account â†’ Switch to Professional Account', color: '#E1306C', note: 'Choose "Business" then connect your Facebook Page' },
+      linkButton: { label: 'Switch to Professional â†—', url: 'https://www.instagram.com/accounts/convert_to_ia/' },
     },
     {
-      heading: 'Step 2 — Generate your access token',
-      subtext: '1. Click "Open Graph API Explorer" below and sign in\n2. Click the "Meta App" dropdown → select your Facebook Developer App\n   (Need an app? Connect Facebook first — it walks you through creating one)\n3. Click "+ Add a Permission" and add ALL 5 below:\n   • instagram_basic\n   • instagram_content_publish\n   • instagram_manage_messages\n   • instagram_manage_insights\n   • pages_read_engagement\n4. Click "Generate Access Token" → approve the popup\n5. Copy the long token that appears at the top\n\nYour Instagram Business Account ID will auto-fill when you test.',
-      callout: { platformName: 'Graph API Explorer', highlight: 'Add 5 permissions → Generate Access Token → copy it', color: '#E1306C', note: 'Must add all 5 permissions before generating' },
-      linkButton: { label: 'Open Graph API Explorer ↗', url: 'https://developers.facebook.com/tools/explorer/' },
+      heading: 'Step 2 â€” Generate your access token',
+      subtext: '1. Click "Open Graph API Explorer" below and sign in\n2. Click the "Meta App" dropdown â†’ select your Facebook Developer App\n   (Need an app? Connect Facebook first â€” it walks you through creating one)\n3. Click "+ Add a Permission" and add ALL 5 below:\n   â€¢ instagram_basic\n   â€¢ instagram_content_publish\n   â€¢ instagram_manage_messages\n   â€¢ instagram_manage_insights\n   â€¢ pages_read_engagement\n4. Click "Generate Access Token" â†’ approve the popup\n5. Copy the long token that appears at the top\n\nYour Instagram Business Account ID will auto-fill when you test.',
+      callout: { platformName: 'Graph API Explorer', highlight: 'Add 5 permissions â†’ Generate Access Token â†’ copy it', color: '#E1306C', note: 'Must add all 5 permissions before generating' },
+      linkButton: { label: 'Open Graph API Explorer â†—', url: 'https://developers.facebook.com/tools/explorer/' },
     },
     {
-      heading: 'Step 3 — Paste your token and connect',
-      subtext: 'Paste the token you copied. Click "Test connection" — we\'ll verify it and auto-fill your Instagram Account ID.',
+      heading: 'Step 3 â€” Paste your token and connect',
+      subtext: 'Paste the token you copied. Click "Test connection" â€” we\'ll verify it and auto-fill your Instagram Account ID.',
       isCredentialSlide: true,
     },
   ],
 };
 const INSTAGRAM_SOCIAL_FIELDS = [
   { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'EAAxxxxxxxx...', required: true, helpText: 'From Graph API Explorer with instagram_basic + instagram_content_publish + instagram_manage_messages + instagram_manage_insights + pages_read_engagement' },
-  { key: 'pageId', label: 'Instagram Business Account ID', type: 'text', placeholder: '17841400000000001', hint: 'optional — auto-filled on test', helpText: 'Auto-filled when you click Test connection' },
-  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: '@mikes.plumbing', hint: 'optional — auto-filled on test' },
+  { key: 'pageId', label: 'Instagram Business Account ID', type: 'text', placeholder: '17841400000000001', hint: 'optional â€” auto-filled on test', helpText: 'Auto-filled when you click Test connection' },
+  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: '@mikes.plumbing', hint: 'optional â€” auto-filled on test' },
 ];
 
 const GOOGLE_SOCIAL_WIZARD = {
   title: 'Google Business Profile',
   slides: [
     {
-      heading: 'Step 1 — Enable the Business Profile API',
-      subtext: '1. Click "Open API Library" below — sign in with the Google account that manages your business\n2. If prompted to create a project, click "Create Project" → give it any name → click "Create"\n3. In the search bar, type "Business Profile API" → click the result\n4. Click "Enable"\n\nThis one-time step activates Google\'s posting API for your account.',
-      callout: { platformName: 'Google Cloud Console', highlight: 'API Library → Business Profile API → Enable', color: '#4285F4', note: 'Use the Google account that manages your business' },
-      linkButton: { label: 'Open API Library ↗', url: 'https://console.cloud.google.com/apis/library/' },
+      heading: 'Step 1 â€” Enable the Business Profile API',
+      subtext: '1. Click "Open API Library" below â€” sign in with the Google account that manages your business\n2. If prompted to create a project, click "Create Project" â†’ give it any name â†’ click "Create"\n3. In the search bar, type "Business Profile API" â†’ click the result\n4. Click "Enable"\n\nThis one-time step activates Google\'s posting API for your account.',
+      callout: { platformName: 'Google Cloud Console', highlight: 'API Library â†’ Business Profile API â†’ Enable', color: '#4285F4', note: 'Use the Google account that manages your business' },
+      linkButton: { label: 'Open API Library â†—', url: 'https://console.cloud.google.com/apis/library/' },
     },
     {
-      heading: 'Step 2 — Get your access token',
-      subtext: '1. Click "Open OAuth Playground" below\n2. In the left panel under "Input your own scopes", paste this exactly:\n   https://www.googleapis.com/auth/business.manage\n3. Click "Authorize APIs" → sign in with your Google account → click "Allow"\n4. Click "Exchange authorization code for tokens"\n5. Copy the "Access token" value (starts with ya29...)\n\nImportant: copy the Access Token — NOT the Refresh Token.',
-      callout: { platformName: 'OAuth Playground', highlight: 'Paste scope → Authorize APIs → Exchange → copy Access Token', color: '#4285F4', note: 'Copy Access Token, NOT the Refresh Token' },
-      linkButton: { label: 'Open OAuth Playground ↗', url: 'https://developers.google.com/oauthplayground' },
+      heading: 'Step 2 â€” Get your access token',
+      subtext: '1. Click "Open OAuth Playground" below\n2. In the left panel under "Input your own scopes", paste this exactly:\n   https://www.googleapis.com/auth/business.manage\n3. Click "Authorize APIs" â†’ sign in with your Google account â†’ click "Allow"\n4. Click "Exchange authorization code for tokens"\n5. Copy the "Access token" value (starts with ya29...)\n\nImportant: copy the Access Token â€” NOT the Refresh Token.',
+      callout: { platformName: 'OAuth Playground', highlight: 'Paste scope â†’ Authorize APIs â†’ Exchange â†’ copy Access Token', color: '#4285F4', note: 'Copy Access Token, NOT the Refresh Token' },
+      linkButton: { label: 'Open OAuth Playground â†—', url: 'https://developers.google.com/oauthplayground' },
     },
     {
-      heading: 'Step 3 — Find your Business Account ID',
-      subtext: '1. Click "Open Business Profile" below\n2. Look at your browser URL bar — you\'ll see a number like:\n   business.google.com/u/0/id/1234567890\n   That number is your Account ID\n\nAlternatively: in Business Profile → go to Settings → Advanced settings → Account ID',
-      callout: { platformName: 'Google Business Profile', highlight: 'business.google.com → the number in the URL', color: '#4285F4', note: 'Or Settings → Advanced settings → Account ID' },
-      linkButton: { label: 'Open Business Profile ↗', url: 'https://business.google.com/' },
+      heading: 'Step 3 â€” Find your Business Account ID',
+      subtext: '1. Click "Open Business Profile" below\n2. Look at your browser URL bar â€” you\'ll see a number like:\n   business.google.com/u/0/id/1234567890\n   That number is your Account ID\n\nAlternatively: in Business Profile â†’ go to Settings â†’ Advanced settings â†’ Account ID',
+      callout: { platformName: 'Google Business Profile', highlight: 'business.google.com â†’ the number in the URL', color: '#4285F4', note: 'Or Settings â†’ Advanced settings â†’ Account ID' },
+      linkButton: { label: 'Open Business Profile â†—', url: 'https://business.google.com/' },
     },
     {
-      heading: 'Step 4 — Paste your token and connect',
+      heading: 'Step 4 â€” Paste your token and connect',
       subtext: 'Paste the access token and your Account ID below. Click "Test connection" to verify.',
       isCredentialSlide: true,
-      warningNote: 'OAuth Playground tokens expire in 1 hour. For a permanent connection, use the "Connect" button once OAuth is live — it handles token refresh automatically.',
+      warningNote: 'OAuth Playground tokens expire in 1 hour. For a permanent connection, use the "Connect" button once OAuth is live â€” it handles token refresh automatically.',
     },
   ],
 };
 const GOOGLE_SOCIAL_FIELDS = [
-  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'ya29.xxxxxxxxxx...', required: true, helpText: 'From Google OAuth Playground — expires in 1 hour' },
-  { key: 'pageId', label: 'Business Account ID', type: 'text', placeholder: '1234567890', hint: 'optional — auto-filled on test', helpText: 'Found in Google Business Profile URL or Advanced settings' },
-  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: "Mike's Plumbing", hint: 'optional — auto-filled on test' },
+  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'ya29.xxxxxxxxxx...', required: true, helpText: 'From Google OAuth Playground â€” expires in 1 hour' },
+  { key: 'pageId', label: 'Business Account ID', type: 'text', placeholder: '1234567890', hint: 'optional â€” auto-filled on test', helpText: 'Found in Google Business Profile URL or Advanced settings' },
+  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: "Mike's Plumbing", hint: 'optional â€” auto-filled on test' },
 ];
 
 const LINKEDIN_SOCIAL_WIZARD = {
   title: 'LinkedIn',
   slides: [
     {
-      heading: 'Step 1 — Create your LinkedIn Developer App',
-      badge: '⏱ Product approval takes 2-8 weeks',
-      subtext: 'LinkedIn requires apps to be approved before they can post to company pages.\n\n1. Click "Open LinkedIn Developers" below\n2. Click "Create App"\n3. Enter your app name and paste your Company LinkedIn Page URL\n4. In your app → go to the "Products" tab\n5. Click "Select" next to "Community Management API" → describe your use case:\n   "We schedule and publish posts for a local business to our company LinkedIn Page"\n6. Also click "Select" next to "Messaging on LinkedIn" (for Inbox DMs)\n7. Submit — you\'ll get an email when approved\n\nWhile you wait, your app is created. You can generate a token in Step 2 after approval.',
-      callout: { platformName: 'LinkedIn Developer App', highlight: 'Products → Community Management API → Select → Submit', color: '#0A66C2', note: 'Describe your posting use case clearly — vague descriptions are rejected' },
-      linkButton: { label: 'Open LinkedIn Developers ↗', url: 'https://www.linkedin.com/developers/apps/new' },
+      heading: 'Step 1 â€” Create your LinkedIn Developer App',
+      badge: 'â± Product approval takes 2-8 weeks',
+      subtext: 'LinkedIn requires apps to be approved before they can post to company pages.\n\n1. Click "Open LinkedIn Developers" below\n2. Click "Create App"\n3. Enter your app name and paste your Company LinkedIn Page URL\n4. In your app â†’ go to the "Products" tab\n5. Click "Select" next to "Community Management API" â†’ describe your use case:\n   "We schedule and publish posts for a local business to our company LinkedIn Page"\n6. Also click "Select" next to "Messaging on LinkedIn" (for Inbox DMs)\n7. Submit â€” you\'ll get an email when approved\n\nWhile you wait, your app is created. You can generate a token in Step 2 after approval.',
+      callout: { platformName: 'LinkedIn Developer App', highlight: 'Products â†’ Community Management API â†’ Select â†’ Submit', color: '#0A66C2', note: 'Describe your posting use case clearly â€” vague descriptions are rejected' },
+      linkButton: { label: 'Open LinkedIn Developers â†—', url: 'https://www.linkedin.com/developers/apps/new' },
     },
     {
-      heading: 'Step 2 — Request Community Management API access',
-      subtext: 'The Community Management API is what enables posting to your company page.\n\n1. In your app → "Products" tab → find "Community Management API"\n2. Click "Select" and complete the request form\n3. Explain clearly: "Scheduling and publishing posts on behalf of a local service business"\n4. Submit and wait for LinkedIn\'s approval email (usually 1-4 weeks)\n\nOnce approved, the product shows as "Active" and you can generate a token in Step 3.',
-      callout: { platformName: 'LinkedIn Developer App', highlight: 'Products → Community Management API → Active', color: '#0A66C2', note: 'Status changes to "Active" when approved' },
-      linkButton: { label: 'Open LinkedIn Developers ↗', url: 'https://www.linkedin.com/developers/apps/' },
+      heading: 'Step 2 â€” Request Community Management API access',
+      subtext: 'The Community Management API is what enables posting to your company page.\n\n1. In your app â†’ "Products" tab â†’ find "Community Management API"\n2. Click "Select" and complete the request form\n3. Explain clearly: "Scheduling and publishing posts on behalf of a local service business"\n4. Submit and wait for LinkedIn\'s approval email (usually 1-4 weeks)\n\nOnce approved, the product shows as "Active" and you can generate a token in Step 3.',
+      callout: { platformName: 'LinkedIn Developer App', highlight: 'Products â†’ Community Management API â†’ Active', color: '#0A66C2', note: 'Status changes to "Active" when approved' },
+      linkButton: { label: 'Open LinkedIn Developers â†—', url: 'https://www.linkedin.com/developers/apps/' },
     },
     {
-      heading: 'Step 3 — Generate your access token',
-      subtext: '1. In your app, go to the "Auth" tab → scroll to "OAuth 2.0 Tools"\n2. Under scopes, select all three:\n   • w_member_social (post as yourself)\n   • w_organization_social (post as your company page)\n   • r_organization_social (read company analytics)\n3. Click "Request access token" → sign in → authorize → copy the token\n4. Find your Company URN: go to your LinkedIn Company Page, copy the number from the URL (after /company/) and format it as:\n   urn:li:organization:XXXXXXXX\n\nPaste both below.',
+      heading: 'Step 3 â€” Generate your access token',
+      subtext: '1. In your app, go to the "Auth" tab â†’ scroll to "OAuth 2.0 Tools"\n2. Under scopes, select all three:\n   â€¢ w_member_social (post as yourself)\n   â€¢ w_organization_social (post as your company page)\n   â€¢ r_organization_social (read company analytics)\n3. Click "Request access token" â†’ sign in â†’ authorize â†’ copy the token\n4. Find your Company URN: go to your LinkedIn Company Page, copy the number from the URL (after /company/) and format it as:\n   urn:li:organization:XXXXXXXX\n\nPaste both below.',
       isCredentialSlide: true,
-      warningNote: 'LinkedIn tokens expire after 60 days — reconnect when prompted. Community Management API approval is required before this step will work.',
+      warningNote: 'LinkedIn tokens expire after 60 days â€” reconnect when prompted. Community Management API approval is required before this step will work.',
     },
   ],
 };
 const LINKEDIN_SOCIAL_FIELDS = [
-  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'AQV...', required: true, helpText: 'Generated via LinkedIn Developer App → Auth → OAuth 2.0 Tools (requires Partner Program approval)' },
+  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'AQV...', required: true, helpText: 'Generated via LinkedIn Developer App â†’ Auth â†’ OAuth 2.0 Tools (requires Partner Program approval)' },
   { key: 'pageId', label: 'Company URN', type: 'text', placeholder: 'urn:li:organization:12345678', helpText: 'Find the numeric ID in your LinkedIn Company Page URL after /company/' },
-  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: "Mike's Plumbing", hint: 'optional — auto-filled on test' },
+  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: "Mike's Plumbing", hint: 'optional â€” auto-filled on test' },
 ];
 
 const TIKTOK_SOCIAL_WIZARD = {
   title: 'TikTok',
   slides: [
     {
-      heading: 'Step 1 — Register as a TikTok developer',
-      badge: '⏱ App review takes 2-6 weeks',
-      subtext: '1. Click "Open TikTok Developers" below\n2. Sign in with your TikTok for Business account\n   (Don\'t have one? Create it free at business.tiktok.com — use the same email as your TikTok)\n3. Complete the developer registration form — takes about 5 minutes\n\nNote: until your app passes review, all posts will be private and only visible to you.',
-      callout: { platformName: 'TikTok Developer Portal', highlight: 'Sign in → Register Developer Account', color: '#ff0050', note: 'Use your TikTok for Business account' },
-      linkButton: { label: 'Open TikTok Developers ↗', url: 'https://developers.tiktok.com/' },
+      heading: 'Step 1 â€” Register as a TikTok developer',
+      badge: 'â± App review takes 2-6 weeks',
+      subtext: '1. Click "Open TikTok Developers" below\n2. Sign in with your TikTok for Business account\n   (Don\'t have one? Create it free at business.tiktok.com â€” use the same email as your TikTok)\n3. Complete the developer registration form â€” takes about 5 minutes\n\nNote: until your app passes review, all posts will be private and only visible to you.',
+      callout: { platformName: 'TikTok Developer Portal', highlight: 'Sign in â†’ Register Developer Account', color: '#ff0050', note: 'Use your TikTok for Business account' },
+      linkButton: { label: 'Open TikTok Developers â†—', url: 'https://developers.tiktok.com/' },
     },
     {
-      heading: 'Step 2 — Create your app and request scopes',
-      subtext: '1. In the developer portal, click "Manage Apps" → "Create App"\n2. Choose "Web" as the platform type\n3. In the Scopes section, request all three:\n   • Content Posting API (direct publishing)\n   • Video Upload (draft uploads)\n   • User Info Basic (account info)\n4. In your app description, write:\n   "We schedule and publish social media posts for a local business"\n5. Click "Submit for Review"\n\nClear, honest descriptions are approved faster — vague ones get rejected.',
-      callout: { platformName: 'TikTok Developer Portal', highlight: 'Manage Apps → Scopes → request 3 scopes → Submit', color: '#ff0050', note: 'Request all 3 scopes in one submission' },
-      linkButton: { label: 'Open TikTok Apps ↗', url: 'https://developers.tiktok.com/apps/' },
+      heading: 'Step 2 â€” Create your app and request scopes',
+      subtext: '1. In the developer portal, click "Manage Apps" â†’ "Create App"\n2. Choose "Web" as the platform type\n3. In the Scopes section, request all three:\n   â€¢ Content Posting API (direct publishing)\n   â€¢ Video Upload (draft uploads)\n   â€¢ User Info Basic (account info)\n4. In your app description, write:\n   "We schedule and publish social media posts for a local business"\n5. Click "Submit for Review"\n\nClear, honest descriptions are approved faster â€” vague ones get rejected.',
+      callout: { platformName: 'TikTok Developer Portal', highlight: 'Manage Apps â†’ Scopes â†’ request 3 scopes â†’ Submit', color: '#ff0050', note: 'Request all 3 scopes in one submission' },
+      linkButton: { label: 'Open TikTok Apps â†—', url: 'https://developers.tiktok.com/apps/' },
     },
     {
-      heading: 'Step 3 — Get your access token',
-      subtext: '1. After approval, go to your app → "Manage" → "Tokens"\n2. Click "Generate access token"\n3. Select the posting scopes — look for: video.publish (required), video.upload, user.info.basic\n4. Click "Authorize" → sign in with your TikTok account → copy the access token\n5. Your Open ID will also appear on the same screen — copy it too\n\nPaste both below.',
+      heading: 'Step 3 â€” Get your access token',
+      subtext: '1. After approval, go to your app â†’ "Manage" â†’ "Tokens"\n2. Click "Generate access token"\n3. Select the posting scopes â€” look for: video.publish (required), video.upload, user.info.basic\n4. Click "Authorize" â†’ sign in with your TikTok account â†’ copy the access token\n5. Your Open ID will also appear on the same screen â€” copy it too\n\nPaste both below.',
       isCredentialSlide: true,
-      warningNote: 'Until your TikTok app passes audit, all posts will be private-only. Once approved, posts publish publicly. Scope names may vary slightly — check your app\'s Scopes section for exact names.',
+      warningNote: 'Until your TikTok app passes audit, all posts will be private-only. Once approved, posts publish publicly. Scope names may vary slightly â€” check your app\'s Scopes section for exact names.',
     },
   ],
 };
 const TIKTOK_SOCIAL_FIELDS = [
-  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'act.example...', required: true, helpText: 'Generated after app approval — must have video.publish scope' },
-  { key: 'pageId', label: 'Open ID', type: 'text', placeholder: 'MS4wLjABAAAA...', hint: 'optional — auto-filled on test', helpText: 'Your TikTok account identifier — found in TikTok for Business → Account Settings' },
-  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: '@mikes.plumbing', hint: 'optional — auto-filled on test' },
+  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'act.example...', required: true, helpText: 'Generated after app approval â€” must have video.publish scope' },
+  { key: 'pageId', label: 'Open ID', type: 'text', placeholder: 'MS4wLjABAAAA...', hint: 'optional â€” auto-filled on test', helpText: 'Your TikTok account identifier â€” found in TikTok for Business â†’ Account Settings' },
+  { key: 'accountName', label: 'Display Name', type: 'text', placeholder: '@mikes.plumbing', hint: 'optional â€” auto-filled on test' },
 ];
 
 const SOCIAL_WIZARD_MAP = {
@@ -531,7 +531,7 @@ export default function Settings() {
       const res = await apiKeysAPI.list();
       setApiKeys(res.data.keys || []);
     } catch {
-      // silently — non-critical
+      // silently â€” non-critical
     } finally {
       setLoadingKeys(false);
     }
@@ -598,7 +598,7 @@ export default function Settings() {
       const popup = window.open(res.data.url, 'oauth_popup', 'width=600,height=700,scrollbars=yes');
       if (!popup) window.location.href = res.data.url;
     } catch {
-      showToast('Connection failed — try "Manual setup" instead', 'error');
+      showToast('Connection failed â€” try "Manual setup" instead', 'error');
     }
   };
 
@@ -637,7 +637,7 @@ export default function Settings() {
     const label = PLATFORM_CONFIG[platform]?.label || platform;
     setConfirmModal({
       title: `Disconnect ${label}`,
-      message: `This will disconnect ${label} — you can reconnect anytime.`,
+      message: `This will disconnect ${label} â€” you can reconnect anytime.`,
       confirmLabel: 'Disconnect',
       confirmVariant: 'danger',
       onConfirm: async () => {
@@ -716,7 +716,7 @@ export default function Settings() {
   const urlChanged = scrapedData && scraperUrl.trim() &&
     (scraperUrl.startsWith('http') ? scraperUrl.trim() : 'https://' + scraperUrl.trim()) !== scrapedData.website;
 
-  // platformConfig removed — setupModal replaced by socialWizardModal + IntegrationSetupWizard
+  // platformConfig removed â€” setupModal replaced by socialWizardModal + IntegrationSetupWizard
 
   return (
     <Layout
@@ -783,7 +783,7 @@ export default function Settings() {
                       onChange={(e) => e.target.files[0] && handleAssetUpload(e.target.files[0], 'logo_url')} />
                     <button onClick={() => logoInputRef.current?.click()} disabled={logoUploading}
                       style={{ padding: '7px 14px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, color: t.primary, fontSize: 12, fontWeight: 600, cursor: logoUploading ? 'not-allowed' : 'pointer', opacity: logoUploading ? 0.6 : 1 }}>
-                      {logoUploading ? 'Uploading…' : 'Upload logo'}
+                      {logoUploading ? 'Uploadingâ€¦' : 'Upload logo'}
                     </button>
                     {profile.logo_url && (
                       <button onClick={async () => {
@@ -814,7 +814,7 @@ export default function Settings() {
                       onChange={(e) => e.target.files[0] && handleAssetUpload(e.target.files[0], 'favicon_url')} />
                     <button onClick={() => faviconInputRef.current?.click()} disabled={faviconUploading}
                       style={{ padding: '7px 14px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, color: t.primary, fontSize: 12, fontWeight: 600, cursor: faviconUploading ? 'not-allowed' : 'pointer', opacity: faviconUploading ? 0.6 : 1 }}>
-                      {faviconUploading ? 'Uploading…' : 'Upload icon'}
+                      {faviconUploading ? 'Uploadingâ€¦' : 'Upload icon'}
                     </button>
                     {profile.favicon_url && (
                       <button onClick={async () => {
@@ -828,7 +828,7 @@ export default function Settings() {
                     )}
                   </div>
                 </div>
-                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6 }}>Square image, at least 64×64px</div>
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6 }}>Square image, at least 64Ã—64px</div>
               </div>
             </div>
           </div>
@@ -856,7 +856,7 @@ export default function Settings() {
           </div>
           {urlChanged && (
             <div style={{ padding: '8px 12px', background: `${t.warning}15`, border: `1px solid ${t.warning}33`, borderRadius: 8, fontSize: 12, color: t.warning, marginBottom: 12 }}>
-              New site detected — scan it to update your saved information.
+              New site detected â€” scan it to update your saved information.
             </div>
           )}
           {scrapedData && (
@@ -976,7 +976,7 @@ export default function Settings() {
             </div>
             <div style={{ fontSize: 12, color: t.textMuted, padding: '8px 12px', background: t.input, borderRadius: 8, border: `1px solid ${t.border}` }}>
               Current selection: <strong style={{ color: t.text }}>{timezone}</strong>
-              {' — '}local time: <strong style={{ color: t.text }}>
+              {' â€” '}local time: <strong style={{ color: t.text }}>
                 {new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour: 'numeric', minute: '2-digit', hour12: true, weekday: 'short' }).format(new Date())}
               </strong>
             </div>
@@ -1074,7 +1074,7 @@ export default function Settings() {
               { value: 'posts:write', label: 'Create & schedule posts', desc: 'Create posts and update existing ones (includes read)' },
             ]},
             { group: 'AI Generation', scopes: [
-              { value: 'generate:write', label: 'Generate AI content', desc: 'Generate captions using AI — uses 1 credit per call' },
+              { value: 'generate:write', label: 'Generate AI content', desc: 'Generate captions using AI â€” uses 1 credit per call' },
             ]},
             { group: 'Analytics', scopes: [
               { value: 'analytics:read', label: 'View analytics', desc: 'Read post performance and engagement stats' },
@@ -1152,10 +1152,10 @@ export default function Settings() {
                           </div>
                           <div style={{ fontSize: 11, color: t.textMuted }}>
                             Created {formatDate(key.created_at)}
-                            {' · '}
+                            {' Â· '}
                             {timeAgo(key.last_used_at)}
-                            {key.expires_at && <span> · Expires {formatDate(key.expires_at)}</span>}
-                            {!key.expires_at && <span> · No expiry</span>}
+                            {key.expires_at && <span> Â· Expires {formatDate(key.expires_at)}</span>}
+                            {!key.expires_at && <span> Â· No expiry</span>}
                           </div>
                         </div>
                         <div>
@@ -1206,7 +1206,7 @@ export default function Settings() {
                   <div style={{ background: t.card, borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
                     {createKeyStep === 1 && (
                       <>
-                        <div style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 6 }}>Create API Key — Name & Expiry</div>
+                        <div style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 6 }}>Create API Key â€” Name & Expiry</div>
                         <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 20 }}>Give your key a clear name so you remember what it's for.</div>
                         <div style={{ marginBottom: 16 }}>
                           <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 6 }}>Key name</label>
@@ -1239,7 +1239,7 @@ export default function Settings() {
                         {createKeyError && <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 12 }}>{createKeyError}</div>}
                         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                           <Button variant="secondary" size="sm" onClick={() => setShowCreateKeyModal(false)}>Cancel</Button>
-                          <Button variant="primary" size="sm" disabled={!newKeyForm.name.trim()} onClick={() => { setCreateKeyError(''); setCreateKeyStep(2); }}>Next: Permissions →</Button>
+                          <Button variant="primary" size="sm" disabled={!newKeyForm.name.trim()} onClick={() => { setCreateKeyError(''); setCreateKeyStep(2); }}>Next: Permissions â†’</Button>
                         </div>
                       </>
                     )}
@@ -1271,7 +1271,7 @@ export default function Settings() {
                         </div>
                         {createKeyError && <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 12 }}>{createKeyError}</div>}
                         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                          <Button variant="secondary" size="sm" onClick={() => setCreateKeyStep(1)}>← Back</Button>
+                          <Button variant="secondary" size="sm" onClick={() => setCreateKeyStep(1)}>â† Back</Button>
                           <Button
                             variant="primary"
                             size="sm"
@@ -1293,7 +1293,7 @@ export default function Settings() {
                           <div style={{ fontSize: 17, fontWeight: 700, color: t.text }}>API Key Created</div>
                         </div>
                         <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 14, fontWeight: 500 }}>
-                          Copy this key now — you won't be able to see it again.
+                          Copy this key now â€” you won't be able to see it again.
                         </div>
                         <div style={{ position: 'relative', marginBottom: 18 }}>
                           <div style={{ padding: '12px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, fontFamily: 'monospace', fontSize: 12, color: t.text, wordBreak: 'break-all', paddingRight: 90 }}>
@@ -1368,144 +1368,8 @@ export default function Settings() {
         );
       })()}
 
-      {false && null && (
-        <div>
-          <div>
-            {integrationModal === '_removed' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Account SID</label>
-                  <input type="text" value={integrationForm.twilioAccountSid || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, twilioAccountSid: e.target.value }))}
-                    placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Auth Token</label>
-                  <input type="password" value={integrationForm.twilioAuthToken || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, twilioAuthToken: e.target.value }))}
-                    placeholder="Leave blank to keep existing"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>SMS Phone Number</label>
-                  <input type="text" value={integrationForm.twilioPhoneNumber || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, twilioPhoneNumber: e.target.value }))}
-                    placeholder="+15551234567"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 4 }}>
-                    WhatsApp Number <span style={{ fontSize: 11, fontWeight: 400, color: t.textMuted }}>(optional)</span>
-                  </label>
-                  <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Include the whatsapp: prefix, e.g. whatsapp:+15551234567</div>
-                  <input type="text" value={integrationForm.twilioWhatsappNumber || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, twilioWhatsappNumber: e.target.value }))}
-                    placeholder="whatsapp:+15551234567"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-              </div>
-            )}
 
-            {/* Cal.com form */}
-            {integrationModal === 'calcom' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>API Key</label>
-                  <input type="password" value={integrationForm.calcomApiKey || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, calcomApiKey: e.target.value }))}
-                    placeholder="Leave blank to keep existing"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Booking Link</label>
-                  <input type="url" value={integrationForm.bookingLink || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, bookingLink: e.target.value }))}
-                    placeholder="https://cal.com/yourbusiness"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-              </div>
-            )}
-
-            {/* Mailgun form */}
-            {integrationModal === 'mailgun' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>API Key</label>
-                  <input type="password" value={integrationForm.mailgunApiKey || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, mailgunApiKey: e.target.value }))}
-                    placeholder="Leave blank to keep existing"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Domain</label>
-                  <input type="text" value={integrationForm.mailgunDomain || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, mailgunDomain: e.target.value }))}
-                    placeholder="mail.yourbusiness.com"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>From Email</label>
-                  <input type="email" value={integrationForm.mailgunFromEmail || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, mailgunFromEmail: e.target.value }))}
-                    placeholder="hello@mail.yourbusiness.com"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Inbound Webhook URL</label>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="text" readOnly value="https://api.itsposting.com/api/mailgun/inbound"
-                      style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textMuted, fontSize: 12, fontFamily: 'monospace', boxSizing: 'border-box' }} />
-                    <button onClick={() => { navigator.clipboard.writeText('https://api.itsposting.com/api/mailgun/inbound'); }}
-                      style={{ padding: '10px 14px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      Copy
-                    </button>
-                  </div>
-                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6 }}>
-                    Point your Mailgun inbound route to the webhook URL above. In Mailgun → Receiving → Routes, create a rule to forward to this URL.
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Meta WhatsApp Business API form */}
-            {integrationModal === 'meta_whatsapp' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ padding: '10px 14px', background: 'rgba(37,211,102,0.08)', border: '1px solid rgba(37,211,102,0.25)', borderRadius: 8, fontSize: 12, color: t.textSecondary, lineHeight: 1.5 }}>
-                  Get these credentials from <strong>Meta Business Suite → WhatsApp → API Setup</strong>. Create a System User with a permanent access token for production use.
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Phone Number ID</label>
-                  <input type="text" value={integrationForm.metaWaPhoneNumberId || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, metaWaPhoneNumberId: e.target.value }))}
-                    placeholder="1234567890123456"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Found in WhatsApp → API Setup → Phone number ID</div>
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Permanent Access Token</label>
-                  <input type="password" value={integrationForm.metaWaAccessToken || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, metaWaAccessToken: e.target.value }))}
-                    placeholder="Leave blank to keep existing"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Generate via Meta Business Suite → System Users → Generate Token</div>
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 4 }}>
-                    Business Account ID <span style={{ fontSize: 11, fontWeight: 400, color: t.textMuted }}>(optional)</span>
-                  </label>
-                  <input type="text" value={integrationForm.metaWaBusinessId || ''} onChange={(e) => setIntegrationForm(f => ({ ...f, metaWaBusinessId: e.target.value }))}
-                    placeholder="Your WhatsApp Business Account ID"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 24 }}>
-              <button onClick={() => setIntegrationModal(null)}
-                style={{ padding: '9px 18px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                Cancel
-              </button>
-              <button onClick={handleSaveIntegration} disabled={integrationSaving}
-                style={{ padding: '9px 20px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: integrationSaving ? 0.6 : 1 }}>
-                {integrationSaving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Manual Token Modal — replaced by socialWizardModal + IntegrationSetupWizard */}
+      {/* Manual Token Modal â€” replaced by socialWizardModal + IntegrationSetupWizard */}
       {false && null && (
         <div onClick={() => { setSetupModal(null); setTokenVerified(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(4px)' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 18, padding: 0, maxWidth: 560, width: '100%', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
@@ -1519,7 +1383,7 @@ export default function Settings() {
                   </div>
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 700, color: t.text }}>Connect {platformConfig.label}</div>
-                    <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>Follow the steps below — takes about 2 minutes</div>
+                    <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>Follow the steps below â€” takes about 2 minutes</div>
                   </div>
                 </div>
                 <button onClick={() => { setSetupModal(null); setTokenVerified(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: 4 }}>
@@ -1553,7 +1417,7 @@ export default function Settings() {
                         {step.text}
                         {step.link && (
                           <a href={step.link.url} target="_blank" rel="noreferrer" style={{ color: platformConfig.color, fontWeight: 600, textDecoration: 'none', marginLeft: 2 }}>
-                            {step.link.label} ↗
+                            {step.link.label} â†—
                           </a>
                         )}
                         {step.suffix && <span>{step.suffix}</span>}
@@ -1580,7 +1444,7 @@ export default function Settings() {
                   <div style={{ marginTop: 8, padding: '9px 12px', borderRadius: 8, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, background: tokenVerified.valid ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${tokenVerified.valid ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)'}`, color: tokenVerified.valid ? t.success : t.error }}>
                     {tokenVerified.valid ? <IpCheck size={13} /> : <IpWarning size={13} />}
                     {tokenVerified.valid
-                      ? `Token valid — connected as "${tokenVerified.accountName}"`
+                      ? `Token valid â€” connected as "${tokenVerified.accountName}"`
                       : `Token failed: ${tokenVerified.error}`}
                   </div>
                 )}
@@ -1588,7 +1452,7 @@ export default function Settings() {
                   onClick={handleVerifyToken}
                   disabled={tokenVerifying || manualToken.trim().length < 10}
                   style={{ marginTop: 8, padding: '8px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: manualToken.trim().length < 10 ? 'not-allowed' : 'pointer', opacity: manualToken.trim().length < 10 ? 0.4 : 1 }}>
-                  {tokenVerifying ? 'Testing...' : '🔍 Test connection'}
+                  {tokenVerifying ? 'Testing...' : 'ðŸ” Test connection'}
                 </button>
               </div>
 
@@ -1596,7 +1460,7 @@ export default function Settings() {
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   {platformConfig.tokenHelp.pageIdLabel}
-                  {' '}<span style={{ color: t.textMuted, fontWeight: 400, textTransform: 'none', letterSpacing: 'normal' }}>(optional — auto-filled on test)</span>
+                  {' '}<span style={{ color: t.textMuted, fontWeight: 400, textTransform: 'none', letterSpacing: 'normal' }}>(optional â€” auto-filled on test)</span>
                 </label>
                 <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>{platformConfig.tokenHelp.pageIdHelp}</div>
                 <input type="text" value={manualPageId} onChange={(e) => setManualPageId(e.target.value)} placeholder="e.g. 123456789"

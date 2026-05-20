@@ -170,7 +170,6 @@ itsposting-app-main/
 - `contacts.js` — contacts management
 - `webhooks.js` — inbound webhook handling
 - `receptionist.js` — AI Receptionist config, conversations, leads pipeline, automations, review actions
-- `twilio.js` — Twilio inbound SMS/WhatsApp webhooks (per-customer credentials; mounted at /api/twilio)
 - `gmb-messages.js` — Google Business Messages inbound webhook + verification (mounted at /api/gmb)
 - `studio.js` — AI-powered image studio (Sharp + Claude for branded card templates)
 - `apiKeys.js` — Developer API key management (create, list, revoke); enforces plan limits (Trial = 0, paid = 5)
@@ -209,13 +208,7 @@ itsposting-app-main/
 - `DMPollingService.js` — polling social DMs
 - `WhopService.js` — Whop integration
 - `ReceptionistService.js` — AI receptionist brain (intent classification, reply generation, escalation logic)
-- `TwilioService.js` — SMS + WhatsApp send/receive via Twilio (per-customer credentials)
-- `MetaWhatsAppService.js` — WhatsApp via Meta Business Cloud API (Graph API v19.0); preferred over Twilio when configured
-- `MailgunService.js` — transactional email via Mailgun (per-customer credentials)
-- `CalComService.js` — Cal.com booking link integration
 - `GMBMessagesService.js` — Google My Business Messages send/receive
-- `QueueService.js` — BullMQ queue management with Redis fallback (graceful degradation to cron)
-- `OutboundQueue.js` — outbound job scheduler (follow-up, review request, no-show, seasonal, custom); BullMQ + cron fallback
 
 ### Frontend pages (all in frontend/pages/):
 - `index.js` — auth redirect
@@ -294,23 +287,12 @@ geo_tracking_scores       -- Score history over time per customer
 
 ### AI Receptionist tables:
 ```sql
-receptionist_config       -- Per-customer AI Receptionist settings; all integration credentials stored here:
+receptionist_config       -- Per-customer AI Receptionist settings:
                           --   enabled, auto_handle, active_platforms (JSONB), tone
                           --   escalate_keywords (JSONB), booking_link
                           --   business_hours_start/end, timezone, after_hours_message
-                          --   twilio_account_sid, twilio_auth_token (secret), twilio_phone_number, twilio_whatsapp_number
-                          --   calcom_api_key (secret)
-                          --   mailgun_api_key (secret), mailgun_domain, mailgun_from_email
-                          --   meta_wa_phone_number_id, meta_wa_access_token (secret), meta_wa_business_id
-                          --   automation_config (JSONB) -- array of automation rules
 dm_conversations          -- Inbound DM conversation threads (Facebook, Instagram, Google)
 dm_messages               -- Individual DM messages; ai_handled BOOLEAN tracks AI auto-replies
-sms_conversations         -- SMS/WhatsApp conversation threads per customer
-sms_messages              -- Individual SMS/WhatsApp messages within conversations
-outbound_jobs             -- Scheduled outbound messages; statuses: pending/running/sent/failed
-                          --   job_type: follow_up | review_request | noshow | seasonal | custom
-                          --   platform: sms | whatsapp | email
-                          --   payload JSONB, scheduled_for TIMESTAMP
 ```
 
 ### Key columns on customers:
@@ -1075,13 +1057,7 @@ CTA: Clear single action (not multiple options)
 - **PWA** — manifest.json, sw.js (cache-first for assets, network-first for nav, API calls always live), icons (192px + 512px), install banner with 7-day dismiss, meta tags in _app.js
 - Whop billing — WhopService.js + full webhook handler (activation, renewal, deactivation, credit packs)
 - **AI Receptionist** — ReceptionistService.js (intent classification, AI reply generation, escalation); receptionist.js route (config, conversations, leads pipeline, review actions); settings UI (full configuration panel)
-- **SMS/WhatsApp inbox** — TwilioService.js + twilio.js inbound webhook; per-customer Twilio credentials; SMS conversation threading (sms_conversations + sms_messages)
-- **Google Business Messages** — GMBMessagesService.js + gmb-messages.js webhook handler
-- **Outbound Automations** — OutboundQueue.js + QueueService.js; 4 built-in rules (follow_up, review_request, noshow, seasonal) + unlimited custom rules; BullMQ + Redis when available; cron fallback when Redis absent
-- **Custom Automations UI** — create/edit/delete custom automation rules in settings; all channels (SMS, WhatsApp, Email); trigger events; delay window; message template with variables
-- **Meta WhatsApp Business API** — MetaWhatsAppService.js (Graph API v19.0); preferred over Twilio WhatsApp when `meta_wa_phone_number_id` + `meta_wa_access_token` configured; Twilio WhatsApp remains fallback
-- **Channel selector** — automation modals always show SMS / WhatsApp / Email; unconfigured channels shown as disabled with "(not configured)" label so users know what to set up
-- **Integration cards** — settings page has Twilio, Cal.com, Mailgun, and WhatsApp Business (Meta) cards with configure modals; credentials stored in receptionist_config, secrets never returned to frontend
+- **Google Business Messages** — GMBMessagesService.js + gmb-messages.js webhook handler (mounted at /api/gmb)
 - **Studio route** — AI-powered branded image card generator (Sharp + Claude, mounted at /api/studio)
 - **`frontend/pages/wizard.js`** — dedicated wizard page, fully operational; text post hides media panel, 1 credit deducted
 - **Security hardening** — bcrypt rounds 12, hashed reset tokens, JWT Bearer-only, SELECT FOR UPDATE on credit deductions, HMAC webhook enforcement, CSP + security headers on frontend and backend, knowledge base content sanitisation (`b4e0450`); round 2 adds JWT algorithm pinning, SSRF blocklist, token revocation after password reset, IDOR fix on analytics, DM auth defense-in-depth, limit/offset clamping, timing attack fix, admin bcrypt fix, broadcast rate limit (`0babf58`); round 3 adds impersonation JWT field fix (customerId), DB SSL rejectUnauthorized:true, atomic credit deduction in /wizard/refresh, angle whitelist + caption sanitisation against prompt injection, SSRF protection in NanoBananaService.editImage, ORDER BY lookup-map in external.js, customer field sanitisation in SystemPromptBuilder, HSTS header, restricted Next.js image remotePatterns, receptionist pagination cap (100), global JSON body limit 1mb, parallel timing equaliser in forgot-password
@@ -1093,6 +1069,8 @@ CTA: Clear single action (not multiple options)
 - **First-time user welcome banner** — dashboard shows a contextual welcome card (with CTA to Quick Post) when the customer has zero posts
 - **Billing plan taglines** — each plan card shows a plain-English description of who the plan is for
 - **OAuth token auto-refresh** — Google and TikTok access tokens are refreshed automatically before every post when expired or within 5 min of expiry; new tokens written back to `social_accounts` (SocialPublisher._refreshTokenIfNeeded)
+- **Workspace membership system** — `workspace_invitations` table with token-based invites; `workspace_members` join table; `GET /api/workspaces/my-memberships` endpoint; "Shared with you" section on workspaces page; invites can target a specific sub-workspace via `workspaceId`; `/verify` JWT transition fallback covers 30-day old-token window
+- **Codebase cleanup** — removed all traces of TwilioService.js, MetaWhatsAppService.js, MailgunService.js, CalComService.js, OutboundQueue.js, QueueService.js (services never implemented); removed sms_conversations/sms_messages/outbound_jobs DB migrations; removed dead integration forms from settings.js; removed stale receptionist_config credential columns from migrations; gmb-messages.js properly mounted at /api/gmb
 
 ---
 

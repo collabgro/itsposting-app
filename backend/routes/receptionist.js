@@ -3,21 +3,10 @@
 const express             = require('express');
 const { authenticate }    = require('../middleware/auth');
 const ReceptionistService = require('../services/ReceptionistService');
-const OutboundQueue       = require('../services/OutboundQueue');
-
-function getDefaultAutomations() {
-  return [
-    { type: 'follow_up',      enabled: true,  label: 'Lead follow-up',    description: "Sent to leads who haven't replied after the delay window.", delay_hours: 48, channel: 'sms', message_template: "Hi {name}! Just checking in from {business_name}. Did you get a chance to sort out your inquiry? We have openings this week if you're still looking." },
-    { type: 'review_request', enabled: true,  label: 'Review request',    description: 'Sent after you mark a job as completed.',                   delay_hours: 4,  channel: 'sms', message_template: "Hi {name}! Glad we could help today. Would you mind leaving us a quick Google review? It really helps small businesses like ours. {booking_link}" },
-    { type: 'noshow',         enabled: true,  label: 'No-show follow-up', description: 'Sent when a customer misses their appointment.',            delay_hours: 2,  channel: 'sms', message_template: "Hi {name}, we missed you today! Would you like to reschedule? Here's our booking link: {booking_link}" },
-    { type: 'seasonal',       enabled: false, label: 'Seasonal campaign', description: 'Broadcast to past customers — configure before enabling.',  delay_hours: 0,  channel: 'sms', message_template: "Hi {name}, just a seasonal update from {business_name}. {booking_link}" },
-  ];
-}
 
 module.exports = (pool) => {
   const router = express.Router();
   const receptionistSvc = new ReceptionistService(pool);
-  const outboundQueue = new OutboundQueue(pool);
   router.use(authenticate);
 
   // ── GET /api/receptionist/config ─────────────────────────────────
@@ -33,7 +22,6 @@ module.exports = (pool) => {
         config: {
           ...cfg,
           booking_link: cfg.booking_link || null,
-          automation_config: cfg.automation_config || getDefaultAutomations(),
         },
       });
     } catch (err) {
@@ -49,7 +37,6 @@ module.exports = (pool) => {
         enabled, autoHandle, activePlatforms, tone,
         escalateKeywords, bookingLink,
         businessHoursStart, businessHoursEnd, timezone, afterHoursMessage,
-        automationConfig,
       } = req.body;
 
       const { rows } = await pool.query(
@@ -57,8 +44,8 @@ module.exports = (pool) => {
            (customer_id, enabled, auto_handle, active_platforms, tone,
             escalate_keywords, booking_link,
             business_hours_start, business_hours_end, timezone, after_hours_message,
-            automation_config, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())
+            created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())
          ON CONFLICT (customer_id) DO UPDATE SET
            enabled = COALESCE(EXCLUDED.enabled, receptionist_config.enabled),
            auto_handle = COALESCE(EXCLUDED.auto_handle, receptionist_config.auto_handle),
@@ -70,7 +57,6 @@ module.exports = (pool) => {
            business_hours_end = COALESCE(EXCLUDED.business_hours_end, receptionist_config.business_hours_end),
            timezone = COALESCE(EXCLUDED.timezone, receptionist_config.timezone),
            after_hours_message = COALESCE(EXCLUDED.after_hours_message, receptionist_config.after_hours_message),
-           automation_config = COALESCE(EXCLUDED.automation_config, receptionist_config.automation_config),
            updated_at = NOW()
          RETURNING *`,
         [
@@ -85,7 +71,6 @@ module.exports = (pool) => {
           businessHoursEnd || null,
           timezone || null,
           afterHoursMessage || null,
-          automationConfig ? JSON.stringify(automationConfig) : null,
         ]
       );
 
@@ -95,7 +80,6 @@ module.exports = (pool) => {
         config: {
           ...cfg,
           booking_link: cfg.booking_link || null,
-          automation_config: cfg.automation_config || getDefaultAutomations(),
         },
       });
     } catch (err) {
@@ -109,7 +93,7 @@ module.exports = (pool) => {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      const [dmStats, escalated, pending, smsStats] = await Promise.all([
+      const [dmStats, escalated, pending] = await Promise.all([
         pool.query(
           `SELECT COUNT(*) AS ai_handled_today
            FROM dm_messages dm
@@ -128,18 +112,10 @@ module.exports = (pool) => {
            FROM dm_conversations WHERE customer_id=$1 AND status='open' AND is_read=false`,
           [req.customerId]
         ),
-        pool.query(
-          `SELECT COUNT(*) AS sms_handled
-           FROM sms_messages sm
-           JOIN sms_conversations sc ON sc.id=sm.conversation_id
-           WHERE sc.customer_id=$1 AND sm.ai_handled=true
-             AND sm.sent_at::date=$2::date`,
-          [req.customerId, today]
-        ).catch(() => ({ rows: [{ sms_handled: 0 }] })),
       ]);
 
       res.json({
-        aiHandledToday: parseInt(dmStats.rows[0]?.ai_handled_today || 0) + parseInt(smsStats.rows[0]?.sms_handled || 0),
+        aiHandledToday: parseInt(dmStats.rows[0]?.ai_handled_today || 0),
         escalatedOpen: parseInt(escalated.rows[0]?.escalated || 0),
         pendingUnread: parseInt(pending.rows[0]?.pending || 0),
       });
@@ -149,7 +125,6 @@ module.exports = (pool) => {
   });
 
   // ── GET /api/receptionist/conversations ─────────────────────────
-  // Unified view: DMs + SMS (Phase 2 adds SMS)
   router.get('/conversations', async (req, res) => {
     try {
       const { status, platform, page = 1, limit = 20 } = req.query;
@@ -246,22 +221,6 @@ module.exports = (pool) => {
          )`,
         [stage, req.customerId, req.params.id]
       ).catch(() => {}); // Non-fatal if no linked contact
-
-      // Auto-schedule review request when job marked as completed
-      if (stage === 'completed') {
-        const contactRes = await pool.query(
-          `SELECT c.id FROM contacts c
-           JOIN dm_conversations dc ON dc.sender_id = c.platform_id
-           WHERE dc.id=$1 AND c.customer_id=$2 LIMIT 1`,
-          [req.params.id, req.customerId]
-        ).catch(() => ({ rows: [] }));
-        const contactId = contactRes.rows[0]?.id;
-        if (contactId) {
-          outboundQueue.scheduleReviewRequest(contactId, req.customerId).catch(err =>
-            console.warn('[receptionist] review request schedule:', err.message)
-          );
-        }
-      }
 
       res.json({ success: true });
     } catch (err) {
