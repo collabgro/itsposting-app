@@ -434,7 +434,7 @@ app.use('/api/wizard/regenerate-image', generationLimiter);
 app.use('/api/content/generate', generationLimiter);
 app.use('/api/v1/generate', generationLimiter);
 
-app.use(cors({
+const corsMiddleware = cors({
   origin: (origin, cb) => {
     const allowed = (process.env.FRONTEND_URL || 'http://localhost:5000').split(',').map(s => s.trim());
     if (!origin) {
@@ -450,7 +450,12 @@ app.use(cors({
     cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
-}));
+});
+// OAuth callbacks are browser GET redirects from OAuth providers — no Origin header, skip CORS
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/social/callback/')) return next();
+  corsMiddleware(req, res, next);
+});
 // Webhooks must be registered BEFORE express.json() — they need raw body for HMAC verification
 app.use('/api/webhooks', webhookRoutes(pool));
 // Upload/media routes use multer (no JSON body) — keep 10mb only for urlencoded (base64 previews).
