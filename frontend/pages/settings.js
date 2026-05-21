@@ -481,30 +481,93 @@ export default function Settings() {
   }, []);
 
   useEffect(() => {
-    const names = { facebook: 'Facebook & Instagram', google: 'Business Profile', linkedin: 'LinkedIn', tiktok: 'TikTok' };
+    const names = {
+      facebook: 'Facebook',
+      facebook_instagram: 'Facebook & Instagram',
+      google: 'Google Business Profile',
+      linkedin: 'LinkedIn',
+      tiktok: 'TikTok',
+    };
     const msgs = {
-      facebook_denied: 'Connection was cancelled',
-      google_denied: 'Connection was cancelled',
+      facebook_denied: 'Connection was cancelled.',
+      google_denied: 'Connection was cancelled.',
       facebook_failed: 'Failed to connect Facebook. Please try again.',
+      facebook_invalid: 'Facebook connection failed — invalid response.',
+      facebook_state_invalid: 'Facebook connection failed — please try again.',
       google_failed: 'Failed to connect Google. Please try again.',
-      linkedin_denied: 'Connection was cancelled',
+      linkedin_denied: 'Connection was cancelled.',
       linkedin_failed: 'Failed to connect LinkedIn. Please try again.',
-      tiktok_denied: 'Connection was cancelled',
+      tiktok_denied: 'Connection was cancelled.',
       tiktok_failed: 'Failed to connect TikTok. Please try again.',
     };
-    const handler = (e) => {
-      if (e.data?.type !== 'oauth_callback') return;
-      if (e.data.connected) {
-        showToast(`${names[e.data.connected] || e.data.connected} connected successfully!`);
+
+    function handleResult(connected, error) {
+      if (connected) {
+        showToast(`${names[connected] || connected} connected successfully!`);
         loadSocialAccounts();
       }
-      if (e.data.error) {
-        showToast(msgs[e.data.error] || `Connection error: ${e.data.error}`, 'error');
+      if (error) {
+        showToast(msgs[error] || `Connection error: ${error}`, 'error');
       }
+    }
+
+    // postMessage — same-origin popup fallback (kept for compatibility)
+    const messageHandler = (e) => {
+      if (e.data?.type !== 'oauth_callback') return;
+      handleResult(e.data.connected, e.data.error);
     };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
+
+    // storage event — fires in parent window when popup writes oauth_result.
+    // This works even after cross-origin redirect chains (unlike window.opener).
+    const storageHandler = (e) => {
+      if (e.key !== 'oauth_result') return;
+      try {
+        const { connected, error } = JSON.parse(e.newValue || '{}');
+        handleResult(connected, error);
+        localStorage.removeItem('oauth_result');
+      } catch {}
+    };
+
+    window.addEventListener('message', messageHandler);
+    window.addEventListener('storage', storageHandler);
+    return () => {
+      window.removeEventListener('message', messageHandler);
+      window.removeEventListener('storage', storageHandler);
+    };
   }, []);
+
+  // Handle same-window OAuth redirect (fires when popup was blocked and user
+  // was redirected back to /settings?connected=... in the main tab)
+  useEffect(() => {
+    if (!router.isReady) return;
+    const { connected, error } = router.query;
+    if (!connected && !error) return;
+    const names = {
+      facebook: 'Facebook',
+      facebook_instagram: 'Facebook & Instagram',
+      google: 'Google Business Profile',
+      linkedin: 'LinkedIn',
+      tiktok: 'TikTok',
+    };
+    const msgs = {
+      facebook_denied: 'Connection was cancelled.',
+      google_denied: 'Connection was cancelled.',
+      facebook_failed: 'Failed to connect Facebook. Please try again.',
+      google_failed: 'Failed to connect Google. Please try again.',
+      linkedin_denied: 'Connection was cancelled.',
+      linkedin_failed: 'Failed to connect LinkedIn. Please try again.',
+      tiktok_denied: 'Connection was cancelled.',
+      tiktok_failed: 'Failed to connect TikTok. Please try again.',
+    };
+    if (connected) {
+      showToast(`${names[connected] || connected} connected successfully!`);
+      loadSocialAccounts();
+    }
+    if (error) {
+      showToast(msgs[error] || `Connection error: ${error}`, 'error');
+    }
+    router.replace('/settings', undefined, { shallow: true });
+  }, [router.isReady]);
 
   const loadData = async () => {
     try {

@@ -7,14 +7,19 @@ export default function AuthCallback() {
   useEffect(() => {
     if (!router.isReady) return;
     const { connected, error } = router.query;
-    if (window.opener) {
-      window.opener.postMessage(
-        { type: 'oauth_callback', connected, error },
-        window.location.origin
-      );
+
+    // window.name is set to 'oauth_popup' by window.open() in settings.js.
+    // It persists through cross-origin redirects (unlike window.opener which
+    // browsers null-out after cross-origin navigation for security).
+    if (window.name === 'oauth_popup') {
+      // Write result to localStorage — this fires a 'storage' event in the
+      // parent window (settings.js), which picks it up and refreshes accounts.
+      localStorage.setItem('oauth_result', JSON.stringify({ connected, error, ts: Date.now() }));
       window.close();
     } else {
-      router.replace('/settings');
+      // Popup was blocked — same-window flow. Navigate settings with params
+      // so the page can show the right toast and reload accounts.
+      router.replace(`/settings?connected=${connected || ''}&error=${error || ''}`);
     }
   }, [router.isReady, router.query]);
 

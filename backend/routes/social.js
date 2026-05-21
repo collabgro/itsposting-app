@@ -184,6 +184,8 @@ module.exports = (pool) => {
       });
       const pages = pagesRes.data?.data || [];
 
+      let instagramConnected = false;
+
       for (const page of pages) {
         // Store each Facebook Page as a separate row
         await pool.query(
@@ -198,12 +200,17 @@ module.exports = (pool) => {
           [customerId, page.access_token, expiresAt, page.id, page.name, profileImageUrl]
         );
 
-        // Check for a linked Instagram Business Account on this page
+        // Check for a linked Instagram account (business or creator) on this page
         try {
           const igPageRes = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
-            params: { fields: 'instagram_business_account', access_token: page.access_token },
+            params: {
+              fields: 'instagram_business_account,connected_instagram_account',
+              access_token: page.access_token,
+            },
           });
-          const igId = igPageRes.data?.instagram_business_account?.id;
+          const igId =
+            igPageRes.data?.instagram_business_account?.id ||
+            igPageRes.data?.connected_instagram_account?.id;
           if (igId) {
             const igProfileRes = await axios.get(`https://graph.facebook.com/v18.0/${igId}`, {
               params: { fields: 'id,name,username', access_token: page.access_token },
@@ -221,8 +228,11 @@ module.exports = (pool) => {
                  updated_at = NOW()`,
               [customerId, page.access_token, expiresAt, igId, username || igName, igName]
             );
+            instagramConnected = true;
           }
-        } catch { /* page has no linked IG account — skip silently */ }
+        } catch (err) {
+          console.error(`[Social] Instagram lookup failed for page ${page.id}:`, err.response?.data || err.message);
+        }
       }
 
       // If no pages found, fall back to storing the user-level token so the connection isn't lost
@@ -240,7 +250,8 @@ module.exports = (pool) => {
         );
       }
 
-      res.redirect(`${frontendBase}/auth/callback?connected=facebook`);
+      const connectedParam = instagramConnected ? 'facebook_instagram' : 'facebook';
+      res.redirect(`${frontendBase}/auth/callback?connected=${connectedParam}`);
     } catch (error) {
       console.error('Facebook OAuth error:', error.response?.data || error.message);
       res.redirect(`${frontendBase}/auth/callback?error=facebook_failed`);
