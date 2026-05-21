@@ -490,10 +490,11 @@ export default function Settings() {
     };
     const msgs = {
       facebook_denied: 'Connection was cancelled.',
-      google_denied: 'Connection was cancelled.',
+      facebook_no_pages: 'No Facebook Pages found on this account. Make sure you\'re logged into the Facebook account that manages your business Page, then try again.',
       facebook_failed: 'Failed to connect Facebook. Please try again.',
       facebook_invalid: 'Facebook connection failed — invalid response.',
       facebook_state_invalid: 'Facebook connection failed — please try again.',
+      google_denied: 'Connection was cancelled.',
       google_failed: 'Failed to connect Google. Please try again.',
       linkedin_denied: 'Connection was cancelled.',
       linkedin_failed: 'Failed to connect LinkedIn. Please try again.',
@@ -551,8 +552,9 @@ export default function Settings() {
     };
     const msgs = {
       facebook_denied: 'Connection was cancelled.',
-      google_denied: 'Connection was cancelled.',
+      facebook_no_pages: 'No Facebook Pages found on this account. Make sure you\'re logged into the Facebook account that manages your business Page, then try again.',
       facebook_failed: 'Failed to connect Facebook. Please try again.',
+      google_denied: 'Connection was cancelled.',
       google_failed: 'Failed to connect Google. Please try again.',
       linkedin_denied: 'Connection was cancelled.',
       linkedin_failed: 'Failed to connect LinkedIn. Please try again.',

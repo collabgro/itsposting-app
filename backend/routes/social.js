@@ -235,20 +235,19 @@ module.exports = (pool) => {
         }
       }
 
-      // If no pages found, fall back to storing the user-level token so the connection isn't lost
+      // If no pages found, reject — personal tokens cannot post to Pages
       if (pages.length === 0) {
-        const { id: fbUserId } = profileRes.data;
-        await pool.query(
-          `INSERT INTO social_accounts
-             (customer_id, platform, access_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
-           VALUES ($1, 'facebook', $2, $3, $4, $5, $6, true, true)
-           ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
-             access_token = EXCLUDED.access_token,
-             token_expires_at = EXCLUDED.token_expires_at,
-             updated_at = NOW()`,
-          [customerId, longAccessToken, expiresAt, fbUserId, fbName, profileImageUrl]
-        );
+        return res.redirect(`${frontendBase}/auth/callback?error=facebook_no_pages`);
       }
+
+      // Remove any stale Facebook rows (e.g. a user-level token stored by a previous
+      // broken reconnect) whose account_id is not among the current page IDs.
+      const pageIds = pages.map(p => p.id);
+      const ph = pageIds.map((_, i) => `$${i + 2}`).join(',');
+      await pool.query(
+        `DELETE FROM social_accounts WHERE customer_id = $1 AND platform = 'facebook' AND account_id NOT IN (${ph})`,
+        [customerId, ...pageIds]
+      );
 
       const connectedParam = instagramConnected ? 'facebook_instagram' : 'facebook';
       res.redirect(`${frontendBase}/auth/callback?connected=${connectedParam}`);
