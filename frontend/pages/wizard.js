@@ -10,6 +10,7 @@ import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
 import api, { customerAPI, socialAPI } from '../lib/api';
+import { CHAR_LIMITS } from '../components/PostMockups';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
 const CONTENT_TYPES = [
@@ -375,6 +376,8 @@ export default function Wizard() {
   const [selectedVariation, setSelectedVariation] = useState('A');
 
   const [connectedPlatforms, setConnectedPlatforms] = useState(null); // null = not yet loaded
+  const [socialAccountsList, setSocialAccountsList] = useState([]);
+  const [selectedWizardAccountIds, setSelectedWizardAccountIds] = useState([]);
 
   // Result screen action state
   const [actionLoading, setActionLoading] = useState(false);
@@ -399,8 +402,12 @@ export default function Wizard() {
       .catch(() => {});
 
     socialAPI.getAccounts()
-      .then(r => setConnectedPlatforms((r.data || []).filter(a => a.enabled).map(a => a.platform)))
-      .catch(() => setConnectedPlatforms([]));
+      .then(r => {
+        const accounts = (r.data || []).filter(a => a.enabled);
+        setSocialAccountsList(accounts);
+        setConnectedPlatforms(accounts.map(a => a.platform));
+      })
+      .catch(() => { setSocialAccountsList([]); setConnectedPlatforms([]); });
 
     // Handle navigation from dashboard suggestion banner
     const suggestionPost = sessionStorage.getItem('suggestionPost');
@@ -496,6 +503,16 @@ export default function Wizard() {
     return () => clearInterval(interval);
   }, [results?.videoRendering, results?.postId]);
 
+  // Auto-select accounts that match the chosen platform when results load
+  useEffect(() => {
+    if (step !== 'results' || !results || socialAccountsList.length === 0) return;
+    const targetPlatforms = results.platform === 'all'
+      ? ['facebook', 'instagram', 'google_business', 'linkedin', 'tiktok']
+      : [results.platform].filter(Boolean);
+    const matching = socialAccountsList.filter(a => targetPlatforms.includes(a.platform)).map(a => a.id);
+    setSelectedWizardAccountIds(matching.length > 0 ? matching : socialAccountsList.map(a => a.id));
+  }, [step, results?.platform, socialAccountsList]);
+
   const canProceed = () => {
     if (step === 1) return !!contentType;
     if (step === 2) return true; // format is optional
@@ -588,8 +605,12 @@ export default function Wizard() {
         ? ['facebook', 'instagram', 'google_business']
         : rawPlatform ? [rawPlatform] : [];
 
-      if (platforms.length > 0) {
-        const pubRes = await api.post('/api/social/publish', { postId: results.postId, platforms });
+      if (platforms.length > 0 || selectedWizardAccountIds.length > 0) {
+        const pubRes = await api.post('/api/social/publish', {
+          postId: results.postId,
+          accountIds: selectedWizardAccountIds.length > 0 ? selectedWizardAccountIds : undefined,
+          platforms: selectedWizardAccountIds.length > 0 ? undefined : platforms,
+        });
         const { posted = [], errors = [] } = pubRes.data;
         if (posted.length > 0 && errors.length === 0) {
           showToast('success', `Published to ${posted.join(', ')}!`);
@@ -1310,13 +1331,36 @@ export default function Wizard() {
                         {isSelected && (
                           <div style={{ padding: '14px 16px' }}>
                             {isEditing ? (
-                              <textarea
-                                value={editedCaption}
-                                onChange={e => setEditedCaption(e.target.value)}
-                                rows={6}
-                                style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.primary}`, borderRadius: 8, color: t.text, fontSize: 13, lineHeight: 1.6, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                                autoFocus
-                              />
+                              (() => {
+                                const editPlatforms = results?.platform === 'all'
+                                  ? [...new Set(selectedWizardAccountIds.length > 0
+                                      ? socialAccountsList.filter(a => selectedWizardAccountIds.includes(a.id)).map(a => a.platform)
+                                      : ['facebook', 'instagram', 'google_business'])]
+                                  : [results?.platform].filter(Boolean);
+                                const overEditLimit = editPlatforms.filter(p => CHAR_LIMITS[p] && editedCaption.length > CHAR_LIMITS[p]);
+                                return (
+                                  <div>
+                                    <textarea
+                                      value={editedCaption}
+                                      onChange={e => setEditedCaption(e.target.value)}
+                                      rows={6}
+                                      style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${overEditLimit.length > 0 ? '#ef4444' : t.primary}`, borderRadius: 8, color: t.text, fontSize: 13, lineHeight: 1.6, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                                      autoFocus
+                                    />
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                                      <div style={{ fontSize: 11, color: overEditLimit.length > 0 ? '#ef4444' : t.textMuted }}>
+                                        {editedCaption.length.toLocaleString()} chars
+                                        {overEditLimit.length > 0 && ` · Too long for: ${overEditLimit.join(', ')}`}
+                                      </div>
+                                      {editPlatforms.map(p => CHAR_LIMITS[p] ? (
+                                        <span key={p} style={{ fontSize: 10, marginLeft: 6, color: editedCaption.length > CHAR_LIMITS[p] ? '#ef4444' : t.textMuted }}>
+                                          {p.replace('_', ' ')}: {editedCaption.length}/{CHAR_LIMITS[p]}
+                                        </span>
+                                      ) : null)}
+                                    </div>
+                                  </div>
+                                );
+                              })()
                             ) : (
                               <div style={{ fontSize: 13, color: t.text, lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: 10 }}>
                                 {variation.caption}
@@ -1353,6 +1397,29 @@ export default function Wizard() {
                   })}
                 </div>
 
+                {/* Account picker — shown when multiple accounts are connected */}
+                {socialAccountsList.length > 0 && (
+                  <div style={{ paddingTop: 14, paddingBottom: 4, borderTop: `1px solid ${t.border}`, marginTop: 4 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Post to</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      {PLATFORMS.filter(p => p.id !== 'all' && socialAccountsList.some(a => a.platform === p.id)).map(({ id: platId, label: platLabel, icon: PlatIcon }) => {
+                        const platAccounts = socialAccountsList.filter(a => a.platform === platId);
+                        return platAccounts.map(account => {
+                          const checked = selectedWizardAccountIds.includes(account.id);
+                          return (
+                            <label key={account.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '4px 8px', borderRadius: 7, background: checked ? t.primaryBg : 'transparent', border: `1px solid ${checked ? t.primaryBorder : 'transparent'}`, transition: 'all 150ms' }}>
+                              <input type="checkbox" checked={checked} onChange={() => setSelectedWizardAccountIds(prev => prev.includes(account.id) ? prev.filter(x => x !== account.id) : [...prev, account.id])} style={{ accentColor: t.primary, width: 14, height: 14, flexShrink: 0 }} />
+                              <PlatIcon size={13} style={{ color: FORMAT_PLATFORM_COLORS[platId] || t.textMuted, flexShrink: 0 }} />
+                              <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{account.account_name || account.username || platLabel}</span>
+                              {account.username && account.account_name && <span style={{ fontSize: 11, color: t.textMuted }}>@{account.username.replace(/^@/, '')}</span>}
+                            </label>
+                          );
+                        });
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Action bar */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 16, borderTop: `1px solid ${t.border}` }}>
                   {isEditing ? (
@@ -1372,10 +1439,19 @@ export default function Wizard() {
                           : [results.platform].filter(Boolean);
                         const noneConnected = connectedPlatforms !== null && connectedPlatforms.length > 0
                           && !targetPlatforms.some(p => connectedPlatforms.includes(p));
+                        const activeCaption = results.variations?.[selectedVariation.toLowerCase()]?.caption || '';
+                        const activePlatforms = selectedWizardAccountIds.length > 0
+                          ? socialAccountsList.filter(a => selectedWizardAccountIds.includes(a.id)).map(a => a.platform)
+                          : targetPlatforms;
+                        const overLimit = activePlatforms.some(p => CHAR_LIMITS[p] && activeCaption.length > CHAR_LIMITS[p]);
+                        const blocked = noneConnected || overLimit;
                         return (
-                          <button onClick={handlePostNow} disabled={actionLoading || !results.postId || noneConnected} style={{ flex: 1, minWidth: 100, padding: '10px 14px', background: noneConnected ? t.textDisabled : t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: (actionLoading || noneConnected) ? 'not-allowed' : 'pointer', opacity: (actionLoading || noneConnected) ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                            <Icon name="send" size={14} color="#fff" /> Post Now
-                          </button>
+                          <div style={{ flex: 1, minWidth: 100, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <button onClick={handlePostNow} disabled={actionLoading || !results.postId || blocked} style={{ width: '100%', padding: '10px 14px', background: blocked ? '#9CA3AF' : t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: (actionLoading || blocked) ? 'not-allowed' : 'pointer', opacity: (actionLoading || blocked) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              <Icon name="send" size={14} color="#fff" /> Post Now
+                            </button>
+                            {overLimit && <div style={{ fontSize: 10, color: '#ef4444', textAlign: 'center' }}>Caption too long for some platforms — edit to fix</div>}
+                          </div>
                         );
                       })()}
                       <button onClick={() => setShowScheduleModal(true)} disabled={actionLoading || !results.postId} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: actionLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>

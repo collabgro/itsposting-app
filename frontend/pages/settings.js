@@ -655,6 +655,24 @@ export default function Settings() {
     });
   };
 
+  const handleDisconnectById = (account) => {
+    setConfirmModal({
+      title: `Disconnect ${account.account_name || account.platform}`,
+      message: `This will disconnect "${account.account_name || account.platform}" — you can reconnect anytime.`,
+      confirmLabel: 'Disconnect',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        try {
+          await socialAPI.disconnectById(account.id);
+          showToast('Account disconnected');
+          loadSocialAccounts();
+        } catch {
+          showToast('Failed to disconnect', 'error');
+        }
+      },
+    });
+  };
+
   const handleToggleAutoPost = async (account) => {
     try {
       await socialAPI.updateAccount(account.id, { autoPost: !account.auto_post });
@@ -988,78 +1006,82 @@ export default function Settings() {
           <SectionHeader icon={IpShare} title="Connected Accounts" subtitle="Connect social media accounts to enable publishing" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {Object.entries(PLATFORM_CONFIG).map(([platform, config]) => {
-              const connected = socialAccounts.find((a) => a.platform === platform);
+              const connectedAccounts = socialAccounts.filter((a) => a.platform === platform);
               const oauthAvailable = socialStatus?.[platform]?.oauthAvailable;
+              const hasAny = connectedAccounts.length > 0;
               return (
                 <div key={platform} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  gap: 12, padding: '14px 16px', background: t.input, borderRadius: 10,
-                  border: `1px solid ${connected ? config.color + '40' : t.border}`, flexWrap: 'wrap',
+                  padding: '14px 16px', background: t.input, borderRadius: 10,
+                  border: `1px solid ${hasAny ? config.color + '40' : t.border}`,
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 10, background: `${config.color}15`, border: `1px solid ${config.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <config.Icon size={20} style={{ color: config.color }} />
-                    </div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {/* Platform header row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: `${config.color}15`, border: `1px solid ${config.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <config.Icon size={20} style={{ color: config.color }} />
+                      </div>
+                      <div>
                         <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{config.label}</div>
-                        {connected && connected.token_expires_at && (() => {
-                          const daysLeft = Math.floor((new Date(connected.token_expires_at) - new Date()) / 86400000);
-                          return daysLeft >= 0 && daysLeft <= 7
-                            ? <Badge variant="warning">Reconnect in {daysLeft} day{daysLeft === 1 ? '' : 's'}</Badge>
-                            : null;
-                        })()}
-                      </div>
-                      <div style={{ fontSize: 12, color: connected ? t.success : t.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {connected ? <><IpCheck size={12} style={{ color: t.success }} />{connected.account_name || 'Connected'}</> : config.description}
+                        <div style={{ fontSize: 12, color: hasAny ? t.success : t.textMuted }}>
+                          {hasAny ? `${connectedAccounts.length} account${connectedAccounts.length > 1 ? 's' : ''} connected` : config.description}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    {connected ? (
-                      <>
-                        <button type="button" onClick={() => handleToggleAutoPost(connected)}
-                          style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: connected.auto_post ? 'rgba(34,197,94,0.1)' : t.card, border: `1px solid ${connected.auto_post ? 'rgba(34,197,94,0.3)' : t.border}`, color: connected.auto_post ? t.success : t.textMuted, cursor: 'pointer' }}>
-                          {connected.auto_post ? 'Auto-post: On' : 'Auto-post: Off'}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {oauthAvailable ? (
+                        <button type="button" onClick={() => handleOAuthConnect(platform)}
+                          style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: hasAny ? 'transparent' : config.color, color: hasAny ? config.color : '#fff', border: `1px solid ${config.color}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <config.Icon size={12} style={{ color: hasAny ? config.color : '#fff' }} />
+                          {hasAny ? '+ Add account' : 'Connect'}
                         </button>
-                        <Button variant="ghost" size="sm" onClick={() => handleConnect(platform)} style={{ fontSize: 12 }}>
-                          Reconnect
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDisconnect(platform)} disabled={disconnecting === platform} style={{ color: t.error, fontSize: 12 }}>
-                          {disconnecting === platform ? 'Disconnecting...' : 'Disconnect'}
-                        </Button>
-                      </>
-                    ) : (
-                      <>
+                      ) : (
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <button
-                            type="button"
-                            onClick={() => oauthAvailable ? handleOAuthConnect(platform) : undefined}
-                            style={{
-                              padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                              cursor: oauthAvailable ? 'pointer' : 'not-allowed',
-                              background: oauthAvailable ? config.color : t.card,
-                              color: oauthAvailable ? '#fff' : t.textMuted,
-                              border: `1px solid ${oauthAvailable ? config.color : t.border}`,
-                              opacity: oauthAvailable ? 1 : 0.65,
-                              display: 'flex', alignItems: 'center', gap: 6,
-                            }}
-                          >
-                            <config.Icon size={13} style={{ color: oauthAvailable ? '#fff' : t.textMuted }} />
-                            Connect
-                          </button>
-                          {!oauthAvailable && (
-                            <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: '#D97706', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 5, padding: '2px 6px', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-                              Coming soon
-                            </span>
-                          )}
+                          <button type="button" disabled style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'not-allowed', background: t.card, color: t.textMuted, border: `1px solid ${t.border}`, opacity: 0.65 }}>Connect</button>
+                          <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: '#D97706', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 5, padding: '2px 6px', whiteSpace: 'nowrap' }}>Coming soon</span>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => handleConnect(platform)} style={{ fontSize: 12, color: t.textMuted }}>
-                          Manual setup
-                        </Button>
-                      </>
-                    )}
+                      )}
+                      {!hasAny && (
+                        <Button variant="ghost" size="sm" onClick={() => handleConnect(platform)} style={{ fontSize: 12, color: t.textMuted }}>Manual setup</Button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Per-account rows */}
+                  {connectedAccounts.length > 0 && (
+                    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {connectedAccounts.map((acct) => {
+                        const daysLeft = acct.token_expires_at
+                          ? Math.floor((new Date(acct.token_expires_at) - new Date()) / 86400000)
+                          : null;
+                        const expiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
+                        return (
+                          <div key={acct.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 10px', background: t.card, borderRadius: 8, border: `1px solid ${t.border}`, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                              <IpCheck size={13} style={{ color: t.success, flexShrink: 0 }} />
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {acct.account_name || 'Connected'}
+                                </div>
+                                {acct.account_username && (
+                                  <div style={{ fontSize: 11, color: t.textMuted }}>@{acct.account_username}</div>
+                                )}
+                              </div>
+                              {expiringSoon && <Badge variant="warning">Reconnect in {daysLeft}d</Badge>}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <button type="button" onClick={() => handleToggleAutoPost(acct)}
+                                style={{ padding: '3px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600, background: acct.auto_post ? 'rgba(34,197,94,0.1)' : t.card, border: `1px solid ${acct.auto_post ? 'rgba(34,197,94,0.3)' : t.border}`, color: acct.auto_post ? t.success : t.textMuted, cursor: 'pointer' }}>
+                                {acct.auto_post ? 'Auto: On' : 'Auto: Off'}
+                              </button>
+                              <Button variant="ghost" size="sm" onClick={() => handleDisconnectById(acct)} style={{ color: t.error, fontSize: 12 }}>
+                                Disconnect
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}

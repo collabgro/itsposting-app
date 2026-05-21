@@ -58,8 +58,13 @@ export const socialAPI = {
   connectManual: (platform, data) => api.post('/api/social/connect/manual', { platform, ...data }),
   updateAccount: (id, data) => api.patch(`/api/social/accounts/${id}`, data),
   disconnect: (platform) => api.delete(`/api/social/accounts/${platform}`),
+  disconnectById: (id) => api.delete(`/api/social/accounts/by-id/${id}`),
   verifyToken: (platform, accessToken, accountId) => api.post('/api/social/verify-token', { platform, accessToken, accountId }),
-  publish: (postId, platforms) => api.post('/api/social/publish', { postId, platforms }),
+  publish: (postId, accountIds, platforms) => api.post('/api/social/publish', { postId, accountIds, platforms }),
+  getGroups: () => api.get('/api/social/groups'),
+  createGroup: (data) => api.post('/api/social/groups', data),
+  updateGroup: (id, data) => api.patch(`/api/social/groups/${id}`, data),
+  deleteGroup: (id) => api.delete(`/api/social/groups/${id}`),
 };
 
 export const scraperAPI = {

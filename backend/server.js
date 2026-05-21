@@ -406,6 +406,32 @@ console.log('══════════════════════�
      WHERE parent_customer_id IS NOT NULL
        AND email NOT LIKE 'workspace-%@internal.itsposting.com'
        AND status != 'inactive'`,
+    // Multi-account social: drop old single-account-per-platform constraint
+    `ALTER TABLE social_accounts DROP CONSTRAINT IF EXISTS social_accounts_customer_id_platform_key`,
+    // Multi-account social: new constraint allows multiple pages/accounts per platform
+    `DO $$ BEGIN
+       IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'social_accounts_customer_platform_account_key')
+       THEN ALTER TABLE social_accounts ADD CONSTRAINT social_accounts_customer_platform_account_key
+            UNIQUE (customer_id, platform, account_id);
+       END IF;
+     END $$`,
+    // Profile groups: named bundles of social accounts for quick selection
+    `CREATE TABLE IF NOT EXISTS social_account_groups (
+       id          SERIAL PRIMARY KEY,
+       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+       name        VARCHAR(100) NOT NULL,
+       created_at  TIMESTAMP DEFAULT NOW()
+     )`,
+    `CREATE TABLE IF NOT EXISTS social_account_group_members (
+       group_id          INTEGER NOT NULL REFERENCES social_account_groups(id) ON DELETE CASCADE,
+       social_account_id INTEGER NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
+       PRIMARY KEY (group_id, social_account_id)
+     )`,
+    // Per-platform caption customization
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS platform_captions JSONB DEFAULT '{}'`,
+    // Location tagging for FB/IG posts
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS location_name VARCHAR(255)`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS location_id   VARCHAR(255)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }

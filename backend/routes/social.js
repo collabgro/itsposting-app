@@ -174,48 +174,68 @@ module.exports = (pool) => {
         params: { fields: 'id,name,picture', access_token: longAccessToken },
       });
 
-      const { id: fbUserId, name: fbName, picture } = profileRes.data;
+      const { name: fbName, picture } = profileRes.data;
+      const profileImageUrl = picture?.data?.url || null;
 
-      await pool.query(
-        `INSERT INTO social_accounts
-           (customer_id, platform, access_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
-         VALUES ($1, 'facebook', $2, $3, $4, $5, $6, true, true)
-         ON CONFLICT (customer_id, platform) DO UPDATE SET
-           access_token = EXCLUDED.access_token,
-           token_expires_at = EXCLUDED.token_expires_at,
-           account_id = EXCLUDED.account_id,
-           account_name = EXCLUDED.account_name,
-           profile_image_url = EXCLUDED.profile_image_url,
-           updated_at = NOW()`,
-        [customerId, longAccessToken, expiresAt, fbUserId, fbName, picture?.data?.url || null]
-      );
-
+      // Fetch all managed pages
       const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
         params: { access_token: longAccessToken },
       });
-
       const pages = pagesRes.data?.data || [];
-      if (pages.length > 0) {
-        const page = pages[0];
-        // Update facebook row with actual Page ID + page access token
-        await pool.query(
-          `UPDATE social_accounts SET account_id=$1, account_name=$2, access_token=$3, updated_at=NOW()
-           WHERE customer_id=$4 AND platform='facebook'`,
-          [page.id, page.name, page.access_token, customerId]
-        );
-        // Store instagram row with same page credentials
+
+      for (const page of pages) {
+        // Store each Facebook Page as a separate row
         await pool.query(
           `INSERT INTO social_accounts
-             (customer_id, platform, access_token, token_expires_at, account_id, account_username, account_name, enabled, auto_post)
-           VALUES ($1, 'instagram', $2, $3, $4, $5, $6, true, true)
-           ON CONFLICT (customer_id, platform) DO UPDATE SET
+             (customer_id, platform, access_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
+           VALUES ($1, 'facebook', $2, $3, $4, $5, $6, true, true)
+           ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
              access_token = EXCLUDED.access_token,
              token_expires_at = EXCLUDED.token_expires_at,
-             account_id = EXCLUDED.account_id,
-             account_username = EXCLUDED.account_username,
              account_name = EXCLUDED.account_name,
              updated_at = NOW()`,
-          [customerId, page.access_token, new Date(Date.now() + 5184000 * 1000), page.id, page.name, page.name]
+          [customerId, page.access_token, expiresAt, page.id, page.name, profileImageUrl]
+        );
+
+        // Check for a linked Instagram Business Account on this page
+        try {
+          const igPageRes = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
+            params: { fields: 'instagram_business_account', access_token: page.access_token },
+          });
+          const igId = igPageRes.data?.instagram_business_account?.id;
+          if (igId) {
+            const igProfileRes = await axios.get(`https://graph.facebook.com/v18.0/${igId}`, {
+              params: { fields: 'id,name,username', access_token: page.access_token },
+            });
+            const { username, name: igName } = igProfileRes.data;
+            await pool.query(
+              `INSERT INTO social_accounts
+                 (customer_id, platform, access_token, token_expires_at, account_id, account_username, account_name, enabled, auto_post)
+               VALUES ($1, 'instagram', $2, $3, $4, $5, $6, true, true)
+               ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
+                 access_token = EXCLUDED.access_token,
+                 token_expires_at = EXCLUDED.token_expires_at,
+                 account_username = EXCLUDED.account_username,
+                 account_name = EXCLUDED.account_name,
+                 updated_at = NOW()`,
+              [customerId, page.access_token, expiresAt, igId, username || igName, igName]
+            );
+          }
+        } catch { /* page has no linked IG account — skip silently */ }
+      }
+
+      // If no pages found, fall back to storing the user-level token so the connection isn't lost
+      if (pages.length === 0) {
+        const { id: fbUserId } = profileRes.data;
+        await pool.query(
+          `INSERT INTO social_accounts
+             (customer_id, platform, access_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
+           VALUES ($1, 'facebook', $2, $3, $4, $5, $6, true, true)
+           ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
+             access_token = EXCLUDED.access_token,
+             token_expires_at = EXCLUDED.token_expires_at,
+             updated_at = NOW()`,
+          [customerId, longAccessToken, expiresAt, fbUserId, fbName, profileImageUrl]
         );
       }
 
@@ -287,20 +307,58 @@ module.exports = (pool) => {
       const { id: googleId, name, picture } = profileRes.data;
       const expiresAt = new Date(Date.now() + (expires_in || 3600) * 1000);
 
-      await pool.query(
-        `INSERT INTO social_accounts
-           (customer_id, platform, access_token, refresh_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
-         VALUES ($1, 'google_business', $2, $3, $4, $5, $6, $7, true, true)
-         ON CONFLICT (customer_id, platform) DO UPDATE SET
-           access_token = EXCLUDED.access_token,
-           refresh_token = COALESCE(EXCLUDED.refresh_token, social_accounts.refresh_token),
-           token_expires_at = EXCLUDED.token_expires_at,
-           account_id = EXCLUDED.account_id,
-           account_name = EXCLUDED.account_name,
-           profile_image_url = EXCLUDED.profile_image_url,
-           updated_at = NOW()`,
-        [customerId, access_token, refresh_token || null, expiresAt, googleId, name, picture || null]
-      );
+      // Fetch all Google Business Profile locations
+      let storedCount = 0;
+      try {
+        const accountsRes = await axios.get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
+          headers: { Authorization: `Bearer ${access_token}` },
+        });
+        const gmbAccounts = accountsRes.data?.accounts || [];
+
+        for (const gmbAccount of gmbAccounts) {
+          try {
+            const locationsRes = await axios.get(
+              `https://mybusinessbusinessinformation.googleapis.com/v1/${gmbAccount.name}/locations`,
+              {
+                headers: { Authorization: `Bearer ${access_token}` },
+                params: { readMask: 'name,title,storefrontAddress' },
+              }
+            );
+            const locations = locationsRes.data?.locations || [];
+            for (const loc of locations) {
+              await pool.query(
+                `INSERT INTO social_accounts
+                   (customer_id, platform, access_token, refresh_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
+                 VALUES ($1, 'google_business', $2, $3, $4, $5, $6, $7, true, true)
+                 ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
+                   access_token = EXCLUDED.access_token,
+                   refresh_token = COALESCE(EXCLUDED.refresh_token, social_accounts.refresh_token),
+                   token_expires_at = EXCLUDED.token_expires_at,
+                   account_name = EXCLUDED.account_name,
+                   updated_at = NOW()`,
+                [customerId, access_token, refresh_token || null, expiresAt, loc.name, loc.title || name, picture || null]
+              );
+              storedCount++;
+            }
+          } catch { /* skip individual account if locations API fails */ }
+        }
+      } catch { /* GMB API unavailable — fall back to user profile row */ }
+
+      // Fall back to storing user profile if no locations were found
+      if (storedCount === 0) {
+        await pool.query(
+          `INSERT INTO social_accounts
+             (customer_id, platform, access_token, refresh_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
+           VALUES ($1, 'google_business', $2, $3, $4, $5, $6, $7, true, true)
+           ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
+             access_token = EXCLUDED.access_token,
+             refresh_token = COALESCE(EXCLUDED.refresh_token, social_accounts.refresh_token),
+             token_expires_at = EXCLUDED.token_expires_at,
+             account_name = EXCLUDED.account_name,
+             updated_at = NOW()`,
+          [customerId, access_token, refresh_token || null, expiresAt, googleId, name, picture || null]
+        );
+      }
 
       res.redirect(`${frontendBase}/auth/callback?connected=google`);
     } catch (error) {
@@ -354,19 +412,51 @@ module.exports = (pool) => {
       const { sub, name, picture } = profileRes.data;
       const authorUrn = `urn:li:person:${sub}`;
 
+      // Store personal profile
       await pool.query(
         `INSERT INTO social_accounts
            (customer_id, platform, access_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
          VALUES ($1, 'linkedin', $2, $3, $4, $5, $6, true, true)
-         ON CONFLICT (customer_id, platform) DO UPDATE SET
+         ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
            access_token = EXCLUDED.access_token,
            token_expires_at = EXCLUDED.token_expires_at,
-           account_id = EXCLUDED.account_id,
            account_name = EXCLUDED.account_name,
            profile_image_url = EXCLUDED.profile_image_url,
            updated_at = NOW()`,
-        [customerId, access_token, expiresAt, authorUrn, name || 'LinkedIn Account', picture || null]
+        [customerId, access_token, expiresAt, authorUrn, name || 'LinkedIn Personal', picture || null]
       );
+
+      // Fetch managed Company Pages
+      try {
+        const aclsRes = await axios.get(
+          'https://api.linkedin.com/v2/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED',
+          { headers: { Authorization: `Bearer ${access_token}` }, timeout: 10000 }
+        );
+        const acls = aclsRes.data?.elements || [];
+        for (const acl of acls) {
+          const orgId = acl.organization?.split(':').pop();
+          if (!orgId) continue;
+          try {
+            const orgRes = await axios.get(
+              `https://api.linkedin.com/v2/organizations/${orgId}?fields=id,localizedName`,
+              { headers: { Authorization: `Bearer ${access_token}` }, timeout: 10000 }
+            );
+            const orgUrn = `urn:li:organization:${orgId}`;
+            const orgName = orgRes.data?.localizedName || `LinkedIn Page ${orgId}`;
+            await pool.query(
+              `INSERT INTO social_accounts
+                 (customer_id, platform, access_token, token_expires_at, account_id, account_name, enabled, auto_post)
+               VALUES ($1, 'linkedin', $2, $3, $4, $5, true, true)
+               ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
+                 access_token = EXCLUDED.access_token,
+                 token_expires_at = EXCLUDED.token_expires_at,
+                 account_name = EXCLUDED.account_name,
+                 updated_at = NOW()`,
+              [customerId, access_token, expiresAt, orgUrn, orgName]
+            );
+          } catch { /* skip individual org if API fails */ }
+        }
+      } catch { /* organizationAcls API unavailable — personal profile already stored */ }
 
       res.redirect(`${frontendBase}/auth/callback?connected=linkedin`);
     } catch (error) {
@@ -428,11 +518,10 @@ module.exports = (pool) => {
         `INSERT INTO social_accounts
            (customer_id, platform, access_token, refresh_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
          VALUES ($1, 'tiktok', $2, $3, $4, $5, $6, $7, true, true)
-         ON CONFLICT (customer_id, platform) DO UPDATE SET
+         ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
            access_token = EXCLUDED.access_token,
            refresh_token = COALESCE(EXCLUDED.refresh_token, social_accounts.refresh_token),
            token_expires_at = EXCLUDED.token_expires_at,
-           account_id = EXCLUDED.account_id,
            account_name = EXCLUDED.account_name,
            profile_image_url = EXCLUDED.profile_image_url,
            updated_at = NOW()`,
@@ -465,6 +554,21 @@ module.exports = (pool) => {
     }
   });
 
+  // Disconnect a single account by its row ID (for multi-account platforms)
+  router.delete('/accounts/by-id/:id', authenticate, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `DELETE FROM social_accounts WHERE id = $1 AND customer_id = $2 RETURNING platform`,
+        [req.params.id, req.customerId]
+      );
+      if (!result.rowCount) return res.status(404).json({ error: 'Account not found' });
+      res.json({ success: true, platform: result.rows[0].platform });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Disconnect all accounts for a platform (kept for backward compat)
   router.delete('/accounts/:platform', authenticate, async (req, res) => {
     try {
       const { platform } = req.params;
@@ -479,6 +583,76 @@ module.exports = (pool) => {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // ─── Profile Groups ────────────────────────────────────────────────────────
+
+  router.get('/groups', authenticate, async (req, res) => {
+    try {
+      const groups = await pool.query(
+        `SELECT g.id, g.name, g.created_at,
+                COALESCE(array_agg(m.social_account_id) FILTER (WHERE m.social_account_id IS NOT NULL), '{}') AS account_ids
+         FROM social_account_groups g
+         LEFT JOIN social_account_group_members m ON m.group_id = g.id
+         WHERE g.customer_id = $1
+         GROUP BY g.id ORDER BY g.created_at DESC`,
+        [req.customerId]
+      );
+      res.json(groups.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.post('/groups', authenticate, async (req, res) => {
+    try {
+      const { name, accountIds = [] } = req.body;
+      if (!name?.trim()) return res.status(400).json({ error: 'Group name required' });
+      const g = await pool.query(
+        `INSERT INTO social_account_groups (customer_id, name) VALUES ($1, $2) RETURNING *`,
+        [req.customerId, name.trim()]
+      );
+      if (accountIds.length) {
+        const vals = accountIds.map((id, i) => `($1, $${i + 2})`).join(',');
+        await pool.query(
+          `INSERT INTO social_account_group_members (group_id, social_account_id) VALUES ${vals} ON CONFLICT DO NOTHING`,
+          [g.rows[0].id, ...accountIds]
+        );
+      }
+      res.json({ ...g.rows[0], account_ids: accountIds });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.patch('/groups/:id', authenticate, async (req, res) => {
+    try {
+      const { name, accountIds } = req.body;
+      const { id } = req.params;
+      if (name) {
+        await pool.query(
+          `UPDATE social_account_groups SET name = $1 WHERE id = $2 AND customer_id = $3`,
+          [name.trim(), id, req.customerId]
+        );
+      }
+      if (accountIds) {
+        await pool.query(`DELETE FROM social_account_group_members WHERE group_id = $1`, [id]);
+        if (accountIds.length) {
+          const vals = accountIds.map((aid, i) => `($1, $${i + 2})`).join(',');
+          await pool.query(
+            `INSERT INTO social_account_group_members (group_id, social_account_id) VALUES ${vals} ON CONFLICT DO NOTHING`,
+            [id, ...accountIds]
+          );
+        }
+      }
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.delete('/groups/:id', authenticate, async (req, res) => {
+    try {
+      await pool.query(
+        `DELETE FROM social_account_groups WHERE id = $1 AND customer_id = $2`,
+        [req.params.id, req.customerId]
+      );
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   /**
@@ -509,14 +683,14 @@ module.exports = (pool) => {
       // 7 days for all manual tokens
       const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000);
 
+      const resolvedAccountId = pageId?.trim() || `manual_${Date.now()}`;
       await pool.query(
         `INSERT INTO social_accounts
            (customer_id, platform, access_token, token_expires_at, account_id, account_name, enabled, auto_post)
          VALUES ($1, $2, $3, $4, $5, $6, true, true)
-         ON CONFLICT (customer_id, platform) DO UPDATE SET
+         ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
            access_token = EXCLUDED.access_token,
            token_expires_at = EXCLUDED.token_expires_at,
-           account_id = EXCLUDED.account_id,
            account_name = EXCLUDED.account_name,
            updated_at = NOW()`,
         [
@@ -524,7 +698,7 @@ module.exports = (pool) => {
           platform,
           accessToken.trim(),
           expiresAt,
-          pageId?.trim() || null,
+          resolvedAccountId,
           accountName?.trim() || platform,
         ]
       );
@@ -561,7 +735,7 @@ module.exports = (pool) => {
    */
   router.post('/publish', authenticate, async (req, res) => {
     try {
-      const { postId, platforms } = req.body;
+      const { postId, accountIds, platforms } = req.body;
       if (!postId) return res.status(400).json({ error: 'postId is required' });
 
       // Fetch the post and verify ownership
@@ -572,8 +746,8 @@ module.exports = (pool) => {
       if (!postResult.rows[0]) return res.status(404).json({ error: 'Post not found' });
       const post = { ...postResult.rows[0], customer_id: req.customerId };
 
-      // Pre-validate that all requested platforms are connected for this customer
-      if (platforms?.length > 0) {
+      // Pre-validate that all requested platforms are connected for this customer (legacy path)
+      if (!accountIds?.length && platforms?.length > 0) {
         const connectedResult = await pool.query(
           `SELECT platform FROM social_accounts WHERE customer_id = $1 AND platform = ANY($2::text[]) AND enabled = true`,
           [req.customerId, platforms]
@@ -589,9 +763,11 @@ module.exports = (pool) => {
       await pool.query(`UPDATE posts SET status = 'posting', updated_at = NOW() WHERE id = $1`, [postId]);
 
       const publisher = new SocialPublisher(pool);
-      const { platformPostIds, errors } = platforms?.length
-        ? await publisher.publishToPlatforms(post, platforms)
-        : await publisher.publishPost(post);
+      const { platformPostIds, errors } = accountIds?.length
+        ? await publisher.publishToAccounts(post, accountIds)
+        : platforms?.length
+          ? await publisher.publishToPlatforms(post, platforms)
+          : await publisher.publishPost(post);
 
       const succeeded = Object.keys(platformPostIds);
       const allFailed = succeeded.length === 0 && errors.length > 0;

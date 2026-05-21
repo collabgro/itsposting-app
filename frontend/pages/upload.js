@@ -8,7 +8,7 @@ import {
 import Layout from '../components/Layout';
 import { Card, Button, Input, Textarea, SectionHeader, Skeleton, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { mediaAPI, uploadAPI } from '../lib/api';
+import { mediaAPI, uploadAPI, socialAPI } from '../lib/api';
 import {
   CHAR_LIMITS, PLATFORM_META, MOCKUP_MAP, PlatformTab,
 } from '../components/PostMockups';
@@ -51,6 +51,8 @@ export default function Upload() {
   const [caption, setCaption] = useState('');
   const [hashtags, setHashtags] = useState('');
   const [platforms, setPlatforms] = useState(['facebook', 'instagram']);
+  const [selectedAccountIds, setSelectedAccountIds] = useState([]);
+  const [socialAccounts, setSocialAccounts] = useState([]);
   const [previewPlatform, setPreviewPlatform] = useState('facebook');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('09:00');
@@ -79,6 +81,17 @@ export default function Upload() {
     window.addEventListener('resize', checkMobile);
 
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
+
+    // Load connected social accounts for the account picker
+    socialAPI.getAccounts().then(res => {
+      const accounts = res.data || [];
+      setSocialAccounts(accounts);
+      // Default-select all enabled accounts
+      setSelectedAccountIds(accounts.filter(a => a.enabled).map(a => a.id));
+      // Sync platforms state for charLimit/previewPlatform
+      const uniquePlatforms = [...new Set(accounts.filter(a => a.enabled).map(a => a.platform))];
+      if (uniquePlatforms.length) setPlatforms(uniquePlatforms);
+    }).catch(() => {});
 
     const preSelected = sessionStorage.getItem('selectedMediaFile');
     if (preSelected) {
@@ -174,12 +187,25 @@ export default function Upload() {
     setPlatforms(platforms.length === ALL_PLATFORM_IDS.length ? [] : [...ALL_PLATFORM_IDS]);
   };
 
+  const toggleAccount = (id) => {
+    setSelectedAccountIds(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      // Keep platforms in sync for charLimit / previewPlatform
+      const uniquePlatforms = [...new Set(
+        socialAccounts.filter(a => next.includes(a.id)).map(a => a.platform)
+      )];
+      if (uniquePlatforms.length) setPlatforms(uniquePlatforms);
+      return next;
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (files.length === 0) { setMessage({ type: 'error', text: 'Please select at least one file' }); return; }
     if (contentType === 'carousel' && files.length < 2) { setMessage({ type: 'error', text: 'Carousel needs at least 2 images' }); return; }
     if (!caption.trim()) { setMessage({ type: 'error', text: 'Caption is required' }); return; }
-    if (platforms.length === 0) { setMessage({ type: 'error', text: 'Select at least one platform' }); return; }
+    const hasSelection = selectedAccountIds.length > 0 || platforms.length > 0;
+    if (!hasSelection) { setMessage({ type: 'error', text: 'Select at least one account' }); return; }
     if (scheduleMode === 'later' && !scheduleDate) { setMessage({ type: 'error', text: 'Pick a date to schedule' }); return; }
 
     const scheduledDateTime = scheduleMode === 'later' && scheduleDate
@@ -209,7 +235,8 @@ export default function Upload() {
       const hashtagArr = hashtags.split(/[\s,]+/).map(h => h.trim().replace(/^#/, '')).filter(Boolean);
       const { data: postData } = await uploadAPI.createPost({
         contentType, mediaUrl, mediaUrls, caption, hashtags: hashtagArr,
-        platforms, scheduledDate: scheduledDateTime,
+        platforms, accountIds: selectedAccountIds,
+        scheduledDate: scheduledDateTime,
         publishNow: scheduleMode === 'now',
       });
       let successMsg, msgType = 'success';
@@ -250,6 +277,7 @@ export default function Upload() {
   // ── computed ──────────────────────────────────────────────────────────────
   const allSelected = platforms.length === ALL_PLATFORM_IDS.length;
   const charLimit = CHAR_LIMITS[previewPlatform] || 63206;
+  const overLimitPlatforms = platforms.filter(p => CHAR_LIMITS[p] && caption.length > CHAR_LIMITS[p]);
 
   const scheduledPreview = scheduleDate && scheduleTime
     ? new Date(`${scheduleDate}T${scheduleTime}`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -369,45 +397,96 @@ export default function Upload() {
             {/* ══ LEFT — Compose ══════════════════════════════════════════════ */}
             <div style={{ flex: '0 0 46%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* Post to — platform selector */}
+              {/* Post to — account picker */}
               <Card>
                 <SectionHeader icon={IpFacebook} title="Post to" />
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {PLATFORMS.map(({ id, name, icon: PlatIcon }) => {
-                    const sel = platforms.includes(id);
-                    const meta = PLATFORM_META[id];
-                    return (
+                {socialAccounts.length === 0 ? (
+                  <div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {PLATFORMS.map(({ id, name, icon: PlatIcon }) => {
+                        const sel = platforms.includes(id);
+                        const meta = PLATFORM_META[id];
+                        return (
+                          <button
+                            key={id} type="button" onClick={() => togglePlatform(id)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 7,
+                              padding: '7px 13px', borderRadius: 8, cursor: 'pointer',
+                              border: `1.5px solid ${sel ? meta.color : t.border}`,
+                              background: sel ? `${meta.color}15` : t.input,
+                              transition: 'all 150ms',
+                            }}
+                          >
+                            <PlatIcon size={14} style={{ color: sel ? meta.color : t.textMuted, flexShrink: 0 }} />
+                            <span style={{ fontSize: 12, fontWeight: 600, color: sel ? t.text : t.textMuted }}>{name}</span>
+                          </button>
+                        );
+                      })}
                       <button
-                        key={id} type="button" onClick={() => togglePlatform(id)}
+                        type="button" onClick={toggleAllPlatforms}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: 7,
                           padding: '7px 13px', borderRadius: 8, cursor: 'pointer',
-                          border: `1.5px solid ${sel ? meta.color : t.border}`,
-                          background: sel ? `${meta.color}15` : t.input,
+                          border: `1.5px solid ${allSelected ? t.primary : t.border}`,
+                          background: allSelected ? t.primaryBg : t.input,
+                          fontSize: 12, fontWeight: 700,
+                          color: allSelected ? t.primary : t.textMuted,
                           transition: 'all 150ms',
                         }}
-                      >
-                        <PlatIcon size={14} style={{ color: sel ? meta.color : t.textMuted, flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, fontWeight: 600, color: sel ? t.text : t.textMuted }}>{name}</span>
+                      >All</button>
+                    </div>
+                    <div style={{ marginTop: 10, fontSize: 12, color: t.textMuted }}>
+                      No accounts connected. <a href="/settings" style={{ color: t.primary }}>Connect in Settings →</a>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {PLATFORMS.filter(p => socialAccounts.some(a => a.platform === p.id)).map(({ id: platId, name: platName, icon: PlatIcon }) => {
+                      const platAccounts = socialAccounts.filter(a => a.platform === platId);
+                      const meta = PLATFORM_META[platId];
+                      return (
+                        <div key={platId}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                            <PlatIcon size={13} style={{ color: meta?.color || t.textMuted }} />
+                            <span style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{platName}</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 4 }}>
+                            {platAccounts.map(account => {
+                              const checked = selectedAccountIds.includes(account.id);
+                              return (
+                                <label key={account.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '5px 8px', borderRadius: 7, background: checked ? t.primaryBg : 'transparent', border: `1px solid ${checked ? t.primaryBorder : 'transparent'}`, transition: 'all 150ms' }}>
+                                  <input type="checkbox" checked={checked} onChange={() => toggleAccount(account.id)} style={{ accentColor: t.primary, width: 14, height: 14, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{account.account_name || account.username || platName}</span>
+                                  {account.username && account.account_name && (
+                                    <span style={{ fontSize: 11, color: t.textMuted }}>@{account.username.replace(/^@/, '')}</span>
+                                  )}
+                                  {!account.enabled && (
+                                    <span style={{ fontSize: 10, color: t.warning, marginLeft: 'auto' }}>Disconnected</span>
+                                  )}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div style={{ marginTop: 2, display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <button type="button" onClick={() => {
+                        const allIds = socialAccounts.filter(a => a.enabled).map(a => a.id);
+                        setSelectedAccountIds(allIds);
+                        const uniquePlatforms = [...new Set(socialAccounts.filter(a => a.enabled).map(a => a.platform))];
+                        setPlatforms(uniquePlatforms);
+                      }} style={{ fontSize: 11, fontWeight: 600, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
+                        Select all
                       </button>
-                    );
-                  })}
-                  <button
-                    type="button" onClick={toggleAllPlatforms}
-                    style={{
-                      padding: '7px 13px', borderRadius: 8, cursor: 'pointer',
-                      border: `1.5px solid ${allSelected ? t.primary : t.border}`,
-                      background: allSelected ? t.primaryBg : t.input,
-                      fontSize: 12, fontWeight: 700,
-                      color: allSelected ? t.primary : t.textMuted,
-                      transition: 'all 150ms',
-                    }}
-                  >
-                    All
-                  </button>
-                </div>
-                {platforms.length === 0 && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: t.error }}>Select at least one platform</div>
+                      <span style={{ color: t.border, userSelect: 'none' }}>·</span>
+                      <button type="button" onClick={() => { setSelectedAccountIds([]); setPlatforms([]); }} style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {selectedAccountIds.length === 0 && platforms.length === 0 && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: t.error }}>Select at least one account</div>
                 )}
               </Card>
 
@@ -420,6 +499,11 @@ export default function Upload() {
                   </span>
                 </div>
                 <Textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Write a caption…" rows={7} />
+                {overLimitPlatforms.length > 0 && (
+                  <div style={{ marginTop: 8, padding: '7px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 7, fontSize: 12, color: t.error }}>
+                    Too long for: {overLimitPlatforms.map(p => `${PLATFORM_META[p]?.label || p} (${caption.length.toLocaleString()} / ${CHAR_LIMITS[p].toLocaleString()})`).join(' · ')}
+                  </div>
+                )}
                 <div style={{ marginTop: 10 }}>
                   <Input value={hashtags} onChange={e => setHashtags(e.target.value)} placeholder="#social #marketing #yourcity" />
                 </div>
@@ -564,7 +648,7 @@ export default function Upload() {
               {/* Actions */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
                 <Button type="button" variant="secondary" onClick={() => router.push('/dashboard')}>Cancel</Button>
-                <Button type="submit" variant="primary" disabled={uploading || platforms.length === 0}>
+                <Button type="submit" variant="primary" disabled={uploading || (selectedAccountIds.length === 0 && platforms.length === 0) || overLimitPlatforms.length > 0}>
                   {submitLabel}
                 </Button>
               </div>

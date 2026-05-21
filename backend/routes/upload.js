@@ -187,7 +187,7 @@ module.exports = (pool) => {
   router.post('/post', authenticate, async (req, res) => {
     const client = await pool.connect();
     try {
-      const { contentType, mediaUrl, mediaUrls, caption, hashtags, platforms, scheduledDate, timezone, publishNow } = req.body;
+      const { contentType, mediaUrl, mediaUrls, caption, hashtags, platforms, accountIds, platform_captions, location_id, location_name, scheduledDate, timezone, publishNow } = req.body;
       if (!contentType || !caption) return res.status(400).json({ error: 'contentType and caption required' });
       if (contentType !== 'carousel' && !mediaUrl) return res.status(400).json({ error: 'mediaUrl required' });
       if (contentType === 'carousel' && (!mediaUrls || mediaUrls.length < 2))
@@ -241,12 +241,14 @@ module.exports = (pool) => {
         try {
           const publisher = new SocialPublisher(pool);
           const postForPublish = { ...post, customer_id: req.customerId };
-          const selectedPlatforms = Array.isArray(platforms) && platforms.length
-            ? platforms : null;
+          const selectedAccountIds = Array.isArray(accountIds) && accountIds.length ? accountIds : null;
+          const selectedPlatforms = Array.isArray(platforms) && platforms.length ? platforms : null;
 
-          const result = selectedPlatforms
-            ? await publisher.publishToPlatforms(postForPublish, selectedPlatforms)
-            : await publisher.publishPost(postForPublish);
+          const result = selectedAccountIds
+            ? await publisher.publishToAccounts(postForPublish, selectedAccountIds)
+            : selectedPlatforms
+              ? await publisher.publishToPlatforms(postForPublish, selectedPlatforms)
+              : await publisher.publishPost(postForPublish);
 
           const succeeded = Object.keys(result.platformPostIds);
           if (succeeded.length > 0) {

@@ -42,6 +42,35 @@ class SocialPublisher {
   }
 
   /**
+   * Publish to specific social_accounts rows by their integer IDs.
+   * Used when the frontend sends accountIds (multi-account selection).
+   */
+  async publishToAccounts(post, accountIds) {
+    if (!accountIds?.length) return { platformPostIds: {}, errors: [] };
+    const placeholders = accountIds.map((_, i) => `$${i + 2}`).join(',');
+    const accounts = await this.pool.query(
+      `SELECT * FROM social_accounts
+       WHERE customer_id = $1 AND id IN (${placeholders}) AND enabled = true`,
+      [post.customer_id, ...accountIds]
+    );
+
+    const platformPostIds = {};
+    const errors = [];
+
+    for (const account of accounts.rows) {
+      try {
+        const platformId = await this.postToPlatform(account, post);
+        if (platformId) platformPostIds[`${account.platform}_${account.id}`] = platformId;
+      } catch (err) {
+        errors.push({ platform: account.platform, accountId: account.id, message: err.message });
+        console.error(`[SocialPublisher] ${account.platform} (id=${account.id}) failed:`, err.message);
+      }
+    }
+
+    return { platformPostIds, errors };
+  }
+
+  /**
    * Publish to a specific set of platform accounts (used by /api/social/publish
    * which knows which platforms the user selected).
    */
