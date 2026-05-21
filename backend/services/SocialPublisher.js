@@ -33,8 +33,9 @@ class SocialPublisher {
         const platformId = await this.postToPlatform(account, post);
         if (platformId) platformPostIds[account.platform] = platformId;
       } catch (err) {
+        const apiDetail = err.response?.data ? JSON.stringify(err.response.data) : null;
+        console.error(`[SocialPublisher] ${account.platform} failed:`, err.message, apiDetail || '');
         errors.push({ platform: account.platform, message: err.message });
-        console.error(`[SocialPublisher] ${account.platform} failed:`, err.message);
       }
     }
 
@@ -62,8 +63,9 @@ class SocialPublisher {
         const platformId = await this.postToPlatform(account, post);
         if (platformId) platformPostIds[`${account.platform}_${account.id}`] = platformId;
       } catch (err) {
+        const apiDetail = err.response?.data ? JSON.stringify(err.response.data) : null;
+        console.error(`[SocialPublisher] ${account.platform} (id=${account.id}) failed:`, err.message, apiDetail || '');
         errors.push({ platform: account.platform, accountId: account.id, message: err.message });
-        console.error(`[SocialPublisher] ${account.platform} (id=${account.id}) failed:`, err.message);
       }
     }
 
@@ -90,8 +92,9 @@ class SocialPublisher {
         const platformId = await this.postToPlatform(account, post);
         if (platformId) platformPostIds[account.platform] = platformId;
       } catch (err) {
+        const apiDetail = err.response?.data ? JSON.stringify(err.response.data) : null;
+        console.error(`[SocialPublisher] ${account.platform} failed:`, err.message, apiDetail || '');
         errors.push({ platform: account.platform, message: err.message });
-        console.error(`[SocialPublisher] ${account.platform} failed:`, err.message);
       }
     }
 
@@ -121,25 +124,36 @@ class SocialPublisher {
 
     const caption = this.buildCaption(post, 'facebook');
 
-    if (post.media_url) {
-      const photoBody = { url: post.media_url, caption, access_token: token };
-      if (post.location_id) photoBody.place = post.location_id;
+    try {
+      if (post.media_url) {
+        const photoBody = { url: post.media_url, caption, access_token: token };
+        if (post.location_id) photoBody.place = post.location_id;
+        const res = await axios.post(
+          `https://graph.facebook.com/v18.0/${pageId}/photos`,
+          photoBody,
+          { timeout: 30000 }
+        );
+        return res.data.id;
+      }
+
+      const feedBody = { message: caption, access_token: token };
+      if (post.location_id) feedBody.place = post.location_id;
       const res = await axios.post(
-        `https://graph.facebook.com/v18.0/${pageId}/photos`,
-        photoBody,
+        `https://graph.facebook.com/v18.0/${pageId}/feed`,
+        feedBody,
         { timeout: 30000 }
       );
       return res.data.id;
+    } catch (err) {
+      const fbMsg = err.response?.data?.error?.message;
+      const fbCode = err.response?.data?.error?.code;
+      const fbSubcode = err.response?.data?.error?.error_subcode;
+      if (fbMsg) {
+        const detail = fbCode ? ` (code ${fbCode}${fbSubcode ? '/' + fbSubcode : ''})` : '';
+        throw new Error(`Facebook API: ${fbMsg}${detail}`);
+      }
+      throw err;
     }
-
-    const feedBody = { message: caption, access_token: token };
-    if (post.location_id) feedBody.place = post.location_id;
-    const res = await axios.post(
-      `https://graph.facebook.com/v18.0/${pageId}/feed`,
-      feedBody,
-      { timeout: 30000 }
-    );
-    return res.data.id;
   }
 
   async postToInstagram(account, post) {
@@ -150,26 +164,34 @@ class SocialPublisher {
 
     const caption = this.buildCaption(post, 'instagram');
 
-    // Step 1 — create media container
-    const containerBody = { image_url: post.media_url, caption, access_token: token };
-    if (post.location_id) containerBody.location_id = post.location_id;
-    const containerRes = await axios.post(
-      `https://graph.facebook.com/v18.0/${igUserId}/media`,
-      containerBody,
-      { timeout: 30000 }
-    );
-    const creationId = containerRes.data.id;
+    try {
+      // Step 1 — create media container
+      const containerBody = { image_url: post.media_url, caption, access_token: token };
+      if (post.location_id) containerBody.location_id = post.location_id;
+      const containerRes = await axios.post(
+        `https://graph.facebook.com/v18.0/${igUserId}/media`,
+        containerBody,
+        { timeout: 30000 }
+      );
+      const creationId = containerRes.data.id;
 
-    // Step 2 — wait for container to be ready (Instagram needs processing time)
-    await this._waitForIgContainer(igUserId, creationId, token);
+      // Step 2 — wait for container to be ready
+      await this._waitForIgContainer(igUserId, creationId, token);
 
-    // Step 3 — publish
-    const publishRes = await axios.post(
-      `https://graph.facebook.com/v18.0/${igUserId}/media_publish`,
-      { creation_id: creationId, access_token: token },
-      { timeout: 30000 }
-    );
-    return publishRes.data.id;
+      // Step 3 — publish
+      const publishRes = await axios.post(
+        `https://graph.facebook.com/v18.0/${igUserId}/media_publish`,
+        { creation_id: creationId, access_token: token },
+        { timeout: 30000 }
+      );
+      return publishRes.data.id;
+    } catch (err) {
+      if (err.message.startsWith('Instagram')) throw err; // our own errors
+      const fbMsg = err.response?.data?.error?.message;
+      const fbCode = err.response?.data?.error?.code;
+      if (fbMsg) throw new Error(`Instagram API: ${fbMsg}${fbCode ? ` (code ${fbCode})` : ''}`);
+      throw err;
+    }
   }
 
   async _waitForIgContainer(igUserId, creationId, token, maxWaitMs = 45000) {
