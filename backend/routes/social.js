@@ -123,7 +123,7 @@ module.exports = (pool) => {
       'public_profile',
     ].join(',');
     const authUrl =
-      `https://www.facebook.com/v18.0/dialog/oauth` +
+      `https://www.facebook.com/v21.0/dialog/oauth` +
       `?client_id=${FACEBOOK_APP_ID}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&scope=${encodeURIComponent(scope)}` +
@@ -150,7 +150,8 @@ module.exports = (pool) => {
     try {
       const redirectUri = `${getBaseUrl(req)}/api/social/callback/facebook`;
 
-      const tokenRes = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
+      // Exchange code for short-lived token
+      const tokenRes = await axios.get('https://graph.facebook.com/v21.0/oauth/access_token', {
         params: {
           client_id: FACEBOOK_APP_ID,
           client_secret: FACEBOOK_APP_SECRET,
@@ -159,7 +160,8 @@ module.exports = (pool) => {
         },
       });
 
-      const longTokenRes = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
+      // Exchange for long-lived token (60 days)
+      const longTokenRes = await axios.get('https://graph.facebook.com/v21.0/oauth/access_token', {
         params: {
           grant_type: 'fb_exchange_token',
           client_id: FACEBOOK_APP_ID,
@@ -171,23 +173,40 @@ module.exports = (pool) => {
       const longAccessToken = longTokenRes.data.access_token;
       const expiresAt = new Date(Date.now() + (longTokenRes.data.expires_in || 5184000) * 1000);
 
-      const profileRes = await axios.get('https://graph.facebook.com/v18.0/me', {
+      const profileRes = await axios.get('https://graph.facebook.com/v21.0/me', {
         params: { fields: 'id,name,picture', access_token: longAccessToken },
       });
-
-      const { name: fbName, picture } = profileRes.data;
+      const { picture } = profileRes.data;
       const profileImageUrl = picture?.data?.url || null;
 
-      // Fetch all managed pages
-      const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
-        params: { access_token: longAccessToken },
+      // Fetch pages with Instagram data in a single request using field expansion.
+      // This is more reliable than separate per-page calls under the new Meta OAuth flow.
+      const pagesRes = await axios.get('https://graph.facebook.com/v21.0/me/accounts', {
+        params: {
+          fields: 'id,name,access_token,instagram_business_account{id,name,username},connected_instagram_account{id,name,username}',
+          access_token: longAccessToken,
+          limit: 100,
+        },
       });
       const pages = pagesRes.data?.data || [];
 
+      console.log(`[Social/FB] customer=${customerId} pages_returned=${pages.length}`);
+      for (const p of pages) {
+        const igBiz = p.instagram_business_account;
+        const igConn = p.connected_instagram_account;
+        console.log(`[Social/FB]   page="${p.name}" (${p.id}) ig_business=${igBiz?.id || 'none'} ig_connected=${igConn?.id || 'none'}`);
+      }
+
+      // Reject if no pages — personal tokens cannot post to Pages
+      if (pages.length === 0) {
+        return res.redirect(`${frontendBase}/auth/callback?error=facebook_no_pages`);
+      }
+
       let instagramConnected = false;
+      const seenIgIds = new Set();
 
       for (const page of pages) {
-        // Store each Facebook Page as a separate row
+        // Store Facebook Page
         await pool.query(
           `INSERT INTO social_accounts
              (customer_id, platform, access_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
@@ -200,48 +219,29 @@ module.exports = (pool) => {
           [customerId, page.access_token, expiresAt, page.id, page.name, profileImageUrl]
         );
 
-        // Check for a linked Instagram account (business or creator) on this page
-        try {
-          const igPageRes = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
-            params: {
-              fields: 'instagram_business_account,connected_instagram_account',
-              access_token: page.access_token,
-            },
-          });
-          const igId =
-            igPageRes.data?.instagram_business_account?.id ||
-            igPageRes.data?.connected_instagram_account?.id;
-          if (igId) {
-            const igProfileRes = await axios.get(`https://graph.facebook.com/v18.0/${igId}`, {
-              params: { fields: 'id,name,username', access_token: page.access_token },
-            });
-            const { username, name: igName } = igProfileRes.data;
-            await pool.query(
-              `INSERT INTO social_accounts
-                 (customer_id, platform, access_token, token_expires_at, account_id, account_username, account_name, enabled, auto_post)
-               VALUES ($1, 'instagram', $2, $3, $4, $5, $6, true, true)
-               ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
-                 access_token = EXCLUDED.access_token,
-                 token_expires_at = EXCLUDED.token_expires_at,
-                 account_username = EXCLUDED.account_username,
-                 account_name = EXCLUDED.account_name,
-                 updated_at = NOW()`,
-              [customerId, page.access_token, expiresAt, igId, username || igName, igName]
-            );
-            instagramConnected = true;
-          }
-        } catch (err) {
-          console.error(`[Social] Instagram lookup failed for page ${page.id}:`, err.response?.data || err.message);
+        // Instagram account already embedded via field expansion — no extra API call needed
+        const igAccount = page.instagram_business_account || page.connected_instagram_account;
+        if (igAccount?.id && !seenIgIds.has(igAccount.id)) {
+          seenIgIds.add(igAccount.id);
+          const igUsername = igAccount.username || igAccount.name || igAccount.id;
+          await pool.query(
+            `INSERT INTO social_accounts
+               (customer_id, platform, access_token, token_expires_at, account_id, account_username, account_name, enabled, auto_post)
+             VALUES ($1, 'instagram', $2, $3, $4, $5, $6, true, true)
+             ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
+               access_token = EXCLUDED.access_token,
+               token_expires_at = EXCLUDED.token_expires_at,
+               account_username = EXCLUDED.account_username,
+               account_name = EXCLUDED.account_name,
+               updated_at = NOW()`,
+            [customerId, page.access_token, expiresAt, igAccount.id, igUsername, igAccount.name || igUsername]
+          );
+          instagramConnected = true;
+          console.log(`[Social/FB]   stored instagram="${igUsername}" (${igAccount.id}) via page "${page.name}"`);
         }
       }
 
-      // If no pages found, reject — personal tokens cannot post to Pages
-      if (pages.length === 0) {
-        return res.redirect(`${frontendBase}/auth/callback?error=facebook_no_pages`);
-      }
-
-      // Remove any stale Facebook rows (e.g. a user-level token stored by a previous
-      // broken reconnect) whose account_id is not among the current page IDs.
+      // Remove stale Facebook rows from previous broken reconnects
       const pageIds = pages.map(p => p.id);
       const ph = pageIds.map((_, i) => `$${i + 2}`).join(',');
       await pool.query(
@@ -252,7 +252,7 @@ module.exports = (pool) => {
       const connectedParam = instagramConnected ? 'facebook_instagram' : 'facebook';
       res.redirect(`${frontendBase}/auth/callback?connected=${connectedParam}`);
     } catch (error) {
-      console.error('Facebook OAuth error:', error.response?.data || error.message);
+      console.error('[Social/FB] OAuth error:', error.response?.data || error.message);
       res.redirect(`${frontendBase}/auth/callback?error=facebook_failed`);
     }
   });
