@@ -76,13 +76,14 @@ module.exports = (pool) => {
     const fbScope = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_messaging', 'instagram_basic', 'instagram_content_publish', 'instagram_manage_messages', 'instagram_manage_insights', 'read_insights', 'pages_read_user_content', 'public_profile'].join(',');
     const googleScope = ['https://www.googleapis.com/auth/business.manage', 'https://www.googleapis.com/auth/userinfo.profile'].join(' ');
 
+    // auth_type=rerequest forces Facebook to always show the full permission
+    // dialog including the page picker, even if the user previously granted
+    // permissions. Without this, Facebook can silently reuse a cached grant
+    // that has no pages attached (happens after disconnect+reconnect cycles).
+    const fbBase = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/facebook')}&scope=${encodeURIComponent(fbScope)}&state=${encodeURIComponent(state)}&response_type=code&auth_type=rerequest`;
     const urls = {
-      facebook: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET
-        ? `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/facebook')}&scope=${encodeURIComponent(fbScope)}&state=${encodeURIComponent(state)}&response_type=code`
-        : null,
-      instagram: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET
-        ? `https://www.facebook.com/v21.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/facebook')}&scope=${encodeURIComponent(fbScope)}&state=${encodeURIComponent(state)}&response_type=code`
-        : null,
+      facebook: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET ? fbBase : null,
+      instagram: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET ? fbBase : null,
       google_business: GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET
         ? `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/google')}&scope=${encodeURIComponent(googleScope)}&state=${encodeURIComponent(state)}&response_type=code&access_type=offline&prompt=consent`
         : null,
@@ -172,6 +173,21 @@ module.exports = (pool) => {
 
       const longAccessToken = longTokenRes.data.access_token;
       const expiresAt = new Date(Date.now() + (longTokenRes.data.expires_in || 5184000) * 1000);
+
+      // Log what permissions Facebook actually granted — helps diagnose 0-pages issues
+      try {
+        const debugRes = await axios.get('https://graph.facebook.com/debug_token', {
+          params: {
+            input_token: longAccessToken,
+            access_token: `${FACEBOOK_APP_ID}|${FACEBOOK_APP_SECRET}`,
+          },
+        });
+        const d = debugRes.data?.data;
+        console.log(`[Social/FB] token scopes: ${d?.scopes?.join(', ')}`);
+        console.log(`[Social/FB] token app_id: ${d?.app_id}, user_id: ${d?.user_id}, valid: ${d?.is_valid}`);
+      } catch (dbgErr) {
+        console.log('[Social/FB] token debug call failed:', dbgErr.message);
+      }
 
       const profileRes = await axios.get('https://graph.facebook.com/v21.0/me', {
         params: { fields: 'id,name,picture', access_token: longAccessToken },
