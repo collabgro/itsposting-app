@@ -125,13 +125,17 @@ export default function QuickPost() {
   const [copied,        setCopied]        = useState(false);
   const [posting,       setPosting]       = useState(false);
   const [posted,        setPosted]        = useState(false);
+  const [isMobile,      setIsMobile]      = useState(false);
 
   const loadMsgTimer = useRef(null);
 
   useEffect(() => {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
-    return () => clearInterval(loadMsgTimer.current);
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => { clearInterval(loadMsgTimer.current); window.removeEventListener('resize', checkMobile); };
   }, []);
 
   useEffect(() => {
@@ -264,7 +268,7 @@ export default function QuickPost() {
           <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 16 }}>
             Content type
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
             {CONTENT_TYPES.map(ct => {
               const sel = contentType === ct.id;
               return (
@@ -322,7 +326,7 @@ export default function QuickPost() {
           </div>
           <div
             style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12,
+              display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : '1fr 1fr 1fr', gap: 12,
               animation: shake ? 'qp-shake 400ms ease' : 'none',
             }}
           >
@@ -400,7 +404,7 @@ export default function QuickPost() {
               {selectedPlats.length === PLATFORMS.length ? 'All platforms' : `${selectedPlats.length} of ${PLATFORMS.length} selected`}
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(6, 1fr)', gap: isMobile ? 8 : 16 }}>
 
             {/* All card */}
             {(() => {
@@ -504,7 +508,7 @@ export default function QuickPost() {
             <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', letterSpacing: '0.04em' }}>04</span>
             Tone
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(5, 1fr)', gap: 8 }}>
             {TONES.map(tn => {
               const sel = tone === tn.id;
               const TIcon = tn.Icon;

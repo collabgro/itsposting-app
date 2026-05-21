@@ -320,7 +320,8 @@ export default function Calendar() {
             </div>
 
             {loading ? (
-              <div style={{ padding: 16 }}>
+              <div style={{ overflowX: 'auto' }}>
+                <div style={{ padding: 16, minWidth: 500 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
                   {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
                     <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 0' }}>{d}</div>
@@ -328,6 +329,7 @@ export default function Calendar() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
                   {Array.from({ length: 35 }).map((_, i) => <Skeleton key={i} height={88} borderRadius={8} />)}
+                </div>
                 </div>
               </div>
             ) : (
@@ -347,7 +349,9 @@ export default function Calendar() {
                     )}
                   </div>
                 )}
-                {/* Day headers */}
+                {/* Day headers + Grid — horizontal scroll on mobile */}
+                <div style={{ overflowX: 'auto' }}>
+                <div style={{ minWidth: 500 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                     <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 0' }}>{d}</div>
@@ -431,6 +435,8 @@ export default function Calendar() {
                     );
                   })}
                 </div>
+                </div>{/* minWidth */}
+                </div>{/* overflowX */}
 
                 {/* Legend */}
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${t.border}`, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>

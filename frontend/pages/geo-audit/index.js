@@ -50,6 +50,7 @@ export default function GeoAuditPage() {
   const [loadingMsg, setLoadingMsg] = useState(0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Config form
   const [businessName, setBusinessName] = useState('');
@@ -69,6 +70,10 @@ export default function GeoAuditPage() {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
     loadAll();
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   async function loadAll() {
@@ -267,7 +272,7 @@ export default function GeoAuditPage() {
               subtitle="Pre-filled from your profile — adjust anything before running"
             />
 
-            <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 24 }}>
+            <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '3fr 2fr', gap: 24 }}>
 
               {/* LEFT — Business context */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

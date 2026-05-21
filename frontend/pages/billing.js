@@ -64,11 +64,16 @@ export default function Billing() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
     loadData();
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const loadData = async () => {
@@ -195,7 +200,7 @@ export default function Billing() {
       <div style={{ maxWidth: 1040, margin: '0 auto' }}>
 
         {/* ── TOP ROW ────────────────────────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 24 }}>
 
           {/* Current plan */}
           <div style={{

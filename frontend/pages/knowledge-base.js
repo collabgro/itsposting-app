@@ -459,7 +459,8 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
           </div>
         </Card>
       ) : (
-        <Card style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto', borderRadius: 12 }}>
+        <Card style={{ padding: 0, overflow: 'hidden', minWidth: 560 }}>
           {/* Table header */}
           <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 140px 180px 100px', gap: 0, padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.input }}>
             <div />
@@ -503,6 +504,7 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
             </div>
           )}
         </Card>
+        </div>
       )}
     </>
   );
@@ -922,6 +924,8 @@ function TablesTab({ t }) {
         </Card>
       ) : (
         <Card>
+          <div style={{ overflowX: 'auto' }}>
+          <div style={{ minWidth: 400 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 8, marginBottom: 8 }}>
             {['Service', 'Price Range', 'Notes', ''].map((h, i) => (
               <div key={i} style={{ fontSize: 11, fontWeight: 700, color: t.textMuted }}>{h}</div>
@@ -941,6 +945,8 @@ function TablesTab({ t }) {
             <Button variant="secondary" size="sm" onClick={addRow}><IpPlus size={13} /> Add Row</Button>
             <Button variant="primary"   size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save Pricing'}</Button>
             {msg && <span style={{ fontSize: 12, color: msg.startsWith('Failed') ? '#C81E1E' : '#057A55' }}>{msg}</span>}
+          </div>
+          </div>
           </div>
         </Card>
       )}

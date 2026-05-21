@@ -99,11 +99,16 @@ export default function Analytics() {
   // Sync metrics state
   const [syncing, setSyncing]   = useState(false);
   const [syncMsg, setSyncMsg]   = useState('');
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
     loadAll();
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Sync tab from URL query
@@ -306,7 +311,7 @@ export default function Analytics() {
           ) : (
             <>
               {/* ── STAT CARDS ─────────────────────────────────── */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
                 <StatCard label="Posts published" value={parseInt(summary.posted) || 0}       hint={`${parseInt(summary.active_days) || 0} active days`} accent="primary" />
                 <StatCard label="Total likes"     value={parseInt(summary.total_likes) || 0}    accent="primary" />
                 <StatCard label="Total comments"  value={parseInt(summary.total_comments) || 0} accent="success" />
@@ -430,7 +435,7 @@ export default function Analytics() {
                   )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
                   {(optTimes?.recommendations || []).slice(0, 3).map((slot, idx) => (
                     <div
                       key={idx}
@@ -556,7 +561,7 @@ export default function Analytics() {
               </Card>
 
               {/* ── CONTENT PERFORMANCE + DOW BARS ─────────────── */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
                 <Card>
                   <SectionHeader icon={IpAnalytics} title="Content type performance" subtitle="Avg engagement by type" />
                   {!contentPerf?.byType?.length ? (
@@ -738,7 +743,7 @@ export default function Analytics() {
             ) : (
               <>
                 {/* 4 stat cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
                   <Card style={{ padding: '18px 20px' }}>
                     <p style={{ margin: '0 0 6px', fontSize: 12, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Posts Published</p>
                     <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: t.primary, fontFamily: 'monospace' }}>{reportPosts.length}</p>
@@ -767,7 +772,7 @@ export default function Analytics() {
                   </Card>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 24 }}>
                   {/* Top post */}
                   <Card>
                     <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top Post This Month</p>

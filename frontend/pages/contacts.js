@@ -382,7 +382,8 @@ export default function ContactsPage() {
       )}
 
       {/* Table */}
-      <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ overflowX: 'auto', borderRadius: 10 }}>
+      <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, overflow: 'hidden', minWidth: 620 }}>
         {/* Table header */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 110px 110px 90px 80px', gap: 0, padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.sidebar }}>
           {['Contact', 'Platform', 'Phone', 'Job Type', 'Value', 'Status'].map(h => (
@@ -480,6 +481,7 @@ export default function ContactsPage() {
             </div>
           ))
         )}
+      </div>
       </div>
 
       {/* Pagination */}
