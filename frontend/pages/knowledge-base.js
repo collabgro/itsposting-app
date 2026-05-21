@@ -58,18 +58,19 @@ export default function KnowledgeBase() {
 
   return (
     <Layout title="Knowledge Base" subtitle="Train your AI with your business information">
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: `1px solid ${t.border}` }}>
+      {/* Tab bar — horizontal scroll on mobile */}
+      <div className="kb-tabs" style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: `1px solid ${t.border}`, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => handleTabChange(tab.id)}
             style={{
-              padding: '10px 18px', fontSize: 13, fontWeight: activeTab === tab.id ? 600 : 500,
+              padding: '10px 16px', fontSize: 13, fontWeight: activeTab === tab.id ? 600 : 500,
               color: activeTab === tab.id ? '#1A56DB' : t.textSecondary,
               background: 'transparent', border: 'none', cursor: 'pointer',
               borderBottom: `2px solid ${activeTab === tab.id ? '#1A56DB' : 'transparent'}`,
               marginBottom: -1, transition: 'all 150ms',
+              whiteSpace: 'nowrap', flexShrink: 0,
             }}
           >
             {tab.label}
@@ -91,7 +92,7 @@ export default function KnowledgeBase() {
       {/* Persistent bottom test bar */}
       <TestBar t={t} />
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}} .kb-tabs::-webkit-scrollbar{display:none}`}</style>
     </Layout>
   );
 }

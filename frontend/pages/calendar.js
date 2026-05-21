@@ -320,16 +320,14 @@ export default function Calendar() {
             </div>
 
             {loading ? (
-              <div style={{ overflowX: 'auto' }}>
-                <div style={{ padding: 16, minWidth: 500 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+              <div style={{ padding: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: isMobile ? 2 : 4, marginBottom: isMobile ? 2 : 4 }}>
                   {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
-                    <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 0' }}>{d}</div>
+                    <div key={d} style={{ textAlign: 'center', fontSize: isMobile ? 9 : 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.03em', padding: isMobile ? '4px 0' : '6px 0' }}>{isMobile ? d.charAt(0) : d}</div>
                   ))}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-                  {Array.from({ length: 35 }).map((_, i) => <Skeleton key={i} height={88} borderRadius={8} />)}
-                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: isMobile ? 2 : 4 }}>
+                  {Array.from({ length: 35 }).map((_, i) => <Skeleton key={i} height={isMobile ? 56 : 88} borderRadius={8} />)}
                 </div>
               </div>
             ) : (
@@ -349,17 +347,15 @@ export default function Calendar() {
                     )}
                   </div>
                 )}
-                {/* Day headers + Grid — horizontal scroll on mobile */}
-                <div style={{ overflowX: 'auto' }}>
-                <div style={{ minWidth: 500 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+                {/* Day headers */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: isMobile ? 2 : 4, marginBottom: isMobile ? 2 : 4 }}>
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                    <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 0' }}>{d}</div>
+                    <div key={d} style={{ textAlign: 'center', fontSize: isMobile ? 9 : 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.03em', padding: isMobile ? '4px 0' : '6px 0' }}>{isMobile ? d.charAt(0) : d}</div>
                   ))}
                 </div>
 
                 {/* Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: isMobile ? 2 : 4 }}>
                   {days.map(day => {
                     const dayPosts       = getPostsForDay(day);
                     const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
@@ -373,8 +369,11 @@ export default function Calendar() {
                         key={day.toString()}
                         onClick={() => handleDayClick(day)}
                         style={{
-                          minHeight: 88, padding: 6, borderRadius: 8, cursor: 'pointer',
-                          border: `2px solid ${isSelected ? t.primary : isToday ? t.primaryBorder : t.border}`,
+                          minHeight: isMobile ? 52 : 88,
+                          padding: isMobile ? '3px 2px' : 6,
+                          borderRadius: isMobile ? 6 : 8,
+                          cursor: 'pointer',
+                          border: `${isMobile ? 1 : 2}px solid ${isSelected ? t.primary : isToday ? t.primaryBorder : t.border}`,
                           background: isSelected ? t.primaryBg : isToday ? 'rgba(124,92,252,0.05)' : isCurrentMonth ? t.card : t.input,
                           opacity: !isCurrentMonth ? 0.35 : isPast ? 0.45 : 1,
                           transition: 'all 150ms',
@@ -392,51 +391,58 @@ export default function Calendar() {
                           }
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <span style={{ fontSize: 12, fontWeight: isToday ? 700 : isSelected ? 600 : 400, color: isToday || isSelected ? t.primary : t.textSecondary }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 2 : 4 }}>
+                          <span style={{ fontSize: isMobile ? 10 : 12, fontWeight: isToday ? 700 : isSelected ? 600 : 400, color: isToday || isSelected ? t.primary : t.textSecondary }}>
                             {format(day, 'd')}
                           </span>
                           {hasPosts && (
-                            <span style={{ fontSize: 9, fontWeight: 700, color: t.primary, background: t.primaryBg, padding: '1px 5px', borderRadius: 9 }}>
+                            <span style={{ fontSize: 8, fontWeight: 700, color: t.primary, background: t.primaryBg, padding: '1px 3px', borderRadius: 9 }}>
                               {dayPosts.length}
                             </span>
                           )}
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          {dayPosts.slice(0, 2).map(post => {
-                            const typeColor = TYPE_COLOR[post.content_type] || t.primary;
-                            const TypeIcon  = TYPE_ICON[post.content_type] || IpDrafts;
-                            const caption   = post.caption || '';
-                            return (
-                              <div
-                                key={post.id}
-                                title={caption}
-                                style={{
-                                  fontSize: 10, padding: '3px 5px', borderRadius: 4,
-                                  background: `${typeColor}18`,
-                                  border: `1px solid ${typeColor}40`,
-                                  color: typeColor,
-                                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                  display: 'flex', alignItems: 'center', gap: 3,
-                                }}
-                              >
-                                <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_DOT[post.status] || '#94A3B8', flexShrink: 0 }} />
-                                <TypeIcon size={8} />
-                                <span>{caption ? caption.slice(0, 20) : format(new Date(post.scheduled_date), 'h:mm a')}</span>
-                              </div>
-                            );
-                          })}
-                          {dayPosts.length > 2 && (
-                            <div style={{ fontSize: 10, color: t.textMuted, paddingLeft: 4 }}>+{dayPosts.length - 2} more</div>
-                          )}
-                        </div>
+                        {/* On mobile: show colored dots only. On desktop: show text chips */}
+                        {isMobile ? (
+                          <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                            {dayPosts.slice(0, 3).map(post => (
+                              <div key={post.id} style={{ width: 6, height: 6, borderRadius: '50%', background: TYPE_COLOR[post.content_type] || t.primary, flexShrink: 0 }} />
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {dayPosts.slice(0, 2).map(post => {
+                              const typeColor = TYPE_COLOR[post.content_type] || t.primary;
+                              const TypeIcon  = TYPE_ICON[post.content_type] || IpDrafts;
+                              const caption   = post.caption || '';
+                              return (
+                                <div
+                                  key={post.id}
+                                  title={caption}
+                                  style={{
+                                    fontSize: 10, padding: '3px 5px', borderRadius: 4,
+                                    background: `${typeColor}18`,
+                                    border: `1px solid ${typeColor}40`,
+                                    color: typeColor,
+                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    display: 'flex', alignItems: 'center', gap: 3,
+                                  }}
+                                >
+                                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_DOT[post.status] || '#94A3B8', flexShrink: 0 }} />
+                                  <TypeIcon size={8} />
+                                  <span>{caption ? caption.slice(0, 20) : format(new Date(post.scheduled_date), 'h:mm a')}</span>
+                                </div>
+                              );
+                            })}
+                            {dayPosts.length > 2 && (
+                              <div style={{ fontSize: 10, color: t.textMuted, paddingLeft: 4 }}>+{dayPosts.length - 2} more</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
-                </div>{/* minWidth */}
-                </div>{/* overflowX */}
 
                 {/* Legend */}
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${t.border}`, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>

@@ -99,14 +99,19 @@ export default function InboxPage() {
   const [savingContact, setSavingContact] = useState(false);
   const [savedContact, setSavedContact] = useState(null);
   const [user, setUser] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const threadEndRef = useRef(null);
 
   useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
     loadStats();
     loadConversations();
     loadReceptionistInfo();
     authAPI.verify().then(r => setUser(r.data.customer)).catch(() => {});
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
   useEffect(() => { loadConversations(); }, [filter]);
 
@@ -378,16 +383,14 @@ export default function InboxPage() {
 
         {/* ── LEFT PANEL: Conversation List ── */}
         <div style={{
-          width: showMobileThread ? 0 : '100%',
-          minWidth: showMobileThread ? 0 : undefined,
-          maxWidth: 360,
-          display: 'flex',
+          display: isMobile && showMobileThread ? 'none' : 'flex',
+          width: '100%',
+          maxWidth: isMobile ? '100%' : 360,
           flexDirection: 'column',
-          borderRight: `1px solid ${t.border}`,
+          borderRight: isMobile ? 'none' : `1px solid ${t.border}`,
           background: t.sidebar,
           overflow: 'hidden',
           flexShrink: 0,
-          transition: 'max-width 200ms ease',
         }}
           className="inbox-list-panel"
         >
@@ -612,7 +615,7 @@ export default function InboxPage() {
         </div>
 
         {/* ── RIGHT PANEL: Thread ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: t.bg, minWidth: 0 }}>
+        <div style={{ flex: 1, display: isMobile && !showMobileThread ? 'none' : 'flex', flexDirection: 'column', background: t.bg, minWidth: 0 }}>
           {!selected ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
               <IpInbox size={52} style={{ color: t.textMuted }} />
@@ -626,8 +629,7 @@ export default function InboxPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <button
                     onClick={() => { setShowMobileThread(false); setSelected(null); }}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: t.textMuted, padding: '0 4px', display: 'none' }}
-                    className="mobile-back-btn"
+                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: t.textMuted, padding: '0 4px', display: isMobile ? 'flex' : 'none', alignItems: 'center' }}
                   >
                     <IpArrowLeft size={20} />
                   </button>
