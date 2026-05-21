@@ -8,7 +8,7 @@ import {
 import Layout from '../components/Layout';
 import { Card, Button, Input, Textarea, SectionHeader, Skeleton, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { mediaAPI, uploadAPI, socialAPI } from '../lib/api';
+import { mediaAPI, uploadAPI, socialAPI, analyticsAPI } from '../lib/api';
 import {
   CHAR_LIMITS, PLATFORM_META, MOCKUP_MAP, PlatformTab,
 } from '../components/PostMockups';
@@ -56,11 +56,17 @@ export default function Upload() {
   const [accountGroups, setAccountGroups] = useState([]);
   const [customCaptionsEnabled, setCustomCaptionsEnabled] = useState(false);
   const [platformCaptions, setPlatformCaptions] = useState({});
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationResults, setLocationResults] = useState([]);
+  const [locationSearching, setLocationSearching] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const locationTimerRef = useRef(null);
   const [previewPlatform, setPreviewPlatform] = useState('facebook');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('09:00');
   const [scheduleMode, setScheduleMode] = useState('draft');
   const [uploading, setUploading] = useState(false);
+  const [bestTimes, setBestTimes] = useState([]);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [showLibrary, setShowLibrary] = useState(false);
   const [libraryFiles, setLibraryFiles] = useState([]);
@@ -84,6 +90,11 @@ export default function Upload() {
     window.addEventListener('resize', checkMobile);
 
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
+
+    // Load best times for the schedule section
+    analyticsAPI.getOptimalTimes().then(res => {
+      setBestTimes((res.data?.recommendations || []).slice(0, 3));
+    }).catch(() => {});
 
     // Load connected social accounts and groups for the account picker
     Promise.all([
@@ -194,6 +205,20 @@ export default function Upload() {
     setPlatforms(platforms.length === ALL_PLATFORM_IDS.length ? [] : [...ALL_PLATFORM_IDS]);
   };
 
+  const handleLocationSearch = (val) => {
+    setLocationQuery(val);
+    if (!val.trim()) { setLocationResults([]); return; }
+    clearTimeout(locationTimerRef.current);
+    locationTimerRef.current = setTimeout(async () => {
+      setLocationSearching(true);
+      try {
+        const res = await socialAPI.searchLocations(val);
+        setLocationResults(res.data?.locations || []);
+      } catch { setLocationResults([]); }
+      finally { setLocationSearching(false); }
+    }, 350);
+  };
+
   const toggleAccount = (id) => {
     setSelectedAccountIds(prev => {
       const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
@@ -244,6 +269,8 @@ export default function Upload() {
         contentType, mediaUrl, mediaUrls, caption, hashtags: hashtagArr,
         platforms, accountIds: selectedAccountIds,
         platform_captions: customCaptionsEnabled && Object.keys(platformCaptions).length > 0 ? platformCaptions : undefined,
+        location_id: selectedLocation?.id || null,
+        location_name: selectedLocation?.name || null,
         scheduledDate: scheduledDateTime,
         publishNow: scheduleMode === 'now',
       });
@@ -290,6 +317,21 @@ export default function Upload() {
     const text = customCaptionsEnabled ? (platformCaptions[p] ?? caption) : caption;
     return text.length > CHAR_LIMITS[p];
   });
+
+  // Convert dow (0-6 Sun-Sat) + hour → next-occurrence date + time strings
+  const bestTimeToDateParts = (dow, hour) => {
+    const today = new Date();
+    const todayDow = today.getDay();
+    let daysAhead = (dow - todayDow + 7) % 7;
+    if (daysAhead === 0 && (today.getHours() >= hour)) daysAhead = 7; // already past today
+    const target = new Date(today);
+    target.setDate(today.getDate() + daysAhead);
+    const pad = n => String(n).padStart(2, '0');
+    return {
+      date: `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`,
+      time: `${pad(hour)}:00`,
+    };
+  };
 
   const scheduledPreview = scheduleDate && scheduleTime
     ? new Date(`${scheduleDate}T${scheduleTime}`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -582,6 +624,42 @@ export default function Upload() {
                 </div>
               </Card>
 
+              {/* Location Tagging */}
+              {platforms.some(p => p === 'facebook' || p === 'instagram') && (
+                <Card>
+                  <SectionHeader icon={IpFacebook} title="Add Location" />
+                  {selectedLocation ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: t.text, flex: 1 }}>
+                        📍 {selectedLocation.name}{selectedLocation.city ? `, ${selectedLocation.city}` : ''}
+                      </span>
+                      <button type="button" onClick={() => setSelectedLocation(null)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', padding: '2px 4px', fontSize: 12 }}>✕ Remove</button>
+                    </div>
+                  ) : (
+                    <div style={{ position: 'relative' }}>
+                      <Input
+                        value={locationQuery}
+                        onChange={e => handleLocationSearch(e.target.value)}
+                        placeholder="Search a place…"
+                      />
+                      {locationSearching && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4 }}>Searching…</div>}
+                      {locationResults.length > 0 && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', marginTop: 4 }}>
+                          {locationResults.map(loc => (
+                            <button key={loc.id} type="button" onClick={() => { setSelectedLocation(loc); setLocationQuery(''); setLocationResults([]); }} style={{ width: '100%', padding: '9px 12px', background: 'none', border: 'none', borderBottom: `1px solid ${t.border}`, color: t.text, fontSize: 13, textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}
+                              onMouseEnter={e => e.currentTarget.style.background = t.input}
+                              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                              <span style={{ fontWeight: 600 }}>{loc.name}</span>
+                              {loc.city && <span style={{ fontSize: 11, color: t.textMuted }}>{loc.city}{loc.country ? `, ${loc.country}` : ''}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              )}
+
               {/* Media */}
               <Card>
                 <SectionHeader icon={UploadIcon} title="Media" />
@@ -681,6 +759,27 @@ export default function Upload() {
 
                 {scheduleMode === 'later' && (
                   <div>
+                    {/* Best time suggestion chips */}
+                    {bestTimes.length > 0 && (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Best times for you</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {bestTimes.map((bt, i) => {
+                            const { date, time } = bestTimeToDateParts(bt.dow, bt.hour);
+                            return (
+                              <button
+                                key={i} type="button"
+                                onClick={() => { setScheduleDate(date); setScheduleTime(time); }}
+                                title={bt.reason}
+                                style={{ padding: '5px 11px', borderRadius: 20, border: `1.5px solid ${t.primary}`, background: scheduleDate === date && scheduleTime === time ? t.primary : t.primaryBg, color: scheduleDate === date && scheduleTime === time ? '#fff' : t.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                              >
+                                {bt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     <div style={{ marginBottom: 16 }}>
                       <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Date</label>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>

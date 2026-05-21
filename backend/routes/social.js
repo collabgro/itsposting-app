@@ -793,5 +793,39 @@ module.exports = (pool) => {
     }
   });
 
+  // ── GET /api/social/locations/search ─────────────────────────────────────
+  // Location search for tagging posts (Facebook Places API)
+  router.get('/locations/search', authenticate, async (req, res) => {
+    try {
+      const { q } = req.query;
+      if (!q || q.trim().length < 2) return res.json({ locations: [] });
+
+      // Get any connected Facebook account to use its token
+      const accountRes = await pool.query(
+        `SELECT access_token FROM social_accounts WHERE customer_id=$1 AND platform='facebook' AND enabled=true LIMIT 1`,
+        [req.customerId]
+      );
+      if (!accountRes.rows[0]) return res.json({ locations: [], error: 'Connect Facebook to enable location search' });
+
+      const token = accountRes.rows[0].access_token;
+      const fbRes = await axios.get('https://graph.facebook.com/v18.0/search', {
+        params: { type: 'place', q: q.trim(), fields: 'id,name,location', access_token: token, limit: 10 },
+        timeout: 8000,
+      });
+
+      const locations = (fbRes.data?.data || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        city: p.location?.city || '',
+        country: p.location?.country || '',
+      }));
+
+      res.json({ locations });
+    } catch (err) {
+      console.error('[social/locations]', err.message);
+      res.json({ locations: [] });
+    }
+  });
+
   return router;
 };

@@ -9,7 +9,7 @@ import {
 import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
-import api, { customerAPI, socialAPI } from '../lib/api';
+import api, { customerAPI, socialAPI, analyticsAPI } from '../lib/api';
 import { CHAR_LIMITS } from '../components/PostMockups';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
@@ -379,6 +379,7 @@ export default function Wizard() {
   const [socialAccountsList, setSocialAccountsList] = useState([]);
   const [selectedWizardAccountIds, setSelectedWizardAccountIds] = useState([]);
   const [wizardAccountGroups, setWizardAccountGroups] = useState([]);
+  const [wizardBestTimes, setWizardBestTimes] = useState([]);
 
   // Result screen action state
   const [actionLoading, setActionLoading] = useState(false);
@@ -401,6 +402,10 @@ export default function Wizard() {
         setProfileTimezone(d.timezone || '');
       })
       .catch(() => {});
+
+    analyticsAPI.getOptimalTimes().then(res => {
+      setWizardBestTimes((res.data?.recommendations || []).slice(0, 3));
+    }).catch(() => {});
 
     Promise.all([
       socialAPI.getAccounts(),
@@ -1487,6 +1492,29 @@ export default function Wizard() {
               <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowScheduleModal(false)}>
                 <div style={{ background: t.card, borderRadius: 14, padding: 24, width: '100%', maxWidth: 360, border: `1px solid ${t.border}` }} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 16 }}>Schedule Post</div>
+                  {wizardBestTimes.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Best times for you</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {wizardBestTimes.map((bt, i) => {
+                          const today = new Date();
+                          const todayDow = today.getDay();
+                          let daysAhead = (bt.dow - todayDow + 7) % 7;
+                          if (daysAhead === 0 && today.getHours() >= bt.hour) daysAhead = 7;
+                          const target = new Date(today);
+                          target.setDate(today.getDate() + daysAhead);
+                          const pad = n => String(n).padStart(2, '0');
+                          const iso = `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}T${pad(bt.hour)}:00`;
+                          return (
+                            <button key={i} type="button" onClick={() => setScheduleDate(iso)} title={bt.reason}
+                              style={{ padding: '5px 11px', borderRadius: 20, border: `1.5px solid ${t.primary}`, background: scheduleDate === iso ? t.primary : t.primaryBg, color: scheduleDate === iso ? '#fff' : t.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                              {bt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <div style={{ marginBottom: 4 }}>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 6 }}>Date & Time</label>
                     <input

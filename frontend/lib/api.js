@@ -65,6 +65,7 @@ export const socialAPI = {
   createGroup: (data) => api.post('/api/social/groups', data),
   updateGroup: (id, data) => api.patch(`/api/social/groups/${id}`, data),
   deleteGroup: (id) => api.delete(`/api/social/groups/${id}`),
+  searchLocations: (q) => api.get('/api/social/locations/search', { params: { q } }),
 };
 
 export const scraperAPI = {

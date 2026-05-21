@@ -122,17 +122,21 @@ class SocialPublisher {
     const caption = this.buildCaption(post, 'facebook');
 
     if (post.media_url) {
+      const photoBody = { url: post.media_url, caption, access_token: token };
+      if (post.location_id) photoBody.place = post.location_id;
       const res = await axios.post(
         `https://graph.facebook.com/v18.0/${pageId}/photos`,
-        { url: post.media_url, caption, access_token: token },
+        photoBody,
         { timeout: 30000 }
       );
       return res.data.id;
     }
 
+    const feedBody = { message: caption, access_token: token };
+    if (post.location_id) feedBody.place = post.location_id;
     const res = await axios.post(
       `https://graph.facebook.com/v18.0/${pageId}/feed`,
-      { message: caption, access_token: token },
+      feedBody,
       { timeout: 30000 }
     );
     return res.data.id;
@@ -147,9 +151,11 @@ class SocialPublisher {
     const caption = this.buildCaption(post, 'instagram');
 
     // Step 1 — create media container
+    const containerBody = { image_url: post.media_url, caption, access_token: token };
+    if (post.location_id) containerBody.location_id = post.location_id;
     const containerRes = await axios.post(
       `https://graph.facebook.com/v18.0/${igUserId}/media`,
-      { image_url: post.media_url, caption, access_token: token },
+      containerBody,
       { timeout: 30000 }
     );
     const creationId = containerRes.data.id;
