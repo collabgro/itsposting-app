@@ -179,34 +179,28 @@ module.exports = (pool) => {
       const { picture } = profileRes.data;
       const profileImageUrl = picture?.data?.url || null;
 
-      // Fetch pages with Instagram data in a single request using field expansion.
-      // This is more reliable than separate per-page calls under the new Meta OAuth flow.
+      // Step 1: Fetch pages with a SIMPLE request (no field expansion).
+      // Requesting Instagram sub-fields in the same call causes Facebook to
+      // filter which pages are returned — only 1 of 3 selected pages comes back.
+      // Keep this call minimal so ALL selected pages are returned.
       const pagesRes = await axios.get('https://graph.facebook.com/v21.0/me/accounts', {
         params: {
-          fields: 'id,name,access_token,instagram_business_account{id,name,username},connected_instagram_account{id,name,username}',
+          fields: 'id,name,access_token',
           access_token: longAccessToken,
           limit: 100,
         },
       });
       const pages = pagesRes.data?.data || [];
 
-      console.log(`[Social/FB] customer=${customerId} pages_returned=${pages.length}`);
-      for (const p of pages) {
-        const igBiz = p.instagram_business_account;
-        const igConn = p.connected_instagram_account;
-        console.log(`[Social/FB]   page="${p.name}" (${p.id}) ig_business=${igBiz?.id || 'none'} ig_connected=${igConn?.id || 'none'}`);
-      }
+      console.log(`[Social/FB] customer=${customerId} pages_returned=${pages.length} names=${pages.map(p => p.name).join(', ')}`);
 
       // Reject if no pages — personal tokens cannot post to Pages
       if (pages.length === 0) {
         return res.redirect(`${frontendBase}/auth/callback?error=facebook_no_pages`);
       }
 
-      let instagramConnected = false;
-      const seenIgIds = new Set();
-
+      // Step 2: Store all Facebook Pages first
       for (const page of pages) {
-        // Store Facebook Page
         await pool.query(
           `INSERT INTO social_accounts
              (customer_id, platform, access_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
@@ -218,26 +212,42 @@ module.exports = (pool) => {
              updated_at = NOW()`,
           [customerId, page.access_token, expiresAt, page.id, page.name, profileImageUrl]
         );
+      }
 
-        // Instagram account already embedded via field expansion — no extra API call needed
-        const igAccount = page.instagram_business_account || page.connected_instagram_account;
-        if (igAccount?.id && !seenIgIds.has(igAccount.id)) {
-          seenIgIds.add(igAccount.id);
-          const igUsername = igAccount.username || igAccount.name || igAccount.id;
-          await pool.query(
-            `INSERT INTO social_accounts
-               (customer_id, platform, access_token, token_expires_at, account_id, account_username, account_name, enabled, auto_post)
-             VALUES ($1, 'instagram', $2, $3, $4, $5, $6, true, true)
-             ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
-               access_token = EXCLUDED.access_token,
-               token_expires_at = EXCLUDED.token_expires_at,
-               account_username = EXCLUDED.account_username,
-               account_name = EXCLUDED.account_name,
-               updated_at = NOW()`,
-            [customerId, page.access_token, expiresAt, igAccount.id, igUsername, igAccount.name || igUsername]
-          );
-          instagramConnected = true;
-          console.log(`[Social/FB]   stored instagram="${igUsername}" (${igAccount.id}) via page "${page.name}"`);
+      // Step 3: Check each page for a linked Instagram account (separate calls after pages are stored)
+      let instagramConnected = false;
+      const seenIgIds = new Set();
+      for (const page of pages) {
+        try {
+          const igRes = await axios.get(`https://graph.facebook.com/v21.0/${page.id}`, {
+            params: {
+              fields: 'instagram_business_account{id,name,username},connected_instagram_account{id,name,username}',
+              access_token: page.access_token,
+            },
+          });
+          const igAccount = igRes.data?.instagram_business_account || igRes.data?.connected_instagram_account;
+          console.log(`[Social/FB]   page="${page.name}" ig=${igAccount?.id || 'none (not linked to this page)'}`);
+
+          if (igAccount?.id && !seenIgIds.has(igAccount.id)) {
+            seenIgIds.add(igAccount.id);
+            const igUsername = igAccount.username || igAccount.name || igAccount.id;
+            await pool.query(
+              `INSERT INTO social_accounts
+                 (customer_id, platform, access_token, token_expires_at, account_id, account_username, account_name, enabled, auto_post)
+               VALUES ($1, 'instagram', $2, $3, $4, $5, $6, true, true)
+               ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
+                 access_token = EXCLUDED.access_token,
+                 token_expires_at = EXCLUDED.token_expires_at,
+                 account_username = EXCLUDED.account_username,
+                 account_name = EXCLUDED.account_name,
+                 updated_at = NOW()`,
+              [customerId, page.access_token, expiresAt, igAccount.id, igUsername, igAccount.name || igUsername]
+            );
+            instagramConnected = true;
+            console.log(`[Social/FB]   stored instagram="${igUsername}" (${igAccount.id}) via page "${page.name}"`);
+          }
+        } catch (err) {
+          console.error(`[Social/FB]   IG check failed for page "${page.name}":`, err.response?.data || err.message);
         }
       }
 
