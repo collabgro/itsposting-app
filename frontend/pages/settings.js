@@ -1154,9 +1154,7 @@ export default function Settings() {
                           <span style={{ fontSize: 10, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: '#D97706', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 5, padding: '2px 6px', whiteSpace: 'nowrap' }}>Coming soon</span>
                         </div>
                       )}
-                      {!hasAny && (
-                        <Button variant="ghost" size="sm" onClick={() => handleConnect(platform)} style={{ fontSize: 12, color: t.textMuted }}>Manual setup</Button>
-                      )}
+                      <Button variant="ghost" size="sm" onClick={() => handleConnect(platform)} style={{ fontSize: 12, color: t.textMuted }}>Manual setup</Button>
                     </div>
                   </div>
 
@@ -1546,7 +1544,6 @@ export default function Settings() {
         const config = PLATFORM_CONFIG[socialWizardModal];
         const wizardEntry = SOCIAL_WIZARD_MAP[socialWizardModal];
         if (!config || !wizardEntry) return null;
-        const connected = socialAccounts.find(a => a.platform === socialWizardModal);
         const platform = socialWizardModal;
         return (
           <IntegrationSetupWizard
@@ -1575,7 +1572,7 @@ export default function Settings() {
               };
             }}
             onClose={() => setSocialWizardModal(null)}
-            isUpdate={!!connected}
+            isUpdate={false}
             accentColor={config.color}
             logo={<config.Icon size={20} style={{ color: '#fff' }} />}
           />
