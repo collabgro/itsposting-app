@@ -46,6 +46,7 @@ export default function Calendar() {
   const [selectedDay, setSelectedDay]   = useState(null);
   const [platformFilter, setPlatformFilter] = useState('all');
   const [statusFilter, setStatusFilter]     = useState('all');
+  const [isMobile, setIsMobile]             = useState(false);
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -55,6 +56,10 @@ export default function Calendar() {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
     loadPosts();
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => { if (mounted) loadPosts(); }, [currentMonth]);
@@ -265,7 +270,7 @@ export default function Calendar() {
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: selectedDay ? '1fr 320px' : '1fr', gap: 20, transition: 'all 300ms' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: (selectedDay && !isMobile) ? '1fr 320px' : '1fr', gap: 20, transition: 'all 300ms' }}>
 
           {/* ── CALENDAR ─────────────────────────────────────── */}
           <Card padding={0}>

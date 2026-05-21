@@ -380,6 +380,7 @@ export default function Wizard() {
   const [selectedWizardAccountIds, setSelectedWizardAccountIds] = useState([]);
   const [wizardAccountGroups, setWizardAccountGroups] = useState([]);
   const [wizardBestTimes, setWizardBestTimes] = useState([]);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Result screen action state
   const [actionLoading, setActionLoading] = useState(false);
@@ -390,6 +391,13 @@ export default function Wizard() {
   const [editedCaption, setEditedCaption] = useState('');
 
   const loadingInterval = useRef(null);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
@@ -885,7 +893,7 @@ export default function Wizard() {
                     Best for {ctLabel}
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: 10 }}>
                   {recFormats.map((fmt, idx) => (
                     <FormatCard
                       key={`rec-${idx}`}
@@ -1210,7 +1218,7 @@ export default function Wizard() {
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
 
               {/* ── LEFT: Media panel — hidden for text/static posts ── */}
-              {results.contentTypeSelection !== 'static' && <div style={{ flex: '0 0 280px', minWidth: 220 }}>
+              {results.contentTypeSelection !== 'static' && <div style={{ flex: isMobile ? '0 0 100%' : '0 0 280px', minWidth: isMobile ? 0 : 220 }}>
 
                 {/* Image/video failed banner */}
                 {results.imageFailed && (

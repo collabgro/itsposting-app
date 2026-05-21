@@ -337,7 +337,7 @@ export default function Dashboard() {
         </Card>
 
         {/* ── 4. Calendar + Upcoming ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20 }}>
           <Card>
             <SectionHeader
               icon={IpCalendar}
