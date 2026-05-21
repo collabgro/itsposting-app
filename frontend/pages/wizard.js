@@ -378,6 +378,7 @@ export default function Wizard() {
   const [connectedPlatforms, setConnectedPlatforms] = useState(null); // null = not yet loaded
   const [socialAccountsList, setSocialAccountsList] = useState([]);
   const [selectedWizardAccountIds, setSelectedWizardAccountIds] = useState([]);
+  const [wizardAccountGroups, setWizardAccountGroups] = useState([]);
 
   // Result screen action state
   const [actionLoading, setActionLoading] = useState(false);
@@ -401,13 +402,15 @@ export default function Wizard() {
       })
       .catch(() => {});
 
-    socialAPI.getAccounts()
-      .then(r => {
-        const accounts = (r.data || []).filter(a => a.enabled);
-        setSocialAccountsList(accounts);
-        setConnectedPlatforms(accounts.map(a => a.platform));
-      })
-      .catch(() => { setSocialAccountsList([]); setConnectedPlatforms([]); });
+    Promise.all([
+      socialAPI.getAccounts(),
+      socialAPI.getGroups().catch(() => ({ data: [] })),
+    ]).then(([accountsRes, groupsRes]) => {
+      const accounts = (accountsRes.data || []).filter(a => a.enabled);
+      setSocialAccountsList(accounts);
+      setConnectedPlatforms(accounts.map(a => a.platform));
+      setWizardAccountGroups(groupsRes.data || []);
+    }).catch(() => { setSocialAccountsList([]); setConnectedPlatforms([]); });
 
     // Handle navigation from dashboard suggestion banner
     const suggestionPost = sessionStorage.getItem('suggestionPost');
@@ -1401,6 +1404,16 @@ export default function Wizard() {
                 {socialAccountsList.length > 0 && (
                   <div style={{ paddingTop: 14, paddingBottom: 4, borderTop: `1px solid ${t.border}`, marginTop: 4 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Post to</div>
+                    {/* Group quick-select chips */}
+                    {wizardAccountGroups.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                        {wizardAccountGroups.map(group => (
+                          <button key={group.id} type="button" onClick={() => setSelectedWizardAccountIds(group.account_ids || [])} style={{ padding: '4px 10px', borderRadius: 20, border: `1.5px solid ${t.primary}`, background: t.primaryBg, color: t.primary, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                            {group.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                       {PLATFORMS.filter(p => p.id !== 'all' && socialAccountsList.some(a => a.platform === p.id)).map(({ id: platId, label: platLabel, icon: PlatIcon }) => {
                         const platAccounts = socialAccountsList.filter(a => a.platform === platId);

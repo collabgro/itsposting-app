@@ -213,14 +213,17 @@ module.exports = (pool) => {
       }
       const postResult = await client.query(
         `INSERT INTO posts (customer_id, content_type, caption, hashtags, media_url, media_urls,
-          platforms, scheduled_date, scheduled_timezone, status, source, uploaded_by_user, credits_used, generation_method)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+          platforms, scheduled_date, scheduled_timezone, status, source, uploaded_by_user, credits_used,
+          generation_method, platform_captions, location_id, location_name)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
         [
           req.customerId, contentType, caption, JSON.stringify(hashtags || []),
           contentType !== 'carousel' ? mediaUrl : (mediaUrls?.[0] || null),
           JSON.stringify(contentType === 'carousel' ? mediaUrls : [mediaUrl]),
           JSON.stringify(platforms || []), utcScheduledDate,
           resolvedTz, status, 'manual_upload', true, 0, 'manual_upload',
+          platform_captions ? JSON.stringify(platform_captions) : null,
+          location_id || null, location_name || null,
         ]
       );
       const post = postResult.rows[0];

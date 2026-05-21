@@ -119,7 +119,7 @@ class SocialPublisher {
     const token  = account.access_token;
     if (!pageId) throw new Error('Facebook Page ID not stored — reconnect the account');
 
-    const caption = this.buildCaption(post);
+    const caption = this.buildCaption(post, 'facebook');
 
     if (post.media_url) {
       const res = await axios.post(
@@ -144,7 +144,7 @@ class SocialPublisher {
     if (!igUserId) throw new Error('Instagram Business Account ID not stored — reconnect the account');
     if (!post.media_url) throw new Error('Instagram requires an image or video URL');
 
-    const caption = this.buildCaption(post);
+    const caption = this.buildCaption(post, 'instagram');
 
     // Step 1 — create media container
     const containerRes = await axios.post(
@@ -201,7 +201,7 @@ class SocialPublisher {
 
     const body = {
       languageCode: 'en-US',
-      summary: this.buildCaption(post),
+      summary: this.buildCaption(post, 'google_business'),
       callToAction: { actionType: 'LEARN_MORE' },
     };
     if (post.media_url) {
@@ -221,7 +221,7 @@ class SocialPublisher {
     const authorUrn = account.account_id; // e.g. "urn:li:person:abc123" or "urn:li:organization:123456"
     if (!authorUrn) throw new Error('LinkedIn author URN not stored — reconnect the account');
 
-    const caption = this.buildCaption(post);
+    const caption = this.buildCaption(post, 'linkedin');
 
     let mediaAsset = null;
     if (post.media_url) {
@@ -290,7 +290,7 @@ class SocialPublisher {
     const token = account.access_token;
     if (!post.media_url) throw new Error('TikTok requires a photo or video URL');
 
-    const caption = this.buildCaption(post).substring(0, 2200); // TikTok caption limit
+    const caption = this.buildCaption(post, 'tiktok').substring(0, 150); // TikTok 150-char limit
 
     // TikTok Content Posting API — Direct Post (Photo)
     const initRes = await axios.post(
@@ -397,8 +397,18 @@ class SocialPublisher {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  buildCaption(post) {
-    let text = post.caption || '';
+  captionForPlatform(post, platform) {
+    let platformCaptions = {};
+    try {
+      platformCaptions = typeof post.platform_captions === 'string'
+        ? JSON.parse(post.platform_captions)
+        : (post.platform_captions || {});
+    } catch { platformCaptions = {}; }
+    return platformCaptions[platform] || post.caption || '';
+  }
+
+  buildCaption(post, platform) {
+    let text = platform ? this.captionForPlatform(post, platform) : (post.caption || '');
     let tags = [];
     try {
       tags = Array.isArray(post.hashtags) ? post.hashtags : JSON.parse(post.hashtags || '[]');

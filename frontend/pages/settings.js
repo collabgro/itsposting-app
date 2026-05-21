@@ -411,6 +411,13 @@ export default function Settings() {
   const [revokeConfirmId, setRevokeConfirmId] = useState(null);
   const [keyCopied, setKeyCopied] = useState(false);
 
+  // Account Groups
+  const [accountGroups, setAccountGroups] = useState([]);
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [editingGroup, setEditingGroup] = useState(null); // null = new, object = editing
+  const [groupForm, setGroupForm] = useState({ name: '', accountIds: [] });
+  const [groupSaving, setGroupSaving] = useState(false);
+
   const openCreateKeyModal = () => {
     setNewKeyForm({ name: '', expiry: 'never', scopes: [] });
     setCreateKeyStep(1);
@@ -539,13 +546,55 @@ export default function Settings() {
 
   const loadSocialAccounts = async () => {
     try {
-      const [accountsRes, statusRes] = await Promise.all([
+      const [accountsRes, statusRes, groupsRes] = await Promise.all([
         socialAPI.getAccounts(),
         socialAPI.getStatus(),
+        socialAPI.getGroups().catch(() => ({ data: [] })),
       ]);
       setSocialAccounts(accountsRes.data);
       setSocialStatus(statusRes.data);
+      setAccountGroups(groupsRes.data || []);
     } catch {}
+  };
+
+  const openNewGroup = () => {
+    setEditingGroup(null);
+    setGroupForm({ name: '', accountIds: [] });
+    setShowGroupModal(true);
+  };
+
+  const openEditGroup = (group) => {
+    setEditingGroup(group);
+    setGroupForm({ name: group.name, accountIds: group.account_ids || [] });
+    setShowGroupModal(true);
+  };
+
+  const handleSaveGroup = async () => {
+    if (!groupForm.name.trim()) return;
+    setGroupSaving(true);
+    try {
+      if (editingGroup) {
+        const res = await socialAPI.updateGroup(editingGroup.id, { name: groupForm.name, accountIds: groupForm.accountIds });
+        setAccountGroups(g => g.map(x => x.id === editingGroup.id ? { ...x, ...res.data } : x));
+      } else {
+        const res = await socialAPI.createGroup({ name: groupForm.name, accountIds: groupForm.accountIds });
+        setAccountGroups(g => [...g, res.data]);
+      }
+      setShowGroupModal(false);
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to save group', 'error');
+    } finally {
+      setGroupSaving(false);
+    }
+  };
+
+  const handleDeleteGroup = async (id) => {
+    try {
+      await socialAPI.deleteGroup(id);
+      setAccountGroups(g => g.filter(x => x.id !== id));
+    } catch {
+      showToast('Failed to delete group', 'error');
+    }
   };
 
   const handleScrape = async () => {
@@ -1087,6 +1136,84 @@ export default function Settings() {
             })}
           </div>
         </Card>
+
+        {/* Account Groups */}
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 3 }}>Account Groups</div>
+              <div style={{ fontSize: 12, color: t.textMuted }}>Bundle accounts for one-click selection when posting</div>
+            </div>
+            <Button variant="primary" size="sm" onClick={openNewGroup} disabled={socialAccounts.length === 0}>+ New Group</Button>
+          </div>
+          {accountGroups.length === 0 ? (
+            <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 13, color: t.textMuted }}>
+              {socialAccounts.length === 0 ? 'Connect accounts first, then create groups.' : 'No groups yet. Create one to bundle accounts for quick selection.'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {accountGroups.map(group => {
+                const memberNames = socialAccounts
+                  .filter(a => (group.account_ids || []).includes(a.id))
+                  .map(a => a.account_name || a.username || a.platform);
+                return (
+                  <div key={group.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}` }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{group.name}</div>
+                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
+                        {memberNames.length > 0 ? memberNames.join(' · ') : 'No accounts'}
+                        <span style={{ marginLeft: 6, padding: '1px 6px', background: t.primaryBg, color: t.primary, borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                          {(group.account_ids || []).length}
+                        </span>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => openEditGroup(group)}>Edit</Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteGroup(group.id)} style={{ color: t.error }}>Delete</Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        {/* Group create/edit modal */}
+        {showGroupModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowGroupModal(false)}>
+            <div style={{ background: t.card, borderRadius: 14, padding: 24, width: '100%', maxWidth: 420, border: `1px solid ${t.border}` }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 16 }}>{editingGroup ? 'Edit Group' : 'New Group'}</div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Group Name</label>
+                <input
+                  value={groupForm.name}
+                  onChange={e => setGroupForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. All Facebook Pages"
+                  style={{ width: '100%', padding: '9px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Accounts in this group</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 220, overflowY: 'auto' }}>
+                  {socialAccounts.filter(a => a.enabled).map(account => {
+                    const checked = groupForm.accountIds.includes(account.id);
+                    return (
+                      <label key={account.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '5px 8px', borderRadius: 7, background: checked ? t.primaryBg : 'transparent', border: `1px solid ${checked ? t.primaryBorder : 'transparent'}` }}>
+                        <input type="checkbox" checked={checked} onChange={() => setGroupForm(f => ({ ...f, accountIds: f.accountIds.includes(account.id) ? f.accountIds.filter(x => x !== account.id) : [...f.accountIds, account.id] }))} style={{ accentColor: t.primary }} />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{account.account_name || account.username || account.platform}</span>
+                        <span style={{ fontSize: 11, color: t.textMuted, textTransform: 'capitalize' }}>{account.platform.replace('_', ' ')}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Button variant="primary" onClick={handleSaveGroup} disabled={groupSaving || !groupForm.name.trim()} style={{ flex: 1 }}>
+                  {groupSaving ? 'Saving...' : 'Save Group'}
+                </Button>
+                <Button variant="secondary" onClick={() => setShowGroupModal(false)}>Cancel</Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Developer API Keys */}
         {(() => {

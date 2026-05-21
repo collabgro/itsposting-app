@@ -53,6 +53,9 @@ export default function Upload() {
   const [platforms, setPlatforms] = useState(['facebook', 'instagram']);
   const [selectedAccountIds, setSelectedAccountIds] = useState([]);
   const [socialAccounts, setSocialAccounts] = useState([]);
+  const [accountGroups, setAccountGroups] = useState([]);
+  const [customCaptionsEnabled, setCustomCaptionsEnabled] = useState(false);
+  const [platformCaptions, setPlatformCaptions] = useState({});
   const [previewPlatform, setPreviewPlatform] = useState('facebook');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('09:00');
@@ -82,10 +85,14 @@ export default function Upload() {
 
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
 
-    // Load connected social accounts for the account picker
-    socialAPI.getAccounts().then(res => {
-      const accounts = res.data || [];
+    // Load connected social accounts and groups for the account picker
+    Promise.all([
+      socialAPI.getAccounts(),
+      socialAPI.getGroups().catch(() => ({ data: [] })),
+    ]).then(([accountsRes, groupsRes]) => {
+      const accounts = accountsRes.data || [];
       setSocialAccounts(accounts);
+      setAccountGroups(groupsRes.data || []);
       // Default-select all enabled accounts
       setSelectedAccountIds(accounts.filter(a => a.enabled).map(a => a.id));
       // Sync platforms state for charLimit/previewPlatform
@@ -236,6 +243,7 @@ export default function Upload() {
       const { data: postData } = await uploadAPI.createPost({
         contentType, mediaUrl, mediaUrls, caption, hashtags: hashtagArr,
         platforms, accountIds: selectedAccountIds,
+        platform_captions: customCaptionsEnabled && Object.keys(platformCaptions).length > 0 ? platformCaptions : undefined,
         scheduledDate: scheduledDateTime,
         publishNow: scheduleMode === 'now',
       });
@@ -277,7 +285,11 @@ export default function Upload() {
   // ── computed ──────────────────────────────────────────────────────────────
   const allSelected = platforms.length === ALL_PLATFORM_IDS.length;
   const charLimit = CHAR_LIMITS[previewPlatform] || 63206;
-  const overLimitPlatforms = platforms.filter(p => CHAR_LIMITS[p] && caption.length > CHAR_LIMITS[p]);
+  const overLimitPlatforms = platforms.filter(p => {
+    if (!CHAR_LIMITS[p]) return false;
+    const text = customCaptionsEnabled ? (platformCaptions[p] ?? caption) : caption;
+    return text.length > CHAR_LIMITS[p];
+  });
 
   const scheduledPreview = scheduleDate && scheduleTime
     ? new Date(`${scheduleDate}T${scheduleTime}`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -440,6 +452,29 @@ export default function Upload() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {/* Group quick-select chips */}
+                    {accountGroups.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Quick Select</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {accountGroups.map(group => (
+                            <button
+                              key={group.id} type="button"
+                              onClick={() => {
+                                const ids = group.account_ids || [];
+                                setSelectedAccountIds(ids);
+                                const uniquePlatforms = [...new Set(socialAccounts.filter(a => ids.includes(a.id)).map(a => a.platform))];
+                                setPlatforms(uniquePlatforms.length ? uniquePlatforms : []);
+                              }}
+                              style={{ padding: '5px 11px', borderRadius: 20, border: `1.5px solid ${t.primary}`, background: t.primaryBg, color: t.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                            >
+                              {group.name}
+                              <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.7 }}>({(group.account_ids || []).length})</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {PLATFORMS.filter(p => socialAccounts.some(a => a.platform === p.id)).map(({ id: platId, name: platName, icon: PlatIcon }) => {
                       const platAccounts = socialAccounts.filter(a => a.platform === platId);
                       const meta = PLATFORM_META[platId];
@@ -494,15 +529,53 @@ export default function Upload() {
               <Card>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Caption</label>
-                  <span style={{ fontSize: 11, color: caption.length > charLimit ? t.error : t.textMuted, fontWeight: caption.length > charLimit ? 700 : 400 }}>
-                    {caption.length.toLocaleString()} / {charLimit.toLocaleString()}
-                  </span>
-                </div>
-                <Textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Write a caption…" rows={7} />
-                {overLimitPlatforms.length > 0 && (
-                  <div style={{ marginTop: 8, padding: '7px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 7, fontSize: 12, color: t.error }}>
-                    Too long for: {overLimitPlatforms.map(p => `${PLATFORM_META[p]?.label || p} (${caption.length.toLocaleString()} / ${CHAR_LIMITS[p].toLocaleString()})`).join(' · ')}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {!customCaptionsEnabled && (
+                      <span style={{ fontSize: 11, color: caption.length > charLimit ? t.error : t.textMuted, fontWeight: caption.length > charLimit ? 700 : 400 }}>
+                        {caption.length.toLocaleString()} / {charLimit.toLocaleString()}
+                      </span>
+                    )}
+                    {platforms.length > 1 && (
+                      <button type="button" onClick={() => setCustomCaptionsEnabled(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: customCaptionsEnabled ? t.primary : t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', textDecoration: 'underline' }}>
+                        {customCaptionsEnabled ? 'One caption' : 'Customize per platform'}
+                      </button>
+                    )}
                   </div>
+                </div>
+
+                {customCaptionsEnabled && platforms.length > 1 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {platforms.map(platId => {
+                      const meta = PLATFORM_META[platId];
+                      const limit = CHAR_LIMITS[platId] || 63206;
+                      const val = platformCaptions[platId] ?? caption;
+                      const over = val.length > limit;
+                      return (
+                        <div key={platId}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: meta?.color || t.textSecondary }}>{meta?.label || platId}</label>
+                            <span style={{ fontSize: 10, color: over ? t.error : t.textMuted, fontWeight: over ? 700 : 400 }}>{val.length.toLocaleString()} / {limit.toLocaleString()}</span>
+                          </div>
+                          <Textarea
+                            value={val}
+                            onChange={e => setPlatformCaptions(prev => ({ ...prev, [platId]: e.target.value }))}
+                            placeholder={`Caption for ${meta?.label || platId}…`}
+                            rows={4}
+                            style={{ borderColor: over ? t.error : undefined }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <>
+                    <Textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Write a caption…" rows={7} />
+                    {overLimitPlatforms.length > 0 && (
+                      <div style={{ marginTop: 8, padding: '7px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 7, fontSize: 12, color: t.error }}>
+                        Too long for: {overLimitPlatforms.map(p => `${PLATFORM_META[p]?.label || p} (${caption.length.toLocaleString()} / ${CHAR_LIMITS[p].toLocaleString()})`).join(' · ')}
+                      </div>
+                    )}
+                  </>
                 )}
                 <div style={{ marginTop: 10 }}>
                   <Input value={hashtags} onChange={e => setHashtags(e.target.value)} placeholder="#social #marketing #yourcity" />
