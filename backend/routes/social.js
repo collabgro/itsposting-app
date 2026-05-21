@@ -195,10 +195,7 @@ module.exports = (pool) => {
       const { picture } = profileRes.data;
       const profileImageUrl = picture?.data?.url || null;
 
-      // Step 1: Fetch pages with a SIMPLE request (no field expansion).
-      // Requesting Instagram sub-fields in the same call causes Facebook to
-      // filter which pages are returned — only 1 of 3 selected pages comes back.
-      // Keep this call minimal so ALL selected pages are returned.
+      // Step 1: Fetch pages
       const pagesRes = await axios.get('https://graph.facebook.com/v21.0/me/accounts', {
         params: {
           fields: 'id,name,access_token',
@@ -206,8 +203,11 @@ module.exports = (pool) => {
           limit: 100,
         },
       });
-      const pages = pagesRes.data?.data || [];
 
+      // Log the full raw response so we can see any error object from Facebook
+      console.log('[Social/FB] /me/accounts raw:', JSON.stringify(pagesRes.data).substring(0, 800));
+
+      const pages = pagesRes.data?.data || [];
       console.log(`[Social/FB] customer=${customerId} pages_returned=${pages.length} names=${pages.map(p => p.name).join(', ')}`);
 
       // Reject if no pages — personal tokens cannot post to Pages
