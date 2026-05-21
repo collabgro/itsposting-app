@@ -3,6 +3,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
 const SocialPublisher = require('../services/SocialPublisher');
+const Anthropic = require('@anthropic-ai/sdk');
 
 // OAuth state — HMAC-signed so attackers can't forge customerId in the state parameter.
 function createOAuthState(customerId) {
@@ -790,6 +791,103 @@ module.exports = (pool) => {
     } catch (error) {
       console.error('[social/publish]', error.message);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── GET /api/social/reviews ──────────────────────────────────────────────
+  // Fetch recent Google Business reviews for the connected GMB account.
+  // Simple in-process 60-min cache to avoid rate limits.
+  const reviewsCache = new Map(); // customerId → { reviews, fetchedAt }
+
+  router.get('/reviews', authenticate, async (req, res) => {
+    try {
+      const cached = reviewsCache.get(req.customerId);
+      if (cached && Date.now() - cached.fetchedAt < 60 * 60 * 1000) {
+        return res.json({ reviews: cached.reviews, cached: true });
+      }
+
+      const accountRes = await pool.query(
+        `SELECT access_token, refresh_token, account_id FROM social_accounts
+          WHERE customer_id=$1 AND platform='google_business' AND enabled=true LIMIT 1`,
+        [req.customerId]
+      );
+      if (!accountRes.rows[0]) {
+        return res.json({ reviews: [], error: 'Connect Google Business to see reviews' });
+      }
+      const { access_token, account_id } = accountRes.rows[0];
+
+      // account_id is a location name like "accounts/123/locations/456"
+      let locationName = account_id;
+
+      // Fetch reviews from GMB API v4
+      const reviewsRes = await axios.get(
+        `https://mybusiness.googleapis.com/v4/${locationName}/reviews`,
+        {
+          params: { pageSize: 10 },
+          headers: { Authorization: `Bearer ${access_token}` },
+          timeout: 10000,
+        }
+      );
+
+      const reviews = (reviewsRes.data?.reviews || []).map(r => ({
+        id: r.reviewId,
+        reviewerName: r.reviewer?.displayName || 'A customer',
+        starRating: { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 }[r.starRating] || 5,
+        text: r.comment || '',
+        date: r.createTime,
+      }));
+
+      reviewsCache.set(req.customerId, { reviews, fetchedAt: Date.now() });
+      res.json({ reviews });
+    } catch (err) {
+      console.error('[social/reviews]', err.message);
+      res.json({ reviews: [], error: 'Could not fetch reviews' });
+    }
+  });
+
+  // ── POST /api/social/reviews/generate-post ───────────────────────────────
+  // Generate a social post caption from a Google review using Claude.
+  router.post('/reviews/generate-post', authenticate, async (req, res) => {
+    try {
+      const { reviewText, reviewerName, starRating } = req.body;
+      if (!reviewText) return res.status(400).json({ error: 'reviewText required' });
+
+      const customerRes = await pool.query(
+        'SELECT business_name, industry, city FROM customers WHERE id=$1',
+        [req.customerId]
+      );
+      const customer = customerRes.rows[0] || {};
+      const stars = '⭐'.repeat(Math.min(starRating || 5, 5));
+
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const msg = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 400,
+        messages: [{
+          role: 'user',
+          content: `Turn this ${starRating || 5}-star Google review into a short, genuine social media post for ${customer.business_name || 'our business'} in ${customer.city || 'our area'}.
+Review from ${reviewerName}: "${reviewText}"
+
+Rules:
+- Thank the customer by name naturally
+- Highlight the specific service or outcome mentioned
+- End with a soft engagement question
+- Sound human, not corporate
+- Max 150 words
+- No hashtags (user will add those)
+- No quotation marks around the review text
+
+Reply with ONLY the caption text, nothing else.`,
+        }],
+      });
+
+      const caption = msg.content[0]?.text?.trim() || '';
+      const suggestedHashtags = ['5starreview', 'happycustomer', customer.industry || 'localservice', customer.city?.toLowerCase().replace(/\s+/g, '') || 'local'].filter(Boolean);
+
+      res.json({ caption, suggestedHashtags, stars });
+    } catch (err) {
+      console.error('[social/reviews/generate-post]', err.message);
+      res.status(500).json({ error: err.message });
     }
   });
 

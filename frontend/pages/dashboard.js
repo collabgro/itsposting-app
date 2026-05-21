@@ -11,7 +11,7 @@ import {
 import Layout from '../components/Layout';
 import { Card, Button, SectionHeader, EmptyState, Spinner, Skeleton } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI } from '../lib/api';
+import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, socialAPI } from '../lib/api';
 import { format } from 'date-fns';
 import PostPreviewModal from '../components/PostPreviewModal';
 
@@ -48,6 +48,9 @@ export default function Dashboard() {
   const [showTour,       setShowTour]       = useState(false);
   const [upcomingFilter, setUpcomingFilter] = useState('all');
   const [previewPostId,  setPreviewPostId]  = useState(null);
+  const [reviews,        setReviews]        = useState(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [generatingReviewId, setGeneratingReviewId] = useState(null);
 
   const loadDashboard = () => {
     setLoadError(false);
@@ -88,6 +91,28 @@ export default function Dashboard() {
     if (!localStorage.getItem('tour_done')) { setTimeout(() => setShowTour(true), 800); }
     loadDashboard();
   }, []);
+
+  const loadReviews = () => {
+    setReviewsLoading(true);
+    socialAPI.getReviews().then(res => {
+      setReviews((res.data?.reviews || []).slice(0, 3));
+    }).catch(() => setReviews([])).finally(() => setReviewsLoading(false));
+  };
+
+  const handleTurnReviewIntoPost = async (review) => {
+    setGeneratingReviewId(review.id);
+    try {
+      const res = await socialAPI.generateReviewPost({
+        reviewText: review.text,
+        reviewerName: review.reviewerName,
+        starRating: review.starRating,
+      });
+      const { caption, suggestedHashtags } = res.data;
+      sessionStorage.setItem('uploadPrefill', JSON.stringify({ caption, hashtags: suggestedHashtags }));
+      router.push('/upload');
+    } catch { /* silently fail */ }
+    finally { setGeneratingReviewId(null); }
+  };
 
   const dismissBriefing = async () => {
     setBriefingOpen(false);
@@ -268,6 +293,48 @@ export default function Dashboard() {
 
         {/* ── 3. Content Health Bar ── */}
         {contentMix && <ContentHealthBar data={contentMix} t={t} router={router} />}
+
+        {/* ── 3b. Share a Review card ── */}
+        <Card style={{ marginTop: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(234,179,8,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>⭐</div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Share a Review</div>
+                <div style={{ fontSize: 12, color: t.textMuted }}>Turn 5-star reviews into posts with one click</div>
+              </div>
+            </div>
+            {reviews === null && (
+              <Button variant="secondary" size="sm" onClick={loadReviews} disabled={reviewsLoading}>
+                {reviewsLoading ? 'Loading…' : 'Load Reviews'}
+              </Button>
+            )}
+          </div>
+          {reviews === null ? (
+            <div style={{ fontSize: 12, color: t.textMuted, padding: '6px 0' }}>
+              Load your most recent Google reviews and convert any of them into a ready-to-post caption.
+            </div>
+          ) : reviews.length === 0 ? (
+            <div style={{ fontSize: 12, color: t.textMuted }}>No reviews found. Make sure your Google Business account is connected in Settings.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {reviews.map(review => (
+                <div key={review.id} style={{ padding: '12px 14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 6 }}>
+                    <div>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: t.text }}>{review.reviewerName}</span>
+                      <span style={{ marginLeft: 8, fontSize: 12, color: '#EAB308' }}>{'⭐'.repeat(review.starRating)}</span>
+                    </div>
+                    <Button variant="primary" size="sm" onClick={() => handleTurnReviewIntoPost(review)} disabled={generatingReviewId === review.id} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      {generatingReviewId === review.id ? 'Generating…' : 'Turn into Post →'}
+                    </Button>
+                  </div>
+                  {review.text && <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.5, maxHeight: 56, overflow: 'hidden', WebkitLineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical' }}>{review.text}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
 
         {/* ── 4. Calendar + Upcoming ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 20 }}>

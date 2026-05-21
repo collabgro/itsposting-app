@@ -111,6 +111,16 @@ export default function Upload() {
       if (uniquePlatforms.length) setPlatforms(uniquePlatforms);
     }).catch(() => {});
 
+    const uploadPrefill = sessionStorage.getItem('uploadPrefill');
+    if (uploadPrefill) {
+      try {
+        const data = JSON.parse(uploadPrefill);
+        if (data.caption) setCaption(data.caption);
+        if (data.hashtags?.length) setHashtags(data.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' '));
+        sessionStorage.removeItem('uploadPrefill');
+      } catch {}
+    }
+
     const preSelected = sessionStorage.getItem('selectedMediaFile');
     if (preSelected) {
       try {
