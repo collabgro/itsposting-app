@@ -152,7 +152,10 @@ export default function Upload() {
       } catch {}
     }
 
-    return () => window.removeEventListener('resize', checkMobile);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      clearTimeout(locationTimerRef.current);
+    };
   }, []);
 
   // Keep previewPlatform in sync with selected platforms
