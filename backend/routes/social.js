@@ -73,7 +73,7 @@ module.exports = (pool) => {
     const baseUrl = getBaseUrl(req);
     const state = createOAuthState(req.customerId);
 
-    const fbScope = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_messaging', 'instagram_basic', 'instagram_content_publish', 'instagram_manage_messages', 'instagram_manage_insights', 'read_insights', 'pages_read_user_content', 'public_profile'].join(',');
+    const fbScope = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_messaging', 'instagram_basic', 'instagram_content_publish', 'instagram_manage_messages', 'instagram_manage_insights', 'read_insights', 'pages_read_user_content', 'public_profile', 'business_management'].join(',');
     const googleScope = ['https://www.googleapis.com/auth/business.manage', 'https://www.googleapis.com/auth/userinfo.profile'].join(' ');
 
     // auth_type=rerequest forces Facebook to always show the full permission
@@ -204,10 +204,51 @@ module.exports = (pool) => {
         },
       });
 
-      // Log the full raw response so we can see any error object from Facebook
       console.log('[Social/FB] /me/accounts raw:', JSON.stringify(pagesRes.data).substring(0, 800));
 
-      const pages = pagesRes.data?.data || [];
+      let pages = pagesRes.data?.data || [];
+
+      // /me/accounts returns empty when pages are managed via Meta Business Manager
+      // (not as personal pages). Fall back to the Business Manager API.
+      if (pages.length === 0) {
+        console.log('[Social/FB] /me/accounts empty — trying Business Manager API');
+        try {
+          const bizRes = await axios.get('https://graph.facebook.com/v21.0/me/businesses', {
+            params: {
+              fields: 'id,name,owned_pages{id,name},client_pages{id,name}',
+              access_token: longAccessToken,
+            },
+          });
+          console.log('[Social/FB] /me/businesses raw:', JSON.stringify(bizRes.data).substring(0, 800));
+
+          const bizPages = [];
+          for (const biz of (bizRes.data?.data || [])) {
+            for (const page of [...(biz.owned_pages?.data || []), ...(biz.client_pages?.data || [])]) {
+              if (!bizPages.find(p => p.id === page.id)) bizPages.push(page);
+            }
+          }
+
+          // Fetch the page-level access token for each Business Manager page
+          for (const page of bizPages) {
+            try {
+              const ptRes = await axios.get(`https://graph.facebook.com/v21.0/${page.id}`, {
+                params: { fields: 'id,name,access_token', access_token: longAccessToken },
+              });
+              if (ptRes.data.access_token) {
+                pages.push({ id: page.id, name: page.name, access_token: ptRes.data.access_token });
+                console.log(`[Social/FB]   biz page token ok: "${page.name}" (${page.id})`);
+              } else {
+                console.log(`[Social/FB]   biz page NO token: "${page.name}" (${page.id})`);
+              }
+            } catch (ptErr) {
+              console.log(`[Social/FB]   biz page token failed "${page.name}":`, ptErr.response?.data || ptErr.message);
+            }
+          }
+        } catch (bizErr) {
+          console.log('[Social/FB] /me/businesses failed:', bizErr.response?.data || bizErr.message);
+        }
+      }
+
       console.log(`[Social/FB] customer=${customerId} pages_returned=${pages.length} names=${pages.map(p => p.name).join(', ')}`);
 
       // Reject if no pages — personal tokens cannot post to Pages
