@@ -319,7 +319,12 @@ export default function Dashboard() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {reviews.map(review => (
-                <div key={review.id} style={{ padding: '12px 14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}` }}>
+                <div
+                  key={review.id}
+                  style={{ padding: '12px 14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, transition: 'border-color 150ms, box-shadow 150ms' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.boxShadow = t.shadowSm; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.boxShadow = 'none'; }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 6 }}>
                     <div>
                       <span style={{ fontWeight: 700, fontSize: 13, color: t.text }}>{review.reviewerName}</span>
@@ -352,7 +357,10 @@ export default function Dashboard() {
                 const dp = getPostsForDay(day);
                 return (
                   <div key={idx} onClick={() => router.push('/calendar')}
-                    style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 6, cursor: 'pointer', background: isToday ? t.primaryBg : 'transparent', border: isToday ? `1px solid ${t.primaryBorder}` : '1px solid transparent' }}>
+                    style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 6, cursor: 'pointer', background: isToday ? t.primaryBg : 'transparent', border: isToday ? `1px solid ${t.primaryBorder}` : '1px solid transparent', transition: 'background 120ms, border-color 120ms' }}
+                    onMouseEnter={(e) => { if (!isToday) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.borderStrong; } }}
+                    onMouseLeave={(e) => { if (!isToday) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; } }}
+                  >
                     <span style={{ fontSize: 12, color: isToday ? t.primary : t.textSecondary, fontWeight: isToday ? 700 : 400 }}>{day}</span>
                     {dp.length > 0 && (
                       <div style={{ display: 'flex', gap: 2 }}>

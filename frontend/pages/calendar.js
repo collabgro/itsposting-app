@@ -375,8 +375,18 @@ export default function Calendar() {
                           opacity: !isCurrentMonth ? 0.35 : isPast ? 0.45 : 1,
                           transition: 'all 150ms',
                         }}
-                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = t.primaryBorder; }}
-                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = isToday ? t.primaryBorder : t.border; }}
+                        onMouseEnter={e => {
+                          if (!isSelected) {
+                            e.currentTarget.style.borderColor = t.primaryBorder;
+                            e.currentTarget.style.background = isToday ? 'rgba(124,92,252,0.08)' : t.cardHover;
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          if (!isSelected) {
+                            e.currentTarget.style.borderColor = isToday ? t.primaryBorder : t.border;
+                            e.currentTarget.style.background = isToday ? 'rgba(124,92,252,0.05)' : isCurrentMonth ? t.card : t.input;
+                          }
+                        }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                           <span style={{ fontSize: 12, fontWeight: isToday ? 700 : isSelected ? 600 : 400, color: isToday || isSelected ? t.primary : t.textSecondary }}>

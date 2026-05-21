@@ -391,11 +391,26 @@ export default function Layout({ children, title, subtitle, action }) {
           <div style={{ padding: '12px', flexShrink: 0 }}>
             <button
               onClick={() => router.push('/wizard')}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '11px 14px', background: `linear-gradient(135deg, ${t.primary} 0%, ${t.primaryHover} 100%)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, transition: 'opacity 150ms ease', cursor: 'pointer', boxShadow: `0 2px 12px ${t.primaryBorder}` }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 8, padding: '11px 14px',
+                background: `linear-gradient(135deg, ${t.primary} 0%, ${t.primaryLight} 100%)`,
+                border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700,
+                transition: 'transform 150ms ease, box-shadow 150ms ease', cursor: 'pointer',
+                boxShadow: `0 2px 14px ${t.focusRing}`,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = `0 4px 20px ${t.focusRing}`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = `0 2px 14px ${t.focusRing}`;
+              }}
+              onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(0.98)'; }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-1px) scale(1)'; }}
             >
-              <IpPlus size={15} color="#fff" />
+              <IpSparkle size={15} color="#fff" />
               Create new post
             </button>
           </div>
@@ -428,8 +443,18 @@ export default function Layout({ children, title, subtitle, action }) {
                   transition: 'all 150ms ease', whiteSpace: 'nowrap',
                   textDecoration: 'none', position: 'relative',
                 }}
-                onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = t.cardHover; }}
-                onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.background = t.cardHover;
+                    e.currentTarget.style.color = t.text;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = t.textSecondary;
+                  }
+                }}
               >
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   <item.icon size={16} strokeWidth={2} color={active ? 'url(#brand-gradient)' : (item.isAdmin ? 'url(#brand-gradient)' : t.textMuted)} />
@@ -644,14 +669,125 @@ export default function Layout({ children, title, subtitle, action }) {
         )}
 
         {/* PAGE CONTENT */}
-        <div style={{
-          padding: isMobile ? 16 : 32,
-          minHeight: 'calc(100vh - 64px)',
-          width: '100%',
-          maxWidth: '100vw',
-          overflowX: 'hidden',
-        }}>{children}</div>
+        <div
+          key={router.pathname}
+          className="page-fade-in"
+          style={{
+            padding: isMobile ? 16 : 32,
+            paddingBottom: isMobile ? 'calc(68px + env(safe-area-inset-bottom))' : 32,
+            minHeight: 'calc(100vh - 64px)',
+            width: '100%',
+            maxWidth: '100vw',
+            overflowX: 'hidden',
+          }}
+        >{children}</div>
       </main>
+
+      {/* MOBILE BOTTOM NAV */}
+      {isMobile && (
+        <nav style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 70,
+          background: t.sidebar, borderTop: `1px solid ${t.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-around',
+          height: 60, paddingBottom: 'env(safe-area-inset-bottom)',
+          backdropFilter: 'blur(20px)',
+        }}>
+          {/* Home */}
+          {[
+            { href: '/dashboard',  icon: IpDashboard,  label: 'Home'     },
+            { href: '/calendar',   icon: IpCalendar,   label: 'Calendar' },
+          ].slice(0, 2).map(({ href, icon: Icon, label }) => {
+            const active = router.pathname === href || router.pathname.startsWith(href + '/');
+            return (
+              <Link key={href} href={href} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                padding: '6px 16px', borderRadius: 10, textDecoration: 'none', flex: 1,
+                color: active ? t.primary : t.textMuted,
+                transition: 'color 150ms',
+              }}>
+                <div style={{ position: 'relative' }}>
+                  <Icon size={22} color={active ? 'url(#brand-gradient)' : t.textMuted} />
+                  {active && (
+                    <div style={{
+                      position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)',
+                      width: 4, height: 4, borderRadius: '50%',
+                      background: t.primary,
+                    }} />
+                  )}
+                </div>
+                <span style={{ fontSize: 10, fontWeight: active ? 700 : 500 }}>{label}</span>
+              </Link>
+            );
+          })}
+
+          {/* Center CREATE button */}
+          <button
+            onClick={() => router.push('/wizard')}
+            style={{
+              width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+              background: `linear-gradient(135deg, ${t.primary} 0%, ${t.primaryLight} 100%)`,
+              border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: `0 4px 20px ${t.focusRing}`,
+              cursor: 'pointer', transition: 'transform 150ms ease, box-shadow 150ms ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.06)'; e.currentTarget.style.boxShadow = `0 6px 24px ${t.focusRing}`; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = `0 4px 20px ${t.focusRing}`; }}
+            onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; }}
+            onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1.06)'; }}
+            title="Post Wizard"
+          >
+            <IpSparkle size={22} color="#fff" />
+          </button>
+
+          {[
+            { href: '/analytics', icon: IpAnalytics, label: 'Analytics' },
+          ].map(({ href, icon: Icon, label }) => {
+            const active = router.pathname === href || router.pathname.startsWith(href + '/');
+            return (
+              <Link key={href} href={href} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                padding: '6px 16px', borderRadius: 10, textDecoration: 'none', flex: 1,
+                color: active ? t.primary : t.textMuted,
+                transition: 'color 150ms',
+              }}>
+                <div style={{ position: 'relative' }}>
+                  <Icon size={22} color={active ? 'url(#brand-gradient)' : t.textMuted} />
+                  {active && (
+                    <div style={{
+                      position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)',
+                      width: 4, height: 4, borderRadius: '50%', background: t.primary,
+                    }} />
+                  )}
+                </div>
+                <span style={{ fontSize: 10, fontWeight: active ? 700 : 500 }}>{label}</span>
+              </Link>
+            );
+          })}
+
+          {/* More / menu */}
+          <button
+            onClick={() => setMobileNavOpen(true)}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              padding: '6px 16px', flex: 1,
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: t.textMuted, transition: 'color 150ms',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = t.text; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = t.textMuted; }}
+          >
+            {user && (user.logo_url || user.favicon_url) ? (
+              <img
+                src={user.logo_url || user.favicon_url} alt=""
+                style={{ width: 22, height: 22, borderRadius: 6, objectFit: 'cover', border: `1.5px solid ${t.border}` }}
+              />
+            ) : (
+              <IpMenu size={22} />
+            )}
+            <span style={{ fontSize: 10, fontWeight: 500 }}>More</span>
+          </button>
+        </nav>
+      )}
 
       {/* LOGOUT CONFIRMATION */}
       {showLogoutConfirm && (

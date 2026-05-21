@@ -39,13 +39,17 @@ function InstallBanner() {
 
   if (!visible) return null;
 
+  const isSmall = typeof window !== 'undefined' && window.innerWidth < 768;
   return (
     <div style={{
-      position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+      position: 'fixed',
+      bottom: isSmall ? 76 : 20,
+      left: '50%', transform: 'translateX(-50%)',
       background: t.card, border: `1px solid ${t.primaryBorder}`,
-      borderRadius: 12, padding: '12px 16px', zIndex: 9999,
+      borderRadius: 14, padding: '12px 16px', zIndex: 9998,
       display: 'flex', alignItems: 'center', gap: 12,
-      boxShadow: t.shadow, maxWidth: 420, width: 'calc(100vw - 32px)',
+      boxShadow: t.shadowMd || t.shadow, maxWidth: 420, width: 'calc(100vw - 32px)',
+      animation: 'slideUpIn 300ms cubic-bezier(0.16,1,0.3,1)',
     }}>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Add ItsPosting to your home screen</div>

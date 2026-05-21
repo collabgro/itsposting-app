@@ -701,13 +701,17 @@ export default function Upload() {
                 <div style={{ display: 'flex', gap: 10, marginBottom: previews.length > 0 ? 14 : 0, flexWrap: 'wrap' }}>
                   <button
                     type="button" onClick={() => fileInputRef.current?.click()}
-                    style={{ flex: '1 1 160px', padding: 12, background: t.input, border: `2px dashed ${t.borderStrong}`, borderRadius: 8, color: t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                    style={{ flex: '1 1 160px', padding: 14, background: t.input, border: `2px dashed ${t.borderStrong}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'border-color 150ms, background 150ms, color 150ms' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.primary; e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.color = t.primary; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.background = t.input; e.currentTarget.style.color = t.textSecondary; }}
                   >
                     <UploadIcon size={15} /> Upload from device
                   </button>
                   <button
                     type="button" onClick={openLibrary}
-                    style={{ flex: '1 1 160px', padding: 12, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                    style={{ flex: '1 1 160px', padding: 14, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background 150ms, box-shadow 150ms' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = `${t.primary}20`; e.currentTarget.style.boxShadow = `0 0 0 3px ${t.focusRing}`; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.boxShadow = 'none'; }}
                   >
                     <IpFolderOpen size={15} /> Choose from library
                   </button>
@@ -831,9 +835,15 @@ export default function Upload() {
               </Card>
 
               {/* Actions */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
-                <Button type="button" variant="secondary" onClick={() => router.push('/dashboard')}>Cancel</Button>
-                <Button type="submit" variant="primary" disabled={uploading || (selectedAccountIds.length === 0 && platforms.length === 0) || overLimitPlatforms.length > 0}>
+              <div style={{ display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', flexDirection: isMobile ? 'column-reverse' : 'row', gap: 10 }}>
+                <Button type="button" variant="secondary" onClick={() => router.push('/dashboard')} style={isMobile ? { justifyContent: 'center' } : {}}>Cancel</Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  loading={uploading}
+                  disabled={uploading || (selectedAccountIds.length === 0 && platforms.length === 0) || overLimitPlatforms.length > 0}
+                  style={isMobile ? { justifyContent: 'center' } : {}}
+                >
                   {submitLabel}
                 </Button>
               </div>

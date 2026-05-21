@@ -792,9 +792,12 @@ export default function Wizard() {
                           background: selected ? `${t.primary}12` : t.card,
                           cursor: 'pointer',
                           textAlign: 'left',
-                          transition: 'border-color 150ms, background 150ms',
+                          transition: 'border-color 150ms, background 150ms, transform 150ms, box-shadow 150ms',
                           position: 'relative',
+                          boxShadow: selected ? `0 0 0 3px ${t.focusRing}` : 'none',
                         }}
+                        onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = `${t.primary}70`; e.currentTarget.style.background = `${t.primary}06`; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+                        onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; e.currentTarget.style.transform = 'translateY(0)'; } }}
                       >
                         {vt.tag && (
                           <div style={{ position: 'absolute', top: -1, right: 12, background: t.primary, color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: '0 0 6px 6px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>

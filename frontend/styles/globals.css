@@ -39,16 +39,42 @@ a {
   text-decoration: none;
 }
 
+/* ── Text selection ──────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(155, 79, 212, 0.28);
+  color: inherit;
+}
+
+/* ── Placeholder ─────────────────────────────────────────────────────────── */
+input::placeholder,
+textarea::placeholder {
+  color: #71717A;
+}
+
+/* ── Focus-visible (keyboard nav) ────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid #9B4FD4;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* inputs/textareas use box-shadow focus, not outline */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #2E2E3A;
-  border-radius: 4px;
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #3F3F4D;
@@ -57,29 +83,101 @@ a {
 body[data-theme="light"] ::-webkit-scrollbar-thumb {
   background: #D4D4D8;
 }
+body[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #A1A1AA;
+}
 
+/* ── Mobile touch feedback ───────────────────────────────────────────────── */
+@media (hover: none) {
+  button:active {
+    transform: scale(0.97);
+    opacity: 0.85;
+    transition: transform 80ms ease, opacity 80ms ease;
+  }
+}
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUpIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400% 0; }
+  100% { background-position: 400% 0; }
+}
+
+@keyframes logo-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1;   }
+  50%       { transform: scale(0.82); opacity: 0.55; }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── Utility classes ─────────────────────────────────────────────────────── */
 .fade-in {
   animation: fadeIn 200ms ease;
 }
 
-.shimmer {
-  background: linear-gradient(90deg, #16161D 0%, #1C1C25 50%, #16161D 100%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+.page-fade-in {
+  animation: pageFadeIn 220ms ease;
 }
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+.slide-up {
+  animation: slideUpIn 250ms ease;
+}
+
+.scale-in {
+  animation: scaleIn 180ms ease;
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    #16161D 0%,
+    #1C1C25 40%,
+    #232331 50%,
+    #1C1C25 60%,
+    #16161D 100%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+body[data-theme="light"] .shimmer {
+  background: linear-gradient(
+    90deg,
+    #F4F4F5 0%,
+    #E4E4E7 40%,
+    #D4D4D8 50%,
+    #E4E4E7 60%,
+    #F4F4F5 100%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 2s ease-in-out infinite;
 }
 
 .icon-gradient {
@@ -89,7 +187,16 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb {
   background-clip: text;
 }
 
-@keyframes logo-pulse {
-  0%, 100% { transform: scale(1);    opacity: 1;   }
-  50%       { transform: scale(0.82); opacity: 0.55; }
+.animated-gradient-text {
+  background: linear-gradient(135deg, #9B4FD4, #C44BB8, #E040A0, #9B4FD4);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 4s ease infinite;
+}
+
+/* ── Bottom nav safe area ────────────────────────────────────────────────── */
+.has-bottom-nav {
+  padding-bottom: calc(60px + env(safe-area-inset-bottom));
 }
