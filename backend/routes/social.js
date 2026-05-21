@@ -61,7 +61,7 @@ module.exports = (pool) => {
       facebook:        { oauthAvailable: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
       instagram:       { oauthAvailable: !!(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET) },
       google_business: { oauthAvailable: !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) },
-      linkedin:        { oauthAvailable: !!(LINKEDIN_CLIENT_ID && LINKEDIN_CLIENT_SECRET) },
+      linkedin:        { oauthAvailable: false }, // company page OAuth requires Community Management API partner approval
       tiktok:          { oauthAvailable: !!(TIKTOK_CLIENT_KEY && TIKTOK_CLIENT_SECRET) },
     });
   });

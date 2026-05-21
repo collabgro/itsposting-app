@@ -163,7 +163,7 @@ const PLATFORM_CONFIG = {
     label: 'LinkedIn',
     Icon: IpLinkedIn,
     color: '#0A66C2',
-    description: 'Post to your company page',
+    description: 'Company page posting — requires LinkedIn partner approval',
     tokenHelp: {
       title: 'LinkedIn requires Partner Program access (2â€“8 weeks)',
       badge: 'â± Partnership approval required â€” not instant',
