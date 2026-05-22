@@ -33,6 +33,7 @@ const receptionistRoutes = require('./routes/receptionist');
 const apiKeysRoutes = require('./routes/apiKeys');
 const externalRoutes = require('./routes/external');
 const gmbMessagesRoutes = require('./routes/gmb-messages');
+const ideasRoutes = require('./routes/ideas');
 
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
@@ -432,6 +433,17 @@ console.log('══════════════════════�
     // Location tagging for FB/IG posts
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS location_name VARCHAR(255)`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS location_id   VARCHAR(255)`,
+    // Daily AI-researched post ideas per customer
+    `CREATE TABLE IF NOT EXISTS post_ideas (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id),
+      ideas JSONB NOT NULL DEFAULT '[]',
+      generated_date DATE NOT NULL,
+      refreshed_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(customer_id, generated_date)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_post_ideas_customer_date ON post_ideas(customer_id, generated_date)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -526,6 +538,7 @@ app.use('/api/receptionist', receptionistRoutes(pool));
 app.use('/api/api-keys', apiKeysRoutes(pool));
 app.use('/api/v1', externalRoutes(pool));
 app.use('/api/gmb', gmbMessagesRoutes(pool));
+app.use('/api/ideas', ideasRoutes(pool));
 
 
 app.get('/health', async (req, res) => {

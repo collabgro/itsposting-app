@@ -476,6 +476,13 @@ export default function Wizard() {
         setScheduleDate(`${target.getFullYear()}-${pad(target.getMonth()+1)}-${pad(target.getDate())}T${pad(hour)}:00`);
       }
     }
+
+    // Handle navigation from Post Ideas page (?theme=&details=&ideaTitle=)
+    const params = new URLSearchParams(window.location.search);
+    const ideaTheme = params.get('theme');
+    const ideaDetails = params.get('details');
+    if (ideaTheme) setTheme(ideaTheme);
+    if (ideaDetails) setDetails(ideaDetails);
   }, []);
 
   useEffect(() => {

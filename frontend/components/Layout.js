@@ -41,6 +41,7 @@ const NAV_ITEMS = [
   { isDivider: true, label: 'Create' },
   { name: 'Quick Post',    href: '/quick-post',     icon: IpZap,          isQuickPost: true },
   { name: 'Post Wizard',   href: '/wizard',         icon: IpWizard,       showSuggBadge: true },
+  { name: 'Post Ideas',    href: '/ideas',          icon: IpSparkle },
   { name: 'Upload',        href: '/upload',         icon: IpCreatePost },
 
   { isDivider: true, label: 'Manage' },

@@ -321,4 +321,10 @@ export const apiKeysAPI = {
   revoke: (id) => api.delete(`/api/api-keys/${id}`),
 };
 
+export const ideasAPI = {
+  getToday:  ()   => api.get('/api/ideas/today'),
+  refresh:   ()   => api.post('/api/ideas/refresh'),
+  markUsed:  (id) => api.post(`/api/ideas/${id}/use`),
+};
+
 export default api;
