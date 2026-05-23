@@ -33,7 +33,7 @@ const COLOR_PALETTE = [
   '#ef4444', '#3b82f6', '#ec4899', '#0ea5e9', '#84cc16',
 ];
 
-const SNAP_THRESHOLD = 6;
+const SNAP_THRESHOLD = 5;
 
 // ─── BgImage ─────────────────────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ function BgImage({ url, filter, brightness, contrast, saturation, stageW, stageH
       height={scaledH}
       onClick={onClick}
       onTap={onClick}
-      stroke={isSelected ? '#7C5CFC' : undefined}
+      stroke={isSelected ? '#00C4CC' : undefined}
       strokeWidth={isSelected ? 3 : 0}
     />
   );
@@ -148,7 +148,7 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onTransformEnd={handleTransformEnd}
-      stroke={isSelected ? '#7C5CFC' : undefined}
+      stroke={isSelected ? '#00C4CC' : undefined}
       strokeWidth={isSelected ? 1.5 : 0}
     />
   );
@@ -192,10 +192,14 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     const node = shapeRef.current;
     if (!node) return;
     if (el.type === 'text') {
+      const scaleX = node.scaleX();
       onChange({
-        ...el, x: node.x(), y: node.y(),
-        width: Math.max(20, node.width() * node.scaleX()),
-        scaleX: 1, scaleY: 1, rotation: node.rotation(),
+        ...el,
+        x: node.x(), y: node.y(),
+        width: Math.max(5, node.width() * Math.abs(scaleX)),
+        fontSize: Math.max(8, Math.min(400, Math.round((el.fontSize || 36) * Math.abs(scaleX)))),
+        scaleX: 1, scaleY: 1,
+        rotation: node.rotation(),
       });
     } else {
       onChange({
@@ -222,7 +226,7 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     onDragMove: handleDragMove,
     onDragEnd: handleDragEnd,
     onTransformEnd: handleTransformEnd,
-    stroke: isSelected ? '#7C5CFC' : undefined,
+    stroke: isSelected ? '#00C4CC' : undefined,
     strokeWidth: isSelected ? 1.5 : 0,
   };
 
@@ -336,9 +340,20 @@ function TransformerLayer({ selectedId, elements, stageRef, snapGuides, stageSca
     <>
       <Transformer
         ref={trRef}
+        borderStroke="#00C4CC"
+        borderStrokeWidth={1.5 / stageScale}
+        anchorSize={10 / stageScale}
+        anchorCornerRadius={2 / stageScale}
+        anchorStroke="#00C4CC"
+        anchorFill="#ffffff"
+        anchorStrokeWidth={1.5 / stageScale}
+        rotateAnchorOffset={28 / stageScale}
+        rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+        rotationSnapTolerance={5}
         enabledAnchors={isText
           ? ['middle-left', 'middle-right']
-          : ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']
+          : ['top-left', 'top-right', 'bottom-left', 'bottom-right',
+             'top-center', 'bottom-center', 'middle-left', 'middle-right']
         }
         boundBoxFunc={(oldBox, newBox) => (newBox.width < 5 || newBox.height < 5 ? oldBox : newBox)}
       />
