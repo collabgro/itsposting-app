@@ -1514,22 +1514,51 @@ export default function TemplatesEditorInner() {
               File <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
             </button>
             {showFileMenu && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 190, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0' }}>
-                {[
-                  { label: 'New blank design', fn: () => { if (elements.length === 0 || confirm('Start a new blank design? Unsaved work will be lost.')) { pushHistory(); setPages([emptyPage()]); setActivePage(0); clearSelection(); setTitleForSave(''); } } },
-                  { label: 'Duplicate design',  fn: () => { const copy = JSON.parse(JSON.stringify(pages)); const now = Date.now(); copy.forEach((p,i) => { p.id = `page_${now+i}_copy`; }); pushHistory(); setPages(copy); } },
-                  { sep: true },
-                  { label: '⬇ Download PNG',  fn: () => downloadCanvas('image/png',  'png',  1)    },
-                  { label: '⬇ Download JPEG', fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
-                ].map((item, i) => item.sep
-                  ? <div key={i} style={{ height: 1, background: t.border, margin: '4px 0' }} />
-                  : <button key={i} onMouseDown={e => { e.preventDefault(); item.fn(); setShowFileMenu(false); }}
-                      style={{ width: '100%', padding: '8px 14px', border: 'none', background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = t.input; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-                      {item.label}
-                    </button>
-                )}
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 290, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden' }}>
+                {/* Header: title + dimensions */}
+                <div style={{ padding: '12px 16px 10px', borderBottom: `1px solid ${t.border}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14, maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text }}>{titleForSave || 'Untitled design'}</span>
+                    <button onMouseDown={e => { e.preventDefault(); setTitleEditing(true); setShowFileMenu(false); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 14, padding: '2px 4px', borderRadius: 4 }}>✏</button>
+                  </div>
+                  <div style={{ fontSize: 11, color: t.textMuted }}>{canvasSize.w}×{canvasSize.h}px</div>
+                </div>
+                {/* Menu items */}
+                <div style={{ padding: '4px 0' }}>
+                  {[
+                    { icon: '⊕', label: 'Create new design',      fn: () => { if (elements.length === 0 || confirm('Start a new blank design?')) { pushHistory(); setPages([emptyPage()]); setActivePage(0); clearSelection(); setTitleForSave(''); } } },
+                    { icon: '↑', label: 'Upload files',            fn: () => { triggerUpload?.(); } },
+                    null,
+                    { icon: '⚙', label: 'Settings',               arrow: true, fn: () => {} },
+                    { icon: '♿', label: 'Accessibility',          arrow: true, fn: () => {} },
+                    null,
+                    { icon: '💾', label: 'Save',                   right: saving ? 'Saving…' : 'All changes saved', fn: () => handleSave() },
+                    { icon: '⊙', label: 'Make available offline',  fn: () => {} },
+                    { icon: '📁', label: 'Move',                   fn: () => {} },
+                    { icon: '⧉', label: 'Make a copy',            fn: () => { const copy = JSON.parse(JSON.stringify(pages)); const now = Date.now(); copy.forEach((p,i) => { p.id = `page_${now+i}_copy`; }); pushHistory(); setPages(copy); } },
+                    null,
+                    { icon: '⬇', label: 'Download PNG',           fn: () => downloadCanvas('image/png',  'png',  1)    },
+                    { icon: '⬇', label: 'Download JPEG',          fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
+                    { icon: '🖨', label: 'Print',                  right: 'Ctrl+P', fn: () => window.print() },
+                    null,
+                    { icon: '⟳', label: 'Version history',        fn: () => {} },
+                    { icon: '🗑', label: 'Move to Trash',          danger: true, fn: () => {} },
+                  ].map((item, i) => item === null
+                    ? <div key={i} style={{ height: 1, background: t.border, margin: '4px 0' }} />
+                    : (
+                      <button key={i} onMouseDown={e => { e.preventDefault(); item.fn(); setShowFileMenu(false); }}
+                        style={{ width: '100%', padding: '8px 16px', border: 'none', background: 'transparent', color: item.danger ? '#ef4444' : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}
+                        onMouseEnter={e => e.currentTarget.style.background = t.input}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <span style={{ fontSize: 14, width: 16, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                        <span style={{ flex: 1 }}>{item.label}</span>
+                        {item.right && <span style={{ fontSize: 11, color: t.textMuted, flexShrink: 0 }}>{item.right}</span>}
+                        {item.arrow && <span style={{ color: t.textMuted }}>›</span>}
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1543,16 +1572,44 @@ export default function TemplatesEditorInner() {
               <span style={{ fontSize: 9, opacity: 0.6, flexShrink: 0 }}>▾</span>
             </button>
             {showResizeMenu && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 230, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0', maxHeight: 320, overflowY: 'auto' }}>
-                {CANVAS_SIZES.map(s => (
-                  <button key={s.id} onMouseDown={() => { setCanvasSizeId(s.id); setShowResizeMenu(false); }}
-                    style={{ width: '100%', padding: '8px 14px', border: 'none', background: canvasSizeId === s.id ? t.primaryBg : 'transparent', color: canvasSizeId === s.id ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                    onMouseEnter={e => { if (canvasSizeId !== s.id) e.currentTarget.style.background = t.input; }}
-                    onMouseLeave={e => { if (canvasSizeId !== s.id) e.currentTarget.style.background = 'transparent'; }}>
-                    <span>{s.label}</span>
-                    <span style={{ fontSize: 11, color: t.textMuted, flexShrink: 0 }}>{s.w}×{s.h}</span>
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 320, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden' }}>
+                {/* Search */}
+                <div style={{ padding: '10px 14px 8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '7px 12px' }}>
+                    <span style={{ color: t.textMuted }}>🔍</span>
+                    <input placeholder="Search resize options" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                  </div>
+                </div>
+                {/* Suggested */}
+                <div style={{ padding: '4px 14px 6px', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Suggested</div>
+                <div style={{ display: 'flex', gap: 8, padding: '0 14px 14px', overflowX: 'auto' }}>
+                  {[
+                    { label: 'Instagram Story',     w: 1080, h: 1920, id: 'ig_story',   tw: 34, th: 60 },
+                    { label: 'Instagram Post (4:5)', w: 1080, h: 1350, id: 'ig_portrait', tw: 38, th: 48 },
+                    { label: 'Facebook Post',        w: 1200, h:  630, id: 'fb_post',    tw: 56, th: 30 },
+                  ].map(p => (
+                    <button key={p.label} onMouseDown={() => { setCanvasSizeId(p.id); setShowResizeMenu(false); }}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: `1px solid ${canvasSizeId === p.id ? t.primary : t.border}`, borderRadius: 9, padding: '10px 8px', background: canvasSizeId === p.id ? t.primaryBg : 'transparent', cursor: 'pointer', flexShrink: 0 }}>
+                      <div style={{ width: p.tw, height: p.th, background: t.input, borderRadius: 4, border: `1px solid ${t.border}` }} />
+                      <span style={{ fontSize: 11, fontWeight: 500, textAlign: 'center', maxWidth: 80, color: t.text }}>{p.label}</span>
+                      <span style={{ fontSize: 10, color: t.textMuted }}>{p.w}×{p.h}px</span>
+                    </button>
+                  ))}
+                </div>
+                {/* Browse by category */}
+                <div style={{ padding: '4px 14px 4px', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: `1px solid ${t.border}` }}>Browse by category</div>
+                {['Custom size', 'Social media', 'Presentations', 'Videos', 'Website', 'Whiteboard'].map(c => (
+                  <button key={c} style={{ width: '100%', padding: '9px 16px', border: 'none', background: 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: t.text, fontSize: 13, cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = t.input}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <span>{c}</span><span style={{ color: t.textMuted }}>›</span>
                   </button>
                 ))}
+                <div style={{ padding: '8px 14px 10px', borderTop: `1px solid ${t.border}` }}>
+                  <button style={{ width: '100%', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                    Try it free for 30 days
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1625,10 +1682,10 @@ export default function TemplatesEditorInner() {
             ⊙ Preview
           </button>
 
-          {/* Share / Save & Post */}
-          <button onClick={handleSave} disabled={saving}
-            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: t.primary, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-            {saving ? 'Saving…' : '↑ Share'}
+          {/* Share */}
+          <button onClick={() => { setShareOpen(o => !o); setShowFileMenu(false); setShowResizeMenu(false); setShowDownloadMenu(false); setEditModeOpen(false); }}
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: shareOpen ? '#6B4FE0' : t.primary, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            Share
           </button>
 
           {/* Download dropdown */}
@@ -3452,6 +3509,74 @@ export default function TemplatesEditorInner() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Share panel ── */}
+      {shareOpen && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 299 }} onClick={() => setShareOpen(false)} />
+          <div style={{ position: 'fixed', top: 56, right: 0, width: 380, height: 'calc(100vh - 56px)', background: t.card, borderLeft: `1px solid ${t.border}`, zIndex: 300, padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 700, fontSize: 18, color: t.text }}>Share design</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: t.textMuted }}>📊 0 visitors</span>
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 16 }}>⚙</button>
+                <button onClick={() => setShareOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 20, lineHeight: 1 }}>×</button>
+              </div>
+            </div>
+            {/* People with access */}
+            <div>
+              <div style={{ fontWeight: 500, marginBottom: 8, fontSize: 14, color: t.text }}>People with access</div>
+              <input placeholder="Add people, groups or teams" style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            {/* Access level */}
+            <div>
+              <div style={{ fontWeight: 500, marginBottom: 8, fontSize: 14, color: t.text }}>Access level</div>
+              <select style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, outline: 'none' }}>
+                <option>Only you can access</option>
+                <option>Anyone with the link can view</option>
+                <option>Anyone with the link can edit</option>
+              </select>
+            </div>
+            {/* Copy link */}
+            <button onClick={() => { navigator.clipboard?.writeText(window.location.href); }}
+              style={{ background: t.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 600, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              🔗 Copy link
+            </button>
+            {/* Custom link */}
+            <button style={{ background: 'none', border: `1px solid ${t.border}`, borderRadius: 8, padding: '10px', color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              + Create custom link <span style={{ fontSize: 12 }}>👑</span>
+            </button>
+            {/* Divider */}
+            <div style={{ borderTop: `1px solid ${t.border}` }} />
+            {/* Action grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+              {[
+                { icon: '⬇', label: 'Download',      action: () => { downloadCanvas('image/png', 'png', 1); setShareOpen(false); } },
+                { icon: '▶', label: 'Present',        color: '#FF7A00', action: () => { setPreviewOpen(true); setShareOpen(false); } },
+                { icon: '🔗', label: 'Public',        action: () => {} },
+                { icon: '⊞', label: 'Template link', pro: true, action: () => {} },
+              ].map(o => (
+                <button key={o.label} onClick={o.action}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, border: `1px solid ${t.border}`, borderRadius: 8, padding: '10px 4px', background: 'transparent', cursor: 'pointer', position: 'relative' }}
+                  onMouseEnter={e => e.currentTarget.style.background = t.input}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <span style={{ fontSize: 22, color: o.color || t.text }}>{o.icon}</span>
+                  <span style={{ fontSize: 11, color: t.text }}>{o.label}</span>
+                  {o.pro && <span style={{ position: 'absolute', top: 4, right: 4, fontSize: 9 }}>👑</span>}
+                </button>
+              ))}
+            </div>
+            {/* Save button */}
+            <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 8 }}>
+              <button onClick={() => { handleSave(); setShareOpen(false); }} disabled={saving}
+                style={{ width: '100%', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '10px', color: t.text, fontSize: 13, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+                {saving ? 'Saving…' : '💾 Save design'}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* ── Preview modal ── */}
