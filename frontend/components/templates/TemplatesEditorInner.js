@@ -16,7 +16,18 @@ const CANVAS_SIZES = [
   { id: 'google_biz',  label: 'Google Business',     w: 720,  h: 720  },
 ];
 
-const FONTS = ['Inter', 'Roboto', 'Playfair Display', 'Montserrat', 'Open Sans', 'Lato', 'Oswald', 'Raleway'];
+const FONTS = [
+  // Sans-serif
+  'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Nunito', 'Poppins', 'Source Sans Pro',
+  // Serif
+  'Playfair Display', 'Merriweather', 'EB Garamond', 'Lora',
+  // Display
+  'Oswald', 'Raleway', 'Bebas Neue', 'Anton',
+  // Script / handwriting
+  'Dancing Script', 'Pacifico', 'Caveat',
+  // Monospace
+  'Space Mono', 'Courier New',
+];
 
 const FILTER_PRESETS = {
   normal: { brightness: 0,    contrast: 0,   saturation: 0    },
@@ -435,6 +446,8 @@ export default function TemplatesEditorInner() {
   // Quick actions palette
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickQuery, setQuickQuery] = useState('');
+  // Text panel font search
+  const [fontSearch, setFontSearch] = useState('');
   // Top bar dropdowns
   const [titleEditing, setTitleEditing] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -693,7 +706,7 @@ export default function TemplatesEditorInner() {
   // ── Element helpers ────────────────────────────────────────────────────────
   const uid = () => `el_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-  function addText() {
+  function addText(overrides = {}) {
     pushHistory();
     const el = {
       id: uid(), type: 'text',
@@ -701,6 +714,7 @@ export default function TemplatesEditorInner() {
       text: 'Double-click to edit',
       fontSize: 48, fontFamily: 'Inter', fontStyle: 'bold',
       fill: '#ffffff', width: 400, align: 'center', opacity: 1,
+      ...overrides,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -1582,69 +1596,102 @@ export default function TemplatesEditorInner() {
 
             {/* TEXT */}
             {activeLeftTool === 'text' && (
-              <div>
-                <button onClick={addText}
-                  style={{ width: '100%', padding: '10px 0', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 16 }}>
-                  + Add Text
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                {/* Search fonts */}
+                <div style={{ position: 'relative', marginBottom: 12 }}>
+                  <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: t.textMuted, pointerEvents: 'none' }}>🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Search fonts…"
+                    value={fontSearch}
+                    onChange={e => setFontSearch(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px 8px 32px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
+
+                {/* Add a text box button */}
+                <button onMouseDown={e => { e.preventDefault(); addText(); }}
+                  style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 14, letterSpacing: '0.01em' }}>
+                  + Add a text box
                 </button>
+
+                {/* Style presets */}
+                {!fontSearch && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Styles</div>
+                    {[
+                      { label: 'Add a heading',    fontSize: 48, fontWeight: 700, fontStyle: 'normal' },
+                      { label: 'Add a subheading', fontSize: 28, fontWeight: 600, fontStyle: 'normal' },
+                      { label: 'Add body text',     fontSize: 16, fontWeight: 400, fontStyle: 'normal' },
+                    ].map(preset => (
+                      <button key={preset.label} onMouseDown={e => { e.preventDefault(); addText({ fontSize: preset.fontSize, fontStyle: preset.fontWeight === 700 ? 'bold' : preset.fontWeight === 600 ? 'bold' : 'normal', text: preset.label }); }}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: preset.fontSize > 30 ? 18 : preset.fontSize > 20 ? 14 : 12, fontWeight: preset.fontWeight, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Scrollable font list */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Fonts</div>
+                <div style={{ flex: 1, overflowY: 'auto', marginBottom: 14 }}>
+                  {FONTS.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).map(f => {
+                    const isActive = selectedEl?.type === 'text' && (selectedEl.fontFamily || 'Inter') === f;
+                    return (
+                      <button key={f} onMouseDown={e => { e.preventDefault(); if (selectedEl?.type === 'text') handleElementChange({ ...selectedEl, fontFamily: f }); }}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: `1px solid ${isActive ? '#00C4CC' : 'transparent'}`, background: isActive ? 'rgba(0,196,204,0.08)' : 'transparent', color: t.text, fontSize: 15, fontFamily: f, textAlign: 'left', cursor: 'pointer', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {f}
+                      </button>
+                    );
+                  })}
+                  {FONTS.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).length === 0 && (
+                    <div style={{ textAlign: 'center', color: t.textMuted, fontSize: 12, padding: '20px 0' }}>No fonts match "{fontSearch}"</div>
+                  )}
+                </div>
+
+                {/* Properties — only when a text element is selected */}
                 {selectedEl?.type === 'text' && (
-                  <div>
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 4 }}>FONT</label>
-                      <select value={selectedEl.fontFamily || 'Inter'}
-                        onChange={e => handleElementChange({ ...selectedEl, fontFamily: e.target.value })}
-                        style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13 }}>
-                        {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
-                      </select>
-                    </div>
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 4 }}>SIZE</label>
-                      <input type="range" min={12} max={200} value={selectedEl.fontSize || 36}
-                        onChange={e => updateElement({ ...selectedEl, fontSize: parseInt(e.target.value) })}
-                        onMouseUp={() => pushHistory()} style={{ width: '100%' }} />
-                      <div style={{ fontSize: 12, color: t.textMuted, textAlign: 'right' }}>{selectedEl.fontSize || 36}px</div>
-                    </div>
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 4 }}>COLOR</label>
-                      <RecentColorsRow onPick={c => handleElementChange({ ...selectedEl, fill: c })} />
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {COLOR_PALETTE.map(hex => (
-                          <button key={hex} onClick={() => { handleElementChange({ ...selectedEl, fill: hex }); pickColor(hex, () => {}); }}
-                            style={{ width: 24, height: 24, borderRadius: 5, background: hex, border: selectedEl.fill === hex ? `3px solid ${t.primary}` : `1px solid ${t.border}`, cursor: 'pointer' }} />
-                        ))}
-                        <input type="color" value={selectedEl.fill || '#ffffff'}
-                          onChange={e => updateElement({ ...selectedEl, fill: e.target.value })}
-                          onBlur={e => { pushHistory(); pickColor(e.target.value, () => {}); }}
-                          style={{ width: 24, height: 24, borderRadius: 5, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 1 }} />
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
+                    {/* Size + B/I/Align row */}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10 }}>
+                      <input type="number" min={8} max={400} value={selectedEl.fontSize || 36}
+                        onChange={e => handleElementChange({ ...selectedEl, fontSize: Math.max(8, Math.min(400, parseInt(e.target.value) || 36)) })}
+                        onBlur={() => pushHistory()}
+                        style={{ width: 56, padding: '6px 8px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, textAlign: 'center' }} />
                       {[{ label: 'B', style: 'bold' }, { label: 'I', style: 'italic' }].map(({ label, style }) => {
                         const active = (selectedEl.fontStyle || '').includes(style);
                         return (
-                          <button key={style} onClick={() => {
-                            const cur = selectedEl.fontStyle || 'normal';
-                            const next = active ? cur.replace(style, '').trim() || 'normal' : (cur === 'normal' ? style : `${cur} ${style}`);
-                            handleElementChange({ ...selectedEl, fontStyle: next });
-                          }}
-                            style={{ flex: 1, padding: '6px 0', borderRadius: 7, border: `1px solid ${active ? t.primary : t.border}`, background: active ? t.primaryBg : t.input, color: active ? t.primary : t.text, fontWeight: style === 'bold' ? 700 : 400, fontStyle: style === 'italic' ? 'italic' : 'normal', cursor: 'pointer', fontSize: 14 }}>
+                          <button key={style} onMouseDown={e => { e.preventDefault(); const cur = selectedEl.fontStyle || 'normal'; const next = active ? cur.replace(style, '').trim() || 'normal' : (cur === 'normal' ? style : `${cur} ${style}`); handleElementChange({ ...selectedEl, fontStyle: next }); }}
+                            style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${active ? '#00C4CC' : t.border}`, background: active ? 'rgba(0,196,204,0.1)' : t.input, color: active ? '#00C4CC' : t.text, fontWeight: style === 'bold' ? 700 : 400, fontStyle: style === 'italic' ? 'italic' : 'normal', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>
                             {label}
                           </button>
                         );
                       })}
-                      {['left', 'center', 'right'].map(align => (
-                        <button key={align} onClick={() => handleElementChange({ ...selectedEl, align })}
-                          style={{ flex: 1, padding: '6px 0', borderRadius: 7, border: `1px solid ${selectedEl.align === align ? t.primary : t.border}`, background: selectedEl.align === align ? t.primaryBg : t.input, color: selectedEl.align === align ? t.primary : t.text, cursor: 'pointer', fontSize: 12 }}>
-                          {align === 'left' ? '⬅' : align === 'center' ? '⬛' : '➡'}
+                      {[['left', '≡'], ['center', '☰'], ['right', '≡']].map(([align, icon], i) => (
+                        <button key={align} onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, align }); }}
+                          style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${(selectedEl.align || 'left') === align ? '#00C4CC' : t.border}`, background: (selectedEl.align || 'left') === align ? 'rgba(0,196,204,0.1)' : t.input, color: (selectedEl.align || 'left') === align ? '#00C4CC' : t.text, cursor: 'pointer', fontSize: 12, flexShrink: 0, transform: i === 2 ? 'scaleX(-1)' : 'none' }}>
+                          {icon}
                         </button>
                       ))}
                     </div>
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 4 }}>OPACITY</label>
+                    {/* Color row */}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+                      {COLOR_PALETTE.map(hex => (
+                        <button key={hex} onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fill: hex }); pickColor(hex, () => {}); }}
+                          style={{ width: 22, height: 22, borderRadius: 5, background: hex, border: selectedEl.fill === hex ? `2px solid #00C4CC` : `1px solid ${t.border}`, cursor: 'pointer', flexShrink: 0 }} />
+                      ))}
+                      <input type="color" value={selectedEl.fill || '#ffffff'}
+                        onChange={e => updateElement({ ...selectedEl, fill: e.target.value })}
+                        onBlur={e => { pushHistory(); pickColor(e.target.value, () => {}); }}
+                        style={{ width: 22, height: 22, borderRadius: 5, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 1, flexShrink: 0 }} />
+                    </div>
+                    {/* Opacity */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Opacity</span>
                       <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
                         onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-                        onMouseUp={() => pushHistory()} style={{ width: '100%' }} />
-                      <div style={{ fontSize: 12, color: t.textMuted, textAlign: 'right' }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</div>
+                        onMouseUp={() => pushHistory()} style={{ flex: 1 }} />
+                      <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
                     </div>
                   </div>
                 )}
