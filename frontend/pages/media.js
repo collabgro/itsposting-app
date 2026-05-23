@@ -501,12 +501,18 @@ export default function MediaLibrary() {
       {activeTab === 'templates' && (
         <div style={{ maxWidth: 960, paddingBottom: 80 }}>
 
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: 32, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button
               onClick={() => router.push('/templates/editor')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
             >
-              <IpPhotoStudio size={15} /> Create New Template
+              <IpPhotoStudio size={15} /> New Image Template
+            </button>
+            <button
+              onClick={() => router.push('/templates/video-editor')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'transparent', color: t.primary, border: `2px solid ${t.primary}`, borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <IpVideo size={15} /> New Video Template
             </button>
           </div>
           {creationsLoading ? (
@@ -516,17 +522,30 @@ export default function MediaLibrary() {
               ))}
             </div>
           ) : creations.length === 0 ? (
-            <EmptyState icon={IpPhotoStudio} title="No templates yet" subtitle="Create your first branded graphic" />
+            <EmptyState icon={IpPhotoStudio} title="No templates yet" subtitle="Create your first branded graphic or video" />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
               {creations.map(c => (
                 <div key={c.id}
-                  onClick={() => router.push(`/templates/editor?id=${c.id}`)}
-                  style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', transition: 'border-color 150ms' }}
+                  onClick={() => router.push(c.creation_type === 'video' ? `/templates/video-editor?id=${c.id}` : `/templates/editor?id=${c.id}`)}
+                  style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', transition: 'border-color 150ms', position: 'relative' }}
                   onMouseEnter={e => e.currentTarget.style.borderColor = t.primaryBorder}
                   onMouseLeave={e => e.currentTarget.style.borderColor = t.border}
                 >
-                  <img src={c.output_url} alt={c.overlay_title} style={{ width: '100%', aspectRatio: '4/5', objectFit: 'cover', display: 'block' }} />
+                  {c.creation_type === 'video'
+                    ? (
+                      <div style={{ position: 'relative', width: '100%', aspectRatio: '9/16', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        {c.output_url
+                          ? <video src={c.output_url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          : <div style={{ color: '#666', fontSize: 11 }}>{c.render_status === 'rendering' ? 'Rendering…' : 'Processing'}</div>
+                        }
+                        <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: '2px 6px', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <IpVideo size={10} /> Video
+                        </div>
+                      </div>
+                    )
+                    : <img src={c.output_url} alt={c.overlay_title} style={{ width: '100%', aspectRatio: '4/5', objectFit: 'cover', display: 'block' }} />
+                  }
                   <div style={{ padding: '8px 10px' }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.overlay_title || 'Untitled'}</div>
                     <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>{new Date(c.created_at).toLocaleDateString()}</div>

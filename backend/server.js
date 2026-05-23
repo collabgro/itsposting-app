@@ -247,6 +247,10 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_studio_customer ON studio_creations(customer_id, created_at DESC)`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS canvas_json JSONB`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS media_library_id INTEGER REFERENCES media_library(id) ON DELETE SET NULL`,
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS creation_type VARCHAR(20) DEFAULT 'image'`,
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS video_json JSONB`,
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS render_status VARCHAR(20) DEFAULT 'none'`,
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS duration_seconds NUMERIC(8,2)`,
     // AI Receptionist — crawler job tracking
     `CREATE TABLE IF NOT EXISTS crawl_jobs (
       id SERIAL PRIMARY KEY,

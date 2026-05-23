@@ -3,6 +3,8 @@ const sharp = require('sharp');
 const Anthropic = require('@anthropic-ai/sdk');
 const { authenticate, getBillingCustomerId } = require('../middleware/auth');
 const { fetchImageAsBuffer, uploadToCloudinary } = require('../services/ImageResizer');
+const VideoComposer = require('../services/VideoComposer');
+const VideoService = require('../services/VideoService');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -407,11 +409,33 @@ Return ONLY valid JSON (no markdown fences):
     }
   });
 
-  // POST /api/studio/save  (0 credits — client-side export, upload to Cloudinary)
+  // POST /api/studio/save  (0 credits — client-side export for images; metadata-only for videos)
   router.post('/save', authenticate, async (req, res) => {
     try {
-      const { imageDataUrl, canvasJson, title = 'Untitled', canvasWidth = 1080, canvasHeight = 1350, backgroundSource = null, backgroundId = null } = req.body;
+      const { imageDataUrl, canvasJson, videoJson, creationType = 'image', title = 'Untitled', id: existingId, backgroundSource = null, backgroundId = null } = req.body;
 
+      // ── Video save (no image upload — just persist JSON) ──────────────────
+      if (creationType === 'video') {
+        if (existingId) {
+          const { rows: [updated] } = await pool.query(
+            `UPDATE studio_creations SET overlay_title = $1, video_json = $2
+             WHERE id = $3 AND customer_id = $4
+             RETURNING id, overlay_title, output_url, created_at`,
+            [title.trim(), JSON.stringify(videoJson || {}), parseInt(existingId), req.customerId]
+          );
+          if (!updated) return res.status(404).json({ error: 'Creation not found' });
+          return res.json({ creation: { id: updated.id, title: updated.overlay_title, outputUrl: updated.output_url, createdAt: updated.created_at } });
+        }
+        const { rows: [creation] } = await pool.query(
+          `INSERT INTO studio_creations (customer_id, overlay_title, video_json, creation_type, render_status, status)
+           VALUES ($1, $2, $3, 'video', 'none', 'created')
+           RETURNING id, overlay_title, output_url, created_at`,
+          [req.customerId, title.trim(), JSON.stringify(videoJson || {})]
+        );
+        return res.json({ creation: { id: creation.id, title: creation.overlay_title, outputUrl: creation.output_url, createdAt: creation.created_at } });
+      }
+
+      // ── Image save (upload DataURL to Cloudinary) ─────────────────────────
       if (!imageDataUrl || !imageDataUrl.startsWith('data:image/')) {
         return res.status(400).json({ error: 'Valid imageDataUrl is required' });
       }
@@ -481,6 +505,127 @@ Return ONLY valid JSON (no markdown fences):
     } catch (err) {
       console.error('[Studio] POST /creations/:id/post:', err.message);
       res.status(500).json({ error: 'Failed to create post from studio creation' });
+    }
+  });
+
+  // ── Video render helpers ─────────────────────────────────────────────────────
+
+  function calculateDuration(videoJson) {
+    if (!videoJson.clips?.length) return 0;
+    const last = videoJson.clips[videoJson.clips.length - 1];
+    return (last.trackStart || 0) + (last.duration || 0);
+  }
+
+  // POST /api/studio/video-render — start server-side MP4 export job
+  router.post('/video-render', authenticate, async (req, res) => {
+    try {
+      const { videoJson, title = 'Untitled Video', quality = '720p' } = req.body;
+      if (!videoJson || !Array.isArray(videoJson.clips) || videoJson.clips.length === 0) {
+        return res.status(400).json({ error: 'videoJson with at least one clip is required' });
+      }
+      if (!['720p', '1080p'].includes(quality)) {
+        return res.status(400).json({ error: 'quality must be 720p or 1080p' });
+      }
+
+      const { rows: [creation] } = await pool.query(
+        `INSERT INTO studio_creations
+           (customer_id, overlay_title, video_json, creation_type, render_status, status)
+         VALUES ($1, $2, $3, 'video', 'rendering', 'created')
+         RETURNING id`,
+        [req.customerId, title.slice(0, 255), JSON.stringify(videoJson)]
+      );
+
+      res.json({ jobId: creation.id });
+
+      setImmediate(async () => {
+        try {
+          const outputUrl = await VideoComposer.renderVideo(videoJson, req.customerId, quality);
+          const durSec = calculateDuration(videoJson);
+          await pool.query(
+            `UPDATE studio_creations
+             SET render_status = 'completed', output_url = $1, duration_seconds = $2, status = 'created'
+             WHERE id = $3`,
+            [outputUrl, durSec, creation.id]
+          );
+        } catch (err) {
+          console.error('[Studio] video-render background failed:', err.message);
+          await pool.query(
+            `UPDATE studio_creations SET render_status = 'failed' WHERE id = $1`,
+            [creation.id]
+          );
+        }
+      });
+    } catch (err) {
+      console.error('[Studio] POST /video-render:', err.message);
+      res.status(500).json({ error: 'Failed to start video render' });
+    }
+  });
+
+  // GET /api/studio/video-render/:jobId — poll render status
+  router.get('/video-render/:jobId', authenticate, async (req, res) => {
+    try {
+      const jobId = parseInt(req.params.jobId);
+      if (!jobId) return res.status(400).json({ error: 'Invalid jobId' });
+      const { rows: [c] } = await pool.query(
+        `SELECT render_status, output_url, duration_seconds FROM studio_creations
+         WHERE id = $1 AND customer_id = $2`,
+        [jobId, req.customerId]
+      );
+      if (!c) return res.status(404).json({ error: 'Render job not found' });
+      res.json({ status: c.render_status, outputUrl: c.output_url || null, duration: c.duration_seconds || null });
+    } catch (err) {
+      console.error('[Studio] GET /video-render/:jobId:', err.message);
+      res.status(500).json({ error: 'Failed to check render status' });
+    }
+  });
+
+  // POST /api/studio/ai-clip — generate an AI video clip (5 credits)
+  router.post('/ai-clip', authenticate, async (req, res) => {
+    try {
+      const { prompt, aspectRatio = '9:16', durationSeconds = 7 } = req.body;
+      if (!prompt?.trim()) return res.status(400).json({ error: 'Prompt is required' });
+
+      const billingId = await getBillingCustomerId(req);
+
+      // Atomic credit deduction (5 credits)
+      const COST = 5;
+      const { rows: [updated] } = await pool.query(
+        `UPDATE customers SET credits_balance = credits_balance - $1
+         WHERE id = $2 AND credits_balance >= $1
+         RETURNING credits_balance`,
+        [COST, billingId]
+      );
+      if (!updated) {
+        return res.status(402).json({ error: `Insufficient credits. Generating an AI clip costs ${COST} credits.` });
+      }
+
+      await pool.query(
+        `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+         VALUES ($1, 'deduct', $2, $3, 'AI video clip generation')`,
+        [billingId, COST, updated.credits_balance]
+      );
+
+      const { rows: [customer] } = await pool.query('SELECT * FROM customers WHERE id = $1', [req.customerId]);
+
+      const result = await VideoService.generate(customer, prompt.trim().slice(0, 500), {
+        videoType: 'services',
+        imagePrompt: prompt.trim().slice(0, 500),
+        aspectRatio,
+        durationSeconds: Math.min(Math.max(parseInt(durationSeconds) || 7, 3), 15),
+      });
+
+      res.json({
+        clip: {
+          url: result.url,
+          provider: result.provider,
+          duration: parseInt(durationSeconds) || 7,
+          type: 'video',
+        },
+        creditsRemaining: updated.credits_balance,
+      });
+    } catch (err) {
+      console.error('[Studio] POST /ai-clip:', err.message);
+      res.status(500).json({ error: 'Failed to generate AI clip' });
     }
   });
 
