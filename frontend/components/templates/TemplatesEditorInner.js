@@ -376,6 +376,76 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
   return null;
 }
 
+// ─── Canvas Rulers ───────────────────────────────────────────────────────────
+
+function RulerH({ canvasW, stageScale, isDark }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = isDark ? '#1a1a24' : '#f0f0f0';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = isDark ? '#2a2a38' : '#d8d8d8';
+    ctx.fillRect(0, h - 1, w, 1);
+    const majorStep = stageScale >= 2 ? 50 : stageScale >= 1 ? 100 : stageScale >= 0.5 ? 200 : 500;
+    const minorStep = majorStep / 5;
+    ctx.lineWidth = 1;
+    ctx.font = '8px system-ui, sans-serif';
+    for (let px = 0; px <= canvasW + majorStep; px += minorStep) {
+      const x = Math.round(px * stageScale) + 0.5;
+      if (x > w) break;
+      const isMajor = px % majorStep === 0;
+      ctx.strokeStyle = isDark ? (isMajor ? '#555' : '#3a3a4a') : (isMajor ? '#bbb' : '#e0e0e0');
+      ctx.beginPath(); ctx.moveTo(x, h); ctx.lineTo(x, isMajor ? 2 : h * 0.55); ctx.stroke();
+      if (isMajor && px > 0) {
+        ctx.fillStyle = isDark ? '#666' : '#999';
+        ctx.fillText(String(px), x + 2, 9);
+      }
+    }
+  }, [canvasW, stageScale, isDark]);
+  const displayW = Math.round(canvasW * stageScale);
+  return <canvas ref={ref} width={displayW} height={20} style={{ display: 'block', width: displayW, height: 20, flexShrink: 0 }} />;
+}
+
+function RulerV({ canvasH, stageScale, isDark }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = isDark ? '#1a1a24' : '#f0f0f0';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = isDark ? '#2a2a38' : '#d8d8d8';
+    ctx.fillRect(w - 1, 0, 1, h);
+    const majorStep = stageScale >= 2 ? 50 : stageScale >= 1 ? 100 : stageScale >= 0.5 ? 200 : 500;
+    const minorStep = majorStep / 5;
+    ctx.lineWidth = 1;
+    ctx.font = '8px system-ui, sans-serif';
+    for (let px = 0; px <= canvasH + majorStep; px += minorStep) {
+      const y = Math.round(px * stageScale) + 0.5;
+      if (y > h) break;
+      const isMajor = px % majorStep === 0;
+      ctx.strokeStyle = isDark ? (isMajor ? '#555' : '#3a3a4a') : (isMajor ? '#bbb' : '#e0e0e0');
+      ctx.beginPath(); ctx.moveTo(w, y); ctx.lineTo(isMajor ? 2 : w * 0.55, y); ctx.stroke();
+      if (isMajor && px > 0) {
+        ctx.fillStyle = isDark ? '#666' : '#999';
+        ctx.save();
+        ctx.translate(w - 3, y - 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(String(px), 0, 0);
+        ctx.restore();
+      }
+    }
+  }, [canvasH, stageScale, isDark]);
+  const displayH = Math.round(canvasH * stageScale);
+  return <canvas ref={ref} width={20} height={displayH} style={{ display: 'block', width: 20, height: displayH, flexShrink: 0 }} />;
+}
+
 // ─── TransformerLayer ────────────────────────────────────────────────────────
 
 function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageScale, canvasW, canvasH }) {
@@ -476,6 +546,8 @@ export default function TemplatesEditorInner() {
   const [elemTab, setElemTab] = useState('shapes');
   // Pages thumbnail sidebar
   const [showPagesPanel, setShowPagesPanel] = useState(false);
+  // Canvas rulers
+  const [showRulers, setShowRulers] = useState(false);
   // Top bar dropdowns
   const [titleEditing, setTitleEditing] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -2189,7 +2261,7 @@ export default function TemplatesEditorInner() {
               return (
                 <div key={page.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                   {/* ── Page label row ── */}
-                  <div style={{ width: stageDisplayW, display: 'flex', alignItems: 'center', gap: 6, padding: '0 2px' }}>
+                  <div style={{ width: showRulers && isActive ? stageDisplayW + 20 : stageDisplayW, display: 'flex', alignItems: 'center', gap: 6, padding: `0 2px 0 ${showRulers && isActive ? 22 : 2}px` }}>
                     <span
                       onClick={() => { setActivePage(pageIdx); setSelectedId(null); }}
                       style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#00C4CC' : t.textMuted, cursor: 'pointer', minWidth: 52, userSelect: 'none' }}
@@ -2238,6 +2310,15 @@ export default function TemplatesEditorInner() {
                     ))}
                   </div>
 
+                  {/* Ruler + canvas wrapper */}
+                  <div style={{ position: 'relative', paddingLeft: showRulers && isActive ? 20 : 0, paddingTop: showRulers && isActive ? 20 : 0 }}>
+                    {showRulers && isActive && (
+                      <>
+                        <div style={{ position: 'absolute', top: 0, left: 0, width: 20, height: 20, background: t.isDark ? '#1a1a24' : '#ebebeb', zIndex: 3, borderRight: `1px solid ${t.border}`, borderBottom: `1px solid ${t.border}` }} />
+                        <div style={{ position: 'absolute', top: 0, left: 20, zIndex: 3 }}><RulerH canvasW={canvasSize.w} stageScale={stageScale} isDark={!!t.isDark} /></div>
+                        <div style={{ position: 'absolute', top: 20, left: 0, zIndex: 3 }}><RulerV canvasH={canvasSize.h} stageScale={stageScale} isDark={!!t.isDark} /></div>
+                      </>
+                    )}
                   <div
                     style={{
                       position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0,
@@ -2496,6 +2577,7 @@ export default function TemplatesEditorInner() {
                       );
                     })()}
                   </div>
+                  </div>{/* close ruler wrapper */}
                 </div>
               );
             })}
@@ -2750,6 +2832,14 @@ export default function TemplatesEditorInner() {
             background: showPagesPanel ? 'rgba(0,196,204,0.1)' : t.input, color: showPagesPanel ? '#00C4CC' : t.text,
             fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
           ☰ Pages
+        </button>
+
+        {/* Rulers toggle */}
+        <button onClick={() => setShowRulers(o => !o)} title="Toggle rulers"
+          style={{ height: 26, padding: '0 10px', border: `1px solid ${showRulers ? '#00C4CC' : t.border}`, borderRadius: 5,
+            background: showRulers ? 'rgba(0,196,204,0.1)' : t.input, color: showRulers ? '#00C4CC' : t.text,
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+          ⊹ Rulers
         </button>
 
         {/* Fullscreen */}
