@@ -150,12 +150,22 @@ module.exports = (pool) => {
 
       const countSql = `SELECT COUNT(*) FROM stock_photos WHERE ${cleanConditions.join(' AND ')}`;
 
-      const [{ rows: photos }, { rows: countRows }] = await Promise.all([
+      const [{ rows: stockPhotos }, { rows: countRows }, { rows: myMedia }] = await Promise.all([
         pool.query(sql, cleanParams),
         pool.query(countSql, cleanParams.slice(0, cleanParams.length - 2)),
+        pool.query(
+          `SELECT id, url, thumbnail_url, file_name AS title, width, height, created_at
+           FROM media_library
+           WHERE customer_id = $1 AND file_type = 'image'
+           ORDER BY created_at DESC LIMIT 50`,
+          [req.customerId]
+        ),
       ]);
 
-      res.json({ photos, total: parseInt(countRows[0].count) });
+      const stockWithSource = stockPhotos.map(p => ({ ...p, source: 'stock' }));
+      const myWithSource = myMedia.map(p => ({ ...p, source: 'mine', usage_count: 0 }));
+
+      res.json({ photos: [...stockWithSource, ...myWithSource], total: parseInt(countRows[0].count) + myWithSource.length });
     } catch (err) {
       console.error('[Studio] GET /photos:', err.message);
       res.status(500).json({ error: 'Failed to fetch photos' });
@@ -376,6 +386,66 @@ Return ONLY valid JSON (no markdown fences):
     } catch (err) {
       console.error('[Studio] GET /creations:', err.message);
       res.status(500).json({ error: 'Failed to fetch creations' });
+    }
+  });
+
+  // GET /api/studio/creations/:id  (single creation, includes canvas_json for editing)
+  router.get('/creations/:id', authenticate, async (req, res) => {
+    try {
+      const { rows: [creation] } = await pool.query(
+        `SELECT sc.*, sp.title AS photo_title, sp.industry AS photo_industry
+         FROM studio_creations sc
+         LEFT JOIN stock_photos sp ON sp.id = sc.stock_photo_id
+         WHERE sc.id = $1 AND sc.customer_id = $2`,
+        [parseInt(req.params.id), req.customerId]
+      );
+      if (!creation) return res.status(404).json({ error: 'Creation not found' });
+      res.json({ creation });
+    } catch (err) {
+      console.error('[Studio] GET /creations/:id:', err.message);
+      res.status(500).json({ error: 'Failed to fetch creation' });
+    }
+  });
+
+  // POST /api/studio/save  (0 credits — client-side export, upload to Cloudinary)
+  router.post('/save', authenticate, async (req, res) => {
+    try {
+      const { imageDataUrl, canvasJson, title = 'Untitled', canvasWidth = 1080, canvasHeight = 1350, backgroundSource = null, backgroundId = null } = req.body;
+
+      if (!imageDataUrl || !imageDataUrl.startsWith('data:image/')) {
+        return res.status(400).json({ error: 'Valid imageDataUrl is required' });
+      }
+
+      const base64Data = imageDataUrl.split(',')[1];
+      if (!base64Data) return res.status(400).json({ error: 'Invalid image data' });
+
+      const buffer = Buffer.from(base64Data, 'base64');
+      const publicId = `itsposting/studio/${req.customerId}/${Date.now()}`;
+      const outputUrl = await uploadToCloudinary(buffer, publicId);
+
+      const stockPhotoId = backgroundSource === 'stock' ? (parseInt(backgroundId) || null) : null;
+      const mediaLibraryId = backgroundSource === 'mine' ? (parseInt(backgroundId) || null) : null;
+
+      const { rows: [creation] } = await pool.query(
+        `INSERT INTO studio_creations
+           (customer_id, stock_photo_id, media_library_id, overlay_title, canvas_json,
+            output_url, output_cloudinary_id, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'created')
+         RETURNING id, output_url, overlay_title, created_at`,
+        [req.customerId, stockPhotoId, mediaLibraryId, title.trim(), canvasJson ? JSON.stringify(canvasJson) : null, outputUrl, publicId]
+      );
+
+      res.json({
+        creation: {
+          id: creation.id,
+          outputUrl: creation.output_url,
+          title: creation.overlay_title,
+          createdAt: creation.created_at,
+        },
+      });
+    } catch (err) {
+      console.error('[Studio] POST /save:', err.message);
+      res.status(500).json({ error: 'Failed to save template' });
     }
   });
 

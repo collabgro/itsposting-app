@@ -245,6 +245,8 @@ console.log('══════════════════════�
       created_at            TIMESTAMP DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_studio_customer ON studio_creations(customer_id, created_at DESC)`,
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS canvas_json JSONB`,
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS media_library_id INTEGER REFERENCES media_library(id) ON DELETE SET NULL`,
     // AI Receptionist — crawler job tracking
     `CREATE TABLE IF NOT EXISTS crawl_jobs (
       id SERIAL PRIMARY KEY,

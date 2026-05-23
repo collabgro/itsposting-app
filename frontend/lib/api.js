@@ -300,6 +300,8 @@ export const studioAPI = {
   format: (data) => api.post('/api/studio/format', data),
   generate: (data) => api.post('/api/studio/generate', data),
   getCreations: (params) => api.get('/api/studio/creations', { params }),
+  getCreation: (id) => api.get(`/api/studio/creations/${id}`),
+  save: (data) => api.post('/api/studio/save', data),
   postCreation: (id, data) => api.post(`/api/studio/creations/${id}/post`, data),
 };
 

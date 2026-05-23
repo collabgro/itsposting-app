@@ -89,6 +89,7 @@ export default function App({ Component, pageProps }) {
           <link rel="manifest" href="/manifest.json" />
           <link rel="apple-touch-icon" href="/icon-192.png" />
           <link rel="icon" href="/fav-icon.png" />
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto:wght@400;700&family=Playfair+Display:wght@700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
         </Head>
         <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
           <defs>

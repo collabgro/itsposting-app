@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 
 export default function StudioRedirect() {
   const router = useRouter();
-  useEffect(() => { router.replace('/media?tab=studio'); }, []);
+  useEffect(() => { router.replace('/media?tab=templates'); }, []);
   return null;
 }
 
