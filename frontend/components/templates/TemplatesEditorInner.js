@@ -60,6 +60,7 @@ const QUICK_ACTIONS = [
   { id: 'zoomin',   icon: '🔍', label: 'Zoom in',         sub: 'Increase canvas zoom',      shortcut: 'Ctrl++'  },
   { id: 'zoomout',  icon: '🔎', label: 'Zoom out',        sub: 'Decrease canvas zoom',      shortcut: 'Ctrl+–'  },
   { id: 'zoomfit',  icon: '⤢',  label: 'Fit to screen',  sub: 'Reset zoom to fit canvas',  shortcut: 'Ctrl+0'  },
+  { id: 'selectall',icon: '⊡',  label: 'Select all',     sub: 'Select all unlocked elements', shortcut: 'Ctrl+A' },
 ];
 
 function emptyPage() {
@@ -607,6 +608,19 @@ export default function TemplatesEditorInner() {
           pushHistory();
           patchElements(prev => [...prev, el]);
           setSelectedId(el.id);
+        }
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault();
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        const selectableIds = elements
+          .filter(el => !lockedIds.has(el.id) && !hiddenIds.has(el.id))
+          .map(el => el.id);
+        if (selectableIds.length) {
+          setSelectedIds(selectableIds);
+          setSelectedId(selectableIds[selectableIds.length - 1]);
         }
         return;
       }
@@ -2475,6 +2489,11 @@ export default function TemplatesEditorInner() {
           if (id === 'zoomin')   return zoomIn();
           if (id === 'zoomout')  return zoomOut();
           if (id === 'zoomfit')  return setZoomFactor(1);
+          if (id === 'selectall') {
+            const ids = elements.filter(el => !lockedIds.has(el.id) && !hiddenIds.has(el.id)).map(el => el.id);
+            if (ids.length) { setSelectedIds(ids); setSelectedId(ids[ids.length - 1]); }
+            return;
+          }
         };
 
         return (
