@@ -35,6 +35,17 @@ const COLOR_PALETTE = [
 
 const SNAP_THRESHOLD = 5;
 
+function emptyPage() {
+  return {
+    id: `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    elements: [],
+    bgType: 'color', bgColor: '#1a1a22',
+    bgImageUrl: null, bgSource: null, bgSourceId: null,
+    bgFilter: 'normal', bgBrightness: 0, bgContrast: 0, bgSaturation: 0,
+    lockedIds: [], hiddenIds: [],
+  };
+}
+
 // ─── BgImage ─────────────────────────────────────────────────────────────────
 
 function BgImage({ url, filter, brightness, contrast, saturation, stageW, stageH, onClick, isSelected }) {
@@ -379,19 +390,9 @@ export default function TemplatesEditorInner() {
   const [canvasSizeId, setCanvasSizeId] = useState('ig_portrait');
   const canvasSize = CANVAS_SIZES.find(s => s.id === canvasSizeId) || CANVAS_SIZES[0];
 
-  // Background
-  const [bgType, setBgType] = useState('color');
-  const [bgColor, setBgColor] = useState('#1a1a22');
-  const [bgImageUrl, setBgImageUrl] = useState(null);
-  const [bgSource, setBgSource] = useState(null);
-  const [bgSourceId, setBgSourceId] = useState(null);
-  const [bgFilter, setBgFilter] = useState('normal');
-  const [bgBrightness, setBgBrightness] = useState(0);
-  const [bgContrast, setBgContrast] = useState(0);
-  const [bgSaturation, setBgSaturation] = useState(0);
-
-  // Elements
-  const [elements, setElements] = useState([]);
+  // Pages (multi-page state — replaces individual bg + elements state)
+  const [pages, setPages] = useState(() => [emptyPage()]);
+  const [activePage, setActivePage] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
   const [editingTextId, setEditingTextId] = useState(null);
   const [textareaValue, setTextareaValue] = useState('');
@@ -405,8 +406,6 @@ export default function TemplatesEditorInner() {
   const [clipboard, setClipboard] = useState(null);
   const [snapGuides, setSnapGuides] = useState({ v: [], h: [] });
   const [rightTab, setRightTab] = useState('properties');
-  const [lockedIds, setLockedIds] = useState(new Set());
-  const [hiddenIds, setHiddenIds] = useState(new Set());
   const [recentColors, setRecentColors] = useState([]);
   const [showShadowPanel, setShowShadowPanel] = useState(false);
   const [showOutlinePanel, setShowOutlinePanel] = useState(false);
@@ -429,6 +428,32 @@ export default function TemplatesEditorInner() {
   const [postSuccess, setPostSuccess] = useState(false);
   const [titleForSave, setTitleForSave] = useState('Untitled');
 
+  // ── Derived page state (computed from pages[activePage]) ───────────────────
+  const currentPage = pages[activePage] || pages[0];
+  const elements    = currentPage.elements;
+  const bgType      = currentPage.bgType;
+  const bgColor     = currentPage.bgColor;
+  const bgImageUrl  = currentPage.bgImageUrl;
+  const bgSource    = currentPage.bgSource;
+  const bgSourceId  = currentPage.bgSourceId;
+  const bgFilter    = currentPage.bgFilter;
+  const bgBrightness = currentPage.bgBrightness;
+  const bgContrast   = currentPage.bgContrast;
+  const bgSaturation = currentPage.bgSaturation;
+  const lockedIds   = new Set(currentPage.lockedIds);
+  const hiddenIds   = new Set(currentPage.hiddenIds);
+
+  function patchPage(patch) {
+    setPages(prev => prev.map((p, i) => i === activePage ? { ...p, ...patch } : p));
+  }
+
+  function patchElements(updater) {
+    setPages(prev => prev.map((p, i) => {
+      if (i !== activePage) return p;
+      return { ...p, elements: typeof updater === 'function' ? updater(p.elements) : updater };
+    }));
+  }
+
   // Canvas display scale
   const containerRef = useRef(null);
   const [stageScale, setStageScale] = useState(1);
@@ -441,11 +466,8 @@ export default function TemplatesEditorInner() {
   useEffect(() => {
     const updateScale = () => {
       if (!containerRef.current) return;
-      const maxW = containerRef.current.clientWidth - 20;
-      const maxH = window.innerHeight - 160;
-      const scaleW = maxW / canvasSize.w;
-      const scaleH = maxH / canvasSize.h;
-      const scale = Math.min(scaleW, scaleH, 1);
+      const maxW = containerRef.current.clientWidth - 48;
+      const scale = Math.min(maxW / canvasSize.w, 1);
       setStageScale(scale);
       setStageDisplayW(Math.floor(canvasSize.w * scale));
       setStageDisplayH(Math.floor(canvasSize.h * scale));
@@ -484,7 +506,7 @@ export default function TemplatesEditorInner() {
 
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && selectedId !== '__bg__') {
         pushHistory();
-        setElements(prev => prev.filter(el => el.id !== selectedId));
+        patchElements(prev => prev.filter(el => el.id !== selectedId));
         setSelectedId(null);
         return;
       }
@@ -500,7 +522,7 @@ export default function TemplatesEditorInner() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'v' && clipboard) {
         const el = { ...JSON.parse(JSON.stringify(clipboard)), id: uid(), x: clipboard.x + 20, y: clipboard.y + 20 };
         pushHistory();
-        setElements(prev => [...prev, el]);
+        patchElements(prev => [...prev, el]);
         setSelectedId(el.id);
         return;
       }
@@ -510,7 +532,7 @@ export default function TemplatesEditorInner() {
         if (sel) {
           const el = { ...JSON.parse(JSON.stringify(sel)), id: uid(), x: sel.x + 20, y: sel.y + 20 };
           pushHistory();
-          setElements(prev => [...prev, el]);
+          patchElements(prev => [...prev, el]);
           setSelectedId(el.id);
         }
         return;
@@ -536,13 +558,7 @@ export default function TemplatesEditorInner() {
 
   // ── History helpers ────────────────────────────────────────────────────────
   function snapshot() {
-    return {
-      elements: JSON.parse(JSON.stringify(elements)),
-      bgType, bgColor, bgImageUrl, bgSource, bgSourceId,
-      bgFilter, bgBrightness, bgContrast, bgSaturation,
-      lockedIds: [...lockedIds],
-      hiddenIds: [...hiddenIds],
-    };
+    return { pages: JSON.parse(JSON.stringify(pages)), activePage };
   }
 
   function pushHistory() {
@@ -553,18 +569,30 @@ export default function TemplatesEditorInner() {
 
   function restoreSnapshot(snap) {
     if (!snap) return;
-    setElements(snap.elements || []);
-    if (snap.bgType) setBgType(snap.bgType);
-    if (snap.bgColor) setBgColor(snap.bgColor);
-    if (snap.bgImageUrl !== undefined) setBgImageUrl(snap.bgImageUrl);
-    if (snap.bgSource !== undefined) setBgSource(snap.bgSource);
-    if (snap.bgSourceId !== undefined) setBgSourceId(snap.bgSourceId);
-    if (snap.bgFilter) setBgFilter(snap.bgFilter);
-    if (snap.bgBrightness !== undefined) setBgBrightness(snap.bgBrightness);
-    if (snap.bgContrast !== undefined) setBgContrast(snap.bgContrast);
-    if (snap.bgSaturation !== undefined) setBgSaturation(snap.bgSaturation);
-    if (snap.lockedIds) setLockedIds(new Set(snap.lockedIds));
-    if (snap.hiddenIds) setHiddenIds(new Set(snap.hiddenIds));
+    if (snap.pages) {
+      // New multi-page format
+      setPages(snap.pages);
+      setActivePage(snap.activePage ?? 0);
+    } else {
+      // Legacy single-page format (old saves)
+      setPages([{
+        ...emptyPage(),
+        elements:      snap.elements      || [],
+        bgType:        snap.bgType        || 'color',
+        bgColor:       snap.bgColor       || '#1a1a22',
+        bgImageUrl:    snap.bgImageUrl    ?? null,
+        bgSource:      snap.bgSource      ?? null,
+        bgSourceId:    snap.bgSourceId    ?? null,
+        bgFilter:      snap.bgFilter      || 'normal',
+        bgBrightness:  snap.bgBrightness  ?? 0,
+        bgContrast:    snap.bgContrast    ?? 0,
+        bgSaturation:  snap.bgSaturation  ?? 0,
+        lockedIds:     snap.lockedIds     || [],
+        hiddenIds:     snap.hiddenIds     || [],
+      }]);
+      setActivePage(0);
+    }
+    setSelectedId(null);
   }
 
   function undo() {
@@ -591,49 +619,49 @@ export default function TemplatesEditorInner() {
       fontSize: 48, fontFamily: 'Inter', fontStyle: 'bold',
       fill: '#ffffff', width: 400, align: 'center', opacity: 1,
     };
-    setElements(prev => [...prev, el]);
+    patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
   function addRect() {
     pushHistory();
     const el = { id: uid(), type: 'rect', x: canvasSize.w / 2 - 100, y: canvasSize.h / 2 - 50, width: 200, height: 100, fill: 'rgba(255,255,255,0.15)', cornerRadius: 12, opacity: 1 };
-    setElements(prev => [...prev, el]);
+    patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
   function addCircle() {
     pushHistory();
     const el = { id: uid(), type: 'circle', x: canvasSize.w / 2, y: canvasSize.h / 2, radius: 80, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
-    setElements(prev => [...prev, el]);
+    patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
   function addLine() {
     pushHistory();
     const el = { id: uid(), type: 'line', x: canvasSize.w / 2 - 150, y: canvasSize.h / 2, points: [0, 0, 300, 0], stroke: '#ffffff', strokeWidth: 4, opacity: 1 };
-    setElements(prev => [...prev, el]);
+    patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
   function addTriangle() {
     pushHistory();
     const el = { id: uid(), type: 'triangle', x: canvasSize.w / 2, y: canvasSize.h / 2, radius: 80, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
-    setElements(prev => [...prev, el]);
+    patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
   function addStar() {
     pushHistory();
     const el = { id: uid(), type: 'star', x: canvasSize.w / 2, y: canvasSize.h / 2, outerRadius: 80, innerRadius: 35, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
-    setElements(prev => [...prev, el]);
+    patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
   function addArrow() {
     pushHistory();
     const el = { id: uid(), type: 'arrow', x: canvasSize.w / 2 - 100, y: canvasSize.h / 2, width: 200, fill: '#ffffff', strokeWidth: 4, opacity: 1 };
-    setElements(prev => [...prev, el]);
+    patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
@@ -647,12 +675,12 @@ export default function TemplatesEditorInner() {
       width: w, height: h, rotation: 0,
       opacity: 1, flipH: false, flipV: false, cornerRadius: 0,
     };
-    setElements(prev => [...prev, el]);
+    patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
   function updateElement(updated) {
-    setElements(prev => prev.map(el => el.id === updated.id ? updated : el));
+    patchElements(prev => prev.map(el => el.id === updated.id ? updated : el));
   }
 
   function handleElementChange(updated) {
@@ -663,7 +691,7 @@ export default function TemplatesEditorInner() {
   // ── Nudge ──────────────────────────────────────────────────────────────────
   function nudge(id, dx, dy) {
     pushHistory();
-    setElements(prev => prev.map(el => el.id === id ? { ...el, x: el.x + dx, y: el.y + dy } : el));
+    patchElements(prev => prev.map(el => el.id === id ? { ...el, x: el.x + dx, y: el.y + dy } : el));
   }
 
   // ── Flip ──────────────────────────────────────────────────────────────────
@@ -671,21 +699,21 @@ export default function TemplatesEditorInner() {
     const el = elements.find(e => e.id === selectedId);
     if (!el || el.type !== 'image') return;
     pushHistory();
-    setElements(prev => prev.map(e => e.id === el.id ? { ...e, flipH: !e.flipH } : e));
+    patchElements(prev => prev.map(e => e.id === el.id ? { ...e, flipH: !e.flipH } : e));
   }
 
   function flipV() {
     const el = elements.find(e => e.id === selectedId);
     if (!el || el.type !== 'image') return;
     pushHistory();
-    setElements(prev => prev.map(e => e.id === el.id ? { ...e, flipV: !e.flipV } : e));
+    patchElements(prev => prev.map(e => e.id === el.id ? { ...e, flipV: !e.flipV } : e));
   }
 
   // ── Layer order ────────────────────────────────────────────────────────────
   function bringForward(id) {
     const tid = id || selectedId; if (!tid) return;
     pushHistory();
-    setElements(prev => {
+    patchElements(prev => {
       const idx = prev.findIndex(e => e.id === tid);
       if (idx >= prev.length - 1) return prev;
       const next = [...prev];
@@ -697,7 +725,7 @@ export default function TemplatesEditorInner() {
   function sendBackward(id) {
     const tid = id || selectedId; if (!tid) return;
     pushHistory();
-    setElements(prev => {
+    patchElements(prev => {
       const idx = prev.findIndex(e => e.id === tid);
       if (idx <= 0) return prev;
       const next = [...prev];
@@ -709,22 +737,30 @@ export default function TemplatesEditorInner() {
   function bringToFront(id) {
     const tid = id || selectedId; if (!tid) return;
     pushHistory();
-    setElements(prev => { const el = prev.find(e => e.id === tid); return el ? [...prev.filter(e => e.id !== tid), el] : prev; });
+    patchElements(prev => { const el = prev.find(e => e.id === tid); return el ? [...prev.filter(e => e.id !== tid), el] : prev; });
   }
 
   function sendToBack(id) {
     const tid = id || selectedId; if (!tid) return;
     pushHistory();
-    setElements(prev => { const el = prev.find(e => e.id === tid); return el ? [el, ...prev.filter(e => e.id !== tid)] : prev; });
+    patchElements(prev => { const el = prev.find(e => e.id === tid); return el ? [el, ...prev.filter(e => e.id !== tid)] : prev; });
   }
 
   // ── Lock / Hidden ──────────────────────────────────────────────────────────
   function toggleLocked(id) {
-    setLockedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setPages(prev => prev.map((p, i) => {
+      if (i !== activePage) return p;
+      const has = p.lockedIds.includes(id);
+      return { ...p, lockedIds: has ? p.lockedIds.filter(x => x !== id) : [...p.lockedIds, id] };
+    }));
   }
 
   function toggleHidden(id) {
-    setHiddenIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setPages(prev => prev.map((p, i) => {
+      if (i !== activePage) return p;
+      const has = p.hiddenIds.includes(id);
+      return { ...p, hiddenIds: has ? p.hiddenIds.filter(x => x !== id) : [...p.hiddenIds, id] };
+    }));
   }
 
   // ── Alignment ─────────────────────────────────────────────────────────────
@@ -807,33 +843,66 @@ export default function TemplatesEditorInner() {
     setTextareaPos({ x: absPos.x * stageScale, y: absPos.y * stageScale, w: (el.width || 400) * stageScale, fontSize: (el.fontSize || 36) * stageScale });
     setTextareaValue(el.text || '');
     setEditingTextId(id);
-    setElements(prev => prev.map(e => e.id === id ? { ...e, visible: false } : e));
+    patchElements(prev => prev.map(e => e.id === id ? { ...e, visible: false } : e));
   }
 
   function commitTextEdit() {
     if (!editingTextId) return;
     pushHistory();
-    setElements(prev => prev.map(e => e.id === editingTextId ? { ...e, text: textareaValue, visible: true } : e));
+    patchElements(prev => prev.map(e => e.id === editingTextId ? { ...e, text: textareaValue, visible: true } : e));
     setEditingTextId(null);
   }
 
   // ── Background helpers ─────────────────────────────────────────────────────
   function selectBgPhoto(photo) {
     pushHistory();
-    setBgType('image');
-    setBgImageUrl(photo.url);
-    setBgSource(photo.source || 'stock');
-    setBgSourceId(photo.id);
+    patchPage({ bgType: 'image', bgImageUrl: photo.url, bgSource: photo.source || 'stock', bgSourceId: photo.id });
   }
 
   function applyFilterPreset(key) {
     const p = FILTER_PRESETS[key];
     if (!p) return;
     pushHistory();
-    setBgFilter(key);
-    setBgBrightness(p.brightness);
-    setBgContrast(p.contrast);
-    setBgSaturation(p.saturation);
+    patchPage({ bgFilter: key, bgBrightness: p.brightness, bgContrast: p.contrast, bgSaturation: p.saturation });
+  }
+
+  // ── Page management ───────────────────────────────────────────────────────
+  function addPage() {
+    pushHistory();
+    const newPage = emptyPage();
+    setPages(prev => [...prev, newPage]);
+    setActivePage(pages.length);
+    setSelectedId(null);
+  }
+
+  function duplicatePage(idx) {
+    pushHistory();
+    const copy = { ...JSON.parse(JSON.stringify(pages[idx])), id: `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}` };
+    setPages(prev => [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)]);
+    setActivePage(idx + 1);
+    setSelectedId(null);
+  }
+
+  function deletePage(idx) {
+    if (pages.length <= 1) return;
+    pushHistory();
+    setPages(prev => prev.filter((_, i) => i !== idx));
+    setActivePage(prev => Math.min(prev, pages.length - 2));
+    setSelectedId(null);
+  }
+
+  function movePageUp(idx) {
+    if (idx <= 0) return;
+    pushHistory();
+    setPages(prev => { const next = [...prev]; [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]; return next; });
+    setActivePage(idx - 1);
+  }
+
+  function movePageDown(idx) {
+    if (idx >= pages.length - 1) return;
+    pushHistory();
+    setPages(prev => { const next = [...prev]; [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]; return next; });
+    setActivePage(idx + 1);
   }
 
   // ── Save & Post ────────────────────────────────────────────────────────────
@@ -848,7 +917,7 @@ export default function TemplatesEditorInner() {
       const dataUrl = stageRef.current.toDataURL({ mimeType: 'image/jpeg', quality: 0.9, pixelRatio: canvasSize.w / stageRef.current.width() });
       if (trLayerRef.current) trLayerRef.current.show();
       const snap = snapshot();
-      const data = await studioAPI.save({ imageDataUrl: dataUrl, canvasJson: snap, title: titleForSave, canvasWidth: canvasSize.w, canvasHeight: canvasSize.h, backgroundSource: bgSource, backgroundId: bgSourceId });
+      const data = await studioAPI.save({ imageDataUrl: dataUrl, canvasJson: snap, title: titleForSave, canvasWidth: canvasSize.w, canvasHeight: canvasSize.h, backgroundSource: currentPage.bgSource, backgroundId: currentPage.bgSourceId });
       setSavedCreationId(data.creation.id);
       setPostModalOpen(true);
     } catch (err) {
@@ -1154,11 +1223,11 @@ export default function TemplatesEditorInner() {
                   <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Solid Color</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                     {COLOR_PALETTE.map(hex => (
-                      <button key={hex} onClick={() => { pushHistory(); setBgType('color'); setBgColor(hex); pickColor(hex, () => {}); }}
+                      <button key={hex} onClick={() => { pushHistory(); patchPage({ bgType: 'color', bgColor: hex }); pickColor(hex, () => {}); }}
                         style={{ width: 28, height: 28, borderRadius: 6, background: hex, border: bgType === 'color' && bgColor === hex ? `3px solid ${t.primary}` : `2px solid ${t.border}`, cursor: 'pointer' }} />
                     ))}
                     <input type="color" value={bgColor}
-                      onChange={e => { setBgType('color'); setBgColor(e.target.value); }}
+                      onChange={e => { patchPage({ bgType: 'color', bgColor: e.target.value }); }}
                       onBlur={e => { pushHistory(); pickColor(e.target.value, () => {}); }}
                       style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 2 }} title="Custom color" />
                   </div>
@@ -1167,7 +1236,7 @@ export default function TemplatesEditorInner() {
                       <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 4 }}>Recent</div>
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {recentColors.map(c => (
-                          <button key={c} onClick={() => { pushHistory(); setBgType('color'); setBgColor(c); }}
+                          <button key={c} onClick={() => { pushHistory(); patchPage({ bgType: 'color', bgColor: c }); }}
                             style={{ width: 22, height: 22, borderRadius: 4, background: c, border: `1px solid ${t.border}`, cursor: 'pointer' }} />
                         ))}
                       </div>
@@ -1384,18 +1453,18 @@ export default function TemplatesEditorInner() {
               <div>
                 {bgType !== 'image' && <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 10 }}>Select a photo background to adjust</div>}
                 {[
-                  { label: 'Brightness', value: bgBrightness, min: -1, max: 1, step: 0.05, set: setBgBrightness },
-                  { label: 'Contrast',   value: bgContrast,   min: -100, max: 100, step: 5, set: setBgContrast },
-                  { label: 'Saturation', value: bgSaturation, min: -1, max: 1, step: 0.05, set: setBgSaturation },
-                ].map(({ label, value, min, max, step, set }) => (
+                  { label: 'Brightness', value: bgBrightness, min: -1,   max: 1,   step: 0.05, key: 'bgBrightness' },
+                  { label: 'Contrast',   value: bgContrast,   min: -100, max: 100, step: 5,    key: 'bgContrast'   },
+                  { label: 'Saturation', value: bgSaturation, min: -1,   max: 1,   step: 0.05, key: 'bgSaturation' },
+                ].map(({ label, value, min, max, step, key }) => (
                   <div key={label} style={{ marginBottom: 16 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                       <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
                       <span style={{ fontSize: 11, color: t.textMuted }}>{value}</span>
                     </div>
                     <input type="range" min={min} max={max} step={step} value={value}
-                      onChange={e => set(parseFloat(e.target.value))}
-                      onMouseUp={() => { setBgFilter('normal'); pushHistory(); }}
+                      onChange={e => patchPage({ [key]: parseFloat(e.target.value) })}
+                      onMouseUp={() => { patchPage({ bgFilter: 'normal' }); pushHistory(); }}
                       style={{ width: '100%' }} />
                   </div>
                 ))}
@@ -1406,101 +1475,140 @@ export default function TemplatesEditorInner() {
           )}
         </div>
 
-        {/* ── Canvas area ── */}
-        <div ref={containerRef} style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 20, overflowY: 'auto', background: t.bg, position: 'relative' }}>
-          <div style={{ position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0 }}>
-            <Stage
-              ref={stageRef}
-              width={canvasSize.w}
-              height={canvasSize.h}
-              scaleX={stageScale}
-              scaleY={stageScale}
-              style={{ borderRadius: 8, boxShadow: '0 4px 32px rgba(0,0,0,0.3)', display: 'block', width: stageDisplayW, height: stageDisplayH }}
-              onClick={e => {
-                if (e.target === e.target.getStage()) { setSelectedId(null); setShowShadowPanel(false); setShowOutlinePanel(false); }
-              }}
-            >
-              {/* Layer 1: Background */}
-              <Layer>
-                {bgType === 'color' ? (
-                  <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill={bgColor} onClick={() => setSelectedId('__bg__')} />
-                ) : bgImageUrl ? (
-                  <BgImage url={bgImageUrl} filter={bgFilter} brightness={bgBrightness} contrast={bgContrast} saturation={bgSaturation}
-                    stageW={canvasSize.w} stageH={canvasSize.h} onClick={() => setSelectedId('__bg__')} isSelected={selectedId === '__bg__'} />
-                ) : (
-                  <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill="#1a1a22" />
-                )}
-              </Layer>
+        {/* ── Canvas area — multi-page vertical scroll ── */}
+        <div ref={containerRef} style={{ flex: 1, overflowY: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
+            {pages.map((page, pageIdx) => {
+              const isActive = pageIdx === activePage;
+              const pageElements = page.elements;
+              const pageBgType = page.bgType;
+              const pageBgColor = page.bgColor;
+              const pageBgImageUrl = page.bgImageUrl;
+              const pageBgFilter = page.bgFilter;
+              const pageBgBrightness = page.bgBrightness;
+              const pageBgContrast = page.bgContrast;
+              const pageBgSaturation = page.bgSaturation;
+              const pageLockedIds = new Set(page.lockedIds);
+              const pageHiddenIds = new Set(page.hiddenIds);
+              return (
+                <div key={page.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#00C4CC' : t.textMuted, letterSpacing: '0.05em' }}>
+                    {pageIdx + 1}
+                  </div>
+                  <div
+                    style={{
+                      position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0,
+                      outline: isActive ? '2px solid #00C4CC' : '2px solid transparent',
+                      borderRadius: 8, cursor: isActive ? 'default' : 'pointer',
+                    }}
+                    onClick={!isActive ? () => { setActivePage(pageIdx); setSelectedId(null); } : undefined}
+                  >
+                    <Stage
+                      ref={isActive ? stageRef : null}
+                      width={canvasSize.w}
+                      height={canvasSize.h}
+                      scaleX={stageScale}
+                      scaleY={stageScale}
+                      style={{ borderRadius: 8, boxShadow: '0 4px 32px rgba(0,0,0,0.3)', display: 'block', width: stageDisplayW, height: stageDisplayH }}
+                      onClick={isActive ? (e => {
+                        if (e.target === e.target.getStage()) { setSelectedId(null); setShowShadowPanel(false); setShowOutlinePanel(false); }
+                      }) : undefined}
+                    >
+                      {/* Layer 1: Background */}
+                      <Layer>
+                        {pageBgType === 'color' ? (
+                          <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill={pageBgColor}
+                            onClick={isActive ? () => setSelectedId('__bg__') : undefined} />
+                        ) : pageBgImageUrl ? (
+                          <BgImage url={pageBgImageUrl} filter={pageBgFilter} brightness={pageBgBrightness} contrast={pageBgContrast} saturation={pageBgSaturation}
+                            stageW={canvasSize.w} stageH={canvasSize.h}
+                            onClick={isActive ? () => setSelectedId('__bg__') : undefined}
+                            isSelected={isActive && selectedId === '__bg__'} />
+                        ) : (
+                          <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill="#1a1a22" />
+                        )}
+                      </Layer>
 
-              {/* Layer 2: Content */}
-              <Layer>
-                {elements.map(el => (
-                  el.type === 'image'
-                    ? <ImageNode
-                        key={el.id}
-                        el={el}
-                        isSelected={selectedId === el.id}
-                        onSelect={setSelectedId}
-                        onChange={handleElementChange}
-                        onDragMove={computeSnap}
-                        onSnapClear={clearSnapGuides}
-                        locked={lockedIds.has(el.id)}
-                        hidden={hiddenIds.has(el.id)}
+                      {/* Layer 2: Content */}
+                      <Layer>
+                        {pageElements.map(el => (
+                          el.type === 'image'
+                            ? <ImageNode
+                                key={el.id}
+                                el={el}
+                                isSelected={isActive && selectedId === el.id}
+                                onSelect={isActive ? setSelectedId : () => {}}
+                                onChange={isActive ? handleElementChange : () => {}}
+                                onDragMove={isActive ? computeSnap : null}
+                                onSnapClear={isActive ? clearSnapGuides : null}
+                                locked={pageLockedIds.has(el.id)}
+                                hidden={pageHiddenIds.has(el.id)}
+                              />
+                            : <ContentNode
+                                key={el.id}
+                                el={el}
+                                isSelected={isActive && selectedId === el.id}
+                                onSelect={isActive ? setSelectedId : () => {}}
+                                onChange={isActive ? handleElementChange : () => {}}
+                                stageW={canvasSize.w}
+                                stageH={canvasSize.h}
+                                onDblClick={isActive ? startEditText : () => {}}
+                                onDragMove={isActive ? computeSnap : null}
+                                onSnapClear={isActive ? clearSnapGuides : null}
+                                locked={pageLockedIds.has(el.id)}
+                                hidden={pageHiddenIds.has(el.id)}
+                              />
+                        ))}
+                      </Layer>
+
+                      {/* Layer 3: Transformer + snap guides (active page only) */}
+                      {isActive && (
+                        <Layer ref={trLayerRef}>
+                          <TransformerLayer
+                            selectedId={selectedId}
+                            elements={pageElements}
+                            stageRef={stageRef}
+                            snapGuides={snapGuides}
+                            stageScale={stageScale}
+                            canvasW={canvasSize.w}
+                            canvasH={canvasSize.h}
+                          />
+                        </Layer>
+                      )}
+                    </Stage>
+
+                    {/* Inline text textarea (active page only) */}
+                    {isActive && editingTextId && (
+                      <textarea
+                        autoFocus
+                        value={textareaValue}
+                        onChange={e => setTextareaValue(e.target.value)}
+                        onBlur={commitTextEdit}
+                        onKeyDown={e => { if (e.key === 'Escape') commitTextEdit(); }}
+                        style={{
+                          position: 'absolute',
+                          left: textareaPos.x, top: textareaPos.y,
+                          width: textareaPos.w,
+                          fontSize: textareaPos.fontSize,
+                          fontFamily: elements.find(e => e.id === editingTextId)?.fontFamily || 'Inter',
+                          color: elements.find(e => e.id === editingTextId)?.fill || '#ffffff',
+                          background: 'rgba(0,0,0,0.4)',
+                          border: `2px solid ${t.primary}`,
+                          borderRadius: 4, padding: 4, outline: 'none', resize: 'none',
+                          overflow: 'hidden', zIndex: 100, lineHeight: 1.3, minHeight: 40,
+                        }}
+                        rows={3}
                       />
-                    : <ContentNode
-                        key={el.id}
-                        el={el}
-                        isSelected={selectedId === el.id}
-                        onSelect={setSelectedId}
-                        onChange={handleElementChange}
-                        stageW={canvasSize.w}
-                        stageH={canvasSize.h}
-                        onDblClick={startEditText}
-                        onDragMove={computeSnap}
-                        onSnapClear={clearSnapGuides}
-                        locked={lockedIds.has(el.id)}
-                        hidden={hiddenIds.has(el.id)}
-                      />
-                ))}
-              </Layer>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
 
-              {/* Layer 3: Transformer + snap guides */}
-              <Layer ref={trLayerRef}>
-                <TransformerLayer
-                  selectedId={selectedId}
-                  elements={elements}
-                  stageRef={stageRef}
-                  snapGuides={snapGuides}
-                  stageScale={stageScale}
-                  canvasW={canvasSize.w}
-                  canvasH={canvasSize.h}
-                />
-              </Layer>
-            </Stage>
-
-            {/* Inline text textarea */}
-            {editingTextId && (
-              <textarea
-                autoFocus
-                value={textareaValue}
-                onChange={e => setTextareaValue(e.target.value)}
-                onBlur={commitTextEdit}
-                onKeyDown={e => { if (e.key === 'Escape') commitTextEdit(); }}
-                style={{
-                  position: 'absolute',
-                  left: textareaPos.x, top: textareaPos.y,
-                  width: textareaPos.w,
-                  fontSize: textareaPos.fontSize,
-                  fontFamily: elements.find(e => e.id === editingTextId)?.fontFamily || 'Inter',
-                  color: elements.find(e => e.id === editingTextId)?.fill || '#ffffff',
-                  background: 'rgba(0,0,0,0.4)',
-                  border: `2px solid ${t.primary}`,
-                  borderRadius: 4, padding: 4, outline: 'none', resize: 'none',
-                  overflow: 'hidden', zIndex: 100, lineHeight: 1.3, minHeight: 40,
-                }}
-                rows={3}
-              />
-            )}
+            {/* Add page button */}
+            <button onClick={addPage} style={{ marginTop: 4, padding: '10px 28px', borderRadius: 8, border: `2px dashed ${t.border}`, background: 'none', color: t.textMuted, fontSize: 13, fontWeight: 600, cursor: 'pointer', letterSpacing: '0.03em' }}>
+              + Add Page
+            </button>
           </div>
         </div>
 
@@ -1526,7 +1634,7 @@ export default function TemplatesEditorInner() {
                 {selectedId === '__bg__' && bgType === 'image' && (
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: t.text, marginBottom: 12 }}>Background</div>
-                    <button onClick={() => { pushHistory(); setBgType('color'); setBgImageUrl(null); setBgSource(null); setBgSourceId(null); }}
+                    <button onClick={() => { pushHistory(); patchPage({ bgType: 'color', bgImageUrl: null, bgSource: null, bgSourceId: null }); }}
                       style={{ width: '100%', padding: '7px 0', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', marginBottom: 8 }}>
                       Remove Photo
                     </button>
@@ -1585,7 +1693,7 @@ export default function TemplatesEditorInner() {
                       <div style={{ fontSize: 11, color: t.textMuted, textAlign: 'right' }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</div>
                     </div>
 
-                    <button onClick={() => { pushHistory(); setElements(prev => prev.filter(e => e.id !== selectedId)); setSelectedId(null); }}
+                    <button onClick={() => { pushHistory(); patchElements(prev => prev.filter(e => e.id !== selectedId)); setSelectedId(null); }}
                       style={{ width: '100%', padding: '7px 0', marginTop: 4, borderRadius: 7, border: `1px solid rgba(239,68,68,0.3)`, background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                       Delete Element
                     </button>
