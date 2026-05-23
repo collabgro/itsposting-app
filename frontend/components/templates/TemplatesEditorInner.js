@@ -3442,13 +3442,29 @@ export default function TemplatesEditorInner() {
         </div>
       </div>
 
-      {/* ── Bottom status bar ── */}
+      {/* ── Bottom status bar (Canva-style) ── */}
       <div style={{
-        height: 36, display: 'flex', alignItems: 'center', gap: 6,
-        padding: '0 16px', borderTop: `1px solid ${t.border}`,
+        height: 40, display: 'flex', alignItems: 'center', gap: 4,
+        padding: '0 12px', borderTop: `1px solid ${t.border}`,
         background: t.card, flexShrink: 0, zIndex: 8,
         fontSize: 12, color: t.textMuted, userSelect: 'none',
       }}>
+        {/* Notes */}
+        <button style={{ height: 28, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
+          onMouseEnter={e => e.currentTarget.style.background = t.input}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          📝 Notes
+        </button>
+        {/* Timer */}
+        <button style={{ height: 28, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
+          onMouseEnter={e => e.currentTarget.style.background = t.input}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          ⏱ Timer
+        </button>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
         {/* Zoom out */}
         <button onClick={zoomOut} title="Zoom out (−)"
           style={{ width: 26, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
@@ -3461,7 +3477,7 @@ export default function TemplatesEditorInner() {
         <input type="range" min={25} max={300} step={25}
           value={Math.round(zoomFactor * 100)}
           onChange={e => setZoomFactor(parseInt(e.target.value) / 100)}
-          style={{ width: 80, flexShrink: 0, cursor: 'pointer', accentColor: '#00C4CC' }} />
+          style={{ width: 90, flexShrink: 0, cursor: 'pointer', accentColor: '#00C4CC' }} />
 
         {/* Zoom in */}
         <button onClick={zoomIn} title="Zoom in (+)"
@@ -3479,45 +3495,45 @@ export default function TemplatesEditorInner() {
           {Math.round(zoomFactor * 100)}%
         </button>
 
-        <div style={{ width: 1, height: 18, background: t.border, margin: '0 6px', flexShrink: 0 }} />
-
-        {/* Page counter */}
-        <span style={{ fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
-          Page {activePage + 1} / {pages.length}
-        </span>
-
-        {/* Spacer pushes right-side items to the far right */}
-        <div style={{ flex: 1 }} />
-
-        {/* Canvas dimensions */}
-        <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
-          {canvasSize.w} × {canvasSize.h} px
-        </span>
-
-        <div style={{ width: 1, height: 18, background: t.border, margin: '0 6px', flexShrink: 0 }} />
+        <div style={{ width: 1, height: 18, background: t.border, margin: '0 4px', flexShrink: 0 }} />
 
         {/* Pages toggle */}
         <button onClick={() => setShowPagesPanel(o => !o)} title="Toggle pages panel"
           style={{ height: 26, padding: '0 10px', border: `1px solid ${showPagesPanel ? '#00C4CC' : t.border}`, borderRadius: 5,
             background: showPagesPanel ? 'rgba(0,196,204,0.1)' : t.input, color: showPagesPanel ? '#00C4CC' : t.text,
             fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
-          ☰ Pages
+          Pages
         </button>
+
+        {/* Page counter */}
+        <span style={{ fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap', flexShrink: 0, minWidth: 32, textAlign: 'center' }}>
+          {activePage + 1}/{pages.length}
+        </span>
+
+        <div style={{ width: 1, height: 18, background: t.border, margin: '0 4px', flexShrink: 0 }} />
 
         {/* Rulers toggle */}
         <button onClick={() => setShowRulers(o => !o)} title="Toggle rulers"
-          style={{ height: 26, padding: '0 10px', border: `1px solid ${showRulers ? '#00C4CC' : t.border}`, borderRadius: 5,
+          style={{ width: 28, height: 26, border: `1px solid ${showRulers ? '#00C4CC' : t.border}`, borderRadius: 5,
             background: showRulers ? 'rgba(0,196,204,0.1)' : t.input, color: showRulers ? '#00C4CC' : t.text,
-            fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
-          ⊹ Rulers
+            fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          ⊹
         </button>
 
         {/* Fullscreen */}
         <button title="Fullscreen" onClick={() => document.documentElement.requestFullscreen?.()}
-          style={{ width: 26, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
+          style={{ width: 28, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
             background: t.input, color: t.text, fontSize: 13, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          ⛶
+          ⤢
+        </button>
+
+        {/* Help */}
+        <button title="Help & shortcuts"
+          style={{ width: 28, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
+            background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', fontWeight: 600,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          ?
         </button>
       </div>
 
