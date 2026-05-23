@@ -624,6 +624,8 @@ export default function TemplatesEditorInner() {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [showResizeMenu, setShowResizeMenu] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [previewOpen, setPreviewOpen]   = useState(false);
+  const [previewUrl,  setPreviewUrl]    = useState(null);
 
   // UI
   const [activeLeftTool, setActiveLeftTool] = useState('background');
@@ -804,6 +806,7 @@ export default function TemplatesEditorInner() {
       }
 
       if (e.key === 'Escape') {
+        if (previewOpen) { setPreviewOpen(false); return; }
         clearSelection();
         setShowShadowPanel(false);
         setShowOutlinePanel(false);
@@ -828,6 +831,13 @@ export default function TemplatesEditorInner() {
       if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); zoomOut(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); setZoomFactor(1); return; }
 
+      // Preview navigation (when preview is open)
+      if (previewOpen) {
+        if (e.key === 'ArrowRight') { setActivePage(i => Math.min(i + 1, pages.length - 1)); return; }
+        if (e.key === 'ArrowLeft')  { setActivePage(i => Math.max(i - 1, 0)); return; }
+        return;
+      }
+
       // Tool hotkeys (only when no element focused and no modifier held)
       if (!e.ctrlKey && !e.metaKey && !e.altKey && !selectedId) {
         const tag = document.activeElement?.tagName;
@@ -835,11 +845,31 @@ export default function TemplatesEditorInner() {
         if (e.key === 't' || e.key === 'T') { addText(); return; }
         if (e.key === 'r' || e.key === 'R') { addRect(); return; }
         if (e.key === 'c' || e.key === 'C') { addCircle(); return; }
+        if (e.key === 'p' || e.key === 'P') { setPreviewOpen(true); return; }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, selectedIds, editingTextId, history, historyIndex, elements, clipboard, zoomFactor]);
+  }, [selectedId, selectedIds, editingTextId, history, historyIndex, elements, clipboard, zoomFactor, previewOpen]);
+
+  // ── Preview capture ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!previewOpen || !stageRef.current) return;
+    setPreviewUrl(null);
+    const timer = setTimeout(() => {
+      if (!stageRef.current) return;
+      setSelectedId(null); setSelectedIds([]);
+      if (trLayerRef.current) trLayerRef.current.hide();
+      requestAnimationFrame(() => {
+        if (!stageRef.current) return;
+        const pixelRatio = canvasSize.w / stageRef.current.width();
+        const url = stageRef.current.toDataURL({ mimeType: 'image/png', quality: 1, pixelRatio });
+        if (trLayerRef.current) trLayerRef.current.show();
+        setPreviewUrl(url);
+      });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [previewOpen, activePage]);
 
   // ── History helpers ────────────────────────────────────────────────────────
   function snapshot() {
@@ -1449,6 +1479,12 @@ export default function TemplatesEditorInner() {
             style={{ width: 34, height: 34, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: historyIndex >= history.length - 1 ? t.textMuted : t.text, fontSize: 16, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⟳</button>
 
           <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0 }} />
+
+          {/* Preview */}
+          <button onClick={() => setPreviewOpen(true)} title="Preview (P)"
+            style={{ height: 36, padding: '0 13px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+            ⊙ Preview
+          </button>
 
           {/* Share / Save & Post */}
           <button onClick={handleSave} disabled={saving}
@@ -3136,6 +3172,9 @@ export default function TemplatesEditorInner() {
           el && { label: 'Bring to Front',shortcut: 'Shift+]',fn: () => bringToFront(el.id) },
           el && { label: 'Send to Back',  shortcut: 'Shift+[',fn: () => sendToBack(el.id) },
           el && { sep: true },
+          el && el.type === 'group' && { label: 'Ungroup', shortcut: 'Ctrl+⇧G', fn: () => ungroupSelected() },
+          el && pages.length > 1 && { label: 'Add to all pages', fn: () => addElToAllPages(el.id) },
+          (el?.type === 'group' || pages.length > 1) && el && { sep: true },
           el && { label: isLocked ? 'Unlock' : 'Lock',        fn: () => toggleLocked(el.id) },
           el && { label: isHidden ? 'Show'   : 'Hide',        fn: () => toggleHidden(el.id) },
           el && { sep: true },
@@ -3241,6 +3280,49 @@ export default function TemplatesEditorInner() {
               </>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Preview modal ── */}
+      {previewOpen && (
+        <div
+          onClick={() => setPreviewOpen(false)}
+          style={{ position:'fixed', inset:0, zIndex:3000, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center' }}
+        >
+          {/* Close */}
+          <button onClick={() => setPreviewOpen(false)}
+            style={{ position:'absolute', top:16, right:16, background:'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:38, height:38, borderRadius:'50%', cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            ✕
+          </button>
+
+          {/* Page counter */}
+          {pages.length > 1 && (
+            <div style={{ position:'absolute', top:18, left:'50%', transform:'translateX(-50%)', background:'rgba(255,255,255,0.12)', borderRadius:20, padding:'4px 14px', color:'#fff', fontSize:13, pointerEvents:'none' }}>
+              {activePage + 1} / {pages.length}
+            </div>
+          )}
+
+          {/* Canvas image */}
+          {previewUrl
+            ? <img src={previewUrl} onClick={e => e.stopPropagation()} style={{ maxWidth:'85vw', maxHeight:'85vh', objectFit:'contain', borderRadius:6, boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }} />
+            : <div style={{ color:'rgba(255,255,255,0.4)', fontSize:14 }}>Rendering…</div>
+          }
+
+          {/* Left arrow */}
+          {pages.length > 1 && activePage > 0 && (
+            <button onClick={e => { e.stopPropagation(); setActivePage(i => i - 1); }}
+              style={{ position:'absolute', left:16, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:44, height:44, borderRadius:'50%', cursor:'pointer', fontSize:22, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              ‹
+            </button>
+          )}
+
+          {/* Right arrow */}
+          {pages.length > 1 && activePage < pages.length - 1 && (
+            <button onClick={e => { e.stopPropagation(); setActivePage(i => i + 1); }}
+              style={{ position:'absolute', right:16, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:44, height:44, borderRadius:'50%', cursor:'pointer', fontSize:22, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              ›
+            </button>
+          )}
         </div>
       )}
     </div>
