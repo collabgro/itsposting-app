@@ -448,6 +448,8 @@ export default function TemplatesEditorInner() {
   const [quickQuery, setQuickQuery] = useState('');
   // Text panel font search
   const [fontSearch, setFontSearch] = useState('');
+  // Elements panel category tab
+  const [elemTab, setElemTab] = useState('shapes');
   // Top bar dropdowns
   const [titleEditing, setTitleEditing] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -720,44 +722,44 @@ export default function TemplatesEditorInner() {
     setSelectedId(el.id);
   }
 
-  function addRect() {
+  function addRect(overrides = {}) {
     pushHistory();
-    const el = { id: uid(), type: 'rect', x: canvasSize.w / 2 - 100, y: canvasSize.h / 2 - 50, width: 200, height: 100, fill: 'rgba(255,255,255,0.15)', cornerRadius: 12, opacity: 1 };
+    const el = { id: uid(), type: 'rect', x: canvasSize.w / 2 - 100, y: canvasSize.h / 2 - 50, width: 200, height: 100, fill: 'rgba(255,255,255,0.15)', cornerRadius: 12, opacity: 1, ...overrides };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
-  function addCircle() {
+  function addCircle(overrides = {}) {
     pushHistory();
-    const el = { id: uid(), type: 'circle', x: canvasSize.w / 2, y: canvasSize.h / 2, radius: 80, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    const el = { id: uid(), type: 'circle', x: canvasSize.w / 2, y: canvasSize.h / 2, radius: 80, fill: 'rgba(255,255,255,0.15)', opacity: 1, ...overrides };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
-  function addLine() {
+  function addLine(overrides = {}) {
     pushHistory();
-    const el = { id: uid(), type: 'line', x: canvasSize.w / 2 - 150, y: canvasSize.h / 2, points: [0, 0, 300, 0], stroke: '#ffffff', strokeWidth: 4, opacity: 1 };
+    const el = { id: uid(), type: 'line', x: canvasSize.w / 2 - 150, y: canvasSize.h / 2, points: [0, 0, 300, 0], stroke: '#ffffff', strokeWidth: 4, opacity: 1, ...overrides };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
-  function addTriangle() {
+  function addTriangle(overrides = {}) {
     pushHistory();
-    const el = { id: uid(), type: 'triangle', x: canvasSize.w / 2, y: canvasSize.h / 2, radius: 80, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    const el = { id: uid(), type: 'triangle', x: canvasSize.w / 2, y: canvasSize.h / 2, radius: 80, fill: 'rgba(255,255,255,0.15)', opacity: 1, ...overrides };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
-  function addStar() {
+  function addStar(overrides = {}) {
     pushHistory();
-    const el = { id: uid(), type: 'star', x: canvasSize.w / 2, y: canvasSize.h / 2, outerRadius: 80, innerRadius: 35, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    const el = { id: uid(), type: 'star', x: canvasSize.w / 2, y: canvasSize.h / 2, outerRadius: 80, innerRadius: 35, fill: 'rgba(255,255,255,0.15)', opacity: 1, ...overrides };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
 
-  function addArrow() {
+  function addArrow(overrides = {}) {
     pushHistory();
-    const el = { id: uid(), type: 'arrow', x: canvasSize.w / 2 - 100, y: canvasSize.h / 2, width: 200, fill: '#ffffff', strokeWidth: 4, opacity: 1 };
+    const el = { id: uid(), type: 'arrow', x: canvasSize.w / 2 - 100, y: canvasSize.h / 2, width: 200, fill: '#ffffff', strokeWidth: 4, opacity: 1, ...overrides };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -1743,48 +1745,83 @@ export default function TemplatesEditorInner() {
               </div>
             )}
 
-            {/* SHAPES */}
-            {activeLeftTool === 'shapes' && (
-              <div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-                  {[
-                    { label: 'Rectangle', fn: addRect },
-                    { label: 'Circle', fn: addCircle },
-                    { label: 'Triangle', fn: addTriangle },
-                    { label: 'Star', fn: addStar },
-                    { label: 'Arrow', fn: addArrow },
-                    { label: 'Line', fn: addLine },
-                  ].map(({ label, fn }) => (
-                    <button key={label} onClick={fn}
-                      style={{ padding: '14px 0', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                {selectedEl && selectedEl.type !== 'text' && selectedEl.type !== 'image' && (
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 4 }}>FILL COLOR</label>
-                    <RecentColorsRow onPick={c => handleElementChange({ ...selectedEl, fill: c })} />
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-                      {COLOR_PALETTE.map(hex => (
-                        <button key={hex} onClick={() => { handleElementChange({ ...selectedEl, fill: hex }); pickColor(hex, () => {}); }}
-                          style={{ width: 24, height: 24, borderRadius: 5, background: hex, border: `1px solid ${t.border}`, cursor: 'pointer' }} />
-                      ))}
-                      <input type="color" value={selectedEl.fill || '#ffffff'}
-                        onChange={e => updateElement({ ...selectedEl, fill: e.target.value })}
-                        onBlur={e => { pushHistory(); pickColor(e.target.value, () => {}); }}
-                        style={{ width: 24, height: 24, borderRadius: 5, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 1 }} />
-                    </div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 4 }}>OPACITY</label>
-                    <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity !== undefined ? selectedEl.opacity : 1}
-                      onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-                      onMouseUp={() => pushHistory()} style={{ width: '100%' }} />
-                    <div style={{ fontSize: 12, color: t.textMuted, textAlign: 'right' }}>{Math.round((selectedEl.opacity !== undefined ? selectedEl.opacity : 1) * 100)}%</div>
+            {/* ELEMENTS (Shapes) */}
+            {activeLeftTool === 'shapes' && (() => {
+              const ELEM_TABS = {
+                shapes: [
+                  { label: 'Rectangle', icon: '▭', fn: () => addRect(), hint: 'Rectangle' },
+                  { label: 'Circle',    icon: '●', fn: () => addCircle(), hint: 'Circle'  },
+                  { label: 'Triangle',  icon: '▲', fn: () => addTriangle(), hint: 'Triangle' },
+                  { label: 'Star',      icon: '★', fn: () => addStar(), hint: 'Star'      },
+                  { label: 'Arrow',     icon: '→', fn: () => addArrow(), hint: 'Arrow'    },
+                  { label: 'Line',      icon: '╱', fn: () => addLine(), hint: 'Line'      },
+                  { label: 'Rounded',   icon: '▢', fn: () => addRect({ cornerRadius: 20 }), hint: 'Rounded rect' },
+                  { label: 'Diamond',   icon: '◆', fn: () => addTriangle({ sides: 4, rotation: 45 }), hint: 'Diamond' },
+                ],
+                lines: [
+                  { label: 'Straight',  icon: '─', fn: () => addLine(), hint: 'Straight line' },
+                  { label: 'Arrow',     icon: '→', fn: () => addArrow(), hint: 'Arrow line'   },
+                ],
+                frames: [
+                  { label: 'Rect Border',   icon: '⬜', fn: () => addRect({ fill: 'transparent', stroke: '#ffffff', strokeWidth: 4 }), hint: 'Rectangle border' },
+                  { label: 'Circle Border', icon: '⭕', fn: () => addCircle({ fill: 'transparent', stroke: '#ffffff', strokeWidth: 4 }), hint: 'Circle border'    },
+                ],
+                grids: [
+                  { label: '2×2 Grid', icon: '⊞', fn: () => { for(let r=0;r<2;r++) for(let c=0;c<2;c++) addRect({ x: canvasSize.w/2 - 220 + c*115, y: canvasSize.h/2 - 120 + r*115, width: 110, height: 110 }); }, hint: '2×2 grid' },
+                  { label: '3 Cols',   icon: '☰', fn: () => { for(let c=0;c<3;c++) addRect({ x: canvasSize.w/2 - 185 + c*125, y: canvasSize.h/2 - 55, width: 120, height: 110 }); }, hint: '3-column row' },
+                ],
+              };
+              const items = ELEM_TABS[elemTab] || ELEM_TABS.shapes;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  {/* Tab strip */}
+                  <div style={{ display: 'flex', gap: 2, marginBottom: 14, background: t.input, borderRadius: 8, padding: 3 }}>
+                    {['shapes', 'lines', 'frames', 'grids'].map(tab => (
+                      <button key={tab} onClick={() => setElemTab(tab)}
+                        style={{ flex: 1, padding: '5px 0', fontSize: 11, fontWeight: 600, borderRadius: 6, border: 'none', background: elemTab === tab ? t.card : 'transparent', color: elemTab === tab ? t.text : t.textMuted, cursor: 'pointer', textTransform: 'capitalize' }}>
+                        {tab}
+                      </button>
+                    ))}
                   </div>
-                )}
-              </div>
-            )}
+
+                  {/* Element grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+                    {items.map(({ label, icon, fn, hint }) => (
+                      <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
+                        title={hint}
+                        style={{ padding: '16px 0 10px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: t.textMuted }}>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Properties for selected shape */}
+                  {selectedEl && selectedEl.type !== 'text' && selectedEl.type !== 'image' && (
+                    <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Fill</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+                        {COLOR_PALETTE.map(hex => (
+                          <button key={hex} onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fill: hex }); pickColor(hex, () => {}); }}
+                            style={{ width: 22, height: 22, borderRadius: 5, background: hex, border: selectedEl.fill === hex ? `2px solid #00C4CC` : `1px solid ${t.border}`, cursor: 'pointer', flexShrink: 0 }} />
+                        ))}
+                        <input type="color" value={selectedEl.fill || '#ffffff'}
+                          onChange={e => updateElement({ ...selectedEl, fill: e.target.value })}
+                          onBlur={e => { pushHistory(); pickColor(e.target.value, () => {}); }}
+                          style={{ width: 22, height: 22, borderRadius: 5, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 1, flexShrink: 0 }} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Opacity</span>
+                        <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity !== undefined ? selectedEl.opacity : 1}
+                          onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
+                          onMouseUp={() => pushHistory()} style={{ flex: 1 }} />
+                        <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{Math.round((selectedEl.opacity !== undefined ? selectedEl.opacity : 1) * 100)}%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* FILTERS */}
             {activeLeftTool === 'filters' && (
