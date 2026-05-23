@@ -636,6 +636,9 @@ export default function TemplatesEditorInner() {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [showResizeMenu, setShowResizeMenu] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [editModeOpen, setEditModeOpen] = useState(false);
+  const [editMode, setEditMode] = useState('editing');
+  const [shareOpen, setShareOpen] = useState(false);
   const [previewOpen, setPreviewOpen]   = useState(false);
   const [previewUrl,  setPreviewUrl]    = useState(null);
 
@@ -1548,6 +1551,35 @@ export default function TemplatesEditorInner() {
                     onMouseLeave={e => { if (canvasSizeId !== s.id) e.currentTarget.style.background = 'transparent'; }}>
                     <span>{s.label}</span>
                     <span style={{ fontSize: 11, color: t.textMuted, flexShrink: 0 }}>{s.w}×{s.h}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── "✏ Editing ▾" mode dropdown ── */}
+          <div style={{ position: 'relative' }}>
+            {editModeOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setEditModeOpen(false)} />}
+            <button onClick={() => { setEditModeOpen(o => !o); setShowFileMenu(false); setShowResizeMenu(false); setShowDownloadMenu(false); }}
+              style={{ height: 34, padding: '0 10px', border: `1px solid ${editModeOpen ? t.primary : t.border}`, borderRadius: 7, background: editModeOpen ? t.primaryBg : t.input, color: editModeOpen ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+              ✏ Editing <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
+            </button>
+            {editModeOpen && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 220, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0' }}>
+                {[
+                  { id: 'editing',    label: 'Editing',    sub: 'Make changes'  },
+                  { id: 'commenting', label: 'Commenting', sub: 'Add feedback'  },
+                  { id: 'viewing',    label: 'Viewing',    sub: 'Read-only'     },
+                ].map(m => (
+                  <button key={m.id} onClick={() => { setEditMode(m.id); setEditModeOpen(false); }}
+                    style={{ width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontSize: 13, color: t.text, textAlign: 'left' }}
+                    onMouseEnter={e => e.currentTarget.style.background = t.input}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{m.label}</div>
+                      <div style={{ fontSize: 11, color: t.textMuted }}>{m.sub}</div>
+                    </div>
+                    {editMode === m.id && <span style={{ color: '#00C4CC', fontSize: 14 }}>✓</span>}
                   </button>
                 ))}
               </div>
