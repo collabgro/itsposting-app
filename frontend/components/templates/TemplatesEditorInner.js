@@ -400,6 +400,7 @@ export default function TemplatesEditorInner() {
 
   // UI
   const [activeLeftTool, setActiveLeftTool] = useState('background');
+  const [panelOpen, setPanelOpen] = useState(true);
   const [bgPhotos, setBgPhotos] = useState([]);
   const [bgPhotosLoading, setBgPhotosLoading] = useState(false);
   const [bgTab, setBgTab] = useState('stock');
@@ -874,6 +875,15 @@ export default function TemplatesEditorInner() {
     </div>
   );
 
+  function handleToolClick(toolId) {
+    if (activeLeftTool === toolId && panelOpen) {
+      setPanelOpen(false);
+    } else {
+      setActiveLeftTool(toolId);
+      setPanelOpen(true);
+    }
+  }
+
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 70px)', overflow: 'hidden', background: t.bg }}>
@@ -1063,27 +1073,64 @@ export default function TemplatesEditorInner() {
       {/* ── Main layout ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-        {/* ── Left panel ── */}
-        <div style={{ width: 260, borderRight: `1px solid ${t.border}`, background: t.card, display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
-          {/* Tool tabs */}
-          <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, flexShrink: 0, overflowX: 'auto' }}>
-            {[
-              { id: 'background', label: 'BG' },
-              { id: 'text',       label: 'T'  },
-              { id: 'images',     label: '🖼'  },
-              { id: 'shapes',     label: '◻'  },
-              { id: 'filters',    label: '◑'  },
-              { id: 'adjust',     label: '⊹'  },
-            ].map(tool => (
-              <button key={tool.id} onClick={() => setActiveLeftTool(tool.id)}
-                style={{ flex: 1, padding: '10px 0', border: 'none', background: activeLeftTool === tool.id ? t.primaryBg : 'transparent', color: activeLeftTool === tool.id ? t.primary : t.textMuted, fontSize: 14, fontWeight: 600, cursor: 'pointer', borderBottom: activeLeftTool === tool.id ? `2px solid ${t.primary}` : '2px solid transparent', whiteSpace: 'nowrap' }}>
-                {tool.label}
-              </button>
-            ))}
-          </div>
+        {/* ── Left sidebar: 72px icon strip + 320px collapsible flyout ── */}
 
-          {/* Tool content */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+        {/* 72px icon strip — always visible */}
+        <div style={{ width: 72, borderRight: `1px solid ${t.border}`, background: t.card,
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          padding: '8px 0', flexShrink: 0, gap: 2 }}>
+          {[
+            { id: 'background', icon: '◻', label: 'Design'   },
+            { id: 'text',       icon: 'T', label: 'Text'      },
+            { id: 'images',     icon: '🖼', label: 'Images'   },
+            { id: 'shapes',     icon: '✦', label: 'Elements'  },
+            { id: 'filters',    icon: '◑', label: 'Filters'   },
+            { id: 'adjust',     icon: '⊹', label: 'Adjust'    },
+          ].map(tool => (
+            <button key={tool.id} onClick={() => handleToolClick(tool.id)}
+              style={{
+                width: 60, padding: '10px 0 6px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                background: activeLeftTool === tool.id && panelOpen ? t.primaryBg : 'transparent',
+                border: 'none', borderRadius: 8, cursor: 'pointer',
+                color: activeLeftTool === tool.id && panelOpen ? t.primary : t.textMuted,
+                fontSize: 10, fontWeight: activeLeftTool === tool.id && panelOpen ? 600 : 400,
+                transition: 'all 150ms ease',
+              }}>
+              <span style={{ fontSize: 20, lineHeight: 1 }}>{tool.icon}</span>
+              {tool.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 320px collapsible flyout */}
+        <div style={{
+          width: panelOpen ? 320 : 0,
+          overflow: 'hidden',
+          transition: 'width 200ms ease',
+          borderRight: panelOpen ? `1px solid ${t.border}` : 'none',
+          background: t.card,
+          position: 'relative',
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          {/* Collapse/expand arrow */}
+          <button onClick={() => setPanelOpen(o => !o)} style={{
+            position: 'absolute', right: -13, top: '50%',
+            transform: 'translateY(-50%)',
+            width: 26, height: 52,
+            background: t.card, border: `1px solid ${t.border}`,
+            borderRadius: '0 8px 8px 0', cursor: 'pointer',
+            zIndex: 20, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', color: t.textMuted, fontSize: 14,
+          }}>
+            {panelOpen ? '‹' : '›'}
+          </button>
+
+          {/* Tool content — rendered only when flyout is open */}
+          {panelOpen && (
+          <div style={{ flex: 1, overflowY: 'auto', padding: 14, minWidth: 320 }}>
 
             {/* BACKGROUND */}
             {activeLeftTool === 'background' && (
@@ -1341,6 +1388,7 @@ export default function TemplatesEditorInner() {
             )}
 
           </div>
+          )}
         </div>
 
         {/* ── Canvas area ── */}
