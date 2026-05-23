@@ -46,6 +46,14 @@ const COLOR_PALETTE = [
 
 const SNAP_THRESHOLD = 5;
 
+const BLEND_MODES = [
+  ['source-over','Normal'],['multiply','Multiply'],['screen','Screen'],
+  ['overlay','Overlay'],['darken','Darken'],['lighten','Lighten'],
+  ['color-dodge','Color Dodge'],['color-burn','Color Burn'],
+  ['hard-light','Hard Light'],['soft-light','Soft Light'],
+  ['difference','Difference'],['exclusion','Exclusion'],
+];
+
 const QUICK_ACTIONS = [
   { id: 'text',     icon: 'T',  label: 'Add text',        sub: 'Insert a text element',    shortcut: 'T'       },
   { id: 'rect',     icon: '▭',  label: 'Add rectangle',   sub: 'Insert a rectangle shape', shortcut: 'R'       },
@@ -209,6 +217,7 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
       onTransformEnd={handleTransformEnd}
       stroke={isSelected ? '#00C4CC' : undefined}
       strokeWidth={isSelected ? 1.5 : 0}
+      globalCompositeOperation={el.blendMode || 'source-over'}
     />
   );
 }
@@ -287,6 +296,7 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     onTransformEnd: handleTransformEnd,
     stroke: isSelected ? '#00C4CC' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined),
     strokeWidth: isSelected ? 1.5 : (el.borderEnabled && el.borderWidth ? el.borderWidth : 0),
+    globalCompositeOperation: el.blendMode || 'source-over',
   };
 
   if (el.type === 'text') return (
@@ -428,6 +438,7 @@ function GroupNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDragM
       opacity={el.opacity ?? 1}
       draggable={!locked}
       visible={!hidden && el.visible !== false}
+      globalCompositeOperation={el.blendMode || 'source-over'}
       onClick={(e)  => { e.cancelBubble = true; if (!locked) onSelect(el.id, e); }}
       onTap={(e)    => { e.cancelBubble = true; if (!locked) onSelect(el.id, e); }}
       onDragMove={handleDragMove}
@@ -1798,6 +1809,11 @@ export default function TemplatesEditorInner() {
                 onChange={e => updateElement({...selectedEl, opacity:parseFloat(e.target.value)})}
                 onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
               <span style={{ fontSize:11, color:t.textMuted, minWidth:30, flexShrink:0 }}>{Math.round((selectedEl.opacity??1)*100)}%</span>
+              <D />
+              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Blend</span>
+              <select value={selectedEl.blendMode||'source-over'} onChange={e => { pushHistory(); patchElements(p => p.map(el => el.id===selectedEl.id ? {...el, blendMode:e.target.value} : el)); }} style={{ height:24, padding:'0 3px', borderRadius:5, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', flexShrink:0, maxWidth:90 }}>
+                {BLEND_MODES.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
               <div style={{ flex: 1 }} />
               <div style={{ display:'flex', gap:1, alignItems:'center' }}>
                 {[['left','⊢','Align left'],['centerH','↔','Center H'],['right','⊣','Align right'],['top','⊤','Align top'],['centerV','↕','Center V'],['bottom','⊥','Align bottom']].map(([dir,icon,title]) => (
@@ -1888,6 +1904,11 @@ export default function TemplatesEditorInner() {
                 onChange={e => updateElement({...selectedEl, opacity:parseFloat(e.target.value)})}
                 onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
               <span style={{ fontSize:11, color:t.textMuted, minWidth:30, flexShrink:0 }}>{Math.round((selectedEl.opacity??1)*100)}%</span>
+              <D />
+              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Blend</span>
+              <select value={selectedEl.blendMode||'source-over'} onChange={e => { pushHistory(); patchElements(p => p.map(el => el.id===selectedEl.id ? {...el, blendMode:e.target.value} : el)); }} style={{ height:24, padding:'0 3px', borderRadius:5, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', flexShrink:0, maxWidth:90 }}>
+                {BLEND_MODES.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
               <D />
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
               <div style={{ flex:1 }} />
@@ -1998,6 +2019,11 @@ export default function TemplatesEditorInner() {
                 onChange={e => updateElement({...selectedEl, opacity:parseFloat(e.target.value)})}
                 onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
               <span style={{ fontSize:11, color:t.textMuted, minWidth:30, flexShrink:0 }}>{Math.round((selectedEl.opacity??1)*100)}%</span>
+              <D />
+              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Blend</span>
+              <select value={selectedEl.blendMode||'source-over'} onChange={e => { pushHistory(); patchElements(p => p.map(el => el.id===selectedEl.id ? {...el, blendMode:e.target.value} : el)); }} style={{ height:24, padding:'0 3px', borderRadius:5, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', flexShrink:0, maxWidth:90 }}>
+                {BLEND_MODES.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
               <D />
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
               <div style={{ flex:1 }} />
