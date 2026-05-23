@@ -462,6 +462,7 @@ export default function TemplatesEditorInner() {
   const [recentColors, setRecentColors] = useState([]);
   const [showShadowPanel, setShowShadowPanel] = useState(false);
   const [showOutlinePanel, setShowOutlinePanel] = useState(false);
+  const [showPositionPanel, setShowPositionPanel] = useState(false);
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
   // Quick actions palette
@@ -658,6 +659,7 @@ export default function TemplatesEditorInner() {
         clearSelection();
         setShowShadowPanel(false);
         setShowOutlinePanel(false);
+        setShowPositionPanel(false);
         setCtxMenu(null);
         setQuickOpen(false);
         return;
@@ -1252,7 +1254,7 @@ export default function TemplatesEditorInner() {
       </div>
 
       {/* ── Contextual action bar (Canva-style) ── */}
-      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); }}
+      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }}
         style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
 
         {/* ── Multi-select bar ── */}
@@ -1422,7 +1424,54 @@ export default function TemplatesEditorInner() {
               <span style={{ fontSize:11, color:t.textMuted, minWidth:30, flexShrink:0 }}>{Math.round((selectedEl.opacity??1)*100)}%</span>
               <div style={{ flex: 1 }} />
               <D />
-              <Btn label="Position" active={false} onClick={() => {}} extraStyle={{ color: t.textMuted }} />
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="Position" active={showPositionPanel}
+                  onClick={() => { setShowPositionPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); }} />
+                {showPositionPanel && selectedEl && (
+                  <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                      {[['X', 'x'], ['Y', 'y']].map(([lbl, k]) => (
+                        <div key={k}>
+                          <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 3 }}>{lbl}</div>
+                          <input type="number" value={Math.round(selectedEl[k] || 0)}
+                            onChange={e => updateElement({ ...selectedEl, [k]: parseInt(e.target.value) || 0 })}
+                            onBlur={() => pushHistory()}
+                            style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, boxSizing: 'border-box' }} />
+                        </div>
+                      ))}
+                    </div>
+                    {(selectedEl.width != null || selectedEl.height != null) && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                        {[['W', 'width'], ['H', 'height']].map(([lbl, k]) => (
+                          <div key={k}>
+                            <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 3 }}>{lbl}</div>
+                            <input type="number" value={Math.round(selectedEl[k] || 0)}
+                              onChange={e => updateElement({ ...selectedEl, [k]: Math.max(1, parseInt(e.target.value) || 1) })}
+                              onBlur={() => pushHistory()}
+                              style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, boxSizing: 'border-box' }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                        <span style={{ fontSize: 10, color: t.textMuted }}>Rotation</span>
+                        <span style={{ fontSize: 10, color: t.textMuted }}>{Math.round(selectedEl.rotation || 0)}°</span>
+                      </div>
+                      <input type="range" min={-180} max={180} value={selectedEl.rotation || 0}
+                        onChange={e => updateElement({ ...selectedEl, rotation: parseInt(e.target.value) })}
+                        onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: '#00C4CC' }} />
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Layer</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4 }}>
+                      {[['⤒','Bring to front',()=>bringToFront()],['↑','Bring forward',()=>bringForward()],['↓','Send backward',()=>sendBackward()],['⤓','Send to back',()=>sendToBack()]].map(([lbl,title,fn]) => (
+                        <button key={title} title={title} onClick={fn}
+                          style={{ padding: '6px 0', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 15, cursor: 'pointer' }}>{lbl}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <Btn label="✦ Animate" active={false} onClick={() => {}} extraStyle={{ color: t.primary, fontWeight: 500 }} />
             </>
           );
@@ -1459,7 +1508,45 @@ export default function TemplatesEditorInner() {
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
               <div style={{ flex:1 }} />
               <D />
-              <Btn label="Position" active={false} onClick={() => {}} />
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="Position" active={showPositionPanel}
+                  onClick={() => { setShowPositionPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); }} />
+                {showPositionPanel && selectedEl && (
+                  <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                      {[['X','x'],['Y','y']].map(([lbl,k]) => (
+                        <div key={k}>
+                          <div style={{ fontSize:10, color:t.textMuted, marginBottom:3 }}>{lbl}</div>
+                          <input type="number" value={Math.round(selectedEl[k]||0)} onChange={e=>updateElement({...selectedEl,[k]:parseInt(e.target.value)||0})} onBlur={()=>pushHistory()} style={{ width:'100%', padding:'5px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, boxSizing:'border-box' }} />
+                        </div>
+                      ))}
+                    </div>
+                    {(selectedEl.width!=null||selectedEl.height!=null) && (
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                        {[['W','width'],['H','height']].map(([lbl,k]) => (
+                          <div key={k}>
+                            <div style={{ fontSize:10, color:t.textMuted, marginBottom:3 }}>{lbl}</div>
+                            <input type="number" value={Math.round(selectedEl[k]||0)} onChange={e=>updateElement({...selectedEl,[k]:Math.max(1,parseInt(e.target.value)||1)})} onBlur={()=>pushHistory()} style={{ width:'100%', padding:'5px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, boxSizing:'border-box' }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ marginBottom:12 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+                        <span style={{ fontSize:10, color:t.textMuted }}>Rotation</span>
+                        <span style={{ fontSize:10, color:t.textMuted }}>{Math.round(selectedEl.rotation||0)}°</span>
+                      </div>
+                      <input type="range" min={-180} max={180} value={selectedEl.rotation||0} onChange={e=>updateElement({...selectedEl,rotation:parseInt(e.target.value)})} onMouseUp={()=>pushHistory()} style={{ width:'100%', accentColor:'#00C4CC' }} />
+                    </div>
+                    <div style={{ fontSize:10, fontWeight:700, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Layer</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:4 }}>
+                      {[['⤒','Bring to front',()=>bringToFront()],['↑','Bring forward',()=>bringForward()],['↓','Send backward',()=>sendBackward()],['⤓','Send to back',()=>sendToBack()]].map(([lbl,title,fn]) => (
+                        <button key={title} title={title} onClick={fn} style={{ padding:'6px 0', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:15, cursor:'pointer' }}>{lbl}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <Btn label="✦ Animate" active={false} onClick={() => {}} />
             </>
           );
@@ -1506,7 +1593,45 @@ export default function TemplatesEditorInner() {
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
               <div style={{ flex:1 }} />
               <D />
-              <Btn label="Position" active={false} onClick={() => {}} />
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="Position" active={showPositionPanel}
+                  onClick={() => { setShowPositionPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); }} />
+                {showPositionPanel && selectedEl && (
+                  <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                      {[['X','x'],['Y','y']].map(([lbl,k]) => (
+                        <div key={k}>
+                          <div style={{ fontSize:10, color:t.textMuted, marginBottom:3 }}>{lbl}</div>
+                          <input type="number" value={Math.round(selectedEl[k]||0)} onChange={e=>updateElement({...selectedEl,[k]:parseInt(e.target.value)||0})} onBlur={()=>pushHistory()} style={{ width:'100%', padding:'5px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, boxSizing:'border-box' }} />
+                        </div>
+                      ))}
+                    </div>
+                    {(selectedEl.width!=null||selectedEl.height!=null) && (
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                        {[['W','width'],['H','height']].map(([lbl,k]) => (
+                          <div key={k}>
+                            <div style={{ fontSize:10, color:t.textMuted, marginBottom:3 }}>{lbl}</div>
+                            <input type="number" value={Math.round(selectedEl[k]||0)} onChange={e=>updateElement({...selectedEl,[k]:Math.max(1,parseInt(e.target.value)||1)})} onBlur={()=>pushHistory()} style={{ width:'100%', padding:'5px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, boxSizing:'border-box' }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ marginBottom:12 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+                        <span style={{ fontSize:10, color:t.textMuted }}>Rotation</span>
+                        <span style={{ fontSize:10, color:t.textMuted }}>{Math.round(selectedEl.rotation||0)}°</span>
+                      </div>
+                      <input type="range" min={-180} max={180} value={selectedEl.rotation||0} onChange={e=>updateElement({...selectedEl,rotation:parseInt(e.target.value)})} onMouseUp={()=>pushHistory()} style={{ width:'100%', accentColor:'#00C4CC' }} />
+                    </div>
+                    <div style={{ fontSize:10, fontWeight:700, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Layer</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:4 }}>
+                      {[['⤒','Bring to front',()=>bringToFront()],['↑','Bring forward',()=>bringForward()],['↓','Send backward',()=>sendBackward()],['⤓','Send to back',()=>sendToBack()]].map(([lbl,title,fn]) => (
+                        <button key={title} title={title} onClick={fn} style={{ padding:'6px 0', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:15, cursor:'pointer' }}>{lbl}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <Btn label="✦ Animate" active={false} onClick={() => {}} />
             </>
           );
@@ -2058,6 +2183,7 @@ export default function TemplatesEditorInner() {
                           clearSelection();
                           setShowShadowPanel(false);
                           setShowOutlinePanel(false);
+                          setShowPositionPanel(false);
                         }
                       }) : undefined}
                       onMouseDown={isActive ? (e => {
