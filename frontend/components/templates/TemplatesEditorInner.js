@@ -376,6 +376,77 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
   return null;
 }
 
+// ─── GroupNode ───────────────────────────────────────────────────────────────
+
+function GroupNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDragMove, onSnapClear, locked, hidden }) {
+  const groupRef = useRef(null);
+
+  const handleDragMove = (e) => {
+    if (!onDragMove) return;
+    const { x: nx, y: ny } = onDragMove(el.id, e.target.x(), e.target.y(), el.width, el.height);
+    e.target.position({ x: nx, y: ny });
+  };
+
+  const handleDragEnd = (e) => {
+    if (onSnapClear) onSnapClear();
+    onChange({ ...el, x: e.target.x(), y: e.target.y() });
+  };
+
+  const handleTransformEnd = () => {
+    const node = groupRef.current;
+    if (!node) return;
+    const sx = Math.abs(node.scaleX());
+    const sy = Math.abs(node.scaleY());
+    node.scaleX(1); node.scaleY(1);
+    onChange({
+      ...el,
+      x: node.x(), y: node.y(),
+      width:  Math.max(5, el.width  * sx),
+      height: Math.max(5, el.height * sy),
+      rotation: node.rotation(),
+      children: (el.children || []).map(child => ({
+        ...child,
+        x:           child.x * sx,
+        y:           child.y * sy,
+        width:       child.width       != null ? Math.max(1, child.width       * sx) : undefined,
+        height:      child.height      != null ? Math.max(1, child.height      * sy) : undefined,
+        fontSize:    child.fontSize    != null ? Math.max(8, Math.round(child.fontSize * sx)) : undefined,
+        radius:      child.radius      != null ? child.radius      * sx : undefined,
+        outerRadius: child.outerRadius != null ? child.outerRadius * sx : undefined,
+        innerRadius: child.innerRadius != null ? child.innerRadius * sx : undefined,
+      })),
+    });
+  };
+
+  return (
+    <Group
+      ref={groupRef}
+      id={el.id}
+      x={el.x}
+      y={el.y}
+      rotation={el.rotation || 0}
+      opacity={el.opacity ?? 1}
+      draggable={!locked}
+      visible={!hidden && el.visible !== false}
+      onClick={(e)  => { e.cancelBubble = true; if (!locked) onSelect(el.id, e); }}
+      onTap={(e)    => { e.cancelBubble = true; if (!locked) onSelect(el.id, e); }}
+      onDragMove={handleDragMove}
+      onDragEnd={handleDragEnd}
+      onTransformEnd={handleTransformEnd}
+    >
+      {(el.children || []).map(child =>
+        child.type === 'image'
+          ? <ImageNode  key={child.id} el={child} isSelected={false} onSelect={() => {}} onChange={() => {}} locked={false} hidden={false} />
+          : <ContentNode key={child.id} el={child} isSelected={false} onSelect={() => {}} onChange={() => {}} stageW={stageW} stageH={stageH} onDblClick={() => {}} locked={false} hidden={false} />
+      )}
+      {isSelected && (
+        <Rect x={0} y={0} width={el.width} height={el.height}
+          stroke="#00C4CC" strokeWidth={1.5} fill="transparent" listening={false} />
+      )}
+    </Group>
+  );
+}
+
 // ─── Canvas Rulers ───────────────────────────────────────────────────────────
 
 function RulerH({ canvasW, stageScale, isDark }) {
@@ -707,6 +778,9 @@ export default function TemplatesEditorInner() {
         }
         return;
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'g' && !e.shiftKey) { e.preventDefault(); groupSelected(); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'g' &&  e.shiftKey) { e.preventDefault(); ungroupSelected(); return; }
+
       if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault();
         const tag = document.activeElement?.tagName;
@@ -1132,6 +1206,58 @@ export default function TemplatesEditorInner() {
     }));
   }
 
+  function elBounds(e) {
+    const isCO = ['circle', 'triangle', 'star'].includes(e.type);
+    const r = e.radius || e.outerRadius || 60;
+    if (isCO) return { x: e.x - r, y: e.y - r, w: r * 2, h: r * 2 };
+    return { x: e.x, y: e.y, w: e.width || 100, h: e.height || 60 };
+  }
+
+  function groupSelected() {
+    if (selectedIds.length < 2) return;
+    const toGroup = elements.filter(e => selectedIds.includes(e.id));
+    if (!toGroup.length) return;
+    pushHistory();
+    const bounds = toGroup.map(elBounds);
+    const minX = Math.min(...bounds.map(b => b.x));
+    const minY = Math.min(...bounds.map(b => b.y));
+    const maxX = Math.max(...bounds.map(b => b.x + b.w));
+    const maxY = Math.max(...bounds.map(b => b.y + b.h));
+    const grpIdx = Math.min(...toGroup.map(e => elements.indexOf(e)));
+    const group = {
+      id: uid(), type: 'group',
+      x: minX, y: minY,
+      width: maxX - minX, height: maxY - minY,
+      rotation: 0, opacity: 1,
+      children: toGroup.map(e => ({ ...JSON.parse(JSON.stringify(e)), x: e.x - minX, y: e.y - minY })),
+    };
+    patchElements(prev => {
+      const filtered = prev.filter(e => !selectedIds.includes(e.id));
+      filtered.splice(grpIdx, 0, group);
+      return filtered;
+    });
+    setSelectedId(group.id);
+    setSelectedIds([group.id]);
+  }
+
+  function ungroupSelected() {
+    const grp = elements.find(e => e.id === selectedId && e.type === 'group');
+    if (!grp) return;
+    pushHistory();
+    const grpIdx = elements.indexOf(grp);
+    const restored = (grp.children || []).map(child => ({
+      ...child, id: uid(), x: grp.x + child.x, y: grp.y + child.y,
+    }));
+    patchElements(prev => {
+      const filtered = prev.filter(e => e.id !== grp.id);
+      filtered.splice(grpIdx, 0, ...restored);
+      return filtered;
+    });
+    const newIds = restored.map(e => e.id);
+    setSelectedIds(newIds);
+    setSelectedId(newIds[newIds.length - 1] || null);
+  }
+
   function movePageUp(idx) {
     if (idx <= 0) return;
     pushHistory();
@@ -1379,6 +1505,8 @@ export default function TemplatesEditorInner() {
               <span style={{ fontSize: 12, color: t.textMuted, flexShrink: 0, paddingRight: 6 }}>{selectedIds.length} selected</span>
               <D />
               {ALIGNS.map((a, i) => <Btn key={i} label={a.label} onClick={a.fn} />)}
+              <D />
+              <Btn label="⊡ Group" onClick={groupSelected} />
               <D />
               <Btn label="⧉ Duplicate all" onClick={() => {
                 pushHistory();
@@ -2428,7 +2556,21 @@ export default function TemplatesEditorInner() {
                       {/* Layer 2: Content */}
                       <Layer>
                         {pageElements.map(el => (
-                          el.type === 'image'
+                          el.type === 'group'
+                            ? <GroupNode
+                                key={el.id}
+                                el={el}
+                                isSelected={isActive && (selectedId === el.id || selectedIds.includes(el.id))}
+                                onSelect={isActive ? handleSelect : () => {}}
+                                onChange={isActive ? handleElementChange : () => {}}
+                                stageW={canvasSize.w}
+                                stageH={canvasSize.h}
+                                onDragMove={isActive ? computeSnap : null}
+                                onSnapClear={isActive ? clearSnapGuides : null}
+                                locked={pageLockedIds.has(el.id)}
+                                hidden={pageHiddenIds.has(el.id)}
+                              />
+                          : el.type === 'image'
                             ? <ImageNode
                                 key={el.id}
                                 el={el}
@@ -2541,6 +2683,7 @@ export default function TemplatesEditorInner() {
                         { icon: '↑', title: 'Bring forward',       fn: () => bringForward(selectedId) },
                         { icon: '↓', title: 'Send backward',       fn: () => sendBackward(selectedId) },
                         { sep: true },
+                        ...(el.type === 'group' ? [{ icon: '⊟', title: 'Ungroup (Ctrl+Shift+G)', fn: ungroupSelected }, { sep: true }] : []),
                         ...(pages.length > 1 ? [{ icon: '⊛', title: 'Add to all pages', fn: () => addElToAllPages(selectedId) }, { sep: true }] : []),
                         { icon: isLocked ? '🔒' : '🔓', title: isLocked ? 'Unlock' : 'Lock', fn: () => toggleLocked(selectedId) },
                         { sep: true },
