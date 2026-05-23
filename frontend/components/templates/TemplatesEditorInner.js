@@ -834,6 +834,24 @@ export default function TemplatesEditorInner() {
     patchElements(prev => prev.map(el => el.id === id ? { ...el, x: el.x + dx, y: el.y + dy } : el));
   }
 
+  function alignEl(id, direction) {
+    const el = elements.find(e => e.id === id);
+    if (!el) return;
+    const isCenterOrigin = ['circle', 'triangle', 'star'].includes(el.type);
+    const elW = el.width || (el.radius ? el.radius * 2 : 100);
+    const elH = el.height || (el.radius ? el.radius * 2 : 100);
+    const cW = canvasSize.w, cH = canvasSize.h;
+    let patch = {};
+    if (direction === 'centerH') patch = { x: isCenterOrigin ? cW / 2 : cW / 2 - elW / 2 };
+    if (direction === 'centerV') patch = { y: isCenterOrigin ? cH / 2 : cH / 2 - elH / 2 };
+    if (direction === 'left')    patch = { x: isCenterOrigin ? elW / 2 : 0 };
+    if (direction === 'right')   patch = { x: isCenterOrigin ? cW - elW / 2 : cW - elW };
+    if (direction === 'top')     patch = { y: isCenterOrigin ? elH / 2 : 0 };
+    if (direction === 'bottom')  patch = { y: isCenterOrigin ? cH - elH / 2 : cH - elH };
+    pushHistory();
+    patchElements(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
+  }
+
   // ── Flip ──────────────────────────────────────────────────────────────────
   function flipH() {
     const el = elements.find(e => e.id === selectedId);
@@ -1425,6 +1443,14 @@ export default function TemplatesEditorInner() {
                 onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
               <span style={{ fontSize:11, color:t.textMuted, minWidth:30, flexShrink:0 }}>{Math.round((selectedEl.opacity??1)*100)}%</span>
               <div style={{ flex: 1 }} />
+              <div style={{ display:'flex', gap:1, alignItems:'center' }}>
+                {[['left','⊢','Align left'],['centerH','↔','Center H'],['right','⊣','Align right'],['top','⊤','Align top'],['centerV','↕','Center V'],['bottom','⊥','Align bottom']].map(([dir,icon,title]) => (
+                  <button key={dir} title={title} onMouseDown={e => { e.preventDefault(); alignEl(selectedEl.id, dir); }}
+                    style={{ background:'none', border:'none', cursor:'pointer', color:t.text, fontSize:13, width:22, height:24, borderRadius:3, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {icon}
+                  </button>
+                ))}
+              </div>
               <D />
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Position" active={showPositionPanel}
@@ -1509,6 +1535,14 @@ export default function TemplatesEditorInner() {
               <D />
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
               <div style={{ flex:1 }} />
+              <div style={{ display:'flex', gap:1, alignItems:'center' }}>
+                {[['left','⊢','Align left'],['centerH','↔','Center H'],['right','⊣','Align right'],['top','⊤','Align top'],['centerV','↕','Center V'],['bottom','⊥','Align bottom']].map(([dir,icon,title]) => (
+                  <button key={dir} title={title} onMouseDown={e => { e.preventDefault(); alignEl(selectedEl.id, dir); }}
+                    style={{ background:'none', border:'none', cursor:'pointer', color:t.text, fontSize:13, width:22, height:24, borderRadius:3, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {icon}
+                  </button>
+                ))}
+              </div>
               <D />
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Position" active={showPositionPanel}
@@ -1611,6 +1645,14 @@ export default function TemplatesEditorInner() {
               <D />
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
               <div style={{ flex:1 }} />
+              <div style={{ display:'flex', gap:1, alignItems:'center' }}>
+                {[['left','⊢','Align left'],['centerH','↔','Center H'],['right','⊣','Align right'],['top','⊤','Align top'],['centerV','↕','Center V'],['bottom','⊥','Align bottom']].map(([dir,icon,title]) => (
+                  <button key={dir} title={title} onMouseDown={e => { e.preventDefault(); alignEl(selectedEl.id, dir); }}
+                    style={{ background:'none', border:'none', cursor:'pointer', color:t.text, fontSize:13, width:22, height:24, borderRadius:3, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {icon}
+                  </button>
+                ))}
+              </div>
               <D />
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Position" active={showPositionPanel}
