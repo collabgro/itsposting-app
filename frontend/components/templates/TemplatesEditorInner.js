@@ -404,6 +404,7 @@ export default function TemplatesEditorInner() {
 
   // Canva-parity state
   const [clipboard, setClipboard] = useState(null);
+  const [ctxMenu, setCtxMenu] = useState(null); // { x, y, elementId } | null
   const [snapGuides, setSnapGuides] = useState({ v: [], h: [] });
   const [rightTab, setRightTab] = useState('properties');
   const [recentColors, setRecentColors] = useState([]);
@@ -557,6 +558,7 @@ export default function TemplatesEditorInner() {
         setSelectedId(null);
         setShowShadowPanel(false);
         setShowOutlinePanel(false);
+        setCtxMenu(null);
       }
     };
     window.addEventListener('keydown', handler);
@@ -1643,6 +1645,14 @@ export default function TemplatesEditorInner() {
                       onClick={isActive ? (e => {
                         if (e.target === e.target.getStage()) { setSelectedId(null); setShowShadowPanel(false); setShowOutlinePanel(false); }
                       }) : undefined}
+                      onContextMenu={isActive ? (e => {
+                        e.evt.preventDefault();
+                        const { clientX, clientY } = e.evt;
+                        const isStage = e.target === e.target.getStage();
+                        const targetId = isStage ? null : (e.target.id() || null);
+                        if (targetId) setSelectedId(targetId);
+                        setCtxMenu({ x: clientX, y: clientY, elementId: targetId });
+                      }) : undefined}
                     >
                       {/* Layer 1: Background */}
                       <Layer>
@@ -2019,6 +2029,96 @@ export default function TemplatesEditorInner() {
           ⛶
         </button>
       </div>
+
+      {/* ── Right-click context menu ── */}
+      {ctxMenu && (() => {
+        const el = ctxMenu.elementId ? elements.find(e => e.id === ctxMenu.elementId) : null;
+        const isLocked = el && lockedIds.has(el.id);
+        const isHidden = el && hiddenIds.has(el.id);
+
+        // Clamp to viewport so menu never overflows
+        const menuW = 192, menuH = el ? 320 : 80;
+        const mx = Math.min(ctxMenu.x, window.innerWidth  - menuW - 8);
+        const my = Math.min(ctxMenu.y, window.innerHeight - menuH - 8);
+
+        const close = () => setCtxMenu(null);
+
+        const dupEl = () => {
+          if (!el) return;
+          const d = { ...JSON.parse(JSON.stringify(el)), id: `el_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, x: el.x + 20, y: el.y + 20 };
+          pushHistory(); patchElements(prev => [...prev, d]); setSelectedId(d.id);
+        };
+        const delEl = () => {
+          if (!el) return;
+          pushHistory(); patchElements(prev => prev.filter(e => e.id !== el.id)); setSelectedId(null);
+        };
+        const pasteEl = () => {
+          if (!clipboard) return;
+          const p = { ...JSON.parse(JSON.stringify(clipboard)), id: `el_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, x: clipboard.x + 20, y: clipboard.y + 20 };
+          pushHistory(); patchElements(prev => [...prev, p]); setSelectedId(p.id);
+        };
+
+        const ITEMS = [
+          el && { label: 'Copy',          shortcut: 'Ctrl+C', fn: () => setClipboard(JSON.parse(JSON.stringify(el))) },
+          clipboard && { label: 'Paste', shortcut: 'Ctrl+V', fn: pasteEl },
+          el && { label: 'Duplicate',     shortcut: 'Ctrl+D', fn: dupEl },
+          (el || clipboard) && { sep: true },
+          el && { label: 'Bring Forward', shortcut: ']',      fn: () => bringForward(el.id) },
+          el && { label: 'Send Backward', shortcut: '[',      fn: () => sendBackward(el.id) },
+          el && { label: 'Bring to Front',shortcut: 'Shift+]',fn: () => bringToFront(el.id) },
+          el && { label: 'Send to Back',  shortcut: 'Shift+[',fn: () => sendToBack(el.id) },
+          el && { sep: true },
+          el && { label: isLocked ? 'Unlock' : 'Lock',        fn: () => toggleLocked(el.id) },
+          el && { label: isHidden ? 'Show'   : 'Hide',        fn: () => toggleHidden(el.id) },
+          el && { sep: true },
+          el && { label: 'Delete', shortcut: 'Del', fn: delEl, danger: true },
+        ].filter(Boolean);
+
+        return (
+          <>
+            {/* Invisible overlay to close on outside click */}
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+              onMouseDown={close}
+              onContextMenu={e => { e.preventDefault(); close(); }}
+            />
+            {/* Menu */}
+            <div style={{
+              position: 'fixed', left: mx, top: my,
+              width: menuW, background: t.card,
+              border: `1px solid ${t.border}`,
+              borderRadius: 10,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
+              zIndex: 1000, overflow: 'hidden',
+              padding: '4px 0',
+            }}>
+              {ITEMS.map((item, i) =>
+                item.sep ? (
+                  <div key={i} style={{ height: 1, background: t.border, margin: '4px 0' }} />
+                ) : (
+                  <button key={i}
+                    onMouseDown={e => { e.stopPropagation(); item.fn(); close(); }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '7px 14px', border: 'none', background: 'transparent',
+                      color: item.danger ? '#ef4444' : t.text,
+                      fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                      transition: 'background 60ms',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = item.danger ? 'rgba(239,68,68,0.08)' : t.input; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <span>{item.label}</span>
+                    {item.shortcut && (
+                      <span style={{ fontSize: 11, color: t.textMuted, marginLeft: 12, flexShrink: 0 }}>{item.shortcut}</span>
+                    )}
+                  </button>
+                )
+              )}
+            </div>
+          </>
+        );
+      })()}
 
       {/* ── Post modal ── */}
       {postModalOpen && (
