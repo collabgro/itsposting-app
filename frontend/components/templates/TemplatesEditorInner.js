@@ -598,7 +598,8 @@ export default function TemplatesEditorInner() {
   const [historyIndex, setHistoryIndex] = useState(-1);
 
   // Canva-parity state
-  const [clipboard, setClipboard] = useState(null);
+  const [clipboard,      setClipboard]      = useState(null);
+  const [styleClipboard, setStyleClipboard] = useState(null);
   const [ctxMenu, setCtxMenu] = useState(null); // { x, y, elementId } | null
   const [snapGuides, setSnapGuides] = useState({ v: [], h: [] });
   const [rightTab, setRightTab] = useState('properties');
@@ -782,6 +783,8 @@ export default function TemplatesEditorInner() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'g' && !e.shiftKey) { e.preventDefault(); groupSelected(); return; }
       if ((e.metaKey || e.ctrlKey) && e.key === 'g' &&  e.shiftKey) { e.preventDefault(); ungroupSelected(); return; }
+      if (e.altKey && e.key === 'c') { e.preventDefault(); copyStyle(); return; }
+      if (e.altKey && e.key === 'v') { e.preventDefault(); pasteStyle(); return; }
 
       if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault();
@@ -1069,6 +1072,56 @@ export default function TemplatesEditorInner() {
     }
     pushHistory();
     patchElements(prev => prev.map(e => updates.has(e.id) ? updates.get(e.id) : e));
+  }
+
+  // ── Copy / Paste style ────────────────────────────────────────────────────
+  const STYLE_TEXT_KEYS  = ['fontSize','fontFamily','fontStyle','textDecoration','textTransform','align','letterSpacing','lineHeight'];
+  const STYLE_SHAPE_KEYS = ['stroke','strokeWidth','cornerRadius'];
+  const STYLE_COMMON_KEYS = ['opacity','fill','shadow'];
+
+  function copyStyle() {
+    const el = elements.find(e => e.id === selectedId);
+    if (!el) return;
+    const s = { _type: el.type };
+    [...STYLE_COMMON_KEYS, ...STYLE_TEXT_KEYS, ...STYLE_SHAPE_KEYS].forEach(k => {
+      if (el[k] != null) s[k] = el[k];
+    });
+    setStyleClipboard(s);
+  }
+
+  function pasteStyle(targetId) {
+    const id = targetId || selectedId;
+    const target = elements.find(e => e.id === id);
+    if (!styleClipboard || !target) return;
+    const { _type, ...props } = styleClipboard;
+    const textSet  = new Set(STYLE_TEXT_KEYS);
+    const shapeSet = new Set(STYLE_SHAPE_KEYS);
+    const patch = {};
+    for (const [k, v] of Object.entries(props)) {
+      if (textSet.has(k)  && target.type !== 'text') continue;
+      if (shapeSet.has(k) && target.type === 'text') continue;
+      patch[k] = v;
+    }
+    pushHistory();
+    patchElements(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
+  }
+
+  function pasteStyleToAll() {
+    if (!styleClipboard || selectedIds.length < 2) return;
+    const { _type, ...props } = styleClipboard;
+    const textSet  = new Set(STYLE_TEXT_KEYS);
+    const shapeSet = new Set(STYLE_SHAPE_KEYS);
+    pushHistory();
+    patchElements(prev => prev.map(e => {
+      if (!selectedIds.includes(e.id)) return e;
+      const patch = {};
+      for (const [k, v] of Object.entries(props)) {
+        if (textSet.has(k)  && e.type !== 'text') continue;
+        if (shapeSet.has(k) && e.type === 'text') continue;
+        patch[k] = v;
+      }
+      return { ...e, ...patch };
+    }));
   }
 
   // ── Flip ──────────────────────────────────────────────────────────────────
@@ -1589,6 +1642,12 @@ export default function TemplatesEditorInner() {
                   <D />
                   <Btn label="⇔ Dist H" onClick={distributeH} />
                   <Btn label="⇕ Dist V" onClick={distributeV} />
+                </>
+              )}
+              {styleClipboard && (
+                <>
+                  <D />
+                  <Btn label="◈ Paste style to all" onClick={pasteStyleToAll} />
                 </>
               )}
               <D />
@@ -2766,6 +2825,9 @@ export default function TemplatesEditorInner() {
                         { icon: '⧉', title: 'Copy (Ctrl+C)',      fn: copyEl },
                         { icon: '⊞', title: 'Duplicate (Ctrl+D)', fn: dupEl },
                         { sep: true },
+                        { icon: '◈', title: 'Copy style (Alt+C)',  fn: copyStyle },
+                        ...(styleClipboard ? [{ icon: '◈', title: 'Paste style (Alt+V)', fn: () => pasteStyle(), highlight: true }] : []),
+                        { sep: true },
                         { icon: '↑', title: 'Bring forward',       fn: () => bringForward(selectedId) },
                         { icon: '↓', title: 'Send backward',       fn: () => sendBackward(selectedId) },
                         { sep: true },
@@ -2801,14 +2863,15 @@ export default function TemplatesEditorInner() {
                                 onMouseDown={e => { e.stopPropagation(); b.fn(); }}
                                 style={{
                                   width: 30, height: 30, border: 'none', borderRadius: 6,
-                                  background: 'transparent', cursor: 'pointer', fontSize: 14,
+                                  background: b.highlight ? 'rgba(0,196,204,0.1)' : 'transparent',
+                                  cursor: 'pointer', fontSize: 14,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  color: b.danger ? '#ef4444' : '#333',
+                                  color: b.danger ? '#ef4444' : b.highlight ? '#00C4CC' : '#333',
                                   transition: 'background 80ms',
                                   flexShrink: 0,
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.background = b.danger ? 'rgba(239,68,68,0.09)' : '#f0f0f0'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                                onMouseEnter={e => { e.currentTarget.style.background = b.danger ? 'rgba(239,68,68,0.09)' : b.highlight ? 'rgba(0,196,204,0.2)' : '#f0f0f0'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = b.highlight ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
                               >
                                 {b.icon}
                               </button>
