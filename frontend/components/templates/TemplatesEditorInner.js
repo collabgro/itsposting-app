@@ -154,8 +154,8 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
       cornerRadius={el.cornerRadius || 0}
       draggable={!locked}
       visible={!hidden}
-      onClick={() => !locked && onSelect(el.id)}
-      onTap={() => !locked && onSelect(el.id)}
+      onClick={(e) => !locked && onSelect(el.id, e)}
+      onTap={(e) => !locked && onSelect(el.id, e)}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onTransformEnd={handleTransformEnd}
@@ -232,8 +232,8 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     rotation: el.rotation || 0,
     draggable: !locked,
     visible: !hidden && el.visible !== false,
-    onClick: () => !locked && onSelect(el.id),
-    onTap: () => !locked && onSelect(el.id),
+    onClick: (e) => !locked && onSelect(el.id, e),
+    onTap: (e) => !locked && onSelect(el.id, e),
     onDragMove: handleDragMove,
     onDragEnd: handleDragEnd,
     onTransformEnd: handleTransformEnd,
@@ -328,24 +328,25 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
 
 // ─── TransformerLayer ────────────────────────────────────────────────────────
 
-function TransformerLayer({ selectedId, elements, stageRef, snapGuides, stageScale, canvasW, canvasH }) {
+function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageScale, canvasW, canvasH }) {
   const trRef = useRef(null);
 
   useLayoutEffect(() => {
     if (!trRef.current || !stageRef.current) return;
-    if (!selectedId || selectedId === '__bg__') {
+    const validIds = (selectedIds || []).filter(id => id && id !== '__bg__');
+    if (!validIds.length) {
       trRef.current.nodes([]);
       trRef.current.getLayer()?.batchDraw();
       return;
     }
-    const node = stageRef.current.findOne(`#${selectedId}`);
-    if (!node) return;
-    trRef.current.nodes([node]);
+    const nodes = validIds.map(id => stageRef.current.findOne(`#${id}`)).filter(Boolean);
+    trRef.current.nodes(nodes);
     trRef.current.getLayer()?.batchDraw();
   });
 
-  const selectedEl = elements.find(e => e.id === selectedId);
-  const isText = selectedEl?.type === 'text';
+  // Only use text-only handles when a single text element is selected
+  const singleEl = selectedIds?.length === 1 ? elements.find(e => e.id === selectedIds[0]) : null;
+  const isText = singleEl?.type === 'text';
 
   return (
     <>
@@ -394,6 +395,9 @@ export default function TemplatesEditorInner() {
   const [pages, setPages] = useState(() => [emptyPage()]);
   const [activePage, setActivePage] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]); // multi-select
+  const [selectionStart, setSelectionStart] = useState(null); // rubber-band drag
+  const [selectionRect, setSelectionRect] = useState(null);   // rubber-band rect
   const [editingTextId, setEditingTextId] = useState(null);
   const [textareaValue, setTextareaValue] = useState('');
   const [textareaPos, setTextareaPos] = useState({ x: 0, y: 0, w: 0 });
@@ -455,6 +459,25 @@ export default function TemplatesEditorInner() {
     }));
   }
 
+  // Unified select handler — supports Shift+click multi-select
+  function handleSelect(id, e) {
+    if (e?.evt?.shiftKey) {
+      setSelectedIds(prev => {
+        if (prev.includes(id)) return prev.filter(x => x !== id);
+        return [...prev, id];
+      });
+      setSelectedId(id);
+    } else {
+      setSelectedIds([id]);
+      setSelectedId(id);
+    }
+  }
+
+  function clearSelection() {
+    setSelectedId(null);
+    setSelectedIds([]);
+  }
+
   // Canvas display scale
   const containerRef = useRef(null);
   const [stageScale, setStageScale] = useState(1);
@@ -512,10 +535,11 @@ export default function TemplatesEditorInner() {
     const handler = (e) => {
       if (editingTextId) return;
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && selectedId !== '__bg__') {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0) {
         pushHistory();
-        patchElements(prev => prev.filter(el => el.id !== selectedId));
-        setSelectedId(null);
+        const toDelete = new Set(selectedIds);
+        patchElements(prev => prev.filter(el => !toDelete.has(el.id)));
+        clearSelection();
         return;
       }
 
@@ -555,7 +579,7 @@ export default function TemplatesEditorInner() {
       }
 
       if (e.key === 'Escape') {
-        setSelectedId(null);
+        clearSelection();
         setShowShadowPanel(false);
         setShowOutlinePanel(false);
         setCtxMenu(null);
@@ -563,7 +587,7 @@ export default function TemplatesEditorInner() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, editingTextId, history, historyIndex, elements, clipboard]);
+  }, [selectedId, selectedIds, editingTextId, history, historyIndex, elements, clipboard]);
 
   // ── History helpers ────────────────────────────────────────────────────────
   function snapshot() {
@@ -1011,16 +1035,54 @@ export default function TemplatesEditorInner() {
       <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); }}
         style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
 
+        {/* ── Multi-select bar ── */}
+        {selectedIds.length > 1 && (() => {
+          const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
+          const Btn = ({ label, onClick, danger }) => (
+            <button onClick={onClick} style={{ height: 30, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: danger ? '#ef4444' : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, transition: 'background 80ms' }}>{label}</button>
+          );
+          const ALIGNS = [
+            { label: '⊢ Left',   fn: () => { pushHistory(); const minX = Math.min(...selectedIds.map(id => elements.find(e=>e.id===id)?.x || 0)); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, x: minX} : el)); } },
+            { label: '⊣ Right',  fn: () => { pushHistory(); const maxR = Math.max(...selectedIds.map(id => { const el=elements.find(e=>e.id===id); return (el?.x||0)+(el?.width||100); })); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, x: maxR-(el.width||100)} : el)); } },
+            { label: '⊤ Top',    fn: () => { pushHistory(); const minY = Math.min(...selectedIds.map(id => elements.find(e=>e.id===id)?.y || 0)); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, y: minY} : el)); } },
+            { label: '⊥ Bottom', fn: () => { pushHistory(); const maxB = Math.max(...selectedIds.map(id => { const el=elements.find(e=>e.id===id); return (el?.y||0)+(el?.height||60); })); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, y: maxB-(el.height||60)} : el)); } },
+            { label: '⊞ Center H', fn: () => { pushHistory(); const xs = selectedIds.map(id => elements.find(e=>e.id===id)?.x||0); const midX = (Math.min(...xs) + Math.max(...xs)) / 2; patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, x: midX-(el.width||100)/2} : el)); } },
+            { label: '⊟ Center V', fn: () => { pushHistory(); const ys = selectedIds.map(id => elements.find(e=>e.id===id)?.y||0); const midY = (Math.min(...ys) + Math.max(...ys)) / 2; patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, y: midY-(el.height||60)/2} : el)); } },
+          ];
+          return (
+            <>
+              <span style={{ fontSize: 12, color: t.textMuted, flexShrink: 0, paddingRight: 6 }}>{selectedIds.length} selected</span>
+              <D />
+              {ALIGNS.map((a, i) => <Btn key={i} label={a.label} onClick={a.fn} />)}
+              <D />
+              <Btn label="⧉ Duplicate all" onClick={() => {
+                pushHistory();
+                const copies = selectedIds.map(id => {
+                  const el = elements.find(e => e.id === id);
+                  return el ? { ...JSON.parse(JSON.stringify(el)), id: `el_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, x: el.x+20, y: el.y+20 } : null;
+                }).filter(Boolean);
+                patchElements(prev => [...prev, ...copies]);
+                setSelectedIds(copies.map(c => c.id));
+                setSelectedId(copies[copies.length - 1]?.id || null);
+              }} />
+              <D />
+              <Btn label="🗑 Delete all" danger onClick={() => { pushHistory(); const s = new Set(selectedIds); patchElements(prev => prev.filter(e => !s.has(e.id))); clearSelection(); }} />
+              <div style={{ flex: 1 }} />
+              <button onClick={clearSelection} style={{ height: 30, padding: '0 8px', border: 'none', borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer' }}>✕ Deselect</button>
+            </>
+          );
+        })()}
+
         {/* ── Nothing / background selected ── */}
-        {(!selectedEl && !selectedId) && (
+        {selectedIds.length <= 1 && (!selectedEl && !selectedId) && (
           <span style={{ fontSize: 12, color: t.textMuted }}>{canvasSize.w} × {canvasSize.h} px — select an element to edit</span>
         )}
-        {selectedId === '__bg__' && (
+        {selectedIds.length <= 1 && selectedId === '__bg__' && (
           <span style={{ fontSize: 12, color: t.textMuted }}>Background — use the Design panel to change colors or photos</span>
         )}
 
         {/* ── TEXT selected ── */}
-        {selectedEl?.type === 'text' && (() => {
+        {selectedIds.length <= 1 && selectedEl?.type === 'text' && (() => {
           const isBold   = (selectedEl.fontStyle || '').includes('bold');
           const isItalic = (selectedEl.fontStyle || '').includes('italic');
           const isUnder  = selectedEl.textDecoration === 'underline';
@@ -1147,7 +1209,7 @@ export default function TemplatesEditorInner() {
         })()}
 
         {/* ── IMAGE selected ── */}
-        {selectedEl?.type === 'image' && (() => {
+        {selectedIds.length <= 1 && selectedEl?.type === 'image' && (() => {
           const D = () => <div style={{ width:1, height:22, background:t.border, margin:'0 4px', flexShrink:0 }} />;
           const Btn = ({ label, active, onClick }) => (
             <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?t.primaryBg:'transparent', color:active?t.primary:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', transition:'background 80ms' }}>{label}</button>
@@ -1184,7 +1246,7 @@ export default function TemplatesEditorInner() {
         })()}
 
         {/* ── SHAPE selected (rect, circle, line, triangle, star, arrow) ── */}
-        {selectedEl && !['text','image'].includes(selectedEl.type) && (() => {
+        {selectedIds.length <= 1 && selectedEl && !['text','image'].includes(selectedEl.type) && (() => {
           const D = () => <div style={{ width:1, height:22, background:t.border, margin:'0 4px', flexShrink:0 }} />;
           const Btn = ({ label, active, onClick }) => (
             <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?t.primaryBg:'transparent', color:active?t.primary:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', transition:'background 80ms' }}>{label}</button>
@@ -1643,14 +1705,53 @@ export default function TemplatesEditorInner() {
                       scaleY={stageScale}
                       style={{ borderRadius: 8, boxShadow: '0 4px 32px rgba(0,0,0,0.3)', display: 'block', width: stageDisplayW, height: stageDisplayH }}
                       onClick={isActive ? (e => {
-                        if (e.target === e.target.getStage()) { setSelectedId(null); setShowShadowPanel(false); setShowOutlinePanel(false); }
+                        if (e.target === e.target.getStage()) {
+                          clearSelection();
+                          setShowShadowPanel(false);
+                          setShowOutlinePanel(false);
+                        }
+                      }) : undefined}
+                      onMouseDown={isActive ? (e => {
+                        // Only start rubber-band when clicking empty canvas
+                        if (e.target !== e.target.getStage()) return;
+                        const pos = e.target.getRelativePointerPosition();
+                        setSelectionStart(pos);
+                        setSelectionRect({ x: pos.x, y: pos.y, w: 0, h: 0 });
+                        clearSelection();
+                      }) : undefined}
+                      onMouseMove={isActive ? (e => {
+                        if (!selectionStart) return;
+                        const pos = e.target.getStage().getRelativePointerPosition();
+                        setSelectionRect({
+                          x: Math.min(selectionStart.x, pos.x),
+                          y: Math.min(selectionStart.y, pos.y),
+                          w: Math.abs(pos.x - selectionStart.x),
+                          h: Math.abs(pos.y - selectionStart.y),
+                        });
+                      }) : undefined}
+                      onMouseUp={isActive ? (() => {
+                        if (selectionRect && (selectionRect.w > 4 || selectionRect.h > 4)) {
+                          const sr = selectionRect;
+                          const hit = pageElements.filter(el => {
+                            if (pageLockedIds.has(el.id) || pageHiddenIds.has(el.id)) return false;
+                            const ex = el.x || 0, ey = el.y || 0;
+                            const ew = el.width || 100, eh = el.height || 60;
+                            return ex < sr.x + sr.w && ex + ew > sr.x && ey < sr.y + sr.h && ey + eh > sr.y;
+                          });
+                          if (hit.length > 0) {
+                            setSelectedIds(hit.map(e => e.id));
+                            setSelectedId(hit[hit.length - 1].id);
+                          }
+                        }
+                        setSelectionStart(null);
+                        setSelectionRect(null);
                       }) : undefined}
                       onContextMenu={isActive ? (e => {
                         e.evt.preventDefault();
                         const { clientX, clientY } = e.evt;
                         const isStage = e.target === e.target.getStage();
                         const targetId = isStage ? null : (e.target.id() || null);
-                        if (targetId) setSelectedId(targetId);
+                        if (targetId) { setSelectedId(targetId); setSelectedIds([targetId]); }
                         setCtxMenu({ x: clientX, y: clientY, elementId: targetId });
                       }) : undefined}
                     >
@@ -1658,11 +1759,11 @@ export default function TemplatesEditorInner() {
                       <Layer>
                         {pageBgType === 'color' ? (
                           <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill={pageBgColor}
-                            onClick={isActive ? () => setSelectedId('__bg__') : undefined} />
+                            onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined} />
                         ) : pageBgImageUrl ? (
                           <BgImage url={pageBgImageUrl} filter={pageBgFilter} brightness={pageBgBrightness} contrast={pageBgContrast} saturation={pageBgSaturation}
                             stageW={canvasSize.w} stageH={canvasSize.h}
-                            onClick={isActive ? () => setSelectedId('__bg__') : undefined}
+                            onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined}
                             isSelected={isActive && selectedId === '__bg__'} />
                         ) : (
                           <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill="#1a1a22" />
@@ -1676,8 +1777,8 @@ export default function TemplatesEditorInner() {
                             ? <ImageNode
                                 key={el.id}
                                 el={el}
-                                isSelected={isActive && selectedId === el.id}
-                                onSelect={isActive ? setSelectedId : () => {}}
+                                isSelected={isActive && (selectedId === el.id || selectedIds.includes(el.id))}
+                                onSelect={isActive ? handleSelect : () => {}}
                                 onChange={isActive ? handleElementChange : () => {}}
                                 onDragMove={isActive ? computeSnap : null}
                                 onSnapClear={isActive ? clearSnapGuides : null}
@@ -1687,8 +1788,8 @@ export default function TemplatesEditorInner() {
                             : <ContentNode
                                 key={el.id}
                                 el={el}
-                                isSelected={isActive && selectedId === el.id}
-                                onSelect={isActive ? setSelectedId : () => {}}
+                                isSelected={isActive && (selectedId === el.id || selectedIds.includes(el.id))}
+                                onSelect={isActive ? handleSelect : () => {}}
                                 onChange={isActive ? handleElementChange : () => {}}
                                 stageW={canvasSize.w}
                                 stageH={canvasSize.h}
@@ -1705,13 +1806,27 @@ export default function TemplatesEditorInner() {
                       {isActive && (
                         <Layer ref={trLayerRef}>
                           <TransformerLayer
-                            selectedId={selectedId}
+                            selectedIds={selectedIds.length > 0 ? selectedIds : (selectedId && selectedId !== '__bg__' ? [selectedId] : [])}
                             elements={pageElements}
                             stageRef={stageRef}
                             snapGuides={snapGuides}
                             stageScale={stageScale}
                             canvasW={canvasSize.w}
                             canvasH={canvasSize.h}
+                          />
+                        </Layer>
+                      )}
+
+                      {/* Layer 4: Rubber-band selection rect */}
+                      {isActive && selectionRect && selectionRect.w > 1 && (
+                        <Layer listening={false}>
+                          <Rect
+                            x={selectionRect.x} y={selectionRect.y}
+                            width={selectionRect.w} height={selectionRect.h}
+                            fill="rgba(0,196,204,0.05)"
+                            stroke="#00C4CC"
+                            strokeWidth={1 / stageScale}
+                            dash={[4 / stageScale, 4 / stageScale]}
                           />
                         </Layer>
                       )}
@@ -1741,8 +1856,8 @@ export default function TemplatesEditorInner() {
                       />
                     )}
 
-                    {/* ── Floating object toolbar (Canva-style) ── */}
-                    {isActive && selectedId && selectedId !== '__bg__' && !editingTextId && (() => {
+                    {/* ── Floating object toolbar (Canva-style) — single-select only ── */}
+                    {isActive && selectedIds.length <= 1 && selectedId && selectedId !== '__bg__' && !editingTextId && (() => {
                       const el = elements.find(e => e.id === selectedId);
                       if (!el) return null;
                       // Compute element bounds in canvas coords
