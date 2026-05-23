@@ -194,6 +194,7 @@ module.exports = {
   fetchImageAsBuffer,
   getPlatformSpecs,
   getAllSafeZones,
+  uploadToCloudinary,
   PLATFORM_SPECS,
   SAFE_ZONES,
   DEFAULT_PLATFORMS,

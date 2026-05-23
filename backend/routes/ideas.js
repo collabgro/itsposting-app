@@ -85,7 +85,13 @@ Return only the JSON array.`;
 
   const raw = response.content[0].text;
   const cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
-  const ideas = JSON.parse(cleaned);
+  let ideas;
+  try {
+    ideas = JSON.parse(cleaned);
+  } catch (parseErr) {
+    console.error('[Ideas] Claude returned invalid JSON:', cleaned.slice(0, 200));
+    throw new Error('AI returned malformed response. Please try again.');
+  }
 
   // Ensure each idea has a valid UUID and wizardTheme
   return ideas.map(idea => ({
