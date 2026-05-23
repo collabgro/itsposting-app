@@ -1492,14 +1492,62 @@ export default function TemplatesEditorInner() {
               const pageHiddenIds = new Set(page.hiddenIds);
               return (
                 <div key={page.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#00C4CC' : t.textMuted, letterSpacing: '0.05em' }}>
-                    {pageIdx + 1}
+                  {/* ── Page label row ── */}
+                  <div style={{ width: stageDisplayW, display: 'flex', alignItems: 'center', gap: 6, padding: '0 2px' }}>
+                    <span
+                      onClick={() => { setActivePage(pageIdx); setSelectedId(null); }}
+                      style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#00C4CC' : t.textMuted, cursor: 'pointer', minWidth: 52, userSelect: 'none' }}
+                    >
+                      Page {pageIdx + 1}
+                    </span>
+                    <span style={{ color: t.border, fontSize: 12 }}>–</span>
+                    <input
+                      value={page.title || ''}
+                      onChange={e => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, title: e.target.value } : p))}
+                      placeholder="Add title"
+                      onClick={() => { setActivePage(pageIdx); setSelectedId(null); }}
+                      style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: isActive ? t.text : t.textMuted, fontSize: 12, minWidth: 0 }}
+                    />
+                    {/* Controls */}
+                    {[
+                      { title: 'Move up',    icon: '▲', action: () => movePageUp(pageIdx),   disabled: pageIdx === 0 },
+                      { title: 'Move down',  icon: '▼', action: () => movePageDown(pageIdx), disabled: pageIdx === pages.length - 1 },
+                      { title: page.hidden ? 'Show page' : 'Hide page', icon: page.hidden ? '🙈' : '👁', action: () => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, hidden: !p.hidden } : p)) },
+                      { title: page.pageLocked ? 'Unlock page' : 'Lock page', icon: page.pageLocked ? '🔒' : '🔓', action: () => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, pageLocked: !p.pageLocked } : p)) },
+                      { title: 'Duplicate page', icon: '⧉', action: () => duplicatePage(pageIdx) },
+                      { title: 'Delete page',    icon: '🗑', action: () => deletePage(pageIdx), disabled: pages.length <= 1, danger: true },
+                      { title: 'Add page after', icon: '+', action: () => {
+                          pushHistory();
+                          const np = emptyPage();
+                          setPages(prev => [...prev.slice(0, pageIdx + 1), np, ...prev.slice(pageIdx + 1)]);
+                          setActivePage(pageIdx + 1);
+                          setSelectedId(null);
+                        }
+                      },
+                    ].map(({ title, icon, action, disabled, danger }) => (
+                      <button
+                        key={title}
+                        title={title}
+                        onClick={e => { e.stopPropagation(); if (!disabled) action(); }}
+                        style={{
+                          width: 22, height: 22, padding: 0, border: 'none', borderRadius: 4,
+                          background: 'transparent', cursor: disabled ? 'not-allowed' : 'pointer',
+                          color: disabled ? t.border : danger ? '#ef4444' : t.textMuted,
+                          fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          opacity: disabled ? 0.4 : 1, flexShrink: 0,
+                        }}
+                      >
+                        {icon}
+                      </button>
+                    ))}
                   </div>
+
                   <div
                     style={{
                       position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0,
                       outline: isActive ? '2px solid #00C4CC' : '2px solid transparent',
                       borderRadius: 8, cursor: isActive ? 'default' : 'pointer',
+                      opacity: page.hidden ? 0.35 : 1,
                     }}
                     onClick={!isActive ? () => { setActivePage(pageIdx); setSelectedId(null); } : undefined}
                   >
