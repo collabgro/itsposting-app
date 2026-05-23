@@ -285,8 +285,8 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     onDragMove: handleDragMove,
     onDragEnd: handleDragEnd,
     onTransformEnd: handleTransformEnd,
-    stroke: isSelected ? '#00C4CC' : undefined,
-    strokeWidth: isSelected ? 1.5 : 0,
+    stroke: isSelected ? '#00C4CC' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined),
+    strokeWidth: isSelected ? 1.5 : (el.borderEnabled && el.borderWidth ? el.borderWidth : 0),
   };
 
   if (el.type === 'text') return (
@@ -1579,6 +1579,23 @@ export default function TemplatesEditorInner() {
                   onChange={e => updateElement({...selectedEl, cornerRadius:parseInt(e.target.value)})}
                   onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0 }} />
                 <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.cornerRadius||0}</span>
+              </>}
+              <D />
+              {/* Border toggle + color + width */}
+              <Btn label="Border" active={!!selectedEl.borderEnabled}
+                onClick={() => handleElementChange({...selectedEl, borderEnabled: !selectedEl.borderEnabled, borderColor: selectedEl.borderColor||'#ffffff', borderWidth: selectedEl.borderWidth||2})} />
+              {selectedEl.borderEnabled && <>
+                <div style={{ position:'relative', width:28, height:30, flexShrink:0 }} title="Border color">
+                  <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:18, height:18, borderRadius:3, background:selectedEl.borderColor||'#ffffff', border:'1.5px solid rgba(128,128,128,0.35)', pointerEvents:'none' }} />
+                  <input type="color" value={selectedEl.borderColor||'#ffffff'}
+                    onChange={e => pickColor(e.target.value, c => updateElement({...selectedEl, borderColor:c}))}
+                    onBlur={() => pushHistory()}
+                    style={{ opacity:0, position:'absolute', inset:0, width:'100%', height:'100%', cursor:'pointer' }} />
+                </div>
+                <input type="range" min={1} max={20} value={selectedEl.borderWidth||2}
+                  onChange={e => updateElement({...selectedEl, borderWidth:parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.borderWidth||2}px</span>
               </>}
               <D />
               <Btn label="↑ Fwd"   active={false} onClick={() => bringForward()} />
