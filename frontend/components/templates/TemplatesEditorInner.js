@@ -1121,6 +1121,17 @@ export default function TemplatesEditorInner() {
     setSelectedId(null);
   }
 
+  function addElToAllPages(elId) {
+    const el = elements.find(e => e.id === elId);
+    if (!el) return;
+    pushHistory();
+    setPages(prev => prev.map((p, i) => {
+      if (i === activePage) return p;
+      const copy = { ...JSON.parse(JSON.stringify(el)), id: uid() };
+      return { ...p, elements: [...p.elements, copy] };
+    }));
+  }
+
   function movePageUp(idx) {
     if (idx <= 0) return;
     pushHistory();
@@ -2530,6 +2541,7 @@ export default function TemplatesEditorInner() {
                         { icon: '↑', title: 'Bring forward',       fn: () => bringForward(selectedId) },
                         { icon: '↓', title: 'Send backward',       fn: () => sendBackward(selectedId) },
                         { sep: true },
+                        ...(pages.length > 1 ? [{ icon: '⊛', title: 'Add to all pages', fn: () => addElToAllPages(selectedId) }, { sep: true }] : []),
                         { icon: isLocked ? '🔒' : '🔓', title: isLocked ? 'Unlock' : 'Lock', fn: () => toggleLocked(selectedId) },
                         { sep: true },
                         { icon: '🗑', title: 'Delete (Del)', fn: delEl, danger: true },
