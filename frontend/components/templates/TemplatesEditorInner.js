@@ -998,160 +998,229 @@ export default function TemplatesEditorInner() {
         </div>
       </div>
 
-      {/* ── Contextual action bar ── */}
+      {/* ── Contextual action bar (Canva-style) ── */}
       <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); }}
-        style={{ height: 44, display: 'flex', alignItems: 'center', gap: 5, padding: '0 14px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
+        style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
 
-        {/* Nothing selected → align selected element to canvas */}
-        {!selectedEl && (
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <span style={{ fontSize: 11, color: t.textMuted, marginRight: 2, whiteSpace: 'nowrap' }}>Select + align:</span>
-            {[{ dir: 'left', label: '⬅' }, { dir: 'centerH', label: '⬌' }, { dir: 'right', label: '➡' }, { dir: 'top', label: '⬆' }, { dir: 'centerV', label: '⬍' }, { dir: 'bottom', label: '⬇' }].map(({ dir, label }) => (
-              <button key={dir} onClick={() => alignEl(dir)}
-                style={{ padding: '4px 7px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer' }}>{label}</button>
-            ))}
-          </div>
+        {/* ── Nothing / background selected ── */}
+        {(!selectedEl && !selectedId) && (
+          <span style={{ fontSize: 12, color: t.textMuted }}>{canvasSize.w} × {canvasSize.h} px — select an element to edit</span>
+        )}
+        {selectedId === '__bg__' && (
+          <span style={{ fontSize: 12, color: t.textMuted }}>Background — use the Design panel to change colors or photos</span>
         )}
 
-        {/* Text selected */}
-        {selectedEl?.type === 'text' && (
-          <>
-            <select value={selectedEl.fontFamily || 'Inter'}
-              onChange={e => handleElementChange({ ...selectedEl, fontFamily: e.target.value })}
-              style={{ padding: '3px 6px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, maxWidth: 140 }}>
-              {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-            <input type="number" value={selectedEl.fontSize || 36} min={8} max={400}
-              onChange={e => handleElementChange({ ...selectedEl, fontSize: parseInt(e.target.value) || 36 })}
-              style={{ width: 50, padding: '3px 5px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12 }} />
-            {[{ k: 'bold', lbl: 'B', fs: { fontWeight: 700 } }, { k: 'italic', lbl: 'I', fs: { fontStyle: 'italic' } }].map(({ k, lbl, fs }) => {
-              const active = (selectedEl.fontStyle || '').includes(k);
-              return (
-                <button key={k} onClick={() => {
-                  const cur = selectedEl.fontStyle || 'normal';
-                  const next = active ? cur.replace(k, '').trim() || 'normal' : (cur === 'normal' ? k : `${cur} ${k}`);
-                  handleElementChange({ ...selectedEl, fontStyle: next });
-                }} style={{ padding: '3px 7px', borderRadius: 5, border: `1px solid ${active ? t.primary : t.border}`, background: active ? t.primaryBg : t.input, color: active ? t.primary : t.text, fontSize: 13, cursor: 'pointer', ...fs }}>{lbl}</button>
-              );
-            })}
-            <button onClick={() => handleElementChange({ ...selectedEl, textDecoration: selectedEl.textDecoration === 'underline' ? '' : 'underline' })}
-              style={{ padding: '3px 7px', borderRadius: 5, border: `1px solid ${selectedEl.textDecoration === 'underline' ? t.primary : t.border}`, background: selectedEl.textDecoration === 'underline' ? t.primaryBg : t.input, color: selectedEl.textDecoration === 'underline' ? t.primary : t.text, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>U</button>
-            <input type="color" value={selectedEl.fill || '#ffffff'}
-              onChange={e => pickColor(e.target.value, color => updateElement({ ...selectedEl, fill: color }))}
-              onBlur={() => pushHistory()}
-              title="Text color"
-              style={{ width: 28, height: 28, borderRadius: 5, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 2 }} />
-            {['left', 'center', 'right'].map(a => (
-              <button key={a} onClick={() => handleElementChange({ ...selectedEl, align: a })}
-                style={{ padding: '3px 6px', borderRadius: 5, border: `1px solid ${selectedEl.align === a ? t.primary : t.border}`, background: selectedEl.align === a ? t.primaryBg : t.input, color: selectedEl.align === a ? t.primary : t.text, fontSize: 12, cursor: 'pointer' }}>
-                {a === 'left' ? '⬅' : a === 'center' ? '⬛' : '➡'}
-              </button>
-            ))}
-            <div style={{ width: 1, height: 24, background: t.border, flexShrink: 0 }} />
-            {/* Shadow */}
-            <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-              <button onClick={() => { setShowShadowPanel(p => !p); setShowOutlinePanel(false); }}
-                style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${selectedEl.shadow?.enabled ? t.primary : t.border}`, background: selectedEl.shadow?.enabled ? t.primaryBg : t.input, color: selectedEl.shadow?.enabled ? t.primary : t.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                Shadow
-              </button>
-              {showShadowPanel && (
-                <div style={{ position: 'absolute', top: 34, left: 0, zIndex: 300, background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, padding: 12, width: 200, boxShadow: '0 4px 20px rgba(0,0,0,0.35)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12, color: t.text, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={selectedEl.shadow?.enabled || false}
-                      onChange={e => handleElementChange({ ...selectedEl, shadow: { ...(selectedEl.shadow || {}), enabled: e.target.checked } })} />
-                    Enable Shadow
-                  </label>
-                  {selectedEl.shadow?.enabled && (
-                    <>
-                      <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 2 }}>Color</label>
+        {/* ── TEXT selected ── */}
+        {selectedEl?.type === 'text' && (() => {
+          const isBold   = (selectedEl.fontStyle || '').includes('bold');
+          const isItalic = (selectedEl.fontStyle || '').includes('italic');
+          const isUnder  = selectedEl.textDecoration === 'underline';
+          const isStrike = selectedEl.textDecoration === 'line-through';
+          const isUpper  = selectedEl.textTransform === 'uppercase';
+          const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
+          const Btn = ({ label, active, onClick, extraStyle = {} }) => (
+            <button onClick={onClick} style={{ height: 30, minWidth: 30, padding: '0 7px', border: 'none', borderRadius: 6, background: active ? t.primaryBg : 'transparent', color: active ? t.primary : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', ...extraStyle }}>{label}</button>
+          );
+          return (
+            <>
+              {/* Text color swatch */}
+              <div style={{ position: 'relative', width: 32, height: 30, flexShrink: 0 }} title="Text color">
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 20, height: 20, borderRadius: 3, background: selectedEl.fill || '#fff', border: '1.5px solid rgba(128,128,128,0.35)', pointerEvents: 'none' }} />
+                <input type="color" value={selectedEl.fill || '#ffffff'}
+                  onChange={e => pickColor(e.target.value, c => updateElement({ ...selectedEl, fill: c }))}
+                  onBlur={() => pushHistory()}
+                  style={{ opacity: 0, position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: 'pointer' }} />
+              </div>
+              <D />
+              {/* Font family */}
+              <select value={selectedEl.fontFamily || 'Inter'} onChange={e => handleElementChange({ ...selectedEl, fontFamily: e.target.value })}
+                style={{ height: 30, padding: '0 6px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, maxWidth: 130, cursor: 'pointer', flexShrink: 0 }}>
+                {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+              {/* Font size – n + */}
+              <button onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fontSize: Math.max(8, (selectedEl.fontSize || 36) - 1) }); }}
+                style={{ width: 24, height: 30, border: `1px solid ${t.border}`, borderRight: 'none', borderRadius: '6px 0 0 6px', background: t.input, color: t.text, fontSize: 16, cursor: 'pointer', flexShrink: 0, marginLeft: 4 }}>–</button>
+              <input type="number" value={selectedEl.fontSize || 36} min={8} max={400}
+                onChange={e => handleElementChange({ ...selectedEl, fontSize: parseInt(e.target.value) || 36 })}
+                onBlur={() => pushHistory()}
+                style={{ width: 46, height: 30, border: `1px solid ${t.border}`, borderRadius: 0, background: t.input, color: t.text, fontSize: 13, textAlign: 'center', outline: 'none' }} />
+              <button onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fontSize: Math.min(400, (selectedEl.fontSize || 36) + 1) }); }}
+                style={{ width: 24, height: 30, border: `1px solid ${t.border}`, borderLeft: 'none', borderRadius: '0 6px 6px 0', background: t.input, color: t.text, fontSize: 16, cursor: 'pointer', flexShrink: 0 }}>+</button>
+              <D />
+              {/* B I U S aA */}
+              <Btn label="B" active={isBold} extraStyle={{ fontWeight: 700 }}
+                onClick={() => { const c = selectedEl.fontStyle||'normal'; handleElementChange({ ...selectedEl, fontStyle: isBold ? c.replace('bold','').trim()||'normal' : c==='normal'?'bold':`${c} bold` }); }} />
+              <Btn label="I" active={isItalic} extraStyle={{ fontStyle: 'italic' }}
+                onClick={() => { const c = selectedEl.fontStyle||'normal'; handleElementChange({ ...selectedEl, fontStyle: isItalic ? c.replace('italic','').trim()||'normal' : c==='normal'?'italic':`${c} italic` }); }} />
+              <Btn label="U" active={isUnder}  extraStyle={{ textDecoration: 'underline' }}
+                onClick={() => handleElementChange({ ...selectedEl, textDecoration: isUnder ? '' : 'underline' })} />
+              <Btn label="S" active={isStrike} extraStyle={{ textDecoration: 'line-through' }}
+                onClick={() => handleElementChange({ ...selectedEl, textDecoration: isStrike ? '' : 'line-through' })} />
+              <Btn label="aA" active={isUpper} extraStyle={{ fontSize: 12, fontWeight: 500 }}
+                onClick={() => handleElementChange({ ...selectedEl, textTransform: isUpper ? 'none' : 'uppercase' })} />
+              <D />
+              {/* Alignment */}
+              {[['left','≡ L'],['center','≡ C'],['right','≡ R']].map(([a, lbl]) => (
+                <Btn key={a} label={lbl} active={selectedEl.align === a} onClick={() => handleElementChange({ ...selectedEl, align: a })} />
+              ))}
+              <D />
+              {/* Shadow dropdown */}
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="Shadow" active={!!selectedEl.shadow?.enabled}
+                  onClick={() => { setShowShadowPanel(p => !p); setShowOutlinePanel(false); }} />
+                {showShadowPanel && (
+                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
+                      <input type="checkbox" checked={selectedEl.shadow?.enabled || false}
+                        onChange={e => handleElementChange({ ...selectedEl, shadow: { ...(selectedEl.shadow||{}), enabled: e.target.checked } })} />
+                      Enable shadow
+                    </label>
+                    {selectedEl.shadow?.enabled && <>
+                      <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 4 }}>Color</label>
                       <input type="color" value={selectedEl.shadow?.color || '#000000'}
                         onChange={e => updateElement({ ...selectedEl, shadow: { ...selectedEl.shadow, color: e.target.value } })}
-                        onBlur={() => pushHistory()}
-                        style={{ width: '100%', height: 24, marginBottom: 6, cursor: 'pointer', borderRadius: 4, border: `1px solid ${t.border}` }} />
-                      {[{ label: 'Blur', key: 'blur', min: 0, max: 40, def: 4 }, { label: 'Offset X', key: 'offsetX', min: -30, max: 30, def: 2 }, { label: 'Offset Y', key: 'offsetY', min: -30, max: 30, def: 2 }].map(({ label, key, min, max, def }) => (
-                        <div key={key} style={{ marginBottom: 6 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <label style={{ fontSize: 11, color: t.textMuted }}>{label}</label>
-                            <span style={{ fontSize: 11, color: t.textMuted }}>{selectedEl.shadow?.[key] ?? def}</span>
+                        onBlur={() => pushHistory()} style={{ width: '100%', height: 28, marginBottom: 10, cursor: 'pointer', borderRadius: 6, border: `1px solid ${t.border}` }} />
+                      {[{lbl:'Blur',k:'blur',mn:0,mx:40,def:4},{lbl:'Offset X',k:'offsetX',mn:-30,mx:30,def:2},{lbl:'Offset Y',k:'offsetY',mn:-30,mx:30,def:2}].map(({lbl,k,mn,mx,def}) => (
+                        <div key={k} style={{ marginBottom: 8 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
+                            <span style={{ fontSize:11, color:t.textMuted }}>{lbl}</span>
+                            <span style={{ fontSize:11, color:t.textMuted }}>{selectedEl.shadow?.[k]??def}</span>
                           </div>
-                          <input type="range" min={min} max={max} value={selectedEl.shadow?.[key] ?? def}
-                            onChange={e => updateElement({ ...selectedEl, shadow: { ...(selectedEl.shadow || {}), [key]: parseInt(e.target.value) } })}
-                            onMouseUp={() => pushHistory()} style={{ width: '100%' }} />
+                          <input type="range" min={mn} max={mx} value={selectedEl.shadow?.[k]??def}
+                            onChange={e => updateElement({ ...selectedEl, shadow: {...(selectedEl.shadow||{}), [k]:parseInt(e.target.value)} })}
+                            onMouseUp={() => pushHistory()} style={{ width:'100%' }} />
                         </div>
                       ))}
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            {/* Outline */}
-            <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-              <button onClick={() => { setShowOutlinePanel(p => !p); setShowShadowPanel(false); }}
-                style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${selectedEl.outline?.enabled ? t.primary : t.border}`, background: selectedEl.outline?.enabled ? t.primaryBg : t.input, color: selectedEl.outline?.enabled ? t.primary : t.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                Outline
-              </button>
-              {showOutlinePanel && (
-                <div style={{ position: 'absolute', top: 34, left: 0, zIndex: 300, background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, padding: 12, width: 180, boxShadow: '0 4px 20px rgba(0,0,0,0.35)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 12, color: t.text, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={selectedEl.outline?.enabled || false}
-                      onChange={e => handleElementChange({ ...selectedEl, outline: { ...(selectedEl.outline || {}), enabled: e.target.checked } })} />
-                    Enable Outline
-                  </label>
-                  {selectedEl.outline?.enabled && (
-                    <>
-                      <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 2 }}>Color</label>
-                      <input type="color" value={selectedEl.outline?.color || '#000000'}
-                        onChange={e => updateElement({ ...selectedEl, outline: { ...selectedEl.outline, color: e.target.value } })}
-                        onBlur={() => pushHistory()}
-                        style={{ width: '100%', height: 24, marginBottom: 6, cursor: 'pointer', borderRadius: 4, border: `1px solid ${t.border}` }} />
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <label style={{ fontSize: 11, color: t.textMuted }}>Width</label>
-                        <span style={{ fontSize: 11, color: t.textMuted }}>{selectedEl.outline?.width ?? 1}</span>
+                    </>}
+                  </div>
+                )}
+              </div>
+              {/* Outline dropdown */}
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="Outline" active={!!selectedEl.outline?.enabled}
+                  onClick={() => { setShowOutlinePanel(p => !p); setShowShadowPanel(false); }} />
+                {showOutlinePanel && (
+                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 190, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
+                      <input type="checkbox" checked={selectedEl.outline?.enabled || false}
+                        onChange={e => handleElementChange({ ...selectedEl, outline: {...(selectedEl.outline||{}), enabled: e.target.checked} })} />
+                      Enable outline
+                    </label>
+                    {selectedEl.outline?.enabled && <>
+                      <label style={{ fontSize:11, color:t.textMuted, display:'block', marginBottom:4 }}>Color</label>
+                      <input type="color" value={selectedEl.outline?.color||'#000000'}
+                        onChange={e => updateElement({...selectedEl, outline:{...selectedEl.outline, color:e.target.value}})}
+                        onBlur={() => pushHistory()} style={{ width:'100%', height:28, marginBottom:10, cursor:'pointer', borderRadius:6, border:`1px solid ${t.border}` }} />
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
+                        <span style={{ fontSize:11, color:t.textMuted }}>Width</span>
+                        <span style={{ fontSize:11, color:t.textMuted }}>{selectedEl.outline?.width??1}</span>
                       </div>
-                      <input type="range" min={1} max={20} value={selectedEl.outline?.width ?? 1}
-                        onChange={e => updateElement({ ...selectedEl, outline: { ...(selectedEl.outline || {}), width: parseInt(e.target.value) } })}
-                        onMouseUp={() => pushHistory()} style={{ width: '100%' }} />
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            <div style={{ width: 1, height: 24, background: t.border, flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Opacity</span>
-            <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
-              onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-              onMouseUp={() => pushHistory()} style={{ width: 70 }} />
-            <span style={{ fontSize: 11, color: t.textMuted }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
-          </>
-        )}
+                      <input type="range" min={1} max={20} value={selectedEl.outline?.width??1}
+                        onChange={e => updateElement({...selectedEl, outline:{...(selectedEl.outline||{}), width:parseInt(e.target.value)}})}
+                        onMouseUp={() => pushHistory()} style={{ width:'100%' }} />
+                    </>}
+                  </div>
+                )}
+              </div>
+              <D />
+              {/* Opacity */}
+              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap' }}>Opacity</span>
+              <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity??1}
+                onChange={e => updateElement({...selectedEl, opacity:parseFloat(e.target.value)})}
+                onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
+              <span style={{ fontSize:11, color:t.textMuted, minWidth:30, flexShrink:0 }}>{Math.round((selectedEl.opacity??1)*100)}%</span>
+              <div style={{ flex: 1 }} />
+              <D />
+              <Btn label="Position" active={false} onClick={() => {}} extraStyle={{ color: t.textMuted }} />
+              <Btn label="✦ Animate" active={false} onClick={() => {}} extraStyle={{ color: t.primary, fontWeight: 500 }} />
+            </>
+          );
+        })()}
 
-        {/* Image/Shape selected */}
-        {selectedEl && selectedEl.type !== 'text' && (
-          <>
-            {selectedEl.type === 'image' && (
-              <>
-                <button onClick={flipH} style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>Flip H</button>
-                <button onClick={flipV} style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>Flip V</button>
-                <div style={{ width: 1, height: 24, background: t.border, flexShrink: 0 }} />
-              </>
-            )}
-            <button onClick={() => bringForward()} title="Bring Forward" style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>↑ Fwd</button>
-            <button onClick={() => sendBackward()} title="Send Backward" style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>↓ Back</button>
-            <button onClick={() => bringToFront()} title="Bring to Front" style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>⤒ Front</button>
-            <button onClick={() => sendToBack()} title="Send to Back" style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>⤓ Back</button>
-            <div style={{ width: 1, height: 24, background: t.border, flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Opacity</span>
-            <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
-              onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-              onMouseUp={() => pushHistory()} style={{ width: 70 }} />
-            <span style={{ fontSize: 11, color: t.textMuted }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
-            <div style={{ width: 1, height: 24, background: t.border, flexShrink: 0 }} />
-            <button onClick={() => toggleLocked(selectedEl.id)} title={lockedIds.has(selectedEl.id) ? 'Unlock' : 'Lock'}
-              style={{ padding: '3px 8px', borderRadius: 5, border: `1px solid ${lockedIds.has(selectedEl.id) ? t.primary : t.border}`, background: lockedIds.has(selectedEl.id) ? t.primaryBg : t.input, color: lockedIds.has(selectedEl.id) ? t.primary : t.text, fontSize: 13, cursor: 'pointer' }}>
-              {lockedIds.has(selectedEl.id) ? '🔒' : '🔓'}
-            </button>
-          </>
-        )}
+        {/* ── IMAGE selected ── */}
+        {selectedEl?.type === 'image' && (() => {
+          const D = () => <div style={{ width:1, height:22, background:t.border, margin:'0 4px', flexShrink:0 }} />;
+          const Btn = ({ label, active, onClick }) => (
+            <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?t.primaryBg:'transparent', color:active?t.primary:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', transition:'background 80ms' }}>{label}</button>
+          );
+          return (
+            <>
+              <Btn label="⟺ Flip H" active={!!selectedEl.flipH} onClick={flipH} />
+              <Btn label="⇅ Flip V" active={!!selectedEl.flipV} onClick={flipV} />
+              <D />
+              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Radius</span>
+              <input type="range" min={0} max={200} value={selectedEl.cornerRadius||0}
+                onChange={e => updateElement({...selectedEl, cornerRadius:parseInt(e.target.value)})}
+                onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
+              <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.cornerRadius||0}</span>
+              <D />
+              <Btn label="↑ Fwd"   active={false} onClick={() => bringForward()} />
+              <Btn label="↓ Back"  active={false} onClick={() => sendBackward()} />
+              <Btn label="⤒ Front" active={false} onClick={() => bringToFront()} />
+              <Btn label="⤓ Back"  active={false} onClick={() => sendToBack()} />
+              <D />
+              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Opacity</span>
+              <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity??1}
+                onChange={e => updateElement({...selectedEl, opacity:parseFloat(e.target.value)})}
+                onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
+              <span style={{ fontSize:11, color:t.textMuted, minWidth:30, flexShrink:0 }}>{Math.round((selectedEl.opacity??1)*100)}%</span>
+              <D />
+              <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
+              <div style={{ flex:1 }} />
+              <D />
+              <Btn label="Position" active={false} onClick={() => {}} />
+              <Btn label="✦ Animate" active={false} onClick={() => {}} />
+            </>
+          );
+        })()}
+
+        {/* ── SHAPE selected (rect, circle, line, triangle, star, arrow) ── */}
+        {selectedEl && !['text','image'].includes(selectedEl.type) && (() => {
+          const D = () => <div style={{ width:1, height:22, background:t.border, margin:'0 4px', flexShrink:0 }} />;
+          const Btn = ({ label, active, onClick }) => (
+            <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?t.primaryBg:'transparent', color:active?t.primary:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', transition:'background 80ms' }}>{label}</button>
+          );
+          const fillKey = ['line','arrow'].includes(selectedEl.type) ? 'stroke' : 'fill';
+          const fillVal = (selectedEl[fillKey] || '#ffffff').startsWith('rgba') ? '#888888' : (selectedEl[fillKey] || '#ffffff');
+          return (
+            <>
+              {/* Fill/stroke color swatch */}
+              <div style={{ position:'relative', width:32, height:30, flexShrink:0 }} title={['line','arrow'].includes(selectedEl.type) ? 'Stroke color' : 'Fill color'}>
+                <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:20, height:20, borderRadius:3, background:fillVal, border:'1.5px solid rgba(128,128,128,0.35)', pointerEvents:'none' }} />
+                <input type="color" value={fillVal}
+                  onChange={e => pickColor(e.target.value, c => updateElement({...selectedEl, [fillKey]: c}))}
+                  onBlur={() => pushHistory()}
+                  style={{ opacity:0, position:'absolute', inset:0, width:'100%', height:'100%', cursor:'pointer' }} />
+              </div>
+              {selectedEl.type === 'rect' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Radius</span>
+                <input type="range" min={0} max={200} value={selectedEl.cornerRadius||0}
+                  onChange={e => updateElement({...selectedEl, cornerRadius:parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0 }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.cornerRadius||0}</span>
+              </>}
+              <D />
+              <Btn label="↑ Fwd"   active={false} onClick={() => bringForward()} />
+              <Btn label="↓ Back"  active={false} onClick={() => sendBackward()} />
+              <Btn label="⤒ Front" active={false} onClick={() => bringToFront()} />
+              <Btn label="⤓ Back"  active={false} onClick={() => sendToBack()} />
+              <D />
+              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Opacity</span>
+              <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity??1}
+                onChange={e => updateElement({...selectedEl, opacity:parseFloat(e.target.value)})}
+                onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
+              <span style={{ fontSize:11, color:t.textMuted, minWidth:30, flexShrink:0 }}>{Math.round((selectedEl.opacity??1)*100)}%</span>
+              <D />
+              <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
+              <div style={{ flex:1 }} />
+              <D />
+              <Btn label="Position" active={false} onClick={() => {}} />
+              <Btn label="✦ Animate" active={false} onClick={() => {}} />
+            </>
+          );
+        })()}
+
       </div>
 
       {/* ── Main layout ── */}
