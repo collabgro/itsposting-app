@@ -301,6 +301,8 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
       width={el.width || 400}
       align={el.align || 'center'}
       opacity={el.opacity ?? 1}
+      lineHeight={el.lineHeight ?? 1.2}
+      letterSpacing={el.letterSpacing ?? 0}
       shadowEnabled={el.shadow?.enabled || false}
       shadowColor={el.shadow?.color || '#000000'}
       shadowBlur={el.shadow?.blur ?? 4}
@@ -1910,12 +1912,27 @@ export default function TemplatesEditorInner() {
                         onBlur={e => { pushHistory(); pickColor(e.target.value, () => {}); }}
                         style={{ width: 22, height: 22, borderRadius: 5, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 1, flexShrink: 0 }} />
                     </div>
+                    {/* Line height & letter spacing */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap', width: 70 }}>Line height</span>
+                      <input type="range" min={0.8} max={3} step={0.05} value={selectedEl.lineHeight ?? 1.2}
+                        onChange={e => updateElement({ ...selectedEl, lineHeight: parseFloat(e.target.value) })}
+                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
+                      <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{(selectedEl.lineHeight ?? 1.2).toFixed(1)}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap', width: 70 }}>Spacing</span>
+                      <input type="range" min={-5} max={30} step={0.5} value={selectedEl.letterSpacing ?? 0}
+                        onChange={e => updateElement({ ...selectedEl, letterSpacing: parseFloat(e.target.value) })}
+                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
+                      <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{(selectedEl.letterSpacing ?? 0).toFixed(1)}</span>
+                    </div>
                     {/* Opacity */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Opacity</span>
+                      <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap', width: 70 }}>Opacity</span>
                       <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
                         onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-                        onMouseUp={() => pushHistory()} style={{ flex: 1 }} />
+                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
                       <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
                     </div>
                   </div>
