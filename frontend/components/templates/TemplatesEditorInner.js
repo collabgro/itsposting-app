@@ -63,11 +63,31 @@ const QUICK_ACTIONS = [
   { id: 'selectall',icon: '⊡',  label: 'Select all',     sub: 'Select all unlocked elements', shortcut: 'Ctrl+A' },
 ];
 
+const GRADIENT_PRESETS = [
+  { label: 'Midnight', c1: '#7C5CFC', c2: '#00C4CC', angle: 135 },
+  { label: 'Sunset',   c1: '#f97316', c2: '#ec4899', angle: 135 },
+  { label: 'Ocean',    c1: '#0ea5e9', c2: '#10b981', angle: 135 },
+  { label: 'Fire',     c1: '#ef4444', c2: '#f97316', angle: 90  },
+  { label: 'Forest',   c1: '#22c55e', c2: '#0ea5e9', angle: 135 },
+  { label: 'Dusk',     c1: '#8b5cf6', c2: '#ec4899', angle: 135 },
+  { label: 'Gold',     c1: '#fbbf24', c2: '#ef4444', angle: 90  },
+  { label: 'Night',    c1: '#1e1b4b', c2: '#374151', angle: 180 },
+];
+
+function gradientPoints(angle, w, h) {
+  const rad = (angle - 90) * Math.PI / 180;
+  return {
+    startPoint: { x: w / 2 - Math.cos(rad) * w / 2, y: h / 2 - Math.sin(rad) * h / 2 },
+    endPoint:   { x: w / 2 + Math.cos(rad) * w / 2, y: h / 2 + Math.sin(rad) * h / 2 },
+  };
+}
+
 function emptyPage() {
   return {
     id: `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     elements: [],
     bgType: 'color', bgColor: '#1a1a22',
+    bgGradient: null,
     bgImageUrl: null, bgSource: null, bgSourceId: null,
     bgFilter: 'normal', bgBrightness: 0, bgContrast: 0, bgSaturation: 0,
     lockedIds: [], hiddenIds: [],
@@ -487,6 +507,7 @@ export default function TemplatesEditorInner() {
   const bgBrightness = currentPage.bgBrightness;
   const bgContrast   = currentPage.bgContrast;
   const bgSaturation = currentPage.bgSaturation;
+  const bgGradient   = currentPage.bgGradient;
   const lockedIds   = new Set(currentPage.lockedIds);
   const hiddenIds   = new Set(currentPage.hiddenIds);
 
@@ -1582,6 +1603,67 @@ export default function TemplatesEditorInner() {
                     </div>
                   )}
                 </div>
+                {/* ── Gradient section ── */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Gradient</div>
+                  {/* Preset swatches */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
+                    {GRADIENT_PRESETS.map(g => {
+                      const isActive = bgType === 'gradient' && bgGradient?.c1 === g.c1 && bgGradient?.c2 === g.c2;
+                      return (
+                        <button key={g.label} title={g.label}
+                          onClick={() => { pushHistory(); patchPage({ bgType: 'gradient', bgGradient: { c1: g.c1, c2: g.c2, angle: g.angle } }); }}
+                          style={{ height: 36, borderRadius: 7, border: `2px solid ${isActive ? '#00C4CC' : t.border}`, background: `linear-gradient(${g.angle}deg, ${g.c1}, ${g.c2})`, cursor: 'pointer', padding: 0 }} />
+                      );
+                    })}
+                  </div>
+                  {/* Custom gradient editor */}
+                  {bgType === 'gradient' && bgGradient && (
+                    <div style={{ background: t.input, borderRadius: 9, padding: '10px 10px 8px' }}>
+                      {/* Preview bar */}
+                      <div style={{ height: 14, borderRadius: 5, marginBottom: 10, background: `linear-gradient(${bgGradient.angle}deg, ${bgGradient.c1}, ${bgGradient.c2})` }} />
+                      {/* Color stops */}
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 3 }}>Color 1</div>
+                          <input type="color" value={bgGradient.c1}
+                            onChange={e => patchPage({ bgGradient: { ...bgGradient, c1: e.target.value } })}
+                            onBlur={() => pushHistory()}
+                            style={{ width: '100%', height: 30, borderRadius: 6, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 2 }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 3 }}>Color 2</div>
+                          <input type="color" value={bgGradient.c2}
+                            onChange={e => patchPage({ bgGradient: { ...bgGradient, c2: e.target.value } })}
+                            onBlur={() => pushHistory()}
+                            style={{ width: '100%', height: 30, borderRadius: 6, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 2 }} />
+                        </div>
+                        <button title="Swap colors"
+                          onClick={() => { pushHistory(); patchPage({ bgGradient: { ...bgGradient, c1: bgGradient.c2, c2: bgGradient.c1 } }); }}
+                          style={{ width: 28, height: 28, marginTop: 14, borderRadius: 6, border: `1px solid ${t.border}`, background: t.card, color: t.text, cursor: 'pointer', flexShrink: 0, fontSize: 14 }}>
+                          ⇄
+                        </button>
+                      </div>
+                      {/* Angle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 10, color: t.textMuted, whiteSpace: 'nowrap' }}>Angle</span>
+                        <input type="range" min={0} max={360} step={15} value={bgGradient.angle ?? 135}
+                          onChange={e => patchPage({ bgGradient: { ...bgGradient, angle: parseInt(e.target.value) } })}
+                          onMouseUp={() => pushHistory()}
+                          style={{ flex: 1, accentColor: '#00C4CC' }} />
+                        <span style={{ fontSize: 10, color: t.textMuted, width: 28, textAlign: 'right' }}>{bgGradient.angle ?? 135}°</span>
+                      </div>
+                    </div>
+                  )}
+                  {/* Quick angle presets when no gradient active */}
+                  {bgType !== 'gradient' && (
+                    <button onClick={() => { pushHistory(); patchPage({ bgType: 'gradient', bgGradient: GRADIENT_PRESETS[0] }); }}
+                      style={{ width: '100%', padding: '7px 0', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, cursor: 'pointer' }}>
+                      + Custom gradient
+                    </button>
+                  )}
+                </div>
+
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Photo Background</div>
                   <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: t.input, borderRadius: 7, padding: 3 }}>
@@ -2024,7 +2106,19 @@ export default function TemplatesEditorInner() {
                     >
                       {/* Layer 1: Background */}
                       <Layer>
-                        {pageBgType === 'color' ? (
+                        {pageBgType === 'gradient' && page.bgGradient ? (
+                          (() => {
+                            const { startPoint, endPoint } = gradientPoints(page.bgGradient.angle ?? 135, canvasSize.w, canvasSize.h);
+                            return (
+                              <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h}
+                                fillLinearGradientStartPoint={startPoint}
+                                fillLinearGradientEndPoint={endPoint}
+                                fillLinearGradientColorStops={[0, page.bgGradient.c1, 1, page.bgGradient.c2]}
+                                onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined}
+                              />
+                            );
+                          })()
+                        ) : pageBgType === 'color' ? (
                           <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill={pageBgColor}
                             onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined} />
                         ) : pageBgImageUrl ? (
@@ -2228,7 +2322,7 @@ export default function TemplatesEditorInner() {
                     <div style={{ fontSize: 9, fontWeight: 600, color: isAct ? '#00C4CC' : t.textMuted, textAlign: 'center', marginBottom: 3 }}>{i + 1}</div>
                     {/* Thumbnail tile */}
                     <div onClick={() => { setActivePage(i); setSelectedId(null); setSelectedIds([]); }}
-                      style={{ width: '100%', aspectRatio: `${canvasSize.w} / ${canvasSize.h}`, borderRadius: 5, border: `2px solid ${isAct ? '#00C4CC' : t.border}`, background: page.bgColor || '#1a1a22', cursor: 'pointer', overflow: 'hidden', position: 'relative', boxSizing: 'border-box' }}>
+                      style={{ width: '100%', aspectRatio: `${canvasSize.w} / ${canvasSize.h}`, borderRadius: 5, border: `2px solid ${isAct ? '#00C4CC' : t.border}`, background: page.bgType === 'gradient' && page.bgGradient ? `linear-gradient(${page.bgGradient.angle}deg, ${page.bgGradient.c1}, ${page.bgGradient.c2})` : (page.bgColor || '#1a1a22'), cursor: 'pointer', overflow: 'hidden', position: 'relative', boxSizing: 'border-box' }}>
                       {/* Tiny color-coded element indicators */}
                       {page.elements.slice(0, 8).map(el => (
                         <div key={el.id} style={{
