@@ -450,6 +450,8 @@ export default function TemplatesEditorInner() {
   const [fontSearch, setFontSearch] = useState('');
   // Elements panel category tab
   const [elemTab, setElemTab] = useState('shapes');
+  // Pages thumbnail sidebar
+  const [showPagesPanel, setShowPagesPanel] = useState(false);
   // Top bar dropdowns
   const [titleEditing, setTitleEditing] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -2195,6 +2197,58 @@ export default function TemplatesEditorInner() {
           </div>
         </div>
 
+        {/* ── Pages thumbnail sidebar (toggled from bottom bar) ── */}
+        {showPagesPanel && (
+          <div style={{ width: 140, borderLeft: `1px solid ${t.border}`, background: t.card, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '8px 10px 6px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pages</span>
+              <button onClick={() => setShowPagesPanel(false)}
+                style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 6px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {pages.map((page, i) => {
+                const isAct = i === activePage;
+                return (
+                  <div key={page.id} style={{ position: 'relative' }}>
+                    {/* Page number label */}
+                    <div style={{ fontSize: 9, fontWeight: 600, color: isAct ? '#00C4CC' : t.textMuted, textAlign: 'center', marginBottom: 3 }}>{i + 1}</div>
+                    {/* Thumbnail tile */}
+                    <div onClick={() => { setActivePage(i); setSelectedId(null); setSelectedIds([]); }}
+                      style={{ width: '100%', aspectRatio: `${canvasSize.w} / ${canvasSize.h}`, borderRadius: 5, border: `2px solid ${isAct ? '#00C4CC' : t.border}`, background: page.bgColor || '#1a1a22', cursor: 'pointer', overflow: 'hidden', position: 'relative', boxSizing: 'border-box' }}>
+                      {/* Tiny color-coded element indicators */}
+                      {page.elements.slice(0, 8).map(el => (
+                        <div key={el.id} style={{
+                          position: 'absolute',
+                          left: `${(el.x / canvasSize.w) * 100}%`,
+                          top: `${(el.y / canvasSize.h) * 100}%`,
+                          width: `${Math.min(((el.width || el.radius * 2 || 60) / canvasSize.w) * 100, 40)}%`,
+                          height: `${Math.min(((el.height || el.radius * 2 || 40) / canvasSize.h) * 100, 30)}%`,
+                          background: el.fill || el.stroke || 'rgba(255,255,255,0.3)',
+                          opacity: el.opacity ?? 1,
+                          borderRadius: el.type === 'circle' ? '50%' : 2,
+                          pointerEvents: 'none',
+                        }} />
+                      ))}
+                    </div>
+                    {/* Delete button (only when >1 page) */}
+                    {pages.length > 1 && (
+                      <button onClick={e => { e.stopPropagation(); deletePage(i); }}
+                        style={{ position: 'absolute', top: 16, right: -4, width: 14, height: 14, background: '#ef4444', border: 'none', borderRadius: '50%', color: '#fff', fontSize: 8, cursor: 'pointer', lineHeight: '14px', textAlign: 'center', padding: 0 }}>
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              {/* Add page button */}
+              <button onClick={addPage}
+                style={{ width: '100%', aspectRatio: `${canvasSize.w} / ${canvasSize.h}`, borderRadius: 5, border: `2px dashed ${t.border}`, background: 'none', color: t.textMuted, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                +
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Right panel ── */}
         <div style={{ width: 230, borderLeft: `1px solid ${t.border}`, background: t.card, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
           {/* Tabs */}
@@ -2380,11 +2434,12 @@ export default function TemplatesEditorInner() {
 
         <div style={{ width: 1, height: 18, background: t.border, margin: '0 6px', flexShrink: 0 }} />
 
-        {/* Notes placeholder */}
-        <button title="Notes (coming soon)"
-          style={{ height: 26, padding: '0 9px', border: 'none', borderRadius: 5,
-            background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'default' }}>
-          Notes
+        {/* Pages toggle */}
+        <button onClick={() => setShowPagesPanel(o => !o)} title="Toggle pages panel"
+          style={{ height: 26, padding: '0 10px', border: `1px solid ${showPagesPanel ? '#00C4CC' : t.border}`, borderRadius: 5,
+            background: showPagesPanel ? 'rgba(0,196,204,0.1)' : t.input, color: showPagesPanel ? '#00C4CC' : t.text,
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+          ☰ Pages
         </button>
 
         {/* Fullscreen */}
