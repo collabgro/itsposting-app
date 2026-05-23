@@ -35,6 +35,22 @@ const COLOR_PALETTE = [
 
 const SNAP_THRESHOLD = 5;
 
+const QUICK_ACTIONS = [
+  { id: 'text',     icon: 'T',  label: 'Add text',        sub: 'Insert a text element',    shortcut: 'T'       },
+  { id: 'rect',     icon: '▭',  label: 'Add rectangle',   sub: 'Insert a rectangle shape', shortcut: 'R'       },
+  { id: 'circle',   icon: '○',  label: 'Add circle',      sub: 'Insert a circle shape',    shortcut: 'C'       },
+  { id: 'line',     icon: '╱',  label: 'Add line',        sub: 'Insert a line shape'                          },
+  { id: 'undo',     icon: '⟲',  label: 'Undo',            sub: 'Undo last action',          shortcut: 'Ctrl+Z'  },
+  { id: 'redo',     icon: '⟳',  label: 'Redo',            sub: 'Redo last undone action',   shortcut: 'Ctrl+Y'  },
+  { id: 'duplicate',icon: '⊞',  label: 'Duplicate',       sub: 'Duplicate selected element',shortcut: 'Ctrl+D'  },
+  { id: 'delete',   icon: '🗑', label: 'Delete',          sub: 'Delete selected element',   shortcut: 'Del'     },
+  { id: 'newpage',  icon: '+',  label: 'Add new page',    sub: 'Insert a blank page after this one'            },
+  { id: 'download', icon: '⬇', label: 'Download PNG',    sub: 'Export canvas as PNG'                         },
+  { id: 'zoomin',   icon: '🔍', label: 'Zoom in',         sub: 'Increase canvas zoom',      shortcut: 'Ctrl++'  },
+  { id: 'zoomout',  icon: '🔎', label: 'Zoom out',        sub: 'Decrease canvas zoom',      shortcut: 'Ctrl+–'  },
+  { id: 'zoomfit',  icon: '⤢',  label: 'Fit to screen',  sub: 'Reset zoom to fit canvas',  shortcut: 'Ctrl+0'  },
+];
+
 function emptyPage() {
   return {
     id: `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -416,6 +432,9 @@ export default function TemplatesEditorInner() {
   const [showOutlinePanel, setShowOutlinePanel] = useState(false);
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
+  // Quick actions palette
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickQuery, setQuickQuery] = useState('');
   // Top bar dropdowns
   const [titleEditing, setTitleEditing] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -588,11 +607,37 @@ export default function TemplatesEditorInner() {
         setShowShadowPanel(false);
         setShowOutlinePanel(false);
         setCtxMenu(null);
+        setQuickOpen(false);
+        return;
+      }
+
+      // Quick actions palette
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        e.preventDefault();
+        setQuickQuery('');
+        setQuickOpen(o => !o);
+        return;
+      }
+
+      // Zoom shortcuts
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); zoomIn(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); zoomOut(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); setZoomFactor(1); return; }
+
+      // Tool hotkeys (only when no element focused and no modifier held)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && !selectedId) {
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (e.key === 't' || e.key === 'T') { addText(); return; }
+        if (e.key === 'r' || e.key === 'R') { addRect(); return; }
+        if (e.key === 'c' || e.key === 'C') { addCircle(); return; }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, selectedIds, editingTextId, history, historyIndex, elements, clipboard]);
+  }, [selectedId, selectedIds, editingTextId, history, historyIndex, elements, clipboard, zoomFactor]);
 
   // ── History helpers ────────────────────────────────────────────────────────
   function snapshot() {
@@ -2266,6 +2311,93 @@ export default function TemplatesEditorInner() {
           ⛶
         </button>
       </div>
+
+      {/* ── Quick Actions palette (/ key) ── */}
+      {quickOpen && (() => {
+        const actions = QUICK_ACTIONS.filter(a =>
+          !quickQuery ||
+          a.label.toLowerCase().includes(quickQuery.toLowerCase()) ||
+          (a.sub || '').toLowerCase().includes(quickQuery.toLowerCase())
+        );
+
+        const dispatch = (id) => {
+          setQuickOpen(false);
+          setQuickQuery('');
+          if (id === 'text')     return addText();
+          if (id === 'rect')     return addRect();
+          if (id === 'circle')   return addCircle();
+          if (id === 'line')     { pushHistory(); const el = { id: uid(), type: 'line', x: canvasSize.w/2-80, y: canvasSize.h/2, points: [0,0,160,0], stroke: '#ffffff', strokeWidth: 3, opacity: 1 }; patchElements(prev => [...prev, el]); setSelectedId(el.id); return; }
+          if (id === 'undo')     return undo();
+          if (id === 'redo')     return redo();
+          if (id === 'duplicate'){ const sel = elements.find(e => e.id === selectedId); if (sel) { const d = {...JSON.parse(JSON.stringify(sel)), id: uid(), x: sel.x+20, y: sel.y+20}; pushHistory(); patchElements(prev => [...prev, d]); setSelectedId(d.id); } return; }
+          if (id === 'delete')   { if (selectedIds.length > 0) { pushHistory(); const s = new Set(selectedIds); patchElements(p => p.filter(e => !s.has(e.id))); clearSelection(); } return; }
+          if (id === 'newpage')  return addPage();
+          if (id === 'download') return downloadCanvas('image/png', 'png', 1);
+          if (id === 'zoomin')   return zoomIn();
+          if (id === 'zoomout')  return zoomOut();
+          if (id === 'zoomfit')  return setZoomFactor(1);
+        };
+
+        return (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1998, background: 'rgba(0,0,0,0.25)' }}
+              onMouseDown={() => { setQuickOpen(false); setQuickQuery(''); }} />
+            <div style={{
+              position: 'fixed', top: '28%', left: '50%', transform: 'translateX(-50%)',
+              width: 500, background: t.card, border: `1px solid ${t.border}`,
+              borderRadius: 16, boxShadow: '0 16px 48px rgba(0,0,0,0.28)',
+              zIndex: 1999, overflow: 'hidden',
+            }}>
+              {/* Search input */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '14px 18px', borderBottom: `1px solid ${t.border}`, gap: 10 }}>
+                <span style={{ fontSize: 18, color: t.textMuted, flexShrink: 0 }}>🔍</span>
+                <input
+                  autoFocus
+                  value={quickQuery}
+                  onChange={e => setQuickQuery(e.target.value)}
+                  placeholder='Search actions or press "/" for commands…'
+                  style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', color: t.text, fontSize: 15 }}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') { setQuickOpen(false); setQuickQuery(''); }
+                    if (e.key === 'Enter' && actions.length > 0) dispatch(actions[0].id);
+                  }}
+                />
+                <kbd style={{ fontSize: 11, color: t.textMuted, background: t.input, border: `1px solid ${t.border}`, borderRadius: 4, padding: '2px 6px', flexShrink: 0 }}>Esc</kbd>
+              </div>
+
+              {/* Action list */}
+              <div style={{ maxHeight: 340, overflowY: 'auto', padding: '6px 0' }}>
+                {actions.length === 0 && (
+                  <div style={{ padding: '20px', textAlign: 'center', fontSize: 13, color: t.textMuted }}>No actions match "{quickQuery}"</div>
+                )}
+                {actions.map(a => (
+                  <button key={a.id}
+                    onMouseDown={e => { e.preventDefault(); dispatch(a.id); }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '10px 18px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', transition: 'background 60ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = t.input; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                    <span style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.input, borderRadius: 8, fontSize: 16, flexShrink: 0 }}>{a.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: t.text }}>{a.label}</div>
+                      {a.sub && <div style={{ fontSize: 12, color: t.textMuted }}>{a.sub}</div>}
+                    </div>
+                    {a.shortcut && (
+                      <kbd style={{ fontSize: 11, color: t.textMuted, background: t.input, border: `1px solid ${t.border}`, borderRadius: 4, padding: '2px 7px', flexShrink: 0, whiteSpace: 'nowrap' }}>{a.shortcut}</kbd>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Footer hint */}
+              <div style={{ padding: '8px 18px', borderTop: `1px solid ${t.border}`, display: 'flex', gap: 16, fontSize: 11, color: t.textMuted }}>
+                <span><kbd style={{ background: t.input, border: `1px solid ${t.border}`, borderRadius: 3, padding: '1px 5px' }}>↵</kbd> select</span>
+                <span><kbd style={{ background: t.input, border: `1px solid ${t.border}`, borderRadius: 3, padding: '1px 5px' }}>Esc</kbd> close</span>
+                <span><kbd style={{ background: t.input, border: `1px solid ${t.border}`, borderRadius: 3, padding: '1px 5px' }}>/</kbd> to re-open</span>
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {/* ── Right-click context menu ── */}
       {ctxMenu && (() => {
