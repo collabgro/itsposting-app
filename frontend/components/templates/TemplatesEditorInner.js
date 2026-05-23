@@ -416,6 +416,11 @@ export default function TemplatesEditorInner() {
   const [showOutlinePanel, setShowOutlinePanel] = useState(false);
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
+  // Top bar dropdowns
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [showFileMenu, setShowFileMenu] = useState(false);
+  const [showResizeMenu, setShowResizeMenu] = useState(false);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
   // UI
   const [activeLeftTool, setActiveLeftTool] = useState('background');
@@ -939,6 +944,21 @@ export default function TemplatesEditorInner() {
   }
 
   // ── Save & Post ────────────────────────────────────────────────────────────
+  function downloadCanvas(mimeType, ext, quality) {
+    if (!stageRef.current) return;
+    const pixelRatio = canvasSize.w / stageDisplayW;
+    clearSelection();
+    if (trLayerRef.current) trLayerRef.current.hide();
+    requestAnimationFrame(() => {
+      const uri = stageRef.current.toDataURL({ mimeType, quality, pixelRatio });
+      if (trLayerRef.current) trLayerRef.current.show();
+      const a = document.createElement('a');
+      a.href = uri;
+      a.download = `${titleForSave || 'design'}.${ext}`;
+      a.click();
+    });
+  }
+
   async function handleSave() {
     if (!stageRef.current) return;
     setSaving(true);
@@ -1005,29 +1025,131 @@ export default function TemplatesEditorInner() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 70px)', overflow: 'hidden', background: t.bg }}>
 
-      {/* ── Top toolbar ── */}
-      <div style={{ height: 56, display: 'flex', alignItems: 'center', gap: 12, padding: '0 20px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 10 }}>
-        <button onClick={() => router.push('/media?tab=templates')}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>
-          ← Templates
-        </button>
-        <select value={canvasSizeId} onChange={e => setCanvasSizeId(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer' }}>
-          {CANVAS_SIZES.map(s => <option key={s.id} value={s.id}>{s.label} ({s.w}×{s.h})</option>)}
-        </select>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button onClick={undo} disabled={historyIndex < 0} title="Undo (Ctrl+Z)"
-            style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: historyIndex < 0 ? t.textMuted : t.text, fontSize: 13, cursor: historyIndex < 0 ? 'not-allowed' : 'pointer' }}>⟲</button>
-          <button onClick={redo} disabled={historyIndex >= history.length - 1} title="Redo (Ctrl+Y)"
-            style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: historyIndex >= history.length - 1 ? t.textMuted : t.text, fontSize: 13, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer' }}>⟳</button>
-        </div>
-        <input value={titleForSave} onChange={e => setTitleForSave(e.target.value)} placeholder="Template title..."
-          style={{ flex: 1, maxWidth: 220, padding: '6px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, outline: 'none' }} />
-        <div style={{ marginLeft: 'auto' }}>
-          <button onClick={handleSave} disabled={saving}
-            style={{ padding: '8px 20px', borderRadius: 8, background: t.primary, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-            {saving ? 'Saving...' : 'Save & Post'}
+      {/* ── Top toolbar (Canva-style) ── */}
+      <div style={{ height: 56, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 10, position: 'relative' }}>
+
+        {/* ── Left zone ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+
+          {/* Back */}
+          <button onClick={() => router.push('/media?tab=templates')} title="Back to templates"
+            style={{ width: 36, height: 36, border: 'none', borderRadius: 8, background: 'transparent', color: t.text, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            ←
           </button>
+
+          {/* File dropdown */}
+          <div style={{ position: 'relative' }}>
+            {showFileMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowFileMenu(false)} />}
+            <button onClick={() => { setShowFileMenu(m => !m); setShowResizeMenu(false); setShowDownloadMenu(false); }}
+              style={{ height: 34, padding: '0 10px', border: `1px solid ${showFileMenu ? t.primary : t.border}`, borderRadius: 7, background: showFileMenu ? t.primaryBg : t.input, color: showFileMenu ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+              File <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
+            </button>
+            {showFileMenu && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 190, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0' }}>
+                {[
+                  { label: 'New blank design', fn: () => { if (elements.length === 0 || confirm('Start a new blank design? Unsaved work will be lost.')) { pushHistory(); setPages([emptyPage()]); setActivePage(0); clearSelection(); setTitleForSave(''); } } },
+                  { label: 'Duplicate design',  fn: () => { const copy = JSON.parse(JSON.stringify(pages)); const now = Date.now(); copy.forEach((p,i) => { p.id = `page_${now+i}_copy`; }); pushHistory(); setPages(copy); } },
+                  { sep: true },
+                  { label: '⬇ Download PNG',  fn: () => downloadCanvas('image/png',  'png',  1)    },
+                  { label: '⬇ Download JPEG', fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
+                ].map((item, i) => item.sep
+                  ? <div key={i} style={{ height: 1, background: t.border, margin: '4px 0' }} />
+                  : <button key={i} onMouseDown={e => { e.preventDefault(); item.fn(); setShowFileMenu(false); }}
+                      style={{ width: '100%', padding: '8px 14px', border: 'none', background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = t.input; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                      {item.label}
+                    </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Resize/canvas-size dropdown */}
+          <div style={{ position: 'relative' }}>
+            {showResizeMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowResizeMenu(false)} />}
+            <button onClick={() => { setShowResizeMenu(m => !m); setShowFileMenu(false); setShowDownloadMenu(false); }}
+              style={{ height: 34, padding: '0 10px', border: `1px solid ${showResizeMenu ? t.primary : t.border}`, borderRadius: 7, background: showResizeMenu ? t.primaryBg : t.input, color: showResizeMenu ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{canvasSize.label}</span>
+              <span style={{ fontSize: 9, opacity: 0.6, flexShrink: 0 }}>▾</span>
+            </button>
+            {showResizeMenu && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 230, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0', maxHeight: 320, overflowY: 'auto' }}>
+                {CANVAS_SIZES.map(s => (
+                  <button key={s.id} onMouseDown={() => { setCanvasSizeId(s.id); setShowResizeMenu(false); }}
+                    style={{ width: '100%', padding: '8px 14px', border: 'none', background: canvasSizeId === s.id ? t.primaryBg : 'transparent', color: canvasSizeId === s.id ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    onMouseEnter={e => { if (canvasSizeId !== s.id) e.currentTarget.style.background = t.input; }}
+                    onMouseLeave={e => { if (canvasSizeId !== s.id) e.currentTarget.style.background = 'transparent'; }}>
+                    <span>{s.label}</span>
+                    <span style={{ fontSize: 11, color: t.textMuted, flexShrink: 0 }}>{s.w}×{s.h}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Center zone: absolutely centered editable title ── */}
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center' }}>
+          {titleEditing ? (
+            <input
+              autoFocus
+              value={titleForSave}
+              onChange={e => setTitleForSave(e.target.value)}
+              onBlur={() => setTitleEditing(false)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') e.target.blur(); }}
+              style={{ padding: '5px 12px', borderRadius: 7, border: `1.5px solid ${t.primary}`, background: t.input, color: t.text, fontSize: 14, fontWeight: 600, outline: 'none', minWidth: 180, textAlign: 'center' }}
+            />
+          ) : (
+            <button onClick={() => setTitleEditing(true)} title="Click to rename"
+              style={{ padding: '5px 12px', border: '1px solid transparent', borderRadius: 7, background: 'transparent', color: t.text, fontSize: 14, fontWeight: 600, cursor: 'text', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              onMouseEnter={e => { e.currentTarget.style.border = `1px solid ${t.border}`; e.currentTarget.style.background = t.input; }}
+              onMouseLeave={e => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.background = 'transparent'; }}>
+              {titleForSave || 'Untitled design'} ✎
+            </button>
+          )}
+        </div>
+
+        {/* ── Right zone ── */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+
+          {/* Undo / Redo */}
+          <button onClick={undo} disabled={historyIndex < 0} title="Undo (Ctrl+Z)"
+            style={{ width: 34, height: 34, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: historyIndex < 0 ? t.textMuted : t.text, fontSize: 16, cursor: historyIndex < 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⟲</button>
+          <button onClick={redo} disabled={historyIndex >= history.length - 1} title="Redo (Ctrl+Y)"
+            style={{ width: 34, height: 34, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: historyIndex >= history.length - 1 ? t.textMuted : t.text, fontSize: 16, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⟳</button>
+
+          <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0 }} />
+
+          {/* Share / Save & Post */}
+          <button onClick={handleSave} disabled={saving}
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: t.primary, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? 'Saving…' : '↑ Share'}
+          </button>
+
+          {/* Download dropdown */}
+          <div style={{ position: 'relative' }}>
+            {showDownloadMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowDownloadMenu(false)} />}
+            <button onClick={() => { setShowDownloadMenu(m => !m); setShowFileMenu(false); setShowResizeMenu(false); }}
+              style={{ height: 36, padding: '0 13px', border: `1px solid ${showDownloadMenu ? t.primary : t.border}`, borderRadius: 8, background: showDownloadMenu ? t.primaryBg : t.input, color: showDownloadMenu ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500 }}>
+              ⬇ <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
+            </button>
+            {showDownloadMenu && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 180, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0' }}>
+                {[
+                  { label: 'PNG (lossless)',   fn: () => downloadCanvas('image/png',  'png',  1)    },
+                  { label: 'JPEG (smaller)',    fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
+                ].map((item, i) => (
+                  <button key={i} onMouseDown={e => { e.preventDefault(); item.fn(); setShowDownloadMenu(false); }}
+                    style={{ width: '100%', padding: '8px 14px', border: 'none', background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = t.input; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
