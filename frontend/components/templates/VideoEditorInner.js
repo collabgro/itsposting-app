@@ -63,6 +63,7 @@ export default function VideoEditorInner() {
   const [selectedId, setSelectedId] = useState(null);
   const [selectedTrack, setSelectedTrack] = useState(null); // 'clip' | 'text' | 'audio'
   const [activeTool, setActiveTool] = useState('clips');
+  const [panelOpen, setPanelOpen] = useState(true);
   const [zoom, setZoom] = useState(60); // px/sec
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -1014,6 +1015,15 @@ export default function VideoEditorInner() {
 
   const timelineWidth = Math.max(800, (totalDuration + 2) * zoom);
 
+  function handleToolClick(toolId) {
+    if (activeTool === toolId && panelOpen) {
+      setPanelOpen(false);
+    } else {
+      setActiveTool(toolId);
+      setPanelOpen(true);
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 130px)', background: t.bg, overflow: 'hidden' }}>
 
@@ -1097,18 +1107,65 @@ export default function VideoEditorInner() {
       {/* ── Body ── */}
       <div style={s.body}>
 
-        {/* ── Left panel ── */}
-        <div style={s.leftPanel}>
-          <div style={s.leftTabs}>
-            {leftToolButtons.map(btn => (
-              <button key={btn.id} onClick={() => setActiveTool(btn.id)} style={s.leftTab(activeTool === btn.id)} title={btn.label}>
-                {btn.icon}<br />{btn.label}
-              </button>
-            ))}
-          </div>
-          <div style={s.leftContent}>
-            {LeftPanelContent()}
-          </div>
+        {/* ── Left sidebar: 72px icon strip + 280px collapsible flyout ── */}
+
+        {/* 72px icon strip — always visible */}
+        <div style={{ width: 72, borderRight: `1px solid ${t.border}`, background: t.card,
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          padding: '8px 0', flexShrink: 0, gap: 2 }}>
+          {[
+            { id: 'clips',   icon: <IpVideo size={20} />,   label: 'Clips'   },
+            { id: 'text',    icon: <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>T</span>, label: 'Text' },
+            { id: 'audio',   icon: <span style={{ fontSize: 20, lineHeight: 1 }}>♪</span>, label: 'Audio' },
+            { id: 'ai',      icon: <IpSparkle size={20} />, label: 'AI Gen'  },
+            { id: 'filters', icon: <IpFilter size={20} />,  label: 'Filters' },
+          ].map(tool => (
+            <button key={tool.id} onClick={() => handleToolClick(tool.id)}
+              style={{
+                width: 60, padding: '10px 0 6px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                background: activeTool === tool.id && panelOpen ? t.primaryBg : 'transparent',
+                border: 'none', borderRadius: 8, cursor: 'pointer',
+                color: activeTool === tool.id && panelOpen ? t.primary : t.textMuted,
+                fontSize: 10, fontWeight: activeTool === tool.id && panelOpen ? 600 : 400,
+                transition: 'all 150ms ease',
+              }}>
+              {tool.icon}
+              {tool.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 280px collapsible flyout */}
+        <div style={{
+          width: panelOpen ? 280 : 0,
+          overflow: 'hidden',
+          transition: 'width 200ms ease',
+          borderRight: panelOpen ? `1px solid ${t.border}` : 'none',
+          background: t.card,
+          position: 'relative',
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          {/* Collapse/expand arrow */}
+          <button onClick={() => setPanelOpen(o => !o)} style={{
+            position: 'absolute', right: -13, top: '50%',
+            transform: 'translateY(-50%)',
+            width: 26, height: 52,
+            background: t.card, border: `1px solid ${t.border}`,
+            borderRadius: '0 8px 8px 0', cursor: 'pointer',
+            zIndex: 20, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', color: t.textMuted, fontSize: 14,
+          }}>
+            {panelOpen ? '‹' : '›'}
+          </button>
+
+          {panelOpen && (
+            <div style={{ flex: 1, overflowY: 'auto', padding: 10, minWidth: 280 }}>
+              {LeftPanelContent()}
+            </div>
+          )}
         </div>
 
         {/* ── Preview ── */}
@@ -1147,7 +1204,7 @@ export default function VideoEditorInner() {
                   textAlign: te.align || 'center',
                   whiteSpace: 'pre-wrap',
                   textShadow: '0 1px 4px rgba(0,0,0,0.8)',
-                  border: selectedId === te.id ? '1px dashed rgba(155,79,212,0.8)' : '1px dashed transparent',
+                  border: selectedId === te.id ? '2px solid #00C4CC' : '2px solid transparent',
                   padding: 4,
                   borderRadius: 4,
                 }}>
