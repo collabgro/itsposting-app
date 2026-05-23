@@ -1028,6 +1028,49 @@ export default function TemplatesEditorInner() {
     patchElements(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
   }
 
+  // ── Distribute ────────────────────────────────────────────────────────────
+  function distributeH() {
+    if (selectedIds.length < 3) return;
+    const els = selectedIds.map(id => elements.find(e => e.id === id)).filter(Boolean);
+    const getL = e => ['circle','triangle','star'].includes(e.type) ? e.x - (e.radius||e.outerRadius||60) : e.x;
+    const getW = e => ['circle','triangle','star'].includes(e.type) ? (e.radius||e.outerRadius||60)*2 : (e.width||100);
+    const sorted = [...els].sort((a, b) => getL(a) - getL(b));
+    const span  = (getL(sorted[sorted.length - 1]) + getW(sorted[sorted.length - 1])) - getL(sorted[0]);
+    const total = sorted.reduce((s, e) => s + getW(e), 0);
+    const gap   = (span - total) / (sorted.length - 1);
+    const updates = new Map();
+    let cursor = getL(sorted[0]);
+    for (const e of sorted) {
+      const isCO = ['circle','triangle','star'].includes(e.type);
+      const r = e.radius || e.outerRadius || 60;
+      updates.set(e.id, { ...e, x: isCO ? cursor + r : cursor });
+      cursor += getW(e) + gap;
+    }
+    pushHistory();
+    patchElements(prev => prev.map(e => updates.has(e.id) ? updates.get(e.id) : e));
+  }
+
+  function distributeV() {
+    if (selectedIds.length < 3) return;
+    const els = selectedIds.map(id => elements.find(e => e.id === id)).filter(Boolean);
+    const getT = e => ['circle','triangle','star'].includes(e.type) ? e.y - (e.radius||e.outerRadius||60) : e.y;
+    const getH = e => ['circle','triangle','star'].includes(e.type) ? (e.radius||e.outerRadius||60)*2 : (e.height||60);
+    const sorted = [...els].sort((a, b) => getT(a) - getT(b));
+    const span  = (getT(sorted[sorted.length - 1]) + getH(sorted[sorted.length - 1])) - getT(sorted[0]);
+    const total = sorted.reduce((s, e) => s + getH(e), 0);
+    const gap   = (span - total) / (sorted.length - 1);
+    const updates = new Map();
+    let cursor = getT(sorted[0]);
+    for (const e of sorted) {
+      const isCO = ['circle','triangle','star'].includes(e.type);
+      const r = e.radius || e.outerRadius || 60;
+      updates.set(e.id, { ...e, y: isCO ? cursor + r : cursor });
+      cursor += getH(e) + gap;
+    }
+    pushHistory();
+    patchElements(prev => prev.map(e => updates.has(e.id) ? updates.get(e.id) : e));
+  }
+
   // ── Flip ──────────────────────────────────────────────────────────────────
   function flipH() {
     const el = elements.find(e => e.id === selectedId);
@@ -1541,6 +1584,13 @@ export default function TemplatesEditorInner() {
               <span style={{ fontSize: 12, color: t.textMuted, flexShrink: 0, paddingRight: 6 }}>{selectedIds.length} selected</span>
               <D />
               {ALIGNS.map((a, i) => <Btn key={i} label={a.label} onClick={a.fn} />)}
+              {selectedIds.length >= 3 && (
+                <>
+                  <D />
+                  <Btn label="⇔ Dist H" onClick={distributeH} />
+                  <Btn label="⇕ Dist V" onClick={distributeV} />
+                </>
+              )}
               <D />
               <Btn label="⊡ Group" onClick={groupSelected} />
               <D />
