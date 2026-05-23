@@ -459,6 +459,8 @@ export default function TemplatesEditorInner() {
   const [stageScale, setStageScale] = useState(1);
   const [stageDisplayW, setStageDisplayW] = useState(540);
   const [stageDisplayH, setStageDisplayH] = useState(675);
+  const [zoomFactor, setZoomFactor] = useState(1.0);
+  const baseScaleRef = useRef(1);
   const stageRef = useRef(null);
   const trLayerRef = useRef(null);
 
@@ -467,7 +469,9 @@ export default function TemplatesEditorInner() {
     const updateScale = () => {
       if (!containerRef.current) return;
       const maxW = containerRef.current.clientWidth - 48;
-      const scale = Math.min(maxW / canvasSize.w, 1);
+      const base = Math.min(maxW / canvasSize.w, 1);
+      baseScaleRef.current = base;
+      const scale = base * zoomFactor;
       setStageScale(scale);
       setStageDisplayW(Math.floor(canvasSize.w * scale));
       setStageDisplayH(Math.floor(canvasSize.h * scale));
@@ -475,7 +479,10 @@ export default function TemplatesEditorInner() {
     updateScale();
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
-  }, [canvasSizeId, canvasSize.w, canvasSize.h]);
+  }, [canvasSizeId, canvasSize.w, canvasSize.h, zoomFactor]);
+
+  function zoomIn()  { setZoomFactor(z => Math.min(parseFloat((z + 0.25).toFixed(2)), 3)); }
+  function zoomOut() { setZoomFactor(z => Math.max(parseFloat((z - 0.25).toFixed(2)), 0.25)); }
 
   // ── Load photos ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1941,6 +1948,76 @@ export default function TemplatesEditorInner() {
 
           </div>
         </div>
+      </div>
+
+      {/* ── Bottom status bar ── */}
+      <div style={{
+        height: 36, display: 'flex', alignItems: 'center', gap: 6,
+        padding: '0 16px', borderTop: `1px solid ${t.border}`,
+        background: t.card, flexShrink: 0, zIndex: 8,
+        fontSize: 12, color: t.textMuted, userSelect: 'none',
+      }}>
+        {/* Zoom out */}
+        <button onClick={zoomOut} title="Zoom out (−)"
+          style={{ width: 26, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
+            background: t.input, color: t.text, fontSize: 16, lineHeight: 1, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          −
+        </button>
+
+        {/* Zoom slider */}
+        <input type="range" min={25} max={300} step={25}
+          value={Math.round(zoomFactor * 100)}
+          onChange={e => setZoomFactor(parseInt(e.target.value) / 100)}
+          style={{ width: 80, flexShrink: 0, cursor: 'pointer', accentColor: '#00C4CC' }} />
+
+        {/* Zoom in */}
+        <button onClick={zoomIn} title="Zoom in (+)"
+          style={{ width: 26, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
+            background: t.input, color: t.text, fontSize: 16, lineHeight: 1, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          +
+        </button>
+
+        {/* Zoom % pill — click to reset to 100% */}
+        <button onClick={() => setZoomFactor(1)} title="Reset zoom to 100%"
+          style={{ minWidth: 46, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
+            background: t.input, color: t.text, fontSize: 12, cursor: 'pointer',
+            padding: '0 7px', flexShrink: 0, fontWeight: 500 }}>
+          {Math.round(zoomFactor * 100)}%
+        </button>
+
+        <div style={{ width: 1, height: 18, background: t.border, margin: '0 6px', flexShrink: 0 }} />
+
+        {/* Page counter */}
+        <span style={{ fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          Page {activePage + 1} / {pages.length}
+        </span>
+
+        {/* Spacer pushes right-side items to the far right */}
+        <div style={{ flex: 1 }} />
+
+        {/* Canvas dimensions */}
+        <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {canvasSize.w} × {canvasSize.h} px
+        </span>
+
+        <div style={{ width: 1, height: 18, background: t.border, margin: '0 6px', flexShrink: 0 }} />
+
+        {/* Notes placeholder */}
+        <button title="Notes (coming soon)"
+          style={{ height: 26, padding: '0 9px', border: 'none', borderRadius: 5,
+            background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'default' }}>
+          Notes
+        </button>
+
+        {/* Fullscreen */}
+        <button title="Fullscreen" onClick={() => document.documentElement.requestFullscreen?.()}
+          style={{ width: 26, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
+            background: t.input, color: t.text, fontSize: 13, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          ⛶
+        </button>
       </div>
 
       {/* ── Post modal ── */}
