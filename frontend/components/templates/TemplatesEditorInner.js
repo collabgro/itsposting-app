@@ -1476,6 +1476,12 @@ export default function TemplatesEditorInner() {
         </div>
 
         {/* ── Canvas area — multi-page vertical scroll ── */}
+        <style>{`
+          @keyframes ftb-in {
+            from { opacity:0; transform:translateX(-50%) translateY(6px) scale(0.94); }
+            to   { opacity:1; transform:translateX(-50%) translateY(0)   scale(1);    }
+          }
+        `}</style>
         <div ref={containerRef} style={{ flex: 1, overflowY: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
             {pages.map((page, pageIdx) => {
@@ -1648,6 +1654,83 @@ export default function TemplatesEditorInner() {
                         rows={3}
                       />
                     )}
+
+                    {/* ── Floating object toolbar (Canva-style) ── */}
+                    {isActive && selectedId && selectedId !== '__bg__' && !editingTextId && (() => {
+                      const el = elements.find(e => e.id === selectedId);
+                      if (!el) return null;
+                      // Compute element bounds in canvas coords
+                      const isCO = ['circle', 'triangle', 'star'].includes(el.type);
+                      const r    = el.radius || el.outerRadius || 60;
+                      const elX  = isCO ? el.x - r : el.x;
+                      const elY  = isCO ? el.y - r : el.y;
+                      const elW  = isCO ? r * 2 : (el.width || 200);
+                      const elH  = isCO ? r * 2 : (el.type === 'text' ? Math.max(60, (el.fontSize || 36) * 1.4) : (el.height || 100));
+                      // Screen coords
+                      const cx       = (elX + elW / 2) * stageScale;
+                      const nearTop  = elY * stageScale < 58;
+                      const toolbarY = nearTop ? (elY + elH) * stageScale + 10 : elY * stageScale - 50;
+                      const isLocked = lockedIds.has(selectedId);
+                      // Actions
+                      const copyEl = () => setClipboard(JSON.parse(JSON.stringify(el)));
+                      const dupEl  = () => {
+                        const d = { ...JSON.parse(JSON.stringify(el)), id: `el_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, x: el.x + 20, y: el.y + 20 };
+                        pushHistory(); patchElements(prev => [...prev, d]); setSelectedId(d.id);
+                      };
+                      const delEl  = () => { pushHistory(); patchElements(prev => prev.filter(e => e.id !== selectedId)); setSelectedId(null); };
+                      const BTNS = [
+                        { icon: '⧉', title: 'Copy (Ctrl+C)',      fn: copyEl },
+                        { icon: '⊞', title: 'Duplicate (Ctrl+D)', fn: dupEl },
+                        { sep: true },
+                        { icon: '↑', title: 'Bring forward',       fn: () => bringForward(selectedId) },
+                        { icon: '↓', title: 'Send backward',       fn: () => sendBackward(selectedId) },
+                        { sep: true },
+                        { icon: isLocked ? '🔒' : '🔓', title: isLocked ? 'Unlock' : 'Lock', fn: () => toggleLocked(selectedId) },
+                        { sep: true },
+                        { icon: '🗑', title: 'Delete (Del)', fn: delEl, danger: true },
+                      ];
+                      return (
+                        <div
+                          key={selectedId}
+                          style={{
+                            position: 'absolute', left: cx, top: toolbarY,
+                            transform: 'translateX(-50%)',
+                            background: '#ffffff',
+                            border: '1px solid #e2e2e2',
+                            borderRadius: 10,
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
+                            display: 'flex', alignItems: 'center',
+                            padding: '3px 5px', gap: 1,
+                            zIndex: 200, whiteSpace: 'nowrap',
+                            animation: 'ftb-in 130ms cubic-bezier(0.19,1,0.22,1) forwards',
+                          }}
+                        >
+                          {BTNS.map((b, i) =>
+                            b.sep ? (
+                              <div key={i} style={{ width: 1, height: 18, background: '#e2e2e2', margin: '0 3px', flexShrink: 0 }} />
+                            ) : (
+                              <button
+                                key={i}
+                                title={b.title}
+                                onMouseDown={e => { e.stopPropagation(); b.fn(); }}
+                                style={{
+                                  width: 30, height: 30, border: 'none', borderRadius: 6,
+                                  background: 'transparent', cursor: 'pointer', fontSize: 14,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  color: b.danger ? '#ef4444' : '#333',
+                                  transition: 'background 80ms',
+                                  flexShrink: 0,
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = b.danger ? 'rgba(239,68,68,0.09)' : '#f0f0f0'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                              >
+                                {b.icon}
+                              </button>
+                            )
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );
