@@ -620,6 +620,10 @@ export default function TemplatesEditorInner() {
   const [showPositionPanel, setShowPositionPanel] = useState(false);
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
+  const [uploadMediaTab, setUploadMediaTab] = useState('Images');
+  const [bgRemoverDismissed, setBgRemoverDismissed] = useState(false);
+  const [projectTab, setProjectTab] = useState('All');
+  const [savedDesigns, setSavedDesigns] = useState([]);
   // Quick actions palette
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickQuery, setQuickQuery] = useState('');
@@ -2181,12 +2185,34 @@ export default function TemplatesEditorInner() {
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           padding: '8px 0', flexShrink: 0, gap: 2 }}>
           {[
-            { id: 'background', icon: '◻', label: 'Design'   },
-            { id: 'text',       icon: 'T', label: 'Text'      },
-            { id: 'images',     icon: '🖼', label: 'Images'   },
-            { id: 'shapes',     icon: '✦', label: 'Elements'  },
-            { id: 'filters',    icon: '◑', label: 'Filters'   },
-            { id: 'adjust',     icon: '⊹', label: 'Adjust'    },
+            { id: 'templates', icon: '⊞', label: 'Templates' },
+            { id: 'elements',  icon: '◎', label: 'Elements'  },
+            { id: 'text',      icon: 'T',  label: 'Text'      },
+            { id: 'brand',     icon: '⊛', label: 'Brand',  pro: true },
+            { id: 'uploads',   icon: '↑',  label: 'Uploads'   },
+            { id: 'tools',     icon: '⚒', label: 'Tools'     },
+            { id: 'projects',  icon: '🗂', label: 'Projects'  },
+          ].map(tool => (
+            <button key={tool.id} onClick={() => handleToolClick(tool.id)}
+              style={{
+                width: 60, padding: '10px 0 6px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                background: activeLeftTool === tool.id && panelOpen ? t.primaryBg : 'transparent',
+                border: 'none', borderRadius: 8, cursor: 'pointer',
+                color: activeLeftTool === tool.id && panelOpen ? t.primary : t.textMuted,
+                fontSize: 10, fontWeight: activeLeftTool === tool.id && panelOpen ? 600 : 400,
+                transition: 'all 150ms ease',
+                position: 'relative',
+              }}>
+              <span style={{ fontSize: 20, lineHeight: 1 }}>{tool.icon}</span>
+              {tool.label}
+              {tool.pro && <span style={{ position: 'absolute', top: 6, right: 8, fontSize: 8, color: '#FFB800' }}>👑</span>}
+            </button>
+          ))}
+          <div style={{ flex: 1 }} />
+          {[
+            { id: 'apps',  icon: '⊕', label: 'Apps'  },
+            { id: 'magic', icon: '✦', label: 'Magic'  },
           ].map(tool => (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
               style={{
@@ -2233,11 +2259,17 @@ export default function TemplatesEditorInner() {
           {panelOpen && (
           <div style={{ flex: 1, overflowY: 'auto', padding: 14, minWidth: 320 }}>
 
-            {/* BACKGROUND */}
-            {activeLeftTool === 'background' && (
+            {/* TEMPLATES / DESIGN */}
+            {(activeLeftTool === 'background' || activeLeftTool === 'templates') && (
               <div>
+                {/* Search templates */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}`, marginBottom: 16 }}>
+                  <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
+                  <input placeholder="Search templates" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                  <span style={{ color: t.textMuted, fontSize: 13 }}>🎤</span>
+                </div>
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Solid Color</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Background Color</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                     {COLOR_PALETTE.map(hex => (
                       <button key={hex} onClick={() => { pushHistory(); patchPage({ bgType: 'color', bgColor: hex }); pickColor(hex, () => {}); }}
@@ -2354,38 +2386,58 @@ export default function TemplatesEditorInner() {
             {/* TEXT */}
             {activeLeftTool === 'text' && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                {/* Search fonts */}
-                <div style={{ position: 'relative', marginBottom: 12 }}>
-                  <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: t.textMuted, pointerEvents: 'none' }}>🔍</span>
+                {/* Search bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', marginBottom: 10, border: `1px solid ${t.border}` }}>
+                  <span style={{ color: t.textMuted, fontSize: 13, flexShrink: 0 }}>🔍</span>
                   <input
                     type="text"
-                    placeholder="Search fonts…"
+                    placeholder="Search fonts and combinations"
                     value={fontSearch}
                     onChange={e => setFontSearch(e.target.value)}
-                    style={{ width: '100%', padding: '8px 10px 8px 32px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }}
                   />
                 </div>
 
-                {/* Add a text box button */}
+                {/* Add a text box — Canva purple CTA */}
                 <button onMouseDown={e => { e.preventDefault(); addText(); }}
-                  style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 14, letterSpacing: '0.01em' }}>
-                  + Add a text box
+                  style={{ width: '100%', padding: '11px 0', borderRadius: 8, border: 'none', background: t.primary, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 16, fontWeight: 700 }}>T</span> Add a text box
                 </button>
 
-                {/* Style presets */}
+                {/* Magic Write */}
+                <button style={{ width: '100%', padding: '10px 0', borderRadius: 8, border: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  ✨ Magic Write
+                </button>
+
+                {/* Default text styles */}
                 {!fontSearch && (
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Styles</div>
-                    {[
-                      { label: 'Add a heading',    fontSize: 48, fontWeight: 700, fontStyle: 'normal' },
-                      { label: 'Add a subheading', fontSize: 28, fontWeight: 600, fontStyle: 'normal' },
-                      { label: 'Add body text',     fontSize: 16, fontWeight: 400, fontStyle: 'normal' },
-                    ].map(preset => (
-                      <button key={preset.label} onMouseDown={e => { e.preventDefault(); addText({ fontSize: preset.fontSize, fontStyle: preset.fontWeight === 700 ? 'bold' : preset.fontWeight === 600 ? 'bold' : 'normal', text: preset.label }); }}
-                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: preset.fontSize > 30 ? 18 : preset.fontSize > 20 ? 14 : 12, fontWeight: preset.fontWeight, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {preset.label}
-                      </button>
-                    ))}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 8, letterSpacing: '0.02em' }}>Default text styles</div>
+                    <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 48, fontStyle: 'bold', text: 'Add a heading' }); }}
+                      style={{ width: '100%', padding: '14px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 26, fontWeight: 700, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                      Add a heading
+                    </button>
+                    <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 32, fontStyle: 'bold', text: 'Add a subheading' }); }}
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 17, fontWeight: 600, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                      Add a subheading
+                    </button>
+                    <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 16, fontStyle: 'normal', text: 'Add a little bit of body text' }); }}
+                      style={{ width: '100%', padding: '9px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, fontWeight: 400, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                      Add a little bit of body text
+                    </button>
+                  </div>
+                )}
+
+                {/* Brand Kit */}
+                {!fontSearch && (
+                  <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: t.textMuted }}>Brand Kit</span>
+                      <button style={{ background: 'none', border: 'none', color: t.primary, fontSize: 12, cursor: 'pointer', padding: 0 }}>Edit 👑</button>
+                    </div>
+                    <button style={{ width: '100%', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer' }}>
+                      + Add your brand fonts
+                    </button>
                   </div>
                 )}
 
@@ -2470,41 +2522,73 @@ export default function TemplatesEditorInner() {
               </div>
             )}
 
-            {/* IMAGES */}
-            {activeLeftTool === 'images' && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Add Image to Canvas</div>
-                <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: t.input, borderRadius: 7, padding: 3 }}>
-                  {['stock', 'mine'].map(tab => (
-                    <button key={tab} onClick={() => setImgTab(tab)}
-                      style={{ flex: 1, padding: '5px 0', fontSize: 12, fontWeight: 600, borderRadius: 5, border: 'none', background: imgTab === tab ? t.card : 'transparent', color: imgTab === tab ? t.text : t.textMuted, cursor: 'pointer' }}>
-                      {tab === 'stock' ? 'Stock' : 'My Media'}
+            {/* UPLOADS */}
+            {(activeLeftTool === 'images' || activeLeftTool === 'uploads') && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Search */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                  <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
+                  <input placeholder="Search keywords, tags, color" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                </div>
+                {/* Upload + three-dot */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <label style={{ flex: 1, background: t.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 13, cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <input type="file" accept="image/*,video/*" style={{ display: 'none' }}
+                      onChange={e => { const f = e.target.files[0]; if (f) { const url = URL.createObjectURL(f); addImageElement(url); } }} />
+                    ↑ Upload files
+                  </label>
+                  <button style={{ width: 38, background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, cursor: 'pointer', color: t.text, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⋯</button>
+                </div>
+                {/* Record yourself */}
+                <button style={{ background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  🎥 Record yourself
+                </button>
+                {/* Tabs */}
+                <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, gap: 4 }}>
+                  {['Images', 'Videos', 'Designs', 'Folders'].map(tab => (
+                    <button key={tab} onClick={() => setUploadMediaTab(tab)}
+                      style={{ paddingBottom: 8, paddingTop: 4, paddingLeft: 6, paddingRight: 6, border: 'none', borderBottom: `2px solid ${uploadMediaTab === tab ? t.primary : 'transparent'}`, background: 'transparent', color: uploadMediaTab === tab ? t.primary : t.textMuted, fontSize: 12, fontWeight: uploadMediaTab === tab ? 600 : 400, cursor: 'pointer', transition: 'all 150ms' }}>
+                      {tab}
                     </button>
                   ))}
                 </div>
+                {/* Background Remover promo */}
+                {!bgRemoverDismissed && (
+                  <div style={{ background: t.input, borderRadius: 8, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, border: `1px solid ${t.border}` }}>
+                    <span style={{ fontSize: 20, flexShrink: 0 }}>🎨</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Background Remover</div>
+                      <div style={{ fontSize: 11, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Remove image backgrounds instantly</div>
+                    </div>
+                    <button onClick={() => setBgRemoverDismissed(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18, lineHeight: 1, flexShrink: 0 }}>×</button>
+                  </div>
+                )}
+                {/* Media grid */}
                 {bgPhotosLoading ? (
                   <div style={{ textAlign: 'center', color: t.textMuted, padding: '20px 0', fontSize: 12 }}>Loading...</div>
                 ) : displayedImgPhotos.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: t.textMuted, padding: '20px 0', fontSize: 12 }}>
-                    {imgTab === 'mine' ? 'No uploaded images yet' : 'No stock photos available'}
+                  <div style={{ textAlign: 'center', color: t.textMuted, padding: '30px 0', fontSize: 12 }}>
+                    <div style={{ fontSize: 32, marginBottom: 8 }}>☁</div>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>No media yet</div>
+                    <div>Upload files to get started</div>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
                     {displayedImgPhotos.map(photo => (
                       <div key={photo.id}
                         onMouseEnter={() => setHoveredPhotoId(photo.id)}
                         onMouseLeave={() => setHoveredPhotoId(null)}
-                        style={{ borderRadius: 7, overflow: 'hidden', border: `2px solid ${t.border}`, position: 'relative', cursor: 'pointer' }}>
-                        <img src={photo.thumbnail_url || photo.url} alt={photo.title || ''} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                        style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${t.border}`, position: 'relative', cursor: 'pointer', aspectRatio: '1' }}>
+                        <img src={photo.thumbnail_url || photo.url} alt={photo.title || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                         {hoveredPhotoId === photo.id && (
-                          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, padding: 4 }}>
+                          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 4 }}>
                             <button onClick={() => selectBgPhoto(photo)}
-                              style={{ width: '100%', padding: '5px 0', fontSize: 10, fontWeight: 600, borderRadius: 5, border: 'none', background: 'rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer' }}>
-                              Set as BG
+                              style={{ width: '100%', padding: '4px 0', fontSize: 9, fontWeight: 600, borderRadius: 4, border: 'none', background: 'rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer' }}>
+                              Set BG
                             </button>
                             <button onClick={() => addImageElement(photo.url)}
-                              style={{ width: '100%', padding: '5px 0', fontSize: 10, fontWeight: 600, borderRadius: 5, border: 'none', background: t.primary, color: '#fff', cursor: 'pointer' }}>
-                              Add to Canvas
+                              style={{ width: '100%', padding: '4px 0', fontSize: 9, fontWeight: 600, borderRadius: 4, border: 'none', background: t.primary, color: '#fff', cursor: 'pointer' }}>
+                              Add
                             </button>
                           </div>
                         )}
@@ -2515,83 +2599,87 @@ export default function TemplatesEditorInner() {
               </div>
             )}
 
-            {/* ELEMENTS (Shapes) */}
-            {activeLeftTool === 'shapes' && (() => {
-              const ELEM_TABS = {
-                shapes: [
-                  { label: 'Rectangle', icon: '▭', fn: () => addRect(), hint: 'Rectangle' },
-                  { label: 'Circle',    icon: '●', fn: () => addCircle(), hint: 'Circle'  },
-                  { label: 'Triangle',  icon: '▲', fn: () => addTriangle(), hint: 'Triangle' },
-                  { label: 'Star',      icon: '★', fn: () => addStar(), hint: 'Star'      },
-                  { label: 'Arrow',     icon: '→', fn: () => addArrow(), hint: 'Arrow'    },
-                  { label: 'Line',      icon: '╱', fn: () => addLine(), hint: 'Line'      },
-                  { label: 'Rounded',   icon: '▢', fn: () => addRect({ cornerRadius: 20 }), hint: 'Rounded rect' },
-                  { label: 'Diamond',   icon: '◆', fn: () => addTriangle({ sides: 4, rotation: 45 }), hint: 'Diamond' },
-                ],
-                lines: [
-                  { label: 'Straight',  icon: '─', fn: () => addLine(), hint: 'Straight line' },
-                  { label: 'Arrow',     icon: '→', fn: () => addArrow(), hint: 'Arrow line'   },
-                ],
-                frames: [
-                  { label: 'Rect Border',   icon: '⬜', fn: () => addRect({ fill: 'transparent', stroke: '#ffffff', strokeWidth: 4 }), hint: 'Rectangle border' },
-                  { label: 'Circle Border', icon: '⭕', fn: () => addCircle({ fill: 'transparent', stroke: '#ffffff', strokeWidth: 4 }), hint: 'Circle border'    },
-                ],
-                grids: [
-                  { label: '2×2 Grid', icon: '⊞', fn: () => { for(let r=0;r<2;r++) for(let c=0;c<2;c++) addRect({ x: canvasSize.w/2 - 220 + c*115, y: canvasSize.h/2 - 120 + r*115, width: 110, height: 110 }); }, hint: '2×2 grid' },
-                  { label: '3 Cols',   icon: '☰', fn: () => { for(let c=0;c<3;c++) addRect({ x: canvasSize.w/2 - 185 + c*125, y: canvasSize.h/2 - 55, width: 120, height: 110 }); }, hint: '3-column row' },
-                ],
-              };
-              const items = ELEM_TABS[elemTab] || ELEM_TABS.shapes;
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  {/* Tab strip */}
-                  <div style={{ display: 'flex', gap: 2, marginBottom: 14, background: t.input, borderRadius: 8, padding: 3 }}>
-                    {['shapes', 'lines', 'frames', 'grids'].map(tab => (
-                      <button key={tab} onClick={() => setElemTab(tab)}
-                        style={{ flex: 1, padding: '5px 0', fontSize: 11, fontWeight: 600, borderRadius: 6, border: 'none', background: elemTab === tab ? t.card : 'transparent', color: elemTab === tab ? t.text : t.textMuted, cursor: 'pointer', textTransform: 'capitalize' }}>
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Element grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-                    {items.map(({ label, icon, fn, hint }) => (
-                      <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
-                        title={hint}
-                        style={{ padding: '16px 0 10px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: t.textMuted }}>{label}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Properties for selected shape */}
-                  {selectedEl && selectedEl.type !== 'text' && selectedEl.type !== 'image' && (
-                    <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Fill</div>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-                        {COLOR_PALETTE.map(hex => (
-                          <button key={hex} onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fill: hex }); pickColor(hex, () => {}); }}
-                            style={{ width: 22, height: 22, borderRadius: 5, background: hex, border: selectedEl.fill === hex ? `2px solid #00C4CC` : `1px solid ${t.border}`, cursor: 'pointer', flexShrink: 0 }} />
-                        ))}
-                        <input type="color" value={selectedEl.fill || '#ffffff'}
-                          onChange={e => updateElement({ ...selectedEl, fill: e.target.value })}
-                          onBlur={e => { pushHistory(); pickColor(e.target.value, () => {}); }}
-                          style={{ width: 22, height: 22, borderRadius: 5, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 1, flexShrink: 0 }} />
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Opacity</span>
-                        <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity !== undefined ? selectedEl.opacity : 1}
-                          onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-                          onMouseUp={() => pushHistory()} style={{ flex: 1 }} />
-                        <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{Math.round((selectedEl.opacity !== undefined ? selectedEl.opacity : 1) * 100)}%</span>
-                      </div>
-                    </div>
-                  )}
+            {/* ELEMENTS */}
+            {(activeLeftTool === 'shapes' || activeLeftTool === 'elements') && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* AI search bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                  <span style={{ color: t.primary, fontWeight: 700, fontSize: 15, flexShrink: 0 }}>+</span>
+                  <input placeholder="Describe your ideal element" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                  <span style={{ color: t.textMuted, fontSize: 13, flexShrink: 0 }}>🎤</span>
                 </div>
-              );
-            })()}
+                {/* Generate + Search buttons */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button style={{ flex: 1, background: 'transparent', color: t.primary, border: `1.5px solid ${t.primary}`, borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    ✦ Generate <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
+                  </button>
+                  <button style={{ flex: 1, background: t.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    Search
+                  </button>
+                </div>
+                {/* Browse categories */}
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Browse categories</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  {[
+                    { icon: '▭', label: 'Shapes',     bg: '#FFF0E0', fn: () => addRect() },
+                    { icon: '✦', label: 'Graphics',   bg: '#F0E8FF', fn: () => {} },
+                    { icon: '▶', label: 'Animations', bg: '#E0F8FF', fn: () => {} },
+                    { icon: '⬜', label: 'Frames',    bg: '#FFF0F0', fn: () => addRect({ fill: 'transparent', stroke: '#888', strokeWidth: 3 }) },
+                    { icon: '⊞', label: 'Grids',     bg: '#F0FFE8', fn: () => { for(let r=0;r<2;r++) for(let c=0;c<2;c++) addRect({ x: canvasSize.w/2 - 220 + c*115, y: canvasSize.h/2 - 120 + r*115, width: 110, height: 110 }); } },
+                    { icon: '📊', label: 'Charts',   bg: '#E8F4FF', fn: () => {} },
+                  ].map(c => (
+                    <button key={c.label} onMouseDown={e => { e.preventDefault(); c.fn(); }}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 4px', border: `1px solid ${t.border}`, borderRadius: 10, background: t.input, cursor: 'pointer', color: t.text }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{c.icon}</div>
+                      <span style={{ fontSize: 11, fontWeight: 500 }}>{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+                {/* Quick add shapes */}
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginTop: 4 }}>Quick add</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
+                  {[
+                    { label: 'Rectangle', icon: '▭', fn: () => addRect() },
+                    { label: 'Circle',    icon: '●', fn: () => addCircle() },
+                    { label: 'Triangle',  icon: '▲', fn: () => addTriangle() },
+                    { label: 'Star',      icon: '★', fn: () => addStar() },
+                    { label: 'Arrow',     icon: '→', fn: () => addArrow() },
+                    { label: 'Line',      icon: '╱', fn: () => addLine() },
+                    { label: 'Rounded',   icon: '▢', fn: () => addRect({ cornerRadius: 20 }) },
+                    { label: 'Diamond',   icon: '◆', fn: () => addTriangle({ sides: 4, rotation: 45 }) },
+                  ].map(({ label, icon, fn }) => (
+                    <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
+                      style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+                      <span style={{ fontSize: 11, color: t.textMuted }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+                {/* Shape properties when selected */}
+                {selectedEl && selectedEl.type !== 'text' && selectedEl.type !== 'image' && (
+                  <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginTop: 4 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Fill</div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+                      {COLOR_PALETTE.map(hex => (
+                        <button key={hex} onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fill: hex }); pickColor(hex, () => {}); }}
+                          style={{ width: 22, height: 22, borderRadius: 5, background: hex, border: selectedEl.fill === hex ? `2px solid #00C4CC` : `1px solid ${t.border}`, cursor: 'pointer', flexShrink: 0 }} />
+                      ))}
+                      <input type="color" value={selectedEl.fill || '#ffffff'}
+                        onChange={e => updateElement({ ...selectedEl, fill: e.target.value })}
+                        onBlur={e => { pushHistory(); pickColor(e.target.value, () => {}); }}
+                        style={{ width: 22, height: 22, borderRadius: 5, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 1, flexShrink: 0 }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Opacity</span>
+                      <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity !== undefined ? selectedEl.opacity : 1}
+                        onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
+                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
+                      <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{Math.round((selectedEl.opacity !== undefined ? selectedEl.opacity : 1) * 100)}%</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* FILTERS */}
             {activeLeftTool === 'filters' && (
@@ -2629,6 +2717,169 @@ export default function TemplatesEditorInner() {
                       style={{ width: '100%' }} />
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* BRAND */}
+            {activeLeftTool === 'brand' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                  <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
+                  <input placeholder="Search your brand assets" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                </div>
+                {[
+                  { icon: '◎', label: 'All assets'       },
+                  { icon: '📋', label: 'Guidelines'       },
+                  { icon: '⊞', label: 'Brand Templates', badge: 'New' },
+                  { icon: '🏷', label: 'Logos'            },
+                  { icon: '🎨', label: 'Colors'           },
+                ].map(item => (
+                  <button key={item.label}
+                    style={{ width: '100%', padding: '11px 12px', border: 'none', borderBottom: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}
+                    onMouseEnter={e => e.currentTarget.style.background = t.input}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <span style={{ fontSize: 16 }}>{item.icon}</span>
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    {item.badge && <span style={{ fontSize: 10, background: t.primaryBg, color: t.primary, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>{item.badge}</span>}
+                  </button>
+                ))}
+                <div style={{ background: t.input, borderRadius: 12, padding: 18, textAlign: 'center', marginTop: 8, border: `1px solid ${t.border}` }}>
+                  <div style={{ fontSize: 22, marginBottom: 10 }}>✦</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 8, lineHeight: 1.5 }}>Apply your brand colors, fonts, logo, and much more effortlessly</div>
+                  <button style={{ width: '100%', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '11px', fontWeight: 600, fontSize: 13, cursor: 'pointer', marginBottom: 8 }}>
+                    👑 Try Business for 30 days
+                  </button>
+                  <button style={{ width: '100%', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '10px', color: t.text, fontSize: 13, cursor: 'pointer' }}>
+                    + Start with 3 free colors
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TOOLS / DRAW */}
+            {activeLeftTool === 'tools' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Draw</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  {[
+                    { icon: '↖', label: 'Select',     active: true  },
+                    { icon: '✏', label: 'Pen'                       },
+                    { icon: '◌', label: 'Highlighter'               },
+                    { icon: 'T', label: 'Text'                      },
+                    { icon: '─', label: 'Line'                      },
+                    { icon: '▭', label: 'Rectangle'                 },
+                    { icon: '⬜', label: 'Frame'                    },
+                    { icon: '⊞', label: 'Grid'                     },
+                    { icon: '⌫', label: 'Eraser'                   },
+                  ].map(tool => (
+                    <button key={tool.label}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 4px', border: `1.5px solid ${tool.active ? t.primary : t.border}`, borderRadius: 10, background: tool.active ? t.primaryBg : t.input, cursor: 'pointer', color: tool.active ? t.primary : t.text }}
+                      onMouseEnter={e => { if (!tool.active) { e.currentTarget.style.borderColor = t.primary; e.currentTarget.style.background = t.primaryBg; } }}
+                      onMouseLeave={e => { if (!tool.active) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.input; } }}>
+                      <span style={{ fontSize: 22 }}>{tool.icon}</span>
+                      <span style={{ fontSize: 10, fontWeight: tool.active ? 600 : 400 }}>{tool.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* PROJECTS */}
+            {activeLeftTool === 'projects' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                  <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
+                  <input placeholder="Search your content" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                </div>
+                <button style={{ background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px 12px', color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span>📁</span> Your projects</span>
+                  <span style={{ color: t.textMuted }}>▾</span>
+                </button>
+                <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, gap: 4 }}>
+                  {['All', 'Designs', 'Folders'].map(tab => (
+                    <button key={tab} onClick={() => setProjectTab(tab)}
+                      style={{ paddingBottom: 8, paddingTop: 4, paddingLeft: 8, paddingRight: 8, border: 'none', borderBottom: `2px solid ${projectTab === tab ? t.primary : 'transparent'}`, background: 'transparent', color: projectTab === tab ? t.primary : t.textMuted, fontSize: 13, fontWeight: projectTab === tab ? 600 : 400, cursor: 'pointer' }}>
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+                {savedDesigns.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: t.textMuted, padding: '24px 0', fontSize: 12 }}>
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>No designs yet</div>
+                    <div>Saved designs will appear here</div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>Designs</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      {savedDesigns.map(d => (
+                        <div key={d.id} onClick={() => { if (typeof window !== 'undefined') window.location.href = `/templates/editor?id=${d.id}`; }}
+                          style={{ cursor: 'pointer' }}>
+                          <div style={{ aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: t.textMuted, marginBottom: 5 }}>
+                            {d.title || 'Untitled'}
+                          </div>
+                          <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text }}>{d.title || 'Untitled'}</div>
+                          <div style={{ fontSize: 11, color: t.textMuted }}>{canvasSize.w}×{canvasSize.h}px</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* APPS */}
+            {activeLeftTool === 'apps' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                  <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
+                  <input placeholder="Search apps" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                </div>
+                {[
+                  { icon: '🗄', label: 'Google Drive',   sub: 'Import from Drive'         },
+                  { icon: '▶', label: 'YouTube',         sub: 'Add YouTube videos'         },
+                  { icon: '📸', label: 'Instagram',      sub: 'Import Instagram photos'    },
+                  { icon: '🎵', label: 'Soundcloud',     sub: 'Add background music'       },
+                ].map(app => (
+                  <button key={app.label}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: `1px solid ${t.border}`, borderRadius: 10, background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => e.currentTarget.style.background = t.input}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <span style={{ fontSize: 24, width: 36, textAlign: 'center' }}>{app.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{app.label}</div>
+                      <div style={{ fontSize: 11, color: t.textMuted }}>{app.sub}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* MAGIC MEDIA */}
+            {activeLeftTool === 'magic' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: t.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: t.primary }}>✦</span> Magic Media
+                </div>
+                <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5 }}>
+                  Turn your text into stunning images and videos with AI
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: t.input, borderRadius: 8, padding: '10px 12px', border: `1px solid ${t.border}` }}>
+                  <textarea placeholder="Describe an image or video…" rows={3}
+                    style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13, resize: 'none', fontFamily: 'inherit', lineHeight: 1.5 }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button style={{ flex: 1, background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: t.text, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    🖼 Image
+                  </button>
+                  <button style={{ flex: 1, background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: t.text, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                    🎬 Video
+                  </button>
+                </div>
+                <button style={{ background: t.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  ✦ Generate
+                </button>
               </div>
             )}
 
