@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useTheme } from '../../lib/theme';
-import { studioAPI, mediaAPI, socialAPI } from '../../lib/api';
+import { studioAPI, mediaAPI } from '../../lib/api';
 import {
-  IpArrowLeft, IpSave, IpDownload, IpPlus, IpDelete, IpClose, IpRefresh,
+  IpArrowLeft, IpSave, IpDownload, IpDelete, IpClose,
   IpSparkle, IpVideo, IpPhoto, IpFilter, IpLoader, IpWarning,
-  IpPlay, IpChevronLeft, IpChevronRight,
+  IpPlay,
 } from '../icons';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -129,21 +129,24 @@ export default function VideoEditorInner() {
 
   // ─── History ─────────────────────────────────────────────────────────────────
 
-  const pushHistory = useCallback((newProject) => {
-    setHistory(h => {
-      const trimmed = h.slice(0, historyIndex + 1);
-      return [...trimmed, JSON.stringify(newProject)].slice(-50);
-    });
-    setHistoryIndex(i => Math.min(i + 1, 49));
-  }, [historyIndex]);
+  // Refs keep mutate stable without stale-closure issues (React 18 safe)
+  const projectRef = useRef(project);
+  useEffect(() => { projectRef.current = project; }, [project]);
+
+  const historyIndexRef = useRef(historyIndex);
+  useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
 
   const mutate = useCallback((updater) => {
-    setProject(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      pushHistory(next);
-      return next;
+    const prev = projectRef.current;
+    const next = typeof updater === 'function' ? updater(prev) : updater;
+    setProject(next);
+    // History updates happen outside the setState updater — React 18 compliant
+    setHistory(h => {
+      const trimmed = h.slice(0, historyIndexRef.current + 1);
+      return [...trimmed, JSON.stringify(next)].slice(-50);
     });
-  }, [pushHistory]);
+    setHistoryIndex(i => Math.min(i + 1, 49));
+  }, []);
 
   // ─── Load existing project ────────────────────────────────────────────────
 
@@ -1104,7 +1107,7 @@ export default function VideoEditorInner() {
             ))}
           </div>
           <div style={s.leftContent}>
-            <LeftPanelContent />
+            {LeftPanelContent()}
           </div>
         </div>
 
@@ -1175,7 +1178,7 @@ export default function VideoEditorInner() {
 
         {/* ── Right panel ── */}
         <div style={s.rightPanel}>
-          <RightPanelContent />
+          {RightPanelContent()}
         </div>
       </div>
 
@@ -1193,7 +1196,7 @@ export default function VideoEditorInner() {
         <div ref={timelineRef} style={s.timelineScroll} onClick={onTimelineClick}>
           <div style={{ ...s.timelineInner, width: timelineWidth }}>
             {/* Ruler */}
-            <TimelineRuler />
+            {TimelineRuler()}
 
             {/* Video track */}
             <div style={{ position: 'relative', height: 44, borderBottom: `1px solid ${t.border}` }}>
