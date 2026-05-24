@@ -2593,6 +2593,76 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'glasspane') {
+    const gpw = el.width || 300, gph = el.height || 160;
+    const tintColor = el.fill || 'rgba(255,255,255,0.18)';
+    const borderColor = el.glassBorder || 'rgba(255,255,255,0.35)';
+    const cornerR = el.cornerRadius ?? 16;
+    const noiseAmount = el.noiseAmount ?? 0.06; // subtle grain
+    const glassText = el.glassText || '';
+    const textColor3 = el.stroke || '#ffffff';
+
+    return (
+      <Shape {...common}
+        width={gpw} height={gph}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+
+          // Main frosted fill
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.2)';
+          ctx.shadowBlur = 20;
+          ctx.shadowOffsetY = 4;
+          ctx.fillStyle = tintColor;
+          ctx.beginPath();
+          ctx.roundRect(0, 0, w, h, cornerR);
+          ctx.fill();
+          ctx.restore();
+
+          // Noise grain overlay (very fine dots for frosted feel)
+          if (noiseAmount > 0) {
+            const seed2 = 77;
+            for (let i = 0; i < w * h * noiseAmount; i++) {
+              const nx = ((seed2 * i * 31 + i * 13) % w);
+              const ny = ((seed2 * i * 17 + i * 7) % h);
+              ctx.fillStyle = `rgba(255,255,255,${(((seed2 * i * 41) % 10) / 10) * 0.15})`;
+              ctx.fillRect(nx, ny, 1.5, 1.5);
+            }
+          }
+
+          // Border highlight (top-left edge brighter)
+          ctx.save();
+          const grad2 = ctx.createLinearGradient(0, 0, w, h);
+          grad2.addColorStop(0, borderColor);
+          grad2.addColorStop(1, 'rgba(255,255,255,0.05)');
+          ctx.strokeStyle = grad2;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.roundRect(0.6, 0.6, w - 1.2, h - 1.2, cornerR);
+          ctx.stroke();
+          ctx.restore();
+
+          // Optional text
+          if (glassText) {
+            ctx.fillStyle = textColor3;
+            ctx.font = `bold ${Math.max(12, Math.round(gph * 0.15))}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(glassText, w / 2, h / 2);
+          }
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -3511,6 +3581,19 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addGlassPane() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'glasspane',
+      x: canvasSize.w / 2 - 150, y: canvasSize.h / 2 - 80,
+      width: 300, height: 160, opacity: 1,
+      fill: 'rgba(255,255,255,0.18)', glassBorder: 'rgba(255,255,255,0.35)',
+      stroke: '#ffffff', cornerRadius: 16, noiseAmount: 0.06, glassText: '',
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5844,6 +5927,30 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'glasspane' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Tint</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || 'rgba(255,255,255,0.18)'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Radius</span>
+                <input type="range" min={0} max={60} step={2} value={selectedEl.cornerRadius ?? 16}
+                  onChange={e => updateElement({...selectedEl, cornerRadius: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()}
+                  style={{ width:60, accentColor:'#00C4CC', cursor:'pointer', flexShrink:0 }} />
+                <D />
+                {[['White Glass','rgba(255,255,255,0.18)'],['Dark Glass','rgba(0,0,0,0.35)'],['Teal Glass','rgba(0,196,204,0.25)'],['Purple Glass','rgba(124,92,252,0.25)']].map(([lbl,c]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, fill: c}); }}
+                    style={{ height:26, padding:'0 7px', borderRadius:5, border:`1px solid ${t.border}`, background:c, color:'#ffffff', fontSize:10, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', fontWeight:600, textShadow:'0 1px 2px rgba(0,0,0,0.5)' }}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'qrcode' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Dots</span>
@@ -7203,6 +7310,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Steps',     icon: '📋', fn: () => addStepList() },
                     { label: 'Pattern',   icon: '⊞', fn: () => addPattern() },
                     { label: 'QR Code',   icon: '▣', fn: () => addQrCode() },
+                    { label: 'Glass',     icon: '◫', fn: () => addGlassPane() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -8290,7 +8398,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
