@@ -2858,6 +2858,77 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'htimeline') {
+    const tlw = el.width || 480, tlh = el.height || 180;
+    const accentC3 = el.accentColor || '#00C4CC';
+    const textC3 = el.fill || '#ffffff';
+    const bgC3 = el.bgColor || 'transparent';
+    const steps = el.tlSteps || ['Step 1', 'Step 2', 'Step 3'];
+    const dotStyle = el.tlDotStyle || 'filled'; // 'filled' | 'outline' | 'numbered'
+    const lineStyle = el.tlLineStyle || 'solid'; // 'solid' | 'dashed' | 'dotted'
+    const numSteps = Math.max(2, Math.min(6, steps.length));
+    return (
+      <Shape {...common} width={tlw} height={tlh} opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          if (bgC3 !== 'transparent' && bgC3 !== 'rgba(0,0,0,0)') {
+            ctx.fillStyle = bgC3;
+            ctx.beginPath(); ctx.roundRect(0, 0, w, h, el.cornerRadius ?? 10); ctx.fill();
+          }
+          const dotR = Math.min(w / (numSteps * 3), 22);
+          const lineY = h * 0.38;
+          const stepGap = (w - dotR * 2) / (numSteps - 1);
+          const labelSize = Math.max(10, Math.round(dotR * 0.72));
+          const stepLabelSize = Math.max(9, Math.round(dotR * 0.65));
+          // Connecting line
+          if (numSteps > 1) {
+            ctx.save();
+            if (lineStyle === 'dashed') ctx.setLineDash([dotR * 0.6, dotR * 0.4]);
+            else if (lineStyle === 'dotted') ctx.setLineDash([dotR * 0.2, dotR * 0.5]);
+            ctx.beginPath();
+            ctx.moveTo(dotR, lineY); ctx.lineTo(w - dotR, lineY);
+            ctx.strokeStyle = `${accentC3}66`; ctx.lineWidth = 2; ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+          }
+          for (let i = 0; i < numSteps; i++) {
+            const cx2 = dotR + i * stepGap;
+            // Dot
+            if (dotStyle === 'outline') {
+              ctx.beginPath(); ctx.arc(cx2, lineY, dotR, 0, Math.PI * 2);
+              ctx.strokeStyle = accentC3; ctx.lineWidth = 2.5; ctx.stroke();
+            } else {
+              ctx.beginPath(); ctx.arc(cx2, lineY, dotR, 0, Math.PI * 2);
+              ctx.fillStyle = accentC3; ctx.fill();
+            }
+            // Number inside dot
+            if (dotStyle === 'numbered' || dotStyle === 'filled') {
+              ctx.font = `bold ${labelSize}px Inter, sans-serif`;
+              ctx.fillStyle = dotStyle === 'outline' ? accentC3 : '#fff';
+              ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+              ctx.fillText(String(i + 1), cx2, lineY);
+            }
+            // Step label below
+            const step = steps[i] || `Step ${i + 1}`;
+            const isLong = step.length > 12;
+            ctx.font = `${stepLabelSize}px Inter, sans-serif`;
+            ctx.fillStyle = textC3; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+            if (isLong) {
+              const words = step.split(' ');
+              const mid = Math.ceil(words.length / 2);
+              ctx.fillText(words.slice(0, mid).join(' '), cx2, lineY + dotR + 8);
+              ctx.fillText(words.slice(mid).join(' '), cx2, lineY + dotR + 8 + stepLabelSize + 3);
+            } else {
+              ctx.fillText(step, cx2, lineY + dotR + 8);
+            }
+          }
+          if (isSelected) { ctx.strokeStyle = '#00C4CC'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'pricetag') {
     const ptw = el.width || 260, pth = el.height || 320;
     const bgC2 = el.bgColor || '#1a1a2e';
@@ -4003,6 +4074,20 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addHTimeline() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'htimeline',
+      x: canvasSize.w / 2 - 240, y: canvasSize.h / 2 - 90,
+      width: 480, height: 180, opacity: 1,
+      accentColor: '#00C4CC', fill: '#ffffff', bgColor: 'transparent',
+      tlSteps: ['Contact Us', 'Get Quote', 'We Work', 'Done!'],
+      tlDotStyle: 'filled', tlLineStyle: 'solid', cornerRadius: 10,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -6460,6 +6545,34 @@ export default function TemplatesEditorInner() {
                   </button>
                 ))}
               </>}
+              {selectedEl.type === 'htimeline' && <>
+                <D />
+                {[['Filled','filled'],['Outline','outline'],['Numbered','numbered']].map(([lbl,s]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, tlDotStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.tlDotStyle||'filled')===s?'#00C4CC':t.border}`, background:(selectedEl.tlDotStyle||'filled')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.tlDotStyle||'filled')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                {[['Solid','solid'],['Dashed','dashed'],['Dotted','dotted']].map(([lbl,s]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, tlLineStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.tlLineStyle||'solid')===s?'#00C4CC':t.border}`, background:(selectedEl.tlLineStyle||'solid')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.tlLineStyle||'solid')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Accent</span>
+                <ColorPickerButton value={selectedEl.accentColor||'#00C4CC'} onChange={c=>updateElement({...selectedEl,accentColor:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Text</span>
+                <ColorPickerButton value={selectedEl.fill||'#ffffff'} onChange={c=>updateElement({...selectedEl,fill:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Steps</span>
+                <select value={(selectedEl.tlSteps||[]).length}
+                  onChange={e=>{const n=+e.target.value;const cur=selectedEl.tlSteps||['Step 1','Step 2','Step 3'];const next=Array.from({length:n},(_,i)=>cur[i]||`Step ${i+1}`);pushHistory();updateElement({...selectedEl,tlSteps:next});}}
+                  style={{height:26,padding:'0 6px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,cursor:'pointer'}}>
+                  {[2,3,4,5,6].map(n=><option key={n} value={n}>{n}</option>)}
+                </select>
+              </>}
               {selectedEl.type === 'pricetag' && <>
                 <D />
                 <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Currency</span>
@@ -8002,6 +8115,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Counter',    icon: '🔢', fn: () => addCounter() },
                     { label: 'Icon',       icon: '✓', fn: () => addIconShape() },
                     { label: 'Price Tag',  icon: '💲', fn: () => addPriceTag() },
+                    { label: 'Timeline',   icon: '⟶', fn: () => addHTimeline() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -9089,7 +9203,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : el.type === 'iconshape' ? '✓' : el.type === 'pricetag' ? '💲' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : el.type === 'iconshape' ? '✓' : el.type === 'pricetag' ? '💲' : el.type === 'htimeline' ? '⟶' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
