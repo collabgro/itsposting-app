@@ -2505,6 +2505,94 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'qrcode') {
+    const qw = el.width || 160, qh = el.height || 160;
+    const fgC = el.fill || '#1a1a22';
+    const bgC = el.qrBg || '#ffffff';
+    const label = el.qrLabel || 'Scan me';
+    const showLabel = el.showQrLabel !== false;
+    const qrSize = showLabel ? Math.min(qw, qh * 0.82) : Math.min(qw, qh);
+    const pad = qrSize * 0.06;
+    const cell = (qrSize - pad * 2) / 21; // 21×21 QR grid
+    // Seeded pseudo-random data pattern based on element id
+    const seed = el.id ? el.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) : 42;
+    const prng = (x2, y2) => ((seed * 31 + x2 * 17 + y2 * 13) % 7) > 2;
+
+    // Finder pattern: 7×7 at corners
+    function drawFinder(ctx2, ox, oy, cs) {
+      ctx2.fillStyle = fgC;
+      ctx2.fillRect(ox, oy, cs * 7, cs * 7);
+      ctx2.fillStyle = bgC;
+      ctx2.fillRect(ox + cs, oy + cs, cs * 5, cs * 5);
+      ctx2.fillStyle = fgC;
+      ctx2.fillRect(ox + cs * 2, oy + cs * 2, cs * 3, cs * 3);
+    }
+
+    return (
+      <Shape {...common}
+        width={qw} height={qh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          const qox = (w - qrSize) / 2;
+          const qoy = showLabel ? 0 : (h - qrSize) / 2;
+
+          // Background
+          ctx.fillStyle = bgC;
+          ctx.beginPath();
+          ctx.roundRect(qox, qoy, qrSize, qrSize, 6);
+          ctx.fill();
+
+          // Data dots
+          ctx.fillStyle = fgC;
+          for (let row = 0; row < 21; row++) {
+            for (let col = 0; col < 21; col++) {
+              const isFinder = (row < 8 && col < 8) || (row < 8 && col > 12) || (row > 12 && col < 8);
+              const isTimingH = row === 6 && col >= 8 && col <= 12;
+              const isTimingV = col === 6 && row >= 8 && row <= 12;
+              if (isFinder || isTimingH || isTimingV) continue;
+              if (prng(col, row)) {
+                const cx3 = qox + pad + col * cell + cell / 2;
+                const cy3 = qoy + pad + row * cell + cell / 2;
+                ctx.beginPath();
+                ctx.arc(cx3, cy3, cell * 0.42, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+          }
+
+          // Timing patterns
+          ctx.fillStyle = fgC;
+          for (let i = 8; i <= 12; i += 2) {
+            ctx.fillRect(qox + pad + i * cell, qoy + pad + 6 * cell, cell, cell);
+            ctx.fillRect(qox + pad + 6 * cell, qoy + pad + i * cell, cell, cell);
+          }
+
+          // Finder patterns (drawn on top)
+          drawFinder(ctx, qox + pad, qoy + pad, cell);                           // top-left
+          drawFinder(ctx, qox + pad + 14 * cell, qoy + pad, cell);               // top-right
+          drawFinder(ctx, qox + pad, qoy + pad + 14 * cell, cell);               // bottom-left
+
+          // Label
+          if (showLabel) {
+            ctx.fillStyle = fgC;
+            ctx.font = `bold ${Math.max(9, Math.round(qw * 0.1))}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(label, w / 2, h - 2);
+          }
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -3423,6 +3511,19 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addQrCode() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'qrcode',
+      x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 80,
+      width: 160, height: 160, opacity: 1,
+      fill: '#1a1a22', qrBg: '#ffffff',
+      qrLabel: 'Scan me', showQrLabel: true,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5743,6 +5844,37 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'qrcode' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Dots</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#1a1a22'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Bg</span>
+                <ColorPickerButton
+                  value={selectedEl.qrBg || '#ffffff'}
+                  onChange={c => updateElement({...selectedEl, qrBg: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                <button onClick={() => { pushHistory(); updateElement({...selectedEl, showQrLabel: !(selectedEl.showQrLabel !== false)}); }}
+                  style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${selectedEl.showQrLabel !== false?'#00C4CC':t.border}`, background:selectedEl.showQrLabel !== false?'rgba(0,196,204,0.1)':'transparent', color:selectedEl.showQrLabel !== false?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                  Label
+                </button>
+                <D />
+                {[['Dark on White','#1a1a22','#ffffff'],['White on Dark','#ffffff','#1a1a22'],['Teal on Dark','#00C4CC','#1a1a22'],['Purple on White','#7C5CFC','#ffffff']].map(([lbl,fg,bg]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, fill: fg, qrBg: bg}); }}
+                    style={{ height:26, padding:'0 7px', borderRadius:5, border:`1px solid ${t.border}`, background:bg, color:fg, fontSize:10, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', fontWeight:600 }}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'pattern' && <>
                 <D />
                 {[['Dots','dots'],['Grid','grid'],['Lines','diagonal'],['Chevron','chevron'],['Cross','cross'],['Hex','hex']].map(([lbl, pt]) => (
@@ -7070,6 +7202,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Ribbon',    icon: '🎀', fn: () => addRibbon() },
                     { label: 'Steps',     icon: '📋', fn: () => addStepList() },
                     { label: 'Pattern',   icon: '⊞', fn: () => addPattern() },
+                    { label: 'QR Code',   icon: '▣', fn: () => addQrCode() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -8157,7 +8290,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
