@@ -2331,6 +2331,80 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'steplist') {
+    const slw = el.width || 280, slh = el.height || 180;
+    const steps = el.steps || ['Step one', 'Step two', 'Step three'];
+    const accentColor = el.fill || '#00C4CC';
+    const textColor = el.stroke || '#ffffff';
+    const stepStyle = el.stepStyle || 'numbered'; // 'numbered' | 'check' | 'dot'
+    const numSteps = steps.length;
+    const rowH = slh / numSteps;
+    const ballR = Math.min(16, rowH * 0.38);
+    const fontSize2 = Math.max(10, Math.round(rowH * 0.28));
+
+    return (
+      <Shape {...common}
+        width={slw} height={slh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          const rH = h / numSteps;
+
+          steps.forEach((step, i) => {
+            const cy2 = i * rH + rH / 2;
+            const bx = ballR + 4;
+
+            // Connecting line between bullets (except last)
+            if (i < numSteps - 1) {
+              ctx.beginPath();
+              ctx.moveTo(bx, cy2 + ballR);
+              ctx.lineTo(bx, cy2 + rH - ballR);
+              ctx.strokeStyle = `${accentColor}55`;
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            }
+
+            // Bullet circle
+            ctx.beginPath();
+            ctx.arc(bx, cy2, ballR, 0, Math.PI * 2);
+            ctx.fillStyle = accentColor;
+            ctx.fill();
+
+            // Bullet label
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${Math.max(8, Math.round(ballR * 0.95))}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            if (stepStyle === 'numbered') {
+              ctx.fillText(String(i + 1), bx, cy2);
+            } else if (stepStyle === 'check') {
+              ctx.fillText('✓', bx, cy2);
+            } else {
+              ctx.beginPath();
+              ctx.arc(bx, cy2, ballR * 0.45, 0, Math.PI * 2);
+              ctx.fillStyle = '#ffffff';
+              ctx.fill();
+            }
+
+            // Step text
+            ctx.font = `${fontSize2}px Inter, sans-serif`;
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(step, bx + ballR + 10, cy2);
+          });
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -3249,6 +3323,20 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addStepList() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'steplist',
+      x: canvasSize.w / 2 - 140, y: canvasSize.h / 2 - 90,
+      width: 280, height: 180, opacity: 1,
+      fill: '#00C4CC', stroke: '#ffffff',
+      steps: ['Call us today', 'We come to you', 'Job done right'],
+      stepStyle: 'numbered',
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5542,6 +5630,39 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'steplist' && <>
+                <D />
+                {[['1,2,3','numbered'],['✓ Check','check'],['• Dot','dot']].map(([lbl, s]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, stepStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.stepStyle||'numbered')===s?'#00C4CC':t.border}`, background:(selectedEl.stepStyle||'numbered')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.stepStyle||'numbered')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap' }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Accent</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#00C4CC'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Steps</span>
+                <input type="range" min={2} max={6} step={1}
+                  value={(selectedEl.steps || []).length || 3}
+                  onChange={e => {
+                    const n = parseInt(e.target.value);
+                    const cur = selectedEl.steps || ['Step one','Step two','Step three'];
+                    const next = n > cur.length
+                      ? [...cur, ...Array(n - cur.length).fill('Step ' + (cur.length + 1))]
+                      : cur.slice(0, n);
+                    updateElement({...selectedEl, steps: next});
+                  }}
+                  onMouseUp={() => pushHistory()}
+                  style={{ width:60, accentColor:'#00C4CC', cursor:'pointer', flexShrink:0 }} />
+                <span style={{ fontSize:11, color:t.textMuted, flexShrink:0 }}>{(selectedEl.steps||[]).length||3}</span>
+              </>}
               {selectedEl.type === 'ribbon' && <>
                 <D />
                 {[['Fold','fold'],['Wave','wave'],['Flat','flat']].map(([lbl, s]) => (
@@ -6810,6 +6931,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Map Pin',   icon: '📍', fn: () => addMapPin() },
                     { label: 'Bubble',    icon: '💬', fn: () => addSpeechBubble() },
                     { label: 'Ribbon',    icon: '🎀', fn: () => addRibbon() },
+                    { label: 'Steps',     icon: '📋', fn: () => addStepList() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -7897,7 +8019,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
