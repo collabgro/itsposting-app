@@ -2238,6 +2238,99 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'ribbon') {
+    const rbw = el.width || 280, rbh = el.height || 64;
+    const ribbonColor = el.fill || '#ef4444';
+    const textColor = el.stroke || '#ffffff';
+    const ribbonText = el.ribbonText || 'SPECIAL OFFER';
+    const subText2 = el.ribbonSub || '';
+    const ribbonStyle = el.ribbonStyle || 'fold'; // 'fold' | 'wave' | 'flat'
+    const notchD = Math.min(20, rbh * 0.38); // depth of fold/notch
+
+    return (
+      <Shape {...common}
+        width={rbw} height={rbh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.25)';
+          ctx.shadowBlur = 8;
+          ctx.shadowOffsetY = 3;
+          ctx.fillStyle = ribbonColor;
+
+          if (ribbonStyle === 'fold') {
+            // Classic ribbon with V-notches on both ends
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(w, 0);
+            ctx.lineTo(w - notchD, h / 2);
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.lineTo(notchD, h / 2);
+            ctx.closePath();
+            ctx.fill();
+          } else if (ribbonStyle === 'wave') {
+            // Ribbon with curved wave ends
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(w, 0);
+            ctx.bezierCurveTo(w - notchD * 1.2, h * 0.25, w - notchD * 1.2, h * 0.75, w, h);
+            ctx.lineTo(0, h);
+            ctx.bezierCurveTo(notchD * 1.2, h * 0.75, notchD * 1.2, h * 0.25, 0, 0);
+            ctx.fill();
+          } else {
+            // Flat ribbon with pointed left end
+            ctx.beginPath();
+            ctx.moveTo(notchD, 0);
+            ctx.lineTo(w, 0);
+            ctx.lineTo(w, h);
+            ctx.lineTo(notchD, h);
+            ctx.lineTo(0, h / 2);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+
+          // Shadow fold triangles for 'fold' style
+          if (ribbonStyle === 'fold') {
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.moveTo(0, 0); ctx.lineTo(notchD * 0.6, 0); ctx.lineTo(notchD, h / 2); ctx.lineTo(notchD * 0.6, h); ctx.lineTo(0, h); ctx.lineTo(notchD * 0.4, h / 2); ctx.closePath(); ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(w, 0); ctx.lineTo(w - notchD * 0.6, 0); ctx.lineTo(w - notchD, h / 2); ctx.lineTo(w - notchD * 0.6, h); ctx.lineTo(w, h); ctx.lineTo(w - notchD * 0.4, h / 2); ctx.closePath(); ctx.fill();
+          }
+
+          // Text
+          const cx2 = w / 2;
+          const mainSize = Math.max(12, Math.round(rbh * (subText2 ? 0.34 : 0.42)));
+          ctx.textAlign = 'center';
+          ctx.fillStyle = textColor;
+          if (subText2) {
+            ctx.font = `bold ${mainSize}px Inter, sans-serif`;
+            ctx.textBaseline = 'middle';
+            ctx.fillText(ribbonText, cx2, rbh * 0.36);
+            ctx.font = `${Math.max(9, Math.round(mainSize * 0.7))}px Inter, sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            ctx.fillText(subText2, cx2, rbh * 0.7);
+          } else {
+            ctx.font = `bold ${mainSize}px Inter, sans-serif`;
+            ctx.textBaseline = 'middle';
+            ctx.fillText(ribbonText, cx2, rbh / 2);
+          }
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -3156,6 +3249,20 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addRibbon() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'ribbon',
+      x: canvasSize.w / 2 - 140, y: canvasSize.h / 2 - 32,
+      width: 280, height: 64, opacity: 1,
+      fill: '#ef4444', stroke: '#ffffff',
+      ribbonText: 'SPECIAL OFFER', ribbonSub: '',
+      ribbonStyle: 'fold',
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5435,6 +5542,30 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'ribbon' && <>
+                <D />
+                {[['Fold','fold'],['Wave','wave'],['Flat','flat']].map(([lbl, s]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, ribbonStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.ribbonStyle||'fold')===s?'#00C4CC':t.border}`, background:(selectedEl.ribbonStyle||'fold')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.ribbonStyle||'fold')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Color</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#ef4444'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                {[['Red','#ef4444'],['Purple','#7C5CFC'],['Teal','#00C4CC'],['Green','#22c55e'],['Orange','#f97316'],['Gold','#f59e0b']].map(([lbl,c]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, fill: c}); }}
+                    title={lbl}
+                    style={{ width:22, height:22, borderRadius:'50%', border:`2px solid ${(selectedEl.fill||'#ef4444')===c?'#fff':t.border}`, background:c, cursor:'pointer', flexShrink:0 }} />
+                ))}
+              </>}
               {selectedEl.type === 'speechbubble' && <>
                 <D />
                 {[['↙ BL','bottom-left'],['↘ BR','bottom-right'],['↖ TL','top-left'],['↗ TR','top-right'],['○ None','none']].map(([lbl, t2]) => (
@@ -6678,6 +6809,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Polaroid',  icon: '📷', fn: () => addPolaroid() },
                     { label: 'Map Pin',   icon: '📍', fn: () => addMapPin() },
                     { label: 'Bubble',    icon: '💬', fn: () => addSpeechBubble() },
+                    { label: 'Ribbon',    icon: '🎀', fn: () => addRibbon() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -7765,7 +7897,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
