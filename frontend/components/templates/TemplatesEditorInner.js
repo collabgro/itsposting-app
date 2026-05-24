@@ -428,7 +428,25 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
       scaleY={flipSY}
       rotation={el.rotation || 0}
       opacity={isDragging ? Math.min(el.opacity ?? 1, 0.65) : (el.opacity ?? 1)}
-      cornerRadius={el.cornerRadius || 0}
+      cornerRadius={(!el.frameType || el.frameType === 'none' || el.frameType === 'rounded') ? (el.frameType === 'rounded' ? Math.round(Math.min(w, h) * 0.2) : (el.cornerRadius || 0)) : 0}
+      clipFunc={el.frameType && el.frameType !== 'none' && el.frameType !== 'rounded' ? (ctx => {
+        const hw = w / 2, hh = h / 2;
+        if (el.frameType === 'circle') {
+          ctx.arc(0, 0, Math.min(hw, hh), 0, Math.PI * 2);
+        } else if (el.frameType === 'hexagon') {
+          const r = Math.min(hw, hh);
+          for (let i = 0; i < 6; i++) { const a = (Math.PI/3)*i - Math.PI/6; i===0 ? ctx.moveTo(r*Math.cos(a),r*Math.sin(a)) : ctx.lineTo(r*Math.cos(a),r*Math.sin(a)); }
+          ctx.closePath();
+        } else if (el.frameType === 'diamond') {
+          ctx.moveTo(0,-hh); ctx.lineTo(hw,0); ctx.lineTo(0,hh); ctx.lineTo(-hw,0); ctx.closePath();
+        } else if (el.frameType === 'triangle') {
+          ctx.moveTo(0,-hh); ctx.lineTo(hw,hh); ctx.lineTo(-hw,hh); ctx.closePath();
+        } else if (el.frameType === 'star') {
+          const ro = Math.min(hw, hh), ri = ro * 0.42;
+          for (let i = 0; i < 10; i++) { const a = (Math.PI/5)*i - Math.PI/2; const r = i%2===0?ro:ri; i===0?ctx.moveTo(r*Math.cos(a),r*Math.sin(a)):ctx.lineTo(r*Math.cos(a),r*Math.sin(a)); }
+          ctx.closePath();
+        }
+      }) : undefined}
       draggable={!locked}
       visible={!hidden}
       onClick={(e) => !locked && onSelect(el.id, e)}
@@ -3015,22 +3033,31 @@ export default function TemplatesEditorInner() {
               <Btn label="⤢ Fit page"  active={false} onClick={fitToPage}  />
               <Btn label="⤡ Fill page" active={false} onClick={fillPage} />
               <D />
-              {/* Shape presets */}
+              {/* Frame / shape clip presets */}
               {[
-                { label: '▭', title: 'Square', r: 0 },
-                { label: '▢', title: 'Rounded', r: 30 },
-                { label: '●', title: 'Circle', r: Math.round(Math.min(selectedEl.width||200, selectedEl.height||200) / 2) },
-              ].map(({ label, title, r }) => (
-                <button key={title} title={title} onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, cornerRadius: r }); }}
-                  style={{ height:28, padding:'0 8px', border:`1px solid ${(selectedEl.cornerRadius||0)===r ? '#00C4CC' : t.border}`, borderRadius:5, background:(selectedEl.cornerRadius||0)===r?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.cornerRadius||0)===r?'#00C4CC':t.text, fontSize:14, cursor:'pointer', flexShrink:0 }}>
-                  {label}
-                </button>
-              ))}
-              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Radius</span>
-              <input type="range" min={0} max={200} value={selectedEl.cornerRadius||0}
-                onChange={e => updateElement({...selectedEl, cornerRadius:parseInt(e.target.value)})}
-                onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
-              <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.cornerRadius||0}</span>
+                { label: '▭', title: 'No frame',    ft: null },
+                { label: '▢', title: 'Rounded',     ft: 'rounded' },
+                { label: '●', title: 'Circle',      ft: 'circle' },
+                { label: '⬡', title: 'Hexagon',     ft: 'hexagon' },
+                { label: '◆', title: 'Diamond',     ft: 'diamond' },
+                { label: '▲', title: 'Triangle',    ft: 'triangle' },
+                { label: '★', title: 'Star',         ft: 'star' },
+              ].map(({ label, title, ft }) => {
+                const active = (selectedEl.frameType || null) === ft;
+                return (
+                  <button key={title} title={title} onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, frameType: ft, cornerRadius: 0 }); }}
+                    style={{ height:28, padding:'0 8px', border:`1px solid ${active ? '#00C4CC' : t.border}`, borderRadius:5, background: active ?'rgba(0,196,204,0.1)':'transparent', color: active ?'#00C4CC':t.text, fontSize:14, cursor:'pointer', flexShrink:0 }}>
+                    {label}
+                  </button>
+                );
+              })}
+              {(!selectedEl.frameType || selectedEl.frameType === 'none') && <>
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Radius</span>
+                <input type="range" min={0} max={200} value={selectedEl.cornerRadius||0}
+                  onChange={e => updateElement({...selectedEl, cornerRadius:parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.cornerRadius||0}</span>
+              </>}
               <D />
               {/* Image border */}
               <Btn label="Border" active={!!selectedEl.borderEnabled}
