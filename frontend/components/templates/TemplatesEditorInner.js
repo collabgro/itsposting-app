@@ -3212,6 +3212,117 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
           } else if (kind === 'bolt') {
             ctx.beginPath(); ctx.moveTo(cx+s*0.3,cy-s*1.05); ctx.lineTo(cx-s*0.12,cy-s*0.05); ctx.lineTo(cx+s*0.28,cy-s*0.05); ctx.lineTo(cx-s*0.3,cy+s*1.05); ctx.lineTo(cx+s*0.12,cy+s*0.05); ctx.lineTo(cx-s*0.22,cy+s*0.05); ctx.closePath();
             ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'wrench') {
+            ctx.save(); ctx.translate(cx,cy); ctx.rotate(-Math.PI*0.55);
+            ctx.beginPath(); ctx.roundRect(-s*0.13,-s*0.95,s*0.26,s*1.9,s*0.12); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.beginPath(); ctx.arc(0,-s*0.95,s*0.35,0,Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(0,-s*0.95,s*0.18,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
+            ctx.restore();
+          } else if (kind === 'drop') {
+            ctx.beginPath(); ctx.moveTo(cx,cy-s*1.1);
+            ctx.bezierCurveTo(cx+s*1.0,cy-s*0.1,cx+s*1.0,cy+s*0.5,cx,cy+s*1.05);
+            ctx.bezierCurveTo(cx-s*1.0,cy+s*0.5,cx-s*1.0,cy-s*0.1,cx,cy-s*1.1);
+            ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'flame') {
+            ctx.beginPath(); ctx.moveTo(cx,cy-s*1.1);
+            ctx.bezierCurveTo(cx+s*0.8,cy-s*0.3,cx+s*0.7,cy+s*0.4,cx+s*0.15,cy+s*1.1);
+            ctx.bezierCurveTo(cx+s*0.5,cy+s*0.5,cx+s*0.28,cy,cx,cy+s*0.2);
+            ctx.bezierCurveTo(cx-s*0.28,cy,cx-s*0.5,cy+s*0.5,cx-s*0.15,cy+s*1.1);
+            ctx.bezierCurveTo(cx-s*0.7,cy+s*0.4,cx-s*0.8,cy-s*0.3,cx,cy-s*1.1);
+            ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'house') {
+            ctx.beginPath(); ctx.moveTo(cx,cy-s*1.1); ctx.lineTo(cx+s*1.1,cy-s*0.1); ctx.lineTo(cx-s*1.1,cy-s*0.1); ctx.closePath(); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.fillRect(cx-s*0.8,cy-s*0.12,s*1.6,s*1.1);
+            ctx.beginPath(); ctx.roundRect(cx-s*0.22,cy+s*0.2,s*0.44,s*0.78,s*0.04); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
+          } else if (kind === 'leaf') {
+            ctx.beginPath(); ctx.moveTo(cx,cy+s*1.1);
+            ctx.bezierCurveTo(cx-s*1.0,cy+s*0.2,cx-s*0.6,cy-s*1.1,cx,cy-s*1.1);
+            ctx.bezierCurveTo(cx+s*0.6,cy-s*1.1,cx+s*1.0,cy+s*0.2,cx,cy+s*1.1);
+            ctx.fillStyle=iconColor; ctx.fill();
+            ctx.strokeStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.3)'; ctx.lineWidth=s*0.1; ctx.lineCap='round';
+            ctx.beginPath(); ctx.moveTo(cx,cy-s*1.1); ctx.lineTo(cx,cy+s*1.1); ctx.stroke();
+          } else if (kind === 'hammer') {
+            ctx.save(); ctx.translate(cx,cy); ctx.rotate(-Math.PI*0.25);
+            ctx.beginPath(); ctx.roundRect(-s*0.12,0,s*0.24,s*1.35,s*0.1); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.beginPath(); ctx.roundRect(-s*0.5,-s*0.58,s*1.0,s*0.52,s*0.1); ctx.fill();
+            ctx.restore();
+          } else if (kind === 'phone') {
+            ctx.beginPath(); ctx.roundRect(cx-s*0.52,cy-s*1.05,s*1.04,s*2.0,s*0.28); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.35)';
+            ctx.fillRect(cx-s*0.36,cy-s*0.68,s*0.72,s*1.12);
+            ctx.beginPath(); ctx.arc(cx,cy+s*0.62,s*0.13,0,Math.PI*2); ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'clock') {
+            ctx.beginPath(); ctx.arc(cx,cy,s*1.05,0,Math.PI*2); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.beginPath(); ctx.arc(cx,cy,s*0.8,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.13; ctx.lineCap='round';
+            ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx,cy-s*0.55); ctx.stroke();
+            ctx.lineWidth=s*0.11; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+s*0.42,cy+s*0.28); ctx.stroke();
+          } else if (kind === 'location') {
+            ctx.beginPath(); ctx.moveTo(cx,cy+s*1.3);
+            ctx.bezierCurveTo(cx-s*0.85,cy+s*0.55,cx-s*0.8,cy-s*0.2,cx-s*0.72,cy-s*0.28);
+            ctx.arc(cx,cy-s*0.28,s*0.72,Math.PI,0);
+            ctx.bezierCurveTo(cx+s*0.8,cy-s*0.2,cx+s*0.85,cy+s*0.55,cx,cy+s*1.3);
+            ctx.fillStyle=iconColor; ctx.fill();
+            ctx.beginPath(); ctx.arc(cx,cy-s*0.28,s*0.3,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
+          } else if (kind === 'mail') {
+            const mw=s*1.85,mh=s*1.35,mx2=cx-mw/2,my2=cy-mh/2;
+            ctx.beginPath(); ctx.roundRect(mx2,my2,mw,mh,s*0.12); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.3)';
+            ctx.beginPath(); ctx.moveTo(mx2+2,my2+2); ctx.lineTo(cx,cy+s*0.2); ctx.lineTo(mx2+mw-2,my2+2); ctx.closePath(); ctx.fill();
+          } else if (kind === 'dollar') {
+            ctx.font=`bold ${Math.round(s*2.1)}px Arial,sans-serif`; ctx.fillStyle=iconColor; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('$',cx,cy);
+          } else if (kind === 'trophy') {
+            ctx.beginPath(); ctx.roundRect(cx-s*0.65,cy-s*1.05,s*1.3,s*1.2,s*0.12); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.2; ctx.lineCap='round';
+            ctx.beginPath(); ctx.arc(cx-s*0.78,cy-s*0.5,s*0.28,Math.PI*0.5,Math.PI*1.5); ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx+s*0.78,cy-s*0.5,s*0.28,-Math.PI*0.5,Math.PI*0.5); ctx.stroke();
+            ctx.beginPath(); ctx.roundRect(cx-s*0.14,cy+s*0.15,s*0.28,s*0.58,s*0.05); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.beginPath(); ctx.roundRect(cx-s*0.52,cy+s*0.73,s*1.04,s*0.22,s*0.08); ctx.fill();
+          } else if (kind === 'calendar') {
+            ctx.beginPath(); ctx.roundRect(cx-s*0.92,cy-s*0.8,s*1.84,s*1.78,s*0.12); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)';
+            ctx.fillRect(cx-s*0.86,cy-s*0.3,s*1.72,s*1.2);
+            ctx.fillStyle=iconColor;
+            ctx.beginPath(); ctx.roundRect(cx-s*0.62,cy-s*1.1,s*0.2,s*0.48,s*0.06); ctx.fill();
+            ctx.beginPath(); ctx.roundRect(cx+s*0.42,cy-s*1.1,s*0.2,s*0.48,s*0.06); ctx.fill();
+            const gdr=s*0.1; [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]].forEach(([c,r])=>{ctx.beginPath();ctx.arc(cx-s*0.55+c*s*0.55,cy+s*0.08+r*s*0.4,gdr,0,Math.PI*2);ctx.fill();});
+          } else if (kind === 'camera') {
+            ctx.beginPath(); ctx.roundRect(cx-s*1.05,cy-s*0.62,s*2.1,s*1.55,s*0.18); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.beginPath(); ctx.roundRect(cx-s*0.4,cy-s*1.05,s*0.8,s*0.48,s*0.1); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx,cy+s*0.12,s*0.52,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
+            ctx.beginPath(); ctx.arc(cx,cy+s*0.12,s*0.3,0,Math.PI*2); ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'arrowup') {
+            ctx.beginPath();
+            ctx.moveTo(cx,cy-s*1.1); ctx.lineTo(cx+s*0.8,cy-s*0.05); ctx.lineTo(cx+s*0.28,cy-s*0.05);
+            ctx.lineTo(cx+s*0.28,cy+s*1.1); ctx.lineTo(cx-s*0.28,cy+s*1.1); ctx.lineTo(cx-s*0.28,cy-s*0.05);
+            ctx.lineTo(cx-s*0.8,cy-s*0.05); ctx.closePath(); ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'arrowleft') {
+            ctx.beginPath();
+            ctx.moveTo(cx-s*1.1,cy); ctx.lineTo(cx-s*0.05,cy-s*0.8); ctx.lineTo(cx-s*0.05,cy-s*0.28);
+            ctx.lineTo(cx+s*1.1,cy-s*0.28); ctx.lineTo(cx+s*1.1,cy+s*0.28); ctx.lineTo(cx-s*0.05,cy+s*0.28);
+            ctx.lineTo(cx-s*0.05,cy+s*0.8); ctx.closePath(); ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'refresh') {
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.24; ctx.lineCap='round';
+            ctx.beginPath(); ctx.arc(cx,cy,s*0.88,-Math.PI*0.15,Math.PI*1.55); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx+s*0.6,cy-s*0.85); ctx.lineTo(cx+s*0.98,cy-s*0.5); ctx.lineTo(cx+s*0.18,cy-s*0.52); ctx.closePath(); ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'wifi') {
+            ctx.strokeStyle=iconColor; ctx.lineCap='round'; ctx.lineJoin='round';
+            const wb=cy+s*0.45;
+            [s*1.05,s*0.68,s*0.35].forEach((r,i)=>{ ctx.lineWidth=s*(0.2-i*0.02); ctx.beginPath(); ctx.arc(cx,wb,r,Math.PI*1.22,Math.PI*1.78); ctx.stroke(); });
+            ctx.beginPath(); ctx.arc(cx,wb,s*0.1,0,Math.PI*2); ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'lock') {
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.24; ctx.lineCap='round';
+            ctx.beginPath(); ctx.arc(cx,cy-s*0.5,s*0.55,Math.PI,0); ctx.stroke();
+            ctx.beginPath(); ctx.roundRect(cx-s*0.68,cy-s*0.18,s*1.36,s*1.22,s*0.14); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.beginPath(); ctx.arc(cx,cy+s*0.38,s*0.22,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
+          } else if (kind === 'eye2') {
+            ctx.beginPath();
+            ctx.moveTo(cx-s*1.05,cy);
+            ctx.bezierCurveTo(cx-s*0.3,cy-s*0.88,cx+s*0.3,cy-s*0.88,cx+s*1.05,cy);
+            ctx.bezierCurveTo(cx+s*0.3,cy+s*0.88,cx-s*0.3,cy+s*0.88,cx-s*1.05,cy);
+            ctx.fillStyle=iconColor; ctx.fill();
+            ctx.beginPath(); ctx.arc(cx,cy,s*0.42,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
+            ctx.beginPath(); ctx.arc(cx,cy,s*0.2,0,Math.PI*2); ctx.fillStyle=iconColor; ctx.fill();
           }
           ctx.restore();
           if (isSelected) { ctx.strokeStyle=TEAL; ctx.lineWidth=1.5; ctx.strokeRect(0,0,w,h); }
@@ -4448,13 +4559,13 @@ export default function TemplatesEditorInner() {
     setSelectedId(el.id);
   }
 
-  function addIconShape() {
+  function addIconShape(opts = {}) {
     pushHistory();
     const el = {
       id: uid(), type: 'iconshape',
       x: canvasSize.w / 2 - 60, y: canvasSize.h / 2 - 60,
       width: 120, height: 120, opacity: 1,
-      iconKind: 'check', iconBgShape: 'circle',
+      iconKind: opts.iconKind || 'check', iconBgShape: opts.iconBgShape || 'circle',
       fill: '#ffffff', iconBgColor: 'rgba(0,196,204,0.25)',
     };
     patchElements(prev => [...prev, el]);
@@ -8516,6 +8627,41 @@ export default function TemplatesEditorInner() {
                     { label:'Grad Rect',  fn:()=>addGradRect(),                           svg:<><defs><linearGradient id="dg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#7C5CFC" stopOpacity=".9"/><stop offset="100%" stopColor="#00C4CC" stopOpacity=".9"/></linearGradient></defs><rect x="8" y="10" width="48" height="36" rx="4" fill="url(#dg1)"/></> },
                     { label:'Step List',  fn:()=>addStepList(),                           svg:<><circle cx="14" cy="20" r="6" fill="rgba(255,255,255,0.25)" stroke="#fff" strokeWidth="1.5"/><text x="14" y="24" fill="#fff" fontSize="8" textAnchor="middle">1</text><circle cx="14" cy="36" r="6" fill="rgba(255,255,255,0.25)" stroke="#fff" strokeWidth="1.5"/><text x="14" y="40" fill="#fff" fontSize="8" textAnchor="middle">2</text><line x1="20" y1="20" x2="54" y2="20" stroke="#fff" strokeWidth="1.5" opacity=".5"/><line x1="20" y1="36" x2="54" y2="36" stroke="#fff" strokeWidth="1.5" opacity=".5"/></> },
                     { label:'Icon Shape', fn:()=>addIconShape(),                          svg:<><circle cx="32" cy="28" r="18" fill="rgba(255,255,255,0.2)"/><text x="32" y="34" fill="#fff" fontSize="16" textAnchor="middle" opacity=".9">✓</text></> },
+                  ],
+                },
+                { id:'graphics', label:'Graphics', grad:'linear-gradient(135deg,#f97316,#ea580c)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><circle cx="16" cy="17" r="11" fill="rgba(255,255,255,0.25)"/><polyline points="11,17 14,21 21,12" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><circle cx="40" cy="17" r="11" fill="rgba(255,255,255,0.25)"/><path d="M40 7 C44 12 47 15 47 19 C47 23.4 43.9 26 40 26 C36.1 26 33 23.4 33 19 C33 15 36 12 40 7Z" fill="#fff" opacity=".85"/><circle cx="16" cy="39" r="11" fill="rgba(255,255,255,0.25)"/><path d="M12 33 L16 29 L20 33 L20 45 L12 45Z" fill="#fff" opacity=".8"/><circle cx="40" cy="39" r="11" fill="rgba(255,255,255,0.25)"/><line x1="34" y1="39" x2="46" y2="39" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><polyline points="40,33 46,39 40,45" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+                  items:[
+                    { label:'Check',      fn:()=>addIconShape({iconKind:'check'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polyline points="21,28 28,35 43,20" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/></> },
+                    { label:'Cross',      fn:()=>addIconShape({iconKind:'x'}),         svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="22" y1="18" x2="42" y2="38" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><line x1="42" y1="18" x2="22" y2="38" stroke="#fff" strokeWidth="3" strokeLinecap="round"/></> },
+                    { label:'Plus',       fn:()=>addIconShape({iconKind:'plus'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="20" y1="28" x2="44" y2="28" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><line x1="32" y1="16" x2="32" y2="40" stroke="#fff" strokeWidth="3" strokeLinecap="round"/></> },
+                    { label:'Arrow →',    fn:()=>addIconShape({iconKind:'arrow'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="17" y1="28" x2="38" y2="28" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><polyline points="31,21 39,28 31,35" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/></> },
+                    { label:'Star',       fn:()=>addIconShape({iconKind:'star'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="32,12 35.5,22 46,22 38,29 41,39 32,33 23,39 26,29 18,22 28.5,22" fill="#fff" opacity=".9"/></> },
+                    { label:'Heart',      fn:()=>addIconShape({iconKind:'heart'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32,39 C28,35 14,27 14,21 C14,17 17,14 22,16 C27,18 32,22 32,22 C32,22 37,18 42,16 C47,14 50,17 50,21 C50,27 36,35 32,39Z" fill="#fff" opacity=".9"/></> },
+                    { label:'Warning',    fn:()=>addIconShape({iconKind:'warning'}),   svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="32,13 46,40 18,40" fill="#fff" opacity=".85"/><rect x="30.5" y="21" width="3" height="10" fill="rgba(255,255,255,0.3)"/><circle cx="32" cy="35.5" r="1.8" fill="rgba(255,255,255,0.3)"/></> },
+                    { label:'Shield',     fn:()=>addIconShape({iconKind:'shield'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32,13 L44,19 L44,27 C44,34 38,40 32,42 C26,40 20,34 20,27 L20,19Z" fill="#fff" opacity=".9"/></> },
+                    { label:'Info',       fn:()=>addIconShape({iconKind:'info'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><circle cx="32" cy="28" r="12" fill="#fff" opacity=".9"/><circle cx="32" cy="21" r="1.8" fill="rgba(255,255,255,0.25)"/><rect x="30.5" y="24" width="3" height="9" fill="rgba(255,255,255,0.25)"/></> },
+                    { label:'Bolt',       fn:()=>addIconShape({iconKind:'bolt'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="35,13 27,29 33,29 29,43 40,24 34,24" fill="#fff" opacity=".9"/></> },
+                    { label:'Wrench',     fn:()=>addIconShape({iconKind:'wrench'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="20" y1="40" x2="36" y2="20" stroke="#fff" strokeWidth="5" strokeLinecap="round"/><circle cx="38" cy="18" r="6" fill="#fff" opacity=".85"/><circle cx="38" cy="18" r="3" fill="rgba(255,255,255,0.2)"/></> },
+                    { label:'Hammer',     fn:()=>addIconShape({iconKind:'hammer'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="22" y1="38" x2="38" y2="22" stroke="#fff" strokeWidth="5" strokeLinecap="round"/><rect x="32" y="12" width="13" height="7" rx="2" fill="#fff" opacity=".9" transform="rotate(-45 38 15)"/></> },
+                    { label:'House',      fn:()=>addIconShape({iconKind:'house'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="32,14 46,24 18,24" fill="#fff" opacity=".9"/><rect x="20" y="24" width="24" height="14" fill="#fff" opacity=".8"/><rect x="29" y="29" width="6" height="9" fill="rgba(255,255,255,0.2)"/></> },
+                    { label:'Water Drop', fn:()=>addIconShape({iconKind:'drop'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32 13 C38 20 43 25 43 30 C43 37 38 42 32 42 C26 42 21 37 21 30 C21 25 26 20 32 13Z" fill="#fff" opacity=".9"/></> },
+                    { label:'Flame',      fn:()=>addIconShape({iconKind:'flame'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32 12 C36 18 40 22 39 27 C38 31 35 32 33 29 C36 24 32 19 32 19 C32 19 28 24 31 29 C29 32 26 31 25 27 C24 22 28 18 32 12Z" fill="#fff" opacity=".9"/><ellipse cx="32" cy="36" rx="3" ry="4" fill="#fff" opacity=".7"/></> },
+                    { label:'Leaf',       fn:()=>addIconShape({iconKind:'leaf'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32 41 C24 35 17 22 23 13 C29 4 40 10 40 20 C40 30 32 41 32 41Z" fill="#fff" opacity=".9"/><line x1="32" y1="13" x2="32" y2="41" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5"/></> },
+                    { label:'Phone',      fn:()=>addIconShape({iconKind:'phone'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="25" y="14" width="14" height="28" rx="4" fill="#fff" opacity=".9"/><rect x="27" y="17" width="10" height="18" fill="rgba(255,255,255,0.2)"/><circle cx="32" cy="38" r="2" fill="rgba(255,255,255,0.25)"/></> },
+                    { label:'Clock',      fn:()=>addIconShape({iconKind:'clock'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><circle cx="32" cy="28" r="13" fill="#fff" opacity=".9"/><circle cx="32" cy="28" r="10" fill="rgba(255,255,255,0.2)"/><line x1="32" y1="28" x2="32" y2="20" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><line x1="32" y1="28" x2="38" y2="32" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></> },
+                    { label:'Map Pin',    fn:()=>addIconShape({iconKind:'location'}),  svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32 13 C25 13 20 18 20 24 C20 32 32 44 32 44 C32 44 44 32 44 24 C44 18 39 13 32 13Z" fill="#fff" opacity=".9"/><circle cx="32" cy="24" r="4" fill="rgba(255,255,255,0.25)"/></> },
+                    { label:'Envelope',   fn:()=>addIconShape({iconKind:'mail'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="17" y="20" width="30" height="19" rx="2" fill="#fff" opacity=".9"/><polyline points="17,20 32,30 47,20" stroke="rgba(255,255,255,0.3)" strokeWidth="2" fill="none"/></> },
+                    { label:'Dollar $',   fn:()=>addIconShape({iconKind:'dollar'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><text x="32" y="34" fill="#fff" fontSize="22" textAnchor="middle" fontWeight="bold" opacity=".9">$</text></> },
+                    { label:'Trophy',     fn:()=>addIconShape({iconKind:'trophy'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="23" y="15" width="18" height="16" rx="2" fill="#fff" opacity=".9"/><path d="M23 20 C19 20 17 23 17 25 C17 27 19 28 23 27" stroke="#fff" strokeWidth="2" fill="none"/><path d="M41 20 C45 20 47 23 47 25 C47 27 45 28 41 27" stroke="#fff" strokeWidth="2" fill="none"/><rect x="30" y="31" width="4" height="5" fill="#fff" opacity=".9"/><rect x="26" y="36" width="12" height="3" rx="1" fill="#fff" opacity=".9"/></> },
+                    { label:'Calendar',   fn:()=>addIconShape({iconKind:'calendar'}),  svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="17" y="18" width="30" height="23" rx="2" fill="#fff" opacity=".9"/><rect x="17" y="18" width="30" height="7" rx="2" fill="rgba(255,255,255,0.3)"/><line x1="24" y1="15" x2="24" y2="21" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><line x1="40" y1="15" x2="40" y2="21" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></> },
+                    { label:'Camera',     fn:()=>addIconShape({iconKind:'camera'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="16" y="22" width="32" height="18" rx="3" fill="#fff" opacity=".9"/><rect x="26" y="17" width="12" height="7" rx="2" fill="#fff" opacity=".8"/><circle cx="32" cy="31" r="6" fill="rgba(255,255,255,0.2)"/><circle cx="32" cy="31" r="3.5" fill="#fff" opacity=".8"/></> },
+                    { label:'Up Arrow',   fn:()=>addIconShape({iconKind:'arrowup'}),   svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="32,12 43,24 37,24 37,40 27,40 27,24 21,24" fill="#fff" opacity=".9"/></> },
+                    { label:'Left Arrow', fn:()=>addIconShape({iconKind:'arrowleft'}), svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="12,28 24,21 24,25 44,25 44,31 24,31 24,35" fill="#fff" opacity=".9"/></> },
+                    { label:'Refresh',    fn:()=>addIconShape({iconKind:'refresh'}),   svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M20 28 C20 21 25.5 15.5 32 15.5 C36 15.5 39.5 17.5 42 21" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/><polygon points="41,15.5 46,22 37,22" fill="#fff"/><path d="M44 28 C44 35 38.5 40.5 32 40.5 C28 40.5 24.5 38.5 22 35" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/><polygon points="23,41.5 18,35 27,35" fill="#fff"/></> },
+                    { label:'WiFi',       fn:()=>addIconShape({iconKind:'wifi'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M18 26 C20 21 25.5 17 32 17 C38.5 17 44 21 46 26" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity=".9"/><path d="M22 30 C24 26.5 27.5 24 32 24 C36.5 24 40 26.5 42 30" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity=".9"/><path d="M26 34 C27.5 31.5 29.5 30 32 30 C34.5 30 36.5 31.5 38 34" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity=".9"/><circle cx="32" cy="38" r="2.5" fill="#fff" opacity=".9"/></> },
+                    { label:'Lock',       fn:()=>addIconShape({iconKind:'lock'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M22 24 C22 18 26.5 13 32 13 C37.5 13 42 18 42 24" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/><rect x="20" y="23" width="24" height="18" rx="3" fill="#fff" opacity=".9"/><circle cx="32" cy="32" r="3" fill="rgba(255,255,255,0.25)"/></> },
+                    { label:'Eye',        fn:()=>addIconShape({iconKind:'eye2'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M13 28 C18 20 24.5 17 32 17 C39.5 17 46 20 51 28 C46 36 39.5 39 32 39 C24.5 39 18 36 13 28Z" fill="#fff" opacity=".9"/><circle cx="32" cy="28" r="6" fill="rgba(255,255,255,0.25)"/><circle cx="32" cy="28" r="3" fill="#fff" opacity=".85"/></> },
                   ],
                 },
               ];
