@@ -3830,6 +3830,7 @@ export default function TemplatesEditorInner() {
   const [showShadowPanel, setShowShadowPanel] = useState(false);
   const [showOutlinePanel, setShowOutlinePanel] = useState(false);
   const [showEffectsPanel, setShowEffectsPanel] = useState(false);
+  const [showMorePanel, setShowMorePanel] = useState(false);
   const [showPositionPanel, setShowPositionPanel] = useState(false);
   const [showAnimatePanel, setShowAnimatePanel] = useState(false);
   // Find & Replace
@@ -6114,11 +6115,11 @@ export default function TemplatesEditorInner() {
       </div>
 
       {/* ── Contextual action bar (Canva-style) ── */}
-      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); setShowEmojiPanel(false); setShowEffectsPanel(false); }}
-        style={{ height: 44, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, position: 'relative' }}>
+      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); setShowEmojiPanel(false); setShowEffectsPanel(false); setShowMorePanel(false); }}
+        style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, position: 'relative' }}>
 
         {/* Scrollable left zone */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 1, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {/* ── Multi-select bar ── */}
         {selectedIds.length > 1 && (() => {
           const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
@@ -6273,12 +6274,55 @@ export default function TemplatesEditorInner() {
           const TEXT_XFORM_CYCLE = { none: 'uppercase', uppercase: 'lowercase', lowercase: 'capitalize', capitalize: 'none' };
           const TEXT_XFORM_LABEL = { none: 'Aa', uppercase: 'AA', lowercase: 'aa', capitalize: 'Ab' };
           const TEXT_XFORM_TIP   = { none: 'Text case: Normal', uppercase: 'Text case: UPPERCASE', lowercase: 'Text case: lowercase', capitalize: 'Text case: Title Case' };
-          const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
-          const Btn = ({ label, active, onClick, extraStyle = {} }) => (
-            <button onClick={onClick} style={{ height: 30, minWidth: 30, padding: '0 7px', border: 'none', borderRadius: 6, background: active ? 'rgba(0,196,204,0.1)' : 'transparent', color: active ? TEAL : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', ...extraStyle }}>{label}</button>
+          const D = () => <div style={{ width: 1, height: 24, background: t.border, margin: '0 8px', flexShrink: 0 }} />;
+          const Btn = ({ label, active, onClick, title, extraStyle = {} }) => (
+            <button onClick={onClick} title={title}
+              style={{ height: 34, minWidth: 34, padding: '0 8px', border: 'none', borderRadius: 7,
+                background: active ? 'rgba(0,196,204,0.1)' : 'transparent',
+                color: active ? TEAL : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background 80ms', ...extraStyle }}>
+              {label}
+            </button>
+          );
+          const AlignLIcon = () => (
+            <svg width="14" height="12" viewBox="0 0 14 12" fill="none">
+              <rect x="0" y="0"  width="14" height="2" rx="1" fill="currentColor"/>
+              <rect x="0" y="5"  width="10" height="2" rx="1" fill="currentColor"/>
+              <rect x="0" y="10" width="12" height="2" rx="1" fill="currentColor"/>
+            </svg>
+          );
+          const AlignCIcon = () => (
+            <svg width="14" height="12" viewBox="0 0 14 12" fill="none">
+              <rect x="0" y="0"  width="14" height="2" rx="1" fill="currentColor"/>
+              <rect x="2" y="5"  width="10" height="2" rx="1" fill="currentColor"/>
+              <rect x="1" y="10" width="12" height="2" rx="1" fill="currentColor"/>
+            </svg>
+          );
+          const AlignRIcon = () => (
+            <svg width="14" height="12" viewBox="0 0 14 12" fill="none">
+              <rect x="0" y="0"  width="14" height="2" rx="1" fill="currentColor"/>
+              <rect x="4" y="5"  width="10" height="2" rx="1" fill="currentColor"/>
+              <rect x="2" y="10" width="12" height="2" rx="1" fill="currentColor"/>
+            </svg>
           );
           return (
             <>
+              {/* Font family */}
+              <select value={selectedEl.fontFamily || 'Inter'} onChange={e => handleElementChange({ ...selectedEl, fontFamily: e.target.value })}
+                style={{ height: 34, padding: '0 8px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, maxWidth: 140, cursor: 'pointer', flexShrink: 0, fontFamily: selectedEl.fontFamily || 'Inter' }}>
+                {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+              {/* Font size – n + */}
+              <button onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fontSize: Math.max(8, (selectedEl.fontSize || 36) - 1) }); }}
+                style={{ width: 28, height: 34, border: `1px solid ${t.border}`, borderRight: 'none', borderRadius: '7px 0 0 7px', background: t.input, color: t.text, fontSize: 16, cursor: 'pointer', flexShrink: 0, marginLeft: 4 }}>–</button>
+              <input type="number" value={selectedEl.fontSize || 36} min={8} max={400}
+                onChange={e => handleElementChange({ ...selectedEl, fontSize: parseInt(e.target.value) || 36 })}
+                onBlur={() => pushHistory()}
+                style={{ width: 48, height: 34, border: `1px solid ${t.border}`, borderRadius: 0, background: t.input, color: t.text, fontSize: 13, textAlign: 'center', outline: 'none' }} />
+              <button onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fontSize: Math.min(400, (selectedEl.fontSize || 36) + 1) }); }}
+                style={{ width: 28, height: 34, border: `1px solid ${t.border}`, borderLeft: 'none', borderRadius: '0 7px 7px 0', background: t.input, color: t.text, fontSize: 16, cursor: 'pointer', flexShrink: 0 }}>+</button>
+              <D />
               {/* Text color swatch */}
               <ColorPickerButton
                 value={selectedEl.fill || '#ffffff'}
@@ -6324,28 +6368,8 @@ export default function TemplatesEditorInner() {
                   <ColorPickerButton value={selectedEl.fillGradient.c2 || TEAL}
                     onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, c2: c } })}
                     onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
-                  <select value={selectedEl.fillGradient.angle ?? 135}
-                    onChange={e => { pushHistory(); updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, angle: parseInt(e.target.value) } }); }}
-                    style={{ height: 24, padding: '0 3px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
-                    {[0,45,90,135,180,225,270,315].map(a => <option key={a} value={a}>{a}°</option>)}
-                  </select>
                 </>
               )}
-              <D />
-              {/* Font family */}
-              <select value={selectedEl.fontFamily || 'Inter'} onChange={e => handleElementChange({ ...selectedEl, fontFamily: e.target.value })}
-                style={{ height: 30, padding: '0 6px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, maxWidth: 130, cursor: 'pointer', flexShrink: 0 }}>
-                {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
-              {/* Font size – n + */}
-              <button onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fontSize: Math.max(8, (selectedEl.fontSize || 36) - 1) }); }}
-                style={{ width: 24, height: 30, border: `1px solid ${t.border}`, borderRight: 'none', borderRadius: '6px 0 0 6px', background: t.input, color: t.text, fontSize: 16, cursor: 'pointer', flexShrink: 0, marginLeft: 4 }}>–</button>
-              <input type="number" value={selectedEl.fontSize || 36} min={8} max={400}
-                onChange={e => handleElementChange({ ...selectedEl, fontSize: parseInt(e.target.value) || 36 })}
-                onBlur={() => pushHistory()}
-                style={{ width: 46, height: 30, border: `1px solid ${t.border}`, borderRadius: 0, background: t.input, color: t.text, fontSize: 13, textAlign: 'center', outline: 'none' }} />
-              <button onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fontSize: Math.min(400, (selectedEl.fontSize || 36) + 1) }); }}
-                style={{ width: 24, height: 30, border: `1px solid ${t.border}`, borderLeft: 'none', borderRadius: '0 6px 6px 0', background: t.input, color: t.text, fontSize: 16, cursor: 'pointer', flexShrink: 0 }}>+</button>
               <D />
               {/* B I U S aA */}
               <Btn label="B" active={isBold} extraStyle={{ fontWeight: 700 }}
@@ -6360,15 +6384,14 @@ export default function TemplatesEditorInner() {
                 onMouseEnter={e => showTip(e, TEXT_XFORM_TIP[textXform])}
                 onMouseLeave={hideTip}
                 onClick={() => handleElementChange({ ...selectedEl, textTransform: TEXT_XFORM_CYCLE[textXform] })}
-                style={{ height: 30, minWidth: 30, padding: '0 7px', border: 'none', borderRadius: 6, background: isUpper ? 'rgba(0,196,204,0.1)' : 'transparent', color: isUpper ? TEAL : t.text, fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', letterSpacing: '0.04em' }}>
+                style={{ height: 34, minWidth: 34, padding: '0 8px', border: 'none', borderRadius: 7, background: isUpper ? 'rgba(0,196,204,0.1)' : 'transparent', color: isUpper ? TEAL : t.text, fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', letterSpacing: '0.04em' }}>
                 {TEXT_XFORM_LABEL[textXform]}
               </button>
               <D />
-              {/* Horizontal alignment */}
-              {[['left','≡ L'],['center','≡ C'],['right','≡ R']].map(([a, lbl]) => (
-                <Btn key={a} label={lbl} active={selectedEl.align === a} onClick={() => handleElementChange({ ...selectedEl, align: a })} />
+              {/* Horizontal alignment — SVG paragraph icons */}
+              {[['left', <AlignLIcon />], ['center', <AlignCIcon />], ['right', <AlignRIcon />]].map(([a, icon]) => (
+                <Btn key={a} label={icon} active={selectedEl.align === a} onClick={() => handleElementChange({ ...selectedEl, align: a })} title={`Align ${a}`} />
               ))}
-              <D />
               {/* Vertical alignment */}
               {[['top',<IcoTxtTop size={13}/>,'Align text top'],['middle',<IcoTxtMid size={13}/>,'Align text middle'],['bottom',<IcoTxtBot size={13}/>,'Align text bottom']].map(([v,icon,lbl]) => (
                 <Btn key={v} label={icon} active={(selectedEl.verticalAlign||'middle') === v}
@@ -6379,11 +6402,11 @@ export default function TemplatesEditorInner() {
               {/* Emoji picker */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label={<IcoEmoji size={14}/>} active={showEmojiPanel}
-                  onClick={() => { setShowEmojiPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); }} />
+                  onClick={() => { setShowEmojiPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowMorePanel(false); }} />
                 {showEmojiPanel && (
                   <>
                     <div style={{ position: 'fixed', inset: 0, zIndex: 399 }} onMouseDown={() => setShowEmojiPanel(false)} />
-                    <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: '8px 10px', width: 280, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    <div style={{ position: 'absolute', top: 42, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: '8px 10px', width: 280, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                       <div style={{ display: 'flex', gap: 4, marginBottom: 8, borderBottom: `1px solid ${t.border}`, paddingBottom: 6 }}>
                         {EMOJI_SETS.map((s, i) => (
                           <button key={s.label} onClick={() => setEmojiCat(i)}
@@ -6409,13 +6432,12 @@ export default function TemplatesEditorInner() {
                   </>
                 )}
               </div>
-              <D />
               {/* Shadow dropdown */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Shadow" active={!!selectedEl.shadow?.enabled}
-                  onClick={() => { setShowShadowPanel(p => !p); setShowOutlinePanel(false); setShowEmojiPanel(false); }} />
+                  onClick={() => { setShowShadowPanel(p => !p); setShowOutlinePanel(false); setShowEmojiPanel(false); setShowMorePanel(false); }} />
                 {showShadowPanel && (
-                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                  <div style={{ position: 'absolute', top: 42, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
                       <input type="checkbox" checked={selectedEl.shadow?.enabled || false}
                         onChange={e => handleElementChange({ ...selectedEl, shadow: { ...(selectedEl.shadow||{}), enabled: e.target.checked } })} />
@@ -6444,9 +6466,9 @@ export default function TemplatesEditorInner() {
               {/* Outline dropdown */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Outline" active={!!selectedEl.outline?.enabled}
-                  onClick={() => { setShowOutlinePanel(p => !p); setShowShadowPanel(false); setShowEmojiPanel(false); }} />
+                  onClick={() => { setShowOutlinePanel(p => !p); setShowShadowPanel(false); setShowEmojiPanel(false); setShowMorePanel(false); }} />
                 {showOutlinePanel && (
-                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 190, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                  <div style={{ position: 'absolute', top: 42, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 190, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
                       <input type="checkbox" checked={selectedEl.outline?.enabled || false}
                         onChange={e => handleElementChange({ ...selectedEl, outline: {...(selectedEl.outline||{}), enabled: e.target.checked} })} />
@@ -6471,7 +6493,7 @@ export default function TemplatesEditorInner() {
               {/* Text Effects dropdown */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label={<><IpSparkle size={13}/> Effects</>} active={showEffectsPanel}
-                  onClick={() => { setShowEffectsPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowSpacingPanel(false); }} />
+                  onClick={() => { setShowEffectsPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowSpacingPanel(false); setShowMorePanel(false); }} />
                 {showEffectsPanel && (() => {
                   const applyEffect = patch => { pushHistory(); updateElement({ ...selectedEl, ...patch }); setShowEffectsPanel(false); };
                   const TEXT_EFFECTS = [
@@ -6493,7 +6515,7 @@ export default function TemplatesEditorInner() {
                       patch: { fill: '#ffffff', fillType: 'solid', shadow: { enabled: true, color: '#ff0080', blur: 0, offsetX: -3, offsetY: 0 } } },
                   ];
                   return (
-                    <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 12, width: 280, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    <div style={{ position: 'absolute', top: 42, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 12, width: 280, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Text effects</div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                         {TEXT_EFFECTS.map(fx => (
@@ -6513,13 +6535,12 @@ export default function TemplatesEditorInner() {
                   );
                 })()}
               </div>
-              {/* Spacing dropdown */}
               {/* Curve / arch text */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label={<><IcoCurve size={14}/> Curve</>} active={!!selectedEl.textCurve || showCurvePanel}
-                  onClick={() => { setShowCurvePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); setShowSpacingPanel(false); }} />
+                  onClick={() => { setShowCurvePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); setShowSpacingPanel(false); setShowMorePanel(false); }} />
                 {showCurvePanel && (
-                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', animation: 'dropdownIn 150ms ease forwards' }}>
+                  <div style={{ position: 'absolute', top: 42, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', animation: 'dropdownIn 150ms ease forwards' }}>
                     <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
                       <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: selectedEl.textCurve ? undefined : 200 }); }}
                         style={{ flex: 1, padding: '6px 0', borderRadius: 7, border: `1px solid ${selectedEl.textCurve ? TEAL : t.border}`, background: selectedEl.textCurve ? 'rgba(0,196,204,0.1)' : t.input, color: selectedEl.textCurve ? TEAL : t.text, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
@@ -6556,11 +6577,12 @@ export default function TemplatesEditorInner() {
                   </div>
                 )}
               </div>
+              {/* Spacing dropdown */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Spacing" active={showSpacingPanel}
-                  onClick={() => { setShowSpacingPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); setShowCurvePanel(false); }} />
+                  onClick={() => { setShowSpacingPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); setShowCurvePanel(false); setShowMorePanel(false); }} />
                 {showSpacingPanel && (
-                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                  <div style={{ position: 'absolute', top: 42, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     {[
                       { lbl: 'Letter spacing', k: 'letterSpacing', min: -10, max: 40, step: 0.5, def: 0, fmt: v => `${v}px` },
                       { lbl: 'Line height',    k: 'lineHeight',    min: 0.5, max: 4,  step: 0.05, def: 1.2, fmt: v => v.toFixed(2) },
@@ -6593,24 +6615,62 @@ export default function TemplatesEditorInner() {
               <input type="range" min={0} max={1} step={0.05}
                 value={selectedEl.textBg?.enabled ? (selectedEl.textBg?.opacity ?? 1) : 0}
                 onChange={e => { const v = parseFloat(e.target.value); updateElement({ ...selectedEl, textBg: { ...(selectedEl.textBg||{}), enabled: v > 0, color: selectedEl.textBg?.color || '#ffff00', opacity: v } }); }}
-                onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0, accentColor:TEAL }} />
+                onMouseUp={() => pushHistory()} style={{ width:50, flexShrink:0, accentColor:TEAL }} />
               {selectedEl.textBg?.enabled && (
                 <button onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, textBg: { ...selectedEl.textBg, enabled: false, opacity: 0 } }); }}
                   title="Remove highlight"
                   style={{ height:24, padding:'0 6px', border:`1px solid ${t.border}`, borderRadius:5, background:'transparent', color:t.textMuted, fontSize:11, cursor:'pointer', flexShrink:0 }}>×</button>
               )}
               <D />
-              {/* Opacity */}
-              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap' }}>Opacity</span>
-              <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity??1}
-                onChange={e => updateElement({...selectedEl, opacity:parseFloat(e.target.value)})}
-                onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
-              <span style={{ fontSize:11, color:t.textMuted, minWidth:30, flexShrink:0 }}>{Math.round((selectedEl.opacity??1)*100)}%</span>
-              <D />
-              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Blend</span>
-              <select value={selectedEl.blendMode||'source-over'} onChange={e => { pushHistory(); patchElements(p => p.map(el => el.id===selectedEl.id ? {...el, blendMode:e.target.value} : el)); }} style={{ height:24, padding:'0 3px', borderRadius:5, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', flexShrink:0, maxWidth:90 }}>
-                {BLEND_MODES.map(m => <option key={m} value={m}>{BLEND_LABELS[m]}</option>)}
-              </select>
+              {/* ••• More panel: opacity + blend + gradient angle */}
+              <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                <button onClick={() => {
+                  setShowMorePanel(p => !p);
+                  setShowShadowPanel(false); setShowOutlinePanel(false);
+                  setShowEmojiPanel(false); setShowEffectsPanel(false);
+                  setShowCurvePanel(false); setShowSpacingPanel(false);
+                }}
+                  style={{ height: 34, padding: '0 10px', border: `1px solid ${showMorePanel ? TEAL : t.border}`,
+                    borderRadius: 7, background: showMorePanel ? 'rgba(0,196,204,0.1)' : t.input,
+                    color: showMorePanel ? TEAL : t.text, fontSize: 13, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                  ••• <span style={{ fontSize: 11 }}>More</span>
+                </button>
+                {showMorePanel && (
+                  <>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 399 }} onMouseDown={() => setShowMorePanel(false)} />
+                    <div style={{ position: 'absolute', top: 42, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>Opacity</span>
+                          <span style={{ fontSize: 11, color: t.textMuted }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
+                        </div>
+                        <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
+                          onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
+                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: TEAL }} />
+                      </div>
+                      <div style={{ marginBottom: selectedEl.fillType === 'gradient' ? 14 : 0 }}>
+                        <span style={{ fontSize: 12, color: t.text, fontWeight: 500, display: 'block', marginBottom: 6 }}>Blend mode</span>
+                        <select value={selectedEl.blendMode || 'source-over'}
+                          onChange={e => { pushHistory(); patchElements(p => p.map(el => el.id === selectedEl.id ? { ...el, blendMode: e.target.value } : el)); }}
+                          style={{ width: '100%', height: 32, padding: '0 8px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer' }}>
+                          {BLEND_MODES.map(m => <option key={m} value={m}>{BLEND_LABELS[m]}</option>)}
+                        </select>
+                      </div>
+                      {selectedEl.fillType === 'gradient' && selectedEl.fillGradient && (
+                        <div style={{ marginTop: 14 }}>
+                          <span style={{ fontSize: 12, color: t.text, fontWeight: 500, display: 'block', marginBottom: 6 }}>Gradient angle</span>
+                          <select value={selectedEl.fillGradient.angle ?? 135}
+                            onChange={e => { pushHistory(); updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, angle: parseInt(e.target.value) } }); }}
+                            style={{ width: '100%', height: 32, padding: '0 8px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer' }}>
+                            {[0,45,90,135,180,225,270,315].map(a => <option key={a} value={a}>{a}°</option>)}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </>
           );
         })()}
