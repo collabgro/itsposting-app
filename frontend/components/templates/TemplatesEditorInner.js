@@ -8368,6 +8368,71 @@ export default function TemplatesEditorInner() {
                         onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
                       <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{Math.round((selectedEl.opacity !== undefined ? selectedEl.opacity : 1) * 100)}%</span>
                     </div>
+                    {/* ── Content editor for array-based elements ── */}
+                    {selectedEl.type === 'pricetag' && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Features</div>
+                        {(selectedEl.ptFeatures || []).map((f, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 5, alignItems: 'center' }}>
+                            <input value={f} onChange={e => { const arr = [...(selectedEl.ptFeatures || [])]; arr[i] = e.target.value; updateElement({...selectedEl, ptFeatures: arr}); }} onBlur={() => pushHistory()}
+                              style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, outline: 'none' }} />
+                            <button onClick={() => { const arr = (selectedEl.ptFeatures || []).filter((_,j) => j !== i); pushHistory(); updateElement({...selectedEl, ptFeatures: arr}); }}
+                              style={{ width: 22, height: 22, border: 'none', borderRadius: 5, background: 'transparent', color: t.textMuted, cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>×</button>
+                          </div>
+                        ))}
+                        {(selectedEl.ptFeatures || []).length < 6 && (
+                          <button onClick={() => { pushHistory(); updateElement({...selectedEl, ptFeatures: [...(selectedEl.ptFeatures || []), 'New feature']}); }}
+                            style={{ width: '100%', padding: '5px', border: `1px dashed ${t.border}`, borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer' }}>
+                            + Add feature
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {selectedEl.type === 'htimeline' && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Steps</div>
+                        {(selectedEl.tlSteps || []).map((s, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 5, alignItems: 'center' }}>
+                            <span style={{ fontSize: 11, color: t.textMuted, width: 16, flexShrink: 0 }}>{i+1}</span>
+                            <input value={s} onChange={e => { const arr = [...(selectedEl.tlSteps || [])]; arr[i] = e.target.value; updateElement({...selectedEl, tlSteps: arr}); }} onBlur={() => pushHistory()}
+                              style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, outline: 'none' }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {selectedEl.type === 'comparison' && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Rows</div>
+                        {(selectedEl.cpRows || []).map((row, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 5, alignItems: 'center' }}>
+                            <input value={row.col1 || ''} onChange={e => { const arr = [...(selectedEl.cpRows||[])]; arr[i] = {...arr[i], col1: e.target.value}; updateElement({...selectedEl, cpRows: arr}); }} onBlur={() => pushHistory()}
+                              style={{ flex: 1, padding: '4px 6px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 11, outline: 'none' }} />
+                            <input value={row.col2 || ''} onChange={e => { const arr = [...(selectedEl.cpRows||[])]; arr[i] = {...arr[i], col2: e.target.value}; updateElement({...selectedEl, cpRows: arr}); }} onBlur={() => pushHistory()}
+                              style={{ flex: 1, padding: '4px 6px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 11, outline: 'none' }} />
+                            <button onClick={() => { const arr = (selectedEl.cpRows||[]).filter((_,j)=>j!==i); pushHistory(); updateElement({...selectedEl,cpRows:arr}); }}
+                              style={{ width: 20, height: 20, border: 'none', borderRadius: 4, background: 'transparent', color: t.textMuted, cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>×</button>
+                          </div>
+                        ))}
+                        {(selectedEl.cpRows||[]).length < 6 && (
+                          <button onClick={() => { pushHistory(); updateElement({...selectedEl, cpRows: [...(selectedEl.cpRows||[]), {col1:'✗ Them', col2:'✓ Us'}]}); }}
+                            style={{ width: '100%', padding: '5px', border: `1px dashed ${t.border}`, borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer' }}>
+                            + Add row
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {selectedEl.type === 'steplist' && (
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Steps</div>
+                        {(selectedEl.slSteps || ['Step one', 'Step two', 'Step three']).map((s, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 5, alignItems: 'center' }}>
+                            <span style={{ fontSize: 11, color: t.textMuted, width: 16, flexShrink: 0 }}>{i+1}</span>
+                            <input value={s} onChange={e => { const arr = [...(selectedEl.slSteps||['Step one','Step two','Step three'])]; arr[i] = e.target.value; updateElement({...selectedEl, slSteps: arr}); }} onBlur={() => pushHistory()}
+                              style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, outline: 'none' }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
