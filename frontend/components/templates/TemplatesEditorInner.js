@@ -3666,6 +3666,8 @@ export default function TemplatesEditorInner() {
   // UI
   const [activeLeftTool, setActiveLeftTool] = useState('templates');
   const [panelOpen, setPanelOpen] = useState(true);
+  const [elemSearch, setElemSearch] = useState('');
+  const [activeElemCat, setActiveElemCat] = useState(null);
   const [bgPhotos, setBgPhotos] = useState([]);
   const [bgPhotosLoading, setBgPhotosLoading] = useState(false);
   const [bgTab, setBgTab] = useState('stock');
@@ -8427,207 +8429,269 @@ export default function TemplatesEditorInner() {
             )}
 
             {/* ELEMENTS */}
-            {(activeLeftTool === 'shapes' || activeLeftTool === 'elements') && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {/* AI search bar */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
-                  <span style={{ color: t.primary, flexShrink: 0, display: 'flex' }}><IpPlus size={15} /></span>
-                  <input placeholder="Describe your ideal element" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
-                  <span style={{ color: t.textMuted, fontSize: 13, flexShrink: 0 }}>🎤</span>
+            {(activeLeftTool === 'shapes' || activeLeftTool === 'elements') && (() => {
+              const cats = [
+                { id:'shapes', label:'Shapes', grad:'linear-gradient(135deg,#00C4CC,#0099A3)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="6" y="8" width="22" height="22" rx="2" fill="#fff" opacity=".8"/><circle cx="49" cy="19" r="11" fill="#fff" opacity=".7"/><polygon points="20,46 36,30 52,46" fill="#fff" opacity=".9"/></svg>,
+                  items:[
+                    { label:'Rectangle',  fn:()=>addRect(),                               svg:<rect x="10" y="16" width="44" height="24" rx="2" fill="#fff" opacity=".85"/> },
+                    { label:'Rounded',    fn:()=>addRect({cornerRadius:20}),              svg:<rect x="10" y="16" width="44" height="24" rx="12" fill="#fff" opacity=".85"/> },
+                    { label:'Circle',     fn:()=>addCircle(),                             svg:<circle cx="32" cy="28" r="18" fill="#fff" opacity=".85"/> },
+                    { label:'Triangle',   fn:()=>addTriangle(),                           svg:<polygon points="32,10 54,46 10,46" fill="#fff" opacity=".85"/> },
+                    { label:'Diamond',    fn:()=>addTriangle({sides:4,rotation:45}),      svg:<polygon points="32,10 50,28 32,46 14,28" fill="#fff" opacity=".85"/> },
+                    { label:'Star',       fn:()=>addStar(),                               svg:<polygon points="32,8 36,22 50,22 40,31 43,45 32,36 21,45 24,31 14,22 28,22" fill="#fff" opacity=".85"/> },
+                    { label:'Heart',      fn:()=>addSmartShape('heart'),                  svg:<path d="M32,44 C28,40 10,30 10,20 C10,14 15,10 22,13 C27,15 32,20 32,20 C32,20 37,15 42,13 C49,10 54,14 54,20 C54,30 36,40 32,44Z" fill="#fff" opacity=".85"/> },
+                    { label:'Pentagon',   fn:()=>addSmartShape('pentagon'),               svg:<polygon points="32,10 52,26 44,46 20,46 12,26" fill="#fff" opacity=".85"/> },
+                    { label:'Octagon',    fn:()=>addSmartShape('octagon'),                svg:<polygon points="22,8 42,8 54,20 54,36 42,48 22,48 10,36 10,20" fill="#fff" opacity=".85"/> },
+                    { label:'Cross',      fn:()=>addSmartShape('cross'),                  svg:<path d="M24,10h16v14h14v16H40v14H24V40H10V24h14Z" fill="#fff" opacity=".85"/> },
+                  ],
+                },
+                { id:'lines', label:'Lines', grad:'linear-gradient(135deg,#7C5CFC,#5B3FE0)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><line x1="10" y1="18" x2="54" y2="18" stroke="#fff" strokeWidth="2.5" opacity=".8"/><line x1="10" y1="30" x2="54" y2="30" stroke="#fff" strokeWidth="2.5" strokeDasharray="7 5" opacity=".8"/><line x1="10" y1="44" x2="48" y2="44" stroke="#fff" strokeWidth="2" opacity=".8"/><polygon points="48,38 56,44 48,50" fill="#fff" opacity=".9"/></svg>,
+                  items:[
+                    { label:'Line',       fn:()=>addLine(),                               svg:<line x1="10" y1="28" x2="54" y2="28" stroke="#fff" strokeWidth="3" opacity=".9"/> },
+                    { label:'Dashed',     fn:()=>addLine({dash:[14,8]}),                  svg:<line x1="10" y1="28" x2="54" y2="28" stroke="#fff" strokeWidth="3" strokeDasharray="10 7" opacity=".9"/> },
+                    { label:'Arrow →',    fn:()=>addArrow(),                              svg:<><line x1="8" y1="28" x2="46" y2="28" stroke="#fff" strokeWidth="3" opacity=".9"/><polygon points="46,22 56,28 46,34" fill="#fff" opacity=".9"/></> },
+                    { label:'Diagonal',   fn:()=>addLine({points:[0,0,300,300]}),         svg:<line x1="12" y1="44" x2="52" y2="12" stroke="#fff" strokeWidth="3" opacity=".9"/> },
+                    { label:'Divider',    fn:()=>addDivider(),                            svg:<><line x1="8" y1="24" x2="56" y2="24" stroke="#fff" strokeWidth="1.5" opacity=".5"/><circle cx="32" cy="28" r="4" fill="#fff" opacity=".9"/><line x1="8" y1="32" x2="56" y2="32" stroke="#fff" strokeWidth="1.5" opacity=".5"/></> },
+                    { label:'← → Arrow', fn:()=>addArrow(),                              svg:<><polygon points="14,22 4,28 14,34" fill="#fff" opacity=".9"/><line x1="4" y1="28" x2="60" y2="28" stroke="#fff" strokeWidth="2.5" opacity=".9"/><polygon points="50,22 60,28 50,34" fill="#fff" opacity=".9"/></> },
+                  ],
+                },
+                { id:'frames', label:'Frames', grad:'linear-gradient(135deg,#f59e0b,#d97706)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="10" y="8" width="44" height="40" rx="2" fill="none" stroke="#fff" strokeWidth="3" opacity=".9"/><rect x="16" y="14" width="32" height="28" rx="1" fill="#fff" opacity=".2"/></svg>,
+                  items:[
+                    { label:'Sq Frame',    fn:()=>addRect({fill:'transparent',stroke:'#ffffff',strokeWidth:4,width:200,height:200}), svg:<rect x="10" y="8" width="44" height="44" rx="2" fill="none" stroke="#fff" strokeWidth="3" opacity=".9"/> },
+                    { label:'Circle Frame',fn:()=>addCircle({fill:'transparent',stroke:'#ffffff',strokeWidth:4}),                   svg:<circle cx="32" cy="28" r="20" fill="none" stroke="#fff" strokeWidth="3" opacity=".9"/> },
+                    { label:'Polaroid',    fn:()=>addPolaroid(),                          svg:<><rect x="10" y="8" width="44" height="44" rx="2" fill="none" stroke="#fff" strokeWidth="2.5" opacity=".9"/><rect x="10" y="40" width="44" height="12" rx="0" fill="#fff" opacity=".25"/><rect x="14" y="12" width="36" height="26" rx="1" fill="#fff" opacity=".15"/></> },
+                    { label:'Before/After',fn:()=>addBeforeAfter(),                       svg:<><rect x="8" y="10" width="48" height="36" rx="3" fill="none" stroke="#fff" strokeWidth="2" opacity=".8"/><line x1="32" y1="10" x2="32" y2="46" stroke="#fff" strokeWidth="2" opacity=".7"/><text x="20" y="33" fill="#fff" fontSize="8" textAnchor="middle" opacity=".9">B</text><text x="44" y="33" fill="#fff" fontSize="8" textAnchor="middle" opacity=".9">A</text></> },
+                    { label:'Map Pin',     fn:()=>addMapPin(),                            svg:<><path d="M32,10 C22,10 14,18 14,26 C14,36 32,48 32,48 C32,48 50,36 50,26 C50,18 42,10 32,10Z" fill="#fff" opacity=".75"/><circle cx="32" cy="26" r="6" fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="2"/></> },
+                    { label:'QR Code',     fn:()=>addQrCode(),                            svg:<><rect x="8" y="8" width="48" height="48" rx="3" fill="none" stroke="#fff" strokeWidth="2" opacity=".9"/><rect x="12" y="12" width="16" height="16" rx="1" fill="#fff" opacity=".5"/><rect x="36" y="12" width="16" height="16" rx="1" fill="#fff" opacity=".5"/><rect x="12" y="36" width="16" height="16" rx="1" fill="#fff" opacity=".5"/><rect x="32" y="32" width="20" height="20" rx="1" fill="#fff" opacity=".25"/></> },
+                  ],
+                },
+                { id:'charts', label:'Charts', grad:'linear-gradient(135deg,#ef4444,#dc2626)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="8" y="36" width="10" height="12" rx="1" fill="#fff" opacity=".6"/><rect x="22" y="26" width="10" height="22" rx="1" fill="#fff" opacity=".7"/><rect x="36" y="16" width="10" height="32" rx="1" fill="#fff" opacity=".8"/><rect x="50" y="30" width="10" height="18" rx="1" fill="#fff" opacity=".65"/></svg>,
+                  items:[
+                    { label:'Bar Chart',  fn:()=>addChart('bar'),                         svg:<><rect x="8" y="34" width="9" height="14" rx="1" fill="#fff" opacity=".7"/><rect x="22" y="24" width="9" height="24" rx="1" fill="#fff" opacity=".7"/><rect x="36" y="14" width="9" height="34" rx="1" fill="#fff" opacity=".7"/><rect x="50" y="28" width="9" height="20" rx="1" fill="#fff" opacity=".7"/></> },
+                    { label:'Pie Chart',  fn:()=>addChart('pie'),                         svg:<><circle cx="32" cy="28" r="20" fill="rgba(255,255,255,0.2)"/><path d="M32,28 L32,8 A20,20 0 0,1 52,28 Z" fill="#fff" opacity=".8"/><path d="M32,28 L52,28 A20,20 0 0,1 22,46 Z" fill="#fff" opacity=".55"/></> },
+                    { label:'Progress',   fn:()=>addProgressBar(),                        svg:<><rect x="8" y="22" width="48" height="12" rx="6" fill="rgba(255,255,255,0.25)"/><rect x="8" y="22" width="34" height="12" rx="6" fill="#fff" opacity=".9"/></> },
+                    { label:'Rating',     fn:()=>addRating(),                             svg:<text x="6" y="34" fill="#fff" fontSize="10" opacity=".9">★★★★☆</text> },
+                    { label:'Counter',    fn:()=>addCounter(),                            svg:<><rect x="12" y="12" width="40" height="32" rx="6" fill="rgba(255,255,255,0.2)"/><text x="32" y="33" fill="#fff" fontSize="14" textAnchor="middle" fontWeight="bold" opacity=".9">1.2K</text></> },
+                    { label:'Countdown',  fn:()=>addCountdown(),                          svg:<><rect x="8" y="14" width="20" height="24" rx="4" fill="rgba(255,255,255,0.2)"/><rect x="36" y="14" width="20" height="24" rx="4" fill="rgba(255,255,255,0.2)"/><text x="18" y="31" fill="#fff" fontSize="12" textAnchor="middle" fontWeight="bold" opacity=".9">12</text><text x="46" y="31" fill="#fff" fontSize="12" textAnchor="middle" fontWeight="bold" opacity=".9">34</text></> },
+                    { label:'Timeline',   fn:()=>addHTimeline(),                          svg:<><circle cx="14" cy="28" r="5" fill="#fff" opacity=".9"/><circle cx="32" cy="28" r="5" fill="#fff" opacity=".9"/><circle cx="50" cy="28" r="5" fill="#fff" opacity=".9"/><line x1="19" y1="28" x2="27" y2="28" stroke="#fff" strokeWidth="2" opacity=".6"/><line x1="37" y1="28" x2="45" y2="28" stroke="#fff" strokeWidth="2" opacity=".6"/></> },
+                    { label:'Table',      fn:()=>addTable(),                              svg:<><rect x="8" y="10" width="48" height="36" rx="3" fill="none" stroke="#fff" strokeWidth="2" opacity=".8"/><line x1="8" y1="22" x2="56" y2="22" stroke="#fff" strokeWidth="1.5" opacity=".6"/><line x1="8" y1="34" x2="56" y2="34" stroke="#fff" strokeWidth="1" opacity=".5"/><line x1="28" y1="10" x2="28" y2="46" stroke="#fff" strokeWidth="1" opacity=".5"/></> },
+                  ],
+                },
+                { id:'typography', label:'Typography', grad:'linear-gradient(135deg,#3b82f6,#1d4ed8)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><text x="32" y="24" fill="#fff" fontSize="18" textAnchor="middle" fontWeight="bold" opacity=".9">Aa</text><line x1="10" y1="34" x2="54" y2="34" stroke="#fff" strokeWidth="1" opacity=".4"/><line x1="14" y1="44" x2="50" y2="44" stroke="#fff" strokeWidth="1" opacity=".3"/></svg>,
+                  items:[
+                    { label:'Quote',      fn:()=>addQuote(),                              svg:<><text x="10" y="36" fill="#fff" fontSize="32" opacity=".9" fontFamily="Georgia">"</text><text x="42" y="50" fill="#fff" fontSize="32" opacity=".9" fontFamily="Georgia">"</text></> },
+                    { label:'Callout',    fn:()=>addCallout(),                            svg:<><rect x="6" y="12" width="52" height="32" rx="6" fill="rgba(255,255,255,0.2)"/><rect x="6" y="12" width="5" height="32" rx="3" fill="#fff" opacity=".9"/><line x1="18" y1="22" x2="52" y2="22" stroke="#fff" strokeWidth="2" opacity=".6"/><line x1="18" y1="30" x2="46" y2="30" stroke="#fff" strokeWidth="1.5" opacity=".4"/></> },
+                    { label:'Gradient',   fn:()=>addGradientText(),                       svg:<><defs><linearGradient id="eg1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#00C4CC"/><stop offset="100%" stopColor="#7C5CFC"/></linearGradient></defs><text x="32" y="36" fill="url(#eg1)" fontSize="22" textAnchor="middle" fontWeight="bold">Aa</text></> },
+                    { label:'Neon',       fn:()=>addNeonText(),                           svg:<><text x="32" y="34" fill="rgba(0,196,204,0.3)" fontSize="16" textAnchor="middle" fontWeight="bold">NEON</text><text x="32" y="34" fill="#00C4CC" fontSize="16" textAnchor="middle" fontWeight="bold" opacity=".95">NEON</text></> },
+                    { label:'Highlight',  fn:()=>addHighlight(),                          svg:<><rect x="8" y="20" width="48" height="20" rx="2" fill="#FFE135" opacity=".55"/><text x="32" y="34" fill="#fff" fontSize="11" textAnchor="middle" fontWeight="bold" opacity=".9">Highlight</text></> },
+                    { label:'Speech',     fn:()=>addSpeechBubble(),                       svg:<><rect x="8" y="8" width="48" height="30" rx="8" fill="#fff" opacity=".85"/><polygon points="18,38 10,50 32,38" fill="#fff" opacity=".85"/></> },
+                    { label:'Ribbon',     fn:()=>addRibbon(),                             svg:<><rect x="2" y="18" width="60" height="20" fill="#fff" opacity=".85"/><polygon points="2,18 -2,28 2,38" fill="rgba(255,255,255,0.5)"/><polygon points="62,18 66,28 62,38" fill="rgba(255,255,255,0.5)"/></> },
+                    { label:'Badge',      fn:()=>addBadge('sale'),                        svg:<><circle cx="32" cy="28" r="20" fill="#fff" opacity=".85"/><text x="32" y="33" fill="#3b82f6" fontSize="10" textAnchor="middle" fontWeight="bold">SALE</text></> },
+                  ],
+                },
+                { id:'marketing', label:'Marketing', grad:'linear-gradient(135deg,#22c55e,#16a34a)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="8" y="12" width="48" height="32" rx="4" fill="rgba(255,255,255,0.2)" stroke="#fff" strokeWidth="1.5" strokeDasharray="5 3"/><text x="32" y="31" fill="#fff" fontSize="10" textAnchor="middle" fontWeight="bold" opacity=".9">SALE</text></svg>,
+                  items:[
+                    { label:'Coupon',     fn:()=>addCoupon(),                             svg:<><rect x="6" y="14" width="52" height="28" rx="4" fill="rgba(255,255,255,0.2)" stroke="#fff" strokeWidth="1.5" strokeDasharray="5 3"/><line x1="28" y1="14" x2="28" y2="42" stroke="#fff" strokeWidth="1" strokeDasharray="3 2" opacity=".5"/><text x="17" y="31" fill="#fff" fontSize="8" textAnchor="middle" opacity=".9">20% OFF</text></> },
+                    { label:'Review',     fn:()=>addTestimonial(),                        svg:<><rect x="8" y="8" width="48" height="38" rx="6" fill="rgba(255,255,255,0.2)"/><text x="12" y="24" fill="#FFB800" fontSize="10" opacity=".9">★★★★★</text><line x1="12" y1="30" x2="52" y2="30" stroke="#fff" strokeWidth="1" opacity=".4"/><line x1="12" y1="36" x2="44" y2="36" stroke="#fff" strokeWidth="1" opacity=".3"/></> },
+                    { label:'Price Tag',  fn:()=>addPriceTag(),                           svg:<><rect x="14" y="6" width="36" height="46" rx="6" fill="rgba(255,255,255,0.2)"/><text x="32" y="30" fill="#fff" fontSize="14" textAnchor="middle" fontWeight="bold" opacity=".9">$29</text><line x1="18" y1="36" x2="46" y2="36" stroke="#fff" strokeWidth="1" opacity=".5"/></> },
+                    { label:'Compare',    fn:()=>addComparison(),                         svg:<><rect x="6" y="8" width="52" height="40" rx="4" fill="rgba(255,255,255,0.1)"/><line x1="32" y1="8" x2="32" y2="48" stroke="#fff" strokeWidth="1.5" opacity=".5"/><text x="19" y="32" fill="#fca5a5" fontSize="7" textAnchor="middle" opacity=".9">✗ Old</text><text x="45" y="32" fill="#86efac" fontSize="7" textAnchor="middle" opacity=".9">✓ Us</text></> },
+                    { label:'Stat Block', fn:()=>addSocialStats(),                        svg:<><rect x="4" y="16" width="56" height="24" rx="6" fill="rgba(255,255,255,0.2)"/><text x="16" y="32" fill="#fff" fontSize="6.5" textAnchor="middle" opacity=".9">👥 2.4K</text><text x="32" y="32" fill="#fff" fontSize="6.5" textAnchor="middle" opacity=".9">❤ 18K</text><text x="48" y="32" fill="#fff" fontSize="6.5" textAnchor="middle" opacity=".9">📸 342</text></> },
+                    { label:'Watermark',  fn:()=>addWatermark(),                          svg:<><rect x="12" y="18" width="40" height="20" rx="10" fill="rgba(255,255,255,0.3)"/><text x="32" y="31" fill="#fff" fontSize="8" textAnchor="middle" opacity=".9">YourBrand</text></> },
+                    { label:'🔥 Sticker', fn:()=>addSticker('🔥'),                       svg:<text x="32" y="40" fontSize="28" textAnchor="middle">🔥</text> },
+                    { label:'⭐ Sticker', fn:()=>addSticker('⭐'),                       svg:<text x="32" y="40" fontSize="28" textAnchor="middle">⭐</text> },
+                  ],
+                },
+                { id:'decoration', label:'Decoration', grad:'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><circle cx="16" cy="20" r="3" fill="#fff" opacity=".5"/><circle cx="32" cy="20" r="3" fill="#fff" opacity=".5"/><circle cx="48" cy="20" r="3" fill="#fff" opacity=".5"/><circle cx="16" cy="36" r="3" fill="#fff" opacity=".5"/><circle cx="32" cy="36" r="3" fill="#fff" opacity=".5"/><circle cx="48" cy="36" r="3" fill="#fff" opacity=".5"/></svg>,
+                  items:[
+                    { label:'Dots',       fn:()=>addPattern(),                            svg:<><circle cx="16" cy="16" r="3" fill="#fff" opacity=".7"/><circle cx="32" cy="16" r="3" fill="#fff" opacity=".7"/><circle cx="48" cy="16" r="3" fill="#fff" opacity=".7"/><circle cx="16" cy="28" r="3" fill="#fff" opacity=".7"/><circle cx="32" cy="28" r="3" fill="#fff" opacity=".7"/><circle cx="48" cy="28" r="3" fill="#fff" opacity=".7"/><circle cx="16" cy="40" r="3" fill="#fff" opacity=".7"/><circle cx="32" cy="40" r="3" fill="#fff" opacity=".7"/><circle cx="48" cy="40" r="3" fill="#fff" opacity=".7"/></> },
+                    { label:'Grid Lines', fn:()=>addPattern({patternType:'grid'}),        svg:<><line x1="10" y1="20" x2="54" y2="20" stroke="#fff" strokeWidth="1.5" opacity=".6"/><line x1="10" y1="36" x2="54" y2="36" stroke="#fff" strokeWidth="1.5" opacity=".6"/><line x1="20" y1="8" x2="20" y2="48" stroke="#fff" strokeWidth="1.5" opacity=".6"/><line x1="36" y1="8" x2="36" y2="48" stroke="#fff" strokeWidth="1.5" opacity=".6"/><line x1="52" y1="8" x2="52" y2="48" stroke="#fff" strokeWidth="1.5" opacity=".6"/></> },
+                    { label:'Glass',      fn:()=>addGlassPane(),                          svg:<><rect x="8" y="12" width="48" height="34" rx="8" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/><rect x="8" y="12" width="48" height="9" rx="8" fill="rgba(255,255,255,0.2)"/></> },
+                    { label:'Grad Rect',  fn:()=>addGradRect(),                           svg:<><defs><linearGradient id="dg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#7C5CFC" stopOpacity=".9"/><stop offset="100%" stopColor="#00C4CC" stopOpacity=".9"/></linearGradient></defs><rect x="8" y="10" width="48" height="36" rx="4" fill="url(#dg1)"/></> },
+                    { label:'Step List',  fn:()=>addStepList(),                           svg:<><circle cx="14" cy="20" r="6" fill="rgba(255,255,255,0.25)" stroke="#fff" strokeWidth="1.5"/><text x="14" y="24" fill="#fff" fontSize="8" textAnchor="middle">1</text><circle cx="14" cy="36" r="6" fill="rgba(255,255,255,0.25)" stroke="#fff" strokeWidth="1.5"/><text x="14" y="40" fill="#fff" fontSize="8" textAnchor="middle">2</text><line x1="20" y1="20" x2="54" y2="20" stroke="#fff" strokeWidth="1.5" opacity=".5"/><line x1="20" y1="36" x2="54" y2="36" stroke="#fff" strokeWidth="1.5" opacity=".5"/></> },
+                    { label:'Icon Shape', fn:()=>addIconShape(),                          svg:<><circle cx="32" cy="28" r="18" fill="rgba(255,255,255,0.2)"/><text x="32" y="34" fill="#fff" fontSize="16" textAnchor="middle" opacity=".9">✓</text></> },
+                  ],
+                },
+              ];
+              const allItems = cats.flatMap(c => c.items.map(i => ({...i, catId:c.id})));
+              const q = elemSearch.trim().toLowerCase();
+              const filtered = q ? allItems.filter(i => i.label.toLowerCase().includes(q)) : null;
+              const activeCat = cats.find(c => c.id === activeElemCat);
+              const renderCard = (item) => {
+                const cat = cats.find(c => c.id === item.catId) || cats[0];
+                return (
+                  <button key={`${item.catId}-${item.label}`} onMouseDown={e => { e.preventDefault(); item.fn(); }}
+                    style={{ display:'flex', flexDirection:'column', border:`1px solid ${t.border}`, borderRadius:8, overflow:'hidden', background:t.input, cursor:'pointer', padding:0, transition:'transform 80ms, border-color 150ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor=TEAL; e.currentTarget.style.transform='scale(1.04)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor=t.border; e.currentTarget.style.transform='scale(1)'; }}>
+                    <div style={{ height:54, background:cat.grad, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <svg viewBox="0 0 64 54" width="100%" height="54">{item.svg}</svg>
+                    </div>
+                    <div style={{ padding:'5px 4px 6px', fontSize:10, color:t.textMuted, textAlign:'center', fontWeight:500, lineHeight:1.2 }}>{item.label}</div>
+                  </button>
+                );
+              };
+              return (
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {/* Search bar */}
+                <div style={{ display:'flex', alignItems:'center', gap:8, background:t.input, borderRadius:8, padding:'8px 12px', border:`1px solid ${elemSearch ? TEAL : t.border}`, transition:'border-color 150ms' }}>
+                  <span style={{ color:TEAL, flexShrink:0, display:'flex' }}><IpPlus size={15}/></span>
+                  <input value={elemSearch} onChange={e => { setElemSearch(e.target.value); setActiveElemCat(null); }}
+                    placeholder="Search elements..." style={{ flex:1, background:'transparent', border:'none', outline:'none', color:t.text, fontSize:13 }} />
+                  {elemSearch && <button onClick={() => setElemSearch('')} style={{ background:'none', border:'none', color:t.textMuted, cursor:'pointer', padding:0, fontSize:18, lineHeight:1, display:'flex' }}>×</button>}
                 </div>
                 {/* Generate + Search buttons */}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={{ flex: 1, background: 'transparent', color: t.primary, border: `1.5px solid ${t.primary}`, borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                    ✦ Generate <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button style={{ flex:1, background:'transparent', color:TEAL, border:`1.5px solid ${TEAL}`, borderRadius:8, padding:'9px 0', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
+                    <IpSparkle size={14}/> Generate
                   </button>
-                  <button style={{ flex: 1, background: t.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '9px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                    Search
-                  </button>
+                  <button style={{ flex:1.2, background:'linear-gradient(90deg,#7C5CFC,#00C4CC)', color:'#fff', border:'none', borderRadius:8, padding:'9px 0', fontSize:13, fontWeight:600, cursor:'pointer' }}>Search</button>
                 </div>
-                {/* Browse categories */}
-                <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Browse categories</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                  {[
-                    { icon: '▭', label: 'Shapes',     bg: 'rgba(0,196,204,0.15)',   ic: TEAL,       fn: () => addRect() },
-                    { icon: '✦', label: 'Graphics',   bg: 'rgba(155,79,212,0.15)',  ic: '#9B4FD4',  fn: () => {} },
-                    { icon: '▶', label: 'Animations', bg: 'rgba(59,130,246,0.15)',  ic: '#3b82f6',  fn: () => {} },
-                    { icon: '⬜', label: 'Frames',    bg: 'rgba(234,179,8,0.15)',   ic: '#eab308',  fn: () => addRect({ fill: 'transparent', stroke: '#888', strokeWidth: 3 }) },
-                    { icon: '⊞', label: 'Grids',     bg: 'rgba(34,197,94,0.15)',   ic: '#22c55e',  fn: () => { for(let r=0;r<2;r++) for(let c=0;c<2;c++) addRect({ x: canvasSize.w/2 - 220 + c*115, y: canvasSize.h/2 - 120 + r*115, width: 110, height: 110 }); } },
-                    { icon: '📊', label: 'Charts',   bg: 'rgba(239,68,68,0.15)',   ic: '#ef4444',  fn: () => {} },
-                  ].map(c => (
-                    <button key={c.label} onMouseDown={e => { e.preventDefault(); c.fn(); }}
-                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 4px', border: `1px solid ${t.border}`, borderRadius: 10, background: t.input, cursor: 'pointer', color: t.text }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 8, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: c.ic }}>{c.icon}</div>
-                      <span style={{ fontSize: 11, fontWeight: 500 }}>{c.label}</span>
+                {/* Search Results */}
+                {filtered && (
+                  <div>
+                    <div style={{ fontSize:11, color:t.textMuted, marginBottom:8 }}>{filtered.length} result{filtered.length!==1?'s':''} for "{elemSearch}"</div>
+                    {filtered.length===0 ? (
+                      <div style={{ textAlign:'center', color:t.textMuted, fontSize:12, padding:'20px 0' }}>No elements found</div>
+                    ) : (
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7 }}>{filtered.map(it => renderCard(it))}</div>
+                    )}
+                  </div>
+                )}
+                {/* Category Detail */}
+                {!filtered && activeCat && (
+                  <div>
+                    <button onClick={() => setActiveElemCat(null)}
+                      style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', color:t.text, fontSize:13, fontWeight:600, cursor:'pointer', padding:'4px 0 10px' }}>
+                      ← {activeCat.label}
                     </button>
-                  ))}
-                </div>
-                {/* Quick add — categorised */}
-                {[
-                  {
-                    cat: 'Shapes', items: [
-                      { label: 'Rectangle', icon: '▭', fn: () => addRect() },
-                      { label: 'Circle',    icon: '●', fn: () => addCircle() },
-                      { label: 'Rounded',   icon: '▢', fn: () => addRect({ cornerRadius: 20 }) },
-                      { label: 'Triangle',  icon: '▲', fn: () => addTriangle() },
-                      { label: 'Diamond',   icon: '◆', fn: () => addTriangle({ sides: 4, rotation: 45 }) },
-                      { label: 'Star',      icon: '★', fn: () => addStar() },
-                      { label: 'Heart',     icon: '♥', fn: () => addSmartShape('heart') },
-                      { label: 'Arrow',     icon: '→', fn: () => addArrow() },
-                      { label: 'Line',      icon: '╱', fn: () => addLine() },
-                      { label: 'Cross',     icon: '✚', fn: () => addSmartShape('cross') },
-                      { label: 'Pentagon',  icon: '⬠', fn: () => addSmartShape('pentagon') },
-                      { label: 'Octagon',   icon: '⯃', fn: () => addSmartShape('octagon') },
-                    ],
-                  },
-                  {
-                    cat: 'Data & Charts', items: [
-                      { label: 'Progress',  icon: '▬', fn: () => addProgressBar() },
-                      { label: 'Bar Chart', icon: '📊', fn: () => addChart('bar') },
-                      { label: 'Pie Chart', icon: '🥧', fn: () => addChart('pie') },
-                      { label: 'Table',     icon: '⊞', fn: () => addTable() },
-                      { label: 'Countdown', icon: '⏱', fn: () => addCountdown() },
-                      { label: 'Rating',    icon: '★', fn: () => addRating() },
-                      { label: 'Counter',   icon: '🔢', fn: () => addCounter() },
-                      { label: 'Timeline',  icon: '⟶', fn: () => addHTimeline() },
-                    ],
-                  },
-                  {
-                    cat: 'Typography', items: [
-                      { label: 'Quote',     icon: '❝', fn: () => addQuote() },
-                      { label: 'Callout',   icon: '💡', fn: () => addCallout() },
-                      { label: 'GradText',  icon: '🌈', fn: () => addGradientText() },
-                      { label: 'Neon',      icon: '✨', fn: () => addNeonText() },
-                      { label: 'Highlight', icon: '🖊', fn: () => addHighlight() },
-                      { label: 'Speech ◀',  icon: '💬', fn: () => addSmartShape('speechbubble') },
-                      { label: 'Bubble',    icon: '💭', fn: () => addSpeechBubble() },
-                      { label: 'Ribbon',    icon: '🎀', fn: () => addRibbon() },
-                    ],
-                  },
-                  {
-                    cat: 'Social & Marketing', items: [
-                      { label: 'Badge',     icon: '🏷', fn: () => addBadge('sale') },
-                      { label: 'Coupon',    icon: '🎟', fn: () => addCoupon() },
-                      { label: 'Sticker',   icon: '🔥', fn: () => addSticker('🔥') },
-                      { label: 'Stats',     icon: '📈', fn: () => addSocialStats() },
-                      { label: 'Review',    icon: '⭐', fn: () => addTestimonial() },
-                      { label: 'Price Tag', icon: '💲', fn: () => addPriceTag() },
-                      { label: 'Compare',   icon: '⫸', fn: () => addComparison() },
-                      { label: 'Watermark', icon: '◉', fn: () => addWatermark() },
-                    ],
-                  },
-                  {
-                    cat: 'Layout & Decoration', items: [
-                      { label: 'Divider',   icon: '─',  fn: () => addDivider() },
-                      { label: 'Pattern',   icon: '⊞', fn: () => addPattern() },
-                      { label: 'Grad Rect', icon: '▨', fn: () => addGradRect() },
-                      { label: 'Glass',     icon: '◫', fn: () => addGlassPane() },
-                      { label: 'Steps',     icon: '📋', fn: () => addStepList() },
-                      { label: 'Icon',      icon: '✓', fn: () => addIconShape() },
-                      { label: 'Polaroid',  icon: '📷', fn: () => addPolaroid() },
-                      { label: 'Map Pin',   icon: '📍', fn: () => addMapPin() },
-                      { label: 'Before/After', icon: '⟺', fn: () => addBeforeAfter() },
-                      { label: 'QR Code',   icon: '▣', fn: () => addQrCode() },
-                    ],
-                  },
-                ].map(({ cat, items }) => (
-                  <div key={cat}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '10px 0 7px' }}>{cat}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                      {items.map(({ label, icon, fn }) => (
-                        <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
-                          style={{ padding: '10px 0 7px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, transition: 'background 100ms, border-color 100ms' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.borderColor = '#00C4CC33'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = t.input; e.currentTarget.style.borderColor = t.border; }}>
-                          <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
-                          <span style={{ fontSize: 10, color: t.textMuted }}>{label}</span>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7 }}>
+                      {activeCat.items.map(it => renderCard({...it, catId:activeCat.id}))}
+                    </div>
+                  </div>
+                )}
+                {/* Browse Categories */}
+                {!filtered && !activeCat && (
+                  <>
+                    <div style={{ fontSize:12, fontWeight:600, color:t.text }}>Browse categories</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
+                      {cats.map(cat => (
+                        <button key={cat.id} onClick={() => setActiveElemCat(cat.id)}
+                          style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:0, border:`1px solid ${t.border}`, borderRadius:10, background:t.input, cursor:'pointer', overflow:'hidden', padding:'0 0 8px', transition:'transform 80ms, border-color 150ms' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor=TEAL; e.currentTarget.style.transform='scale(1.03)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor=t.border; e.currentTarget.style.transform='scale(1)'; }}>
+                          <div style={{ width:'100%', background:cat.grad, display:'flex', alignItems:'center', justifyContent:'center', paddingTop:4, paddingBottom:2 }}>
+                            {cat.preview}
+                          </div>
+                          <span style={{ fontSize:11, color:t.text, fontWeight:500, marginTop:6 }}>{cat.label}</span>
                         </button>
                       ))}
                     </div>
-                  </div>
-                ))}
-                {/* Shape properties when selected */}
-                {selectedEl && selectedEl.type !== 'text' && selectedEl.type !== 'image' && (
-                  <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginTop: 4 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Fill</div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-                      {COLOR_PALETTE.map(hex => (
-                        <button key={hex} onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fill: hex }); pickColor(hex, () => {}); }}
-                          style={{ width: 22, height: 22, borderRadius: 5, background: hex, border: selectedEl.fill === hex ? `2px solid #00C4CC` : `1px solid ${t.border}`, cursor: 'pointer', flexShrink: 0 }} />
+                    <div style={{ fontSize:10, fontWeight:700, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.07em', marginTop:4 }}>Quick Add</div>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                      {[
+                        { label:'▭ Rect',     fn:()=>addRect()        },
+                        { label:'● Circle',   fn:()=>addCircle()      },
+                        { label:'▲ Triangle', fn:()=>addTriangle()    },
+                        { label:'★ Star',     fn:()=>addStar()        },
+                        { label:'→ Arrow',    fn:()=>addArrow()       },
+                        { label:'─ Line',     fn:()=>addLine()        },
+                        { label:'T Text',     fn:()=>addText()        },
+                        { label:'💬 Speech',  fn:()=>addSpeechBubble()},
+                      ].map(q => (
+                        <button key={q.label} onMouseDown={e => { e.preventDefault(); q.fn(); }}
+                          style={{ padding:'5px 9px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer' }}
+                          onMouseEnter={e => { e.currentTarget.style.background='rgba(0,196,204,0.1)'; e.currentTarget.style.borderColor=TEAL; }}
+                          onMouseLeave={e => { e.currentTarget.style.background=t.input; e.currentTarget.style.borderColor=t.border; }}>
+                          {q.label}
+                        </button>
                       ))}
-                      <input type="color" value={selectedEl.fill || '#ffffff'}
-                        onChange={e => updateElement({ ...selectedEl, fill: e.target.value })}
-                        onBlur={e => { pushHistory(); pickColor(e.target.value, () => {}); }}
-                        style={{ width: 22, height: 22, borderRadius: 5, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 1, flexShrink: 0 }} />
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Opacity</span>
-                      <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity !== undefined ? selectedEl.opacity : 1}
-                        onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
-                      <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{Math.round((selectedEl.opacity !== undefined ? selectedEl.opacity : 1) * 100)}%</span>
+                  </>
+                )}
+                {/* Properties panel for selected shape */}
+                {selectedEl && !['text','image'].includes(selectedEl.type) && (
+                  <div style={{ borderTop:`1px solid ${t.border}`, paddingTop:12, marginTop:4 }}>
+                    <div style={{ fontSize:11, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>Fill</div>
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom:10 }}>
+                      {COLOR_PALETTE.map(hex => (
+                        <button key={hex} onMouseDown={e => { e.preventDefault(); handleElementChange({...selectedEl, fill:hex}); pickColor(hex, ()=>{}); }}
+                          style={{ width:22, height:22, borderRadius:5, background:hex, border:selectedEl.fill===hex?`2.5px solid ${TEAL}`:`1px solid ${t.border}`, cursor:'pointer', flexShrink:0 }} />
+                      ))}
+                      <input type="color" value={selectedEl.fill||'#ffffff'}
+                        onChange={e => updateElement({...selectedEl, fill:e.target.value})}
+                        onBlur={e => { pushHistory(); pickColor(e.target.value, ()=>{}); }}
+                        style={{ width:22, height:22, borderRadius:5, border:`1px solid ${t.border}`, cursor:'pointer', padding:1, flexShrink:0 }} />
                     </div>
-                    {/* ── Content editor for array-based elements ── */}
-                    {selectedEl.type === 'pricetag' && (
-                      <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Features</div>
-                        {(selectedEl.ptFeatures || []).map((f, i) => (
-                          <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 5, alignItems: 'center' }}>
-                            <input value={f} onChange={e => { const arr = [...(selectedEl.ptFeatures || [])]; arr[i] = e.target.value; updateElement({...selectedEl, ptFeatures: arr}); }} onBlur={() => pushHistory()}
-                              style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, outline: 'none' }} />
-                            <button onClick={() => { const arr = (selectedEl.ptFeatures || []).filter((_,j) => j !== i); pushHistory(); updateElement({...selectedEl, ptFeatures: arr}); }}
-                              style={{ width: 22, height: 22, border: 'none', borderRadius: 5, background: 'transparent', color: t.textMuted, cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>×</button>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap' }}>Opacity</span>
+                      <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity!==undefined?selectedEl.opacity:1}
+                        onChange={e => updateElement({...selectedEl, opacity:parseFloat(e.target.value)})}
+                        onMouseUp={()=>pushHistory()} style={{ flex:1, accentColor:TEAL }} />
+                      <span style={{ fontSize:11, color:t.textMuted, width:28, textAlign:'right' }}>{Math.round((selectedEl.opacity!==undefined?selectedEl.opacity:1)*100)}%</span>
+                    </div>
+                    {selectedEl.type==='pricetag' && (
+                      <div style={{ marginTop:12 }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>Features</div>
+                        {(selectedEl.ptFeatures||[]).map((f,i) => (
+                          <div key={i} style={{ display:'flex', gap:4, marginBottom:5, alignItems:'center' }}>
+                            <input value={f} onChange={e => { const arr=[...(selectedEl.ptFeatures||[])]; arr[i]=e.target.value; updateElement({...selectedEl,ptFeatures:arr}); }} onBlur={()=>pushHistory()}
+                              style={{ flex:1, padding:'4px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, outline:'none' }} />
+                            <button onClick={() => { const arr=(selectedEl.ptFeatures||[]).filter((_,j)=>j!==i); pushHistory(); updateElement({...selectedEl,ptFeatures:arr}); }}
+                              style={{ width:22, height:22, border:'none', borderRadius:5, background:'transparent', color:t.textMuted, cursor:'pointer', fontSize:14, flexShrink:0 }}>×</button>
                           </div>
                         ))}
-                        {(selectedEl.ptFeatures || []).length < 6 && (
-                          <button onClick={() => { pushHistory(); updateElement({...selectedEl, ptFeatures: [...(selectedEl.ptFeatures || []), 'New feature']}); }}
-                            style={{ width: '100%', padding: '5px', border: `1px dashed ${t.border}`, borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer' }}>
-                            + Add feature
-                          </button>
+                        {(selectedEl.ptFeatures||[]).length<6 && (
+                          <button onClick={() => { pushHistory(); updateElement({...selectedEl,ptFeatures:[...(selectedEl.ptFeatures||[]),'New feature']}); }}
+                            style={{ width:'100%', padding:'5px', border:`1px dashed ${t.border}`, borderRadius:6, background:'transparent', color:t.textMuted, fontSize:11, cursor:'pointer' }}>+ Add feature</button>
                         )}
                       </div>
                     )}
-                    {selectedEl.type === 'htimeline' && (
-                      <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Steps</div>
-                        {(selectedEl.tlSteps || []).map((s, i) => (
-                          <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 5, alignItems: 'center' }}>
-                            <span style={{ fontSize: 11, color: t.textMuted, width: 16, flexShrink: 0 }}>{i+1}</span>
-                            <input value={s} onChange={e => { const arr = [...(selectedEl.tlSteps || [])]; arr[i] = e.target.value; updateElement({...selectedEl, tlSteps: arr}); }} onBlur={() => pushHistory()}
-                              style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, outline: 'none' }} />
+                    {selectedEl.type==='htimeline' && (
+                      <div style={{ marginTop:12 }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>Steps</div>
+                        {(selectedEl.tlSteps||[]).map((s,i) => (
+                          <div key={i} style={{ display:'flex', gap:4, marginBottom:5, alignItems:'center' }}>
+                            <span style={{ fontSize:11, color:t.textMuted, width:16, flexShrink:0 }}>{i+1}</span>
+                            <input value={s} onChange={e => { const arr=[...(selectedEl.tlSteps||[])]; arr[i]=e.target.value; updateElement({...selectedEl,tlSteps:arr}); }} onBlur={()=>pushHistory()}
+                              style={{ flex:1, padding:'4px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, outline:'none' }} />
                           </div>
                         ))}
                       </div>
                     )}
-                    {selectedEl.type === 'comparison' && (
-                      <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Rows</div>
-                        {(selectedEl.cpRows || []).map((row, i) => (
-                          <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 5, alignItems: 'center' }}>
-                            <input value={row.col1 || ''} onChange={e => { const arr = [...(selectedEl.cpRows||[])]; arr[i] = {...arr[i], col1: e.target.value}; updateElement({...selectedEl, cpRows: arr}); }} onBlur={() => pushHistory()}
-                              style={{ flex: 1, padding: '4px 6px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 11, outline: 'none' }} />
-                            <input value={row.col2 || ''} onChange={e => { const arr = [...(selectedEl.cpRows||[])]; arr[i] = {...arr[i], col2: e.target.value}; updateElement({...selectedEl, cpRows: arr}); }} onBlur={() => pushHistory()}
-                              style={{ flex: 1, padding: '4px 6px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 11, outline: 'none' }} />
-                            <button onClick={() => { const arr = (selectedEl.cpRows||[]).filter((_,j)=>j!==i); pushHistory(); updateElement({...selectedEl,cpRows:arr}); }}
-                              style={{ width: 20, height: 20, border: 'none', borderRadius: 4, background: 'transparent', color: t.textMuted, cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>×</button>
+                    {selectedEl.type==='comparison' && (
+                      <div style={{ marginTop:12 }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>Rows</div>
+                        {(selectedEl.cpRows||[]).map((row,i) => (
+                          <div key={i} style={{ display:'flex', gap:4, marginBottom:5, alignItems:'center' }}>
+                            <input value={row.col1||''} onChange={e => { const arr=[...(selectedEl.cpRows||[])]; arr[i]={...arr[i],col1:e.target.value}; updateElement({...selectedEl,cpRows:arr}); }} onBlur={()=>pushHistory()}
+                              style={{ flex:1, padding:'4px 6px', borderRadius:5, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, outline:'none' }} />
+                            <input value={row.col2||''} onChange={e => { const arr=[...(selectedEl.cpRows||[])]; arr[i]={...arr[i],col2:e.target.value}; updateElement({...selectedEl,cpRows:arr}); }} onBlur={()=>pushHistory()}
+                              style={{ flex:1, padding:'4px 6px', borderRadius:5, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, outline:'none' }} />
+                            <button onClick={() => { const arr=(selectedEl.cpRows||[]).filter((_,j)=>j!==i); pushHistory(); updateElement({...selectedEl,cpRows:arr}); }}
+                              style={{ width:20, height:20, border:'none', borderRadius:4, background:'transparent', color:t.textMuted, cursor:'pointer', fontSize:14, flexShrink:0 }}>×</button>
                           </div>
                         ))}
-                        {(selectedEl.cpRows||[]).length < 6 && (
-                          <button onClick={() => { pushHistory(); updateElement({...selectedEl, cpRows: [...(selectedEl.cpRows||[]), {col1:'✗ Them', col2:'✓ Us'}]}); }}
-                            style={{ width: '100%', padding: '5px', border: `1px dashed ${t.border}`, borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer' }}>
-                            + Add row
-                          </button>
+                        {(selectedEl.cpRows||[]).length<6 && (
+                          <button onClick={() => { pushHistory(); updateElement({...selectedEl,cpRows:[...(selectedEl.cpRows||[]),{col1:'✗ Them',col2:'✓ Us'}]}); }}
+                            style={{ width:'100%', padding:'5px', border:`1px dashed ${t.border}`, borderRadius:6, background:'transparent', color:t.textMuted, fontSize:11, cursor:'pointer' }}>+ Add row</button>
                         )}
                       </div>
                     )}
-                    {selectedEl.type === 'steplist' && (
-                      <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Steps</div>
-                        {(selectedEl.steps || ['Step one', 'Step two', 'Step three']).map((s, i) => (
-                          <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 5, alignItems: 'center' }}>
-                            <span style={{ fontSize: 11, color: t.textMuted, width: 16, flexShrink: 0 }}>{i+1}</span>
-                            <input value={s} onChange={e => { const arr = [...(selectedEl.steps||['Step one','Step two','Step three'])]; arr[i] = e.target.value; updateElement({...selectedEl, steps: arr}); }} onBlur={() => pushHistory()}
-                              style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, outline: 'none' }} />
+                    {selectedEl.type==='steplist' && (
+                      <div style={{ marginTop:12 }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>Steps</div>
+                        {(selectedEl.steps||['Step one','Step two','Step three']).map((s,i) => (
+                          <div key={i} style={{ display:'flex', gap:4, marginBottom:5, alignItems:'center' }}>
+                            <span style={{ fontSize:11, color:t.textMuted, width:16, flexShrink:0 }}>{i+1}</span>
+                            <input value={s} onChange={e => { const arr=[...(selectedEl.steps||['Step one','Step two','Step three'])]; arr[i]=e.target.value; updateElement({...selectedEl,steps:arr}); }} onBlur={()=>pushHistory()}
+                              style={{ flex:1, padding:'4px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, outline:'none' }} />
                           </div>
                         ))}
                       </div>
@@ -8635,7 +8699,8 @@ export default function TemplatesEditorInner() {
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
 
             {/* FILTERS */}
             {activeLeftTool === 'filters' && (
