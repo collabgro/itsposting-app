@@ -183,6 +183,7 @@ function emptyPage() {
     bgImageUrl: null, bgSource: null, bgSourceId: null,
     bgFilter: 'normal', bgBrightness: 0, bgContrast: 0, bgSaturation: 0,
     lockedIds: [], hiddenIds: [],
+    duration: 5, // seconds (used in video mode)
   };
 }
 
@@ -738,6 +739,7 @@ export default function TemplatesEditorInner() {
   const [videoPlayhead, setVideoPlayhead] = useState(0); // seconds
   const [isPlaying, setIsPlaying] = useState(false);
   const playIntervalRef = useRef(null);
+  const [editingClipIdx, setEditingClipIdx] = useState(null); // page index being duration-edited
   const [rulerGuides, setRulerGuides] = useState({ h: [], v: [] });
   const [draggingGuide, setDraggingGuide] = useState(null); // { axis:'h'|'v', pos:number } canvas px
   const canvasWrapperRef = useRef(null);
@@ -3782,36 +3784,53 @@ export default function TemplatesEditorInner() {
                   ))}
                 </div>
 
-                {/* Main track — pages as clips */}
+                {/* Main track — pages as clips (double-click to edit duration) */}
                 <div style={{ height: TRACK_H, borderBottom: `1px solid ${t.border}`, position: 'relative', background: t.input }}>
                   {(() => {
                     let offset = 0;
                     return pages.map((page, i) => {
                       const dur = page.duration || 5;
                       const left = offset * pxPerSec;
-                      const w = dur * pxPerSec - 2;
+                      const w = Math.max(dur * pxPerSec - 2, 30);
                       const isActivePage = i === activePage;
+                      const isEditingThis = editingClipIdx === i;
                       offset += dur;
                       return (
-                        <div key={page.id} onClick={() => { setActivePage(i); setSelectedId(null); }}
-                          title={`Page ${i + 1} · ${dur}s`}
-                          style={{ position: 'absolute', left, top: 3, width: Math.max(w, 4), height: TRACK_H - 8, borderRadius: 4, background: isActivePage ? 'rgba(0,196,204,0.35)' : 'rgba(155,79,212,0.3)', border: `1px solid ${isActivePage ? '#00C4CC' : 'rgba(155,79,212,0.5)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden' }}>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: isActivePage ? '#00C4CC' : t.text, whiteSpace: 'nowrap' }}>P{i + 1}</span>
+                        <div key={page.id}
+                          onClick={() => { setActivePage(i); setSelectedId(null); }}
+                          onDoubleClick={e => { e.stopPropagation(); setEditingClipIdx(i); }}
+                          title={`Page ${i + 1} · ${dur}s — dbl-click to set duration`}
+                          style={{ position: 'absolute', left, top: 3, width: w, height: TRACK_H - 8, borderRadius: 4, background: isActivePage ? 'rgba(0,196,204,0.35)' : 'rgba(155,79,212,0.3)', border: `1px solid ${isActivePage ? '#00C4CC' : 'rgba(155,79,212,0.5)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden', gap: 4 }}>
+                          {isEditingThis ? (
+                            <input autoFocus type="number" min={1} max={60} defaultValue={dur}
+                              onBlur={e => { const v = Math.max(1, Math.min(60, parseFloat(e.target.value) || dur)); patchPage({ duration: v }); setEditingClipIdx(null); }}
+                              onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingClipIdx(null); }}
+                              onClick={e => e.stopPropagation()}
+                              style={{ width: 44, fontSize: 10, background: t.card, border: `1px solid #00C4CC`, borderRadius: 3, color: t.text, padding: '1px 3px', outline: 'none' }} />
+                          ) : (
+                            <>
+                              <span style={{ fontSize: 10, fontWeight: 600, color: isActivePage ? '#00C4CC' : t.text, whiteSpace: 'nowrap' }}>P{i + 1}</span>
+                              <span style={{ fontSize: 9, color: t.textMuted, whiteSpace: 'nowrap' }}>{dur}s</span>
+                            </>
+                          )}
                         </div>
                       );
                     });
                   })()}
                 </div>
 
-                {/* Text track (placeholder) */}
+                {/* Text track — text elements as clips (click to select) */}
                 <div style={{ height: TRACK_H, borderBottom: `1px solid ${t.border}`, position: 'relative', background: t.bg }}>
                   {elements.filter(e => e.type === 'text').map(el => {
                     const dur = el.videoDuration || 3;
                     const start = el.videoStart || 0;
+                    const isSelEl = selectedId === el.id;
                     return (
-                      <div key={el.id}
-                        style={{ position: 'absolute', left: start * pxPerSec, top: 3, width: Math.max(dur * pxPerSec - 2, 4), height: TRACK_H - 8, borderRadius: 4, background: 'rgba(245,158,11,0.3)', border: '1px solid rgba(245,158,11,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden' }}>
-                        <span style={{ fontSize: 10, color: '#f59e0b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>T</span>
+                      <div key={el.id} onClick={() => { setSelectedId(el.id); setSelectedIds([el.id]); }}
+                        title={el.text || 'Text element'}
+                        style={{ position: 'absolute', left: start * pxPerSec, top: 3, width: Math.max(dur * pxPerSec - 2, 4), height: TRACK_H - 8, borderRadius: 4, background: isSelEl ? 'rgba(245,158,11,0.5)' : 'rgba(245,158,11,0.25)', border: `1px solid ${isSelEl ? '#f59e0b' : 'rgba(245,158,11,0.5)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden', gap: 3 }}>
+                        <span style={{ fontSize: 9, color: '#f59e0b' }}>T</span>
+                        <span style={{ fontSize: 9, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(el.text || '').slice(0, 12)}</span>
                       </div>
                     );
                   })}
