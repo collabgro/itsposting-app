@@ -2763,6 +2763,101 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'beforeafter') {
+    const baw = el.width || 340, bah = el.height || 200;
+    const leftColor = el.fill || '#6b7280';
+    const rightColor = el.baRightColor || '#22c55e';
+    const leftLabel = el.baLeftLabel || 'BEFORE';
+    const rightLabel = el.baRightLabel || 'AFTER';
+    const dividerColor = el.baDividerColor || '#ffffff';
+    const cornerR3 = el.cornerRadius ?? 10;
+    const labelStyle = el.baLabelStyle || 'pill'; // 'pill' | 'corner' | 'center'
+
+    return (
+      <Shape {...common}
+        width={baw} height={bah}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          const half = w / 2;
+
+          // Left panel
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(0, 0, half, h, [cornerR3, 0, 0, cornerR3]);
+          ctx.fillStyle = leftColor;
+          ctx.fill();
+          ctx.restore();
+
+          // Right panel
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(half, 0, half, h, [0, cornerR3, cornerR3, 0]);
+          ctx.fillStyle = rightColor;
+          ctx.fill();
+          ctx.restore();
+
+          // Divider line with arrow icon
+          ctx.fillStyle = dividerColor;
+          ctx.fillRect(half - 1.5, 0, 3, h);
+          // Center circle
+          const circleR2 = Math.min(18, h * 0.12);
+          ctx.beginPath();
+          ctx.arc(half, h / 2, circleR2, 0, Math.PI * 2);
+          ctx.fillStyle = dividerColor;
+          ctx.fill();
+          ctx.fillStyle = '#333333';
+          ctx.font = `bold ${Math.round(circleR2 * 0.9)}px Inter, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('⟺', half, h / 2);
+
+          // Labels
+          const fS4 = Math.max(10, Math.round(baw * 0.052));
+          ctx.font = `bold ${fS4}px Inter, sans-serif`;
+          ctx.fillStyle = '#ffffff';
+          ctx.textBaseline = 'middle';
+
+          if (labelStyle === 'pill') {
+            [[leftLabel, half * 0.5], [rightLabel, half + half * 0.5]].forEach(([lbl, lx]) => {
+              const tw4 = ctx.measureText(lbl).width + 16;
+              ctx.save();
+              ctx.fillStyle = 'rgba(0,0,0,0.45)';
+              ctx.beginPath();
+              ctx.roundRect(lx - tw4 / 2, h - fS4 * 1.8 - 8, tw4, fS4 * 1.6, fS4 * 0.8);
+              ctx.fill();
+              ctx.fillStyle = '#ffffff';
+              ctx.textAlign = 'center';
+              ctx.fillText(lbl, lx, h - fS4 - 8);
+              ctx.restore();
+            });
+          } else if (labelStyle === 'corner') {
+            ctx.textAlign = 'left';
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(0, 0, half * 0.55, fS4 * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(leftLabel, 8, fS4);
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(half, 0, half * 0.55, fS4 * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(rightLabel, half + 8, fS4);
+          } else {
+            ctx.textAlign = 'center';
+            ctx.fillText(leftLabel, half * 0.5, h / 2 - circleR2 * 2);
+            ctx.fillText(rightLabel, half + half * 0.5, h / 2 - circleR2 * 2);
+          }
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -3681,6 +3776,21 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addBeforeAfter() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'beforeafter',
+      x: canvasSize.w / 2 - 170, y: canvasSize.h / 2 - 100,
+      width: 340, height: 200, opacity: 1,
+      fill: '#6b7280', baRightColor: '#22c55e',
+      baLeftLabel: 'BEFORE', baRightLabel: 'AFTER',
+      baDividerColor: '#ffffff', cornerRadius: 10,
+      baLabelStyle: 'pill',
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -6043,6 +6153,27 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'beforeafter' && <>
+                <D />
+                {[['Pill','pill'],['Corner','corner'],['Center','center']].map(([lbl,s]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, baLabelStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.baLabelStyle||'pill')===s?'#00C4CC':t.border}`, background:(selectedEl.baLabelStyle||'pill')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.baLabelStyle||'pill')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Before</span>
+                <ColorPickerButton value={selectedEl.fill||'#6b7280'} onChange={c=>updateElement({...selectedEl,fill:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>After</span>
+                <ColorPickerButton value={selectedEl.baRightColor||'#22c55e'} onChange={c=>updateElement({...selectedEl,baRightColor:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <D />
+                {[['Gray→Green','#6b7280','#22c55e'],['Dark→Teal','#374151','#00C4CC'],['Red→Green','#ef4444','#22c55e'],['Blue→Purple','#3b82f6','#7C5CFC']].map(([lbl,l,r])=>(
+                  <button key={lbl} onClick={()=>{pushHistory();updateElement({...selectedEl,fill:l,baRightColor:r});}}
+                    style={{height:26,padding:'0 7px',borderRadius:5,border:`1px solid ${t.border}`,background:`linear-gradient(to right,${l},${r})`,color:'#fff',fontSize:10,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap',fontWeight:600,textShadow:'0 1px 2px rgba(0,0,0,0.5)'}}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'testimonial' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Stars</span>
@@ -7456,6 +7587,7 @@ export default function TemplatesEditorInner() {
                     { label: 'QR Code',   icon: '▣', fn: () => addQrCode() },
                     { label: 'Glass',     icon: '◫', fn: () => addGlassPane() },
                     { label: 'Review',    icon: '⭐', fn: () => addTestimonial() },
+                    { label: 'Before/After', icon: '⟺', fn: () => addBeforeAfter() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -8543,7 +8675,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
