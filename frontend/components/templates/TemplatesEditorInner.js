@@ -998,6 +998,68 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'table') {
+    const tw = el.width || 280, th = el.height || 160;
+    const rows = el.tableRows || 3, cols = el.tableCols || 3;
+    const cellW = tw / cols, cellH = th / rows;
+    const headerColor = el.headerColor || '#00C4CC';
+    const rowEven = el.rowEvenColor || 'rgba(255,255,255,0.08)';
+    const rowOdd = el.rowOddColor || 'rgba(255,255,255,0.04)';
+    const borderColor = el.borderColor || 'rgba(255,255,255,0.25)';
+    const textColor = el.labelColor || '#ffffff';
+    const cells = el.cells || [];
+
+    return (
+      <Shape {...common}
+        width={tw} height={th}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape) => {
+          const w = shape.width(), h = shape.height();
+          const cw2 = w / cols, ch2 = h / rows;
+
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              const x = c * cw2, y = r * ch2;
+              if (r === 0) {
+                ctx.fillStyle = headerColor;
+              } else {
+                ctx.fillStyle = r % 2 === 0 ? rowEven : rowOdd;
+              }
+              ctx.fillRect(x, y, cw2, ch2);
+
+              // Cell text
+              const cellData = cells[r * cols + c] || {};
+              const label = cellData.text || (r === 0 ? `Col ${c + 1}` : `${r},${c + 1}`);
+              const fsize = Math.max(8, Math.min(14, Math.round(ch2 * 0.38)));
+              ctx.font = `${r === 0 ? 'bold' : 'normal'} ${fsize}px Inter, sans-serif`;
+              ctx.fillStyle = r === 0 ? '#ffffff' : textColor;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(label, x + cw2 / 2, y + ch2 / 2);
+            }
+          }
+
+          // Grid lines
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = 0.75;
+          for (let r = 0; r <= rows; r++) {
+            ctx.beginPath();
+            ctx.moveTo(0, r * ch2);
+            ctx.lineTo(w, r * ch2);
+            ctx.stroke();
+          }
+          for (let c = 0; c <= cols; c++) {
+            ctx.beginPath();
+            ctx.moveTo(c * cw2, 0);
+            ctx.lineTo(c * cw2, h);
+            ctx.stroke();
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -1860,6 +1922,19 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addTable() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'table',
+      x: canvasSize.w / 2 - 140, y: canvasSize.h / 2 - 80,
+      width: 280, height: 160, opacity: 1,
+      tableRows: 4, tableCols: 3,
+      headerColor: '#00C4CC',
+    };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -3928,6 +4003,29 @@ export default function TemplatesEditorInner() {
                   onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
                 <span style={{ fontSize:11, color:t.textMuted, minWidth:18, flexShrink:0 }}>{selectedEl.cornerRadius ?? 7}</span>
               </>}
+              {selectedEl.type === 'table' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Rows</span>
+                <input type="range" min={1} max={10} step={1} value={selectedEl.tableRows || 3}
+                  onChange={e => updateElement({...selectedEl, tableRows: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:14, flexShrink:0 }}>{selectedEl.tableRows || 3}</span>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Cols</span>
+                <input type="range" min={1} max={8} step={1} value={selectedEl.tableCols || 3}
+                  onChange={e => updateElement({...selectedEl, tableCols: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:14, flexShrink:0 }}>{selectedEl.tableCols || 3}</span>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Header</span>
+                <ColorPickerButton
+                  value={selectedEl.headerColor || '#00C4CC'}
+                  onChange={c => updateElement({...selectedEl, headerColor: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+              </>}
               {selectedEl.type === 'chart' && <>
                 <D />
                 {[['bar','📊 Bar'],['pie','🥧 Pie']].map(([ct, lbl]) => (
@@ -4798,6 +4896,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Progress',  icon: '▬', fn: () => addProgressBar() },
                     { label: 'Bar Chart', icon: '📊', fn: () => addChart('bar') },
                     { label: 'Pie Chart', icon: '🥧', fn: () => addChart('pie') },
+                    { label: 'Table',     icon: '⊞', fn: () => addTable() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -5885,7 +5984,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
