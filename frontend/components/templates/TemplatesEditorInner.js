@@ -3714,6 +3714,8 @@ export default function TemplatesEditorInner() {
   const baseScaleRef = useRef(1);
   const stageRef = useRef(null);
   const trLayerRef = useRef(null);
+  const spaceDownRef = useRef(false);
+  const panOriginRef = useRef(null);
 
   // ── Display scale ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -3981,6 +3983,62 @@ export default function TemplatesEditorInner() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [selectedId, selectedIds, editingTextId, history, historyIndex, elements, clipboard, zoomFactor, previewOpen]);
+
+  // ── Spacebar pan ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    const el = containerRef.current;
+    const onKeyDown = (e) => {
+      if (e.code === 'Space' && !editingTextId && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        if (!spaceDownRef.current) {
+          spaceDownRef.current = true;
+          if (el) el.style.cursor = 'grab';
+        }
+      }
+    };
+    const onKeyUp = (e) => {
+      if (e.code === 'Space') {
+        spaceDownRef.current = false;
+        panOriginRef.current = null;
+        if (el) el.style.cursor = '';
+      }
+    };
+    const onMouseDown = (e) => {
+      if (!spaceDownRef.current) return;
+      e.preventDefault();
+      panOriginRef.current = { x: e.clientX, y: e.clientY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop };
+      el.style.cursor = 'grabbing';
+    };
+    const onMouseMove = (e) => {
+      if (!panOriginRef.current) return;
+      const dx = e.clientX - panOriginRef.current.x;
+      const dy = e.clientY - panOriginRef.current.y;
+      el.scrollLeft = panOriginRef.current.scrollLeft - dx;
+      el.scrollTop  = panOriginRef.current.scrollTop  - dy;
+    };
+    const onMouseUp = () => {
+      if (panOriginRef.current) {
+        panOriginRef.current = null;
+        if (spaceDownRef.current && el) el.style.cursor = 'grab';
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    if (el) {
+      el.addEventListener('mousedown', onMouseDown);
+      el.addEventListener('mousemove', onMouseMove);
+      el.addEventListener('mouseup', onMouseUp);
+    }
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      if (el) {
+        el.removeEventListener('mousedown', onMouseDown);
+        el.removeEventListener('mousemove', onMouseMove);
+        el.removeEventListener('mouseup', onMouseUp);
+      }
+    };
+  }, [editingTextId]);
 
   // ── Preview capture ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -8622,11 +8680,27 @@ export default function TemplatesEditorInner() {
           onWheel={e => {
             if (e.ctrlKey || e.metaKey) {
               e.preventDefault();
-              const delta = e.deltaY > 0 ? -0.1 : 0.1;
-              setZoomFactor(z => Math.max(0.1, Math.min(3, parseFloat((z + delta).toFixed(2)))));
+              const el = containerRef.current;
+              if (!el) return;
+              // Cursor position relative to scroll container
+              const rect = el.getBoundingClientRect();
+              const cursorY = e.clientY - rect.top + el.scrollTop;
+              const cursorX = e.clientX - rect.left + el.scrollLeft;
+              const factor = e.deltaY > 0 ? 0.92 : 1.08;
+              setZoomFactor(prev => {
+                const next = Math.max(0.1, Math.min(3, parseFloat((prev * factor).toFixed(3))));
+                // After state update, adjust scroll so cursor-under-point stays fixed
+                requestAnimationFrame(() => {
+                  if (!el) return;
+                  const ratio = next / prev;
+                  el.scrollLeft = cursorX * ratio - (e.clientX - rect.left);
+                  el.scrollTop  = cursorY * ratio - (e.clientY - rect.top);
+                });
+                return next;
+              });
             }
           }}
-          style={{ flex: 1, overflowY: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
+          style={{ flex: 1, overflow: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
             {pages.map((page, pageIdx) => {
               const isActive = pageIdx === activePage;
@@ -8734,6 +8808,7 @@ export default function TemplatesEditorInner() {
                         }
                       }) : undefined}
                       onMouseDown={isActive ? (e => {
+                        if (spaceDownRef.current) return;
                         if (drawMode) {
                           const pos = e.target.getStage().getRelativePointerPosition();
                           const newEl = { id: uid(), type: 'draw', points: [pos.x, pos.y], stroke: drawColor, strokeWidth: drawWidth, opacity: 1, x: 0, y: 0 };
