@@ -1272,6 +1272,14 @@ export default function TemplatesEditorInner() {
     setSelectedId(el.id);
   }
 
+  function setElementAsBackground(el) {
+    if (!el || el.type !== 'image') return;
+    pushHistory();
+    patchPage({ bgType: 'image', bgImageUrl: el.src, bgSource: 'upload' });
+    patchElements(prev => prev.filter(e => e.id !== el.id));
+    setSelectedId(null);
+  }
+
   function addImageElement(url) {
     const w = canvasSize.w * 0.6;
     const h = w;
@@ -2390,6 +2398,7 @@ export default function TemplatesEditorInner() {
           return (
             <>
               <Btn label="⇄ Replace" active={false} onClick={() => replaceFileRef.current?.click()} />
+              <Btn label="🖼 Set as BG" active={false} onClick={() => setElementAsBackground(selectedEl)} />
               <D />
               {/* Color tint */}
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Tint</span>
@@ -4770,8 +4779,9 @@ export default function TemplatesEditorInner() {
           el && { label: 'Send to Back',  shortcut: 'Shift+[',fn: () => sendToBack(el.id) },
           el && { sep: true },
           el && el.type === 'group' && { label: 'Ungroup', shortcut: 'Ctrl+⇧G', fn: () => ungroupSelected() },
+          el && el.type === 'image' && { label: '🖼 Set as background', fn: () => setElementAsBackground(el) },
           el && pages.length > 1 && { label: 'Add to all pages', fn: () => addElToAllPages(el.id) },
-          (el?.type === 'group' || pages.length > 1) && el && { sep: true },
+          (el?.type === 'group' || el?.type === 'image' || pages.length > 1) && el && { sep: true },
           el && { label: isLocked ? 'Unlock' : 'Lock',        fn: () => toggleLocked(el.id) },
           el && { label: isHidden ? 'Show'   : 'Hide',        fn: () => toggleHidden(el.id) },
           el && { sep: true },
