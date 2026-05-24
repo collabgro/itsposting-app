@@ -917,6 +917,87 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'chart') {
+    const cw = el.width || 240, ch = el.height || 160;
+    const data = el.chartData || [
+      { label: 'A', value: 40, color: '#00C4CC' },
+      { label: 'B', value: 65, color: '#7C5CFC' },
+      { label: 'C', value: 25, color: '#f59e0b' },
+    ];
+    const chartType = el.chartType || 'bar';
+    return (
+      <Shape {...common}
+        width={cw} height={ch}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape) => {
+          const w = shape.width(), h = shape.height();
+          const pad = 12;
+
+          if (chartType === 'bar') {
+            const maxVal = Math.max(...data.map(d => d.value), 1);
+            const barW = (w - pad * 2) / data.length;
+            const labelH = 14, barAreaH = h - pad * 2 - labelH;
+
+            data.forEach((d, i) => {
+              const bh = Math.max(2, (d.value / maxVal) * barAreaH);
+              const bx = pad + i * barW + barW * 0.12;
+              const by = pad + barAreaH - bh;
+              const bw = barW * 0.76;
+              const r = Math.min(4, bw / 2);
+              ctx.beginPath();
+              ctx.roundRect(bx, by, bw, bh, [r, r, 0, 0]);
+              ctx.fillStyle = d.color || '#00C4CC';
+              ctx.fill();
+              // Label
+              ctx.fillStyle = el.labelColor || 'rgba(255,255,255,0.7)';
+              ctx.font = `${Math.max(9, Math.round(barW * 0.3))}px Inter, sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'top';
+              ctx.fillText(d.label || '', bx + bw / 2, pad + barAreaH + 3);
+              // Value
+              ctx.font = `bold ${Math.max(8, Math.round(barW * 0.26))}px Inter, sans-serif`;
+              ctx.fillStyle = d.color || '#00C4CC';
+              ctx.textBaseline = 'bottom';
+              ctx.fillText(d.value, bx + bw / 2, by - 1);
+            });
+
+          } else {
+            // Pie chart
+            const cx = w / 2, cy = h / 2;
+            const r = Math.min(cx, cy) - pad;
+            const total = data.reduce((s, d) => s + d.value, 0) || 1;
+            let startAngle = -Math.PI / 2;
+
+            data.forEach((d, i) => {
+              const sliceAngle = (d.value / total) * Math.PI * 2;
+              ctx.beginPath();
+              ctx.moveTo(cx, cy);
+              ctx.arc(cx, cy, r, startAngle, startAngle + sliceAngle);
+              ctx.closePath();
+              ctx.fillStyle = d.color || '#00C4CC';
+              ctx.fill();
+              // Gap line
+              ctx.strokeStyle = el.bgFill || 'rgba(0,0,0,0.3)';
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+              // Label at midpoint
+              const midAngle = startAngle + sliceAngle / 2;
+              const lx = cx + (r * 0.65) * Math.cos(midAngle);
+              const ly = cy + (r * 0.65) * Math.sin(midAngle);
+              ctx.fillStyle = '#fff';
+              ctx.font = `bold ${Math.max(9, Math.round(r * 0.16))}px Inter, sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              if (sliceAngle > 0.3) ctx.fillText(d.label || '', lx, ly);
+              startAngle += sliceAngle;
+            });
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -1779,6 +1860,22 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addChart(chartType = 'bar') {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'chart', chartType,
+      x: canvasSize.w / 2 - 120, y: canvasSize.h / 2 - 80,
+      width: 240, height: 160, opacity: 1,
+      chartData: [
+        { label: 'A', value: 40, color: '#00C4CC' },
+        { label: 'B', value: 65, color: '#7C5CFC' },
+        { label: 'C', value: 25, color: '#f59e0b' },
+      ],
+    };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -3831,6 +3928,26 @@ export default function TemplatesEditorInner() {
                   onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
                 <span style={{ fontSize:11, color:t.textMuted, minWidth:18, flexShrink:0 }}>{selectedEl.cornerRadius ?? 7}</span>
               </>}
+              {selectedEl.type === 'chart' && <>
+                <D />
+                {[['bar','📊 Bar'],['pie','🥧 Pie']].map(([ct, lbl]) => (
+                  <button key={ct} onClick={() => { pushHistory(); updateElement({...selectedEl, chartType: ct}); }}
+                    style={{ height:28, padding:'0 9px', borderRadius:6, border:`1px solid ${(selectedEl.chartType||'bar')===ct?'#00C4CC':t.border}`, background:(selectedEl.chartType||'bar')===ct?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.chartType||'bar')===ct?'#00C4CC':t.text, fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                {/* Per-item color pickers for the 3 default series */}
+                {(selectedEl.chartData || []).map((d, i) => (
+                  <ColorPickerButton key={i}
+                    value={d.color || '#00C4CC'}
+                    onChange={c => { const nd = [...(selectedEl.chartData||[])]; nd[i] = {...nd[i], color:c}; updateElement({...selectedEl, chartData:nd}); }}
+                    onCommit={() => pushHistory()}
+                    recentColors={recentColors}
+                    size={18}
+                  />
+                ))}
+              </>}
               <D />
               {/* Border toggle + color + width */}
               <Btn label="Border" active={!!selectedEl.borderEnabled}
@@ -4679,6 +4796,8 @@ export default function TemplatesEditorInner() {
                     { label: 'Slant',     icon: '▱', fn: () => addSmartShape('parallelogram') },
                     { label: 'Banner',    icon: '⛳', fn: () => addSmartShape('banner') },
                     { label: 'Progress',  icon: '▬', fn: () => addProgressBar() },
+                    { label: 'Bar Chart', icon: '📊', fn: () => addChart('bar') },
+                    { label: 'Pie Chart', icon: '🥧', fn: () => addChart('pie') },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -5766,7 +5885,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
