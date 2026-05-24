@@ -536,7 +536,7 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
 
   if (el.type === 'triangle') return (
     <RegularPolygon {...common}
-      sides={3}
+      sides={el.sides || 3}
       radius={el.radius || 60}
       fill={isGradFill ? undefined : (el.fill || 'rgba(255,255,255,0.2)')}
       {...gradFillProps}
@@ -546,7 +546,7 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
 
   if (el.type === 'star') return (
     <Star {...common}
-      numPoints={5}
+      numPoints={el.numPoints || 5}
       outerRadius={el.outerRadius || 60}
       innerRadius={el.innerRadius || 25}
       fill={isGradFill ? undefined : (el.fill || 'rgba(255,255,255,0.2)')}
@@ -2699,6 +2699,27 @@ export default function TemplatesEditorInner() {
                   onChange={e => updateElement({...selectedEl, cornerRadius:parseInt(e.target.value)})}
                   onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0 }} />
                 <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.cornerRadius||0}</span>
+              </>}
+              {selectedEl.type === 'triangle' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Sides</span>
+                <input type="range" min={3} max={12} value={selectedEl.sides||3}
+                  onChange={e => updateElement({...selectedEl, sides:parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:18, flexShrink:0 }}>{selectedEl.sides||3}</span>
+              </>}
+              {selectedEl.type === 'star' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Points</span>
+                <input type="range" min={3} max={12} value={selectedEl.numPoints||5}
+                  onChange={e => updateElement({...selectedEl, numPoints:parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:18, flexShrink:0 }}>{selectedEl.numPoints||5}</span>
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Depth</span>
+                <input type="range" min={5} max={90} value={Math.round(((selectedEl.innerRadius||25)/(selectedEl.outerRadius||60))*100)}
+                  onChange={e => { const outer=selectedEl.outerRadius||60; updateElement({...selectedEl, innerRadius:Math.max(2,Math.round(outer*parseInt(e.target.value)/100))}); }}
+                  onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:28, flexShrink:0 }}>{Math.round(((selectedEl.innerRadius||25)/(selectedEl.outerRadius||60))*100)}%</span>
               </>}
               <D />
               {/* Border toggle + color + width */}
