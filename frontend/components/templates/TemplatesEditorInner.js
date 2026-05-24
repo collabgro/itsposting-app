@@ -3468,7 +3468,21 @@ export default function TemplatesEditorInner() {
                   {bgType === 'gradient' && bgGradient && (
                     <div style={{ background: t.input, borderRadius: 9, padding: '10px 10px 8px' }}>
                       {/* Preview bar */}
-                      <div style={{ height: 14, borderRadius: 5, marginBottom: 10, background: `linear-gradient(${bgGradient.angle}deg, ${bgGradient.c1}, ${bgGradient.c2})` }} />
+                      <div style={{ height: 14, borderRadius: 5, marginBottom: 10,
+                        background: bgGradient.type === 'radial'
+                          ? `radial-gradient(circle, ${bgGradient.c1}, ${bgGradient.c2})`
+                          : `linear-gradient(${bgGradient.angle}deg, ${bgGradient.c1}, ${bgGradient.c2})` }} />
+                      {/* Linear / Radial toggle */}
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 8, background: t.card, borderRadius: 7, padding: 3 }}>
+                        {['linear','radial'].map(type => (
+                          <button key={type} onClick={() => { pushHistory(); patchPage({ bgGradient: { ...bgGradient, type } }); }}
+                            style={{ flex: 1, padding: '4px 0', fontSize: 11, fontWeight: 500, borderRadius: 5, border: 'none',
+                              background: (bgGradient.type || 'linear') === type ? t.primaryBg : 'transparent',
+                              color: (bgGradient.type || 'linear') === type ? t.primary : t.textMuted, cursor: 'pointer', textTransform: 'capitalize' }}>
+                            {type}
+                          </button>
+                        ))}
+                      </div>
                       {/* Color stops */}
                       <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
                         <div style={{ flex: 1 }}>
@@ -3491,15 +3505,17 @@ export default function TemplatesEditorInner() {
                           ⇄
                         </button>
                       </div>
-                      {/* Angle */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 10, color: t.textMuted, whiteSpace: 'nowrap' }}>Angle</span>
-                        <input type="range" min={0} max={360} step={15} value={bgGradient.angle ?? 135}
-                          onChange={e => patchPage({ bgGradient: { ...bgGradient, angle: parseInt(e.target.value) } })}
-                          onMouseUp={() => pushHistory()}
-                          style={{ flex: 1, accentColor: '#00C4CC' }} />
-                        <span style={{ fontSize: 10, color: t.textMuted, width: 28, textAlign: 'right' }}>{bgGradient.angle ?? 135}°</span>
-                      </div>
+                      {/* Angle (linear only) */}
+                      {(bgGradient.type || 'linear') === 'linear' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 10, color: t.textMuted, whiteSpace: 'nowrap' }}>Angle</span>
+                          <input type="range" min={0} max={360} step={15} value={bgGradient.angle ?? 135}
+                            onChange={e => patchPage({ bgGradient: { ...bgGradient, angle: parseInt(e.target.value) } })}
+                            onMouseUp={() => pushHistory()}
+                            style={{ flex: 1, accentColor: '#00C4CC' }} />
+                          <span style={{ fontSize: 10, color: t.textMuted, width: 28, textAlign: 'right' }}>{bgGradient.angle ?? 135}°</span>
+                        </div>
+                      )}
                     </div>
                   )}
                   {/* Quick angle presets when no gradient active */}
@@ -4375,12 +4391,24 @@ export default function TemplatesEditorInner() {
                       <Layer>
                         {pageBgType === 'gradient' && page.bgGradient ? (
                           (() => {
-                            const { startPoint, endPoint } = gradientPoints(page.bgGradient.angle ?? 135, canvasSize.w, canvasSize.h);
+                            const g = page.bgGradient;
+                            const isRadial = g.type === 'radial';
+                            const cx = canvasSize.w / 2, cy = canvasSize.h / 2;
+                            const r = Math.max(canvasSize.w, canvasSize.h) * 0.65;
+                            const { startPoint, endPoint } = isRadial ? { startPoint: { x: cx, y: cy }, endPoint: { x: cx, y: cy } } : gradientPoints(g.angle ?? 135, canvasSize.w, canvasSize.h);
                             return (
                               <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h}
-                                fillLinearGradientStartPoint={startPoint}
-                                fillLinearGradientEndPoint={endPoint}
-                                fillLinearGradientColorStops={[0, page.bgGradient.c1, 1, page.bgGradient.c2]}
+                                {...(isRadial ? {
+                                  fillRadialGradientStartPoint: startPoint,
+                                  fillRadialGradientEndPoint: endPoint,
+                                  fillRadialGradientStartRadius: 0,
+                                  fillRadialGradientEndRadius: r,
+                                  fillRadialGradientColorStops: [0, g.c1, 1, g.c2],
+                                } : {
+                                  fillLinearGradientStartPoint: startPoint,
+                                  fillLinearGradientEndPoint: endPoint,
+                                  fillLinearGradientColorStops: [0, g.c1, 1, g.c2],
+                                })}
                                 onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined}
                               />
                             );
