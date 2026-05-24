@@ -884,6 +884,8 @@ export default function TemplatesEditorInner() {
   const [elemTab, setElemTab] = useState('shapes');
   // Pages thumbnail sidebar
   const [showPagesPanel, setShowPagesPanel] = useState(false);
+  // Page notes panel
+  const [showNotesPanel, setShowNotesPanel] = useState(false);
   // Canvas rulers + drag guides
   const [showRulers, setShowRulers] = useState(false);
   // Video mode
@@ -4684,14 +4686,34 @@ export default function TemplatesEditorInner() {
       <div style={{
         height: 40, display: 'flex', alignItems: 'center', gap: 4,
         padding: '0 12px', borderTop: `1px solid ${t.border}`,
-        background: t.card, flexShrink: 0, zIndex: 8,
+        background: t.card, flexShrink: 0, zIndex: 8, position: 'relative',
         fontSize: 12, color: t.textMuted, userSelect: 'none',
       }}>
-        {/* Notes */}
-        <button style={{ height: 28, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
-          onMouseEnter={e => e.currentTarget.style.background = t.input}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-          📝 Notes
+        {/* Notes panel */}
+        {showNotesPanel && (
+          <div style={{ position: 'absolute', bottom: 44, left: 12, width: 320, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 12, boxShadow: '0 -4px 20px rgba(0,0,0,0.2)', zIndex: 20 }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Page {activePage + 1} notes</span>
+              <button onClick={() => setShowNotesPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
+            </div>
+            <textarea
+              value={currentPage.notes || ''}
+              onChange={e => patchPage({ notes: e.target.value })}
+              placeholder="Add notes for this page…"
+              style={{ width: '100%', minHeight: 100, padding: '8px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.5 }}
+            />
+            {currentPage.notes && (
+              <button onClick={() => { patchPage({ notes: '' }); }} style={{ marginTop: 6, background: 'none', border: 'none', color: t.textMuted, fontSize: 11, cursor: 'pointer', padding: 0 }}>Clear notes</button>
+            )}
+          </div>
+        )}
+        {/* Notes button */}
+        <button onClick={() => setShowNotesPanel(p => !p)}
+          style={{ height: 28, padding: '0 10px', border: 'none', borderRadius: 6, background: showNotesPanel ? t.primaryBg : 'transparent', color: showNotesPanel ? t.primary : (currentPage.notes ? t.text : t.textMuted), fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
+          onMouseEnter={e => { if (!showNotesPanel) e.currentTarget.style.background = t.input; }}
+          onMouseLeave={e => { if (!showNotesPanel) e.currentTarget.style.background = 'transparent'; }}>
+          📝 Notes{currentPage.notes ? ' •' : ''}
         </button>
         {/* Timer */}
         <button style={{ height: 28, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
