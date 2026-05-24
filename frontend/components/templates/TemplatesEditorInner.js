@@ -1411,6 +1411,74 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'divider') {
+    const dw = el.width || 280, dh = el.height || 24;
+    const lineColor = el.fill || 'rgba(255,255,255,0.5)';
+    const style2 = el.dividerStyle || 'solid'; // solid|dashed|double|gradient|ornament
+    const lw = el.strokeWidth || 2;
+
+    return (
+      <Shape {...common}
+        width={dw} height={dh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          const cy = h / 2;
+
+          function drawLine(x1, x2, y, width, dash) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y);
+            ctx.lineTo(x2, y);
+            ctx.lineWidth = width;
+            if (dash) ctx.setLineDash(dash);
+            else ctx.setLineDash([]);
+            ctx.strokeStyle = lineColor;
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+
+          if (style2 === 'solid') {
+            drawLine(0, w, cy, lw);
+          } else if (style2 === 'dashed') {
+            drawLine(0, w, cy, lw, [lw * 4, lw * 3]);
+          } else if (style2 === 'dotted') {
+            drawLine(0, w, cy, lw, [lw, lw * 2.5]);
+          } else if (style2 === 'double') {
+            drawLine(0, w, cy - lw, lw * 0.7);
+            drawLine(0, w, cy + lw, lw * 0.7);
+          } else if (style2 === 'gradient') {
+            const grad = ctx.createLinearGradient(0, 0, w, 0);
+            grad.addColorStop(0, 'transparent');
+            grad.addColorStop(0.3, lineColor);
+            grad.addColorStop(0.7, lineColor);
+            grad.addColorStop(1, 'transparent');
+            ctx.beginPath();
+            ctx.moveTo(0, cy);
+            ctx.lineTo(w, cy);
+            ctx.lineWidth = lw;
+            ctx.strokeStyle = grad;
+            ctx.stroke();
+          } else if (style2 === 'ornament') {
+            const ornW = Math.min(40, w * 0.15);
+            const sideW = (w - ornW - 20) / 2;
+            drawLine(0, sideW, cy, lw);
+            drawLine(w - sideW, w, cy, lw);
+            // Diamond ornament in center
+            ctx.beginPath();
+            const ox = w / 2, oy = cy;
+            const os = ornW * 0.35;
+            ctx.moveTo(ox, oy - os); ctx.lineTo(ox + os, oy);
+            ctx.lineTo(ox, oy + os); ctx.lineTo(ox - os, oy);
+            ctx.closePath();
+            ctx.fillStyle = lineColor;
+            ctx.fill();
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2273,6 +2341,18 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addDivider() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'divider',
+      x: canvasSize.w / 2 - 140, y: canvasSize.h / 2 - 12,
+      width: 280, height: 24, opacity: 1,
+      fill: 'rgba(255,255,255,0.5)', dividerStyle: 'gradient', strokeWidth: 2,
+    };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -4454,6 +4534,28 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'divider' && <>
+                <D />
+                {[['solid','─'],['dashed','╌'],['dotted','·····'],['double','═'],['gradient','▱'],['ornament','◆']].map(([s, icon]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, dividerStyle: s}); }}
+                    title={s.charAt(0).toUpperCase() + s.slice(1)}
+                    style={{ height:28, width:34, borderRadius:6, border:`1px solid ${(selectedEl.dividerStyle||'gradient')===s?'#00C4CC':t.border}`, background:(selectedEl.dividerStyle||'gradient')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.dividerStyle||'gradient')===s?'#00C4CC':t.text, fontSize:13, cursor:'pointer', flexShrink:0 }}>
+                    {icon}
+                  </button>
+                ))}
+                <D />
+                <ColorPickerButton
+                  value={(selectedEl.fill||'rgba(255,255,255,0.5)').startsWith('rgba') ? '#888888' : (selectedEl.fill||'#888888')}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <input type="range" min={1} max={12} value={selectedEl.strokeWidth||2}
+                  onChange={e => updateElement({...selectedEl, strokeWidth: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.strokeWidth||2}px</span>
+              </>}
               {selectedEl.type === 'badge' && <>
                 <D />
                 {[['burst','Burst'],['circle','Circle'],['rounded','Square']].map(([s, lbl]) => (
@@ -5392,6 +5494,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Rating',    icon: '★', fn: () => addRating() },
                     { label: 'Quote',     icon: '❝', fn: () => addQuote() },
                     { label: 'Badge',     icon: '🏷', fn: () => addBadge('sale') },
+                    { label: 'Divider',   icon: '─',  fn: () => addDivider() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -6479,7 +6582,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
