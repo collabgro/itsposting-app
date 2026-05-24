@@ -2152,6 +2152,92 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'speechbubble') {
+    const sbw = el.width || 260, sbh = el.height || 120;
+    const bgColor = el.fill || '#ffffff';
+    const textColor = el.stroke || '#1a1a22';
+    const bubbleText = el.bubbleText || '"Great service!"';
+    const tail = el.bubbleTail || 'bottom-left'; // 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right' | 'none'
+    const tailSize = Math.min(22, sbh * 0.2);
+    const bubbleR = el.cornerRadius ?? 16;
+
+    return (
+      <Shape {...common}
+        width={sbw} height={sbh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          const boxH = tail !== 'none' ? h - tailSize : h;
+          const boxY = tail.startsWith('top') ? tailSize : 0;
+
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.18)';
+          ctx.shadowBlur = 10;
+          ctx.shadowOffsetY = 3;
+          ctx.fillStyle = bgColor;
+          ctx.beginPath();
+          ctx.roundRect(0, boxY, w, boxH, bubbleR);
+          ctx.fill();
+          ctx.restore();
+
+          // Tail
+          if (tail !== 'none') {
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            if (tail === 'bottom-left') {
+              ctx.moveTo(bubbleR * 1.5, boxY + boxH);
+              ctx.lineTo(bubbleR * 1.5 + tailSize * 0.8, boxY + boxH);
+              ctx.lineTo(bubbleR, h);
+            } else if (tail === 'bottom-right') {
+              ctx.moveTo(w - bubbleR * 1.5 - tailSize * 0.8, boxY + boxH);
+              ctx.lineTo(w - bubbleR * 1.5, boxY + boxH);
+              ctx.lineTo(w - bubbleR, h);
+            } else if (tail === 'top-left') {
+              ctx.moveTo(bubbleR, 0);
+              ctx.lineTo(bubbleR * 1.5, boxY);
+              ctx.lineTo(bubbleR * 1.5 + tailSize * 0.8, boxY);
+            } else if (tail === 'top-right') {
+              ctx.moveTo(w - bubbleR, 0);
+              ctx.lineTo(w - bubbleR * 1.5 - tailSize * 0.8, boxY);
+              ctx.lineTo(w - bubbleR * 1.5, boxY);
+            }
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          // Word-wrapped text
+          const pad = bubbleR * 0.8;
+          const maxTW = w - pad * 2;
+          const fSize = el.fontSize || Math.max(13, Math.round(sbw * 0.075));
+          ctx.font = `${el.fontStyle && el.fontStyle !== 'normal' ? el.fontStyle + ' ' : ''}${fSize}px ${el.fontFamily || 'Inter, sans-serif'}`;
+          ctx.fillStyle = textColor;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          const words = bubbleText.split(' ');
+          const lh = fSize * 1.4;
+          const lines2 = [];
+          let cur2 = '';
+          for (const word of words) {
+            const test2 = cur2 ? cur2 + ' ' + word : word;
+            if (ctx.measureText(test2).width > maxTW && cur2) { lines2.push(cur2); cur2 = word; }
+            else cur2 = test2;
+          }
+          if (cur2) lines2.push(cur2);
+          const totalTH = lines2.length * lh;
+          const startTY = boxY + (boxH - totalTH) / 2;
+          lines2.forEach((line, i) => ctx.fillText(line, pad, startTY + i * lh));
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -3070,6 +3156,20 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addSpeechBubble() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'speechbubble',
+      x: canvasSize.w / 2 - 130, y: canvasSize.h / 2 - 60,
+      width: 260, height: 120, opacity: 1,
+      fill: '#ffffff', stroke: '#1a1a22',
+      bubbleText: '"Great service!"',
+      bubbleTail: 'bottom-left', cornerRadius: 16,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5335,6 +5435,39 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'speechbubble' && <>
+                <D />
+                {[['↙ BL','bottom-left'],['↘ BR','bottom-right'],['↖ TL','top-left'],['↗ TR','top-right'],['○ None','none']].map(([lbl, t2]) => (
+                  <button key={t2} onClick={() => { pushHistory(); updateElement({...selectedEl, bubbleTail: t2}); }}
+                    style={{ height:28, padding:'0 7px', borderRadius:6, border:`1px solid ${(selectedEl.bubbleTail||'bottom-left')===t2?'#00C4CC':t.border}`, background:(selectedEl.bubbleTail||'bottom-left')===t2?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.bubbleTail||'bottom-left')===t2?'#00C4CC':t.text, fontSize:10, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap' }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Bg</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#ffffff'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Text</span>
+                <ColorPickerButton
+                  value={selectedEl.stroke || '#1a1a22'}
+                  onChange={c => updateElement({...selectedEl, stroke: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                {[['White','#ffffff','#1a1a22'],['Dark','#1a1a22','#ffffff'],['Teal','#00C4CC','#ffffff'],['Purple','#7C5CFC','#ffffff'],['Yellow','#FFE135','#1a1a22']].map(([lbl,bg,fg]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, fill: bg, stroke: fg}); }}
+                    style={{ height:26, padding:'0 7px', borderRadius:5, border:`1px solid ${t.border}`, background:bg, color:fg, fontSize:10, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', fontWeight:600, boxShadow:'0 1px 3px rgba(0,0,0,0.15)' }}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'mappin' && <>
                 <D />
                 {[['Pin','pin'],['Badge','badge'],['Chip','chip']].map(([lbl, s]) => (
@@ -6544,6 +6677,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Highlight', icon: '🖊', fn: () => addHighlight() },
                     { label: 'Polaroid',  icon: '📷', fn: () => addPolaroid() },
                     { label: 'Map Pin',   icon: '📍', fn: () => addMapPin() },
+                    { label: 'Bubble',    icon: '💬', fn: () => addSpeechBubble() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -7631,7 +7765,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
