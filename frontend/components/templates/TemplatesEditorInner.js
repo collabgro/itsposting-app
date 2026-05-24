@@ -810,6 +810,38 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'progressbar') {
+    const pw = el.width || 280, ph = el.height || 14;
+    const pct = Math.min(100, Math.max(0, el.progress ?? 75)) / 100;
+    const trackColor = el.trackColor || 'rgba(255,255,255,0.2)';
+    const fillColor2 = el.fill || '#00C4CC';
+    const radius = el.cornerRadius ?? ph / 2;
+    return (
+      <Shape {...common}
+        width={pw} height={ph}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape) => {
+          const w = shape.width(), h = shape.height();
+          const r = Math.min(radius, h / 2);
+          // Track
+          ctx.beginPath();
+          ctx.roundRect(0, 0, w, h, r);
+          ctx.fillStyle = trackColor;
+          ctx.fill();
+          // Fill
+          if (pct > 0) {
+            ctx.beginPath();
+            const fw = Math.max(r * 2, w * pct);
+            ctx.roundRect(0, 0, fw, h, r);
+            ctx.fillStyle = fillColor2;
+            ctx.fill();
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -1671,6 +1703,13 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addProgressBar() {
+    pushHistory();
+    const el = { id: uid(), type: 'progressbar', x: canvasSize.w / 2 - 140, y: canvasSize.h / 2 - 7, width: 280, height: 14, fill: '#00C4CC', trackColor: 'rgba(255,255,255,0.2)', progress: 75, cornerRadius: 7, opacity: 1 };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -3645,6 +3684,35 @@ export default function TemplatesEditorInner() {
                   onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
                 <span style={{ fontSize:11, color:t.textMuted, minWidth:28, flexShrink:0 }}>{Math.round(((selectedEl.innerRadius||25)/(selectedEl.outerRadius||60))*100)}%</span>
               </>}
+              {selectedEl.type === 'progressbar' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Progress</span>
+                <input type="range" min={0} max={100} step={1} value={selectedEl.progress ?? 75}
+                  onChange={e => updateElement({...selectedEl, progress: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:28, flexShrink:0 }}>{selectedEl.progress ?? 75}%</span>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Track</span>
+                <ColorPickerButton
+                  value={(selectedEl.trackColor || 'rgba(255,255,255,0.2)').startsWith('rgba') ? '#888888' : (selectedEl.trackColor || '#888888')}
+                  onChange={c => updateElement({...selectedEl, trackColor: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Height</span>
+                <input type="range" min={4} max={40} value={selectedEl.height || 14}
+                  onChange={e => updateElement({...selectedEl, height: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.height || 14}px</span>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Radius</span>
+                <input type="range" min={0} max={20} value={selectedEl.cornerRadius ?? 7}
+                  onChange={e => updateElement({...selectedEl, cornerRadius: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:18, flexShrink:0 }}>{selectedEl.cornerRadius ?? 7}</span>
+              </>}
               <D />
               {/* Border toggle + color + width */}
               <Btn label="Border" active={!!selectedEl.borderEnabled}
@@ -4492,6 +4560,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Speech ▶',  icon: '💭', fn: () => addSmartShape('speechbubble_right') },
                     { label: 'Slant',     icon: '▱', fn: () => addSmartShape('parallelogram') },
                     { label: 'Banner',    icon: '⛳', fn: () => addSmartShape('banner') },
+                    { label: 'Progress',  icon: '▬', fn: () => addProgressBar() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -5579,7 +5648,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
