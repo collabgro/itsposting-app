@@ -93,11 +93,24 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
       {open && (
         <div onMouseDown={e => e.stopPropagation()}
           style={{ position: 'fixed', left: pos.x, top: pos.y, width: 228, background: '#1e1e28', border: '1px solid #2a2a35', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 9991, padding: 12 }}>
-          {/* Preview + hex input + wheel picker */}
+          {/* Preview + hex input + wheel picker + eyedropper */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 6, background: hex, border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }} />
             <input value={hex} onChange={e => handleHex(e.target.value)}
               style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid #2a2a35', background: '#13131a', color: '#f4f4f5', fontSize: 12, fontFamily: 'monospace', outline: 'none', minWidth: 0 }} />
+            {typeof EyeDropper !== 'undefined' && (
+              <button title="Pick color from screen" onMouseDown={async e => {
+                e.preventDefault();
+                setOpen(false);
+                try {
+                  const result = await new EyeDropper().open();
+                  apply(result.sRGBHex);
+                  onCommit?.();
+                } catch (_) {}
+              }} style={{ width: 28, height: 28, borderRadius: 5, border: '1px solid #2a2a35', background: '#13131a', color: '#a0a0b0', fontSize: 14, cursor: 'crosshair', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                ⊕
+              </button>
+            )}
             <div style={{ position: 'relative', width: 32, height: 32, borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
               <div style={{ position: 'absolute', inset: 0, background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }} />
               <input type="color" value={hex} onChange={e => apply(e.target.value)} onBlur={close}
