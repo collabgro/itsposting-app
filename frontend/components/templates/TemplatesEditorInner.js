@@ -465,10 +465,29 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     />
   );
 
+  // Compute gradient fill props for shapes
+  const shapeW = el.width || 200;
+  const shapeH = el.height || 200;
+  const isGradFill = el.fillType === 'gradient' && el.fillGradient;
+  let gradFillProps = {};
+  if (isGradFill) {
+    const g = el.fillGradient;
+    const gw = el.radius ? (el.radius || el.outerRadius || 60) * 2 : shapeW;
+    const gh = el.radius ? (el.radius || el.outerRadius || 60) * 2 : shapeH;
+    const { startPoint, endPoint } = gradientPoints(g.angle ?? 135, gw, gh);
+    gradFillProps = {
+      fill: undefined,
+      fillLinearGradientStartPoint: startPoint,
+      fillLinearGradientEndPoint: endPoint,
+      fillLinearGradientColorStops: [0, g.c1 || '#ffffff', 1, g.c2 || '#000000'],
+    };
+  }
+
   if (el.type === 'rect') return (
     <Rect {...common}
-      width={el.width || 200} height={el.height || 100}
-      fill={el.fill || 'rgba(255,255,255,0.2)'}
+      width={shapeW} height={el.height || 100}
+      fill={isGradFill ? undefined : (el.fill || 'rgba(255,255,255,0.2)')}
+      {...gradFillProps}
       cornerRadius={el.cornerRadius || 0}
       opacity={el.opacity ?? 1}
     />
@@ -477,7 +496,8 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
   if (el.type === 'circle') return (
     <Circle {...common}
       radius={el.radius || 60}
-      fill={el.fill || 'rgba(255,255,255,0.2)'}
+      fill={isGradFill ? undefined : (el.fill || 'rgba(255,255,255,0.2)')}
+      {...gradFillProps}
       opacity={el.opacity ?? 1}
     />
   );
@@ -495,7 +515,8 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     <RegularPolygon {...common}
       sides={3}
       radius={el.radius || 60}
-      fill={el.fill || 'rgba(255,255,255,0.2)'}
+      fill={isGradFill ? undefined : (el.fill || 'rgba(255,255,255,0.2)')}
+      {...gradFillProps}
       opacity={el.opacity ?? 1}
     />
   );
@@ -505,7 +526,8 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
       numPoints={5}
       outerRadius={el.outerRadius || 60}
       innerRadius={el.innerRadius || 25}
-      fill={el.fill || 'rgba(255,255,255,0.2)'}
+      fill={isGradFill ? undefined : (el.fill || 'rgba(255,255,255,0.2)')}
+      {...gradFillProps}
       opacity={el.opacity ?? 1}
     />
   );
@@ -2490,10 +2512,42 @@ export default function TemplatesEditorInner() {
               {/* Fill/stroke color swatch */}
               <ColorPickerButton
                 value={fillVal}
-                onChange={c => pickColor(c, color => updateElement({ ...selectedEl, [fillKey]: color }))}
+                onChange={c => pickColor(c, color => updateElement({ ...selectedEl, [fillKey]: color, fillType: 'solid' }))}
                 onCommit={() => pushHistory()}
                 recentColors={recentColors}
               />
+              {/* Gradient toggle (not for lines/arrows) */}
+              {!['line','arrow'].includes(selectedEl.type) && (
+                <>
+                  <Btn label="⚏ Gradient" active={selectedEl.fillType === 'gradient'}
+                    onClick={() => {
+                      if (selectedEl.fillType === 'gradient') {
+                        pushHistory(); updateElement({ ...selectedEl, fillType: 'solid' });
+                      } else {
+                        pushHistory(); updateElement({ ...selectedEl, fillType: 'gradient',
+                          fillGradient: selectedEl.fillGradient || { c1: selectedEl.fill || '#7C5CFC', c2: '#00C4CC', angle: 135 } });
+                      }
+                    }} />
+                  {selectedEl.fillType === 'gradient' && selectedEl.fillGradient && (
+                    <>
+                      <ColorPickerButton
+                        value={selectedEl.fillGradient.c1 || '#7C5CFC'}
+                        onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, c1: c } })}
+                        onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+                      <span style={{ fontSize: 10, color: t.textMuted }}>→</span>
+                      <ColorPickerButton
+                        value={selectedEl.fillGradient.c2 || '#00C4CC'}
+                        onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, c2: c } })}
+                        onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+                      <select value={selectedEl.fillGradient.angle ?? 135}
+                        onChange={e => { pushHistory(); updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, angle: parseInt(e.target.value) } }); }}
+                        style={{ height: 24, padding: '0 3px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
+                        {[0,45,90,135,180,225,270,315].map(a => <option key={a} value={a}>{a}°</option>)}
+                      </select>
+                    </>
+                  )}
+                </>
+              )}
               {selectedEl.type === 'rect' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Radius</span>
