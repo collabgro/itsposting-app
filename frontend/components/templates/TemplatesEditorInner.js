@@ -371,6 +371,14 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
 function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDblClick, onDragMove, onSnapClear, locked, hidden }) {
   const shapeRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [measuredH, setMeasuredH] = useState(() => (el.fontSize || 36) * 1.5);
+
+  useEffect(() => {
+    if (el.type !== 'text' || !shapeRef.current) return;
+    const h = shapeRef.current.height();
+    if (h > 0 && Math.abs(h - measuredH) > 1) setMeasuredH(h);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [el.text, el.fontSize, el.fontFamily, el.fontStyle, el.lineHeight, el.letterSpacing, el.width]);
 
   const isCenterOrigin = ['circle', 'triangle', 'star'].includes(el.type);
 
@@ -462,33 +470,54 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     shadowOpacity: el.shadow?.opacity ?? 0.5,
   };
 
-  if (el.type === 'text') return (
-    <Text
-      {...common}
-      text={el.text}
-      fontSize={el.fontSize || 36}
-      fontFamily={el.fontFamily || 'Inter'}
-      fontStyle={el.fontStyle || 'normal'}
-      textDecoration={el.textDecoration || ''}
-      fill={el.fill || '#ffffff'}
-      width={el.width || 400}
-      align={el.align || 'center'}
-      opacity={el.opacity ?? 1}
-      lineHeight={el.lineHeight ?? 1.2}
-      letterSpacing={el.letterSpacing ?? 0}
-      shadowEnabled={el.shadow?.enabled || false}
-      shadowColor={el.shadow?.color || '#000000'}
-      shadowBlur={el.shadow?.blur ?? 4}
-      shadowOffsetX={el.shadow?.offsetX ?? 2}
-      shadowOffsetY={el.shadow?.offsetY ?? 2}
-      shadowOpacity={el.shadow?.opacity ?? 0.5}
-      stroke={el.outline?.enabled ? (el.outline.color || '#000000') : ''}
-      strokeWidth={el.outline?.enabled ? (el.outline.width ?? 1) : 0}
-      verticalAlign={el.verticalAlign || 'middle'}
-      onDblClick={() => onDblClick(el.id)}
-      onDblTap={() => onDblClick(el.id)}
-    />
-  );
+  if (el.type === 'text') {
+    const tbPad = el.textBg?.padding ?? 6;
+    const textNode = (
+      <Text
+        {...common}
+        text={el.text}
+        fontSize={el.fontSize || 36}
+        fontFamily={el.fontFamily || 'Inter'}
+        fontStyle={el.fontStyle || 'normal'}
+        textDecoration={el.textDecoration || ''}
+        fill={el.fill || '#ffffff'}
+        width={el.width || 400}
+        align={el.align || 'center'}
+        opacity={el.opacity ?? 1}
+        lineHeight={el.lineHeight ?? 1.2}
+        letterSpacing={el.letterSpacing ?? 0}
+        shadowEnabled={el.shadow?.enabled || false}
+        shadowColor={el.shadow?.color || '#000000'}
+        shadowBlur={el.shadow?.blur ?? 4}
+        shadowOffsetX={el.shadow?.offsetX ?? 2}
+        shadowOffsetY={el.shadow?.offsetY ?? 2}
+        shadowOpacity={el.shadow?.opacity ?? 0.5}
+        stroke={el.outline?.enabled ? (el.outline.color || '#000000') : ''}
+        strokeWidth={el.outline?.enabled ? (el.outline.width ?? 1) : 0}
+        verticalAlign={el.verticalAlign || 'middle'}
+        onDblClick={() => onDblClick(el.id)}
+        onDblTap={() => onDblClick(el.id)}
+      />
+    );
+    if (!el.textBg?.enabled) return textNode;
+    return (
+      <>
+        <Rect
+          x={(el.x || 0) - tbPad}
+          y={(el.y || 0) - tbPad}
+          width={(el.width || 400) + tbPad * 2}
+          height={measuredH + tbPad * 2}
+          fill={el.textBg.color || '#ffffff'}
+          opacity={el.textBg.opacity ?? 1}
+          cornerRadius={el.textBg.radius ?? 4}
+          rotation={el.rotation || 0}
+          listening={false}
+          visible={!hidden && el.visible !== false}
+        />
+        {textNode}
+      </>
+    );
+  }
 
   // Compute gradient fill props for shapes
   const shapeW = el.width || 200;
@@ -2308,6 +2337,22 @@ export default function TemplatesEditorInner() {
                   </div>
                 )}
               </div>
+              <D />
+              {/* Text background (highlight) */}
+              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Highlight</span>
+              <ColorPickerButton
+                value={selectedEl.textBg?.color || '#ffff00'}
+                onChange={c => { updateElement({ ...selectedEl, textBg: { ...(selectedEl.textBg||{}), enabled: true, color: c, opacity: selectedEl.textBg?.opacity ?? 1 } }); }}
+                onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+              <input type="range" min={0} max={1} step={0.05}
+                value={selectedEl.textBg?.enabled ? (selectedEl.textBg?.opacity ?? 1) : 0}
+                onChange={e => { const v = parseFloat(e.target.value); updateElement({ ...selectedEl, textBg: { ...(selectedEl.textBg||{}), enabled: v > 0, color: selectedEl.textBg?.color || '#ffff00', opacity: v } }); }}
+                onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0, accentColor:'#00C4CC' }} />
+              {selectedEl.textBg?.enabled && (
+                <button onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, textBg: { ...selectedEl.textBg, enabled: false, opacity: 0 } }); }}
+                  title="Remove highlight"
+                  style={{ height:24, padding:'0 6px', border:`1px solid ${t.border}`, borderRadius:5, background:'transparent', color:t.textMuted, fontSize:11, cursor:'pointer', flexShrink:0 }}>×</button>
+              )}
               <D />
               {/* Opacity */}
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap' }}>Opacity</span>
