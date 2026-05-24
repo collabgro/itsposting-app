@@ -2858,6 +2858,52 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'watermark') {
+    const wmw = el.width || 200, wmh = el.height || 60;
+    const bgC4 = el.bgColor || 'rgba(0,0,0,0.55)';
+    const textC4 = el.fill || '#ffffff';
+    const accentC4 = el.accentColor || '#00C4CC';
+    const logoText = el.wmLogo || 'YourBrand';
+    const tagline = el.wmTagline || '';
+    const wmStyle = el.wmStyle || 'pill'; // 'pill' | 'plain' | 'bar' | 'badge'
+    const logoSize = el.fontSize || 22;
+    const taglineSize = Math.max(9, Math.round(logoSize * 0.55));
+    return (
+      <Shape {...common} width={wmw} height={wmh} opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          if (wmStyle === 'pill') {
+            ctx.fillStyle = bgC4;
+            ctx.beginPath(); ctx.roundRect(0, 0, w, h, h / 2); ctx.fill();
+            ctx.strokeStyle = `${accentC4}55`; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.roundRect(0.5, 0.5, w-1, h-1, h/2 - 0.5); ctx.stroke();
+          } else if (wmStyle === 'badge') {
+            ctx.fillStyle = bgC4;
+            ctx.beginPath(); ctx.roundRect(0, 0, w, h, 8); ctx.fill();
+            ctx.fillStyle = accentC4; ctx.fillRect(0, 0, 4, h);
+          } else if (wmStyle === 'bar') {
+            ctx.fillStyle = bgC4; ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = accentC4; ctx.fillRect(0, h - 3, w, 3);
+          }
+          // Logo text
+          const textY = tagline ? h * 0.42 : h / 2;
+          ctx.font = `bold ${logoSize}px Inter, sans-serif`;
+          ctx.fillStyle = textC4; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(logoText, w / 2, textY);
+          // Tagline
+          if (tagline) {
+            ctx.font = `${taglineSize}px Inter, sans-serif`;
+            ctx.fillStyle = `${textC4}bb`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+            ctx.fillText(tagline, w / 2, h * 0.6);
+          }
+          if (isSelected) { ctx.strokeStyle = '#00C4CC'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'htimeline') {
     const tlw = el.width || 480, tlh = el.height || 180;
     const accentC3 = el.accentColor || '#00C4CC';
@@ -4074,6 +4120,21 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addWatermark() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'watermark',
+      x: canvasSize.w - 220, y: canvasSize.h - 80,
+      width: 200, height: 60, opacity: 1,
+      wmLogo: 'YourBrand', wmTagline: 'itsposting.com',
+      wmStyle: 'pill',
+      bgColor: 'rgba(0,0,0,0.55)', fill: '#ffffff', accentColor: '#00C4CC',
+      fontSize: 22,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -6545,6 +6606,34 @@ export default function TemplatesEditorInner() {
                   </button>
                 ))}
               </>}
+              {selectedEl.type === 'watermark' && <>
+                <D />
+                {[['Pill','pill'],['Badge','badge'],['Bar','bar'],['Plain','plain']].map(([lbl,s]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, wmStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.wmStyle||'pill')===s?'#00C4CC':t.border}`, background:(selectedEl.wmStyle||'pill')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.wmStyle||'pill')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Logo</span>
+                <input type="text" value={selectedEl.wmLogo||'YourBrand'}
+                  onChange={e=>updateElement({...selectedEl,wmLogo:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  style={{width:100,padding:'2px 6px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none'}} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Tag</span>
+                <input type="text" value={selectedEl.wmTagline||''}
+                  onChange={e=>updateElement({...selectedEl,wmTagline:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  placeholder="tagline"
+                  style={{width:100,padding:'2px 6px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none'}} />
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Text</span>
+                <ColorPickerButton value={selectedEl.fill||'#ffffff'} onChange={c=>updateElement({...selectedEl,fill:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Bg</span>
+                <ColorPickerButton value={selectedEl.bgColor||'rgba(0,0,0,0.55)'} onChange={c=>updateElement({...selectedEl,bgColor:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Accent</span>
+                <ColorPickerButton value={selectedEl.accentColor||'#00C4CC'} onChange={c=>updateElement({...selectedEl,accentColor:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+              </>}
               {selectedEl.type === 'htimeline' && <>
                 <D />
                 {[['Filled','filled'],['Outline','outline'],['Numbered','numbered']].map(([lbl,s]) => (
@@ -8116,6 +8205,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Icon',       icon: '✓', fn: () => addIconShape() },
                     { label: 'Price Tag',  icon: '💲', fn: () => addPriceTag() },
                     { label: 'Timeline',   icon: '⟶', fn: () => addHTimeline() },
+                    { label: 'Watermark',  icon: '◉', fn: () => addWatermark() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -9203,7 +9293,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : el.type === 'iconshape' ? '✓' : el.type === 'pricetag' ? '💲' : el.type === 'htimeline' ? '⟶' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : el.type === 'iconshape' ? '✓' : el.type === 'pricetag' ? '💲' : el.type === 'htimeline' ? '⟶' : el.type === 'watermark' ? '◉' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
