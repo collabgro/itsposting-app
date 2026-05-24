@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useRouter } from 'next/router';
-import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle, Line, Transformer, RegularPolygon, Star, Arrow } from 'react-konva';
+import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle, Line, Transformer, RegularPolygon, Star, Arrow, Shape } from 'react-konva';
 import useImage from 'use-image';
 import Konva from 'konva';
 import { useTheme } from '../../lib/theme';
@@ -154,6 +154,7 @@ const QUICK_ACTIONS = [
   { id: 'zoomout',  icon: '🔎', label: 'Zoom out',        sub: 'Decrease canvas zoom',      shortcut: 'Ctrl+–'  },
   { id: 'zoomfit',  icon: '⤢',  label: 'Fit to screen',  sub: 'Reset zoom to fit canvas',  shortcut: 'Ctrl+0'  },
   { id: 'selectall',icon: '⊡',  label: 'Select all',     sub: 'Select all unlocked elements', shortcut: 'Ctrl+A' },
+  { id: 'showgrid', icon: '⊞',  label: 'Toggle grid',    sub: 'Show/hide dot grid overlay',   shortcut: 'G'      },
 ];
 
 const ANIMATE_PRESETS = [
@@ -886,6 +887,8 @@ export default function TemplatesEditorInner() {
   const [showPagesPanel, setShowPagesPanel] = useState(false);
   // Page notes panel
   const [showNotesPanel, setShowNotesPanel] = useState(false);
+  // Canvas grid overlay
+  const [showGrid, setShowGrid] = useState(false);
   // Canvas rulers + drag guides
   const [showRulers, setShowRulers] = useState(false);
   // Video mode
@@ -1179,6 +1182,14 @@ export default function TemplatesEditorInner() {
       if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); zoomIn(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); zoomOut(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); setZoomFactor(1); return; }
+
+      // Grid toggle
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'g' || e.key === 'G')) {
+        const tag = document.activeElement?.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+          e.preventDefault(); setShowGrid(o => !o); return;
+        }
+      }
 
       // Preview navigation (when preview is open)
       if (previewOpen) {
@@ -4126,7 +4137,25 @@ export default function TemplatesEditorInner() {
                         )}
                       </Layer>
 
-                      {/* Layer 2: Content */}
+                      {/* Layer 2: Grid overlay (active page only) */}
+                      {isActive && showGrid && (
+                        <Layer listening={false}>
+                          <Shape
+                            perfectDrawEnabled={false}
+                            sceneFunc={(ctx) => {
+                              const step = 50;
+                              ctx.fillStyle = 'rgba(150,150,150,0.4)';
+                              for (let x = step; x < canvasSize.w; x += step) {
+                                for (let y = step; y < canvasSize.h; y += step) {
+                                  ctx.fillRect(x - 1, y - 1, 2, 2);
+                                }
+                              }
+                            }}
+                          />
+                        </Layer>
+                      )}
+
+                      {/* Layer 3: Content */}
                       <Layer>
                         {pageElements.flatMap(el => {
                           const node = el.type === 'group'
@@ -4185,7 +4214,7 @@ export default function TemplatesEditorInner() {
                         })}
                       </Layer>
 
-                      {/* Layer 3: Transformer + snap guides (active page only) */}
+                      {/* Layer 4: Transformer + snap guides (active page only) */}
                       {isActive && (
                         <Layer ref={trLayerRef}>
                           <TransformerLayer
@@ -4200,7 +4229,7 @@ export default function TemplatesEditorInner() {
                         </Layer>
                       )}
 
-                      {/* Layer 4: Rubber-band selection rect */}
+                      {/* Layer 5: Rubber-band selection rect */}
                       {isActive && selectionRect && selectionRect.w > 1 && (
                         <Layer listening={false}>
                           <Rect
@@ -4796,6 +4825,15 @@ export default function TemplatesEditorInner() {
           ⊹
         </button>
 
+        {/* Grid toggle */}
+        <button onClick={() => setShowGrid(o => !o)}
+          onMouseEnter={e => showTip(e, 'Toggle grid', 'G')} onMouseLeave={hideTip}
+          style={{ width: 28, height: 26, border: `1px solid ${showGrid ? '#00C4CC' : t.border}`, borderRadius: 5,
+            background: showGrid ? 'rgba(0,196,204,0.1)' : t.input, color: showGrid ? '#00C4CC' : t.text,
+            fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>
+          ⊞
+        </button>
+
         {/* Fullscreen */}
         <button onClick={() => document.documentElement.requestFullscreen?.()}
           onMouseEnter={e => showTip(e, 'Fullscreen')} onMouseLeave={hideTip}
@@ -4845,6 +4883,7 @@ export default function TemplatesEditorInner() {
             if (ids.length) { setSelectedIds(ids); setSelectedId(ids[ids.length - 1]); }
             return;
           }
+          if (id === 'showgrid') { setShowGrid(o => !o); return; }
         };
 
         return (
