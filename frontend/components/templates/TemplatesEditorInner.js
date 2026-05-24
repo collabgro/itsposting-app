@@ -3750,6 +3750,7 @@ export default function TemplatesEditorInner() {
   // Canvas display scale
   const containerRef = useRef(null);
   const replaceFileRef = useRef(null);
+  const uploadFileRef = useRef(null);
   const [stageScale, setStageScale] = useState(1);
   const [stageDisplayW, setStageDisplayW] = useState(540);
   const [stageDisplayH, setStageDisplayH] = useState(675);
@@ -3810,7 +3811,7 @@ export default function TemplatesEditorInner() {
     if (bgPhotos.length > 0) return;
     setBgPhotosLoading(true);
     studioAPI.getPhotos({ limit: 60, offset: 0 })
-      .then(data => setBgPhotos(data.photos || []))
+      .then(r => setBgPhotos(r.data?.photos || []))
       .catch(() => {})
       .finally(() => setBgPhotosLoading(false));
   }, [activeLeftTool]);
@@ -3821,7 +3822,7 @@ export default function TemplatesEditorInner() {
     if (savedDesigns.length > 0) return;
     setSavedDesignsLoading(true);
     studioAPI.getCreations({ limit: 40 })
-      .then(data => setSavedDesigns(data?.creations || []))
+      .then(r => setSavedDesigns(r.data?.creations || []))
       .catch(() => {})
       .finally(() => setSavedDesignsLoading(false));
   }, [activeLeftTool]);
@@ -3832,7 +3833,7 @@ export default function TemplatesEditorInner() {
     if (curatedTemplates.length > 0) return;
     setCuratedLoading(true);
     studioAPI.getTemplates({ limit: 30 })
-      .then(data => setCuratedTemplates(data?.templates || []))
+      .then(r => setCuratedTemplates(r.data?.templates || []))
       .catch(() => {})
       .finally(() => setCuratedLoading(false));
   }, [activeLeftTool]);
@@ -3841,10 +3842,10 @@ export default function TemplatesEditorInner() {
   useEffect(() => {
     const id = router.query?.id;
     if (!id) return;
-    studioAPI.getCreation(id).then(data => {
-      const c = data.creation;
-      if (c.canvas_json) restoreSnapshot(c.canvas_json);
-      if (c.overlay_title) setTitleForSave(c.overlay_title);
+    studioAPI.getCreation(id).then(r => {
+      const c = r.data?.creation;
+      if (c?.canvas_json) restoreSnapshot(c.canvas_json);
+      if (c?.overlay_title) setTitleForSave(c.overlay_title);
     }).catch(() => {});
   }, [router.query?.id]);
 
@@ -3861,9 +3862,9 @@ export default function TemplatesEditorInner() {
     const templateId = router.query?.template;
     if (!templateId) return;
     studioAPI.getTemplate(templateId)
-      .then(data => {
-        if (data?.template?.canvas_json) restoreSnapshot(data.template.canvas_json);
-        if (data?.template?.name) setTitleForSave(data.template.name);
+      .then(r => {
+        if (r.data?.template?.canvas_json) restoreSnapshot(r.data.template.canvas_json);
+        if (r.data?.template?.name) setTitleForSave(r.data.template.name);
       })
       .catch(() => {});
   }, [router.query?.template]);
@@ -5407,7 +5408,7 @@ export default function TemplatesEditorInner() {
       const dataUrl = stageRef.current.toDataURL({ mimeType: 'image/jpeg', quality: 0.9, pixelRatio: canvasSize.w / stageRef.current.width() });
       if (trLayerRef.current) trLayerRef.current.show();
       const snap = snapshot();
-      const data = await studioAPI.save({ imageDataUrl: dataUrl, canvasJson: snap, title: titleForSave, canvasWidth: canvasSize.w, canvasHeight: canvasSize.h, backgroundSource: currentPage.bgSource, backgroundId: currentPage.bgSourceId });
+      const { data } = await studioAPI.save({ imageDataUrl: dataUrl, canvasJson: snap, title: titleForSave, canvasWidth: canvasSize.w, canvasHeight: canvasSize.h, backgroundSource: currentPage.bgSource, backgroundId: currentPage.bgSourceId });
       setSavedCreationId(data.creation.id);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2500);
@@ -5535,7 +5536,7 @@ export default function TemplatesEditorInner() {
                 <div style={{ padding: '4px 0' }}>
                   {[
                     { icon: '⊕', label: 'Create new design',      fn: () => { if (elements.length === 0 || confirm('Start a new blank design?')) { pushHistory(); setPages([emptyPage()]); setActivePage(0); clearSelection(); setTitleForSave(''); } } },
-                    { icon: '↑', label: 'Upload files',            fn: () => { triggerUpload?.(); } },
+                    { icon: '↑', label: 'Upload files',            fn: () => { uploadFileRef.current?.click(); } },
                     null,
                     { icon: '💾', label: 'Save',                   right: saving ? 'Saving…' : 'All changes saved', fn: () => handleSave() },
                     { icon: '⧉', label: 'Make a copy',            fn: () => { const copy = JSON.parse(JSON.stringify(pages)); const now = Date.now(); copy.forEach((p,i) => { p.id = `page_${now+i}_copy`; }); pushHistory(); setPages(copy); } },
@@ -7830,8 +7831,8 @@ export default function TemplatesEditorInner() {
                                 <button
                                   onClick={async () => {
                                     try {
-                                      const data = await studioAPI.getTemplate(tmpl.id);
-                                      if (data?.template?.canvas_json) restoreSnapshot(data.template.canvas_json);
+                                      const r = await studioAPI.getTemplate(tmpl.id);
+                                      if (r.data?.template?.canvas_json) restoreSnapshot(r.data.template.canvas_json);
                                     } catch {}
                                   }}
                                   style={{ color: '#fff', fontSize: 11, fontWeight: 700, background: '#7C5CFC', padding: '5px 10px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
@@ -10486,6 +10487,14 @@ export default function TemplatesEditorInner() {
           )}
         </div>
       )}
+
+      {/* Hidden file input for upload-from-device (File menu → Upload files) */}
+      <input ref={uploadFileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }}
+        onChange={e => {
+          const f = e.target.files?.[0];
+          if (f) addImageElement(URL.createObjectURL(f));
+          e.target.value = '';
+        }} />
 
       {/* Hidden file input for image replace (Replace button + double-click) */}
       <input ref={replaceFileRef} type="file" accept="image/*" style={{ display: 'none' }}

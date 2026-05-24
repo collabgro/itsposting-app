@@ -153,8 +153,8 @@ export default function VideoEditorInner() {
 
   useEffect(() => {
     if (!editId) return;
-    studioAPI.getCreation(editId).then(data => {
-      const c = data?.creation;
+    studioAPI.getCreation(editId).then(r => {
+      const c = r.data?.creation;
       if (c?.video_json) {
         setProject(c.video_json);
         setTitle(c.overlay_title || 'Untitled Video');

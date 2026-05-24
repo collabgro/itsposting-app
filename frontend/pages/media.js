@@ -236,7 +236,7 @@ export default function MediaLibrary() {
   const loadCurated = async (industry = 'all') => {
     setCuratedLoading(true);
     try {
-      const data = await studioAPI.getTemplates(industry !== 'all' ? { industry, limit: 30 } : { limit: 30 });
+      const { data } = await studioAPI.getTemplates(industry !== 'all' ? { industry, limit: 30 } : { limit: 30 });
       setCuratedTemplates(data?.templates || []);
     } catch {}
     finally { setCuratedLoading(false); }
