@@ -637,6 +637,7 @@ export default function TemplatesEditorInner() {
   const [bgRemoverDismissed, setBgRemoverDismissed] = useState(false);
   const [projectTab, setProjectTab] = useState('All');
   const [savedDesigns, setSavedDesigns] = useState([]);
+  const [savedDesignsLoading, setSavedDesignsLoading] = useState(false);
   // Quick actions palette
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickQuery, setQuickQuery] = useState('');
@@ -792,9 +793,11 @@ export default function TemplatesEditorInner() {
   useEffect(() => {
     if (activeLeftTool !== 'projects') return;
     if (savedDesigns.length > 0) return;
+    setSavedDesignsLoading(true);
     studioAPI.getCreations({ limit: 20 })
       .then(data => setSavedDesigns(data?.creations || []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setSavedDesignsLoading(false));
   }, [activeLeftTool]);
 
   // ── Load existing creation ─────────────────────────────────────────────────
@@ -2452,7 +2455,11 @@ export default function TemplatesEditorInner() {
                     ))}
                   </div>
                   {bgPhotosLoading ? (
-                    <div style={{ textAlign: 'center', color: t.textMuted, padding: '20px 0', fontSize: 12 }}>Loading...</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} style={{ borderRadius: 7, aspectRatio: '1', background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`, backgroundSize: '1000px 100%', animation: 'shimmer 1.4s ease-in-out infinite' }} />
+                      ))}
+                    </div>
                   ) : displayedBgPhotos.length === 0 ? (
                     <div style={{ textAlign: 'center', color: t.textMuted, padding: '20px 0', fontSize: 12 }}>
                       {bgTab === 'mine' ? 'No uploaded images yet' : 'No stock photos available'}
@@ -2653,7 +2660,11 @@ export default function TemplatesEditorInner() {
                 )}
                 {/* Media grid */}
                 {bgPhotosLoading ? (
-                  <div style={{ textAlign: 'center', color: t.textMuted, padding: '20px 0', fontSize: 12 }}>Loading...</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
+                    {Array.from({ length: 9 }).map((_, i) => (
+                      <div key={i} style={{ borderRadius: 6, aspectRatio: '1', background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`, backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
+                    ))}
+                  </div>
                 ) : displayedImgPhotos.length === 0 ? (
                   <div style={{ textAlign: 'center', color: t.textMuted, padding: '30px 0', fontSize: 12 }}>
                     <div style={{ fontSize: 32, marginBottom: 8 }}>☁</div>
@@ -2891,7 +2902,17 @@ export default function TemplatesEditorInner() {
                     </button>
                   ))}
                 </div>
-                {savedDesigns.length === 0 ? (
+                {savedDesignsLoading ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i}>
+                        <div style={{ aspectRatio: '4/5', borderRadius: 8, background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`, backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.15}s ease-in-out infinite`, marginBottom: 6 }} />
+                        <div style={{ height: 12, borderRadius: 4, width: '70%', background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`, backgroundSize: '1000px 100%', animation: 'shimmer 1.4s ease-in-out infinite', marginBottom: 4 }} />
+                        <div style={{ height: 10, borderRadius: 4, width: '50%', background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`, backgroundSize: '1000px 100%', animation: 'shimmer 1.4s 0.1s ease-in-out infinite' }} />
+                      </div>
+                    ))}
+                  </div>
+                ) : savedDesigns.length === 0 ? (
                   <div style={{ textAlign: 'center', color: t.textMuted, padding: '24px 0', fontSize: 12 }}>
                     <div style={{ fontSize: 28, marginBottom: 8 }}>📁</div>
                     <div style={{ fontWeight: 600, marginBottom: 4 }}>No designs yet</div>
@@ -2991,6 +3012,10 @@ export default function TemplatesEditorInner() {
             to   { opacity:1; transform:scale(1);   }
           }
           @keyframes spin { to { transform:rotate(360deg); } }
+          @keyframes shimmer {
+            0%   { background-position:-500px 0; }
+            100% { background-position: 500px 0; }
+          }
         `}</style>
         <div ref={containerRef} style={{ flex: 1, overflowY: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
