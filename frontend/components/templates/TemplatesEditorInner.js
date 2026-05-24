@@ -2858,6 +2858,73 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'pricetag') {
+    const ptw = el.width || 260, pth = el.height || 320;
+    const bgC2 = el.bgColor || '#1a1a2e';
+    const accentC2 = el.accentColor || '#00C4CC';
+    const textC2 = el.fill || '#ffffff';
+    const currency = el.ptCurrency || '$';
+    const price = el.ptPrice || '29';
+    const period = el.ptPeriod || '/mo';
+    const planLabel = el.ptLabel || 'Pro Plan';
+    const features = el.ptFeatures || ['Unlimited posts', 'Priority support', 'Analytics'];
+    const priceFontSize = el.fontSize || 52;
+    return (
+      <Shape {...common} width={ptw} height={pth} opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          // Card bg
+          ctx.fillStyle = bgC2;
+          ctx.beginPath(); ctx.roundRect(0, 0, w, h, el.cornerRadius ?? 14); ctx.fill();
+          // Accent header band
+          ctx.fillStyle = accentC2;
+          ctx.fillRect(0, 0, w, 6);
+          // Plan label
+          ctx.font = `600 ${Math.round(priceFontSize * 0.26)}px Inter, sans-serif`;
+          ctx.fillStyle = accentC2; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          ctx.fillText(planLabel, w / 2, 18);
+          // Price row
+          const currSize = Math.round(priceFontSize * 0.55);
+          const priceSize = priceFontSize;
+          const perSize = Math.round(priceFontSize * 0.32);
+          const priceY = h * 0.22;
+          ctx.fillStyle = textC2; ctx.textBaseline = 'alphabetic';
+          ctx.font = `600 ${currSize}px Inter, sans-serif`;
+          ctx.textAlign = 'left';
+          const totalPriceW = ctx.measureText(currency).width + ctx.measureText(price).width * (priceSize / currSize);
+          let px = (w - totalPriceW * 1.1) / 2;
+          ctx.fillText(currency, px, priceY + currSize * 0.1);
+          px += ctx.measureText(currency).width + 2;
+          ctx.font = `bold ${priceSize}px Inter, sans-serif`;
+          ctx.fillText(price, px, priceY + currSize * 0.6);
+          px += ctx.measureText(price).width + 2;
+          ctx.font = `${perSize}px Inter, sans-serif`;
+          ctx.fillStyle = `${textC2}99`;
+          ctx.fillText(period, px, priceY + currSize * 0.35);
+          // Divider
+          ctx.fillStyle = `${accentC2}33`;
+          ctx.fillRect(w * 0.1, h * 0.48, w * 0.8, 1);
+          // Features
+          const featureSize = Math.round(priceFontSize * 0.24);
+          ctx.font = `${featureSize}px Inter, sans-serif`;
+          ctx.fillStyle = textC2; ctx.textAlign = 'left';
+          features.forEach((f, i) => {
+            const fy = h * 0.53 + i * (featureSize + 14);
+            if (fy + featureSize > h - 12) return;
+            ctx.fillStyle = accentC2;
+            ctx.font = `bold ${featureSize * 1.1}px Inter, sans-serif`;
+            ctx.fillText('✓', w * 0.1, fy + featureSize);
+            ctx.fillStyle = textC2;
+            ctx.font = `${featureSize}px Inter, sans-serif`;
+            ctx.fillText(f, w * 0.1 + featureSize * 1.4, fy + featureSize);
+          });
+          if (isSelected) { ctx.strokeStyle = '#00C4CC'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'iconshape') {
     const isw = el.width || 120, ish = el.height || 120;
     const iconColor = el.fill || '#ffffff';
@@ -3936,6 +4003,22 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addPriceTag() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'pricetag',
+      x: canvasSize.w / 2 - 130, y: canvasSize.h / 2 - 160,
+      width: 260, height: 320, opacity: 1,
+      bgColor: '#1a1a2e', accentColor: '#00C4CC', fill: '#ffffff',
+      ptCurrency: '$', ptPrice: '29', ptPeriod: '/mo',
+      ptLabel: 'Pro Plan',
+      ptFeatures: ['Unlimited posts', 'Priority support', 'Analytics'],
+      fontSize: 52, cornerRadius: 14,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -6377,6 +6460,42 @@ export default function TemplatesEditorInner() {
                   </button>
                 ))}
               </>}
+              {selectedEl.type === 'pricetag' && <>
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Currency</span>
+                <input type="text" value={selectedEl.ptCurrency||'$'}
+                  onChange={e=>updateElement({...selectedEl,ptCurrency:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  style={{width:32,padding:'2px 5px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none',textAlign:'center'}} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Price</span>
+                <input type="text" value={selectedEl.ptPrice||'29'}
+                  onChange={e=>updateElement({...selectedEl,ptPrice:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  style={{width:52,padding:'2px 6px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none'}} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Per</span>
+                <input type="text" value={selectedEl.ptPeriod||'/mo'}
+                  onChange={e=>updateElement({...selectedEl,ptPeriod:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  style={{width:44,padding:'2px 5px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none'}} />
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Label</span>
+                <input type="text" value={selectedEl.ptLabel||'Pro Plan'}
+                  onChange={e=>updateElement({...selectedEl,ptLabel:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  style={{width:90,padding:'2px 6px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none'}} />
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Bg</span>
+                <ColorPickerButton value={selectedEl.bgColor||'#1a1a2e'} onChange={c=>updateElement({...selectedEl,bgColor:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Accent</span>
+                <ColorPickerButton value={selectedEl.accentColor||'#00C4CC'} onChange={c=>updateElement({...selectedEl,accentColor:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <D />
+                {[['Dark/Teal','#1a1a2e','#00C4CC'],['Navy/Purple','#0f172a','#7C5CFC'],['Black/Gold','#111111','#f59e0b'],['White/Teal','#f8f9fa','#00C4CC']].map(([lbl,bg,ac])=>(
+                  <button key={lbl} onClick={()=>{pushHistory();updateElement({...selectedEl,bgColor:bg,accentColor:ac});}}
+                    style={{height:26,padding:'0 7px',borderRadius:5,border:`1px solid ${t.border}`,background:bg,color:ac,fontSize:10,cursor:'pointer',flexShrink:0,fontWeight:600}}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'iconshape' && <>
                 <D />
                 {[['✓','check'],['✗','x'],['+','plus'],['→','arrow'],['★','star'],['♥','heart'],['▲','warning'],['🛡','shield'],['ℹ','info'],['⚡','bolt']].map(([icon,kind]) => (
@@ -7882,6 +8001,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Grad Rect',  icon: '▨', fn: () => addGradRect() },
                     { label: 'Counter',    icon: '🔢', fn: () => addCounter() },
                     { label: 'Icon',       icon: '✓', fn: () => addIconShape() },
+                    { label: 'Price Tag',  icon: '💲', fn: () => addPriceTag() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -8969,7 +9089,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : el.type === 'iconshape' ? '✓' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : el.type === 'iconshape' ? '✓' : el.type === 'pricetag' ? '💲' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
