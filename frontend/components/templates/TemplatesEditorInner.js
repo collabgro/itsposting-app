@@ -2405,6 +2405,106 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'pattern') {
+    const ptw = el.width || 300, pth = el.height || 200;
+    const fgColor = el.fill || 'rgba(255,255,255,0.15)';
+    const bgColor2 = el.patternBg || 'transparent';
+    const patternType = el.patternType || 'dots'; // 'dots' | 'grid' | 'diagonal' | 'chevron' | 'hex' | 'cross'
+    const tileSize = el.tileSize || 20;
+    const lineW = el.patternLineW || 1.5;
+
+    return (
+      <Shape {...common}
+        width={ptw} height={pth}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+
+          // Background fill
+          if (bgColor2 && bgColor2 !== 'transparent') {
+            ctx.fillStyle = bgColor2;
+            ctx.fillRect(0, 0, w, h);
+          }
+
+          ctx.strokeStyle = fgColor;
+          ctx.fillStyle = fgColor;
+          ctx.lineWidth = lineW;
+
+          if (patternType === 'dots') {
+            const r = tileSize * 0.18;
+            for (let x2 = tileSize / 2; x2 < w; x2 += tileSize) {
+              for (let y2 = tileSize / 2; y2 < h; y2 += tileSize) {
+                ctx.beginPath();
+                ctx.arc(x2, y2, r, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+          } else if (patternType === 'grid') {
+            ctx.beginPath();
+            for (let x2 = 0; x2 <= w; x2 += tileSize) {
+              ctx.moveTo(x2, 0); ctx.lineTo(x2, h);
+            }
+            for (let y2 = 0; y2 <= h; y2 += tileSize) {
+              ctx.moveTo(0, y2); ctx.lineTo(w, y2);
+            }
+            ctx.stroke();
+          } else if (patternType === 'diagonal') {
+            ctx.beginPath();
+            for (let i = -h; i < w + h; i += tileSize) {
+              ctx.moveTo(i, 0); ctx.lineTo(i + h, h);
+            }
+            ctx.stroke();
+          } else if (patternType === 'chevron') {
+            const ch = tileSize * 0.6;
+            for (let y2 = -tileSize; y2 < h + tileSize; y2 += tileSize) {
+              ctx.beginPath();
+              for (let x2 = 0; x2 < w; x2 += tileSize * 2) {
+                ctx.moveTo(x2, y2 + ch);
+                ctx.lineTo(x2 + tileSize, y2);
+                ctx.lineTo(x2 + tileSize * 2, y2 + ch);
+              }
+              ctx.stroke();
+            }
+          } else if (patternType === 'cross') {
+            const arm = tileSize * 0.3;
+            for (let x2 = tileSize / 2; x2 < w; x2 += tileSize) {
+              for (let y2 = tileSize / 2; y2 < h; y2 += tileSize) {
+                ctx.beginPath();
+                ctx.moveTo(x2 - arm, y2); ctx.lineTo(x2 + arm, y2);
+                ctx.moveTo(x2, y2 - arm); ctx.lineTo(x2, y2 + arm);
+                ctx.stroke();
+              }
+            }
+          } else if (patternType === 'hex') {
+            const hx = tileSize, hy = tileSize * 0.87;
+            for (let row = 0; row * hy < h + hy; row++) {
+              const offX = row % 2 === 0 ? 0 : hx / 2;
+              for (let col = 0; col * hx < w + hx; col++) {
+                const cx3 = col * hx + offX, cy3 = row * hy;
+                ctx.beginPath();
+                for (let s = 0; s < 6; s++) {
+                  const a = (Math.PI / 3) * s - Math.PI / 6;
+                  const px = cx3 + (hx * 0.5 - lineW) * Math.cos(a);
+                  const py = cy3 + (hx * 0.5 - lineW) * Math.sin(a);
+                  s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.stroke();
+              }
+            }
+          }
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -3323,6 +3423,19 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addPattern() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'pattern',
+      x: canvasSize.w / 2 - 150, y: canvasSize.h / 2 - 100,
+      width: 300, height: 200, opacity: 1,
+      fill: 'rgba(255,255,255,0.15)', patternBg: 'transparent',
+      patternType: 'dots', tileSize: 20, patternLineW: 1.5,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5630,6 +5743,30 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'pattern' && <>
+                <D />
+                {[['Dots','dots'],['Grid','grid'],['Lines','diagonal'],['Chevron','chevron'],['Cross','cross'],['Hex','hex']].map(([lbl, pt]) => (
+                  <button key={pt} onClick={() => { pushHistory(); updateElement({...selectedEl, patternType: pt}); }}
+                    style={{ height:28, padding:'0 7px', borderRadius:6, border:`1px solid ${(selectedEl.patternType||'dots')===pt?'#00C4CC':t.border}`, background:(selectedEl.patternType||'dots')===pt?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.patternType||'dots')===pt?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Color</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || 'rgba(255,255,255,0.15)'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Size</span>
+                <input type="range" min={8} max={60} step={2} value={selectedEl.tileSize || 20}
+                  onChange={e => updateElement({...selectedEl, tileSize: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()}
+                  style={{ width:64, accentColor:'#00C4CC', cursor:'pointer', flexShrink:0 }} />
+              </>}
               {selectedEl.type === 'steplist' && <>
                 <D />
                 {[['1,2,3','numbered'],['✓ Check','check'],['• Dot','dot']].map(([lbl, s]) => (
@@ -6932,6 +7069,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Bubble',    icon: '💬', fn: () => addSpeechBubble() },
                     { label: 'Ribbon',    icon: '🎀', fn: () => addRibbon() },
                     { label: 'Steps',     icon: '📋', fn: () => addStepList() },
+                    { label: 'Pattern',   icon: '⊞', fn: () => addPattern() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -8019,7 +8157,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
