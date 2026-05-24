@@ -1303,6 +1303,114 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'badge') {
+    const bw = el.width || 140, bh = el.height || 140;
+    const r = Math.min(bw, bh) / 2;
+    const bgColor = el.fill || '#ef4444';
+    const textColor2 = el.labelColor || '#ffffff';
+    const line1 = el.badgeLine1 || 'SALE';
+    const line2 = el.badgeLine2 || '50% OFF';
+    const line3 = el.badgeLine3 || '';
+    const shape = el.badgeShape || 'circle'; // 'circle' | 'burst' | 'rounded'
+    const hasBorder = el.badgeBorder !== false;
+    const borderColor2 = el.badgeBorderColor || 'rgba(255,255,255,0.6)';
+
+    return (
+      <Shape {...common}
+        width={bw} height={bh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          const cx = w / 2, cy = h / 2;
+          const rad = Math.min(cx, cy);
+
+          ctx.save();
+          ctx.translate(cx, cy);
+
+          if (shape === 'burst') {
+            // Starburst / sunburst shape
+            const points = 16;
+            const outerR = rad;
+            const innerR = rad * 0.82;
+            ctx.beginPath();
+            for (let i = 0; i < points * 2; i++) {
+              const angle = (Math.PI / points) * i - Math.PI / 2;
+              const r2 = i % 2 === 0 ? outerR : innerR;
+              const x = r2 * Math.cos(angle), y = r2 * Math.sin(angle);
+              i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.fillStyle = bgColor;
+            ctx.fill();
+            if (hasBorder) {
+              ctx.strokeStyle = borderColor2;
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            }
+            // Inner circle border
+            ctx.beginPath();
+            ctx.arc(0, 0, innerR * 0.88, 0, Math.PI * 2);
+            ctx.strokeStyle = borderColor2;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          } else if (shape === 'rounded') {
+            const rr = Math.min(rad * 0.35, 20);
+            ctx.beginPath();
+            ctx.roundRect(-cx, -cy, w, h, rr);
+            ctx.fillStyle = bgColor;
+            ctx.fill();
+            if (hasBorder) {
+              ctx.strokeStyle = borderColor2;
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.roundRect(-cx + 5, -cy + 5, w - 10, h - 10, Math.max(0, rr - 5));
+              ctx.strokeStyle = borderColor2;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+          } else {
+            // Circle
+            ctx.beginPath();
+            ctx.arc(0, 0, rad, 0, Math.PI * 2);
+            ctx.fillStyle = bgColor;
+            ctx.fill();
+            if (hasBorder) {
+              ctx.strokeStyle = borderColor2;
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.arc(0, 0, rad - 6, 0, Math.PI * 2);
+              ctx.strokeStyle = borderColor2;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+          }
+
+          // Text lines
+          const lines = [line1, line2, line3].filter(Boolean);
+          const sizes = [rad * 0.22, rad * 0.32, rad * 0.18];
+          const weights = ['normal', 'bold', 'normal'];
+          const totalH = lines.reduce((s, _, i) => s + sizes[i] * 1.25, 0);
+          let textY = -totalH / 2;
+
+          ctx.textAlign = 'center';
+          ctx.fillStyle = textColor2;
+          lines.forEach((line, i) => {
+            const sz = sizes[Math.min(i, sizes.length - 1)];
+            ctx.font = `${weights[i] || 'bold'} ${sz}px Inter, sans-serif`;
+            ctx.textBaseline = 'top';
+            ctx.fillText(line, 0, textY);
+            textY += sz * 1.25;
+          });
+
+          ctx.restore();
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2165,6 +2273,25 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addBadge(preset = 'sale') {
+    pushHistory();
+    const presets = {
+      sale:    { badgeLine1: 'SALE', badgeLine2: '50% OFF', badgeLine3: 'TODAY ONLY', fill: '#ef4444' },
+      new:     { badgeLine1: 'NEW', badgeLine2: 'ARRIVAL', badgeLine3: '', fill: '#7C5CFC' },
+      limited: { badgeLine1: 'LIMITED', badgeLine2: 'TIME', badgeLine3: 'OFFER', fill: '#f59e0b' },
+      free:    { badgeLine1: 'FREE', badgeLine2: 'QUOTE', badgeLine3: 'TODAY', fill: '#22c55e' },
+    };
+    const p = presets[preset] || presets.sale;
+    const el = {
+      id: uid(), type: 'badge',
+      x: canvasSize.w / 2 - 70, y: canvasSize.h / 2 - 70,
+      width: 140, height: 140, opacity: 1,
+      badgeShape: 'burst', ...p,
+    };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -4327,6 +4454,32 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'badge' && <>
+                <D />
+                {[['burst','Burst'],['circle','Circle'],['rounded','Square']].map(([s, lbl]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, badgeShape: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.badgeShape||'burst')===s?'#00C4CC':t.border}`, background:(selectedEl.badgeShape||'burst')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.badgeShape||'burst')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Color</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#ef4444'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                {/* Quick badge presets */}
+                {[['🔴 Sale','#ef4444','SALE','50% OFF','TODAY ONLY'],['🟣 New','#7C5CFC','NEW','ARRIVAL',''],['🟡 Offer','#f59e0b','LIMITED','TIME','OFFER'],['🟢 Free','#22c55e','FREE','QUOTE','TODAY']].map(([lbl, color, l1, l2, l3]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, fill: color, badgeLine1: l1, badgeLine2: l2, badgeLine3: l3}); }}
+                    style={{ height:26, padding:'0 7px', borderRadius:5, border:`1px solid ${t.border}`, background:'transparent', color:t.text, fontSize:11, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap' }}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'quote' && <>
                 <D />
                 {[['block','Block'],['minimal','Minimal'],['bubble','Bubble']].map(([s, lbl]) => (
@@ -5238,6 +5391,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Countdown', icon: '⏱', fn: () => addCountdown() },
                     { label: 'Rating',    icon: '★', fn: () => addRating() },
                     { label: 'Quote',     icon: '❝', fn: () => addQuote() },
+                    { label: 'Badge',     icon: '🏷', fn: () => addBadge('sale') },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -6325,7 +6479,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
