@@ -2394,13 +2394,13 @@ export default function TemplatesEditorInner() {
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           padding: '8px 0', flexShrink: 0, gap: 2 }}>
           {[
-            { id: 'templates', icon: '⊞', label: 'Templates' },
-            { id: 'elements',  icon: '◎', label: 'Elements'  },
+            { id: 'templates', icon: '▦', label: 'Templates' },
+            { id: 'elements',  icon: '✦', label: 'Elements'  },
             { id: 'text',      icon: 'T',  label: 'Text',      shortcut: 'T' },
-            { id: 'brand',     icon: '⊛', label: 'Brand',  pro: true },
-            { id: 'uploads',   icon: '↑',  label: 'Uploads'   },
-            { id: 'tools',     icon: '⚒', label: 'Tools'     },
-            { id: 'projects',  icon: '🗂', label: 'Projects'  },
+            { id: 'brand',     icon: '◈', label: 'Brand',  pro: true },
+            { id: 'uploads',   icon: '⬆', label: 'Uploads'   },
+            { id: 'tools',     icon: '✐', label: 'Tools'     },
+            { id: 'projects',  icon: '⊟', label: 'Projects'  },
           ].map(tool => (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
               onMouseEnter={e => showTip(e, tool.label, tool.shortcut)}
@@ -2425,8 +2425,8 @@ export default function TemplatesEditorInner() {
           ))}
           <div style={{ flex: 1 }} />
           {[
-            { id: 'apps',  icon: '⊕', label: 'Apps'  },
-            { id: 'magic', icon: '✦', label: 'Magic Media' },
+            { id: 'apps',  icon: '⊞', label: 'Apps'  },
+            { id: 'magic', icon: '⟡', label: 'Magic Media' },
           ].map(tool => (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
               onMouseEnter={e => showTip(e, tool.label)}
