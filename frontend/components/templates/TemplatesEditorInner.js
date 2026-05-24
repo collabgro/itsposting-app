@@ -1924,6 +1924,24 @@ export default function TemplatesEditorInner() {
     });
   }
 
+  function downloadTransparentPng() {
+    if (!stageRef.current) return;
+    const pixelRatio = canvasSize.w / stageDisplayW;
+    clearSelection();
+    if (trLayerRef.current) trLayerRef.current.hide();
+    const bgLayer = stageRef.current.getLayers()[0];
+    if (bgLayer) bgLayer.hide();
+    requestAnimationFrame(() => {
+      const uri = stageRef.current.toDataURL({ mimeType: 'image/png', quality: 1, pixelRatio });
+      if (bgLayer) bgLayer.show();
+      if (trLayerRef.current) trLayerRef.current.show();
+      const a = document.createElement('a');
+      a.href = uri;
+      a.download = `${titleForSave || 'design'}_transparent.png`;
+      a.click();
+    });
+  }
+
   async function handleSave() {
     if (!stageRef.current) return;
     setSaving(true);
@@ -2264,8 +2282,9 @@ export default function TemplatesEditorInner() {
             {showDownloadMenu && (
               <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 180, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0' }}>
                 {[
-                  { label: 'PNG (lossless)',   fn: () => downloadCanvas('image/png',  'png',  1)    },
-                  { label: 'JPEG (smaller)',    fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
+                  { label: 'PNG (lossless)',      fn: () => downloadCanvas('image/png',  'png',  1)    },
+                  { label: 'JPEG (smaller)',       fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
+                  { label: 'PNG (transparent bg)', fn: () => downloadTransparentPng()                   },
                   ...(pages.length > 1 ? [{ label: `All ${pages.length} pages (PNG)`, fn: downloadAllPages }] : []),
                 ].map((item, i) => (
                   <button key={i} onMouseDown={e => { e.preventDefault(); item.fn(); setShowDownloadMenu(false); }}
