@@ -837,9 +837,11 @@ export default function TemplatesEditorInner() {
   const [canvasCustomW, setCanvasCustomW] = useState(1080);
   const [canvasCustomH, setCanvasCustomH] = useState(1080);
   const [showCustomSizeForm, setShowCustomSizeForm] = useState(false);
+  const [scaleOnResize, setScaleOnResize] = useState(false);
   const canvasSize = canvasSizeId === 'custom'
     ? { id: 'custom', label: `Custom ${canvasCustomW}×${canvasCustomH}`, w: canvasCustomW, h: canvasCustomH }
     : (CANVAS_SIZES.find(s => s.id === canvasSizeId) || CANVAS_SIZES[0]);
+  const prevCanvasSizeRef = useRef({ w: canvasSize.w, h: canvasSize.h });
 
   // Pages (multi-page state — replaces individual bg + elements state)
   const [pages, setPages] = useState(() => [emptyPage()]);
@@ -1033,6 +1035,29 @@ export default function TemplatesEditorInner() {
 
   function zoomIn()  { setZoomFactor(z => Math.min(parseFloat((z + 0.25).toFixed(2)), 3)); }
   function zoomOut() { setZoomFactor(z => Math.max(parseFloat((z - 0.25).toFixed(2)), 0.25)); }
+
+  // ── Scale elements when canvas size changes (scaleOnResize) ───────────────
+  useEffect(() => {
+    const prev = prevCanvasSizeRef.current;
+    const rW = canvasSize.w / prev.w;
+    const rH = canvasSize.h / prev.h;
+    prevCanvasSizeRef.current = { w: canvasSize.w, h: canvasSize.h };
+    if (!scaleOnResize || (rW === 1 && rH === 1)) return;
+    pushHistory();
+    setPages(prev => prev.map(page => ({
+      ...page,
+      elements: page.elements.map(el => ({
+        ...el,
+        x: (el.x || 0) * rW,
+        y: (el.y || 0) * rH,
+        width:  el.width  != null ? el.width  * rW : el.width,
+        height: el.height != null ? el.height * rH : el.height,
+        fontSize: el.fontSize != null ? Math.max(8, Math.round(el.fontSize * Math.min(rW, rH))) : el.fontSize,
+        strokeWidth: el.strokeWidth != null ? Math.max(1, Math.round(el.strokeWidth * Math.min(rW, rH))) : el.strokeWidth,
+      })),
+    })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasSize.w, canvasSize.h]);
 
   // ── Load photos (triggers on both old IDs and new Canva IDs) ─────────────
   useEffect(() => {
@@ -2025,6 +2050,15 @@ export default function TemplatesEditorInner() {
                   ))}
                 </div>
                 {/* Browse by category */}
+                {/* Scale-on-resize toggle */}
+                <div style={{ padding: '8px 16px', borderTop: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: t.text, userSelect: 'none', flex: 1 }}>
+                    <input type="checkbox" checked={scaleOnResize} onChange={e => setScaleOnResize(e.target.checked)}
+                      style={{ accentColor: '#00C4CC', width: 14, height: 14, cursor: 'pointer' }} />
+                    Scale content with canvas
+                  </label>
+                  <span style={{ fontSize: 10, color: t.textMuted }}>Magic Resize</span>
+                </div>
                 <div style={{ padding: '4px 14px 4px', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: `1px solid ${t.border}` }}>Browse by category</div>
                 {/* Custom size row — expands to W×H form */}
                 <button
