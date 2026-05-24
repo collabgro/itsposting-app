@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, createContext, useContext, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle, Line, Transformer, RegularPolygon, Star, Arrow, Shape } from 'react-konva';
 import useImage from 'use-image';
@@ -56,6 +56,7 @@ const EXTENDED_PALETTE = [
 function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors = [], size = 22 }) {
   const [open, setOpen] = useState(false);
   const [hex, setHex] = useState(value);
+  const docColors = useContext(DocColorsCtx);
   const btnRef = useRef(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
 
@@ -110,6 +111,18 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
                 style={{ aspectRatio: '1', background: c, border: hex === c ? '2px solid #00C4CC' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0 }} />
             ))}
           </div>
+          {/* Document colors */}
+          {docColors.length > 0 && (
+            <>
+              <div style={{ fontSize: 10, color: '#71717a', marginBottom: 5, marginTop: 4 }}>Document</div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+                {docColors.map(c => (
+                  <button key={c} onMouseDown={() => { apply(c); close(); }}
+                    style={{ width: 20, height: 20, background: c, border: hex === c ? '2px solid #00C4CC' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
+                ))}
+              </div>
+            </>
+          )}
           {/* Recent colors */}
           {recentColors.length > 0 && (
             <>
@@ -129,6 +142,8 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
 }
 
 const SNAP_THRESHOLD = 5;
+
+const DocColorsCtx = createContext([]);
 
 function _hexToRgb(hex) {
   const h = hex.replace('#', '');
@@ -2008,8 +2023,26 @@ export default function TemplatesEditorInner() {
     }
   }
 
+  // ─── Document colors (extracted from all elements across all pages) ────────
+  const docColors = useMemo(() => {
+    const seen = new Set();
+    const add = c => { if (c && /^#[0-9A-Fa-f]{6}$/.test(c)) seen.add(c.toLowerCase()); };
+    pages.forEach(page => {
+      add(page.bgColor);
+      if (page.bgGradient) { add(page.bgGradient.c1); add(page.bgGradient.c2); }
+      page.elements.forEach(el => {
+        add(el.fill); add(el.stroke); add(el.borderColor);
+        add(el.outline?.color); add(el.shadow?.color);
+        add(el.textBg?.color); add(el.tintColor);
+        add(el.fillGradient?.c1); add(el.fillGradient?.c2);
+      });
+    });
+    return [...seen].slice(0, 20);
+  }, [pages]);
+
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
+    <DocColorsCtx.Provider value={docColors}>
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 70px)', overflow: 'hidden', background: t.bg }}>
 
       {/* ── Top toolbar (Canva-style) ── */}
@@ -5554,5 +5587,6 @@ export default function TemplatesEditorInner() {
       )}
 
     </div>
+    </DocColorsCtx.Provider>
   );
 }
