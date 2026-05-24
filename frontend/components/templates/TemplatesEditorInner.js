@@ -1479,6 +1479,85 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'socialstats') {
+    const sw = el.width || 300, sh = el.height || 80;
+    const stats = el.stats || [
+      { icon: '👥', value: '2.4K', label: 'Followers' },
+      { icon: '❤', value: '18K', label: 'Likes' },
+      { icon: '📸', value: '342', label: 'Posts' },
+    ];
+    const accentColor = el.fill || '#00C4CC';
+    const bgColor = el.bgColor || 'rgba(255,255,255,0.08)';
+    const textColor2 = el.labelColor || '#ffffff';
+    const platform = el.platform || ''; // optional platform label
+
+    return (
+      <Shape {...common}
+        width={sw} height={sh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          const pad = 10;
+          const r = el.cornerRadius ?? 10;
+          const count = stats.length;
+          const colW = (w - pad * 2) / count;
+
+          // Background
+          ctx.beginPath();
+          ctx.roundRect(0, 0, w, h, r);
+          ctx.fillStyle = bgColor;
+          ctx.fill();
+
+          // Platform label at top-left if set
+          if (platform) {
+            ctx.font = `bold ${Math.max(9, Math.round(h * 0.13))}px Inter, sans-serif`;
+            ctx.fillStyle = accentColor;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(platform, pad, 6);
+          }
+
+          const vertCenter = h / 2;
+          const valSize = Math.max(14, Math.round(h * 0.3));
+          const lblSize = Math.max(8, Math.round(h * 0.14));
+          const iconSize = Math.max(12, Math.round(h * 0.2));
+
+          stats.forEach((s, i) => {
+            const cx = pad + i * colW + colW / 2;
+
+            // Vertical separator
+            if (i > 0) {
+              ctx.beginPath();
+              ctx.moveTo(pad + i * colW, h * 0.2);
+              ctx.lineTo(pad + i * colW, h * 0.8);
+              ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+
+            // Icon
+            ctx.font = `${iconSize}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = textColor2;
+            ctx.fillText(s.icon || '', cx, vertCenter - valSize * 0.55);
+
+            // Value
+            ctx.font = `bold ${valSize}px Inter, sans-serif`;
+            ctx.fillStyle = accentColor;
+            ctx.fillText(s.value || '0', cx, vertCenter + valSize * 0.1);
+
+            // Label
+            ctx.font = `${lblSize}px Inter, sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.fillText(s.label || '', cx, vertCenter + valSize * 0.68);
+          });
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2341,6 +2420,23 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addSocialStats() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'socialstats',
+      x: canvasSize.w / 2 - 150, y: canvasSize.h / 2 - 40,
+      width: 300, height: 80, opacity: 1,
+      fill: '#00C4CC',
+      stats: [
+        { icon: '👥', value: '2.4K', label: 'Followers' },
+        { icon: '❤', value: '18K', label: 'Likes' },
+        { icon: '📸', value: '342', label: 'Posts' },
+      ],
+    };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -4534,6 +4630,25 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'socialstats' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Accent</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#00C4CC'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                {/* Quick platform presets */}
+                {[['📸 IG',['👥','2.4K','Followers'],['❤','18K','Likes'],['📸','342','Posts']],['🐦 X',['👥','12K','Followers'],['🔁','4.2K','RTs'],['❤','24K','Likes']],['💼 LI',['👥','890','Connections'],['👁','5.6K','Views'],['📄','42','Posts']]].map(([lbl, ...s]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, stats: s.map(([icon,value,label]) => ({icon,value,label}))}); }}
+                    style={{ height:26, padding:'0 7px', borderRadius:5, border:`1px solid ${t.border}`, background:'transparent', color:t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'divider' && <>
                 <D />
                 {[['solid','─'],['dashed','╌'],['dotted','·····'],['double','═'],['gradient','▱'],['ornament','◆']].map(([s, icon]) => (
@@ -5495,6 +5610,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Quote',     icon: '❝', fn: () => addQuote() },
                     { label: 'Badge',     icon: '🏷', fn: () => addBadge('sale') },
                     { label: 'Divider',   icon: '─',  fn: () => addDivider() },
+                    { label: 'Stats',     icon: '📈', fn: () => addSocialStats() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -6582,7 +6698,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
