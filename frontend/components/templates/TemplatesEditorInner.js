@@ -1041,6 +1041,7 @@ export default function TemplatesEditorInner() {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [showResizeMenu, setShowResizeMenu] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [exportScale, setExportScale] = useState(2);
   const [editModeOpen, setEditModeOpen] = useState(false);
   const [editMode, setEditMode] = useState('editing');
   const [shareOpen, setShareOpen] = useState(false);
@@ -2096,7 +2097,7 @@ export default function TemplatesEditorInner() {
 
   function downloadCanvas(mimeType, ext, quality) {
     if (!stageRef.current) return;
-    const pixelRatio = canvasSize.w / stageDisplayW;
+    const pixelRatio = (canvasSize.w / stageDisplayW) * exportScale;
     clearSelection();
     if (trLayerRef.current) trLayerRef.current.hide();
     requestAnimationFrame(() => {
@@ -2111,7 +2112,7 @@ export default function TemplatesEditorInner() {
 
   function downloadTransparentPng() {
     if (!stageRef.current) return;
-    const pixelRatio = canvasSize.w / stageDisplayW;
+    const pixelRatio = (canvasSize.w / stageDisplayW) * exportScale;
     clearSelection();
     if (trLayerRef.current) trLayerRef.current.hide();
     const bgLayer = stageRef.current.getLayers()[0];
@@ -2483,7 +2484,28 @@ export default function TemplatesEditorInner() {
               ⬇ <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
             </button>
             {showDownloadMenu && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 180, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0' }}>
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 200, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0' }}>
+                {/* Resolution selector */}
+                <div style={{ padding: '8px 12px 6px', borderBottom: `1px solid ${t.border}` }}>
+                  <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Quality</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[1, 2, 3].map(s => {
+                      const w = Math.round(canvasSize.w * s);
+                      const h = Math.round(canvasSize.h * s);
+                      const active = exportScale === s;
+                      return (
+                        <button key={s} onMouseDown={e => { e.preventDefault(); setExportScale(s); }}
+                          title={`${w} × ${h} px`}
+                          style={{ flex: 1, padding: '5px 0', border: `1px solid ${active ? t.primary : t.border}`, borderRadius: 6, background: active ? t.primaryBg : 'transparent', color: active ? t.primary : t.textMuted, fontSize: 12, fontWeight: active ? 700 : 400, cursor: 'pointer' }}>
+                          {s}×
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontSize: 10, color: t.textMuted, marginTop: 5, textAlign: 'center' }}>
+                    {Math.round(canvasSize.w * exportScale)} × {Math.round(canvasSize.h * exportScale)} px
+                  </div>
+                </div>
                 {[
                   { label: 'PNG (lossless)',      fn: () => downloadCanvas('image/png',  'png',  1)    },
                   { label: 'JPEG (smaller)',       fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
