@@ -662,6 +662,10 @@ export default function TemplatesEditorInner() {
   const [postSuccess, setPostSuccess] = useState(false);
   const [titleForSave, setTitleForSave] = useState('Untitled');
 
+  // Tooltip
+  const [tip, setTip] = useState(null);
+  const tipTimerRef = useRef(null);
+
   // ── Derived page state (computed from pages[activePage]) ───────────────────
   const currentPage = pages[activePage] || pages[0];
   const elements    = currentPage.elements;
@@ -706,6 +710,24 @@ export default function TemplatesEditorInner() {
   function clearSelection() {
     setSelectedId(null);
     setSelectedIds([]);
+  }
+
+  // ── Tooltip helpers ───────────────────────────────────────────────────────
+  function showTip(e, text, shortcut) {
+    clearTimeout(tipTimerRef.current);
+    const r = e.currentTarget.getBoundingClientRect();
+    tipTimerRef.current = setTimeout(() => {
+      setTip({ text, shortcut, x: r.left + r.width / 2, y: r.bottom + 6 });
+    }, 400);
+  }
+  function hideTip() {
+    clearTimeout(tipTimerRef.current);
+    setTip(null);
+  }
+  // Parse "Label (Shortcut)" → { text, shortcut }
+  function parseTipTitle(t) {
+    const m = t?.match(/^(.+?)\s*\((.+?)\)$/);
+    return m ? { text: m[1].trim(), shortcut: m[2].trim() } : { text: t || '', shortcut: undefined };
   }
 
   // Canvas display scale
@@ -1683,22 +1705,26 @@ export default function TemplatesEditorInner() {
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
 
           {/* Undo / Redo */}
-          <button onClick={undo} disabled={historyIndex < 0} title="Undo (Ctrl+Z)"
-            style={{ width: 34, height: 34, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: historyIndex < 0 ? t.textMuted : t.text, fontSize: 16, cursor: historyIndex < 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⟲</button>
-          <button onClick={redo} disabled={historyIndex >= history.length - 1} title="Redo (Ctrl+Y)"
-            style={{ width: 34, height: 34, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: historyIndex >= history.length - 1 ? t.textMuted : t.text, fontSize: 16, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⟳</button>
+          <button onClick={undo} disabled={historyIndex < 0}
+            onMouseEnter={e => showTip(e, 'Undo', 'Ctrl+Z')} onMouseLeave={hideTip}
+            style={{ width: 34, height: 34, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: historyIndex < 0 ? t.textMuted : t.text, fontSize: 16, cursor: historyIndex < 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>⟲</button>
+          <button onClick={redo} disabled={historyIndex >= history.length - 1}
+            onMouseEnter={e => showTip(e, 'Redo', 'Ctrl+Y')} onMouseLeave={hideTip}
+            style={{ width: 34, height: 34, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: historyIndex >= history.length - 1 ? t.textMuted : t.text, fontSize: 16, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>⟳</button>
 
           <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0 }} />
 
           {/* Preview */}
-          <button onClick={() => setPreviewOpen(true)} title="Preview (P)"
-            style={{ height: 36, padding: '0 13px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <button onClick={() => setPreviewOpen(true)}
+            onMouseEnter={e => showTip(e, 'Preview', 'P')} onMouseLeave={hideTip}
+            style={{ height: 36, padding: '0 13px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'background 100ms' }}>
             ⊙ Preview
           </button>
 
           {/* Share */}
           <button onClick={() => { setShareOpen(o => !o); setShowFileMenu(false); setShowResizeMenu(false); setShowDownloadMenu(false); setEditModeOpen(false); }}
-            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: shareOpen ? '#6B4FE0' : t.primary, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            onMouseEnter={e => showTip(e, 'Share design')} onMouseLeave={hideTip}
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: shareOpen ? '#6B4FE0' : t.primary, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'background 100ms' }}>
             Share
           </button>
 
@@ -2197,13 +2223,15 @@ export default function TemplatesEditorInner() {
           {[
             { id: 'templates', icon: '⊞', label: 'Templates' },
             { id: 'elements',  icon: '◎', label: 'Elements'  },
-            { id: 'text',      icon: 'T',  label: 'Text'      },
+            { id: 'text',      icon: 'T',  label: 'Text',      shortcut: 'T' },
             { id: 'brand',     icon: '⊛', label: 'Brand',  pro: true },
             { id: 'uploads',   icon: '↑',  label: 'Uploads'   },
             { id: 'tools',     icon: '⚒', label: 'Tools'     },
             { id: 'projects',  icon: '🗂', label: 'Projects'  },
           ].map(tool => (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
+              onMouseEnter={e => showTip(e, tool.label, tool.shortcut)}
+              onMouseLeave={hideTip}
               style={{
                 width: 60, padding: '10px 0 6px',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
@@ -2211,9 +2239,12 @@ export default function TemplatesEditorInner() {
                 border: 'none', borderRadius: 8, cursor: 'pointer',
                 color: activeLeftTool === tool.id && panelOpen ? t.primary : t.textMuted,
                 fontSize: 10, fontWeight: activeLeftTool === tool.id && panelOpen ? 600 : 400,
-                transition: 'all 150ms ease',
+                transition: 'background 100ms ease, color 100ms ease, transform 100ms ease',
                 position: 'relative',
-              }}>
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
               <span style={{ fontSize: 20, lineHeight: 1 }}>{tool.icon}</span>
               {tool.label}
               {tool.pro && <span style={{ position: 'absolute', top: 6, right: 8, fontSize: 8, color: '#FFB800' }}>👑</span>}
@@ -2222,9 +2253,11 @@ export default function TemplatesEditorInner() {
           <div style={{ flex: 1 }} />
           {[
             { id: 'apps',  icon: '⊕', label: 'Apps'  },
-            { id: 'magic', icon: '✦', label: 'Magic'  },
+            { id: 'magic', icon: '✦', label: 'Magic Media' },
           ].map(tool => (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
+              onMouseEnter={e => showTip(e, tool.label)}
+              onMouseLeave={hideTip}
               style={{
                 width: 60, padding: '10px 0 6px',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
@@ -2232,7 +2265,7 @@ export default function TemplatesEditorInner() {
                 border: 'none', borderRadius: 8, cursor: 'pointer',
                 color: activeLeftTool === tool.id && panelOpen ? t.primary : t.textMuted,
                 fontSize: 10, fontWeight: activeLeftTool === tool.id && panelOpen ? 600 : 400,
-                transition: 'all 150ms ease',
+                transition: 'background 100ms ease, color 100ms ease',
               }}>
               <span style={{ fontSize: 20, lineHeight: 1 }}>{tool.icon}</span>
               {tool.label}
@@ -3235,8 +3268,9 @@ export default function TemplatesEditorInner() {
                             ) : (
                               <button
                                 key={i}
-                                title={b.title}
                                 onMouseDown={e => { e.stopPropagation(); b.fn(); }}
+                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.danger ? 'rgba(239,68,68,0.09)' : b.highlight ? 'rgba(0,196,204,0.2)' : '#f0f0f0'; }}
+                                onMouseLeave={e => { hideTip(); e.currentTarget.style.background = b.highlight ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
                                 style={{
                                   width: 30, height: 30, border: 'none', borderRadius: 6,
                                   background: b.highlight ? 'rgba(0,196,204,0.1)' : 'transparent',
@@ -3246,8 +3280,6 @@ export default function TemplatesEditorInner() {
                                   transition: 'background 80ms',
                                   flexShrink: 0,
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.background = b.danger ? 'rgba(239,68,68,0.09)' : b.highlight ? 'rgba(0,196,204,0.2)' : '#f0f0f0'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = b.highlight ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
                               >
                                 {b.icon}
                               </button>
@@ -3476,10 +3508,11 @@ export default function TemplatesEditorInner() {
         <div style={{ flex: 1 }} />
 
         {/* Zoom out */}
-        <button onClick={zoomOut} title="Zoom out (−)"
+        <button onClick={zoomOut}
+          onMouseEnter={e => showTip(e, 'Zoom out', 'Ctrl+−')} onMouseLeave={hideTip}
           style={{ width: 26, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
             background: t.input, color: t.text, fontSize: 16, lineHeight: 1, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 100ms' }}>
           −
         </button>
 
@@ -3490,28 +3523,31 @@ export default function TemplatesEditorInner() {
           style={{ width: 90, flexShrink: 0, cursor: 'pointer', accentColor: '#00C4CC' }} />
 
         {/* Zoom in */}
-        <button onClick={zoomIn} title="Zoom in (+)"
+        <button onClick={zoomIn}
+          onMouseEnter={e => showTip(e, 'Zoom in', 'Ctrl++')} onMouseLeave={hideTip}
           style={{ width: 26, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
             background: t.input, color: t.text, fontSize: 16, lineHeight: 1, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 100ms' }}>
           +
         </button>
 
         {/* Zoom % pill — click to reset to 100% */}
-        <button onClick={() => setZoomFactor(1)} title="Reset zoom to 100%"
+        <button onClick={() => setZoomFactor(1)}
+          onMouseEnter={e => showTip(e, 'Reset zoom', 'Ctrl+0')} onMouseLeave={hideTip}
           style={{ minWidth: 46, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
             background: t.input, color: t.text, fontSize: 12, cursor: 'pointer',
-            padding: '0 7px', flexShrink: 0, fontWeight: 500 }}>
+            padding: '0 7px', flexShrink: 0, fontWeight: 500, transition: 'background 100ms' }}>
           {Math.round(zoomFactor * 100)}%
         </button>
 
         <div style={{ width: 1, height: 18, background: t.border, margin: '0 4px', flexShrink: 0 }} />
 
         {/* Pages toggle */}
-        <button onClick={() => setShowPagesPanel(o => !o)} title="Toggle pages panel"
+        <button onClick={() => setShowPagesPanel(o => !o)}
+          onMouseEnter={e => showTip(e, 'Pages panel')} onMouseLeave={hideTip}
           style={{ height: 26, padding: '0 10px', border: `1px solid ${showPagesPanel ? '#00C4CC' : t.border}`, borderRadius: 5,
             background: showPagesPanel ? 'rgba(0,196,204,0.1)' : t.input, color: showPagesPanel ? '#00C4CC' : t.text,
-            fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', transition: 'background 100ms' }}>
           Pages
         </button>
 
@@ -3523,26 +3559,29 @@ export default function TemplatesEditorInner() {
         <div style={{ width: 1, height: 18, background: t.border, margin: '0 4px', flexShrink: 0 }} />
 
         {/* Rulers toggle */}
-        <button onClick={() => setShowRulers(o => !o)} title="Toggle rulers"
+        <button onClick={() => setShowRulers(o => !o)}
+          onMouseEnter={e => showTip(e, 'Toggle rulers', 'Shift+R')} onMouseLeave={hideTip}
           style={{ width: 28, height: 26, border: `1px solid ${showRulers ? '#00C4CC' : t.border}`, borderRadius: 5,
             background: showRulers ? 'rgba(0,196,204,0.1)' : t.input, color: showRulers ? '#00C4CC' : t.text,
-            fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>
           ⊹
         </button>
 
         {/* Fullscreen */}
-        <button title="Fullscreen" onClick={() => document.documentElement.requestFullscreen?.()}
+        <button onClick={() => document.documentElement.requestFullscreen?.()}
+          onMouseEnter={e => showTip(e, 'Fullscreen')} onMouseLeave={hideTip}
           style={{ width: 28, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
             background: t.input, color: t.text, fontSize: 13, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 100ms' }}>
           ⤢
         </button>
 
         {/* Help */}
-        <button title="Help & shortcuts"
+        <button onClick={() => setQuickOpen(true)}
+          onMouseEnter={e => showTip(e, 'Keyboard shortcuts', '?')} onMouseLeave={hideTip}
           style={{ width: 28, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
             background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', fontWeight: 600,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 100ms' }}>
           ?
         </button>
       </div>
@@ -3785,6 +3824,32 @@ export default function TemplatesEditorInner() {
               </>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Tooltip ── */}
+      {tip && (
+        <div style={{
+          position: 'fixed', left: tip.x, top: tip.y,
+          transform: 'translateX(-50%)',
+          background: 'rgba(17,24,39,0.92)', color: '#fff',
+          padding: '5px 10px', borderRadius: 6, fontSize: 12,
+          pointerEvents: 'none', zIndex: 9999, whiteSpace: 'nowrap',
+          display: 'flex', alignItems: 'center', gap: 8,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          lineHeight: 1.4,
+        }}>
+          {tip.text}
+          {tip.shortcut && (
+            <kbd style={{
+              background: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 3, padding: '1px 5px', fontSize: 11,
+              fontFamily: 'monospace',
+            }}>
+              {tip.shortcut}
+            </kbd>
+          )}
         </div>
       )}
 
