@@ -348,8 +348,9 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onTransformEnd={handleTransformEnd}
-      stroke={isSelected ? '#00C4CC' : undefined}
-      strokeWidth={isSelected ? 1.5 : 0}
+      stroke={isSelected ? '#00C4CC' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined)}
+      strokeWidth={isSelected ? 1.5 : (el.borderEnabled && el.borderWidth ? el.borderWidth : 0)}
+      dash={isSelected ? undefined : (() => { if (!el.borderEnabled) return undefined; const s=el.borderStyle||'solid'; const w=el.borderWidth||2; if(s==='dashed') return [w*4,w*3]; if(s==='dotted') return [w,w*2.5]; return undefined; })()}
       globalCompositeOperation={el.blendMode || 'source-over'}
       shadowEnabled={el.shadow?.enabled || false}
       shadowColor={el.shadow?.color || '#000000'}
@@ -2401,6 +2402,26 @@ export default function TemplatesEditorInner() {
                 onChange={e => updateElement({...selectedEl, cornerRadius:parseInt(e.target.value)})}
                 onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0 }} />
               <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.cornerRadius||0}</span>
+              <D />
+              {/* Image border */}
+              <Btn label="Border" active={!!selectedEl.borderEnabled}
+                onClick={() => handleElementChange({...selectedEl, borderEnabled: !selectedEl.borderEnabled, borderColor: selectedEl.borderColor||'#ffffff', borderWidth: selectedEl.borderWidth||3})} />
+              {selectedEl.borderEnabled && <>
+                <ColorPickerButton
+                  value={selectedEl.borderColor || '#ffffff'}
+                  onChange={c => pickColor(c, color => updateElement({ ...selectedEl, borderColor: color }))}
+                  onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+                <input type="range" min={1} max={30} value={selectedEl.borderWidth||3}
+                  onChange={e => updateElement({...selectedEl, borderWidth:parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.borderWidth||3}px</span>
+                {[['solid','─'],['dashed','╌'],['dotted','···']].map(([s,icon]) => (
+                  <button key={s} title={s.charAt(0).toUpperCase()+s.slice(1)} onClick={() => { pushHistory(); updateElement({...selectedEl, borderStyle: s}); }}
+                    style={{ height:26, padding:'0 8px', border:`1px solid ${(selectedEl.borderStyle||'solid')===s?'#00C4CC':t.border}`, borderRadius:5, background:(selectedEl.borderStyle||'solid')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.borderStyle||'solid')===s?'#00C4CC':t.text, fontSize:13, cursor:'pointer', flexShrink:0, letterSpacing:'0.05em' }}>
+                    {icon}
+                  </button>
+                ))}
+              </>}
               <D />
               <Btn label="↑ Fwd"   active={false} onClick={() => bringForward()} />
               <Btn label="↓ Back"  active={false} onClick={() => sendBackward()} />
