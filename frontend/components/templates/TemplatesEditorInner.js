@@ -5770,12 +5770,57 @@ export default function TemplatesEditorInner() {
         })()}
 
         {/* ── Nothing / background selected ── */}
-        {selectedIds.length <= 1 && (!selectedEl && !selectedId) && (
-          <span style={{ fontSize: 12, color: t.textMuted }}>{canvasSize.w} × {canvasSize.h} px — select an element to edit</span>
-        )}
-        {selectedIds.length <= 1 && selectedId === '__bg__' && (
-          <span style={{ fontSize: 12, color: t.textMuted }}>Background — use the Design panel to change colors or photos</span>
-        )}
+        {selectedIds.length <= 1 && (!selectedEl && !selectedId) && (() => {
+          const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
+          return (
+            <>
+              <span style={{ fontSize: 12, color: t.textMuted, flexShrink: 0, paddingRight: 4 }}>{canvasSize.w}×{canvasSize.h}px</span>
+              <D />
+              <button onMouseDown={e => { e.preventDefault(); addText(); }} title="Add text (T)"
+                style={{ height: 30, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, transition: 'background 80ms' }}
+                onMouseEnter={e => e.currentTarget.style.background = t.input} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                T Text
+              </button>
+              <button onMouseDown={e => { e.preventDefault(); addRect(); }} title="Add rectangle (R)"
+                style={{ height: 30, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, transition: 'background 80ms' }}
+                onMouseEnter={e => e.currentTarget.style.background = t.input} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                ▭ Shape
+              </button>
+              <button onMouseDown={e => { e.preventDefault(); setActiveLeftTool('images'); }} title="Upload image"
+                style={{ height: 30, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, transition: 'background 80ms' }}
+                onMouseEnter={e => e.currentTarget.style.background = t.input} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                🖼 Image
+              </button>
+              <D />
+              <span style={{ fontSize: 11, color: t.textMuted, flexShrink: 0 }}>Background</span>
+              <input type="color" value={currentPage.bgColor || '#1a1a22'}
+                onChange={e => patchPage({ bgColor: e.target.value, bgType: 'color' })}
+                title="Canvas background color"
+                style={{ width: 24, height: 24, padding: 0, border: `1px solid ${t.border}`, borderRadius: 4, cursor: 'pointer', background: 'none', flexShrink: 0 }} />
+              <D />
+              <span style={{ fontSize: 11, color: t.textMuted, flexShrink: 0 }}>Page {activePage + 1}/{pages.length}</span>
+            </>
+          );
+        })()}
+        {selectedIds.length <= 1 && selectedId === '__bg__' && (() => {
+          const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
+          return (
+            <>
+              <span style={{ fontSize: 12, color: t.text, flexShrink: 0 }}>Background</span>
+              <D />
+              <span style={{ fontSize: 11, color: t.textMuted, flexShrink: 0 }}>Color</span>
+              <input type="color" value={currentPage.bgColor || '#1a1a22'}
+                onChange={e => patchPage({ bgColor: e.target.value, bgType: 'color' })}
+                style={{ width: 24, height: 24, padding: 0, border: `1px solid ${t.border}`, borderRadius: 4, cursor: 'pointer', background: 'none', flexShrink: 0 }} />
+              <D />
+              <button onMouseDown={e => { e.preventDefault(); setActiveLeftTool('background'); }} title="Open Design panel"
+                style={{ height: 30, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, transition: 'background 80ms' }}
+                onMouseEnter={e => e.currentTarget.style.background = t.input} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                More options ›
+              </button>
+            </>
+          );
+        })()}
 
         {/* ── TEXT selected ── */}
         {selectedIds.length <= 1 && selectedEl?.type === 'text' && (() => {
