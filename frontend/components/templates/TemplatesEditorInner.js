@@ -2652,6 +2652,12 @@ export default function TemplatesEditorInner() {
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Background Color</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                    {/* Transparent background tile */}
+                    <button onClick={() => { pushHistory(); patchPage({ bgType: 'transparent', bgColor: 'transparent' }); }}
+                      title="No background (transparent)"
+                      style={{ width: 28, height: 28, borderRadius: 6, cursor: 'pointer', flexShrink: 0,
+                        background: 'repeating-conic-gradient(#888 0% 25%, #fff 0% 50%) 0 0 / 10px 10px',
+                        border: bgType === 'transparent' ? `3px solid ${t.primary}` : `2px solid ${t.border}` }} />
                     {COLOR_PALETTE.map(hex => (
                       <button key={hex} onClick={() => { pushHistory(); patchPage({ bgType: 'color', bgColor: hex }); pickColor(hex, () => {}); }}
                         style={{ width: 28, height: 28, borderRadius: 6, background: hex, border: bgType === 'color' && bgColor === hex ? `3px solid ${t.primary}` : `2px solid ${t.border}`, cursor: 'pointer' }} />
@@ -3493,6 +3499,9 @@ export default function TemplatesEditorInner() {
                       outline: isActive ? '2px solid #00C4CC' : '2px solid transparent',
                       borderRadius: 8, cursor: isActive ? 'default' : 'pointer',
                       opacity: page.hidden ? 0.35 : 1,
+                      background: pageBgType === 'transparent'
+                        ? 'repeating-conic-gradient(#aaa 0% 25%, #fff 0% 50%) 0 0 / 20px 20px'
+                        : undefined,
                     }}
                     onClick={!isActive ? () => { setActivePage(pageIdx); setSelectedId(null); } : undefined}
                   >
@@ -3569,6 +3578,8 @@ export default function TemplatesEditorInner() {
                               />
                             );
                           })()
+                        ) : pageBgType === 'transparent' ? (
+                          null
                         ) : pageBgType === 'color' ? (
                           <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill={pageBgColor}
                             onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined} />
