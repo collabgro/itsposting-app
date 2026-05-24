@@ -435,6 +435,14 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     onTransformEnd: handleTransformEnd,
     stroke: isSelected ? '#00C4CC' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined),
     strokeWidth: isSelected ? 1.5 : (el.borderEnabled && el.borderWidth ? el.borderWidth : 0),
+    dash: isSelected ? undefined : (() => {
+      if (!el.borderEnabled) return undefined;
+      const s = el.borderStyle || 'solid';
+      const w = el.borderWidth || 2;
+      if (s === 'dashed') return [w * 4, w * 3];
+      if (s === 'dotted') return [w, w * 2.5];
+      return undefined;
+    })(),
     globalCompositeOperation: el.blendMode || 'source-over',
   };
 
@@ -508,6 +516,7 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
       points={el.points || [0, 0, el.width || 200, 0]}
       stroke={el.stroke || '#ffffff'}
       strokeWidth={el.strokeWidth || 3}
+      dash={(() => { const s = el.strokeStyle||'solid'; const w = el.strokeWidth||3; if (s==='dashed') return [w*4,w*3]; if (s==='dotted') return [w,w*2.5]; return undefined; })()}
       opacity={el.opacity ?? 1}
     />
   );
@@ -541,6 +550,7 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
       fill={el.fill || '#ffffff'}
       stroke={el.fill || '#ffffff'}
       strokeWidth={el.strokeWidth || 4}
+      dash={(() => { const s = el.strokeStyle||'solid'; const w = el.strokeWidth||4; if (s==='dashed') return [w*4,w*3]; if (s==='dotted') return [w,w*2.5]; return undefined; })()}
       opacity={el.opacity ?? 1}
     />
   );
@@ -1340,7 +1350,7 @@ export default function TemplatesEditorInner() {
 
   // ── Copy / Paste style ────────────────────────────────────────────────────
   const STYLE_TEXT_KEYS  = ['fontSize','fontFamily','fontStyle','textDecoration','textTransform','align','verticalAlign','letterSpacing','lineHeight'];
-  const STYLE_SHAPE_KEYS = ['stroke','strokeWidth','cornerRadius'];
+  const STYLE_SHAPE_KEYS = ['stroke','strokeWidth','strokeStyle','cornerRadius','borderStyle'];
   const STYLE_COMMON_KEYS = ['opacity','fill','shadow'];
 
   function copyStyle() {
@@ -2591,6 +2601,20 @@ export default function TemplatesEditorInner() {
                   )}
                 </>
               )}
+              {['line','arrow'].includes(selectedEl.type) && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Width</span>
+                <input type="range" min={1} max={20} value={selectedEl.strokeWidth||3}
+                  onChange={e => updateElement({...selectedEl, strokeWidth:parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.strokeWidth||3}px</span>
+                {[['solid','─'],['dashed','╌'],['dotted','···']].map(([s,icon]) => (
+                  <button key={s} title={s.charAt(0).toUpperCase()+s.slice(1)} onClick={() => { pushHistory(); updateElement({...selectedEl, strokeStyle: s}); }}
+                    style={{ height:26, padding:'0 8px', border:`1px solid ${(selectedEl.strokeStyle||'solid')===s?'#00C4CC':t.border}`, borderRadius:5, background:(selectedEl.strokeStyle||'solid')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.strokeStyle||'solid')===s?'#00C4CC':t.text, fontSize:13, cursor:'pointer', flexShrink:0, letterSpacing:'0.05em' }}>
+                    {icon}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'rect' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Radius</span>
@@ -2615,6 +2639,12 @@ export default function TemplatesEditorInner() {
                   onChange={e => updateElement({...selectedEl, borderWidth:parseInt(e.target.value)})}
                   onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0, accentColor:'#00C4CC' }} />
                 <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.borderWidth||2}px</span>
+                {[['solid','─'],['dashed','╌'],['dotted','···']].map(([s,icon]) => (
+                  <button key={s} title={s.charAt(0).toUpperCase()+s.slice(1)} onClick={() => { pushHistory(); updateElement({...selectedEl, borderStyle: s}); }}
+                    style={{ height:26, padding:'0 8px', border:`1px solid ${(selectedEl.borderStyle||'solid')===s?'#00C4CC':t.border}`, borderRadius:5, background:(selectedEl.borderStyle||'solid')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.borderStyle||'solid')===s?'#00C4CC':t.text, fontSize:13, cursor:'pointer', flexShrink:0, letterSpacing:'0.05em' }}>
+                    {icon}
+                  </button>
+                ))}
               </>}
               <D />
               <Btn label="↑ Fwd"   active={false} onClick={() => bringForward()} />
