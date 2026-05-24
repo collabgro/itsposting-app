@@ -728,6 +728,88 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     />
   );
 
+  if (el.type === 'shape') {
+    const sw = el.width || 160, sh = el.height || 120;
+    const kind = el.shapeKind || 'speechbubble';
+    const fillColor = isGradFill ? undefined : (el.fill || 'rgba(255,255,255,0.2)');
+    return (
+      <Shape {...common}
+        width={sw} height={sh}
+        fill={fillColor}
+        {...gradFillProps}
+        opacity={el.opacity ?? 1}
+        shadowEnabled={el.shadow?.enabled || false}
+        shadowColor={el.shadow?.color || '#000000'}
+        shadowBlur={el.shadow?.blur ?? 8}
+        shadowOffsetX={el.shadow?.offsetX ?? 4}
+        shadowOffsetY={el.shadow?.offsetY ?? 4}
+        shadowOpacity={el.shadow?.opacity ?? 0.5}
+        stroke={el.stroke || ''}
+        strokeWidth={el.strokeWidth || 0}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape) => {
+          const w = shape.width(), h = shape.height();
+          ctx.beginPath();
+          if (kind === 'speechbubble') {
+            const r = 16; const tail = h * 0.22; const tw = w * 0.18;
+            ctx.moveTo(r, 0); ctx.lineTo(w - r, 0); ctx.arcTo(w, 0, w, r, r);
+            ctx.lineTo(w, h - tail - r); ctx.arcTo(w, h - tail, w - r, h - tail, r);
+            ctx.lineTo(w * 0.3 + tw, h - tail);
+            ctx.lineTo(w * 0.2, h);
+            ctx.lineTo(w * 0.3, h - tail);
+            ctx.lineTo(r, h - tail); ctx.arcTo(0, h - tail, 0, h - tail - r, r);
+            ctx.lineTo(0, r); ctx.arcTo(0, 0, r, 0, r);
+          } else if (kind === 'speechbubble_right') {
+            const r = 16; const tail = h * 0.22; const tw = w * 0.18;
+            ctx.moveTo(r, 0); ctx.lineTo(w - r, 0); ctx.arcTo(w, 0, w, r, r);
+            ctx.lineTo(w, r); ctx.lineTo(w, h - tail - r); ctx.arcTo(w, h - tail, w - r, h - tail, r);
+            ctx.lineTo(w * 0.7 + tw, h - tail);
+            ctx.lineTo(w * 0.8, h);
+            ctx.lineTo(w * 0.7, h - tail);
+            ctx.lineTo(r, h - tail); ctx.arcTo(0, h - tail, 0, h - tail - r, r);
+            ctx.lineTo(0, r); ctx.arcTo(0, 0, r, 0, r);
+          } else if (kind === 'heart') {
+            const cx = w / 2, cy = h / 2;
+            ctx.moveTo(cx, cy + h * 0.3);
+            ctx.bezierCurveTo(cx - w * 0.5, cy, cx - w * 0.5, cy - h * 0.4, cx, cy - h * 0.15);
+            ctx.bezierCurveTo(cx + w * 0.5, cy - h * 0.4, cx + w * 0.5, cy, cx, cy + h * 0.3);
+          } else if (kind === 'cross') {
+            const t = w * 0.27; // thickness
+            ctx.moveTo(t, 0); ctx.lineTo(w - t, 0); ctx.lineTo(w - t, t);
+            ctx.lineTo(w, t); ctx.lineTo(w, h - t); ctx.lineTo(w - t, h - t);
+            ctx.lineTo(w - t, h); ctx.lineTo(t, h); ctx.lineTo(t, h - t);
+            ctx.lineTo(0, h - t); ctx.lineTo(0, t); ctx.lineTo(t, t);
+          } else if (kind === 'pentagon') {
+            const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2;
+            for (let i = 0; i < 5; i++) {
+              const a = (Math.PI * 2 / 5) * i - Math.PI / 2;
+              i === 0 ? ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
+                      : ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+            }
+          } else if (kind === 'octagon') {
+            const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2;
+            for (let i = 0; i < 8; i++) {
+              const a = (Math.PI * 2 / 8) * i - Math.PI / 8;
+              i === 0 ? ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
+                      : ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+            }
+          } else if (kind === 'parallelogram') {
+            const skew = w * 0.2;
+            ctx.moveTo(skew, 0); ctx.lineTo(w, 0); ctx.lineTo(w - skew, h); ctx.lineTo(0, h);
+          } else if (kind === 'banner') {
+            const notch = w * 0.08;
+            ctx.moveTo(0, 0); ctx.lineTo(w, 0); ctx.lineTo(w - notch, h / 2); ctx.lineTo(w, h);
+            ctx.lineTo(0, h); ctx.lineTo(notch, h / 2);
+          } else {
+            ctx.rect(0, 0, w, h);
+          }
+          ctx.closePath();
+          ctx.fillStrokeShape(shape);
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -1582,6 +1664,13 @@ export default function TemplatesEditorInner() {
   function addArrow(overrides = {}) {
     pushHistory();
     const el = { id: uid(), type: 'arrow', x: canvasSize.w / 2 - 100, y: canvasSize.h / 2, width: 200, fill: '#ffffff', strokeWidth: 4, opacity: 1, ...overrides };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addSmartShape(kind) {
+    pushHistory();
+    const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -4395,6 +4484,14 @@ export default function TemplatesEditorInner() {
                     { label: 'Line',      icon: '╱', fn: () => addLine() },
                     { label: 'Rounded',   icon: '▢', fn: () => addRect({ cornerRadius: 20 }) },
                     { label: 'Diamond',   icon: '◆', fn: () => addTriangle({ sides: 4, rotation: 45 }) },
+                    { label: 'Heart',     icon: '♥', fn: () => addSmartShape('heart') },
+                    { label: 'Cross',     icon: '✚', fn: () => addSmartShape('cross') },
+                    { label: 'Pentagon',  icon: '⬠', fn: () => addSmartShape('pentagon') },
+                    { label: 'Octagon',   icon: '⯃', fn: () => addSmartShape('octagon') },
+                    { label: 'Speech ◀',  icon: '💬', fn: () => addSmartShape('speechbubble') },
+                    { label: 'Speech ▶',  icon: '💭', fn: () => addSmartShape('speechbubble_right') },
+                    { label: 'Slant',     icon: '▱', fn: () => addSmartShape('parallelogram') },
+                    { label: 'Banner',    icon: '⛳', fn: () => addSmartShape('banner') },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -5482,7 +5579,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
