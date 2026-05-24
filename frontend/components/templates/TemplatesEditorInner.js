@@ -156,6 +156,21 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
 
 const SNAP_THRESHOLD = 5;
 
+const COLOR_SCHEMES = [
+  { name: 'Ocean',      colors: ['#0A1628','#1E3A5F','#2D6A9F','#56CFE1'] },
+  { name: 'Sunset',     colors: ['#1A0533','#7B2D8B','#E94560','#FF8C42'] },
+  { name: 'Forest',     colors: ['#0D2B1F','#1B5E38','#3D9970','#A8E6CF'] },
+  { name: 'Fire',       colors: ['#1A0A00','#8B1A0A','#D4380D','#FFB347'] },
+  { name: 'Night',      colors: ['#0A0A1A','#1A1A3E','#3D3D7A','#8888CC'] },
+  { name: 'Rose',       colors: ['#1A0010','#6B0F3A','#C0356F','#FF8FAB'] },
+  { name: 'Sand',       colors: ['#1C1208','#5C3D11','#B8860B','#F4D03F'] },
+  { name: 'Arctic',     colors: ['#FFFFFF','#E0F4FF','#9EDBF9','#3BAFDA'] },
+  { name: 'Slate',      colors: ['#1E293B','#334155','#64748B','#CBD5E1'] },
+  { name: 'Canva',      colors: ['#00C4CC','#7C5CFC','#FF7A00','#FFCE00'] },
+  { name: 'Minimal',    colors: ['#111111','#333333','#777777','#EEEEEE'] },
+  { name: 'Coral',      colors: ['#1A0A08','#8B2500','#E85D04','#FFBA08'] },
+];
+
 const EMOJI_SETS = [
   { label: 'Smileys',  list: ['😀','😂','😍','🥳','😎','🤔','😮','🥰','😁','🤣','😊','😜','🫡','😇','🤩','🥹'] },
   { label: 'Business', list: ['💼','📊','📈','✅','🏆','⭐','🔥','💡','🎯','📱','💰','🛠','📣','🔑','🤝','🆕'] },
@@ -3577,6 +3592,30 @@ export default function TemplatesEditorInner() {
                       </div>
                     </div>
                   )}
+                </div>
+                {/* ── Color Palettes ── */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Color Palettes</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    {COLOR_SCHEMES.map(scheme => (
+                      <button key={scheme.name} title={scheme.name}
+                        onClick={() => {
+                          pushHistory();
+                          patchPage({ bgType: 'color', bgColor: scheme.colors[0] });
+                          setRecentColors(prev => {
+                            const combined = [...scheme.colors, ...prev].filter((c, i, a) => a.indexOf(c) === i);
+                            return combined.slice(0, 12);
+                          });
+                        }}
+                        style={{ border: `1px solid ${t.border}`, borderRadius: 7, overflow: 'hidden', cursor: 'pointer', padding: 0, display: 'flex', flexDirection: 'column', height: 32 }}>
+                        <div style={{ display: 'flex', height: '100%' }}>
+                          {scheme.colors.map(c => (
+                            <div key={c} style={{ flex: 1, background: c }} />
+                          ))}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {/* ── Gradient section ── */}
                 <div style={{ marginBottom: 14 }}>
