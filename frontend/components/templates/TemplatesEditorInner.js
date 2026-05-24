@@ -243,23 +243,26 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
   const [img] = useImage(el.src, 'anonymous');
   const [isDragging, setIsDragging] = useState(false);
 
-  // Apply Konva image filters when brightness/contrast/saturation are set
+  // Apply Konva image filters when brightness/contrast/saturation/blur are set
   useEffect(() => {
     if (!shapeRef.current || !img) return;
     const node = shapeRef.current;
-    const hasFx = (el.brightness ?? 0) !== 0 || (el.contrast ?? 0) !== 0 || (el.saturation ?? 0) !== 0;
+    const hasFx = (el.brightness ?? 0) !== 0 || (el.contrast ?? 0) !== 0 || (el.saturation ?? 0) !== 0 || (el.blur ?? 0) > 0;
     if (hasFx) {
-      node.filters([Konva.Filters.Brighten, Konva.Filters.Contrast, Konva.Filters.HSL]);
+      const filters = [Konva.Filters.Brighten, Konva.Filters.Contrast, Konva.Filters.HSL];
+      if ((el.blur ?? 0) > 0) filters.push(Konva.Filters.Blur);
+      node.filters(filters);
       node.brightness(el.brightness ?? 0);
       node.contrast(el.contrast ?? 0);
       node.saturation(el.saturation ?? 0);
+      node.blurRadius(el.blur ?? 0);
       node.cache();
     } else {
       node.filters([]);
       node.clearCache();
     }
     node.getLayer()?.batchDraw();
-  }, [img, el.brightness, el.contrast, el.saturation]);
+  }, [img, el.brightness, el.contrast, el.saturation, el.blur]);
   const w = el.width || 200;
   const h = el.height || 200;
   const flipSX = el.flipH ? -1 : 1;
@@ -2498,7 +2501,7 @@ export default function TemplatesEditorInner() {
               <D />
               {/* Image Adjust panel */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="◑ Adjust" active={showAdjustPanel || (selectedEl.brightness||0)!==0 || (selectedEl.contrast||0)!==0 || (selectedEl.saturation||0)!==0}
+                <Btn label="◑ Adjust" active={showAdjustPanel || (selectedEl.brightness||0)!==0 || (selectedEl.contrast||0)!==0 || (selectedEl.saturation||0)!==0 || (selectedEl.blur||0)>0}
                   onClick={() => { setShowAdjustPanel(p => !p); setShowCropPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
                 {showAdjustPanel && selectedEl && (
                   <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
@@ -2506,6 +2509,7 @@ export default function TemplatesEditorInner() {
                       { label: 'Brightness', k: 'brightness', min: -1,   max: 1,   step: 0.05, def: 0 },
                       { label: 'Contrast',   k: 'contrast',   min: -100, max: 100, step: 5,    def: 0 },
                       { label: 'Saturation', k: 'saturation', min: -1,   max: 1,   step: 0.05, def: 0 },
+                      { label: 'Blur',       k: 'blur',       min: 0,    max: 40,  step: 0.5,  def: 0 },
                     ].map(({ label, k, min, max, step, def }) => (
                       <div key={k} style={{ marginBottom: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
@@ -2517,7 +2521,7 @@ export default function TemplatesEditorInner() {
                           onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: '#00C4CC' }} />
                       </div>
                     ))}
-                    <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, brightness: 0, contrast: 0, saturation: 0 }); }}
+                    <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, brightness: 0, contrast: 0, saturation: 0, blur: 0 }); }}
                       style={{ width: '100%', padding: '7px 0', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, cursor: 'pointer', marginTop: 4 }}>
                       Reset adjustments
                     </button>
