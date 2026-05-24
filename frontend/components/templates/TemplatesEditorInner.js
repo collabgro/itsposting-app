@@ -814,6 +814,7 @@ export default function TemplatesEditorInner() {
   const [showAdjustPanel, setShowAdjustPanel] = useState(false);
   const [showSpacingPanel, setShowSpacingPanel] = useState(false);
   const [showCropPanel, setShowCropPanel] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [lockAspectRatio, setLockAspectRatio] = useState(false);
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
@@ -2097,7 +2098,7 @@ export default function TemplatesEditorInner() {
       </div>
 
       {/* ── Contextual action bar (Canva-style) ── */}
-      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); }}
+      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); }}
         style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
 
         {/* ── Multi-select bar ── */}
@@ -2499,10 +2500,35 @@ export default function TemplatesEditorInner() {
               <D />
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
               <D />
+              {/* Image Filter presets panel */}
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="◐ Filter" active={showFilterPanel || !!(selectedEl.filterPreset && selectedEl.filterPreset !== 'normal')}
+                  onClick={() => { setShowFilterPanel(p => !p); setShowAdjustPanel(false); setShowCropPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
+                {showFilterPanel && selectedEl && (
+                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 12, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Filter presets</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+                      {Object.entries(FILTER_PRESETS).map(([key, p]) => {
+                        const isActive = (selectedEl.filterPreset || 'normal') === key;
+                        return (
+                          <button key={key}
+                            onClick={() => {
+                              pushHistory();
+                              updateElement({ ...selectedEl, filterPreset: key, brightness: p.brightness, contrast: p.contrast, saturation: p.saturation });
+                            }}
+                            style={{ padding: '6px 0', borderRadius: 7, border: `1.5px solid ${isActive ? '#00C4CC' : t.border}`, background: isActive ? 'rgba(0,196,204,0.12)' : t.input, color: isActive ? '#00C4CC' : t.text, fontSize: 10, fontWeight: 500, cursor: 'pointer', textTransform: 'capitalize' }}>
+                            {key}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
               {/* Image Adjust panel */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="◑ Adjust" active={showAdjustPanel || (selectedEl.brightness||0)!==0 || (selectedEl.contrast||0)!==0 || (selectedEl.saturation||0)!==0 || (selectedEl.blur||0)>0}
-                  onClick={() => { setShowAdjustPanel(p => !p); setShowCropPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
+                  onClick={() => { setShowAdjustPanel(p => !p); setShowCropPanel(false); setShowFilterPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
                 {showAdjustPanel && selectedEl && (
                   <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     {[
@@ -2531,7 +2557,7 @@ export default function TemplatesEditorInner() {
               {/* Crop panel */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="⚟ Crop" active={showCropPanel || (selectedEl.cropTop||0)>0 || (selectedEl.cropBottom||0)>0 || (selectedEl.cropLeft||0)>0 || (selectedEl.cropRight||0)>0}
-                  onClick={() => { setShowCropPanel(p => !p); setShowAdjustPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
+                  onClick={() => { setShowCropPanel(p => !p); setShowAdjustPanel(false); setShowFilterPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
                 {showCropPanel && selectedEl && (
                   <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Crop edges (%)</div>
@@ -2562,7 +2588,7 @@ export default function TemplatesEditorInner() {
               {/* Shadow panel for images */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Shadow" active={!!selectedEl.shadow?.enabled}
-                  onClick={() => { setShowShadowPanel(p => !p); setShowAdjustPanel(false); setShowCropPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
+                  onClick={() => { setShowShadowPanel(p => !p); setShowAdjustPanel(false); setShowFilterPanel(false); setShowCropPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
                 {showShadowPanel && (
                   <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
