@@ -2858,6 +2858,55 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'counter') {
+    const cw = el.width || 200, ch = el.height || 160;
+    const bgC = el.bgColor || 'rgba(0,196,204,0.15)';
+    const textC = el.fill || '#ffffff';
+    const accentC = el.accentColor || '#00C4CC';
+    const cStyle = el.counterStyle || 'card';
+    const val = el.counterValue ?? 1234;
+    const numStr = `${el.counterPrefix || ''}${Number(val).toLocaleString()}${el.counterSuffix || ''}`;
+    const label = el.counterLabel || '';
+    const numFontSize = el.fontSize || 52;
+    const labelFontSize = Math.max(11, Math.round(numFontSize * 0.28));
+    return (
+      <Shape {...common} width={cw} height={ch} opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          if (cStyle === 'circle') {
+            const r = Math.min(w, h) / 2 - 2;
+            ctx.beginPath();
+            ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2);
+            ctx.fillStyle = bgC;
+            ctx.fill();
+          } else if (cStyle === 'card') {
+            ctx.fillStyle = bgC;
+            ctx.beginPath();
+            ctx.roundRect(0, 0, w, h, el.cornerRadius ?? 12);
+            ctx.fill();
+            ctx.fillStyle = accentC;
+            ctx.fillRect(0, 0, w, 4);
+          }
+          const numY = label ? h * 0.40 : h * 0.50;
+          ctx.font = `bold ${numFontSize}px Inter, sans-serif`;
+          ctx.fillStyle = textC;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(numStr, w / 2, numY);
+          if (label) {
+            ctx.font = `${labelFontSize}px Inter, sans-serif`;
+            ctx.fillStyle = accentC;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(label, w / 2, h * 0.68);
+          }
+          if (isSelected) { ctx.strokeStyle = '#00C4CC'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'gradrect') {
     const grw = el.width || 320, grh = el.height || 200;
     const stops = el.gradStops || [{ pos: 0, color: '#7C5CFC' }, { pos: 1, color: '#00C4CC' }];
@@ -3818,6 +3867,22 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addCounter() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'counter',
+      x: canvasSize.w / 2 - 100, y: canvasSize.h / 2 - 80,
+      width: 200, height: 160, opacity: 1,
+      counterValue: 1234, counterPrefix: '', counterSuffix: '+',
+      counterLabel: 'Customers Served',
+      counterStyle: 'card',
+      fill: '#ffffff', bgColor: 'rgba(0,196,204,0.15)', accentColor: '#00C4CC',
+      fontSize: 52, cornerRadius: 12,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -6230,6 +6295,44 @@ export default function TemplatesEditorInner() {
                   </button>
                 ))}
               </>}
+              {selectedEl.type === 'counter' && <>
+                <D />
+                {[['Plain','plain'],['Card','card'],['Circle','circle']].map(([lbl,s]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, counterStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.counterStyle||'card')===s?'#00C4CC':t.border}`, background:(selectedEl.counterStyle||'card')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.counterStyle||'card')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Value</span>
+                <input type="number" value={selectedEl.counterValue??1234}
+                  onChange={e=>updateElement({...selectedEl,counterValue:+e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  style={{width:70,padding:'2px 6px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none'}} />
+                <input type="text" value={selectedEl.counterPrefix||''} placeholder="$"
+                  onChange={e=>updateElement({...selectedEl,counterPrefix:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  title="Prefix (e.g. $)"
+                  style={{width:36,padding:'2px 5px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none',textAlign:'center'}} />
+                <input type="text" value={selectedEl.counterSuffix||''} placeholder="%"
+                  onChange={e=>updateElement({...selectedEl,counterSuffix:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  title="Suffix (e.g. %)"
+                  style={{width:36,padding:'2px 5px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none',textAlign:'center'}} />
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Label</span>
+                <input type="text" value={selectedEl.counterLabel||''} placeholder="Label text"
+                  onChange={e=>updateElement({...selectedEl,counterLabel:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  style={{width:110,padding:'2px 7px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none'}} />
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Num</span>
+                <ColorPickerButton value={selectedEl.fill||'#ffffff'} onChange={c=>updateElement({...selectedEl,fill:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Bg</span>
+                <ColorPickerButton value={selectedEl.bgColor||'rgba(0,196,204,0.15)'} onChange={c=>updateElement({...selectedEl,bgColor:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Accent</span>
+                <ColorPickerButton value={selectedEl.accentColor||'#00C4CC'} onChange={c=>updateElement({...selectedEl,accentColor:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+              </>}
               {selectedEl.type === 'beforeafter' && <>
                 <D />
                 {[['Pill','pill'],['Corner','corner'],['Center','center']].map(([lbl,s]) => (
@@ -7666,6 +7769,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Review',    icon: '⭐', fn: () => addTestimonial() },
                     { label: 'Before/After', icon: '⟺', fn: () => addBeforeAfter() },
                     { label: 'Grad Rect',  icon: '▨', fn: () => addGradRect() },
+                    { label: 'Counter',    icon: '🔢', fn: () => addCounter() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -8753,7 +8857,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
