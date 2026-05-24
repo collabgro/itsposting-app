@@ -265,6 +265,21 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
   const flipSX = el.flipH ? -1 : 1;
   const flipSY = el.flipV ? -1 : 1;
 
+  // Compute Konva crop prop from cropTop/Bottom/Left/Right (0-49 integer percentages)
+  const imgNatW = img?.naturalWidth || img?.width || w;
+  const imgNatH = img?.naturalHeight || img?.height || h;
+  const cTop    = (el.cropTop    || 0) / 100;
+  const cBottom = (el.cropBottom || 0) / 100;
+  const cLeft   = (el.cropLeft   || 0) / 100;
+  const cRight  = (el.cropRight  || 0) / 100;
+  const hasCrop = cTop > 0 || cBottom > 0 || cLeft > 0 || cRight > 0;
+  const cropProp = hasCrop ? {
+    x: imgNatW * cLeft,
+    y: imgNatH * cTop,
+    width:  Math.max(1, imgNatW * (1 - cLeft - cRight)),
+    height: Math.max(1, imgNatH * (1 - cTop - cBottom)),
+  } : undefined;
+
   const handleDragMove = (e) => {
     if (!onDragMove) return;
     const tlX = e.target.x() - w / 2;
@@ -336,6 +351,7 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
       stroke={isSelected ? '#00C4CC' : undefined}
       strokeWidth={isSelected ? 1.5 : 0}
       globalCompositeOperation={el.blendMode || 'source-over'}
+      {...(cropProp ? { crop: cropProp } : {})}
     />
   );
 }
@@ -748,6 +764,7 @@ export default function TemplatesEditorInner() {
   const [showAnimatePanel, setShowAnimatePanel] = useState(false);
   const [showAdjustPanel, setShowAdjustPanel] = useState(false);
   const [showSpacingPanel, setShowSpacingPanel] = useState(false);
+  const [showCropPanel, setShowCropPanel] = useState(false);
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
   const [uploadMediaTab, setUploadMediaTab] = useState('Images');
@@ -1967,7 +1984,7 @@ export default function TemplatesEditorInner() {
       </div>
 
       {/* ── Contextual action bar (Canva-style) ── */}
-      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); }}
+      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); }}
         style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
 
         {/* ── Multi-select bar ── */}
@@ -2318,7 +2335,7 @@ export default function TemplatesEditorInner() {
               {/* Image Adjust panel */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="◑ Adjust" active={showAdjustPanel || (selectedEl.brightness||0)!==0 || (selectedEl.contrast||0)!==0 || (selectedEl.saturation||0)!==0}
-                  onClick={() => { setShowAdjustPanel(p => !p); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
+                  onClick={() => { setShowAdjustPanel(p => !p); setShowCropPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
                 {showAdjustPanel && selectedEl && (
                   <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     {[
@@ -2339,6 +2356,37 @@ export default function TemplatesEditorInner() {
                     <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, brightness: 0, contrast: 0, saturation: 0 }); }}
                       style={{ width: '100%', padding: '7px 0', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, cursor: 'pointer', marginTop: 4 }}>
                       Reset adjustments
+                    </button>
+                  </div>
+                )}
+              </div>
+              {/* Crop panel */}
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="⚟ Crop" active={showCropPanel || (selectedEl.cropTop||0)>0 || (selectedEl.cropBottom||0)>0 || (selectedEl.cropLeft||0)>0 || (selectedEl.cropRight||0)>0}
+                  onClick={() => { setShowCropPanel(p => !p); setShowAdjustPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
+                {showCropPanel && selectedEl && (
+                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 10 }}>Crop edges (%)</div>
+                    {[
+                      { label: 'Top',    k: 'cropTop'    },
+                      { label: 'Bottom', k: 'cropBottom' },
+                      { label: 'Left',   k: 'cropLeft'   },
+                      { label: 'Right',  k: 'cropRight'  },
+                    ].map(({ label, k }) => (
+                      <div key={k} style={{ marginBottom: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                          <span style={{ fontSize: 11, color: t.textMuted }}>{label}</span>
+                          <span style={{ fontSize: 11, color: t.textMuted }}>{(selectedEl[k] || 0).toFixed(0)}%</span>
+                        </div>
+                        <input type="range" min={0} max={49} step={1} value={selectedEl[k] || 0}
+                          onChange={e => updateElement({ ...selectedEl, [k]: parseInt(e.target.value) })}
+                          onMouseUp={() => pushHistory()}
+                          style={{ width: '100%', accentColor: '#00C4CC' }} />
+                      </div>
+                    ))}
+                    <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, cropTop: 0, cropBottom: 0, cropLeft: 0, cropRight: 0 }); }}
+                      style={{ width: '100%', padding: '7px 0', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, cursor: 'pointer' }}>
+                      Reset crop
                     </button>
                   </div>
                 )}
