@@ -1823,6 +1823,57 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'neontext') {
+    const ntw = el.width || 400, nth = el.height || 90;
+    const rawText = applyTextTransform(el.text || 'NEON', el.textTransform) || '';
+    const fontSize = el.fontSize || 60;
+    const fontStyle = el.fontStyle || 'bold';
+    const fontFamily = el.fontFamily || 'Inter, sans-serif';
+    const fontStr = `${fontStyle !== 'normal' ? fontStyle + ' ' : ''}${fontSize}px ${fontFamily}`;
+    const glowColor = el.glowColor || '#00C4CC';
+    const glowIntensity = el.glowIntensity ?? 18; // blur radius in px
+
+    return (
+      <Shape {...common}
+        width={ntw} height={nth}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          ctx.font = fontStr;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          // Draw glow layers (outer → inner)
+          const glowLayers = [
+            { blur: glowIntensity * 2.5, alpha: 0.25 },
+            { blur: glowIntensity * 1.5, alpha: 0.45 },
+            { blur: glowIntensity,       alpha: 0.65 },
+            { blur: glowIntensity * 0.5, alpha: 0.85 },
+          ];
+          glowLayers.forEach(({ blur, alpha }) => {
+            ctx.save();
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = blur;
+            ctx.fillStyle = `rgba(${parseInt(glowColor.slice(1,3),16)},${parseInt(glowColor.slice(3,5),16)},${parseInt(glowColor.slice(5,7),16)},${alpha})`;
+            ctx.fillText(rawText, w / 2, h / 2);
+            ctx.restore();
+          });
+          // Bright core
+          ctx.shadowColor = glowColor;
+          ctx.shadowBlur = glowIntensity * 0.3;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(rawText, w / 2, h / 2);
+          ctx.shadowBlur = 0;
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2712,6 +2763,20 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif', textAlign: 'center',
       gradColor1: '#00C4CC', gradColor2: '#7C5CFC',
       gradDirection: 'horizontal',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addNeonText() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'neontext',
+      x: canvasSize.w / 2 - 200, y: canvasSize.h / 2 - 45,
+      width: 400, height: 90, opacity: 1,
+      text: 'NEON', fontSize: 60, fontStyle: 'bold',
+      fontFamily: 'Inter, sans-serif',
+      glowColor: '#00C4CC', glowIntensity: 18,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -4937,6 +5002,29 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'neontext' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Glow</span>
+                <ColorPickerButton
+                  value={selectedEl.glowColor || '#00C4CC'}
+                  onChange={c => updateElement({...selectedEl, glowColor: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Intensity</span>
+                <input type="range" min={4} max={40} step={1} value={selectedEl.glowIntensity ?? 18}
+                  onChange={e => updateElement({...selectedEl, glowIntensity: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()}
+                  style={{ width:64, accentColor:'#00C4CC', cursor:'pointer', flexShrink:0 }} />
+                <D />
+                {[['Cyan','#00C4CC'],['Purple','#7C5CFC'],['Pink','#ec4899'],['Orange','#f97316'],['Green','#22c55e'],['White','#ffffff']].map(([lbl,c]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, glowColor: c}); }}
+                    title={lbl}
+                    style={{ width:22, height:22, borderRadius:'50%', border:`2px solid ${(selectedEl.glowColor||'#00C4CC')===c?'#fff':t.border}`, background:c, cursor:'pointer', flexShrink:0, boxShadow:`0 0 6px ${c}` }} />
+                ))}
+              </>}
               {selectedEl.type === 'gradtext' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Color 1</span>
@@ -6000,6 +6088,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Callout',   icon: '💡', fn: () => addCallout() },
                     { label: 'Coupon',    icon: '🎟', fn: () => addCoupon() },
                     { label: 'GradText',  icon: '🌈', fn: () => addGradientText() },
+                    { label: 'Neon',      icon: '✨', fn: () => addNeonText() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -7087,7 +7176,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
