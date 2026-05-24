@@ -44,6 +44,90 @@ const COLOR_PALETTE = [
   '#ef4444', '#3b82f6', '#ec4899', '#0ea5e9', '#84cc16',
 ];
 
+const EXTENDED_PALETTE = [
+  '#000000','#434343','#666666','#999999','#CCCCCC','#D9D9D9','#EFEFEF','#F3F3F3','#FFFFFF',
+  '#FF0000','#FF4500','#FF9900','#FFFF00','#00FF00','#00FFFF','#4A86E8','#0000FF','#9900FF','#FF00FF',
+  '#EA9999','#F9CB9C','#FFE599','#B6D7A8','#A2C4C9','#9FC5E8','#B4A7D6','#D5A6BD',
+  '#CC4125','#E06666','#F6B26B','#FFD966','#93C47D','#76A5AF','#6FA8DC','#8E7CC3','#C27BA0',
+  '#1a1a22','#7C5CFC','#00C4CC','#10b981',
+];
+
+// ─── ColorPickerButton ────────────────────────────────────────────────────────
+function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors = [], size = 22 }) {
+  const [open, setOpen] = useState(false);
+  const [hex, setHex] = useState(value);
+  const btnRef = useRef(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => { setHex(value); }, [value]);
+
+  const openPicker = () => {
+    if (!btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    const panelW = 228;
+    const left = Math.min(r.left, window.innerWidth - panelW - 8);
+    const top  = r.bottom + 6;
+    setPos({ x: Math.max(8, left), y: top });
+    setOpen(true);
+  };
+
+  const apply = (color) => { setHex(color); onChange?.(color); };
+
+  const handleHex = (v) => {
+    setHex(v);
+    if (/^#[0-9A-Fa-f]{6}$/.test(v)) onChange?.(v);
+  };
+
+  const close = () => { setOpen(false); onCommit?.(); };
+
+  return (
+    <>
+      {open && <div style={{ position: 'fixed', inset: 0, zIndex: 9990 }} onMouseDown={close} />}
+      <div ref={btnRef} style={{ display: 'inline-flex' }}>
+        <button onMouseDown={e => { e.preventDefault(); e.stopPropagation(); openPicker(); }}
+          style={{ width: size + 6, height: size + 6, padding: 2, border: '1.5px solid rgba(128,128,128,0.4)', borderRadius: 4, background: 'transparent', cursor: 'pointer', flexShrink: 0 }}>
+          <div style={{ width: '100%', height: '100%', borderRadius: 2, background: value }} />
+        </button>
+      </div>
+      {open && (
+        <div onMouseDown={e => e.stopPropagation()}
+          style={{ position: 'fixed', left: pos.x, top: pos.y, width: 228, background: '#1e1e28', border: '1px solid #2a2a35', borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 9991, padding: 12 }}>
+          {/* Preview + hex input + wheel picker */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 6, background: hex, border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }} />
+            <input value={hex} onChange={e => handleHex(e.target.value)}
+              style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid #2a2a35', background: '#13131a', color: '#f4f4f5', fontSize: 12, fontFamily: 'monospace', outline: 'none', minWidth: 0 }} />
+            <div style={{ position: 'relative', width: 32, height: 32, borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{ position: 'absolute', inset: 0, background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }} />
+              <input type="color" value={hex} onChange={e => apply(e.target.value)} onBlur={close}
+                style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'crosshair' }} />
+            </div>
+          </div>
+          {/* Full palette grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 3, marginBottom: 8 }}>
+            {EXTENDED_PALETTE.map(c => (
+              <button key={c} onMouseDown={() => { apply(c); close(); }}
+                style={{ aspectRatio: '1', background: c, border: hex === c ? '2px solid #00C4CC' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0 }} />
+            ))}
+          </div>
+          {/* Recent colors */}
+          {recentColors.length > 0 && (
+            <>
+              <div style={{ fontSize: 10, color: '#71717a', marginBottom: 5 }}>Recent</div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {recentColors.map(c => (
+                  <button key={c} onMouseDown={() => { apply(c); close(); }}
+                    style={{ width: 20, height: 20, background: c, border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 const SNAP_THRESHOLD = 5;
 
 const BLEND_MODES = [
@@ -1881,13 +1965,12 @@ export default function TemplatesEditorInner() {
           return (
             <>
               {/* Text color swatch */}
-              <div style={{ position: 'relative', width: 32, height: 30, flexShrink: 0 }} title="Text color">
-                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 20, height: 20, borderRadius: 3, background: selectedEl.fill || '#fff', border: '1.5px solid rgba(128,128,128,0.35)', pointerEvents: 'none' }} />
-                <input type="color" value={selectedEl.fill || '#ffffff'}
-                  onChange={e => pickColor(e.target.value, c => updateElement({ ...selectedEl, fill: c }))}
-                  onBlur={() => pushHistory()}
-                  style={{ opacity: 0, position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: 'pointer' }} />
-              </div>
+              <ColorPickerButton
+                value={selectedEl.fill || '#ffffff'}
+                onChange={c => pickColor(c, color => updateElement({ ...selectedEl, fill: color }))}
+                onCommit={() => pushHistory()}
+                recentColors={recentColors}
+              />
               <D />
               {/* Font family */}
               <select value={selectedEl.fontFamily || 'Inter'} onChange={e => handleElementChange({ ...selectedEl, fontFamily: e.target.value })}
@@ -2153,13 +2236,12 @@ export default function TemplatesEditorInner() {
           return (
             <>
               {/* Fill/stroke color swatch */}
-              <div style={{ position:'relative', width:32, height:30, flexShrink:0 }} title={['line','arrow'].includes(selectedEl.type) ? 'Stroke color' : 'Fill color'}>
-                <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:20, height:20, borderRadius:3, background:fillVal, border:'1.5px solid rgba(128,128,128,0.35)', pointerEvents:'none' }} />
-                <input type="color" value={fillVal}
-                  onChange={e => pickColor(e.target.value, c => updateElement({...selectedEl, [fillKey]: c}))}
-                  onBlur={() => pushHistory()}
-                  style={{ opacity:0, position:'absolute', inset:0, width:'100%', height:'100%', cursor:'pointer' }} />
-              </div>
+              <ColorPickerButton
+                value={fillVal}
+                onChange={c => pickColor(c, color => updateElement({ ...selectedEl, [fillKey]: color }))}
+                onCommit={() => pushHistory()}
+                recentColors={recentColors}
+              />
               {selectedEl.type === 'rect' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Radius</span>
@@ -2173,13 +2255,13 @@ export default function TemplatesEditorInner() {
               <Btn label="Border" active={!!selectedEl.borderEnabled}
                 onClick={() => handleElementChange({...selectedEl, borderEnabled: !selectedEl.borderEnabled, borderColor: selectedEl.borderColor||'#ffffff', borderWidth: selectedEl.borderWidth||2})} />
               {selectedEl.borderEnabled && <>
-                <div style={{ position:'relative', width:28, height:30, flexShrink:0 }} title="Border color">
-                  <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:18, height:18, borderRadius:3, background:selectedEl.borderColor||'#ffffff', border:'1.5px solid rgba(128,128,128,0.35)', pointerEvents:'none' }} />
-                  <input type="color" value={selectedEl.borderColor||'#ffffff'}
-                    onChange={e => pickColor(e.target.value, c => updateElement({...selectedEl, borderColor:c}))}
-                    onBlur={() => pushHistory()}
-                    style={{ opacity:0, position:'absolute', inset:0, width:'100%', height:'100%', cursor:'pointer' }} />
-                </div>
+                <ColorPickerButton
+                  value={selectedEl.borderColor || '#ffffff'}
+                  onChange={c => pickColor(c, color => updateElement({ ...selectedEl, borderColor: color }))}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
                 <input type="range" min={1} max={20} value={selectedEl.borderWidth||2}
                   onChange={e => updateElement({...selectedEl, borderWidth:parseInt(e.target.value)})}
                   onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0, accentColor:'#00C4CC' }} />
