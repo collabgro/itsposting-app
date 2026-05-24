@@ -3955,6 +3955,26 @@ export default function TemplatesEditorInner() {
       if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); zoomOut(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); setZoomFactor(1); return; }
 
+      // Layer order shortcuts: ] / [ (forward/back), Shift+] / Shift+[ (to front/back)
+      if (selectedId && selectedId !== '__bg__') {
+        const tag2 = document.activeElement?.tagName;
+        if (tag2 !== 'INPUT' && tag2 !== 'TEXTAREA' && tag2 !== 'SELECT') {
+          if (e.key === ']' && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            if (e.shiftKey) bringToFront(selectedId); else bringForward(selectedId);
+            return;
+          }
+          if (e.key === '[' && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            if (e.shiftKey) sendToBack(selectedId); else sendBackward(selectedId);
+            return;
+          }
+          // Flip: Shift+H / Shift+V
+          if (e.shiftKey && !e.ctrlKey && !e.metaKey && e.key === 'H') { e.preventDefault(); flipH(); return; }
+          if (e.shiftKey && !e.ctrlKey && !e.metaKey && e.key === 'V') { e.preventDefault(); flipV(); return; }
+        }
+      }
+
       // Grid toggle
       if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'g' || e.key === 'G')) {
         const tag = document.activeElement?.tagName;
