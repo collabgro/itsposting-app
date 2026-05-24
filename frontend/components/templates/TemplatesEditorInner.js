@@ -130,6 +130,22 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
 
 const SNAP_THRESHOLD = 5;
 
+function _hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+Konva.Filters.Duotone = function(imageData) {
+  const d = imageData.data;
+  const c1 = _hexToRgb(this.duotoneColor1 || '#1a1a22');
+  const c2 = _hexToRgb(this.duotoneColor2 || '#00C4CC');
+  for (let i = 0; i < d.length; i += 4) {
+    const luma = (0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2]) / 255;
+    d[i]   = Math.round(c1[0] + (c2[0] - c1[0]) * luma);
+    d[i+1] = Math.round(c1[1] + (c2[1] - c1[1]) * luma);
+    d[i+2] = Math.round(c1[2] + (c2[2] - c1[2]) * luma);
+  }
+};
+
 const BLEND_MODES = [
   ['source-over','Normal'],['multiply','Multiply'],['screen','Screen'],
   ['overlay','Overlay'],['darken','Darken'],['lighten','Lighten'],
@@ -245,26 +261,32 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
   const [img] = useImage(el.src, 'anonymous');
   const [isDragging, setIsDragging] = useState(false);
 
-  // Apply Konva image filters when brightness/contrast/saturation/blur are set
+  // Apply Konva image filters when brightness/contrast/saturation/blur/duotone are set
   useEffect(() => {
     if (!shapeRef.current || !img) return;
     const node = shapeRef.current;
-    const hasFx = (el.brightness ?? 0) !== 0 || (el.contrast ?? 0) !== 0 || (el.saturation ?? 0) !== 0 || (el.blur ?? 0) > 0;
+    const hasDuotone = el.duotone?.enabled;
+    const hasFx = (el.brightness ?? 0) !== 0 || (el.contrast ?? 0) !== 0 || (el.saturation ?? 0) !== 0 || (el.blur ?? 0) > 0 || hasDuotone;
     if (hasFx) {
       const filters = [Konva.Filters.Brighten, Konva.Filters.Contrast, Konva.Filters.HSL];
       if ((el.blur ?? 0) > 0) filters.push(Konva.Filters.Blur);
+      if (hasDuotone) filters.push(Konva.Filters.Duotone);
       node.filters(filters);
       node.brightness(el.brightness ?? 0);
       node.contrast(el.contrast ?? 0);
       node.saturation(el.saturation ?? 0);
       node.blurRadius(el.blur ?? 0);
+      if (hasDuotone) {
+        node.duotoneColor1 = el.duotone.c1 || '#1a1a22';
+        node.duotoneColor2 = el.duotone.c2 || '#00C4CC';
+      }
       node.cache();
     } else {
       node.filters([]);
       node.clearCache();
     }
     node.getLayer()?.batchDraw();
-  }, [img, el.brightness, el.contrast, el.saturation, el.blur]);
+  }, [img, el.brightness, el.contrast, el.saturation, el.blur, el.duotone?.enabled, el.duotone?.c1, el.duotone?.c2]);
   const w = el.width || 200;
   const h = el.height || 200;
   const flipSX = el.flipH ? -1 : 1;
@@ -2681,10 +2703,10 @@ export default function TemplatesEditorInner() {
               <D />
               {/* Image Filter presets panel */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="◐ Filter" active={showFilterPanel || !!(selectedEl.filterPreset && selectedEl.filterPreset !== 'normal')}
+                <Btn label="◐ Filter" active={showFilterPanel || !!(selectedEl.filterPreset && selectedEl.filterPreset !== 'normal') || !!selectedEl.duotone?.enabled}
                   onClick={() => { setShowFilterPanel(p => !p); setShowAdjustPanel(false); setShowCropPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
                 {showFilterPanel && selectedEl && (
-                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 12, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 12, width: 230, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Filter presets</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
                       {Object.entries(FILTER_PRESETS).map(([key, p]) => {
@@ -2700,6 +2722,46 @@ export default function TemplatesEditorInner() {
                           </button>
                         );
                       })}
+                    </div>
+                    {/* Duotone section */}
+                    <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 8, marginTop: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: t.textMuted }}>Duotone</span>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 11, color: t.text }}>
+                          <input type="checkbox" checked={selectedEl.duotone?.enabled || false}
+                            onChange={e => { pushHistory(); updateElement({ ...selectedEl, duotone: { ...(selectedEl.duotone||{}), enabled: e.target.checked, c1: selectedEl.duotone?.c1||'#1a1a22', c2: selectedEl.duotone?.c2||'#00C4CC' } }); }}
+                            style={{ accentColor: '#00C4CC', cursor: 'pointer' }} />
+                          On
+                        </label>
+                      </div>
+                      {selectedEl.duotone?.enabled && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                          <ColorPickerButton value={selectedEl.duotone?.c1 || '#1a1a22'}
+                            onChange={c => updateElement({ ...selectedEl, duotone: { ...selectedEl.duotone, c1: c } })}
+                            onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+                          <span style={{ color: t.textMuted, fontSize: 11 }}>→</span>
+                          <ColorPickerButton value={selectedEl.duotone?.c2 || '#00C4CC'}
+                            onChange={c => updateElement({ ...selectedEl, duotone: { ...selectedEl.duotone, c2: c } })}
+                            onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                        {[
+                          { c1: '#1a1a22', c2: '#00C4CC' },
+                          { c1: '#1a1a22', c2: '#7C5CFC' },
+                          { c1: '#1a1a22', c2: '#f97316' },
+                          { c1: '#0c1445', c2: '#ec4899' },
+                          { c1: '#000000', c2: '#ffffff' },
+                          { c1: '#1e3a1e', c2: '#84cc16' },
+                        ].map((pair, i) => {
+                          const isOn = selectedEl.duotone?.enabled && selectedEl.duotone?.c1 === pair.c1 && selectedEl.duotone?.c2 === pair.c2;
+                          return (
+                            <button key={i} title={`${pair.c1} → ${pair.c2}`}
+                              onMouseDown={() => { pushHistory(); updateElement({ ...selectedEl, duotone: { enabled: true, c1: pair.c1, c2: pair.c2 } }); }}
+                              style={{ width: 30, height: 20, borderRadius: 5, border: `2px solid ${isOn ? '#00C4CC' : t.border}`, background: `linear-gradient(90deg, ${pair.c1} 0%, ${pair.c2} 100%)`, cursor: 'pointer', padding: 0 }} />
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
