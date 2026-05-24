@@ -733,6 +733,11 @@ export default function TemplatesEditorInner() {
   const [showPagesPanel, setShowPagesPanel] = useState(false);
   // Canvas rulers + drag guides
   const [showRulers, setShowRulers] = useState(false);
+  // Video mode
+  const [isVideoMode, setIsVideoMode] = useState(false);
+  const [videoPlayhead, setVideoPlayhead] = useState(0); // seconds
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playIntervalRef = useRef(null);
   const [rulerGuides, setRulerGuides] = useState({ h: [], v: [] });
   const [draggingGuide, setDraggingGuide] = useState(null); // { axis:'h'|'v', pos:number } canvas px
   const canvasWrapperRef = useRef(null);
@@ -1826,6 +1831,13 @@ export default function TemplatesEditorInner() {
               </div>
             )}
           </div>
+
+          {/* ── Video mode toggle ── */}
+          <button onClick={() => { setIsVideoMode(m => !m); setIsPlaying(false); setVideoPlayhead(0); }}
+            onMouseEnter={e => showTip(e, isVideoMode ? 'Back to Image mode' : 'Edit as Video')} onMouseLeave={hideTip}
+            style={{ height: 34, padding: '0 11px', border: `1px solid ${isVideoMode ? '#00C4CC' : t.border}`, borderRadius: 7, background: isVideoMode ? 'rgba(0,196,204,0.1)' : t.input, color: isVideoMode ? '#00C4CC' : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 100ms, border-color 100ms, color 100ms', flexShrink: 0 }}>
+            {isVideoMode ? '◻ Image' : '▶ Video'}
+          </button>
         </div>
 
         {/* ── Center zone: absolutely centered editable title ── */}
@@ -3696,6 +3708,127 @@ export default function TemplatesEditorInner() {
           </div>
         </div>
       </div>
+
+      {/* ── Video Timeline (slides in when isVideoMode) ── */}
+      {(() => {
+        const pageDurations = pages.map(p => p.duration || 5);
+        const totalDur = pageDurations.reduce((a, b) => a + b, 0);
+        const TRACK_H = 36;
+        const RULER_H = 24;
+        const TIMELINE_W_PX = 600;
+        const pxPerSec = TIMELINE_W_PX / Math.max(totalDur, 1);
+
+        const togglePlay = () => {
+          if (isPlaying) {
+            clearInterval(playIntervalRef.current);
+            setIsPlaying(false);
+          } else {
+            setIsPlaying(true);
+            playIntervalRef.current = setInterval(() => {
+              setVideoPlayhead(p => {
+                if (p >= totalDur) { clearInterval(playIntervalRef.current); setIsPlaying(false); return 0; }
+                return p + 0.1;
+              });
+            }, 100);
+          }
+        };
+
+        const fmtTime = (s) => {
+          const m = Math.floor(s / 60); const sec = (s % 60).toFixed(1);
+          return `${m}:${sec.padStart(4, '0')}`;
+        };
+
+        return (
+          <div style={{
+            height: isVideoMode ? 200 : 0, overflow: 'hidden',
+            transition: 'height 220ms ease',
+            background: t.card, borderTop: `1px solid ${t.border}`,
+            flexShrink: 0, display: 'flex', flexDirection: 'column',
+          }}>
+            {/* Playback controls row */}
+            <div style={{ height: 36, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
+              <button onClick={() => { setVideoPlayhead(0); setIsPlaying(false); clearInterval(playIntervalRef.current); }}
+                style={{ width: 28, height: 26, border: `1px solid ${t.border}`, borderRadius: 5, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⏮</button>
+              <button onClick={togglePlay}
+                style={{ width: 36, height: 30, border: 'none', borderRadius: 6, background: '#00C4CC', color: '#fff', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+                {isPlaying ? '⏸' : '▶'}
+              </button>
+              <span style={{ fontSize: 12, color: t.textMuted, fontFamily: 'monospace', minWidth: 90 }}>
+                {fmtTime(videoPlayhead)} / {fmtTime(totalDur)}
+              </span>
+              <div style={{ flex: 1 }} />
+              <span style={{ fontSize: 11, color: t.textMuted }}>Video mode — {pages.length} page{pages.length !== 1 ? 's' : ''} · {totalDur}s total</span>
+              <button onClick={() => setIsVideoMode(false)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: 16 }}>×</button>
+            </div>
+
+            {/* Timeline tracks area */}
+            <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', display: 'flex' }}>
+              {/* Track labels */}
+              <div style={{ width: 80, borderRight: `1px solid ${t.border}`, flexShrink: 0, paddingTop: RULER_H }}>
+                {['Main', 'Text', 'Audio'].map(label => (
+                  <div key={label} style={{ height: TRACK_H, display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: 11, fontWeight: 600, color: t.textMuted, borderBottom: `1px solid ${t.border}` }}>{label}</div>
+                ))}
+              </div>
+
+              {/* Timeline ruler + clip lanes */}
+              <div style={{ flex: 1, position: 'relative' }}>
+                {/* Time ruler */}
+                <div style={{ height: RULER_H, display: 'flex', alignItems: 'flex-end', borderBottom: `1px solid ${t.border}`, paddingBottom: 2, position: 'relative', background: t.card }}>
+                  {Array.from({ length: Math.ceil(totalDur) + 1 }).map((_, i) => (
+                    <div key={i} style={{ position: 'absolute', left: i * pxPerSec, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ width: 1, height: i % 5 === 0 ? 12 : 6, background: t.border }} />
+                      {i % 5 === 0 && <span style={{ fontSize: 9, color: t.textMuted, position: 'absolute', bottom: 14, left: 2 }}>{i}s</span>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Main track — pages as clips */}
+                <div style={{ height: TRACK_H, borderBottom: `1px solid ${t.border}`, position: 'relative', background: t.input }}>
+                  {(() => {
+                    let offset = 0;
+                    return pages.map((page, i) => {
+                      const dur = page.duration || 5;
+                      const left = offset * pxPerSec;
+                      const w = dur * pxPerSec - 2;
+                      const isActivePage = i === activePage;
+                      offset += dur;
+                      return (
+                        <div key={page.id} onClick={() => { setActivePage(i); setSelectedId(null); }}
+                          title={`Page ${i + 1} · ${dur}s`}
+                          style={{ position: 'absolute', left, top: 3, width: Math.max(w, 4), height: TRACK_H - 8, borderRadius: 4, background: isActivePage ? 'rgba(0,196,204,0.35)' : 'rgba(155,79,212,0.3)', border: `1px solid ${isActivePage ? '#00C4CC' : 'rgba(155,79,212,0.5)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden' }}>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: isActivePage ? '#00C4CC' : t.text, whiteSpace: 'nowrap' }}>P{i + 1}</span>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {/* Text track (placeholder) */}
+                <div style={{ height: TRACK_H, borderBottom: `1px solid ${t.border}`, position: 'relative', background: t.bg }}>
+                  {elements.filter(e => e.type === 'text').map(el => {
+                    const dur = el.videoDuration || 3;
+                    const start = el.videoStart || 0;
+                    return (
+                      <div key={el.id}
+                        style={{ position: 'absolute', left: start * pxPerSec, top: 3, width: Math.max(dur * pxPerSec - 2, 4), height: TRACK_H - 8, borderRadius: 4, background: 'rgba(245,158,11,0.3)', border: '1px solid rgba(245,158,11,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden' }}>
+                        <span style={{ fontSize: 10, color: '#f59e0b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>T</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Audio track (placeholder) */}
+                <div style={{ height: TRACK_H, position: 'relative', background: t.bg }} />
+
+                {/* Playhead */}
+                <div style={{ position: 'absolute', top: 0, left: videoPlayhead * pxPerSec, width: 2, height: '100%', background: '#00C4CC', pointerEvents: 'none', zIndex: 5 }}>
+                  <div style={{ width: 8, height: 8, background: '#00C4CC', borderRadius: '50%', position: 'absolute', top: 0, left: -3 }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Bottom status bar (Canva-style) ── */}
       <div style={{
