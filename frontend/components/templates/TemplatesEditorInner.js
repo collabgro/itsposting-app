@@ -2858,6 +2858,48 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'gradrect') {
+    const grw = el.width || 320, grh = el.height || 200;
+    const stops = el.gradStops || [{ pos: 0, color: '#7C5CFC' }, { pos: 1, color: '#00C4CC' }];
+    const dir2 = el.gradDir || 'horizontal'; // 'horizontal'|'vertical'|'diagonal'|'radial'
+    const cornerR4 = el.cornerRadius ?? 0;
+
+    return (
+      <Shape {...common}
+        width={grw} height={grh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          let grad3;
+          if (dir2 === 'radial') {
+            grad3 = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) / 2);
+          } else if (dir2 === 'vertical') {
+            grad3 = ctx.createLinearGradient(0, 0, 0, h);
+          } else if (dir2 === 'diagonal') {
+            grad3 = ctx.createLinearGradient(0, 0, w, h);
+          } else {
+            grad3 = ctx.createLinearGradient(0, 0, w, 0);
+          }
+          stops.forEach(s => grad3.addColorStop(Math.max(0, Math.min(1, s.pos)), s.color));
+          ctx.fillStyle = grad3;
+          if (cornerR4 > 0) {
+            ctx.beginPath();
+            ctx.roundRect(0, 0, w, h, cornerR4);
+            ctx.fill();
+          } else {
+            ctx.fillRect(0, 0, w, h);
+          }
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -3776,6 +3818,19 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addGradRect() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'gradrect',
+      x: canvasSize.w / 2 - 160, y: canvasSize.h / 2 - 100,
+      width: 320, height: 200, opacity: 1,
+      gradStops: [{ pos: 0, color: '#7C5CFC' }, { pos: 1, color: '#00C4CC' }],
+      gradDir: 'horizontal', cornerRadius: 0,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -6153,6 +6208,28 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'gradrect' && <>
+                <D />
+                {[['→','horizontal'],['↓','vertical'],['↘','diagonal'],['◎','radial']].map(([icon,dir])=>(
+                  <button key={dir} onClick={()=>{pushHistory();updateElement({...selectedEl,gradDir:dir});}}
+                    title={dir}
+                    style={{width:28,height:28,borderRadius:5,border:`1px solid ${(selectedEl.gradDir||'horizontal')===dir?'#00C4CC':t.border}`,background:(selectedEl.gradDir||'horizontal')===dir?'rgba(0,196,204,0.1)':'transparent',color:(selectedEl.gradDir||'horizontal')===dir?'#00C4CC':t.text,fontSize:14,cursor:'pointer',flexShrink:0}}>
+                    {icon}
+                  </button>
+                ))}
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,whiteSpace:'nowrap',flexShrink:0}}>Stop 1</span>
+                <ColorPickerButton value={(selectedEl.gradStops||[])[0]?.color||'#7C5CFC'} onChange={c=>{const s=[...(selectedEl.gradStops||[{pos:0,color:'#7C5CFC'},{pos:1,color:'#00C4CC'}])];s[0]={...s[0],color:c};updateElement({...selectedEl,gradStops:s});}} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <span style={{fontSize:11,color:t.textMuted,whiteSpace:'nowrap',flexShrink:0}}>Stop 2</span>
+                <ColorPickerButton value={(selectedEl.gradStops||[])[1]?.color||'#00C4CC'} onChange={c=>{const s=[...(selectedEl.gradStops||[{pos:0,color:'#7C5CFC'},{pos:1,color:'#00C4CC'}])];s[1]={...s[1],color:c};updateElement({...selectedEl,gradStops:s});}} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <D />
+                {[['Purple→Teal','#7C5CFC','#00C4CC'],['Orange→Pink','#f97316','#ec4899'],['Blue→Cyan','#3b82f6','#06b6d4'],['Dark→Purple','#1a1a22','#7C5CFC'],['Green→Teal','#22c55e','#00C4CC'],['Gold→Orange','#f59e0b','#f97316']].map(([lbl,c1,c2])=>(
+                  <button key={lbl} onClick={()=>{pushHistory();updateElement({...selectedEl,gradStops:[{pos:0,color:c1},{pos:1,color:c2}]});}}
+                    style={{height:26,padding:'0 7px',borderRadius:5,border:`1px solid ${t.border}`,background:`linear-gradient(to right,${c1},${c2})`,color:'#fff',fontSize:10,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap',fontWeight:600,textShadow:'0 1px 2px rgba(0,0,0,0.5)'}}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'beforeafter' && <>
                 <D />
                 {[['Pill','pill'],['Corner','corner'],['Center','center']].map(([lbl,s]) => (
@@ -7588,6 +7665,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Glass',     icon: '◫', fn: () => addGlassPane() },
                     { label: 'Review',    icon: '⭐', fn: () => addTestimonial() },
                     { label: 'Before/After', icon: '⟺', fn: () => addBeforeAfter() },
+                    { label: 'Grad Rect',  icon: '▨', fn: () => addGradRect() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -8675,7 +8753,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
