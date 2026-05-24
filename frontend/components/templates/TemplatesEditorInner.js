@@ -891,6 +891,11 @@ export default function TemplatesEditorInner() {
   const [showOutlinePanel, setShowOutlinePanel] = useState(false);
   const [showPositionPanel, setShowPositionPanel] = useState(false);
   const [showAnimatePanel, setShowAnimatePanel] = useState(false);
+  // Find & Replace
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [findText,        setFindText]        = useState('');
+  const [replaceText,     setReplaceText]     = useState('');
+  const [frMatchCount,    setFrMatchCount]    = useState(0);
   const [showAdjustPanel, setShowAdjustPanel] = useState(false);
   const [showSpacingPanel, setShowSpacingPanel] = useState(false);
   const [showCropPanel, setShowCropPanel] = useState(false);
@@ -1182,6 +1187,7 @@ export default function TemplatesEditorInner() {
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'g' && !e.shiftKey) { e.preventDefault(); groupSelected(); return; }
       if ((e.metaKey || e.ctrlKey) && e.key === 'g' &&  e.shiftKey) { e.preventDefault(); ungroupSelected(); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'h') { e.preventDefault(); setShowFindReplace(p => !p); return; }
       if (e.altKey && e.key === 'c') { e.preventDefault(); copyStyle(); return; }
       if (e.altKey && e.key === 'v') { e.preventDefault(); pasteStyle(); return; }
 
@@ -1539,6 +1545,23 @@ export default function TemplatesEditorInner() {
       }
       return { ...e, ...patch };
     }));
+  }
+
+  // ── Find & Replace ────────────────────────────────────────────────────────
+  function findReplaceAll(find, replace) {
+    if (!find) return;
+    const re = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    let count = 0;
+    setPages(prev => prev.map(page => ({
+      ...page,
+      elements: page.elements.map(el => {
+        if (el.type !== 'text' || !el.text) return el;
+        const updated = el.text.replace(re, () => { count++; return replace; });
+        return updated !== el.text ? { ...el, text: updated } : el;
+      }),
+    })));
+    setFrMatchCount(count);
+    return count;
   }
 
   // ── Flip ──────────────────────────────────────────────────────────────────
@@ -5379,6 +5402,51 @@ export default function TemplatesEditorInner() {
               <button onClick={() => { handleSave(); setShareOpen(false); }} disabled={saving}
                 style={{ width: '100%', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '10px', color: t.text, fontSize: 13, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
                 {saving ? 'Saving…' : '💾 Save design'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Find & Replace panel ── */}
+      {showFindReplace && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 599 }} onClick={() => setShowFindReplace(false)} />
+          <div onClick={e => e.stopPropagation()}
+            style={{ position: 'fixed', top: 60, right: 16, width: 320, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 16, zIndex: 600, boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontWeight: 600, fontSize: 14, color: t.text }}>Find & Replace</span>
+              <button onClick={() => setShowFindReplace(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 4 }}>Find</div>
+              <input autoFocus value={findText} onChange={e => { setFindText(e.target.value); setFrMatchCount(0); }}
+                placeholder="Search text…"
+                onKeyDown={e => { if (e.key === 'Enter') { pushHistory(); const n = findReplaceAll(findText, replaceText); if (!n) setFrMatchCount(-1); } if (e.key === 'Escape') setShowFindReplace(false); }}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 4 }}>Replace with</div>
+              <input value={replaceText} onChange={e => setReplaceText(e.target.value)}
+                placeholder="Replacement…"
+                onKeyDown={e => { if (e.key === 'Enter') { pushHistory(); const n = findReplaceAll(findText, replaceText); if (!n) setFrMatchCount(-1); } if (e.key === 'Escape') setShowFindReplace(false); }}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            {frMatchCount !== 0 && (
+              <div style={{ marginBottom: 8, fontSize: 12, color: frMatchCount > 0 ? '#10b981' : t.textMuted }}>
+                {frMatchCount > 0 ? `✓ Replaced ${frMatchCount} occurrence${frMatchCount > 1 ? 's' : ''}` : 'No matches found'}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => { pushHistory(); const n = findReplaceAll(findText, replaceText); if (!n) setFrMatchCount(-1); }}
+                disabled={!findText}
+                style={{ flex: 1, background: findText ? t.primary : t.input, color: findText ? '#fff' : t.textMuted, border: 'none', borderRadius: 7, padding: '9px 0', fontWeight: 600, fontSize: 13, cursor: findText ? 'pointer' : 'not-allowed', opacity: findText ? 1 : 0.6 }}>
+                Replace all
+              </button>
+              <button onClick={() => setShowFindReplace(false)}
+                style={{ padding: '9px 14px', background: t.input, color: t.text, border: `1px solid ${t.border}`, borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+                Done
               </button>
             </div>
           </div>
