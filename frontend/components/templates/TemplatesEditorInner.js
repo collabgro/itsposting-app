@@ -592,7 +592,9 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
         fill: undefined,
         fillLinearGradientStartPoint: startPoint,
         fillLinearGradientEndPoint: endPoint,
-        fillLinearGradientColorStops: [0, g.c1 || '#ffffff', 1, g.c2 || '#000000'],
+        fillLinearGradientColorStops: g.midColor
+          ? [0, g.c1||'#ffffff', g.midStop??0.5, g.midColor, 1, g.c2||'#000000']
+          : [0, g.c1||'#ffffff', 1, g.c2||'#000000'],
       };
     }
     const textNode = (
@@ -657,7 +659,9 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
       fill: undefined,
       fillLinearGradientStartPoint: startPoint,
       fillLinearGradientEndPoint: endPoint,
-      fillLinearGradientColorStops: [0, g.c1 || '#ffffff', 1, g.c2 || '#000000'],
+      fillLinearGradientColorStops: g.midColor
+        ? [0, g.c1||'#ffffff', g.midStop??0.5, g.midColor, 1, g.c2||'#000000']
+        : [0, g.c1||'#ffffff', 1, g.c2||'#000000'],
     };
   }
 
@@ -1966,7 +1970,7 @@ export default function TemplatesEditorInner() {
     setPages(prev => prev.map(page => ({
       ...page,
       bgColor: swap(page.bgColor),
-      bgGradient: page.bgGradient ? { ...page.bgGradient, c1: swap(page.bgGradient.c1), c2: swap(page.bgGradient.c2) } : page.bgGradient,
+      bgGradient: page.bgGradient ? { ...page.bgGradient, c1: swap(page.bgGradient.c1), c2: swap(page.bgGradient.c2), midColor: page.bgGradient.midColor ? swap(page.bgGradient.midColor) : undefined } : page.bgGradient,
       elements: page.elements.map(el => ({
         ...el,
         fill: swap(el.fill),
@@ -1975,7 +1979,7 @@ export default function TemplatesEditorInner() {
         shadow: el.shadow ? { ...el.shadow, color: swap(el.shadow.color) } : el.shadow,
         outline: el.outline ? { ...el.outline, color: swap(el.outline.color) } : el.outline,
         textBg: el.textBg ? { ...el.textBg, color: swap(el.textBg.color) } : el.textBg,
-        fillGradient: el.fillGradient ? { ...el.fillGradient, c1: swap(el.fillGradient.c1), c2: swap(el.fillGradient.c2) } : el.fillGradient,
+        fillGradient: el.fillGradient ? { ...el.fillGradient, c1: swap(el.fillGradient.c1), c2: swap(el.fillGradient.c2), midColor: el.fillGradient.midColor ? swap(el.fillGradient.midColor) : undefined } : el.fillGradient,
         borderColor: swap(el.borderColor),
       })),
     })));
@@ -2255,12 +2259,12 @@ export default function TemplatesEditorInner() {
     const add = c => { if (c && /^#[0-9A-Fa-f]{6}$/.test(c)) seen.add(c.toLowerCase()); };
     pages.forEach(page => {
       add(page.bgColor);
-      if (page.bgGradient) { add(page.bgGradient.c1); add(page.bgGradient.c2); }
+      if (page.bgGradient) { add(page.bgGradient.c1); add(page.bgGradient.c2); add(page.bgGradient.midColor); }
       page.elements.forEach(el => {
         add(el.fill); add(el.stroke); add(el.borderColor);
         add(el.outline?.color); add(el.shadow?.color);
         add(el.textBg?.color); add(el.tintColor);
-        add(el.fillGradient?.c1); add(el.fillGradient?.c2);
+        add(el.fillGradient?.c1); add(el.fillGradient?.c2); add(el.fillGradient?.midColor);
       });
     });
     return [...seen].slice(0, 20);
@@ -2722,6 +2726,25 @@ export default function TemplatesEditorInner() {
                     onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, c1: c } })}
                     onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
                   <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>→</span>
+                  {selectedEl.fillGradient.midColor
+                    ? <ColorPickerButton value={selectedEl.fillGradient.midColor}
+                        onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, midColor: c } })}
+                        onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+                    : <button title="Add mid color stop" onClick={() => { pushHistory(); updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, midColor: '#ffffff', midStop: 0.5 } }); }}
+                        style={{ width: 18, height: 18, borderRadius: '50%', border: `1px dashed ${t.border}`, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>+</button>
+                  }
+                  {selectedEl.fillGradient.midColor && (
+                    <>
+                      <input type="range" min={0} max={100} step={5} value={Math.round((selectedEl.fillGradient.midStop ?? 0.5) * 100)}
+                        onChange={e => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, midStop: parseInt(e.target.value) / 100 } })}
+                        onMouseUp={() => pushHistory()}
+                        title="Mid stop position"
+                        style={{ width: 44, flexShrink: 0, accentColor: '#00C4CC' }} />
+                      <button title="Remove mid color" onClick={() => { pushHistory(); const { midColor, midStop, ...rest } = selectedEl.fillGradient; updateElement({ ...selectedEl, fillGradient: rest }); }}
+                        style={{ width: 16, height: 16, borderRadius: '50%', border: 'none', background: t.border, color: t.textMuted, fontSize: 10, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+                      <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>→</span>
+                    </>
+                  )}
                   <ColorPickerButton value={selectedEl.fillGradient.c2 || '#00C4CC'}
                     onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, c2: c } })}
                     onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
@@ -3449,6 +3472,25 @@ export default function TemplatesEditorInner() {
                         onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, c1: c } })}
                         onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
                       <span style={{ fontSize: 10, color: t.textMuted }}>→</span>
+                      {selectedEl.fillGradient.midColor
+                        ? <ColorPickerButton value={selectedEl.fillGradient.midColor}
+                            onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, midColor: c } })}
+                            onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+                        : <button title="Add mid color stop" onClick={() => { pushHistory(); updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, midColor: '#ffffff', midStop: 0.5 } }); }}
+                            style={{ width: 18, height: 18, borderRadius: '50%', border: `1px dashed ${t.border}`, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>+</button>
+                      }
+                      {selectedEl.fillGradient.midColor && (
+                        <>
+                          <input type="range" min={0} max={100} step={5} value={Math.round((selectedEl.fillGradient.midStop ?? 0.5) * 100)}
+                            onChange={e => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, midStop: parseInt(e.target.value) / 100 } })}
+                            onMouseUp={() => pushHistory()}
+                            title="Mid stop position"
+                            style={{ width: 44, flexShrink: 0, accentColor: '#00C4CC' }} />
+                          <button title="Remove mid color" onClick={() => { pushHistory(); const { midColor, midStop, ...rest } = selectedEl.fillGradient; updateElement({ ...selectedEl, fillGradient: rest }); }}
+                            style={{ width: 16, height: 16, borderRadius: '50%', border: 'none', background: t.border, color: t.textMuted, fontSize: 10, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
+                          <span style={{ fontSize: 10, color: t.textMuted }}>→</span>
+                        </>
+                      )}
                       <ColorPickerButton
                         value={selectedEl.fillGradient.c2 || '#00C4CC'}
                         onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, c2: c } })}
@@ -3859,8 +3901,12 @@ export default function TemplatesEditorInner() {
                       {/* Preview bar */}
                       <div style={{ height: 14, borderRadius: 5, marginBottom: 10,
                         background: bgGradient.type === 'radial'
-                          ? `radial-gradient(circle, ${bgGradient.c1}, ${bgGradient.c2})`
-                          : `linear-gradient(${bgGradient.angle}deg, ${bgGradient.c1}, ${bgGradient.c2})` }} />
+                          ? (bgGradient.midColor
+                              ? `radial-gradient(circle, ${bgGradient.c1}, ${bgGradient.midColor} ${Math.round((bgGradient.midStop ?? 0.5) * 100)}%, ${bgGradient.c2})`
+                              : `radial-gradient(circle, ${bgGradient.c1}, ${bgGradient.c2})`)
+                          : (bgGradient.midColor
+                              ? `linear-gradient(${bgGradient.angle}deg, ${bgGradient.c1}, ${bgGradient.midColor} ${Math.round((bgGradient.midStop ?? 0.5) * 100)}%, ${bgGradient.c2})`
+                              : `linear-gradient(${bgGradient.angle}deg, ${bgGradient.c1}, ${bgGradient.c2})`) }} />
                       {/* Linear / Radial toggle */}
                       <div style={{ display: 'flex', gap: 4, marginBottom: 8, background: t.card, borderRadius: 7, padding: 3 }}>
                         {['linear','radial'].map(type => (
@@ -3894,6 +3940,34 @@ export default function TemplatesEditorInner() {
                           ⇄
                         </button>
                       </div>
+                      {/* Mid color stop */}
+                      {bgGradient.midColor ? (
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 3 }}>Mid color</div>
+                            <input type="color" value={bgGradient.midColor}
+                              onChange={e => patchPage({ bgGradient: { ...bgGradient, midColor: e.target.value } })}
+                              onBlur={() => pushHistory()}
+                              style={{ width: '100%', height: 30, borderRadius: 6, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 2 }} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 3 }}>Position {Math.round((bgGradient.midStop ?? 0.5) * 100)}%</div>
+                            <input type="range" min={5} max={95} step={5} value={Math.round((bgGradient.midStop ?? 0.5) * 100)}
+                              onChange={e => patchPage({ bgGradient: { ...bgGradient, midStop: parseInt(e.target.value) / 100 } })}
+                              onMouseUp={() => pushHistory()}
+                              style={{ width: '100%', accentColor: '#00C4CC', marginTop: 6 }} />
+                          </div>
+                          <button title="Remove mid color" onClick={() => { pushHistory(); const { midColor, midStop, ...rest } = bgGradient; patchPage({ bgGradient: rest }); }}
+                            style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${t.border}`, background: t.card, color: t.textMuted, cursor: 'pointer', flexShrink: 0, fontSize: 14, marginBottom: 0 }}>
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { pushHistory(); patchPage({ bgGradient: { ...bgGradient, midColor: '#ffffff', midStop: 0.5 } }); }}
+                          style={{ width: '100%', padding: '5px 0', marginBottom: 8, borderRadius: 6, border: `1px dashed ${t.border}`, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer' }}>
+                          + Add mid color stop
+                        </button>
+                      )}
                       {/* Angle (linear only) */}
                       {(bgGradient.type || 'linear') === 'linear' && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -4903,11 +4977,15 @@ export default function TemplatesEditorInner() {
                                   fillRadialGradientEndPoint: endPoint,
                                   fillRadialGradientStartRadius: 0,
                                   fillRadialGradientEndRadius: r,
-                                  fillRadialGradientColorStops: [0, g.c1, 1, g.c2],
+                                  fillRadialGradientColorStops: g.midColor
+                                    ? [0, g.c1, g.midStop??0.5, g.midColor, 1, g.c2]
+                                    : [0, g.c1, 1, g.c2],
                                 } : {
                                   fillLinearGradientStartPoint: startPoint,
                                   fillLinearGradientEndPoint: endPoint,
-                                  fillLinearGradientColorStops: [0, g.c1, 1, g.c2],
+                                  fillLinearGradientColorStops: g.midColor
+                                    ? [0, g.c1, g.midStop??0.5, g.midColor, 1, g.c2]
+                                    : [0, g.c1, 1, g.c2],
                                 })}
                                 onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined}
                               />
