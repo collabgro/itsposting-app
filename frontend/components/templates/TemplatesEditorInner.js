@@ -2274,6 +2274,15 @@ export default function TemplatesEditorInner() {
   return (
     <DocColorsCtx.Provider value={docColors}>
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 70px)', overflow: 'hidden', background: t.bg }}>
+      <style>{`
+        @keyframes floatIn { from { opacity:0; transform:translateX(-50%) scale(0.92) translateY(4px); } to { opacity:1; transform:translateX(-50%) scale(1) translateY(0); } }
+        @keyframes shimmer { from { background-position:200% 0; } to { background-position:-200% 0; } }
+        @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+        @keyframes dropdownIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes slideInRight { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+        @keyframes contextIn { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
+        @keyframes panelFadeIn { from { opacity:0; } to { opacity:1; } }
+      `}</style>
 
       {/* ── Top toolbar (Canva-style) ── */}
       <div style={{ height: 56, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 10, position: 'relative' }}>
@@ -2295,7 +2304,7 @@ export default function TemplatesEditorInner() {
               File <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
             </button>
             {showFileMenu && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 290, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 290, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden', animation: 'dropdownIn 150ms ease forwards' }}>
                 {/* Header: title + dimensions */}
                 <div style={{ padding: '12px 16px 10px', borderBottom: `1px solid ${t.border}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
@@ -2353,7 +2362,7 @@ export default function TemplatesEditorInner() {
               <span style={{ fontSize: 9, opacity: 0.6, flexShrink: 0 }}>▾</span>
             </button>
             {showResizeMenu && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 320, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 320, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden', animation: 'dropdownIn 150ms ease forwards' }}>
                 {/* Search */}
                 <div style={{ padding: '10px 14px 8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '7px 12px' }}>
@@ -2445,7 +2454,7 @@ export default function TemplatesEditorInner() {
               ✏ Editing <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
             </button>
             {editModeOpen && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 220, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0' }}>
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 220, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0', animation: 'dropdownIn 150ms ease forwards' }}>
                 {[
                   { id: 'editing',    label: 'Editing',    sub: 'Make changes'  },
                   { id: 'commenting', label: 'Commenting', sub: 'Add feedback'  },
@@ -2543,7 +2552,7 @@ export default function TemplatesEditorInner() {
               ⬇ <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
             </button>
             {showDownloadMenu && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 200, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0' }}>
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 200, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0', animation: 'dropdownIn 150ms ease forwards' }}>
                 {/* Resolution selector */}
                 <div style={{ padding: '8px 12px 6px', borderBottom: `1px solid ${t.border}` }}>
                   <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Quality</div>
@@ -5980,6 +5989,7 @@ export default function TemplatesEditorInner() {
               boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
               zIndex: 1000, overflow: 'hidden',
               padding: '4px 0',
+              animation: 'contextIn 100ms ease forwards',
             }}>
               {ITEMS.map((item, i) =>
                 item.sep ? (
@@ -6139,7 +6149,7 @@ export default function TemplatesEditorInner() {
       {shareOpen && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 299 }} onClick={() => setShareOpen(false)} />
-          <div style={{ position: 'fixed', top: 56, right: 0, width: 380, height: 'calc(100vh - 56px)', background: t.card, borderLeft: `1px solid ${t.border}`, zIndex: 300, padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
+          <div style={{ position: 'fixed', top: 56, right: 0, width: 380, height: 'calc(100vh - 56px)', background: t.card, borderLeft: `1px solid ${t.border}`, zIndex: 300, padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', animation: 'slideInRight 200ms ease forwards' }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, fontSize: 18, color: t.text }}>Share design</span>
