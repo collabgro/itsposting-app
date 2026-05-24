@@ -4690,29 +4690,53 @@ export default function TemplatesEditorInner() {
 
   function handleCanvasDrop(e) {
     e.preventDefault();
-    const url = e.dataTransfer.getData('text/plain');
-    if (!url) return;
     const rect = canvasWrapperRef.current?.getBoundingClientRect();
     if (!rect) return;
     const canvasX = (e.clientX - rect.left) / stageScale;
     const canvasY = (e.clientY - rect.top)  / stageScale;
-    // Check if drop landed on an existing image element (replace)
-    const hit = [...elements].reverse().find(el => {
-      if (el.type !== 'image') return false;
-      return canvasX >= el.x && canvasX <= el.x + (el.width || 200) &&
-             canvasY >= el.y && canvasY <= el.y + (el.height || 200);
-    });
-    pushHistory();
-    if (hit) {
-      patchElements(prev => prev.map(el => el.id === hit.id ? { ...el, src: url } : el));
-      setSelectedId(hit.id);
-    } else {
-      const w = canvasSize.w * 0.5;
-      const newEl = { id: uid(), type: 'image', src: url,
-        x: canvasX - w / 2, y: canvasY - w / 2,
-        width: w, height: w, rotation: 0, opacity: 1, flipH: false, flipV: false, cornerRadius: 0 };
-      patchElements(prev => [...prev, newEl]);
-      setSelectedId(newEl.id);
+
+    // Helper: place image src at drop point
+    const placeImage = (src) => {
+      const hit = [...elements].reverse().find(el => {
+        if (el.type !== 'image') return false;
+        return canvasX >= el.x && canvasX <= el.x + (el.width || 200) &&
+               canvasY >= el.y && canvasY <= el.y + (el.height || 200);
+      });
+      pushHistory();
+      if (hit) {
+        patchElements(prev => prev.map(el => el.id === hit.id ? { ...el, src } : el));
+        setSelectedId(hit.id);
+      } else {
+        const w = canvasSize.w * 0.5;
+        const newEl = { id: uid(), type: 'image', src,
+          x: canvasX - w / 2, y: canvasY - w / 2,
+          width: w, height: w, rotation: 0, opacity: 1, flipH: false, flipV: false, cornerRadius: 0 };
+        patchElements(prev => [...prev, newEl]);
+        setSelectedId(newEl.id);
+      }
+    };
+
+    // Handle files dragged from desktop
+    const files = Array.from(e.dataTransfer.files || []);
+    const imgFile = files.find(f => f.type.startsWith('image/'));
+    if (imgFile) {
+      const url = URL.createObjectURL(imgFile);
+      placeImage(url);
+      return;
+    }
+
+    // Handle URL drop from browser
+    const url = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/uri-list');
+    if (url && url.startsWith('http')) {
+      placeImage(url);
+      return;
+    }
+
+    // Handle HTML image src (dragging <img> from another page)
+    const html = e.dataTransfer.getData('text/html');
+    if (html) {
+      const m = html.match(/src="([^"]+)"/);
+      if (m && m[1]) { placeImage(m[1]); return; }
     }
   }
 
@@ -8857,8 +8881,9 @@ export default function TemplatesEditorInner() {
                         : undefined,
                     }}
                     onClick={!isActive ? () => { setActivePage(pageIdx); setSelectedId(null); } : undefined}
-                    onDragOver={isActive ? e => e.preventDefault() : undefined}
-                    onDrop={isActive ? handleCanvasDrop : undefined}
+                    onDragOver={isActive ? e => { e.preventDefault(); e.currentTarget.style.outline = '3px solid #00C4CC'; } : undefined}
+                    onDragLeave={isActive ? e => { e.currentTarget.style.outline = '2px solid #00C4CC'; } : undefined}
+                    onDrop={isActive ? e => { e.currentTarget.style.outline = '2px solid #00C4CC'; handleCanvasDrop(e); } : undefined}
                   >
                     <Stage
                       ref={isActive ? stageRef : null}
