@@ -480,6 +480,18 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
 
   if (el.type === 'text') {
     const tbPad = el.textBg?.padding ?? 6;
+    const isGradText = el.fillType === 'gradient' && el.fillGradient;
+    let gradTextProps = {};
+    if (isGradText) {
+      const g = el.fillGradient;
+      const { startPoint, endPoint } = gradientPoints(g.angle ?? 135, el.width || 400, (el.fontSize || 36) * 2);
+      gradTextProps = {
+        fill: undefined,
+        fillLinearGradientStartPoint: startPoint,
+        fillLinearGradientEndPoint: endPoint,
+        fillLinearGradientColorStops: [0, g.c1 || '#ffffff', 1, g.c2 || '#000000'],
+      };
+    }
     const textNode = (
       <Text
         {...common}
@@ -488,7 +500,8 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
         fontFamily={el.fontFamily || 'Inter'}
         fontStyle={el.fontStyle || 'normal'}
         textDecoration={el.textDecoration || ''}
-        fill={el.fill || '#ffffff'}
+        fill={isGradText ? undefined : (el.fill || '#ffffff')}
+        {...gradTextProps}
         width={el.width || 400}
         align={el.align || 'center'}
         opacity={el.opacity ?? 1}
@@ -2217,10 +2230,36 @@ export default function TemplatesEditorInner() {
               {/* Text color swatch */}
               <ColorPickerButton
                 value={selectedEl.fill || '#ffffff'}
-                onChange={c => pickColor(c, color => updateElement({ ...selectedEl, fill: color }))}
+                onChange={c => pickColor(c, color => updateElement({ ...selectedEl, fill: color, fillType: 'solid' }))}
                 onCommit={() => pushHistory()}
                 recentColors={recentColors}
               />
+              {/* Gradient text toggle */}
+              <Btn label="⚏ Grad" active={selectedEl.fillType === 'gradient'}
+                onClick={() => {
+                  if (selectedEl.fillType === 'gradient') {
+                    pushHistory(); updateElement({ ...selectedEl, fillType: 'solid' });
+                  } else {
+                    pushHistory(); updateElement({ ...selectedEl, fillType: 'gradient',
+                      fillGradient: selectedEl.fillGradient || { c1: selectedEl.fill || '#7C5CFC', c2: '#00C4CC', angle: 135 } });
+                  }
+                }} />
+              {selectedEl.fillType === 'gradient' && selectedEl.fillGradient && (
+                <>
+                  <ColorPickerButton value={selectedEl.fillGradient.c1 || '#7C5CFC'}
+                    onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, c1: c } })}
+                    onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+                  <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>→</span>
+                  <ColorPickerButton value={selectedEl.fillGradient.c2 || '#00C4CC'}
+                    onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, c2: c } })}
+                    onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+                  <select value={selectedEl.fillGradient.angle ?? 135}
+                    onChange={e => { pushHistory(); updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, angle: parseInt(e.target.value) } }); }}
+                    style={{ height: 24, padding: '0 3px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>
+                    {[0,45,90,135,180,225,270,315].map(a => <option key={a} value={a}>{a}°</option>)}
+                  </select>
+                </>
+              )}
               <D />
               {/* Font family */}
               <select value={selectedEl.fontFamily || 'Inter'} onChange={e => handleElementChange({ ...selectedEl, fontFamily: e.target.value })}
