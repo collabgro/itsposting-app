@@ -1060,6 +1060,73 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'countdown') {
+    const cw = el.width || 300, ch = el.height || 90;
+    const targetDate = el.targetDate ? new Date(el.targetDate) : new Date(Date.now() + 7 * 86400000);
+    const now = Date.now();
+    const diff = Math.max(0, targetDate.getTime() - now);
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    const units = el.showSeconds ? [['days',days],['hrs',hours],['min',mins],['sec',secs]] : [['days',days],['hrs',hours],['min',mins]];
+    const boxCount = units.length;
+    const gap = 8;
+    const boxW = (cw - gap * (boxCount + 1)) / boxCount;
+    const boxH = ch - gap * 2;
+    const boxColor = el.fill || '#00C4CC';
+    const textColor = el.labelColor || '#ffffff';
+
+    return (
+      <Shape {...common}
+        width={cw} height={ch}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape) => {
+          const w = shape.width(), h = shape.height();
+          const bw = (w - gap * (boxCount + 1)) / boxCount;
+          const bh = h - gap * 2;
+          const numSize = Math.max(16, Math.round(bh * 0.5));
+          const lblSize = Math.max(8, Math.round(bh * 0.2));
+          const r = Math.min(8, bw * 0.15);
+
+          units.forEach(([lbl, val], i) => {
+            const x = gap + i * (bw + gap);
+            const y = gap;
+
+            // Box background
+            ctx.beginPath();
+            ctx.roundRect(x, y, bw, bh, r);
+            ctx.fillStyle = boxColor;
+            ctx.fill();
+
+            // Number
+            ctx.font = `bold ${numSize}px Inter, sans-serif`;
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(val).padStart(2, '0'), x + bw / 2, y + bh * 0.42);
+
+            // Label
+            ctx.font = `${lblSize}px Inter, sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.75)';
+            ctx.fillText(lbl, x + bw / 2, y + bh * 0.78);
+          });
+
+          // Colons between boxes
+          ctx.font = `bold ${Math.round(numSize * 0.7)}px Inter, sans-serif`;
+          ctx.fillStyle = textColor;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          for (let i = 0; i < boxCount - 1; i++) {
+            const colonX = gap + (i + 1) * (bw + gap) - gap / 2;
+            ctx.fillText(':', colonX, h / 2 - gap * 0.3);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -1922,6 +1989,19 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addCountdown() {
+    pushHistory();
+    const target = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]; // 7 days from now
+    const el = {
+      id: uid(), type: 'countdown',
+      x: canvasSize.w / 2 - 150, y: canvasSize.h / 2 - 45,
+      width: 300, height: 90, opacity: 1,
+      fill: '#00C4CC', targetDate: target,
+    };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -4026,6 +4106,25 @@ export default function TemplatesEditorInner() {
                   size={18}
                 />
               </>}
+              {selectedEl.type === 'countdown' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Target</span>
+                <input type="date" value={selectedEl.targetDate || ''}
+                  onChange={e => { pushHistory(); updateElement({...selectedEl, targetDate: e.target.value}); }}
+                  style={{ height:26, padding:'0 6px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', flexShrink:0 }} />
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Box</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#00C4CC'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                <Btn label="Secs" active={!!selectedEl.showSeconds}
+                  onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
+              </>}
               {selectedEl.type === 'chart' && <>
                 <D />
                 {[['bar','📊 Bar'],['pie','🥧 Pie']].map(([ct, lbl]) => (
@@ -4897,6 +4996,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Bar Chart', icon: '📊', fn: () => addChart('bar') },
                     { label: 'Pie Chart', icon: '🥧', fn: () => addChart('pie') },
                     { label: 'Table',     icon: '⊞', fn: () => addTable() },
+                    { label: 'Countdown', icon: '⏱', fn: () => addCountdown() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -5984,7 +6084,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
