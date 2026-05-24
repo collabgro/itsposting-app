@@ -6388,10 +6388,10 @@ export default function TemplatesEditorInner() {
                 ))}
               </>}
               <D />
-              <Btn label="↑ Fwd"   active={false} onClick={() => bringForward()} />
-              <Btn label="↓ Back"  active={false} onClick={() => sendBackward()} />
-              <Btn label="⤒ Front" active={false} onClick={() => bringToFront()} />
-              <Btn label="⤓ Back"  active={false} onClick={() => sendToBack()} />
+              <Btn label={<><IcoBringFwd size={14} /> Fwd</>}   active={false} onClick={() => bringForward()} />
+              <Btn label={<><IcoSendBack size={14} /> Back</>}  active={false} onClick={() => sendBackward()} />
+              <Btn label="Front" active={false} onClick={() => bringToFront()} />
+              <Btn label="Back"  active={false} onClick={() => sendToBack()} />
               <D />
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Opacity</span>
               <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity??1}
@@ -7578,10 +7578,10 @@ export default function TemplatesEditorInner() {
                 )}
               </div>
               <D />
-              <Btn label="↑ Fwd"   active={false} onClick={() => bringForward()} />
-              <Btn label="↓ Back"  active={false} onClick={() => sendBackward()} />
-              <Btn label="⤒ Front" active={false} onClick={() => bringToFront()} />
-              <Btn label="⤓ Back"  active={false} onClick={() => sendToBack()} />
+              <Btn label={<><IcoBringFwd size={14} /> Fwd</>}   active={false} onClick={() => bringForward()} />
+              <Btn label={<><IcoSendBack size={14} /> Back</>}  active={false} onClick={() => sendBackward()} />
+              <Btn label="Front" active={false} onClick={() => bringToFront()} />
+              <Btn label="Back"  active={false} onClick={() => sendToBack()} />
               <D />
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Opacity</span>
               <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity??1}
@@ -9048,13 +9048,13 @@ export default function TemplatesEditorInner() {
                     />
                     {/* Controls */}
                     {[
-                      { title: 'Move up',    icon: '▲', action: () => movePageUp(pageIdx),   disabled: pageIdx === 0 },
-                      { title: 'Move down',  icon: '▼', action: () => movePageDown(pageIdx), disabled: pageIdx === pages.length - 1 },
-                      { title: page.hidden ? 'Show page' : 'Hide page', icon: page.hidden ? '🙈' : '👁', action: () => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, hidden: !p.hidden } : p)) },
-                      { title: page.pageLocked ? 'Unlock page' : 'Lock page', icon: page.pageLocked ? '🔒' : '🔓', action: () => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, pageLocked: !p.pageLocked } : p)) },
-                      { title: 'Duplicate page', icon: '⧉', action: () => duplicatePage(pageIdx) },
-                      { title: 'Delete page',    icon: '🗑', action: () => deletePage(pageIdx), disabled: pages.length <= 1, danger: true },
-                      { title: 'Add page after', icon: '+', action: () => {
+                      { title: 'Move up',    icon: <IcoChevUpSm size={12} />,   action: () => movePageUp(pageIdx),   disabled: pageIdx === 0 },
+                      { title: 'Move down',  icon: <IcoChevDownSm size={12} />, action: () => movePageDown(pageIdx), disabled: pageIdx === pages.length - 1 },
+                      { title: page.hidden ? 'Show page' : 'Hide page', icon: page.hidden ? <IcoEyeOff size={12} /> : <IcoEye size={12} />, action: () => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, hidden: !p.hidden } : p)) },
+                      { title: page.pageLocked ? 'Unlock page' : 'Lock page', icon: page.pageLocked ? <IpLock size={12} /> : <IpUnlock size={12} />, action: () => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, pageLocked: !p.pageLocked } : p)) },
+                      { title: 'Duplicate page', icon: <IcoDuplicate size={12} />, action: () => duplicatePage(pageIdx) },
+                      { title: 'Delete page',    icon: <IpDelete size={12} />,     action: () => deletePage(pageIdx), disabled: pages.length <= 1, danger: true },
+                      { title: 'Add page after', icon: <IcoAddPage size={12} />,   action: () => {
                           pushHistory();
                           const np = emptyPage();
                           setPages(prev => [...prev.slice(0, pageIdx + 1), np, ...prev.slice(pageIdx + 1)]);
