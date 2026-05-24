@@ -723,6 +723,7 @@ export default function TemplatesEditorInner() {
   const [projectTab, setProjectTab] = useState('All');
   const [savedDesigns, setSavedDesigns] = useState([]);
   const [savedDesignsLoading, setSavedDesignsLoading] = useState(false);
+  const [hoveredDesign, setHoveredDesign] = useState(null); // { id, title, pagesCount, x, y }
   // Quick actions palette
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickQuery, setQuickQuery] = useState('');
@@ -3048,9 +3049,16 @@ export default function TemplatesEditorInner() {
                     <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>Designs</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       {savedDesigns.map(d => (
-                        <div key={d.id} onClick={() => { if (typeof window !== 'undefined') window.location.href = `/templates/editor?id=${d.id}`; }}
+                        <div key={d.id}
+                          onClick={() => { if (typeof window !== 'undefined') window.location.href = `/templates/editor?id=${d.id}`; }}
+                          onMouseEnter={e => {
+                            const r = e.currentTarget.getBoundingClientRect();
+                            const pagesCount = Array.isArray(d.pages_json) ? d.pages_json.length : 1;
+                            setHoveredDesign({ id: d.id, title: d.title || 'Untitled', pagesCount, x: r.right + 10, y: r.top });
+                          }}
+                          onMouseLeave={() => setHoveredDesign(null)}
                           style={{ cursor: 'pointer' }}>
-                          <div style={{ aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: t.textMuted, marginBottom: 5 }}>
+                          <div style={{ aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${hoveredDesign?.id === d.id ? '#00C4CC' : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: t.textMuted, marginBottom: 5, transition: 'border-color 120ms' }}>
                             {d.title || 'Untitled'}
                           </div>
                           <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text }}>{d.title || 'Untitled'}</div>
@@ -4222,6 +4230,34 @@ export default function TemplatesEditorInner() {
               {tip.shortcut}
             </kbd>
           )}
+        </div>
+      )}
+
+      {/* ── Design card hover preview ── */}
+      {hoveredDesign && (
+        <div style={{
+          position: 'fixed',
+          left: Math.min(hoveredDesign.x, window.innerWidth - 200),
+          top: Math.max(8, Math.min(hoveredDesign.y, window.innerHeight - 130)),
+          width: 180,
+          background: 'rgba(17,24,39,0.96)',
+          color: '#fff',
+          borderRadius: 10,
+          padding: '12px 14px',
+          zIndex: 9998,
+          pointerEvents: 'none',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          animation: 'panel-in 120ms ease forwards',
+        }}>
+          <div style={{ aspectRatio: '4/5', borderRadius: 6, background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10, border: '1px solid rgba(255,255,255,0.1)', fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+            {hoveredDesign.title}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{hoveredDesign.title}</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginBottom: 3 }}>{canvasSize.w}×{canvasSize.h}px</div>
+          {hoveredDesign.pagesCount > 1 && (
+            <div style={{ fontSize: 11, color: '#00C4CC' }}>{hoveredDesign.pagesCount} pages</div>
+          )}
+          <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Click to open</div>
         </div>
       )}
 
