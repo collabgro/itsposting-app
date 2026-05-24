@@ -1874,6 +1874,58 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'sticker') {
+    const sw = el.width || 100, sh = el.height || 100;
+    const emoji = el.emoji || '🔥';
+    const bgShape = el.stickerBg || 'none'; // 'none' | 'circle' | 'pill' | 'square'
+    const bgColor = el.fill || 'rgba(255,255,255,0.15)';
+
+    return (
+      <Shape {...common}
+        width={sw} height={sh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          const cx = w / 2, cy = h / 2;
+          const minD = Math.min(w, h);
+
+          if (bgShape === 'circle') {
+            ctx.beginPath();
+            ctx.arc(cx, cy, minD / 2 - 2, 0, Math.PI * 2);
+            ctx.fillStyle = bgColor;
+            ctx.fill();
+          } else if (bgShape === 'square') {
+            const pad = minD * 0.06;
+            ctx.beginPath();
+            ctx.roundRect(pad, pad, w - pad * 2, h - pad * 2, minD * 0.15);
+            ctx.fillStyle = bgColor;
+            ctx.fill();
+          } else if (bgShape === 'pill') {
+            const pH = h * 0.6, pW = w * 0.85;
+            const px = (w - pW) / 2, py = (h - pH) / 2;
+            ctx.beginPath();
+            ctx.roundRect(px, py, pW, pH, pH / 2);
+            ctx.fillStyle = bgColor;
+            ctx.fill();
+          }
+
+          const emojiSize = Math.round(minD * 0.72);
+          ctx.font = `${emojiSize}px serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(emoji, cx, cy);
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2777,6 +2829,18 @@ export default function TemplatesEditorInner() {
       text: 'NEON', fontSize: 60, fontStyle: 'bold',
       fontFamily: 'Inter, sans-serif',
       glowColor: '#00C4CC', glowIntensity: 18,
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addSticker(emoji = '🔥') {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'sticker',
+      x: canvasSize.w / 2 - 50, y: canvasSize.h / 2 - 50,
+      width: 100, height: 100, opacity: 1,
+      emoji, stickerBg: 'none', fill: 'rgba(255,255,255,0.15)',
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5002,6 +5066,34 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'sticker' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Emoji</span>
+                {['🔥','⭐','💯','🎯','✅','❤️','🚀','💎','👏','🌟','⚡','🎉'].map(em => (
+                  <button key={em} onClick={() => { pushHistory(); updateElement({...selectedEl, emoji: em}); }}
+                    style={{ width:30, height:30, borderRadius:6, border:`1px solid ${(selectedEl.emoji||'🔥')===em?'#00C4CC':t.border}`, background:(selectedEl.emoji||'🔥')===em?'rgba(0,196,204,0.1)':'transparent', fontSize:16, cursor:'pointer', flexShrink:0 }}>
+                    {em}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Bg</span>
+                {[['○','none'],['●','circle'],['▬','pill'],['■','square']].map(([icon, bg]) => (
+                  <button key={bg} onClick={() => { pushHistory(); updateElement({...selectedEl, stickerBg: bg}); }}
+                    title={bg}
+                    style={{ width:28, height:28, borderRadius:5, border:`1px solid ${(selectedEl.stickerBg||'none')===bg?'#00C4CC':t.border}`, background:(selectedEl.stickerBg||'none')===bg?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.stickerBg||'none')===bg?'#00C4CC':t.text, fontSize:14, cursor:'pointer', flexShrink:0 }}>
+                    {icon}
+                  </button>
+                ))}
+                {(selectedEl.stickerBg && selectedEl.stickerBg !== 'none') && <>
+                  <ColorPickerButton
+                    value={selectedEl.fill || 'rgba(255,255,255,0.15)'}
+                    onChange={c => updateElement({...selectedEl, fill: c})}
+                    onCommit={() => pushHistory()}
+                    recentColors={recentColors}
+                    size={18}
+                  />
+                </>}
+              </>}
               {selectedEl.type === 'neontext' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Glow</span>
@@ -6089,6 +6181,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Coupon',    icon: '🎟', fn: () => addCoupon() },
                     { label: 'GradText',  icon: '🌈', fn: () => addGradientText() },
                     { label: 'Neon',      icon: '✨', fn: () => addNeonText() },
+                    { label: 'Sticker',   icon: '🔥', fn: () => addSticker('🔥') },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -7176,7 +7269,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
