@@ -242,6 +242,24 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
   const shapeRef = useRef(null);
   const [img] = useImage(el.src, 'anonymous');
   const [isDragging, setIsDragging] = useState(false);
+
+  // Apply Konva image filters when brightness/contrast/saturation are set
+  useEffect(() => {
+    if (!shapeRef.current || !img) return;
+    const node = shapeRef.current;
+    const hasFx = (el.brightness ?? 0) !== 0 || (el.contrast ?? 0) !== 0 || (el.saturation ?? 0) !== 0;
+    if (hasFx) {
+      node.filters([Konva.Filters.Brighten, Konva.Filters.Contrast, Konva.Filters.HSL]);
+      node.brightness(el.brightness ?? 0);
+      node.contrast(el.contrast ?? 0);
+      node.saturation(el.saturation ?? 0);
+      node.cache();
+    } else {
+      node.filters([]);
+      node.clearCache();
+    }
+    node.getLayer()?.batchDraw();
+  }, [img, el.brightness, el.contrast, el.saturation]);
   const w = el.width || 200;
   const h = el.height || 200;
   const flipSX = el.flipH ? -1 : 1;
@@ -728,6 +746,7 @@ export default function TemplatesEditorInner() {
   const [showOutlinePanel, setShowOutlinePanel] = useState(false);
   const [showPositionPanel, setShowPositionPanel] = useState(false);
   const [showAnimatePanel, setShowAnimatePanel] = useState(false);
+  const [showAdjustPanel, setShowAdjustPanel] = useState(false);
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
   const [uploadMediaTab, setUploadMediaTab] = useState('Images');
@@ -1005,6 +1024,7 @@ export default function TemplatesEditorInner() {
         setShowOutlinePanel(false);
         setShowPositionPanel(false);
         setShowAnimatePanel(false);
+        setShowAdjustPanel(false);
         setCtxMenu(null);
         setQuickOpen(false);
         return;
@@ -1946,7 +1966,7 @@ export default function TemplatesEditorInner() {
       </div>
 
       {/* ── Contextual action bar (Canva-style) ── */}
-      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }}
+      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); }}
         style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
 
         {/* ── Multi-select bar ── */}
@@ -2265,6 +2285,35 @@ export default function TemplatesEditorInner() {
               </select>
               <D />
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
+              <D />
+              {/* Image Adjust panel */}
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="◑ Adjust" active={showAdjustPanel || (selectedEl.brightness||0)!==0 || (selectedEl.contrast||0)!==0 || (selectedEl.saturation||0)!==0}
+                  onClick={() => { setShowAdjustPanel(p => !p); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
+                {showAdjustPanel && selectedEl && (
+                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    {[
+                      { label: 'Brightness', k: 'brightness', min: -1,   max: 1,   step: 0.05, def: 0 },
+                      { label: 'Contrast',   k: 'contrast',   min: -100, max: 100, step: 5,    def: 0 },
+                      { label: 'Saturation', k: 'saturation', min: -1,   max: 1,   step: 0.05, def: 0 },
+                    ].map(({ label, k, min, max, step, def }) => (
+                      <div key={k} style={{ marginBottom: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                          <span style={{ fontSize: 11, color: t.textMuted }}>{label}</span>
+                          <span style={{ fontSize: 11, color: t.textMuted }}>{+(selectedEl[k] ?? def).toFixed(2)}</span>
+                        </div>
+                        <input type="range" min={min} max={max} step={step} value={selectedEl[k] ?? def}
+                          onChange={e => updateElement({ ...selectedEl, [k]: parseFloat(e.target.value) })}
+                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: '#00C4CC' }} />
+                      </div>
+                    ))}
+                    <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, brightness: 0, contrast: 0, saturation: 0 }); }}
+                      style={{ width: '100%', padding: '7px 0', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, cursor: 'pointer', marginTop: 4 }}>
+                      Reset adjustments
+                    </button>
+                  </div>
+                )}
+              </div>
               <div style={{ flex:1 }} />
               <div style={{ display:'flex', gap:1, alignItems:'center' }}>
                 {[['left','⊢','Align left'],['centerH','↔','Center H'],['right','⊣','Align right'],['top','⊤','Align top'],['centerV','↕','Center V'],['bottom','⊥','Align bottom']].map(([dir,icon,title]) => (
