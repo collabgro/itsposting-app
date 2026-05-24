@@ -1472,6 +1472,34 @@ export default function TemplatesEditorInner() {
     setSelectedId(el.id);
   }
 
+  function handleCanvasDrop(e) {
+    e.preventDefault();
+    const url = e.dataTransfer.getData('text/plain');
+    if (!url) return;
+    const rect = canvasWrapperRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const canvasX = (e.clientX - rect.left) / stageScale;
+    const canvasY = (e.clientY - rect.top)  / stageScale;
+    // Check if drop landed on an existing image element (replace)
+    const hit = [...elements].reverse().find(el => {
+      if (el.type !== 'image') return false;
+      return canvasX >= el.x && canvasX <= el.x + (el.width || 200) &&
+             canvasY >= el.y && canvasY <= el.y + (el.height || 200);
+    });
+    pushHistory();
+    if (hit) {
+      patchElements(prev => prev.map(el => el.id === hit.id ? { ...el, src: url } : el));
+      setSelectedId(hit.id);
+    } else {
+      const w = canvasSize.w * 0.5;
+      const newEl = { id: uid(), type: 'image', src: url,
+        x: canvasX - w / 2, y: canvasY - w / 2,
+        width: w, height: w, rotation: 0, opacity: 1, flipH: false, flipV: false, cornerRadius: 0 };
+      patchElements(prev => [...prev, newEl]);
+      setSelectedId(newEl.id);
+    }
+  }
+
   function updateElement(updated) {
     patchElements(prev => prev.map(el => el.id === updated.id ? updated : el));
   }
@@ -3812,10 +3840,12 @@ export default function TemplatesEditorInner() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
                     {displayedImgPhotos.map(photo => (
                       <div key={photo.id}
+                        draggable
+                        onDragStart={e => e.dataTransfer.setData('text/plain', photo.url)}
                         onMouseEnter={() => setHoveredPhotoId(photo.id)}
                         onMouseLeave={() => setHoveredPhotoId(null)}
-                        style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${t.border}`, position: 'relative', cursor: 'pointer', aspectRatio: '1' }}>
-                        <img src={photo.thumbnail_url || photo.url} alt={photo.title || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${t.border}`, position: 'relative', cursor: 'grab', aspectRatio: '1' }}>
+                        <img src={photo.thumbnail_url || photo.url} alt={photo.title || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
                         {hoveredPhotoId === photo.id && (
                           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 4 }}>
                             <button onClick={() => selectBgPhoto(photo)}
@@ -4345,6 +4375,8 @@ export default function TemplatesEditorInner() {
                         : undefined,
                     }}
                     onClick={!isActive ? () => { setActivePage(pageIdx); setSelectedId(null); } : undefined}
+                    onDragOver={isActive ? e => e.preventDefault() : undefined}
+                    onDrop={isActive ? handleCanvasDrop : undefined}
                   >
                     <Stage
                       ref={isActive ? stageRef : null}
