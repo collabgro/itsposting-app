@@ -145,6 +145,14 @@ const SNAP_THRESHOLD = 5;
 
 const DocColorsCtx = createContext([]);
 
+function applyTextTransform(text, transform) {
+  if (!text || !transform || transform === 'none') return text;
+  if (transform === 'uppercase') return text.toUpperCase();
+  if (transform === 'lowercase') return text.toLowerCase();
+  if (transform === 'capitalize') return text.replace(/\b\w/g, c => c.toUpperCase());
+  return text;
+}
+
 function _hexToRgb(hex) {
   const h = hex.replace('#', '');
   return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
@@ -535,7 +543,7 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     const textNode = (
       <Text
         {...common}
-        text={el.text}
+        text={applyTextTransform(el.text, el.textTransform)}
         fontSize={el.fontSize || 36}
         fontFamily={el.fontFamily || 'Inter'}
         fontStyle={el.fontStyle || 'normal'}
@@ -2466,7 +2474,11 @@ export default function TemplatesEditorInner() {
           const isItalic = (selectedEl.fontStyle || '').includes('italic');
           const isUnder  = selectedEl.textDecoration === 'underline';
           const isStrike = selectedEl.textDecoration === 'line-through';
-          const isUpper  = selectedEl.textTransform === 'uppercase';
+          const textXform = selectedEl.textTransform || 'none';
+          const isUpper  = textXform !== 'none';
+          const TEXT_XFORM_CYCLE = { none: 'uppercase', uppercase: 'lowercase', lowercase: 'capitalize', capitalize: 'none' };
+          const TEXT_XFORM_LABEL = { none: 'Aa', uppercase: 'AA', lowercase: 'aa', capitalize: 'Ab' };
+          const TEXT_XFORM_TIP   = { none: 'Text case: Normal', uppercase: 'Text case: UPPERCASE', lowercase: 'Text case: lowercase', capitalize: 'Text case: Title Case' };
           const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
           const Btn = ({ label, active, onClick, extraStyle = {} }) => (
             <button onClick={onClick} style={{ height: 30, minWidth: 30, padding: '0 7px', border: 'none', borderRadius: 6, background: active ? t.primaryBg : 'transparent', color: active ? t.primary : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', ...extraStyle }}>{label}</button>
@@ -2531,8 +2543,13 @@ export default function TemplatesEditorInner() {
                 onClick={() => handleElementChange({ ...selectedEl, textDecoration: isUnder ? '' : 'underline' })} />
               <Btn label="S" active={isStrike} extraStyle={{ textDecoration: 'line-through' }}
                 onClick={() => handleElementChange({ ...selectedEl, textDecoration: isStrike ? '' : 'line-through' })} />
-              <Btn label="aA" active={isUpper} extraStyle={{ fontSize: 12, fontWeight: 500 }}
-                onClick={() => handleElementChange({ ...selectedEl, textTransform: isUpper ? 'none' : 'uppercase' })} />
+              <button
+                onMouseEnter={e => showTip(e, TEXT_XFORM_TIP[textXform])}
+                onMouseLeave={hideTip}
+                onClick={() => handleElementChange({ ...selectedEl, textTransform: TEXT_XFORM_CYCLE[textXform] })}
+                style={{ height: 30, minWidth: 30, padding: '0 7px', border: 'none', borderRadius: 6, background: isUpper ? t.primaryBg : 'transparent', color: isUpper ? t.primary : t.text, fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', letterSpacing: '0.04em' }}>
+                {TEXT_XFORM_LABEL[textXform]}
+              </button>
               <D />
               {/* Horizontal alignment */}
               {[['left','≡ L'],['center','≡ C'],['right','≡ R']].map(([a, lbl]) => (
