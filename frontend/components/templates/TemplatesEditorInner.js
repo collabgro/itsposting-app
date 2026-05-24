@@ -270,6 +270,7 @@ function emptyPage() {
     elements: [],
     bgType: 'color', bgColor: '#1a1a22',
     bgGradient: null,
+    bgPattern: null, bgPatternColor: 'rgba(255,255,255,0.18)',
     bgImageUrl: null, bgSource: null, bgSourceId: null,
     bgFilter: 'normal', bgBrightness: 0, bgContrast: 0, bgSaturation: 0,
     lockedIds: [], hiddenIds: [],
@@ -1087,7 +1088,9 @@ export default function TemplatesEditorInner() {
   const bgBrightness = currentPage.bgBrightness;
   const bgContrast   = currentPage.bgContrast;
   const bgSaturation = currentPage.bgSaturation;
-  const bgGradient   = currentPage.bgGradient;
+  const bgGradient     = currentPage.bgGradient;
+  const bgPattern      = currentPage.bgPattern;
+  const bgPatternColor = currentPage.bgPatternColor || 'rgba(255,255,255,0.18)';
   const lockedIds   = new Set(currentPage.lockedIds);
   const hiddenIds   = new Set(currentPage.hiddenIds);
 
@@ -3825,6 +3828,30 @@ export default function TemplatesEditorInner() {
                 </div>
 
                 <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Pattern</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
+                    {[
+                      { id: null,         label: 'None',   preview: null },
+                      { id: 'dots',       label: 'Dots',   preview: 'radial-gradient(circle, rgba(255,255,255,0.5) 1.5px, transparent 1.5px) 0 0 / 14px 14px' },
+                      { id: 'grid',       label: 'Grid',   preview: 'linear-gradient(rgba(255,255,255,0.35) 1px, transparent 1px) 0 0 / 18px 18px, linear-gradient(90deg, rgba(255,255,255,0.35) 1px, transparent 1px) 0 0 / 18px 18px' },
+                      { id: 'diagonal',   label: 'Lines',  preview: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.4) 0, rgba(255,255,255,0.4) 1px, transparent 0, transparent 50%) 0 0 / 14px 14px' },
+                      { id: 'crosshatch', label: 'Cross',  preview: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.3) 0, rgba(255,255,255,0.3) 1px, transparent 0, transparent 50%) 0 0 / 14px 14px, repeating-linear-gradient(-45deg, rgba(255,255,255,0.3) 0, rgba(255,255,255,0.3) 1px, transparent 0, transparent 50%) 0 0 / 14px 14px' },
+                    ].map(pat => {
+                      const active = bgPattern === pat.id;
+                      return (
+                        <button key={String(pat.id)} onClick={() => { pushHistory(); patchPage({ bgPattern: pat.id }); }}
+                          style={{ border: `2px solid ${active ? t.primary : t.border}`, borderRadius: 7, padding: 0, cursor: 'pointer', overflow: 'hidden', background: 'transparent', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, paddingBottom: 5 }}>
+                          <div style={{ width: '100%', aspectRatio: '1', background: pat.preview ? `${bgColor || '#1a1a22'}` : t.input, borderRadius: '5px 5px 0 0' }}>
+                            {pat.preview && <div style={{ width: '100%', height: '100%', background: pat.preview, borderRadius: '5px 5px 0 0' }} />}
+                          </div>
+                          <span style={{ fontSize: 9, color: active ? t.primary : t.textMuted }}>{pat.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Photo Background</div>
                   <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: t.input, borderRadius: 7, padding: 3 }}>
                     {['stock', 'mine'].map(tab => (
@@ -4570,6 +4597,8 @@ export default function TemplatesEditorInner() {
               const pageElements = page.elements;
               const pageBgType = page.bgType;
               const pageBgColor = page.bgColor;
+              const pageBgPattern = page.bgPattern;
+              const pageBgPatternColor = page.bgPatternColor || 'rgba(255,255,255,0.18)';
               const pageBgImageUrl = page.bgImageUrl;
               const pageBgFilter = page.bgFilter;
               const pageBgBrightness = page.bgBrightness;
@@ -4775,6 +4804,53 @@ export default function TemplatesEditorInner() {
                             isSelected={isActive && selectedId === '__bg__'} />
                         ) : (
                           <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill="#1a1a22" />
+                        )}
+                        {/* Background pattern overlay */}
+                        {pageBgPattern && (
+                          <Shape
+                            x={0} y={0} width={canvasSize.w} height={canvasSize.h}
+                            listening={false} perfectDrawEnabled={false}
+                            sceneFunc={(ctx) => {
+                              ctx.save();
+                              ctx.strokeStyle = pageBgPatternColor;
+                              ctx.fillStyle = pageBgPatternColor;
+                              if (pageBgPattern === 'dots') {
+                                const sp = 28;
+                                for (let x = sp / 2; x < canvasSize.w; x += sp) {
+                                  for (let y = sp / 2; y < canvasSize.h; y += sp) {
+                                    ctx.beginPath();
+                                    ctx.arc(x, y, 1.8, 0, Math.PI * 2);
+                                    ctx.fill();
+                                  }
+                                }
+                              } else if (pageBgPattern === 'grid') {
+                                const sp = 44;
+                                ctx.lineWidth = 0.8;
+                                ctx.beginPath();
+                                for (let x = 0; x <= canvasSize.w; x += sp) { ctx.moveTo(x, 0); ctx.lineTo(x, canvasSize.h); }
+                                for (let y = 0; y <= canvasSize.h; y += sp) { ctx.moveTo(0, y); ctx.lineTo(canvasSize.w, y); }
+                                ctx.stroke();
+                              } else if (pageBgPattern === 'diagonal') {
+                                const sp = 32;
+                                ctx.lineWidth = 1;
+                                ctx.beginPath();
+                                for (let i = -canvasSize.h; i < canvasSize.w + canvasSize.h; i += sp) {
+                                  ctx.moveTo(i, 0); ctx.lineTo(i + canvasSize.h, canvasSize.h);
+                                }
+                                ctx.stroke();
+                              } else if (pageBgPattern === 'crosshatch') {
+                                const sp = 32;
+                                ctx.lineWidth = 0.8;
+                                ctx.beginPath();
+                                for (let i = -canvasSize.h; i < canvasSize.w + canvasSize.h; i += sp) {
+                                  ctx.moveTo(i, 0); ctx.lineTo(i + canvasSize.h, canvasSize.h);
+                                  ctx.moveTo(i, canvasSize.h); ctx.lineTo(i + canvasSize.h, 0);
+                                }
+                                ctx.stroke();
+                              }
+                              ctx.restore();
+                            }}
+                          />
                         )}
                       </Layer>
 
