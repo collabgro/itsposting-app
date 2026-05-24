@@ -747,6 +747,7 @@ export default function TemplatesEditorInner() {
   const [showPositionPanel, setShowPositionPanel] = useState(false);
   const [showAnimatePanel, setShowAnimatePanel] = useState(false);
   const [showAdjustPanel, setShowAdjustPanel] = useState(false);
+  const [showSpacingPanel, setShowSpacingPanel] = useState(false);
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
   const [uploadMediaTab, setUploadMediaTab] = useState('Images');
@@ -1966,7 +1967,7 @@ export default function TemplatesEditorInner() {
       </div>
 
       {/* ── Contextual action bar (Canva-style) ── */}
-      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); }}
+      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); }}
         style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
 
         {/* ── Multi-select bar ── */}
@@ -2138,6 +2139,34 @@ export default function TemplatesEditorInner() {
                         onChange={e => updateElement({...selectedEl, outline:{...(selectedEl.outline||{}), width:parseInt(e.target.value)}})}
                         onMouseUp={() => pushHistory()} style={{ width:'100%' }} />
                     </>}
+                  </div>
+                )}
+              </div>
+              {/* Spacing dropdown */}
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="Spacing" active={showSpacingPanel}
+                  onClick={() => { setShowSpacingPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); }} />
+                {showSpacingPanel && (
+                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    {[
+                      { lbl: 'Letter spacing', k: 'letterSpacing', min: -10, max: 40, step: 0.5, def: 0, fmt: v => `${v}px` },
+                      { lbl: 'Line height',    k: 'lineHeight',    min: 0.5, max: 4,  step: 0.05, def: 1.2, fmt: v => v.toFixed(2) },
+                    ].map(({ lbl, k, min, max, step, def, fmt }) => (
+                      <div key={k} style={{ marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{lbl}</span>
+                          <span style={{ fontSize: 11, color: t.textMuted }}>{fmt(selectedEl?.[k] ?? def)}</span>
+                        </div>
+                        <input type="range" min={min} max={max} step={step} value={selectedEl?.[k] ?? def}
+                          onChange={e => updateElement({ ...selectedEl, [k]: parseFloat(e.target.value) })}
+                          onMouseUp={() => pushHistory()}
+                          style={{ width: '100%', accentColor: '#00C4CC' }} />
+                      </div>
+                    ))}
+                    <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, letterSpacing: 0, lineHeight: 1.2 }); }}
+                      style={{ width: '100%', padding: '6px', border: `1px solid ${t.border}`, borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'pointer' }}>
+                      Reset spacing
+                    </button>
                   </div>
                 )}
               </div>
@@ -4665,6 +4694,7 @@ export default function TemplatesEditorInner() {
           )}
         </div>
       )}
+
     </div>
   );
 }
