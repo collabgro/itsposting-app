@@ -978,6 +978,7 @@ export default function TemplatesEditorInner() {
   const [recentColors, setRecentColors] = useState([]);
   const [showShadowPanel, setShowShadowPanel] = useState(false);
   const [showOutlinePanel, setShowOutlinePanel] = useState(false);
+  const [showEffectsPanel, setShowEffectsPanel] = useState(false);
   const [showPositionPanel, setShowPositionPanel] = useState(false);
   const [showAnimatePanel, setShowAnimatePanel] = useState(false);
   // Find & Replace
@@ -2534,7 +2535,7 @@ export default function TemplatesEditorInner() {
       </div>
 
       {/* ── Contextual action bar (Canva-style) ── */}
-      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); setShowEmojiPanel(false); }}
+      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); setShowEmojiPanel(false); setShowEffectsPanel(false); }}
         style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
 
         {/* ── Multi-select bar ── */}
@@ -2785,10 +2786,55 @@ export default function TemplatesEditorInner() {
                   </div>
                 )}
               </div>
+              {/* Text Effects dropdown */}
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="✦ Effects" active={showEffectsPanel}
+                  onClick={() => { setShowEffectsPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowSpacingPanel(false); }} />
+                {showEffectsPanel && (() => {
+                  const applyEffect = patch => { pushHistory(); updateElement({ ...selectedEl, ...patch }); setShowEffectsPanel(false); };
+                  const TEXT_EFFECTS = [
+                    { id: 'none',       label: 'None',       preview: 'Aa', previewStyle: { color:'#fff', textShadow:'none', WebkitTextStroke:'0' },
+                      patch: { shadow: { enabled: false }, outline: { enabled: false }, textBg: { enabled: false, opacity: 0 } } },
+                    { id: 'shadow',     label: 'Shadow',     preview: 'Aa', previewStyle: { color:'#fff', textShadow:'3px 3px 4px rgba(0,0,0,0.8)' },
+                      patch: { shadow: { enabled: true, color: '#000000', blur: 6, offsetX: 3, offsetY: 3 } } },
+                    { id: 'lift',       label: 'Lift',       preview: 'Aa', previewStyle: { color:'#fff', textShadow:'0 6px 12px rgba(0,0,0,0.6)' },
+                      patch: { shadow: { enabled: true, color: '#000000', blur: 12, offsetX: 0, offsetY: 6 } } },
+                    { id: 'outline',    label: 'Outline',    preview: 'Aa', previewStyle: { color:'transparent', WebkitTextStroke:'1.5px #fff' },
+                      patch: { fill: 'transparent', fillType: 'solid', outline: { enabled: true, color: '#ffffff', width: 4 } } },
+                    { id: 'neon',       label: 'Neon',       preview: 'Aa', previewStyle: { color:'#00C4CC', textShadow:'0 0 10px #00C4CC, 0 0 20px #00C4CC' },
+                      patch: { fill: '#00C4CC', fillType: 'solid', shadow: { enabled: true, color: '#00C4CC', blur: 18, offsetX: 0, offsetY: 0 } } },
+                    { id: 'sticker',    label: 'Sticker',    preview: 'Aa', previewStyle: { color:'#111', WebkitTextStroke:'6px #fff', paintOrder:'stroke' },
+                      patch: { fill: '#111111', fillType: 'solid', outline: { enabled: true, color: '#ffffff', width: 8 } } },
+                    { id: 'highlight',  label: 'Highlight',  preview: 'Aa', previewStyle: { color:'#111', background:'#ffe234', borderRadius: 3, padding:'0 4px' },
+                      patch: { fill: '#111111', fillType: 'solid', textBg: { enabled: true, color: '#ffe234', opacity: 1, padding: 8, radius: 4 } } },
+                    { id: 'glitch',     label: 'Glitch',     preview: 'Aa', previewStyle: { color:'#fff', textShadow:'-2px 0 #ff0080, 2px 0 #00ffff' },
+                      patch: { fill: '#ffffff', fillType: 'solid', shadow: { enabled: true, color: '#ff0080', blur: 0, offsetX: -3, offsetY: 0 } } },
+                  ];
+                  return (
+                    <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 12, width: 280, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Text effects</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                        {TEXT_EFFECTS.map(fx => (
+                          <button key={fx.id} onClick={() => applyEffect(fx.patch)}
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                              padding: '10px 4px 8px', border: `1px solid ${t.border}`, borderRadius: 8,
+                              background: t.input, cursor: 'pointer' }}>
+                            <div style={{ width: 44, height: 32, background: '#1a1a2e', borderRadius: 5,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                              <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'sans-serif', ...fx.previewStyle }}>{fx.preview}</span>
+                            </div>
+                            <span style={{ fontSize: 10, color: t.text }}>{fx.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
               {/* Spacing dropdown */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Spacing" active={showSpacingPanel}
-                  onClick={() => { setShowSpacingPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); }} />
+                  onClick={() => { setShowSpacingPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); }} />
                 {showSpacingPanel && (
                   <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     {[
