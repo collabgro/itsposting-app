@@ -1766,6 +1766,63 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'gradtext') {
+    const gtw = el.width || 400, gth = el.height || 80;
+    const rawText = applyTextTransform(el.text || 'Gradient Text', el.textTransform) || '';
+    const fontSize = el.fontSize || 52;
+    const fontStyle = el.fontStyle || 'bold';
+    const fontFamily = el.fontFamily || 'Inter, sans-serif';
+    const fontStr = `${fontStyle !== 'normal' ? fontStyle + ' ' : ''}${fontSize}px ${fontFamily}`;
+    const color1 = el.gradColor1 || '#00C4CC';
+    const color2 = el.gradColor2 || '#7C5CFC';
+    const direction = el.gradDirection || 'horizontal'; // 'horizontal' | 'vertical' | 'diagonal'
+
+    return (
+      <Shape {...common}
+        width={gtw} height={gth}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          ctx.font = fontStr;
+          ctx.textAlign = el.textAlign || 'center';
+          ctx.textBaseline = 'middle';
+          let grad;
+          if (direction === 'vertical') {
+            grad = ctx.createLinearGradient(0, 0, 0, h);
+          } else if (direction === 'diagonal') {
+            grad = ctx.createLinearGradient(0, 0, w, h);
+          } else {
+            grad = ctx.createLinearGradient(0, 0, w, 0);
+          }
+          grad.addColorStop(0, color1);
+          grad.addColorStop(1, color2);
+          ctx.fillStyle = grad;
+          const tx = el.textAlign === 'left' ? 0 : el.textAlign === 'right' ? w : w / 2;
+          // word-wrap
+          const words = rawText.split(' ');
+          const lineH = fontSize * 1.25;
+          const lines = [];
+          let cur = '';
+          for (const word of words) {
+            const test = cur ? cur + ' ' + word : word;
+            if (ctx.measureText(test).width > w - 4 && cur) { lines.push(cur); cur = word; }
+            else cur = test;
+          }
+          if (cur) lines.push(cur);
+          const totalH = lines.length * lineH;
+          const startY = (h - totalH) / 2 + lineH / 2;
+          lines.forEach((line, i) => ctx.fillText(line, tx, startY + i * lineH));
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2640,6 +2697,21 @@ export default function TemplatesEditorInner() {
       width: 340, height: 140, opacity: 1,
       fill: '#7C5CFC', couponCode: 'SAVE20', couponHeadline: '20% OFF',
       couponSubline: 'Your next purchase', couponExpiry: 'Expires 31 Dec',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addGradientText() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'gradtext',
+      x: canvasSize.w / 2 - 200, y: canvasSize.h / 2 - 40,
+      width: 400, height: 80, opacity: 1,
+      text: 'Gradient Text', fontSize: 52, fontStyle: 'bold',
+      fontFamily: 'Inter, sans-serif', textAlign: 'center',
+      gradColor1: '#00C4CC', gradColor2: '#7C5CFC',
+      gradDirection: 'horizontal',
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -4865,6 +4937,41 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'gradtext' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Color 1</span>
+                <ColorPickerButton
+                  value={selectedEl.gradColor1 || '#00C4CC'}
+                  onChange={c => updateElement({...selectedEl, gradColor1: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Color 2</span>
+                <ColorPickerButton
+                  value={selectedEl.gradColor2 || '#7C5CFC'}
+                  onChange={c => updateElement({...selectedEl, gradColor2: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                {[['→','horizontal'],['↓','vertical'],['↘','diagonal']].map(([icon, dir]) => (
+                  <button key={dir} onClick={() => { pushHistory(); updateElement({...selectedEl, gradDirection: dir}); }}
+                    title={dir}
+                    style={{ width:28, height:28, borderRadius:5, border:`1px solid ${(selectedEl.gradDirection||'horizontal')===dir?'#00C4CC':t.border}`, background:(selectedEl.gradDirection||'horizontal')===dir?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.gradDirection||'horizontal')===dir?'#00C4CC':t.text, fontSize:14, cursor:'pointer', flexShrink:0 }}>
+                    {icon}
+                  </button>
+                ))}
+                <D />
+                {/* Quick gradient presets */}
+                {[['Teal→Purple','#00C4CC','#7C5CFC'],['Orange→Pink','#f97316','#ec4899'],['Blue→Cyan','#3b82f6','#06b6d4'],['Gold→Red','#f59e0b','#ef4444']].map(([lbl,c1,c2]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, gradColor1: c1, gradColor2: c2}); }}
+                    style={{ height:26, padding:'0 8px', borderRadius:5, border:`1px solid ${t.border}`, background:`linear-gradient(to right, ${c1}, ${c2})`, color:'#fff', fontSize:10, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', fontWeight:600, textShadow:'0 1px 2px rgba(0,0,0,0.5)' }}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'coupon' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Color</span>
@@ -5892,6 +5999,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Stats',     icon: '📈', fn: () => addSocialStats() },
                     { label: 'Callout',   icon: '💡', fn: () => addCallout() },
                     { label: 'Coupon',    icon: '🎟', fn: () => addCoupon() },
+                    { label: 'GradText',  icon: '🌈', fn: () => addGradientText() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -6979,7 +7087,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
