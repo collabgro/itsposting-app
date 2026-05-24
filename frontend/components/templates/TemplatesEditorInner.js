@@ -1008,15 +1008,27 @@ export default function TemplatesEditorInner() {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); return; }
 
       if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
-        const sel = elements.find(el => el.id === selectedId);
-        if (sel) setClipboard(JSON.parse(JSON.stringify(sel)));
+        if (selectedIds.length > 1) {
+          const multi = elements.filter(el => selectedIds.includes(el.id));
+          setClipboard(JSON.parse(JSON.stringify(multi)));
+        } else {
+          const sel = elements.find(el => el.id === selectedId);
+          if (sel) setClipboard(JSON.parse(JSON.stringify(sel)));
+        }
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'v' && clipboard) {
-        const el = { ...JSON.parse(JSON.stringify(clipboard)), id: uid(), x: clipboard.x + 20, y: clipboard.y + 20 };
         pushHistory();
-        patchElements(prev => [...prev, el]);
-        setSelectedId(el.id);
+        if (Array.isArray(clipboard)) {
+          const newEls = clipboard.map(el => ({ ...JSON.parse(JSON.stringify(el)), id: uid(), x: el.x + 20, y: el.y + 20 }));
+          patchElements(prev => [...prev, ...newEls]);
+          const newIds = newEls.map(e => e.id);
+          setSelectedIds(newIds); setSelectedId(newIds[newIds.length - 1]);
+        } else {
+          const el = { ...JSON.parse(JSON.stringify(clipboard)), id: uid(), x: clipboard.x + 20, y: clipboard.y + 20 };
+          patchElements(prev => [...prev, el]);
+          setSelectedId(el.id);
+        }
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
@@ -4496,13 +4508,21 @@ export default function TemplatesEditorInner() {
         };
         const pasteEl = () => {
           if (!clipboard) return;
-          const p = { ...JSON.parse(JSON.stringify(clipboard)), id: `el_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, x: clipboard.x + 20, y: clipboard.y + 20 };
-          pushHistory(); patchElements(prev => [...prev, p]); setSelectedId(p.id);
+          pushHistory();
+          if (Array.isArray(clipboard)) {
+            const newEls = clipboard.map(el => ({ ...JSON.parse(JSON.stringify(el)), id: uid(), x: el.x + 20, y: el.y + 20 }));
+            patchElements(prev => [...prev, ...newEls]);
+            const newIds = newEls.map(e => e.id);
+            setSelectedIds(newIds); setSelectedId(newIds[newIds.length - 1]);
+          } else {
+            const p = { ...JSON.parse(JSON.stringify(clipboard)), id: uid(), x: clipboard.x + 20, y: clipboard.y + 20 };
+            patchElements(prev => [...prev, p]); setSelectedId(p.id);
+          }
         };
 
         const ITEMS = [
           el && { label: 'Copy',          shortcut: 'Ctrl+C', fn: () => setClipboard(JSON.parse(JSON.stringify(el))) },
-          clipboard && { label: 'Paste', shortcut: 'Ctrl+V', fn: pasteEl },
+          clipboard && { label: Array.isArray(clipboard) && clipboard.length > 1 ? `Paste ${clipboard.length} items` : 'Paste', shortcut: 'Ctrl+V', fn: pasteEl },
           el && { label: 'Duplicate',     shortcut: 'Ctrl+D', fn: dupEl },
           (el || clipboard) && { sep: true },
           el && { label: 'Bring Forward', shortcut: ']',      fn: () => bringForward(el.id) },
