@@ -1127,6 +1127,76 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'rating') {
+    const rw = el.width || 200, rh = el.height || 40;
+    const maxStars = el.maxStars || 5;
+    const rating = el.rating ?? 4.5;
+    const starColor = el.fill || '#f59e0b';
+    const emptyColor = el.emptyColor || 'rgba(255,255,255,0.25)';
+    const showLabel = el.showLabel !== false;
+
+    return (
+      <Shape {...common}
+        width={rw} height={rh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape) => {
+          const w = shape.width(), h = shape.height();
+          const labelH = showLabel ? Math.min(14, h * 0.3) : 0;
+          const starAreaH = h - labelH;
+          const starSize = Math.min(starAreaH, (w - 4 * (maxStars - 1)) / maxStars);
+          const totalW = starSize * maxStars + 4 * (maxStars - 1);
+          const startX = (w - totalW) / 2;
+          const centerY = starAreaH / 2;
+
+          function drawStar(cx, cy, r, fillFraction) {
+            const ir = r * 0.4;
+            const path = new Path2D();
+            for (let i = 0; i < 10; i++) {
+              const angle = (Math.PI / 5) * i - Math.PI / 2;
+              const rad = i % 2 === 0 ? r : ir;
+              const x = cx + rad * Math.cos(angle);
+              const y = cy + rad * Math.sin(angle);
+              i === 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+            }
+            path.closePath();
+
+            if (fillFraction >= 1) {
+              ctx.fillStyle = starColor;
+              ctx.fill(path);
+            } else if (fillFraction <= 0) {
+              ctx.fillStyle = emptyColor;
+              ctx.fill(path);
+            } else {
+              // Clip to left portion for partial fill
+              ctx.save();
+              ctx.fillStyle = emptyColor;
+              ctx.fill(path);
+              ctx.clip(path);
+              ctx.fillStyle = starColor;
+              ctx.fillRect(cx - r, cy - r, r * 2 * fillFraction, r * 2);
+              ctx.restore();
+            }
+          }
+
+          for (let i = 0; i < maxStars; i++) {
+            const fraction = Math.min(1, Math.max(0, rating - i));
+            const sx = startX + i * (starSize + 4) + starSize / 2;
+            drawStar(sx, centerY, starSize / 2 * 0.9, fraction);
+          }
+
+          if (showLabel) {
+            ctx.font = `bold ${Math.max(10, labelH - 2)}px Inter, sans-serif`;
+            ctx.fillStyle = starColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`${rating} / ${maxStars}`, w / 2, starAreaH + 1);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -1989,6 +2059,18 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addRating() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'rating',
+      x: canvasSize.w / 2 - 100, y: canvasSize.h / 2 - 20,
+      width: 200, height: 40, opacity: 1,
+      fill: '#f59e0b', rating: 4.5, maxStars: 5, showLabel: true,
+    };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -4125,6 +4207,25 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'rating' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Rating</span>
+                <input type="range" min={0} max={selectedEl.maxStars || 5} step={0.5}
+                  value={selectedEl.rating ?? 4.5}
+                  onChange={e => updateElement({...selectedEl, rating: parseFloat(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:70, flexShrink:0, accentColor:'#f59e0b' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:28, flexShrink:0 }}>{selectedEl.rating ?? 4.5}</span>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Stars</span>
+                <input type="range" min={1} max={10} step={1}
+                  value={selectedEl.maxStars || 5}
+                  onChange={e => updateElement({...selectedEl, maxStars: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()} style={{ width:55, flexShrink:0, accentColor:'#00C4CC' }} />
+                <span style={{ fontSize:11, color:t.textMuted, minWidth:14, flexShrink:0 }}>{selectedEl.maxStars || 5}</span>
+                <D />
+                <Btn label="Label" active={selectedEl.showLabel !== false}
+                  onClick={() => { pushHistory(); updateElement({...selectedEl, showLabel: !(selectedEl.showLabel !== false)}); }} />
+              </>}
               {selectedEl.type === 'chart' && <>
                 <D />
                 {[['bar','📊 Bar'],['pie','🥧 Pie']].map(([ct, lbl]) => (
@@ -4997,6 +5098,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Pie Chart', icon: '🥧', fn: () => addChart('pie') },
                     { label: 'Table',     icon: '⊞', fn: () => addTable() },
                     { label: 'Countdown', icon: '⏱', fn: () => addCountdown() },
+                    { label: 'Rating',    icon: '★', fn: () => addRating() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -6084,7 +6186,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
