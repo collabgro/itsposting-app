@@ -833,7 +833,7 @@ function RulerV({ canvasH, stageScale, isDark }) {
 
 // ─── TransformerLayer ────────────────────────────────────────────────────────
 
-function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageScale, canvasW, canvasH }) {
+function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageScale, canvasW, canvasH, onLiveBounds, onLiveBoundsClear }) {
   const trRef = useRef(null);
 
   useLayoutEffect(() => {
@@ -873,6 +873,11 @@ function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageSc
              'top-center', 'bottom-center', 'middle-left', 'middle-right']
         }
         boundBoxFunc={(oldBox, newBox) => (newBox.width < 5 || newBox.height < 5 ? oldBox : newBox)}
+        onTransform={e => {
+          const node = e.target;
+          onLiveBounds?.({ x: Math.round(node.x()), y: Math.round(node.y()), w: Math.round(node.width() * Math.abs(node.scaleX())), h: Math.round(node.height() * Math.abs(node.scaleY())) });
+        }}
+        onTransformEnd={() => onLiveBoundsClear?.()}
       />
       {(snapGuides?.v || []).map((x, i) => (
         <Line key={`sv${i}`} points={[x, 0, x, canvasH]} stroke="#FF0080"
@@ -973,6 +978,7 @@ export default function TemplatesEditorInner() {
   const [editingClipIdx, setEditingClipIdx] = useState(null); // page index being duration-edited
   const [rulerGuides, setRulerGuides] = useState({ h: [], v: [] });
   const [draggingGuide, setDraggingGuide] = useState(null); // { axis:'h'|'v', pos:number } canvas px
+  const [liveBounds, setLiveBounds] = useState(null); // { x,y,w,h } shown while dragging/resizing
   const canvasWrapperRef = useRef(null);
   // Top bar dropdowns
   const [titleEditing, setTitleEditing] = useState(false);
@@ -1810,10 +1816,11 @@ export default function TemplatesEditorInner() {
       }
     }
     setSnapGuides({ v: vGuides, h: hGuides });
+    setLiveBounds({ x: Math.round(snapX), y: Math.round(snapY), w: Math.round(elW || 0), h: Math.round(elH || 0) });
     return { x: snapX, y: snapY };
   }
 
-  function clearSnapGuides() { setSnapGuides({ v: [], h: [] }); }
+  function clearSnapGuides() { setSnapGuides({ v: [], h: [] }); setLiveBounds(null); }
 
   // ── Ruler drag guides ──────────────────────────────────────────────────────
   function startRulerDrag(axis) {
@@ -4600,6 +4607,8 @@ export default function TemplatesEditorInner() {
                             stageScale={stageScale}
                             canvasW={canvasSize.w}
                             canvasH={canvasSize.h}
+                            onLiveBounds={setLiveBounds}
+                            onLiveBoundsClear={() => setLiveBounds(null)}
                           />
                         </Layer>
                       )}
@@ -4744,6 +4753,12 @@ export default function TemplatesEditorInner() {
                     )}
                     {isActive && draggingGuide && draggingGuide.axis === 'v' && (
                       <div style={{ position: 'absolute', top: 0, bottom: 0, left: Math.round(draggingGuide.pos * stageScale), width: 1, background: 'rgba(0,196,204,0.9)', pointerEvents: 'none', zIndex: 202 }} />
+                    )}
+                    {/* Live bounds label while dragging / resizing */}
+                    {isActive && liveBounds && (
+                      <div style={{ position: 'absolute', left: Math.max(2, Math.round((liveBounds.x + liveBounds.w / 2) * stageScale) - 48), top: Math.max(2, Math.round(liveBounds.y * stageScale) - 28), background: 'rgba(0,0,0,0.72)', color: '#fff', padding: '2px 7px', borderRadius: 4, fontSize: 11, fontFamily: 'monospace', pointerEvents: 'none', zIndex: 203, whiteSpace: 'nowrap', letterSpacing: '0.02em' }}>
+                        {liveBounds.w > 0 && liveBounds.h > 0 ? `${liveBounds.w} × ${liveBounds.h}` : `${liveBounds.x}, ${liveBounds.y}`}
+                      </div>
                     )}
                   </div>
                   </div>{/* close ruler wrapper */}
