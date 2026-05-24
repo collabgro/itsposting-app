@@ -3351,7 +3351,15 @@ export default function TemplatesEditorInner() {
             100% { background-position: 500px 0; }
           }
         `}</style>
-        <div ref={containerRef} style={{ flex: 1, overflowY: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
+        <div ref={containerRef}
+          onWheel={e => {
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              const delta = e.deltaY > 0 ? -0.1 : 0.1;
+              setZoomFactor(z => Math.max(0.1, Math.min(3, parseFloat((z + delta).toFixed(2)))));
+            }
+          }}
+          style={{ flex: 1, overflowY: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
             {pages.map((page, pageIdx) => {
               const isActive = pageIdx === activePage;
@@ -4087,6 +4095,17 @@ export default function TemplatesEditorInner() {
 
         {/* Spacer */}
         <div style={{ flex: 1 }} />
+
+        {/* Fit to screen */}
+        <button onClick={() => setZoomFactor(1)}
+          onMouseEnter={e => showTip(e, 'Fit to screen', 'Ctrl+0')} onMouseLeave={hideTip}
+          style={{ height: 26, padding: '0 8px', border: `1px solid ${t.border}`, borderRadius: 5,
+            background: t.input, color: t.textMuted, fontSize: 11, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'background 100ms' }}
+          onMouseEnterCapture={e => e.currentTarget.style.color = t.text}
+          onMouseLeaveCapture={e => e.currentTarget.style.color = t.textMuted}>
+          ⤢ Fit
+        </button>
 
         {/* Zoom out */}
         <button onClick={zoomOut}
