@@ -1427,6 +1427,26 @@ export default function TemplatesEditorInner() {
     patchElements(prev => prev.map(e => e.id === el.id ? { ...e, flipV: !e.flipV } : e));
   }
 
+  function fitToPage() {
+    const el = elements.find(e => e.id === selectedId);
+    if (!el || el.type !== 'image') return;
+    pushHistory();
+    const elW = el.width || 200; const elH = el.height || 200;
+    const scale = Math.min(canvasSize.w / elW, canvasSize.h / elH);
+    const nw = elW * scale; const nh = elH * scale;
+    updateElement({ ...el, x: (canvasSize.w - nw) / 2, y: (canvasSize.h - nh) / 2, width: nw, height: nh });
+  }
+
+  function fillPage() {
+    const el = elements.find(e => e.id === selectedId);
+    if (!el || el.type !== 'image') return;
+    pushHistory();
+    const elW = el.width || 200; const elH = el.height || 200;
+    const scale = Math.max(canvasSize.w / elW, canvasSize.h / elH);
+    const nw = elW * scale; const nh = elH * scale;
+    updateElement({ ...el, x: (canvasSize.w - nw) / 2, y: (canvasSize.h - nh) / 2, width: nw, height: nh });
+  }
+
   // ── Layer order ────────────────────────────────────────────────────────────
   function bringForward(id) {
     const tid = id || selectedId; if (!tid) return;
@@ -2385,6 +2405,9 @@ export default function TemplatesEditorInner() {
               <D />
               <Btn label="⟺ Flip H" active={!!selectedEl.flipH} onClick={flipH} />
               <Btn label="⇅ Flip V" active={!!selectedEl.flipV} onClick={flipV} />
+              <D />
+              <Btn label="⤢ Fit page"  active={false} onClick={fitToPage}  />
+              <Btn label="⤡ Fill page" active={false} onClick={fillPage} />
               <D />
               {/* Shape presets */}
               {[
