@@ -2347,6 +2347,18 @@ export default function TemplatesEditorInner() {
             <>
               <Btn label="⇄ Replace" active={false} onClick={() => replaceFileRef.current?.click()} />
               <D />
+              {/* Color tint */}
+              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Tint</span>
+              <ColorPickerButton
+                value={selectedEl.tintColor || '#000000'}
+                onChange={c => updateElement({ ...selectedEl, tintColor: c, tintOpacity: selectedEl.tintOpacity ?? 0.5 })}
+                onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
+              <input type="range" min={0} max={1} step={0.05} value={selectedEl.tintOpacity ?? 0}
+                onChange={e => { const v = parseFloat(e.target.value); updateElement({ ...selectedEl, tintOpacity: v, tintColor: selectedEl.tintColor || '#000000' }); }}
+                onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0, accentColor:'#00C4CC' }} />
+              <button onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, tintOpacity: 0, tintColor: undefined }); }}
+                style={{ height:24, padding:'0 6px', border:`1px solid ${t.border}`, borderRadius:5, background:'transparent', color:t.textMuted, fontSize:11, cursor:'pointer', flexShrink:0 }} title="Remove tint">×</button>
+              <D />
               <Btn label="⟺ Flip H" active={!!selectedEl.flipH} onClick={flipH} />
               <Btn label="⇅ Flip V" active={!!selectedEl.flipV} onClick={flipV} />
               <D />
@@ -3757,8 +3769,8 @@ export default function TemplatesEditorInner() {
 
                       {/* Layer 2: Content */}
                       <Layer>
-                        {pageElements.map(el => (
-                          el.type === 'group'
+                        {pageElements.flatMap(el => {
+                          const node = el.type === 'group'
                             ? <GroupNode
                                 key={el.id}
                                 el={el}
@@ -3797,8 +3809,21 @@ export default function TemplatesEditorInner() {
                                 onSnapClear={isActive ? clearSnapGuides : null}
                                 locked={pageLockedIds.has(el.id)}
                                 hidden={pageHiddenIds.has(el.id)}
+                              />;
+                          const tint = el.type === 'image' && el.tintColor && (el.tintOpacity || 0) > 0
+                            ? <Rect key={`${el.id}_tint`}
+                                x={el.x} y={el.y}
+                                width={el.width || 200} height={el.height || 200}
+                                fill={el.tintColor}
+                                opacity={el.tintOpacity || 0}
+                                cornerRadius={el.cornerRadius || 0}
+                                rotation={el.rotation || 0}
+                                listening={false}
+                                globalCompositeOperation="source-atop"
                               />
-                        ))}
+                            : null;
+                          return tint ? [node, tint] : [node];
+                        })}
                       </Layer>
 
                       {/* Layer 3: Transformer + snap guides (active page only) */}
