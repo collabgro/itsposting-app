@@ -2858,6 +2858,70 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'comparison') {
+    const cpw = el.width || 400, cph = el.height || 340;
+    const col1Color = el.col1Color || '#ef4444';
+    const col2Color = el.col2Color || '#00C4CC';
+    const bgC5 = el.bgColor || '#1a1a2e';
+    const textC5 = el.fill || '#ffffff';
+    const col1Label = el.col1Label || 'Others';
+    const col2Label = el.col2Label || 'Us';
+    const rows = el.cpRows || [
+      { col1: '✗ Generic advice', col2: '✓ Industry expertise' },
+      { col1: '✗ Slow response',  col2: '✓ Same-day service'   },
+      { col1: '✗ Hidden costs',   col2: '✓ Upfront pricing'    },
+    ];
+    return (
+      <Shape {...common} width={cpw} height={cph} opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          // Card bg
+          ctx.fillStyle = bgC5;
+          ctx.beginPath(); ctx.roundRect(0, 0, w, h, el.cornerRadius ?? 14); ctx.fill();
+          const colW = w / 2;
+          const headerH = h * 0.17;
+          const rowH = (h - headerH - 12) / Math.max(1, rows.length);
+          const fontSize5 = Math.max(10, Math.round(rowH * 0.38));
+          const headFontSize = Math.max(12, Math.round(headerH * 0.42));
+          // Column headers
+          ctx.fillStyle = col1Color;
+          ctx.beginPath(); ctx.roundRect(4, 4, colW - 8, headerH - 4, [8, 0, 0, 8]); ctx.fill();
+          ctx.fillStyle = col2Color;
+          ctx.beginPath(); ctx.roundRect(colW + 4, 4, colW - 8, headerH - 4, [0, 8, 8, 0]); ctx.fill();
+          ctx.font = `bold ${headFontSize}px Inter, sans-serif`;
+          ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(col1Label, colW / 2, headerH / 2 + 2);
+          ctx.fillText(col2Label, colW + colW / 2, headerH / 2 + 2);
+          // Rows
+          rows.forEach((row, i) => {
+            const ry = headerH + 6 + i * rowH;
+            if (ry + rowH > h - 4) return;
+            if (i % 2 === 1) {
+              ctx.fillStyle = 'rgba(255,255,255,0.04)';
+              ctx.fillRect(4, ry, w - 8, rowH);
+            }
+            // Divider
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(4, ry); ctx.lineTo(w - 4, ry); ctx.stroke();
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.beginPath(); ctx.moveTo(colW, headerH); ctx.lineTo(colW, h - 4); ctx.stroke();
+            // Cell text
+            ctx.font = `${fontSize5}px Inter, sans-serif`;
+            ctx.textBaseline = 'middle';
+            const cy5 = ry + rowH / 2;
+            ctx.fillStyle = `${col1Color}dd`;
+            ctx.textAlign = 'center';
+            ctx.fillText((row.col1 || '').slice(0, 30), colW / 2, cy5);
+            ctx.fillStyle = `${col2Color}dd`;
+            ctx.fillText((row.col2 || '').slice(0, 30), colW + colW / 2, cy5);
+          });
+          if (isSelected) { ctx.strokeStyle = '#00C4CC'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'watermark') {
     const wmw = el.width || 200, wmh = el.height || 60;
     const bgC4 = el.bgColor || 'rgba(0,0,0,0.55)';
@@ -4120,6 +4184,26 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addComparison() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'comparison',
+      x: canvasSize.w / 2 - 200, y: canvasSize.h / 2 - 170,
+      width: 400, height: 340, opacity: 1,
+      bgColor: '#1a1a2e', fill: '#ffffff',
+      col1Color: '#ef4444', col2Color: '#00C4CC',
+      col1Label: 'Others', col2Label: 'Us',
+      cpRows: [
+        { col1: '✗ Generic advice',  col2: '✓ Industry expertise' },
+        { col1: '✗ Slow response',   col2: '✓ Same-day service'   },
+        { col1: '✗ Hidden costs',    col2: '✓ Upfront pricing'    },
+      ],
+      cornerRadius: 14,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -6606,6 +6690,31 @@ export default function TemplatesEditorInner() {
                   </button>
                 ))}
               </>}
+              {selectedEl.type === 'comparison' && <>
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Col 1</span>
+                <input type="text" value={selectedEl.col1Label||'Others'}
+                  onChange={e=>updateElement({...selectedEl,col1Label:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  style={{width:65,padding:'2px 6px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none'}} />
+                <ColorPickerButton value={selectedEl.col1Color||'#ef4444'} onChange={c=>updateElement({...selectedEl,col1Color:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Col 2</span>
+                <input type="text" value={selectedEl.col2Label||'Us'}
+                  onChange={e=>updateElement({...selectedEl,col2Label:e.target.value})}
+                  onBlur={()=>pushHistory()}
+                  style={{width:65,padding:'2px 6px',borderRadius:5,border:`1px solid ${t.border}`,background:t.input,color:t.text,fontSize:12,outline:'none'}} />
+                <ColorPickerButton value={selectedEl.col2Color||'#00C4CC'} onChange={c=>updateElement({...selectedEl,col2Color:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Bg</span>
+                <ColorPickerButton value={selectedEl.bgColor||'#1a1a2e'} onChange={c=>updateElement({...selectedEl,bgColor:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <D />
+                {[['Red/Teal','#ef4444','#00C4CC'],['Red/Green','#ef4444','#22c55e'],['Gray/Purple','#6b7280','#7C5CFC'],['Orange/Blue','#f97316','#3b82f6']].map(([lbl,c1,c2])=>(
+                  <button key={lbl} onClick={()=>{pushHistory();updateElement({...selectedEl,col1Color:c1,col2Color:c2});}}
+                    style={{height:26,padding:'0 7px',borderRadius:5,border:`1px solid ${t.border}`,background:`linear-gradient(to right,${c1} 50%,${c2} 50%)`,color:'#fff',fontSize:10,cursor:'pointer',flexShrink:0,fontWeight:600,textShadow:'0 1px 2px rgba(0,0,0,0.5)'}}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'watermark' && <>
                 <D />
                 {[['Pill','pill'],['Badge','badge'],['Bar','bar'],['Plain','plain']].map(([lbl,s]) => (
@@ -8154,66 +8263,90 @@ export default function TemplatesEditorInner() {
                     </button>
                   ))}
                 </div>
-                {/* Quick add shapes */}
-                <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginTop: 4 }}>Quick add</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-                  {[
-                    { label: 'Rectangle', icon: '▭', fn: () => addRect() },
-                    { label: 'Circle',    icon: '●', fn: () => addCircle() },
-                    { label: 'Triangle',  icon: '▲', fn: () => addTriangle() },
-                    { label: 'Star',      icon: '★', fn: () => addStar() },
-                    { label: 'Arrow',     icon: '→', fn: () => addArrow() },
-                    { label: 'Line',      icon: '╱', fn: () => addLine() },
-                    { label: 'Rounded',   icon: '▢', fn: () => addRect({ cornerRadius: 20 }) },
-                    { label: 'Diamond',   icon: '◆', fn: () => addTriangle({ sides: 4, rotation: 45 }) },
-                    { label: 'Heart',     icon: '♥', fn: () => addSmartShape('heart') },
-                    { label: 'Cross',     icon: '✚', fn: () => addSmartShape('cross') },
-                    { label: 'Pentagon',  icon: '⬠', fn: () => addSmartShape('pentagon') },
-                    { label: 'Octagon',   icon: '⯃', fn: () => addSmartShape('octagon') },
-                    { label: 'Speech ◀',  icon: '💬', fn: () => addSmartShape('speechbubble') },
-                    { label: 'Speech ▶',  icon: '💭', fn: () => addSmartShape('speechbubble_right') },
-                    { label: 'Slant',     icon: '▱', fn: () => addSmartShape('parallelogram') },
-                    { label: 'Banner',    icon: '⛳', fn: () => addSmartShape('banner') },
-                    { label: 'Progress',  icon: '▬', fn: () => addProgressBar() },
-                    { label: 'Bar Chart', icon: '📊', fn: () => addChart('bar') },
-                    { label: 'Pie Chart', icon: '🥧', fn: () => addChart('pie') },
-                    { label: 'Table',     icon: '⊞', fn: () => addTable() },
-                    { label: 'Countdown', icon: '⏱', fn: () => addCountdown() },
-                    { label: 'Rating',    icon: '★', fn: () => addRating() },
-                    { label: 'Quote',     icon: '❝', fn: () => addQuote() },
-                    { label: 'Badge',     icon: '🏷', fn: () => addBadge('sale') },
-                    { label: 'Divider',   icon: '─',  fn: () => addDivider() },
-                    { label: 'Stats',     icon: '📈', fn: () => addSocialStats() },
-                    { label: 'Callout',   icon: '💡', fn: () => addCallout() },
-                    { label: 'Coupon',    icon: '🎟', fn: () => addCoupon() },
-                    { label: 'GradText',  icon: '🌈', fn: () => addGradientText() },
-                    { label: 'Neon',      icon: '✨', fn: () => addNeonText() },
-                    { label: 'Sticker',   icon: '🔥', fn: () => addSticker('🔥') },
-                    { label: 'Highlight', icon: '🖊', fn: () => addHighlight() },
-                    { label: 'Polaroid',  icon: '📷', fn: () => addPolaroid() },
-                    { label: 'Map Pin',   icon: '📍', fn: () => addMapPin() },
-                    { label: 'Bubble',    icon: '💬', fn: () => addSpeechBubble() },
-                    { label: 'Ribbon',    icon: '🎀', fn: () => addRibbon() },
-                    { label: 'Steps',     icon: '📋', fn: () => addStepList() },
-                    { label: 'Pattern',   icon: '⊞', fn: () => addPattern() },
-                    { label: 'QR Code',   icon: '▣', fn: () => addQrCode() },
-                    { label: 'Glass',     icon: '◫', fn: () => addGlassPane() },
-                    { label: 'Review',    icon: '⭐', fn: () => addTestimonial() },
-                    { label: 'Before/After', icon: '⟺', fn: () => addBeforeAfter() },
-                    { label: 'Grad Rect',  icon: '▨', fn: () => addGradRect() },
-                    { label: 'Counter',    icon: '🔢', fn: () => addCounter() },
-                    { label: 'Icon',       icon: '✓', fn: () => addIconShape() },
-                    { label: 'Price Tag',  icon: '💲', fn: () => addPriceTag() },
-                    { label: 'Timeline',   icon: '⟶', fn: () => addHTimeline() },
-                    { label: 'Watermark',  icon: '◉', fn: () => addWatermark() },
-                  ].map(({ label, icon, fn }) => (
-                    <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
-                      style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                      <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
-                      <span style={{ fontSize: 11, color: t.textMuted }}>{label}</span>
-                    </button>
-                  ))}
-                </div>
+                {/* Quick add — categorised */}
+                {[
+                  {
+                    cat: 'Shapes', items: [
+                      { label: 'Rectangle', icon: '▭', fn: () => addRect() },
+                      { label: 'Circle',    icon: '●', fn: () => addCircle() },
+                      { label: 'Rounded',   icon: '▢', fn: () => addRect({ cornerRadius: 20 }) },
+                      { label: 'Triangle',  icon: '▲', fn: () => addTriangle() },
+                      { label: 'Diamond',   icon: '◆', fn: () => addTriangle({ sides: 4, rotation: 45 }) },
+                      { label: 'Star',      icon: '★', fn: () => addStar() },
+                      { label: 'Heart',     icon: '♥', fn: () => addSmartShape('heart') },
+                      { label: 'Arrow',     icon: '→', fn: () => addArrow() },
+                      { label: 'Line',      icon: '╱', fn: () => addLine() },
+                      { label: 'Cross',     icon: '✚', fn: () => addSmartShape('cross') },
+                      { label: 'Pentagon',  icon: '⬠', fn: () => addSmartShape('pentagon') },
+                      { label: 'Octagon',   icon: '⯃', fn: () => addSmartShape('octagon') },
+                    ],
+                  },
+                  {
+                    cat: 'Data & Charts', items: [
+                      { label: 'Progress',  icon: '▬', fn: () => addProgressBar() },
+                      { label: 'Bar Chart', icon: '📊', fn: () => addChart('bar') },
+                      { label: 'Pie Chart', icon: '🥧', fn: () => addChart('pie') },
+                      { label: 'Table',     icon: '⊞', fn: () => addTable() },
+                      { label: 'Countdown', icon: '⏱', fn: () => addCountdown() },
+                      { label: 'Rating',    icon: '★', fn: () => addRating() },
+                      { label: 'Counter',   icon: '🔢', fn: () => addCounter() },
+                      { label: 'Timeline',  icon: '⟶', fn: () => addHTimeline() },
+                    ],
+                  },
+                  {
+                    cat: 'Typography', items: [
+                      { label: 'Quote',     icon: '❝', fn: () => addQuote() },
+                      { label: 'Callout',   icon: '💡', fn: () => addCallout() },
+                      { label: 'GradText',  icon: '🌈', fn: () => addGradientText() },
+                      { label: 'Neon',      icon: '✨', fn: () => addNeonText() },
+                      { label: 'Highlight', icon: '🖊', fn: () => addHighlight() },
+                      { label: 'Speech ◀',  icon: '💬', fn: () => addSmartShape('speechbubble') },
+                      { label: 'Bubble',    icon: '💭', fn: () => addSpeechBubble() },
+                      { label: 'Ribbon',    icon: '🎀', fn: () => addRibbon() },
+                    ],
+                  },
+                  {
+                    cat: 'Social & Marketing', items: [
+                      { label: 'Badge',     icon: '🏷', fn: () => addBadge('sale') },
+                      { label: 'Coupon',    icon: '🎟', fn: () => addCoupon() },
+                      { label: 'Sticker',   icon: '🔥', fn: () => addSticker('🔥') },
+                      { label: 'Stats',     icon: '📈', fn: () => addSocialStats() },
+                      { label: 'Review',    icon: '⭐', fn: () => addTestimonial() },
+                      { label: 'Price Tag', icon: '💲', fn: () => addPriceTag() },
+                      { label: 'Compare',   icon: '⫸', fn: () => addComparison() },
+                      { label: 'Watermark', icon: '◉', fn: () => addWatermark() },
+                    ],
+                  },
+                  {
+                    cat: 'Layout & Decoration', items: [
+                      { label: 'Divider',   icon: '─',  fn: () => addDivider() },
+                      { label: 'Pattern',   icon: '⊞', fn: () => addPattern() },
+                      { label: 'Grad Rect', icon: '▨', fn: () => addGradRect() },
+                      { label: 'Glass',     icon: '◫', fn: () => addGlassPane() },
+                      { label: 'Steps',     icon: '📋', fn: () => addStepList() },
+                      { label: 'Icon',      icon: '✓', fn: () => addIconShape() },
+                      { label: 'Polaroid',  icon: '📷', fn: () => addPolaroid() },
+                      { label: 'Map Pin',   icon: '📍', fn: () => addMapPin() },
+                      { label: 'Before/After', icon: '⟺', fn: () => addBeforeAfter() },
+                      { label: 'QR Code',   icon: '▣', fn: () => addQrCode() },
+                    ],
+                  },
+                ].map(({ cat, items }) => (
+                  <div key={cat}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '10px 0 7px' }}>{cat}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {items.map(({ label, icon, fn }) => (
+                        <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
+                          style={{ padding: '10px 0 7px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, transition: 'background 100ms, border-color 100ms' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.borderColor = '#00C4CC33'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = t.input; e.currentTarget.style.borderColor = t.border; }}>
+                          <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
+                          <span style={{ fontSize: 10, color: t.textMuted }}>{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
                 {/* Shape properties when selected */}
                 {selectedEl && selectedEl.type !== 'text' && selectedEl.type !== 'image' && (
                   <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginTop: 4 }}>
@@ -9293,7 +9426,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : el.type === 'iconshape' ? '✓' : el.type === 'pricetag' ? '💲' : el.type === 'htimeline' ? '⟶' : el.type === 'watermark' ? '◉' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : el.type === 'iconshape' ? '✓' : el.type === 'pricetag' ? '💲' : el.type === 'htimeline' ? '⟶' : el.type === 'watermark' ? '◉' : el.type === 'comparison' ? '⫸' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
