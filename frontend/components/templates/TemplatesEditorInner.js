@@ -4,7 +4,7 @@ import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle, Line, Transforme
 import useImage from 'use-image';
 import Konva from 'konva';
 import { useTheme } from '../../lib/theme';
-import { studioAPI } from '../../lib/api';
+import { studioAPI, customerAPI } from '../../lib/api';
 import { useToast } from '../../components/ui';
 import {
   IpArrowLeft, IpDownload, IpEye,
@@ -3854,6 +3854,8 @@ export default function TemplatesEditorInner() {
   const [savedDesignsLoading, setSavedDesignsLoading] = useState(false);
   const [curatedTemplates, setCuratedTemplates] = useState([]);
   const [curatedLoading, setCuratedLoading] = useState(false);
+  const [brandProfile, setBrandProfile] = useState(null);
+  const [brandLoading, setBrandLoading] = useState(false);
   const [hoveredDesign, setHoveredDesign] = useState(null); // { id, title, pagesCount, x, y }
   const [layerDragId, setLayerDragId] = useState(null);
   // Quick actions palette
@@ -4087,6 +4089,17 @@ export default function TemplatesEditorInner() {
       .then(r => setCuratedTemplates(r.data?.templates || []))
       .catch(() => {})
       .finally(() => setCuratedLoading(false));
+  }, [activeLeftTool]);
+
+  // ── Load customer brand profile ────────────────────────────────────────────
+  useEffect(() => {
+    if (activeLeftTool !== 'brand') return;
+    if (brandProfile) return;
+    setBrandLoading(true);
+    customerAPI.getProfile()
+      .then(r => setBrandProfile(r.data || null))
+      .catch(() => {})
+      .finally(() => setBrandLoading(false));
   }, [activeLeftTool]);
 
   // ── Load existing creation ─────────────────────────────────────────────────
@@ -9119,37 +9132,108 @@ export default function TemplatesEditorInner() {
 
             {/* BRAND */}
             {activeLeftTool === 'brand' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
-                  <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
-                  <input placeholder="Search your brand assets" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
-                </div>
-                {[
-                  { icon: '◎', label: 'All assets'       },
-                  { icon: '📋', label: 'Guidelines'       },
-                  { icon: '⊞', label: 'Brand Templates', badge: 'New' },
-                  { icon: '🏷', label: 'Logos'            },
-                  { icon: '🎨', label: 'Colors'           },
-                ].map(item => (
-                  <button key={item.label}
-                    style={{ width: '100%', padding: '11px 12px', border: 'none', borderBottom: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}
-                    onMouseEnter={e => e.currentTarget.style.background = t.input}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <span style={{ fontSize: 16 }}>{item.icon}</span>
-                    <span style={{ flex: 1 }}>{item.label}</span>
-                    {item.badge && <span style={{ fontSize: 10, background: t.primaryBg, color: t.primary, padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>{item.badge}</span>}
-                  </button>
-                ))}
-                <div style={{ background: t.input, borderRadius: 12, padding: 18, textAlign: 'center', marginTop: 8, border: `1px solid ${t.border}` }}>
-                  <div style={{ fontSize: 22, marginBottom: 10 }}>✦</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 8, lineHeight: 1.5 }}>Apply your brand colors, fonts, logo, and much more effortlessly</div>
-                  <button style={{ width: '100%', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '11px', fontWeight: 600, fontSize: 13, cursor: 'pointer', marginBottom: 8 }}>
-                    👑 Try Business for 30 days
-                  </button>
-                  <button style={{ width: '100%', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '10px', color: t.text, fontSize: 13, cursor: 'pointer' }}>
-                    + Start with 3 free colors
-                  </button>
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                {brandLoading && (
+                  <div style={{ textAlign: 'center', color: t.textMuted, fontSize: 13, padding: '30px 0' }}>Loading your brand…</div>
+                )}
+                {!brandLoading && (() => {
+                  const bc = brandProfile?.brand_colors || {};
+                  const brandPrimary   = bc.primary   || '#00C4CC';
+                  const brandSecondary = bc.secondary || '#7C5CFC';
+                  const brandAccent    = bc.accent    || '#1a1a2e';
+                  const swatches = [
+                    { label: 'Primary',   hex: brandPrimary   },
+                    { label: 'Secondary', hex: brandSecondary },
+                    { label: 'Accent',    hex: brandAccent    },
+                  ];
+                  const brandFonts = [
+                    { role: 'Heading',    fontFamily: 'Bebas Neue', previewSize: 22, overrides: { fontSize: 64, fontFamily: 'Bebas Neue', fontStyle: 'normal', text: 'Service Announcement', letterSpacing: 2, fill: brandPrimary } },
+                    { role: 'Subheading', fontFamily: 'Montserrat', previewSize: 14, overrides: { fontSize: 36, fontFamily: 'Montserrat', fontStyle: 'bold',   text: 'Your Local Expert', fill: brandPrimary } },
+                    { role: 'Body',       fontFamily: 'Inter',      previewSize: 11, overrides: { fontSize: 20, fontFamily: 'Inter',       fontStyle: 'normal', text: 'Professional service you can trust', fill: brandPrimary } },
+                  ];
+                  return (
+                    <div style={{ flex: 1, overflowY: 'auto' }}>
+
+                      {/* S1: Brand Logo */}
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Brand Logo</div>
+                        {brandProfile?.logo_url ? (
+                          <>
+                            <div onMouseDown={e => { e.preventDefault(); addImageElement(brandProfile.logo_url); }}
+                              onMouseEnter={e => e.currentTarget.style.borderColor = TEAL}
+                              onMouseLeave={e => e.currentTarget.style.borderColor = t.border}
+                              style={{ width: '100%', background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, padding: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 80, transition: 'border-color 0.15s', boxSizing: 'border-box' }}>
+                              <img src={brandProfile.logo_url} alt="Brand logo" style={{ maxWidth: '100%', maxHeight: 70, objectFit: 'contain' }} />
+                            </div>
+                            <div style={{ fontSize: 10, color: t.textMuted, textAlign: 'center', marginTop: 5 }}>Click to add to canvas</div>
+                          </>
+                        ) : (
+                          <div style={{ background: t.input, borderRadius: 10, border: `1px dashed ${t.border}`, padding: '18px', textAlign: 'center', color: t.textMuted, fontSize: 12 }}>
+                            No logo yet — go to <span style={{ color: TEAL }}>Settings</span> to add one
+                          </div>
+                        )}
+                      </div>
+
+                      {/* S2: Brand Colors */}
+                      <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 16 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Brand Colors</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                          {swatches.map(s => (
+                            <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }}
+                              onMouseDown={e => { e.preventDefault(); if (selectedEl) handleElementChange({ ...selectedEl, fill: s.hex }); }}>
+                              <div
+                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.12)'}
+                                onMouseLeave={e => e.currentTarget.style.transform = ''}
+                                style={{ width: 36, height: 36, borderRadius: '50%', background: s.hex, border: `2px solid ${t.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.18)', transition: 'transform 0.15s' }} />
+                              <div style={{ textAlign: 'center', lineHeight: 1.4 }}>
+                                <div style={{ fontSize: 8, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
+                                <div style={{ fontSize: 9, color: t.textMuted, fontFamily: 'monospace' }}>{s.hex}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* S3: Brand Fonts */}
+                      <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 16 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Brand Fonts</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {brandFonts.map(f => (
+                            <button key={f.role} onMouseDown={e => { e.preventDefault(); addText(f.overrides); }}
+                              style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, textAlign: 'left', cursor: 'pointer', fontFamily: f.fontFamily, fontSize: f.previewSize, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                              {f.role}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* S4: Brand Voice */}
+                      <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Brand Voice</div>
+                        <div style={{ background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, padding: '12px 14px', marginBottom: 10 }}>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 8, fontFamily: 'Montserrat', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {brandProfile?.business_name || 'Your Business'}
+                          </div>
+                          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                            {brandProfile?.tone && (
+                              <span style={{ fontSize: 10, background: 'rgba(0,196,204,0.12)', color: TEAL, padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>{brandProfile.tone}</span>
+                            )}
+                            {brandProfile?.visual_style && (
+                              <span style={{ fontSize: 10, background: 'rgba(124,92,252,0.12)', color: '#7C5CFC', padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>{brandProfile.visual_style}</span>
+                            )}
+                            {brandProfile?.industry && (
+                              <span style={{ fontSize: 10, background: 'transparent', color: t.textMuted, padding: '3px 8px', borderRadius: 20, border: `1px solid ${t.border}` }}>{brandProfile.industry}</span>
+                            )}
+                          </div>
+                        </div>
+                        <button style={{ width: '100%', padding: '10px 0', borderRadius: 8, border: `1.5px solid ${TEAL}`, background: 'transparent', color: TEAL, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <IpSparkle size={14} /> PostCore Write
+                        </button>
+                      </div>
+
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
