@@ -145,8 +145,9 @@ const QUICK_ACTIONS = [
   { id: 'line',     icon: '╱',  label: 'Add line',        sub: 'Insert a line shape'                          },
   { id: 'undo',     icon: '⟲',  label: 'Undo',            sub: 'Undo last action',          shortcut: 'Ctrl+Z'  },
   { id: 'redo',     icon: '⟳',  label: 'Redo',            sub: 'Redo last undone action',   shortcut: 'Ctrl+Y'  },
-  { id: 'duplicate',icon: '⊞',  label: 'Duplicate',       sub: 'Duplicate selected element',shortcut: 'Ctrl+D'  },
-  { id: 'delete',   icon: '🗑', label: 'Delete',          sub: 'Delete selected element',   shortcut: 'Del'     },
+  { id: 'duplicate',    icon: '⊞',  label: 'Duplicate',        sub: 'Duplicate selected element',   shortcut: 'Ctrl+D'      },
+  { id: 'pasteinplace', icon: '⧉',  label: 'Paste in place',  sub: 'Paste at original position',   shortcut: 'Ctrl+⇧V'    },
+  { id: 'delete',       icon: '🗑', label: 'Delete',           sub: 'Delete selected element',      shortcut: 'Del'         },
   { id: 'newpage',  icon: '+',  label: 'Add new page',    sub: 'Insert a blank page after this one'            },
   { id: 'download', icon: '⬇', label: 'Download PNG',    sub: 'Export canvas as PNG'                         },
   { id: 'zoomin',   icon: '🔍', label: 'Zoom in',         sub: 'Increase canvas zoom',      shortcut: 'Ctrl++'  },
@@ -1083,14 +1084,16 @@ export default function TemplatesEditorInner() {
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'v' && clipboard) {
+        e.preventDefault();
         pushHistory();
+        const inPlace = e.shiftKey;
         if (Array.isArray(clipboard)) {
-          const newEls = clipboard.map(el => ({ ...JSON.parse(JSON.stringify(el)), id: uid(), x: el.x + 20, y: el.y + 20 }));
+          const newEls = clipboard.map(el => ({ ...JSON.parse(JSON.stringify(el)), id: uid(), x: el.x + (inPlace ? 0 : 20), y: el.y + (inPlace ? 0 : 20) }));
           patchElements(prev => [...prev, ...newEls]);
           const newIds = newEls.map(e => e.id);
           setSelectedIds(newIds); setSelectedId(newIds[newIds.length - 1]);
         } else {
-          const el = { ...JSON.parse(JSON.stringify(clipboard)), id: uid(), x: clipboard.x + 20, y: clipboard.y + 20 };
+          const el = { ...JSON.parse(JSON.stringify(clipboard)), id: uid(), x: clipboard.x + (inPlace ? 0 : 20), y: clipboard.y + (inPlace ? 0 : 20) };
           patchElements(prev => [...prev, el]);
           setSelectedId(el.id);
         }
@@ -4769,6 +4772,7 @@ export default function TemplatesEditorInner() {
           if (id === 'undo')     return undo();
           if (id === 'redo')     return redo();
           if (id === 'duplicate'){ const sel = elements.find(e => e.id === selectedId); if (sel) { const d = {...JSON.parse(JSON.stringify(sel)), id: uid(), x: sel.x+20, y: sel.y+20}; pushHistory(); patchElements(prev => [...prev, d]); setSelectedId(d.id); } return; }
+          if (id === 'pasteinplace') { if (clipboard) { pushHistory(); if (Array.isArray(clipboard)) { const newEls = clipboard.map(el => ({ ...JSON.parse(JSON.stringify(el)), id: uid() })); patchElements(prev => [...prev, ...newEls]); const ids = newEls.map(e => e.id); setSelectedIds(ids); setSelectedId(ids[ids.length - 1]); } else { const p = { ...JSON.parse(JSON.stringify(clipboard)), id: uid() }; patchElements(prev => [...prev, p]); setSelectedId(p.id); } } return; }
           if (id === 'delete')   { if (selectedIds.length > 0) { pushHistory(); const s = new Set(selectedIds); patchElements(p => p.filter(e => !s.has(e.id))); clearSelection(); } return; }
           if (id === 'newpage')  return addPage();
           if (id === 'download') return downloadCanvas('image/png', 'png', 1);
@@ -4882,6 +4886,19 @@ export default function TemplatesEditorInner() {
         const ITEMS = [
           el && { label: 'Copy',          shortcut: 'Ctrl+C', fn: () => setClipboard(JSON.parse(JSON.stringify(el))) },
           clipboard && { label: Array.isArray(clipboard) && clipboard.length > 1 ? `Paste ${clipboard.length} items` : 'Paste', shortcut: 'Ctrl+V', fn: pasteEl },
+          clipboard && { label: 'Paste in place', shortcut: 'Ctrl+⇧V', fn: () => {
+            if (!clipboard) return;
+            pushHistory();
+            if (Array.isArray(clipboard)) {
+              const newEls = clipboard.map(el => ({ ...JSON.parse(JSON.stringify(el)), id: uid() }));
+              patchElements(prev => [...prev, ...newEls]);
+              const newIds = newEls.map(e => e.id);
+              setSelectedIds(newIds); setSelectedId(newIds[newIds.length - 1]);
+            } else {
+              const p = { ...JSON.parse(JSON.stringify(clipboard)), id: uid() };
+              patchElements(prev => [...prev, p]); setSelectedId(p.id);
+            }
+          }},
           el && { label: 'Duplicate',     shortcut: 'Ctrl+D', fn: dupEl },
           (el || clipboard) && { sep: true },
           el && { label: 'Bring Forward', shortcut: ']',      fn: () => bringForward(el.id) },
