@@ -472,7 +472,7 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
 
 // ─── ContentNode ──────────────────────────────────────────────────────────────
 
-function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDblClick, onDragMove, onSnapClear, locked, hidden }) {
+function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, stageH, onDblClick, onDragMove, onSnapClear, locked, hidden, onHoverIn, onHoverOut }) {
   const shapeRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [measuredH, setMeasuredH] = useState(() => (el.fontSize || 36) * 1.5);
@@ -556,12 +556,14 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     visible: !hidden && el.visible !== false,
     onClick: (e) => !locked && onSelect(el.id, e),
     onTap: (e) => !locked && onSelect(el.id, e),
-    onDragStart: e => { setIsDragging(true); const s = e.target.getStage(); if (s) s.container().style.cursor = 'grabbing'; },
+    onMouseEnter: e => { if (!locked && onHoverIn) { onHoverIn(el.id); const s = e.target.getStage(); if (s) s.container().style.cursor = locked ? 'not-allowed' : 'pointer'; } },
+    onMouseLeave: e => { if (onHoverOut) { onHoverOut(); const s = e.target.getStage(); if (s) s.container().style.cursor = ''; } },
+    onDragStart: e => { setIsDragging(true); const s = e.target.getStage(); if (s) s.container().style.cursor = 'grabbing'; if (onHoverOut) onHoverOut(); },
     onDragMove: handleDragMove,
     onDragEnd: handleDragEnd,
     onTransformEnd: handleTransformEnd,
-    stroke: isSelected ? '#00C4CC' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined),
-    strokeWidth: isSelected ? 1.5 : (el.borderEnabled && el.borderWidth ? el.borderWidth : 0),
+    stroke: isSelected ? '#00C4CC' : (isHovered && !locked ? 'rgba(0,196,204,0.5)' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined)),
+    strokeWidth: isSelected ? 1.5 : (isHovered && !locked && !el.borderEnabled ? 1 : (el.borderEnabled && el.borderWidth ? el.borderWidth : 0)),
     dash: isSelected ? undefined : (() => {
       if (!el.borderEnabled) return undefined;
       const s = el.borderStyle || 'solid';
@@ -3531,6 +3533,7 @@ export default function TemplatesEditorInner() {
   const [historyIndex, setHistoryIndex] = useState(-1);
 
   // Canva-parity state
+  const [hoveredId, setHoveredId] = useState(null);
   const [clipboard,      setClipboard]      = useState(null);
   const [styleClipboard, setStyleClipboard] = useState(null);
   const [ctxMenu, setCtxMenu] = useState(null); // { x, y, elementId } | null
@@ -9040,6 +9043,7 @@ export default function TemplatesEditorInner() {
                                 key={el.id}
                                 el={el}
                                 isSelected={isActive && (selectedId === el.id || selectedIds.includes(el.id))}
+                                isHovered={isActive && hoveredId === el.id && selectedId !== el.id && !selectedIds.includes(el.id)}
                                 onSelect={isActive ? handleSelect : () => {}}
                                 onChange={isActive ? handleElementChange : () => {}}
                                 stageW={canvasSize.w}
@@ -9047,6 +9051,8 @@ export default function TemplatesEditorInner() {
                                 onDblClick={isActive ? startEditText : () => {}}
                                 onDragMove={isActive ? computeSnap : null}
                                 onSnapClear={isActive ? clearSnapGuides : null}
+                                onHoverIn={isActive ? setHoveredId : null}
+                                onHoverOut={isActive ? () => setHoveredId(null) : null}
                                 locked={pageLockedIds.has(el.id)}
                                 hidden={pageHiddenIds.has(el.id)}
                               />;
