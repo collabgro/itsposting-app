@@ -1584,7 +1584,7 @@ export default function TemplatesEditorInner() {
                     ? <div key={i} style={{ height: 1, background: t.border, margin: '4px 0' }} />
                     : (
                       <button key={i} onMouseDown={e => { e.preventDefault(); item.fn(); setShowFileMenu(false); }}
-                        style={{ width: '100%', padding: '8px 16px', border: 'none', background: 'transparent', color: item.danger ? '#ef4444' : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left' }}
+                        style={{ width: '100%', padding: '8px 16px', border: 'none', background: 'transparent', color: item.danger ? '#ef4444' : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', transition: 'background 100ms' }}
                         onMouseEnter={e => e.currentTarget.style.background = t.input}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <span style={{ fontSize: 14, width: 16, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
@@ -1635,7 +1635,7 @@ export default function TemplatesEditorInner() {
                 {/* Browse by category */}
                 <div style={{ padding: '4px 14px 4px', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: `1px solid ${t.border}` }}>Browse by category</div>
                 {['Custom size', 'Social media', 'Presentations', 'Videos', 'Website', 'Whiteboard'].map(c => (
-                  <button key={c} style={{ width: '100%', padding: '9px 16px', border: 'none', background: 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: t.text, fontSize: 13, cursor: 'pointer' }}
+                  <button key={c} style={{ width: '100%', padding: '9px 16px', border: 'none', background: 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: t.text, fontSize: 13, cursor: 'pointer', transition: 'background 100ms' }}
                     onMouseEnter={e => e.currentTarget.style.background = t.input}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <span>{c}</span><span style={{ color: t.textMuted }}>›</span>
@@ -1665,7 +1665,7 @@ export default function TemplatesEditorInner() {
                   { id: 'viewing',    label: 'Viewing',    sub: 'Read-only'     },
                 ].map(m => (
                   <button key={m.id} onClick={() => { setEditMode(m.id); setEditModeOpen(false); }}
-                    style={{ width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontSize: 13, color: t.text, textAlign: 'left' }}
+                    style={{ width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontSize: 13, color: t.text, textAlign: 'left', transition: 'background 100ms' }}
                     onMouseEnter={e => e.currentTarget.style.background = t.input}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <div>
@@ -2300,7 +2300,7 @@ export default function TemplatesEditorInner() {
 
           {/* Tool content — rendered only when flyout is open */}
           {panelOpen && (
-          <div style={{ flex: 1, overflowY: 'auto', padding: 14, minWidth: 320 }}>
+          <div key={activeLeftTool} style={{ flex: 1, overflowY: 'auto', padding: 14, minWidth: 320, animation: 'panel-in 160ms ease forwards' }}>
 
             {/* TEMPLATES / DESIGN */}
             {(activeLeftTool === 'background' || activeLeftTool === 'templates') && (
@@ -2935,6 +2935,10 @@ export default function TemplatesEditorInner() {
           @keyframes ftb-in {
             from { opacity:0; transform:translateX(-50%) translateY(6px) scale(0.94); }
             to   { opacity:1; transform:translateX(-50%) translateY(0)   scale(1);    }
+          }
+          @keyframes panel-in {
+            from { opacity:0; transform:translateY(8px); }
+            to   { opacity:1; transform:translateY(0);   }
           }
         `}</style>
         <div ref={containerRef} style={{ flex: 1, overflowY: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
