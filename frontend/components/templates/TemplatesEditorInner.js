@@ -156,6 +156,14 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
 
 const SNAP_THRESHOLD = 5;
 
+const EMOJI_SETS = [
+  { label: 'Smileys',  list: ['😀','😂','😍','🥳','😎','🤔','😮','🥰','😁','🤣','😊','😜','🫡','😇','🤩','🥹'] },
+  { label: 'Business', list: ['💼','📊','📈','✅','🏆','⭐','🔥','💡','🎯','📱','💰','🛠','📣','🔑','🤝','🆕'] },
+  { label: 'Hands',    list: ['👍','👎','👋','🙌','👏','💪','✌️','🤜','✋','👊','🤞','🫶','🫰','🤙','🖐️','☝️'] },
+  { label: 'Nature',   list: ['🌟','⭐','🌈','☀️','🌙','❄️','🌊','🌸','🍀','🌿','🦋','🐝','🌻','🍂','🌺','⚡'] },
+  { label: 'Objects',  list: ['📸','🎨','📝','📌','❤️','💯','🔔','🚀','🎁','🎉','🏠','🔧','🎵','📺','💻','🖥️'] },
+];
+
 const DocColorsCtx = createContext([]);
 
 function applyTextTransform(text, transform) {
@@ -968,6 +976,9 @@ export default function TemplatesEditorInner() {
   const [showNotesPanel, setShowNotesPanel] = useState(false);
   // Canvas grid overlay
   const [showGrid, setShowGrid] = useState(false);
+  // Emoji picker in text bar
+  const [showEmojiPanel, setShowEmojiPanel] = useState(false);
+  const [emojiCat, setEmojiCat] = useState(0);
   // Canvas rulers + drag guides
   const [showRulers, setShowRulers] = useState(false);
   // Video mode
@@ -2424,7 +2435,7 @@ export default function TemplatesEditorInner() {
       </div>
 
       {/* ── Contextual action bar (Canva-style) ── */}
-      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); }}
+      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); setShowEmojiPanel(false); }}
         style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
 
         {/* ── Multi-select bar ── */}
@@ -2583,10 +2594,44 @@ export default function TemplatesEditorInner() {
                   onClick={() => handleElementChange({ ...selectedEl, verticalAlign: v })} />
               ))}
               <D />
+              {/* Emoji picker */}
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="😊" active={showEmojiPanel} extraStyle={{ fontSize: 15 }}
+                  onClick={() => { setShowEmojiPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); }} />
+                {showEmojiPanel && (
+                  <>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 399 }} onMouseDown={() => setShowEmojiPanel(false)} />
+                    <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: '8px 10px', width: 280, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 8, borderBottom: `1px solid ${t.border}`, paddingBottom: 6 }}>
+                        {EMOJI_SETS.map((s, i) => (
+                          <button key={s.label} onClick={() => setEmojiCat(i)}
+                            style={{ flex: 1, padding: '3px 0', border: 'none', borderRadius: 5, background: emojiCat === i ? t.primaryBg : 'transparent', color: emojiCat === i ? t.primary : t.textMuted, fontSize: 11, cursor: 'pointer', fontWeight: emojiCat === i ? 600 : 400 }}>
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 2 }}>
+                        {EMOJI_SETS[emojiCat].list.map(em => (
+                          <button key={em} onClick={() => {
+                            pushHistory();
+                            handleElementChange({ ...selectedEl, text: (selectedEl.text || '') + em });
+                            setShowEmojiPanel(false);
+                          }} style={{ width: 30, height: 30, border: 'none', borderRadius: 5, background: 'transparent', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms' }}
+                            onMouseEnter={e => e.currentTarget.style.background = t.input}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            {em}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <D />
               {/* Shadow dropdown */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Shadow" active={!!selectedEl.shadow?.enabled}
-                  onClick={() => { setShowShadowPanel(p => !p); setShowOutlinePanel(false); }} />
+                  onClick={() => { setShowShadowPanel(p => !p); setShowOutlinePanel(false); setShowEmojiPanel(false); }} />
                 {showShadowPanel && (
                   <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
@@ -2617,7 +2662,7 @@ export default function TemplatesEditorInner() {
               {/* Outline dropdown */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Outline" active={!!selectedEl.outline?.enabled}
-                  onClick={() => { setShowOutlinePanel(p => !p); setShowShadowPanel(false); }} />
+                  onClick={() => { setShowOutlinePanel(p => !p); setShowShadowPanel(false); setShowEmojiPanel(false); }} />
                 {showOutlinePanel && (
                   <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 190, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
