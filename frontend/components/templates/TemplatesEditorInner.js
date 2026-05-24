@@ -186,6 +186,8 @@ const QUICK_ACTIONS = [
   { id: 'zoomfit',  icon: '⤢',  label: 'Fit to screen',  sub: 'Reset zoom to fit canvas',  shortcut: 'Ctrl+0'  },
   { id: 'selectall',icon: '⊡',  label: 'Select all',     sub: 'Select all unlocked elements', shortcut: 'Ctrl+A' },
   { id: 'showgrid', icon: '⊞',  label: 'Toggle grid',    sub: 'Show/hide dot grid overlay',   shortcut: 'G'      },
+  { id: 'nextel',   icon: '⭢',  label: 'Next element',   sub: 'Select next element on page',  shortcut: 'Tab'    },
+  { id: 'prevel',   icon: '⭠',  label: 'Prev element',   sub: 'Select previous element',      shortcut: 'Shift+Tab' },
 ];
 
 const ANIMATE_PRESETS = [
@@ -1230,6 +1232,22 @@ export default function TemplatesEditorInner() {
         if (e.key === 'ArrowRight') { e.preventDefault(); nudge(selectedId,  NUDGE, 0); return; }
         if (e.key === 'ArrowUp')    { e.preventDefault(); nudge(selectedId, 0, -NUDGE); return; }
         if (e.key === 'ArrowDown')  { e.preventDefault(); nudge(selectedId, 0,  NUDGE); return; }
+      }
+
+      // Tab — cycle through elements on current page
+      if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey) {
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        e.preventDefault();
+        const selectable = elements.filter(el => !lockedIds.has(el.id) && !hiddenIds.has(el.id));
+        if (selectable.length === 0) return;
+        const idx = selectable.findIndex(el => el.id === selectedId);
+        const next = e.shiftKey
+          ? (idx <= 0 ? selectable.length - 1 : idx - 1)
+          : (idx < 0 || idx >= selectable.length - 1 ? 0 : idx + 1);
+        setSelectedId(selectable[next].id);
+        setSelectedIds([]);
+        return;
       }
 
       if (e.key === 'Escape') {
@@ -5175,6 +5193,16 @@ export default function TemplatesEditorInner() {
             return;
           }
           if (id === 'showgrid') { setShowGrid(o => !o); return; }
+          if (id === 'nextel' || id === 'prevel') {
+            const selectable = elements.filter(el => !lockedIds.has(el.id) && !hiddenIds.has(el.id));
+            if (!selectable.length) return;
+            const idx = selectable.findIndex(el => el.id === selectedId);
+            const next = id === 'prevel'
+              ? (idx <= 0 ? selectable.length - 1 : idx - 1)
+              : (idx < 0 || idx >= selectable.length - 1 ? 0 : idx + 1);
+            setSelectedId(selectable[next].id); setSelectedIds([]);
+            return;
+          }
         };
 
         return (
