@@ -5594,8 +5594,10 @@ export default function TemplatesEditorInner() {
 
       {/* ── Contextual action bar (Canva-style) ── */}
       <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); setShowEmojiPanel(false); setShowEffectsPanel(false); }}
-        style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
+        style={{ height: 44, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflow: 'hidden' }}>
 
+        {/* Scrollable left zone */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 1, overflowX: 'auto' }}>
         {/* ── Multi-select bar ── */}
         {selectedIds.length > 1 && (() => {
           const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
@@ -6043,76 +6045,6 @@ export default function TemplatesEditorInner() {
               <select value={selectedEl.blendMode||'source-over'} onChange={e => { pushHistory(); patchElements(p => p.map(el => el.id===selectedEl.id ? {...el, blendMode:e.target.value} : el)); }} style={{ height:24, padding:'0 3px', borderRadius:5, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', flexShrink:0, maxWidth:90 }}>
                 {BLEND_MODES.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
-              <div style={{ flex: 1 }} />
-              <div style={{ display:'flex', gap:1, alignItems:'center' }}>
-                {[['left','⊢','Align left'],['centerH','↔','Center H'],['right','⊣','Align right'],['top','⊤','Align top'],['centerV','↕','Center V'],['bottom','⊥','Align bottom']].map(([dir,icon,title]) => (
-                  <button key={dir} title={title} onMouseDown={e => { e.preventDefault(); alignEl(selectedEl.id, dir); }}
-                    style={{ background:'none', border:'none', cursor:'pointer', color:t.text, fontSize:13, width:22, height:24, borderRadius:3, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    {icon}
-                  </button>
-                ))}
-              </div>
-              <D />
-              {/* ── Inline dimensions: X Y W ° ── */}
-              <div style={{ display:'flex', alignItems:'flex-end', gap:3, flexShrink:0 }}>
-                {[['X','x'],['Y','y']].map(([lbl,k]) => (
-                  <div key={k} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
-                    <span style={{ fontSize:9, color:t.textMuted, lineHeight:1, userSelect:'none' }}>{lbl}</span>
-                    <input type="number" value={Math.round(selectedEl[k]||0)}
-                      onChange={e => updateElement({...selectedEl, [k]: parseInt(e.target.value)||0})}
-                      onBlur={() => pushHistory()}
-                      style={{ width:50, height:24, padding:'0 3px', borderRadius:4, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, textAlign:'center', outline:'none', boxSizing:'border-box' }} />
-                  </div>
-                ))}
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
-                  <span style={{ fontSize:9, color:t.textMuted, lineHeight:1, userSelect:'none' }}>W</span>
-                  <input type="number" value={Math.round(selectedEl.width||0)}
-                    onChange={e => updateElement({...selectedEl, width: Math.max(5, parseInt(e.target.value)||5)})}
-                    onBlur={() => pushHistory()}
-                    style={{ width:52, height:24, padding:'0 3px', borderRadius:4, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, textAlign:'center', outline:'none', boxSizing:'border-box' }} />
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
-                  <span style={{ fontSize:9, color:t.textMuted, lineHeight:1, userSelect:'none' }}>°</span>
-                  <input type="number" value={Math.round(selectedEl.rotation||0)}
-                    onChange={e => updateElement({...selectedEl, rotation: parseInt(e.target.value)||0})}
-                    onBlur={() => pushHistory()}
-                    style={{ width:42, height:24, padding:'0 3px', borderRadius:4, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, textAlign:'center', outline:'none', boxSizing:'border-box' }} />
-                </div>
-              </div>
-              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="✦ Animate" active={showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none')}
-                  onClick={() => { setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }}
-                  extraStyle={{ color: t.primary, fontWeight: 500 }} />
-                {showAnimatePanel && selectedEl && (
-                  <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 14, width: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Entrance animation</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
-                      {ANIMATE_PRESETS.map(a => {
-                        const isActive = (selectedEl.animateIn || 'none') === a.id;
-                        return (
-                          <button key={a.id} title={a.desc}
-                            onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, animateIn: a.id }); }}
-                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 8, border: `1.5px solid ${isActive ? '#00C4CC' : t.border}`, background: isActive ? 'rgba(0,196,204,0.1)' : t.input, cursor: 'pointer', color: isActive ? '#00C4CC' : t.text }}>
-                            <span style={{ fontSize: 18 }}>{a.icon}</span>
-                            <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{a.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {selectedEl.animateIn && selectedEl.animateIn !== 'none' && (
-                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.border}` }}>
-                        <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Duration</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <input type="range" min={200} max={2000} step={100} value={selectedEl.animateDuration || 600}
-                            onChange={e => updateElement({ ...selectedEl, animateDuration: parseInt(e.target.value) })}
-                            onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
-                          <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36, textAlign: 'right' }}>{((selectedEl.animateDuration || 600) / 1000).toFixed(1)}s</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
             </>
           );
         })()}
@@ -6363,93 +6295,6 @@ export default function TemplatesEditorInner() {
                         </div>
                       ))}
                     </>}
-                  </div>
-                )}
-              </div>
-              <div style={{ flex:1 }} />
-              <div style={{ display:'flex', gap:1, alignItems:'center' }}>
-                {[['left','⊢','Align left'],['centerH','↔','Center H'],['right','⊣','Align right'],['top','⊤','Align top'],['centerV','↕','Center V'],['bottom','⊥','Align bottom']].map(([dir,icon,title]) => (
-                  <button key={dir} title={title} onMouseDown={e => { e.preventDefault(); alignEl(selectedEl.id, dir); }}
-                    style={{ background:'none', border:'none', cursor:'pointer', color:t.text, fontSize:13, width:22, height:24, borderRadius:3, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    {icon}
-                  </button>
-                ))}
-              </div>
-              <D />
-              {/* ── Inline dimensions: X Y W H ° ── */}
-              <div style={{ display:'flex', alignItems:'flex-end', gap:3, flexShrink:0 }}>
-                {[['X','x'],['Y','y']].map(([lbl,k]) => (
-                  <div key={k} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
-                    <span style={{ fontSize:9, color:t.textMuted, lineHeight:1, userSelect:'none' }}>{lbl}</span>
-                    <input type="number" value={Math.round(selectedEl[k]||0)}
-                      onChange={e => updateElement({...selectedEl, [k]: parseInt(e.target.value)||0})}
-                      onBlur={() => pushHistory()}
-                      style={{ width:50, height:24, padding:'0 3px', borderRadius:4, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, textAlign:'center', outline:'none', boxSizing:'border-box' }} />
-                  </div>
-                ))}
-                {selectedEl.width != null && (
-                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
-                    <span style={{ fontSize:9, color:t.textMuted, lineHeight:1, userSelect:'none' }}>W</span>
-                    <input type="number" value={Math.round(selectedEl.width||0)}
-                      onChange={e => { const nw=Math.max(1,parseInt(e.target.value)||1); updateElement({...selectedEl, width:nw, height: lockAspectRatio&&selectedEl.height&&selectedEl.width ? Math.max(1,Math.round(nw*selectedEl.height/selectedEl.width)) : selectedEl.height}); }}
-                      onBlur={() => pushHistory()}
-                      style={{ width:52, height:24, padding:'0 3px', borderRadius:4, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, textAlign:'center', outline:'none', boxSizing:'border-box' }} />
-                  </div>
-                )}
-                {selectedEl.width != null && selectedEl.height != null && (
-                  <button title={lockAspectRatio?'Unlock aspect ratio':'Lock aspect ratio'}
-                    onClick={() => setLockAspectRatio(p=>!p)}
-                    style={{ alignSelf:'flex-end', height:24, width:18, border:'none', background:'transparent', cursor:'pointer', color:lockAspectRatio?'#00C4CC':t.textMuted, fontSize:11, padding:0, flexShrink:0 }}>
-                    {lockAspectRatio?'🔒':'🔗'}
-                  </button>
-                )}
-                {selectedEl.height != null && (
-                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
-                    <span style={{ fontSize:9, color:t.textMuted, lineHeight:1, userSelect:'none' }}>H</span>
-                    <input type="number" value={Math.round(selectedEl.height||0)}
-                      onChange={e => { const nh=Math.max(1,parseInt(e.target.value)||1); updateElement({...selectedEl, height:nh, width: lockAspectRatio&&selectedEl.height&&selectedEl.width ? Math.max(1,Math.round(nh*selectedEl.width/selectedEl.height)) : selectedEl.width}); }}
-                      onBlur={() => pushHistory()}
-                      style={{ width:52, height:24, padding:'0 3px', borderRadius:4, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, textAlign:'center', outline:'none', boxSizing:'border-box' }} />
-                  </div>
-                )}
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
-                  <span style={{ fontSize:9, color:t.textMuted, lineHeight:1, userSelect:'none' }}>°</span>
-                  <input type="number" value={Math.round(selectedEl.rotation||0)}
-                    onChange={e => updateElement({...selectedEl, rotation: parseInt(e.target.value)||0})}
-                    onBlur={() => pushHistory()}
-                    style={{ width:42, height:24, padding:'0 3px', borderRadius:4, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, textAlign:'center', outline:'none', boxSizing:'border-box' }} />
-                </div>
-              </div>
-              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="✦ Animate" active={showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none')}
-                  onClick={() => { setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }} />
-                {showAnimatePanel && selectedEl && (
-                  <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 14, width: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Entrance animation</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
-                      {ANIMATE_PRESETS.map(a => {
-                        const isActive = (selectedEl.animateIn || 'none') === a.id;
-                        return (
-                          <button key={a.id} title={a.desc}
-                            onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, animateIn: a.id }); }}
-                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 8, border: `1.5px solid ${isActive ? '#00C4CC' : t.border}`, background: isActive ? 'rgba(0,196,204,0.1)' : t.input, cursor: 'pointer', color: isActive ? '#00C4CC' : t.text }}>
-                            <span style={{ fontSize: 18 }}>{a.icon}</span>
-                            <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{a.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {selectedEl.animateIn && selectedEl.animateIn !== 'none' && (
-                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.border}` }}>
-                        <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Duration</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <input type="range" min={200} max={2000} step={100} value={selectedEl.animateDuration || 600}
-                            onChange={e => updateElement({ ...selectedEl, animateDuration: parseInt(e.target.value) })}
-                            onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
-                          <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36, textAlign: 'right' }}>{((selectedEl.animateDuration || 600) / 1000).toFixed(1)}s</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -7486,7 +7331,17 @@ export default function TemplatesEditorInner() {
               </select>
               <D />
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
-              <div style={{ flex:1 }} />
+            </>
+          );
+        })()}
+        </div>{/* end scrollable left zone */}
+
+        {/* ── Fixed right zone: alignment + dims + animate ── */}
+        {selectedIds.length <= 1 && selectedEl && (() => {
+          const D2 = () => <div style={{ width:1, height:22, background:t.border, margin:'0 4px', flexShrink:0 }} />;
+          return (
+            <div style={{ display:'flex', alignItems:'center', gap:1, flexShrink:0, paddingLeft:8, borderLeft:`1px solid ${t.border}`, marginLeft:4 }}>
+              {/* Alignment */}
               <div style={{ display:'flex', gap:1, alignItems:'center' }}>
                 {[['left','⊢','Align left'],['centerH','↔','Center H'],['right','⊣','Align right'],['top','⊤','Align top'],['centerV','↕','Center V'],['bottom','⊥','Align bottom']].map(([dir,icon,title]) => (
                   <button key={dir} title={title} onMouseDown={e => { e.preventDefault(); alignEl(selectedEl.id, dir); }}
@@ -7495,8 +7350,8 @@ export default function TemplatesEditorInner() {
                   </button>
                 ))}
               </div>
-              <D />
-              {/* ── Inline dimensions: X Y W H ° ── */}
+              <D2 />
+              {/* Inline dimensions */}
               <div style={{ display:'flex', alignItems:'flex-end', gap:3, flexShrink:0 }}>
                 {[['X','x'],['Y','y']].map(([lbl,k]) => (
                   <div key={k} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
@@ -7540,40 +7395,44 @@ export default function TemplatesEditorInner() {
                     style={{ width:42, height:24, padding:'0 3px', borderRadius:4, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, textAlign:'center', outline:'none', boxSizing:'border-box' }} />
                 </div>
               </div>
-              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="✦ Animate" active={showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none')}
-                  onClick={() => { setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }} />
-                {showAnimatePanel && selectedEl && (
-                  <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 14, width: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Entrance animation</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+              <D2 />
+              {/* Animate button + panel */}
+              <div style={{ position:'relative' }} onClick={e => e.stopPropagation()}>
+                <button onClick={() => { setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }}
+                  style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none'))?t.primaryBg:'transparent', color:(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none'))?t.primary:t.text, fontSize:13, cursor:'pointer', flexShrink:0, transition:'background 80ms', display:'flex', alignItems:'center', gap:4 }}>
+                  <span style={{ color:t.primary }}>✦</span> Animate
+                </button>
+                {showAnimatePanel && (
+                  <div style={{ position:'absolute', top:38, right:0, zIndex:400, background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:14, width:260, boxShadow:'0 8px 32px rgba(0,0,0,0.25)' }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:t.textMuted, marginBottom:10 }}>Entrance animation</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6 }}>
                       {ANIMATE_PRESETS.map(a => {
                         const isActive = (selectedEl.animateIn || 'none') === a.id;
                         return (
                           <button key={a.id} title={a.desc}
                             onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, animateIn: a.id }); }}
-                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 8, border: `1.5px solid ${isActive ? '#00C4CC' : t.border}`, background: isActive ? 'rgba(0,196,204,0.1)' : t.input, cursor: 'pointer', color: isActive ? '#00C4CC' : t.text }}>
-                            <span style={{ fontSize: 18 }}>{a.icon}</span>
-                            <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{a.label}</span>
+                            style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, padding:'8px 4px', borderRadius:8, border:`1.5px solid ${isActive?'#00C4CC':t.border}`, background:isActive?'rgba(0,196,204,0.1)':t.input, cursor:'pointer', color:isActive?'#00C4CC':t.text }}>
+                            <span style={{ fontSize:18 }}>{a.icon}</span>
+                            <span style={{ fontSize:10, fontWeight:isActive?600:400 }}>{a.label}</span>
                           </button>
                         );
                       })}
                     </div>
                     {selectedEl.animateIn && selectedEl.animateIn !== 'none' && (
-                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.border}` }}>
-                        <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Duration</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <input type="range" min={200} max={2000} step={100} value={selectedEl.animateDuration || 600}
-                            onChange={e => updateElement({ ...selectedEl, animateDuration: parseInt(e.target.value) })}
-                            onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
-                          <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36, textAlign: 'right' }}>{((selectedEl.animateDuration || 600) / 1000).toFixed(1)}s</span>
+                      <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${t.border}` }}>
+                        <div style={{ fontSize:11, color:t.textMuted, marginBottom:6 }}>Duration</div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <input type="range" min={200} max={2000} step={100} value={selectedEl.animateDuration||600}
+                            onChange={e => updateElement({...selectedEl, animateDuration:parseInt(e.target.value)})}
+                            onMouseUp={() => pushHistory()} style={{ flex:1, accentColor:'#00C4CC' }} />
+                          <span style={{ fontSize:11, color:t.textMuted, minWidth:36, textAlign:'right' }}>{((selectedEl.animateDuration||600)/1000).toFixed(1)}s</span>
                         </div>
                       </div>
                     )}
                   </div>
                 )}
               </div>
-            </>
+            </div>
           );
         })()}
 
