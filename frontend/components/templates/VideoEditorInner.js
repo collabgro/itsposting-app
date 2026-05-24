@@ -170,8 +170,8 @@ export default function VideoEditorInner() {
     if (activeTool !== 'clips' && activeTool !== 'audio') return;
     if (mediaFiles.length) return;
     setMediaLoading(true);
-    mediaAPI.getFiles({ limit: 60 }).then(d => {
-      setMediaFiles(d?.files || []);
+    mediaAPI.list({ limit: 60 }).then(d => {
+      setMediaFiles(d?.data || []);
     }).catch(() => {}).finally(() => setMediaLoading(false));
   }, [activeTool]);
 
@@ -247,13 +247,13 @@ export default function VideoEditorInner() {
     if (!exportJobId) return;
     const interval = setInterval(async () => {
       try {
-        const data = await studioAPI.getRenderStatus(exportJobId);
-        if (data.status === 'completed') {
+        const { data } = await studioAPI.getRenderStatus(exportJobId);
+        if (data?.status === 'completed') {
           setExportStatus('completed');
           setExportUrl(data.outputUrl);
           setExportJobId(null);
           setExporting(false);
-        } else if (data.status === 'failed') {
+        } else if (data?.status === 'failed') {
           setExportStatus('failed');
           setExportJobId(null);
           setExporting(false);
@@ -412,7 +412,7 @@ export default function VideoEditorInner() {
     setAiGenerating(true);
     setAiError('');
     try {
-      const data = await studioAPI.aiGenerateClip({
+      const { data } = await studioAPI.aiGenerateClip({
         prompt: aiPrompt,
         aspectRatio: project.aspectRatio,
         durationSeconds: 7,
@@ -420,13 +420,13 @@ export default function VideoEditorInner() {
       const clip = {
         id: nanoid(),
         type: 'video',
-        sourceUrl: data.clip.url,
-        thumbnailUrl: data.clip.url,
+        sourceUrl: data?.clip?.url,
+        thumbnailUrl: data?.clip?.url,
         sourceMediaId: null,
         trackStart: totalDuration,
         trimStart: 0,
-        trimEnd: data.clip.duration || 7,
-        duration: data.clip.duration || 7,
+        trimEnd: data?.clip?.duration || 7,
+        duration: data?.clip?.duration || 7,
         volume: 1, speed: 1,
         filters: { brightness: 0, contrast: 0, saturation: 0 },
         transitionIn: { type: 'fade', duration: 0.5 },
@@ -450,8 +450,8 @@ export default function VideoEditorInner() {
     setExportStatus('rendering');
     setExportUrl(null);
     try {
-      const data = await studioAPI.renderVideo({ videoJson: project, title, quality });
-      setExportJobId(data.jobId);
+      const { data } = await studioAPI.renderVideo({ videoJson: project, title, quality });
+      setExportJobId(data?.jobId);
     } catch (err) {
       setExportStatus('failed');
       setExporting(false);
