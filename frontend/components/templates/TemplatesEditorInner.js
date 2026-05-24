@@ -11,7 +11,7 @@ import {
   IpCopy, IpDelete, IpLock, IpUnlock,
   IpSparkle, IpPalette, IpEdit, IpFolderOpen,
   IpTextCard, IpPublish, IpPhoto,
-  IpPlus, IpChevronDown,
+  IpPlus, IpChevronDown, IpSearch,
 } from '../../components/icons';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -77,6 +77,138 @@ const FONTS = [
   'Dancing Script', 'Pacifico', 'Caveat',
   // Monospace
   'Space Mono', 'Courier New',
+];
+
+const FONT_GROUPS = [
+  { label: 'Sans-serif', fonts: ['Inter','Roboto','Open Sans','Lato','Montserrat','Nunito','Poppins','Source Sans 3'] },
+  { label: 'Serif',      fonts: ['Playfair Display','Merriweather','EB Garamond','Lora'] },
+  { label: 'Display',    fonts: ['Oswald','Raleway','Bebas Neue','Anton'] },
+  { label: 'Script',     fonts: ['Dancing Script','Pacifico','Caveat'] },
+  { label: 'Monospace',  fonts: ['Space Mono','Courier New'] },
+];
+
+const TEXT_COMBOS = [
+  { id:'bold-announce', label:'Bebas Neue + Open Sans',
+    preview:[
+      { text:'CALL TODAY', fontFamily:'Bebas Neue', previewSize:22, uppercase:true, letterSpacing:2 },
+      { text:'Professional service you can trust', fontFamily:'Open Sans', previewSize:10 },
+    ],
+    lines:[
+      { text:'CALL TODAY', fontSize:96, fontFamily:'Bebas Neue', fontStyle:'normal', letterSpacing:4, yOff:-80, width:600 },
+      { text:'Professional service you can trust', fontSize:26, fontFamily:'Open Sans', fontStyle:'normal', yOff:40, width:540 },
+    ],
+  },
+  { id:'elegant-pro', label:'Playfair Display + Lato',
+    preview:[
+      { text:'Premium Service', fontFamily:'Playfair Display', previewSize:18, bold:true },
+      { text:'Trusted by local homeowners', fontFamily:'Lato', previewSize:10 },
+    ],
+    lines:[
+      { text:'Premium Service', fontSize:64, fontFamily:'Playfair Display', fontStyle:'bold', yOff:-70, width:560 },
+      { text:'Trusted by local homeowners since 2010', fontSize:22, fontFamily:'Lato', fontStyle:'normal', yOff:20, width:520 },
+    ],
+  },
+  { id:'modern-clean', label:'Montserrat + Inter',
+    preview:[
+      { text:'Your Local Expert', fontFamily:'Montserrat', previewSize:17, bold:true },
+      { text:'Quality work, honest pricing', fontFamily:'Inter', previewSize:10 },
+    ],
+    lines:[
+      { text:'Your Local Expert', fontSize:60, fontFamily:'Montserrat', fontStyle:'bold', yOff:-70, width:560 },
+      { text:'Quality work, honest pricing', fontSize:22, fontFamily:'Inter', fontStyle:'normal', yOff:20, width:520 },
+    ],
+  },
+  { id:'serif-quote', label:'EB Garamond + Raleway',
+    preview:[
+      { text:'"5 stars — amazing work!"', fontFamily:'EB Garamond', previewSize:14, italic:true },
+      { text:'— Sarah M., Happy Customer', fontFamily:'Raleway', previewSize:9 },
+    ],
+    lines:[
+      { text:'"The best service I\'ve ever had."', fontSize:44, fontFamily:'EB Garamond', fontStyle:'italic', yOff:-70, width:580 },
+      { text:'— Sarah M., Verified Customer', fontSize:22, fontFamily:'Raleway', fontStyle:'normal', yOff:20, width:520 },
+    ],
+  },
+  { id:'urgent-cta', label:'Anton + Source Sans 3',
+    preview:[
+      { text:'CALL NOW', fontFamily:'Anton', previewSize:24, uppercase:true, letterSpacing:1 },
+      { text:'24/7 Emergency Service', fontFamily:'Source Sans 3', previewSize:10 },
+    ],
+    lines:[
+      { text:'CALL NOW', fontSize:108, fontFamily:'Anton', fontStyle:'normal', letterSpacing:3, yOff:-90, width:600 },
+      { text:'24/7 Emergency Service Available', fontSize:28, fontFamily:'Source Sans 3', fontStyle:'normal', yOff:50, width:540 },
+    ],
+  },
+  { id:'friendly-local', label:'Nunito + Poppins',
+    preview:[
+      { text:'Hi, Neighbour!', fontFamily:'Nunito', previewSize:18, bold:true },
+      { text:"We're just around the corner", fontFamily:'Poppins', previewSize:10 },
+    ],
+    lines:[
+      { text:'Hi, Neighbour!', fontSize:68, fontFamily:'Nunito', fontStyle:'bold', yOff:-70, width:560 },
+      { text:"We're just around the corner", fontSize:24, fontFamily:'Poppins', fontStyle:'normal', yOff:20, width:520 },
+    ],
+  },
+  { id:'promo-offer', label:'Oswald + Roboto',
+    preview:[
+      { text:'20% OFF', fontFamily:'Oswald', previewSize:22, bold:true, uppercase:true },
+      { text:'This week only — limited spots', fontFamily:'Roboto', previewSize:10 },
+    ],
+    lines:[
+      { text:'20% OFF', fontSize:96, fontFamily:'Oswald', fontStyle:'bold', letterSpacing:2, yOff:-80, width:600 },
+      { text:'This week only — limited spots available', fontSize:26, fontFamily:'Roboto', fontStyle:'normal', yOff:40, width:540 },
+    ],
+  },
+  { id:'script-season', label:'Dancing Script + Open Sans',
+    preview:[
+      { text:'This Winter...', fontFamily:'Dancing Script', previewSize:20 },
+      { text:"Don't get caught without heat", fontFamily:'Open Sans', previewSize:10 },
+    ],
+    lines:[
+      { text:'This Winter...', fontSize:80, fontFamily:'Dancing Script', fontStyle:'normal', yOff:-80, width:580 },
+      { text:"Don't get caught without heat. Call today.", fontSize:24, fontFamily:'Open Sans', fontStyle:'normal', yOff:30, width:540 },
+    ],
+  },
+  { id:'retro-heritage', label:'Bebas Neue + Merriweather',
+    preview:[
+      { text:'EST. 2010', fontFamily:'Bebas Neue', previewSize:20, letterSpacing:4, uppercase:true },
+      { text:'Family owned & operated', fontFamily:'Merriweather', previewSize:9, italic:true },
+    ],
+    lines:[
+      { text:'EST. 2010', fontSize:80, fontFamily:'Bebas Neue', fontStyle:'normal', letterSpacing:8, yOff:-70, width:540 },
+      { text:'Family owned & operated', fontSize:24, fontFamily:'Merriweather', fontStyle:'italic', yOff:20, width:520 },
+    ],
+  },
+  { id:'minimal-modern', label:'Raleway + Inter',
+    preview:[
+      { text:'Licensed & Insured', fontFamily:'Raleway', previewSize:15, uppercase:true, letterSpacing:3 },
+      { text:'Serving your community since 2015', fontFamily:'Inter', previewSize:10 },
+    ],
+    lines:[
+      { text:'Licensed & Insured', fontSize:56, fontFamily:'Raleway', fontStyle:'normal', letterSpacing:6, yOff:-70, width:580 },
+      { text:'Serving your community since 2015', fontSize:22, fontFamily:'Inter', fontStyle:'normal', yOff:20, width:540 },
+    ],
+  },
+  { id:'playful-fun', label:'Pacifico + Lato',
+    preview:[
+      { text:'Done Right.', fontFamily:'Pacifico', previewSize:19 },
+      { text:'Or we come back for free', fontFamily:'Lato', previewSize:10 },
+    ],
+    lines:[
+      { text:'Done Right.', fontSize:72, fontFamily:'Pacifico', fontStyle:'normal', yOff:-70, width:560 },
+      { text:'Or we come back for free', fontSize:26, fontFamily:'Lato', fontStyle:'normal', yOff:20, width:520 },
+    ],
+  },
+  { id:'five-star', label:'Dancing Script + Inter',
+    preview:[
+      { text:'★★★★★', fontFamily:'Inter', previewSize:16 },
+      { text:'"Outstanding craftsmanship"', fontFamily:'Dancing Script', previewSize:14 },
+    ],
+    lines:[
+      { text:'★★★★★', fontSize:52, fontFamily:'Inter', fontStyle:'normal', yOff:-80, width:400 },
+      { text:'"Outstanding craftsmanship"', fontSize:52, fontFamily:'Dancing Script', fontStyle:'normal', yOff:-10, width:560 },
+      { text:'— Mike R., Verified Customer', fontSize:20, fontFamily:'Inter', fontStyle:'normal', yOff:60, width:500 },
+    ],
+  },
 ];
 
 const FILTER_PRESETS = {
@@ -4388,6 +4520,28 @@ export default function TemplatesEditorInner() {
     setSelectedId(el.id);
   }
 
+  function addTextCombo(lines) {
+    pushHistory();
+    const cy = canvasSize.h / 2;
+    const newEls = lines.map(line => ({
+      id: uid(), type: 'text',
+      x: canvasSize.w / 2 - (line.width || 540) / 2,
+      y: cy + (line.yOff || 0) - 60,
+      text: line.text,
+      fontSize: line.fontSize || 36,
+      fontFamily: line.fontFamily || 'Inter',
+      fontStyle: line.fontStyle || 'normal',
+      fill: line.fill || '#ffffff',
+      width: line.width || 540,
+      align: line.align || 'center',
+      opacity: 1,
+      lineHeight: line.lineHeight || 1.2,
+      letterSpacing: line.letterSpacing || 0,
+    }));
+    patchElements(prev => [...prev, ...newEls]);
+    setSelectedId(newEls[newEls.length - 1].id);
+  }
+
   function addRect(overrides = {}) {
     pushHistory();
     const el = { id: uid(), type: 'rect', x: canvasSize.w / 2 - 100, y: canvasSize.h / 2 - 50, width: 200, height: 100, fill: 'rgba(255,255,255,0.15)', cornerRadius: 12, opacity: 1, ...overrides };
@@ -8284,9 +8438,10 @@ export default function TemplatesEditorInner() {
             {/* TEXT */}
             {activeLeftTool === 'text' && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                {/* Search bar */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', marginBottom: 10, border: `1px solid ${t.border}` }}>
-                  <span style={{ color: t.textMuted, fontSize: 13, flexShrink: 0 }}>🔍</span>
+
+                {/* S1: Search */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '7px 10px', marginBottom: 10, border: `1px solid ${fontSearch ? TEAL : t.border}`, transition: 'border-color 0.15s', flexShrink: 0 }}>
+                  <IpSearch size={14} style={{ color: t.textMuted, flexShrink: 0 }} />
                   <input
                     type="text"
                     placeholder="Search fonts and combinations"
@@ -8294,71 +8449,146 @@ export default function TemplatesEditorInner() {
                     onChange={e => setFontSearch(e.target.value)}
                     style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }}
                   />
-                </div>
-
-                {/* Add a text box — Canva purple CTA */}
-                <button onMouseDown={e => { e.preventDefault(); addText(); }}
-                  style={{ width: '100%', padding: '11px 0', borderRadius: 8, border: 'none', background: t.primary, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16, fontWeight: 700 }}>T</span> Add a text box
-                </button>
-
-                {/* Magic Write */}
-                <button style={{ width: '100%', padding: '10px 0', borderRadius: 8, border: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  ✨ Magic Write
-                </button>
-
-                {/* Default text styles */}
-                {!fontSearch && (
-                  <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 8, letterSpacing: '0.02em' }}>Default text styles</div>
-                    <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 48, fontStyle: 'bold', text: 'Add a heading' }); }}
-                      style={{ width: '100%', padding: '14px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 26, fontWeight: 700, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                      Add a heading
-                    </button>
-                    <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 32, fontStyle: 'bold', text: 'Add a subheading' }); }}
-                      style={{ width: '100%', padding: '11px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 17, fontWeight: 600, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                      Add a subheading
-                    </button>
-                    <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 16, fontStyle: 'normal', text: 'Add a little bit of body text' }); }}
-                      style={{ width: '100%', padding: '9px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, fontWeight: 400, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                      Add a little bit of body text
-                    </button>
-                  </div>
-                )}
-
-                {/* Brand Kit */}
-                {!fontSearch && (
-                  <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: t.textMuted }}>Brand Kit</span>
-                      <button style={{ background: 'none', border: 'none', color: t.primary, fontSize: 12, cursor: 'pointer', padding: 0 }}>Edit 👑</button>
-                    </div>
-                    <button style={{ width: '100%', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer' }}>
-                      + Add your brand fonts
-                    </button>
-                  </div>
-                )}
-
-                {/* Scrollable font list */}
-                <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Fonts</div>
-                <div style={{ flex: 1, overflowY: 'auto', marginBottom: 14 }}>
-                  {FONTS.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).map(f => {
-                    const isActive = selectedEl?.type === 'text' && (selectedEl.fontFamily || 'Inter') === f;
-                    return (
-                      <button key={f} onMouseDown={e => { e.preventDefault(); if (selectedEl?.type === 'text') handleElementChange({ ...selectedEl, fontFamily: f }); }}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: `1px solid ${isActive ? TEAL : 'transparent'}`, background: isActive ? 'rgba(0,196,204,0.08)' : 'transparent', color: t.text, fontSize: 15, fontFamily: f, textAlign: 'left', cursor: 'pointer', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {f}
-                      </button>
-                    );
-                  })}
-                  {FONTS.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).length === 0 && (
-                    <div style={{ textAlign: 'center', color: t.textMuted, fontSize: 12, padding: '20px 0' }}>No fonts match "{fontSearch}"</div>
+                  {fontSearch && (
+                    <button onMouseDown={e => { e.preventDefault(); setFontSearch(''); }}
+                      style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', padding: 0, fontSize: 16, lineHeight: 1, flexShrink: 0 }}>×</button>
                   )}
                 </div>
 
-                {/* Properties — only when a text element is selected */}
+                {/* Scrollable content: sections 2–7 */}
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+
+                  {/* S2: Add a text box */}
+                  <button onMouseDown={e => { e.preventDefault(); addText(); }}
+                    style={{ width: '100%', padding: '11px 0', borderRadius: 8, border: 'none', background: 'linear-gradient(90deg,#7C5CFC,#00C4CC)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <IpTextCard size={15} /> Add a text box
+                  </button>
+
+                  {/* S3: PostCore Write */}
+                  <button style={{ width: '100%', padding: '10px 0', borderRadius: 8, border: `1.5px solid ${TEAL}`, background: 'transparent', color: TEAL, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <IpSparkle size={14} /> PostCore Write
+                  </button>
+
+                  {/* S4: Brand Kit */}
+                  {!fontSearch && (() => {
+                    const BRAND_FONTS = [
+                      { label: 'Heading',    fontFamily: 'Bebas Neue', previewSize: 22, overrides: { fontSize: 64, fontFamily: 'Bebas Neue',  fontStyle: 'normal', text: 'Service Announcement', letterSpacing: 2 } },
+                      { label: 'Subheading', fontFamily: 'Montserrat', previewSize: 14, overrides: { fontSize: 36, fontFamily: 'Montserrat',  fontStyle: 'bold',   text: 'Your Local Expert' } },
+                      { label: 'Body',       fontFamily: 'Inter',      previewSize: 11, overrides: { fontSize: 20, fontFamily: 'Inter',        fontStyle: 'normal', text: 'Professional service you can trust' } },
+                    ];
+                    const BRAND_COLORS = ['#00C4CC', '#7C5CFC', '#1a1a2e', '#ffffff', '#f1f5f9', '#0f172a'];
+                    return (
+                      <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 14 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Brand Kit</span>
+                          <button style={{ background: 'none', border: 'none', color: TEAL, fontSize: 12, cursor: 'pointer', padding: 0 }}>Edit</button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
+                          {BRAND_FONTS.map(bf => (
+                            <button key={bf.label} onMouseDown={e => { e.preventDefault(); addText(bf.overrides); }}
+                              style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, textAlign: 'left', cursor: 'pointer', fontFamily: bf.fontFamily, fontSize: bf.previewSize, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                              {bf.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {BRAND_COLORS.map(hex => (
+                            <button key={hex} onMouseDown={e => { e.preventDefault(); if (selectedEl?.type === 'text') handleElementChange({ ...selectedEl, fill: hex }); }}
+                              style={{ width: 24, height: 24, borderRadius: 6, background: hex, border: `1.5px solid ${t.border}`, cursor: 'pointer', flexShrink: 0 }} />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* S5: Default text styles */}
+                  {!fontSearch && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Default Text Styles</div>
+                      <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 64, fontFamily: 'Bebas Neue', fontStyle: 'normal', text: 'Service Announcement', letterSpacing: 2 }); }}
+                        style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontFamily: 'Bebas Neue', fontSize: 26, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                        Heading
+                      </button>
+                      <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 36, fontFamily: 'Montserrat', fontStyle: 'bold', text: 'Your Local Expert' }); }}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                        Subheading
+                      </button>
+                      <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 20, fontFamily: 'Inter', fontStyle: 'normal', text: 'Professional service you can trust' }); }}
+                        style={{ width: '100%', padding: '9px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontFamily: 'Inter', fontWeight: 400, fontSize: 12, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                        Body text
+                      </button>
+                    </div>
+                  )}
+
+                  {/* S6: Font Combinations */}
+                  {!fontSearch && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Font Combinations</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {TEXT_COMBOS.map(combo => (
+                          <div key={combo.id} onMouseDown={e => { e.preventDefault(); addTextCombo(combo.lines); }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = TEAL; e.currentTarget.style.transform = 'scale(1.03)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = ''; }}
+                            style={{ border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, overflow: 'hidden', cursor: 'pointer', transition: 'border-color 0.15s, transform 0.15s' }}>
+                            <div style={{ padding: '10px 10px 8px', minHeight: 72, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
+                              {combo.preview.map((p, pi) => (
+                                <div key={pi} style={{ fontFamily: p.fontFamily, fontSize: p.previewSize, fontWeight: p.bold ? 700 : 400, fontStyle: p.italic ? 'italic' : 'normal', textTransform: p.uppercase ? 'uppercase' : 'none', letterSpacing: p.letterSpacing || 0, color: t.text, opacity: pi === 0 ? 1 : 0.7, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', lineHeight: 1.2 }}>
+                                  {p.text}
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ fontSize: 9, color: t.textMuted, padding: '3px 10px 5px', borderTop: `1px solid ${t.border}`, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                              {combo.label}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* S7: Font list */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                      {fontSearch ? `Fonts — "${fontSearch}"` : 'Fonts'}
+                    </div>
+                    {fontSearch ? (
+                      <>
+                        {FONTS.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).map(f => {
+                          const isActive = selectedEl?.type === 'text' && (selectedEl.fontFamily || 'Inter') === f;
+                          return (
+                            <button key={f} onMouseDown={e => { e.preventDefault(); if (selectedEl?.type === 'text') handleElementChange({ ...selectedEl, fontFamily: f }); }}
+                              style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: `1px solid ${isActive ? TEAL : 'transparent'}`, background: isActive ? 'rgba(0,196,204,0.08)' : 'transparent', color: t.text, fontSize: 15, fontFamily: f, textAlign: 'left', cursor: 'pointer', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {f}
+                            </button>
+                          );
+                        })}
+                        {FONTS.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).length === 0 && (
+                          <div style={{ textAlign: 'center', color: t.textMuted, fontSize: 12, padding: '20px 0' }}>No fonts match "{fontSearch}"</div>
+                        )}
+                      </>
+                    ) : (
+                      FONT_GROUPS.map(group => (
+                        <div key={group.label} style={{ marginBottom: 10 }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4, paddingLeft: 4 }}>{group.label}</div>
+                          {group.fonts.map(f => {
+                            const isActive = selectedEl?.type === 'text' && (selectedEl.fontFamily || 'Inter') === f;
+                            return (
+                              <button key={f} onMouseDown={e => { e.preventDefault(); if (selectedEl?.type === 'text') handleElementChange({ ...selectedEl, fontFamily: f }); }}
+                                style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: `1px solid ${isActive ? TEAL : 'transparent'}`, background: isActive ? 'rgba(0,196,204,0.08)' : 'transparent', color: t.text, fontSize: 15, fontFamily: f, textAlign: 'left', cursor: 'pointer', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {f}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                </div>{/* end scrollable */}
+
+                {/* S8: Text properties — unchanged */}
                 {selectedEl?.type === 'text' && (
-                  <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
+                  <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, flexShrink: 0 }}>
                     {/* Size + B/I/Align row */}
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10 }}>
                       <input type="number" min={8} max={400} value={selectedEl.fontSize || 36}
