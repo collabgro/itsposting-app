@@ -25,37 +25,521 @@
 - Quick Actions panel (/ key — searchable command palette)
 - Floating toolbar above selected element on canvas
 
-### 🔴 REMAINING GAPS (from exact Canva screenshot comparison)
+### ✅ PHASE I COMPLETE — All 8 Canva-Parity Commits Done
+Commits 1-8 (Editing dropdown, File dropdown, Resize panel, Share panel, Sidebar restructure, Panel contents, Bottom status bar) are fully implemented and pushed. Both `TemplatesEditorInner.js` and `VideoEditorInner.js` have Canva layout.
 
-#### Commit 1 — "✏ Editing ▾" Mode Dropdown
-Insert after Resize button in top bar left zone. Dropdown: Editing/Commenting/Viewing with sub-labels and ✓ on active.
+---
 
-#### Commit 2 — File Dropdown: Full Canva Redesign (14 items + header)
-Replace current 4-item menu with title/dimensions header + full item list matching screenshot 13/14.
+## PHASE II ROADMAP — WHAT'S STILL TO BUILD
 
-#### Commit 3 — Resize Dropdown: Visual Cards + Category Browse
-Replace plain list with: search input, "Suggested" 3-card visual row (mini preview thumbnails), "Browse by category" list with › arrows.
+### Context (from deep Canva research, May 2026)
 
-#### Commit 4 — Share Panel (right-side slide-in)
-Replace current "Share" button's save action with a proper right-side 380px panel matching screenshot 12: People/Access/Copy link/Download/Present/Public.
+**Canva's unified editor insight:** Canva has ONE editor for both image and video. Video mode is triggered by selecting a video template or clicking "Edit as Video" — a bottom timeline then slides up. The sidebar (Templates, Elements, Text, etc.) is identical in both modes. Video mode adds: multi-track timeline, play/pause, clip duration handles, audio waveform, transitions. Image mode is what we have now.
 
-#### Commit 5 — Sidebar Restructure: Canva Tool Order + New Tools
-Reorder to: **Templates, Elements, Text, Brand (👑), Uploads, Tools, Projects** + Apps/Magic at bottom. Add `bottom: true` spacer. Add `pro: true` crown badge on Brand.
+**Current ItsPosting state:** Two separate editors at two URLs. Goal: merge into one Canva-style unified editor, plus add the micro-interaction "feel" layer.
 
-#### Commit 6 — Panel Contents: Templates + Elements + Text
-- **Templates panel** (NEW): Search bar + 2-col grid wired to `studioAPI.list()`
-- **Elements panel**: AI search, Generate/Search buttons, Browse categories 3×2 icon grid
-- **Text panel**: Search, "Add a text box" CTA, Magic Write, Brand Kit, Default styles (heading/subheading/body)
+**Achievable parity: ~87%** — major features done. The remaining 13% is the "magic" layer: 50+ micro-interactions + unified video mode.
 
-#### Commit 7 — Panel Contents: Brand + Uploads + Tools + Projects
-- **Brand panel** (NEW): list + upsell card
-- **Uploads panel**: Tabs (Images/Videos/Designs/Folders) + Background Remover promo + 3-col grid wired to media API
-- **Tools sub-panel** (NEW): drawing tool icon grid
-- **Projects panel** (NEW): search + tabs + 2-col grid wired to `studioAPI.list()`
+---
 
-#### Commit 8 — Bottom Status Bar
-40px bar at very bottom: `📝 Notes | ⏱ Timer | ─── | [zoom slider] [22%] | Pages | 1/N | ⊞ | ⤢ | ?`
-Move zoom slider from top bar to here.
+### PHASE II-A: MICRO-INTERACTIONS POLISH LAYER
+*Each commit is independent and small. Do in order.*
+
+#### Commit 9 — Tooltip System
+**File:** `TemplatesEditorInner.js`
+Every button in the editor shows a tooltip after 400ms hover delay, displaying the action name + keyboard shortcut. This is the #1 discoverability feature.
+
+Implementation:
+```javascript
+// Tooltip state
+const [tooltip, setTooltip] = useState(null); // { text, shortcut, x, y }
+let tooltipTimer = useRef(null);
+
+function showTooltip(e, text, shortcut) {
+  const r = e.currentTarget.getBoundingClientRect();
+  tooltipTimer.current = setTimeout(() => {
+    setTooltip({ text, shortcut, x: r.left + r.width / 2, y: r.bottom + 8 });
+  }, 400);
+}
+function hideTooltip() {
+  clearTimeout(tooltipTimer.current);
+  setTooltip(null);
+}
+
+// Render tooltip (fixed position):
+{tooltip && (
+  <div style={{
+    position: 'fixed', left: tooltip.x, top: tooltip.y,
+    transform: 'translateX(-50%)',
+    background: 'rgba(0,0,0,0.85)', color: '#fff',
+    padding: '5px 10px', borderRadius: 6, fontSize: 12,
+    pointerEvents: 'none', zIndex: 9999, whiteSpace: 'nowrap',
+    display: 'flex', alignItems: 'center', gap: 8,
+  }}>
+    {tooltip.text}
+    {tooltip.shortcut && (
+      <span style={{ background: 'rgba(255,255,255,0.2)', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>
+        {tooltip.shortcut}
+      </span>
+    )}
+  </div>
+)}
+
+// Usage on any button:
+<button
+  onMouseEnter={e => showTooltip(e, 'Undo', 'Ctrl+Z')}
+  onMouseLeave={hideTooltip}
+>↩</button>
+```
+
+Add tooltips to: all icon strip buttons, all floating toolbar buttons, all top bar buttons, bottom bar buttons.
+
+#### Commit 10 — Floating Toolbar Entrance Animation
+**File:** `TemplatesEditorInner.js`
+When an element is selected, the floating toolbar fades + scales in instead of snapping in instantly.
+
+```css
+/* Add to a <style> tag or inline via keyframes */
+@keyframes floatIn {
+  from { opacity: 0; transform: translateX(-50%) scale(0.92) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1)    translateY(0);   }
+}
+```
+
+Apply to the floating toolbar container:
+```javascript
+// In the floating toolbar JSX, add:
+style={{
+  /* ... existing styles ... */
+  animation: 'floatIn 120ms cubic-bezier(0.2, 0, 0, 1) forwards',
+  transformOrigin: 'center bottom',
+}}
+```
+
+Also add element selection ring animation — when an element is clicked, a brief teal pulse radiates from it (300ms, opacity 0.3→0):
+```javascript
+// On element click, add a temporary ring overlay
+const [selectionPulse, setSelectionPulse] = useState(null);
+function onElementSelect(id, el) {
+  setSelectedId(id);
+  setSelectionPulse({ id, ts: Date.now() });
+  setTimeout(() => setSelectionPulse(null), 300);
+}
+```
+
+#### Commit 11 — Panel Content Fade-In + Button Hover Transitions
+**File:** `TemplatesEditorInner.js`
+Two parts in one commit:
+
+**Part A — Panel content fade:**
+When flyout opens, the panel content fades in with a slight delay (while panel is still opening):
+```javascript
+// On the inner content div of the flyout panel:
+style={{
+  opacity: panelOpen ? 1 : 0,
+  transition: 'opacity 150ms ease',
+  transitionDelay: panelOpen ? '80ms' : '0ms',
+  // rest of styles
+}}
+```
+
+**Part B — Button hover micro-transitions:**
+ALL buttons need `transition: 'background 100ms ease'` (currently many have none).
+Icon strip buttons need `transition: 'background 100ms ease, transform 100ms ease'`.
+On hover, icon strip buttons scale slightly: add `:hover` logic with onMouseEnter/Leave:
+```javascript
+// Icon strip button hover state pattern:
+const [hoveredTool, setHoveredTool] = useState(null);
+// In button style:
+transform: hoveredTool === tool.id ? 'scale(1.05)' : 'scale(1)',
+transition: 'background 100ms ease, transform 100ms ease',
+```
+
+Delete/destructive buttons (🗑, ×): on hover show red tint:
+```javascript
+// Destructive button hover:
+background: hovered ? 'rgba(239,68,68,0.1)' : 'transparent',
+color: hovered ? '#ef4444' : t.textMuted,
+```
+
+#### Commit 12 — Smooth Drag Feedback
+**File:** `TemplatesEditorInner.js`
+While dragging an element on canvas, it should look "lifted" (slight opacity + drop shadow). On drop, spring back.
+
+In Konva, elements have `dragstart` and `dragend` events. Add state `isDragging: { [id]: bool }`:
+```javascript
+const [draggingId, setDraggingId] = useState(null);
+
+// On Konva node (in ContentNode):
+onDragStart={() => setDraggingId(el.id)}
+onDragEnd={() => setDraggingId(null)}
+
+// In the node's opacity:
+opacity={draggingId === el.id ? 0.82 : 1}
+
+// For the Konva filter: use a shadow effect while dragging
+// Easiest: just a CSS drop shadow on the Konva stage isn't possible,
+// but opacity change + cursor feedback is enough
+```
+
+Also change cursor to `grabbing` while dragging:
+```javascript
+// On the stage container div:
+cursor: draggingId ? 'grabbing' : 'default',
+```
+
+#### Commit 13 — Save Indicator Animation
+**File:** `TemplatesEditorInner.js`
+Replace the static ☁ cloud icon with an animated save state indicator.
+
+```javascript
+const [saveState, setSaveState] = useState('saved'); // 'saving' | 'saved' | 'error'
+
+// In handleSave, before API call:
+setSaveState('saving');
+// After success:
+setSaveState('saved');
+// After error:
+setSaveState('error');
+
+// Auto-save: debounce 2 seconds after any canvas change
+useEffect(() => {
+  if (editId) {
+    const t = setTimeout(() => { handleSave(true); }, 2000); // silent auto-save
+    return () => clearTimeout(t);
+  }
+}, [elements, pages]); // trigger on any canvas change
+
+// Render in top bar:
+{saveState === 'saving' && (
+  <span style={{ fontSize: 12, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}>
+    <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>☁</span>
+    Saving...
+  </span>
+)}
+{saveState === 'saved' && (
+  <span style={{ fontSize: 12, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4 }}>
+    ✓ All changes saved
+  </span>
+)}
+{saveState === 'error' && (
+  <span style={{ fontSize: 12, color: '#ef4444' }}>⚠ Save failed</span>
+)}
+```
+
+#### Commit 14 — Loading Skeletons + Empty States
+**File:** `TemplatesEditorInner.js`
+While panel data loads, show shimmer skeleton cards instead of a spinner. When empty, show a friendly CTA.
+
+Skeleton card component:
+```javascript
+function SkeletonCard({ aspect = '1/1', width = '100%' }) {
+  return (
+    <div style={{
+      width, aspectRatio: aspect, borderRadius: 8,
+      background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+      backgroundSize: '200% 100%',
+      animation: 'shimmer 1.5s infinite',
+    }} />
+  );
+}
+// Add @keyframes shimmer { from { background-position: 200% 0 } to { background-position: -200% 0 } }
+```
+
+Usage in Templates panel:
+```javascript
+{bgPhotosLoading ? (
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+    {Array(6).fill(0).map((_, i) => <SkeletonCard key={i} aspect="4/5" />)}
+  </div>
+) : bgPhotos.length === 0 ? (
+  <div style={{ textAlign: 'center', padding: 32, color: t.textMuted }}>
+    <div style={{ fontSize: 40, marginBottom: 12 }}>🖼</div>
+    <div style={{ fontWeight: 600, marginBottom: 6 }}>No templates yet</div>
+    <div style={{ fontSize: 12 }}>Save a design to see it here</div>
+  </div>
+) : (
+  /* grid of photos */
+)}
+```
+
+Apply same pattern to Uploads (Images tab) and Projects panels.
+
+#### Commit 15 — Proper Canva Color Picker
+**File:** `TemplatesEditorInner.js`
+Replace the basic `<input type="color">` with a proper Canva-style color picker. No new packages — pure inline React.
+
+Canva color picker structure:
+```
+┌───────────────────────────────┐
+│  [Saturation/Brightness square│  ← 200×150px, draggable dot
+│   (darkens right→left + up)]  │
+├───────────────────────────────┤
+│  [────── Hue slider ─────]    │  ← rainbow gradient, 16px tall
+│  [──── Opacity slider ──]     │  ← checkerboard bg + color, 16px tall
+├───────────────────────────────┤
+│  # [hex input    ]  [A: 100%] │  ← hex + alpha inputs
+├───────────────────────────────┤
+│  Recent: [●][●][●][●][●][●]  │  ← 24px swatches, stores last 8 colors
+├───────────────────────────────┤
+│  Document: [●][●][●][●]      │  ← colors used in current design
+└───────────────────────────────┘
+```
+
+State:
+```javascript
+const [colorPickerEl, setColorPickerEl] = useState(null); // 'fill' | 'stroke' | 'text'
+const [recentColors, setRecentColors] = useState(['#ffffff', '#000000', '#00C4CC', '#7C5CFC']);
+```
+
+The saturation/brightness square uses CSS: `background: linear-gradient(to right, #fff, hsl(h,100%,50%))` overlaid with `linear-gradient(to bottom, transparent, #000)`.
+
+#### Commit 16 — Ruler Drag Guides
+**File:** `TemplatesEditorInner.js`
+Drag from the left ruler to create a vertical guide line; drag from the top ruler to create a horizontal guide. Double-click a guide to remove it. Elements snap to guides.
+
+```javascript
+const [guides, setGuides] = useState({ v: [], h: [] }); // v = vertical (x position), h = horizontal (y position)
+const [draggingGuide, setDraggingGuide] = useState(null);
+
+// On ruler mousedown:
+function startGuideDrag(e, type) { // type: 'v' | 'h'
+  setDraggingGuide({ type, initial: type === 'v' ? e.clientX : e.clientY });
+}
+
+// On global mousemove while dragging:
+// Calculate canvas-relative position and update a "preview" guide line
+// On mouseup: add to guides array if dropped on canvas, discard if dropped on ruler
+
+// Guide rendering (absolute positioned over canvas):
+{guides.v.map((x, i) => (
+  <div key={i} style={{
+    position: 'absolute', left: x * stageScale + /* canvas offset */ stageX,
+    top: 0, bottom: 0, width: 1,
+    background: '#2563eb', pointerEvents: 'none', zIndex: 20,
+  }} onDoubleClick={() => setGuides(g => ({ ...g, v: g.v.filter((_, j) => j !== i) }))} />
+))}
+```
+
+Snap to guides in onDragMove — same threshold as element snapping (5px).
+
+---
+
+### PHASE II-B: UNIFIED IMAGE + VIDEO EDITOR
+*This merges the two editors into one. Implement after Phase II-A.*
+*Canva uses a single editor: image mode by default, video mode adds a bottom timeline.*
+
+#### Commit 17 — Video Mode Toggle
+**File:** `TemplatesEditorInner.js`
+Add a `▷ Edit as Video` button to the File dropdown and a `isVideoMode` state. When enabled:
+- Bottom status bar height expands from 40px → 180px (to accommodate timeline)
+- Status bar becomes a mini-timeline header row + the timeline tracks below
+- Top bar shows a play/pause button between undo/redo and the title
+
+```javascript
+const [isVideoMode, setIsVideoMode] = useState(false);
+
+// In File dropdown — add item:
+{ icon: '▷', label: isVideoMode ? 'Switch to Image Mode' : 'Edit as Video',
+  action: () => setIsVideoMode(v => !v) }
+
+// In top bar, when isVideoMode:
+{isVideoMode && (
+  <>
+    <div style={{ width: 1, height: 20, background: t.border }} />
+    <button onClick={isPlaying ? pauseVideo : playVideo}
+      style={{ width: 32, height: 32, borderRadius: '50%', background: t.primary, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14 }}>
+      {isPlaying ? '⏸' : '▶'}
+    </button>
+  </>
+)}
+```
+
+Also add `isVideoMode` to the save payload so it persists across sessions.
+
+#### Commit 18 — Timeline Component
+**File:** `TemplatesEditorInner.js`
+When `isVideoMode === true`, render a multi-track timeline at the bottom in place of the status bar.
+
+Timeline structure:
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ [▶ Play] [00:00 / 00:12]  ──── status area ────  [+ Add clip]    │  ← 40px header
+├────────┬─────────────────────────────────────────────────────────┤
+│ [time  │ 0s──────2s──────4s──────6s──────8s──────10s──12s       │  ← ruler
+│  ruler]├─────────────────────────────────────────────────────────┤
+│  Main  │ [Page 1 ▬▬▬▬▬▬▬▬▬▬] [Page 2 ▬▬▬▬▬▬▬▬]                  │  ← clip track
+│  Text  │         [Title ▬▬▬]          [Subtitle ▬▬▬▬]            │  ← overlay track
+│  Audio │ [Background music ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬]                 │  ← audio track
+└────────┴─────────────────────────────────────────────────────────┘
+         ▲ playhead (vertical teal line, draggable)
+```
+
+State:
+```javascript
+const [isPlaying, setIsPlaying] = useState(false);
+const [playheadMs, setPlayheadMs] = useState(0);
+const [clipDurations, setClipDurations] = useState({}); // { [pageIndex]: ms }
+// Default: each page = 5000ms
+
+// Total duration:
+const totalMs = pages.reduce((sum, _, i) => sum + (clipDurations[i] || 5000), 0);
+```
+
+Each page block in the Main track:
+- Width = `(duration / totalMs) * timelineWidth` pixels
+- Color = `#00C4CC` tinted rectangle
+- Drag right edge to extend duration
+- Click to navigate to that page (`setActivePage(i)`)
+
+Playhead:
+- Vertical teal line positioned at `(playheadMs / totalMs) * timelineWidth`
+- Draggable left/right to scrub
+- During playback: advances in real-time using `requestAnimationFrame`
+
+Playback logic:
+```javascript
+useEffect(() => {
+  if (!isPlaying) return;
+  let lastTime = performance.now();
+  let raf;
+  function tick() {
+    const now = performance.now();
+    setPlayheadMs(p => {
+      const next = p + (now - lastTime);
+      if (next >= totalMs) { setIsPlaying(false); return 0; }
+      // Update activePage based on playhead position
+      let acc = 0;
+      for (let i = 0; i < pages.length; i++) {
+        acc += (clipDurations[i] || 5000);
+        if (next < acc) { setActivePage(i); break; }
+      }
+      return next;
+    });
+    lastTime = now;
+    raf = requestAnimationFrame(tick);
+  }
+  raf = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(raf);
+}, [isPlaying]);
+```
+
+#### Commit 19 — Audio Track + Text Overlay Timing
+**File:** `TemplatesEditorInner.js`
+Complete the video timeline with audio and text timing windows.
+
+**Audio track:**
+- Reuse audio file from Uploads panel (already loads media)
+- Audio clip block shows file name, duration
+- Play audio in sync during playback using `<audio>` element (controlled via JS)
+
+**Text overlay timing:**
+- Each text element on a page can have `{appearAt: ms, disappearAt: ms}` properties
+- In the timeline, show purple boxes in the Text track per active text element
+- When playing, show/hide text elements based on their timing vs playhead
+
+**Per-element timing UI:**
+When a text element is selected in video mode, show extra controls in contextual action bar:
+```
+[Appear at: 0.5s] [Disappear at: 3.5s]  ← number inputs
+```
+
+#### Commit 20 — Video Export in Video Mode
+**File:** `TemplatesEditorInner.js`, minimal backend
+When `isVideoMode === true`, the "Download" button in the Share panel should export MP4.
+
+Strategy: When user clicks Download → show a "Generating video..." toast → call the existing backend video generation endpoint (already built in studio.js / wizard.js) passing the pages + durations + audio → poll for completion → download MP4 on finish.
+
+For MVP: just export each page as a PNG sequence and show a message "Video export coming soon — download individual pages for now."
+
+#### Commit 21 — Migrate /templates/video-editor to Unified Editor
+**Files:** `frontend/pages/templates/video-editor.js`, `VideoEditorInner.js`
+Once commits 17-19 are stable:
+- Make `/templates/video-editor` redirect to `/templates/editor?mode=video`  
+- `TemplatesEditorInner.js` reads `?mode=video` from the URL to auto-enable `isVideoMode`
+- `VideoEditorInner.js` is kept for backward compatibility but no longer the primary editor
+
+```javascript
+// In video-editor.js page:
+export default function VideoEditorPage() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/templates/editor?mode=video');
+  }, []);
+  return <div>Redirecting...</div>;
+}
+
+// In TemplatesEditorInner.js:
+const router = useRouter();
+const [isVideoMode, setIsVideoMode] = useState(router.query.mode === 'video');
+```
+
+---
+
+### PHASE II-C: REMAINING POLISH (after unified editor)
+
+#### Commit 22 — Icon Consistency (Lucide in icon strip)
+**File:** `TemplatesEditorInner.js`
+Replace all Unicode emoji in the 72px icon strip with proper SVG icons. Use the custom `IpXxx` SVG icon system from `frontend/components/icons/index.js` (which already has ~80 icons) or simple consistent Unicode symbols. Goal: all icon strip icons should look the same weight and style.
+
+Check which Ip-prefixed icons exist for: Templates (grid), Elements (shapes), Text (T), Brand (crown), Uploads (upload arrow), Tools (wrench/pen), Projects (folder), Apps (plus-grid), Magic (sparkle).
+
+#### Commit 23 — Hover Template Previews
+**File:** `TemplatesEditorInner.js`
+In the Templates and Projects panels, when hovering a thumbnail, show a "Use template" overlay button with a subtle scale(1.03) animation.
+
+```javascript
+const [hoveredThumb, setHoveredThumb] = useState(null);
+
+// On each thumbnail:
+<div
+  onMouseEnter={() => setHoveredThumb(design.id)}
+  onMouseLeave={() => setHoveredThumb(null)}
+  style={{ position: 'relative', transition: 'transform 150ms ease',
+    transform: hoveredThumb === design.id ? 'scale(1.03)' : 'scale(1)' }}>
+  {/* thumbnail */}
+  {hoveredThumb === design.id && (
+    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      borderRadius: 8, cursor: 'pointer' }}>
+      <span style={{ color: '#fff', fontWeight: 600, fontSize: 13,
+        background: '#7C5CFC', padding: '6px 14px', borderRadius: 20 }}>
+        Use template
+      </span>
+    </div>
+  )}
+</div>
+```
+
+---
+
+### VERIFICATION CHECKLIST — PHASE II
+
+#### Micro-interactions
+- [ ] Every button shows tooltip after 400ms hover (with shortcut if applicable)
+- [ ] Floating toolbar scales+fades in on element select (not instant snap)
+- [ ] Flyout panel content fades in 80ms after panel starts opening
+- [ ] All buttons have 100ms background transition on hover
+- [ ] Icon strip buttons scale(1.05) on hover
+- [ ] Delete/destructive buttons show red tint on hover
+- [ ] Canvas cursor changes to `grabbing` while dragging element
+- [ ] Dragging element shows opacity:0.82 (looks "lifted")
+- [ ] Save indicator shows "Saving..." → "✓ All changes saved" (no page needed for save)
+- [ ] Autosave triggers 2 seconds after last canvas change (when editing existing design)
+- [ ] Loading skeletons show while Templates/Uploads/Projects data loads
+- [ ] Empty states show illustration + CTA when panels have no data
+- [ ] Color picker shows: saturation square + hue slider + opacity + hex + recent colors
+- [ ] Ruler drag creates guide line on canvas; elements snap to guides; double-click removes
+
+#### Unified Editor
+- [ ] "Edit as Video" in File dropdown switches to video mode
+- [ ] In video mode: bottom area shows timeline (multi-track: main clips, text, audio)
+- [ ] Each page appears as a colored block in the timeline with its duration
+- [ ] Drag right edge of page block to extend its duration
+- [ ] Playhead shows current time; draggable to scrub
+- [ ] Play button plays through pages in order, updating activePage + moving playhead
+- [ ] `/templates/video-editor` URL redirects to `/templates/editor?mode=video`
+- [ ] Video mode state persists in save payload
 
 ---
 
