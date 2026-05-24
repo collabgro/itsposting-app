@@ -1926,6 +1926,67 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'highlight') {
+    const hlw = el.width || 380, hlh = el.height || 70;
+    const rawText = applyTextTransform(el.text || 'Highlighted Text', el.textTransform) || '';
+    const fontSize = el.fontSize || 42;
+    const fontStyle = el.fontStyle || 'bold';
+    const fontFamily = el.fontFamily || 'Inter, sans-serif';
+    const fontStr = `${fontStyle !== 'normal' ? fontStyle + ' ' : ''}${fontSize}px ${fontFamily}`;
+    const bgColor = el.fill || '#FFE135';
+    const textColor = el.stroke || '#1a1a22';
+    const hlStyle = el.highlightStyle || 'full'; // 'full' | 'brush' | 'underline'
+
+    return (
+      <Shape {...common}
+        width={hlw} height={hlh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          ctx.font = fontStr;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const textW = Math.min(ctx.measureText(rawText).width + 24, w);
+          const bgX = (w - textW) / 2, bgY = h * 0.08;
+          const bgH = h * 0.84;
+
+          if (hlStyle === 'full') {
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.roundRect(bgX, bgY, textW, bgH, 4);
+            ctx.fill();
+          } else if (hlStyle === 'brush') {
+            // Slightly irregular brush-stroke rectangle
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.moveTo(bgX + 6, bgY + 3);
+            ctx.bezierCurveTo(bgX + textW * 0.3, bgY - 4, bgX + textW * 0.7, bgY + 2, bgX + textW - 4, bgY + 5);
+            ctx.bezierCurveTo(bgX + textW + 3, bgY + bgH * 0.4, bgX + textW + 2, bgY + bgH * 0.7, bgX + textW - 6, bgY + bgH - 3);
+            ctx.bezierCurveTo(bgX + textW * 0.6, bgY + bgH + 4, bgX + textW * 0.3, bgY + bgH - 2, bgX + 4, bgY + bgH - 5);
+            ctx.bezierCurveTo(bgX - 3, bgY + bgH * 0.6, bgX - 2, bgY + bgH * 0.3, bgX + 6, bgY + 3);
+            ctx.fill();
+          } else if (hlStyle === 'underline') {
+            const ulY = bgY + bgH - 4, ulH2 = h * 0.22;
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            ctx.roundRect(bgX, ulY, textW, ulH2, 3);
+            ctx.fill();
+          }
+
+          ctx.fillStyle = textColor;
+          ctx.fillText(rawText, w / 2, h / 2);
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2829,6 +2890,21 @@ export default function TemplatesEditorInner() {
       text: 'NEON', fontSize: 60, fontStyle: 'bold',
       fontFamily: 'Inter, sans-serif',
       glowColor: '#00C4CC', glowIntensity: 18,
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addHighlight() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'highlight',
+      x: canvasSize.w / 2 - 190, y: canvasSize.h / 2 - 35,
+      width: 380, height: 70, opacity: 1,
+      text: 'Highlighted Text', fontSize: 42, fontStyle: 'bold',
+      fontFamily: 'Inter, sans-serif',
+      fill: '#FFE135', stroke: '#1a1a22',
+      highlightStyle: 'full',
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5066,6 +5142,39 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'highlight' && <>
+                <D />
+                {[['Full','full'],['Brush','brush'],['Underline','underline']].map(([lbl, s]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, highlightStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.highlightStyle||'full')===s?'#00C4CC':t.border}`, background:(selectedEl.highlightStyle||'full')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.highlightStyle||'full')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Mark</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#FFE135'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Text</span>
+                <ColorPickerButton
+                  value={selectedEl.stroke || '#1a1a22'}
+                  onChange={c => updateElement({...selectedEl, stroke: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                {[['Yellow','#FFE135','#1a1a22'],['Teal','#00C4CC','#ffffff'],['Pink','#ec4899','#ffffff'],['Purple','#7C5CFC','#ffffff'],['Orange','#f97316','#ffffff'],['Green','#22c55e','#1a1a22']].map(([lbl,bg,fg]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, fill: bg, stroke: fg}); }}
+                    style={{ height:26, padding:'0 8px', borderRadius:5, border:`1px solid ${t.border}`, background:bg, color:fg, fontSize:10, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', fontWeight:700 }}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'sticker' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Emoji</span>
@@ -6182,6 +6291,7 @@ export default function TemplatesEditorInner() {
                     { label: 'GradText',  icon: '🌈', fn: () => addGradientText() },
                     { label: 'Neon',      icon: '✨', fn: () => addNeonText() },
                     { label: 'Sticker',   icon: '🔥', fn: () => addSticker('🔥') },
+                    { label: 'Highlight', icon: '🖊', fn: () => addHighlight() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -7269,7 +7379,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
