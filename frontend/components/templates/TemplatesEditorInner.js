@@ -647,7 +647,7 @@ export default function TemplatesEditorInner() {
   const [previewUrl,  setPreviewUrl]    = useState(null);
 
   // UI
-  const [activeLeftTool, setActiveLeftTool] = useState('background');
+  const [activeLeftTool, setActiveLeftTool] = useState('templates');
   const [panelOpen, setPanelOpen] = useState(true);
   const [bgPhotos, setBgPhotos] = useState([]);
   const [bgPhotosLoading, setBgPhotosLoading] = useState(false);
@@ -738,15 +738,25 @@ export default function TemplatesEditorInner() {
   function zoomIn()  { setZoomFactor(z => Math.min(parseFloat((z + 0.25).toFixed(2)), 3)); }
   function zoomOut() { setZoomFactor(z => Math.max(parseFloat((z - 0.25).toFixed(2)), 0.25)); }
 
-  // ── Load photos ────────────────────────────────────────────────────────────
+  // ── Load photos (triggers on both old IDs and new Canva IDs) ─────────────
   useEffect(() => {
-    if (activeLeftTool !== 'background' && activeLeftTool !== 'images') return;
+    const isMediaTool = ['background', 'images', 'uploads', 'templates'].includes(activeLeftTool);
+    if (!isMediaTool) return;
     if (bgPhotos.length > 0) return;
     setBgPhotosLoading(true);
     studioAPI.getPhotos({ limit: 60, offset: 0 })
       .then(data => setBgPhotos(data.photos || []))
       .catch(() => {})
       .finally(() => setBgPhotosLoading(false));
+  }, [activeLeftTool]);
+
+  // ── Load saved designs for Projects panel ─────────────────────────────────
+  useEffect(() => {
+    if (activeLeftTool !== 'projects') return;
+    if (savedDesigns.length > 0) return;
+    studioAPI.getCreations({ limit: 20 })
+      .then(data => setSavedDesigns(data?.creations || []))
+      .catch(() => {});
   }, [activeLeftTool]);
 
   // ── Load existing creation ─────────────────────────────────────────────────
