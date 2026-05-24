@@ -1077,6 +1077,7 @@ export default function TemplatesEditorInner() {
   const [bgPhotos, setBgPhotos] = useState([]);
   const [bgPhotosLoading, setBgPhotosLoading] = useState(false);
   const [bgTab, setBgTab] = useState('stock');
+  const [replaceDocColorOld, setReplaceDocColorOld] = useState(null); // color being replaced
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
   const autosaveTimerRef = useRef(null);
@@ -1956,6 +1957,30 @@ export default function TemplatesEditorInner() {
   function pickColor(color, applyFn) {
     applyFn(color);
     setRecentColors(prev => [color, ...prev.filter(c => c !== color)].slice(0, 8));
+  }
+
+  function replaceDocColor(oldColor, newColor) {
+    if (!oldColor || !newColor || oldColor === newColor) return;
+    pushHistory();
+    const swap = c => (c && c.toLowerCase() === oldColor.toLowerCase() ? newColor : c);
+    setPages(prev => prev.map(page => ({
+      ...page,
+      bgColor: swap(page.bgColor),
+      bgGradient: page.bgGradient ? { ...page.bgGradient, c1: swap(page.bgGradient.c1), c2: swap(page.bgGradient.c2) } : page.bgGradient,
+      elements: page.elements.map(el => ({
+        ...el,
+        fill: swap(el.fill),
+        stroke: swap(el.stroke),
+        tintColor: swap(el.tintColor),
+        shadow: el.shadow ? { ...el.shadow, color: swap(el.shadow.color) } : el.shadow,
+        outline: el.outline ? { ...el.outline, color: swap(el.outline.color) } : el.outline,
+        textBg: el.textBg ? { ...el.textBg, color: swap(el.textBg.color) } : el.textBg,
+        fillGradient: el.fillGradient ? { ...el.fillGradient, c1: swap(el.fillGradient.c1), c2: swap(el.fillGradient.c2) } : el.fillGradient,
+        borderColor: swap(el.borderColor),
+      })),
+    })));
+    setRecentColors(prev => [newColor, ...prev.filter(c => c !== newColor)].slice(0, 8));
+    setReplaceDocColorOld(null);
   }
 
   // ── Text inline editing ────────────────────────────────────────────────────
@@ -3879,6 +3904,38 @@ export default function TemplatesEditorInner() {
                 </div>
 
                 <div>
+                  {/* Document colors — click to replace all instances */}
+                  {docColors.length > 0 && (
+                    <div style={{ marginBottom: 16 }} onClick={e => e.stopPropagation()}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Document Colors</div>
+                      <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 8 }}>Click a color to replace all uses</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {docColors.map(c => (
+                          <div key={c} style={{ position: 'relative' }}>
+                            <button title={`Replace ${c}`}
+                              onClick={() => setReplaceDocColorOld(prev => prev === c ? null : c)}
+                              style={{ width: 32, height: 32, borderRadius: 8, background: c, border: `3px solid ${replaceDocColorOld === c ? '#00C4CC' : 'rgba(255,255,255,0.15)'}`, cursor: 'pointer', flexShrink: 0, boxShadow: replaceDocColorOld === c ? '0 0 0 2px #00C4CC' : 'none' }} />
+                            {replaceDocColorOld === c && (
+                              <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 500, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 10, width: 200, boxShadow: '0 6px 24px rgba(0,0,0,0.3)' }}>
+                                <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8 }}>Replace <span style={{ fontWeight: 600, color: t.text }}>{c}</span> with:</div>
+                                <input type="color" defaultValue={c}
+                                  onBlur={e => replaceDocColor(c, e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') replaceDocColor(c, e.target.value); }}
+                                  style={{ width: '100%', height: 36, cursor: 'pointer', borderRadius: 6, border: `1px solid ${t.border}`, marginBottom: 8 }} />
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                                  {COLOR_PALETTE.slice(0, 12).map(pc => (
+                                    <button key={pc} onMouseDown={() => replaceDocColor(c, pc)}
+                                      style={{ width: 22, height: 22, borderRadius: 4, background: pc, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', padding: 0 }} />
+                                  ))}
+                                </div>
+                                <button onClick={() => setReplaceDocColorOld(null)} style={{ width: '100%', padding: '5px 0', border: `1px solid ${t.border}`, borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer' }}>Cancel</button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Photo Background</div>
                   <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: t.input, borderRadius: 7, padding: 3 }}>
                     {['stock', 'mine'].map(tab => (
