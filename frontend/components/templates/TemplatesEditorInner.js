@@ -460,6 +460,7 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
       shadowOpacity={el.shadow?.opacity ?? 0.5}
       stroke={el.outline?.enabled ? (el.outline.color || '#000000') : ''}
       strokeWidth={el.outline?.enabled ? (el.outline.width ?? 1) : 0}
+      verticalAlign={el.verticalAlign || 'middle'}
       onDblClick={() => onDblClick(el.id)}
       onDblTap={() => onDblClick(el.id)}
     />
@@ -1338,7 +1339,7 @@ export default function TemplatesEditorInner() {
   }
 
   // ── Copy / Paste style ────────────────────────────────────────────────────
-  const STYLE_TEXT_KEYS  = ['fontSize','fontFamily','fontStyle','textDecoration','textTransform','align','letterSpacing','lineHeight'];
+  const STYLE_TEXT_KEYS  = ['fontSize','fontFamily','fontStyle','textDecoration','textTransform','align','verticalAlign','letterSpacing','lineHeight'];
   const STYLE_SHAPE_KEYS = ['stroke','strokeWidth','cornerRadius'];
   const STYLE_COMMON_KEYS = ['opacity','fill','shadow'];
 
@@ -2130,9 +2131,16 @@ export default function TemplatesEditorInner() {
               <Btn label="aA" active={isUpper} extraStyle={{ fontSize: 12, fontWeight: 500 }}
                 onClick={() => handleElementChange({ ...selectedEl, textTransform: isUpper ? 'none' : 'uppercase' })} />
               <D />
-              {/* Alignment */}
+              {/* Horizontal alignment */}
               {[['left','≡ L'],['center','≡ C'],['right','≡ R']].map(([a, lbl]) => (
                 <Btn key={a} label={lbl} active={selectedEl.align === a} onClick={() => handleElementChange({ ...selectedEl, align: a })} />
+              ))}
+              <D />
+              {/* Vertical alignment */}
+              {[['top','⬆','Top'],['middle','⬛','Mid'],['bottom','⬇','Bot']].map(([v,icon,lbl]) => (
+                <Btn key={v} label={icon} active={(selectedEl.verticalAlign||'middle') === v}
+                  title={`Align text ${v}`}
+                  onClick={() => handleElementChange({ ...selectedEl, verticalAlign: v })} />
               ))}
               <D />
               {/* Shadow dropdown */}
