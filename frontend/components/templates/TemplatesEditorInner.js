@@ -834,7 +834,12 @@ export default function TemplatesEditorInner() {
 
   // Canvas
   const [canvasSizeId, setCanvasSizeId] = useState('ig_portrait');
-  const canvasSize = CANVAS_SIZES.find(s => s.id === canvasSizeId) || CANVAS_SIZES[0];
+  const [canvasCustomW, setCanvasCustomW] = useState(1080);
+  const [canvasCustomH, setCanvasCustomH] = useState(1080);
+  const [showCustomSizeForm, setShowCustomSizeForm] = useState(false);
+  const canvasSize = canvasSizeId === 'custom'
+    ? { id: 'custom', label: `Custom ${canvasCustomW}×${canvasCustomH}`, w: canvasCustomW, h: canvasCustomH }
+    : (CANVAS_SIZES.find(s => s.id === canvasSizeId) || CANVAS_SIZES[0]);
 
   // Pages (multi-page state — replaces individual bg + elements state)
   const [pages, setPages] = useState(() => [emptyPage()]);
@@ -2011,7 +2016,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Instagram Post (4:5)', w: 1080, h: 1350, id: 'ig_portrait', tw: 38, th: 48 },
                     { label: 'Facebook Post',        w: 1200, h:  630, id: 'fb_post',    tw: 56, th: 30 },
                   ].map(p => (
-                    <button key={p.label} onMouseDown={() => { setCanvasSizeId(p.id); setShowResizeMenu(false); }}
+                    <button key={p.label} onMouseDown={() => { setCanvasSizeId(p.id); setShowCustomSizeForm(false); setShowResizeMenu(false); }}
                       style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: `1px solid ${canvasSizeId === p.id ? t.primary : t.border}`, borderRadius: 9, padding: '10px 8px', background: canvasSizeId === p.id ? t.primaryBg : 'transparent', cursor: 'pointer', flexShrink: 0 }}>
                       <div style={{ width: p.tw, height: p.th, background: t.input, borderRadius: 4, border: `1px solid ${t.border}` }} />
                       <span style={{ fontSize: 11, fontWeight: 500, textAlign: 'center', maxWidth: 80, color: t.text }}>{p.label}</span>
@@ -2021,7 +2026,40 @@ export default function TemplatesEditorInner() {
                 </div>
                 {/* Browse by category */}
                 <div style={{ padding: '4px 14px 4px', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: `1px solid ${t.border}` }}>Browse by category</div>
-                {['Custom size', 'Social media', 'Presentations', 'Videos', 'Website', 'Whiteboard'].map(c => (
+                {/* Custom size row — expands to W×H form */}
+                <button
+                  onClick={() => setShowCustomSizeForm(p => !p)}
+                  style={{ width: '100%', padding: '9px 16px', border: 'none', background: showCustomSizeForm ? t.primaryBg : 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: showCustomSizeForm ? t.primary : t.text, fontSize: 13, cursor: 'pointer', transition: 'background 100ms' }}
+                  onMouseEnter={e => { if (!showCustomSizeForm) e.currentTarget.style.background = t.input; }}
+                  onMouseLeave={e => { if (!showCustomSizeForm) e.currentTarget.style.background = 'transparent'; }}>
+                  <span>Custom size</span>
+                  <span style={{ color: showCustomSizeForm ? t.primary : t.textMuted }}>{showCustomSizeForm ? '▴' : '›'}</span>
+                </button>
+                {showCustomSizeForm && (
+                  <div style={{ padding: '10px 16px 12px', background: t.input, borderBottom: `1px solid ${t.border}` }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 6, alignItems: 'end', marginBottom: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 4 }}>Width (px)</div>
+                        <input type="number" min={100} max={8000} value={canvasCustomW}
+                          onChange={e => setCanvasCustomW(Math.max(100, Math.min(8000, parseInt(e.target.value) || 100)))}
+                          style={{ width: '100%', padding: '7px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.card, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
+                      <span style={{ fontSize: 14, color: t.textMuted, paddingBottom: 4 }}>×</span>
+                      <div>
+                        <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 4 }}>Height (px)</div>
+                        <input type="number" min={100} max={8000} value={canvasCustomH}
+                          onChange={e => setCanvasCustomH(Math.max(100, Math.min(8000, parseInt(e.target.value) || 100)))}
+                          style={{ width: '100%', padding: '7px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.card, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                    <button
+                      onMouseDown={() => { setCanvasSizeId('custom'); setShowCustomSizeForm(false); setShowResizeMenu(false); }}
+                      style={{ width: '100%', background: t.primary, color: '#fff', border: 'none', borderRadius: 7, padding: '9px 0', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                      Apply custom size
+                    </button>
+                  </div>
+                )}
+                {['Social media', 'Presentations', 'Videos', 'Website', 'Whiteboard'].map(c => (
                   <button key={c} style={{ width: '100%', padding: '9px 16px', border: 'none', background: 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: t.text, fontSize: 13, cursor: 'pointer', transition: 'background 100ms' }}
                     onMouseEnter={e => e.currentTarget.style.background = t.input}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
