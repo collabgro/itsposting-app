@@ -4296,6 +4296,10 @@ export default function TemplatesEditorInner() {
             0%   { background-position:-500px 0; }
             100% { background-position: 500px 0; }
           }
+          @keyframes preview-fade {
+            from { opacity:0; transform:scale(0.97); }
+            to   { opacity:1; transform:scale(1);    }
+          }
         `}</style>
         <div ref={containerRef}
           onWheel={e => {
@@ -5700,7 +5704,8 @@ export default function TemplatesEditorInner() {
 
           {/* Canvas image */}
           {previewUrl
-            ? <img src={previewUrl} onClick={e => e.stopPropagation()} style={{ maxWidth:'85vw', maxHeight:'85vh', objectFit:'contain', borderRadius:6, boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }} />
+            ? <img key={previewUrl} src={previewUrl} onClick={e => e.stopPropagation()}
+                style={{ maxWidth:'85vw', maxHeight:'85vh', objectFit:'contain', borderRadius:6, boxShadow:'0 20px 60px rgba(0,0,0,0.5)', animation:'preview-fade 220ms cubic-bezier(0.2,0,0,1) forwards' }} />
             : <div style={{ color:'rgba(255,255,255,0.4)', fontSize:14 }}>Rendering…</div>
           }
 
