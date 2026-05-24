@@ -425,15 +425,20 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
         rotation: node.rotation(),
       });
     } else {
+      const rawSX = node.scaleX();
+      const rawSY = node.scaleY();
+      const newFlipH = rawSX < 0 ? !el.flipH : (el.flipH || false);
+      const newFlipV = rawSY < 0 ? !el.flipV : (el.flipV || false);
       onChange({
         ...el, x: node.x(), y: node.y(),
-        width: Math.max(5, node.width() * node.scaleX()),
-        height: Math.max(5, node.height() * node.scaleY()),
+        width:  Math.max(5, Math.abs(node.width()  * rawSX)),
+        height: Math.max(5, Math.abs(node.height() * rawSY)),
+        flipH: newFlipH, flipV: newFlipV,
         scaleX: 1, scaleY: 1, rotation: node.rotation(),
       });
+      node.scaleX(newFlipH ? -1 : 1);
+      node.scaleY(newFlipV ? -1 : 1);
     }
-    node.scaleX(1);
-    node.scaleY(1);
   };
 
   const common = {
@@ -461,6 +466,8 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
       if (s === 'dotted') return [w, w * 2.5];
       return undefined;
     })(),
+    scaleX: el.flipH ? -1 : 1,
+    scaleY: el.flipV ? -1 : 1,
     globalCompositeOperation: el.blendMode || 'source-over',
     shadowEnabled: el.shadow?.enabled || false,
     shadowColor: el.shadow?.color || '#000000',
@@ -2875,6 +2882,12 @@ export default function TemplatesEditorInner() {
                 ))}
               </>}
               <D />
+              {/* Flip buttons (skip for circle — symmetric) */}
+              {selectedEl.type !== 'circle' && <>
+                <Btn label="⟺ Flip H" active={!!selectedEl.flipH} onClick={() => { pushHistory(); updateElement({ ...selectedEl, flipH: !selectedEl.flipH }); }} />
+                <Btn label="⇅ Flip V" active={!!selectedEl.flipV} onClick={() => { pushHistory(); updateElement({ ...selectedEl, flipV: !selectedEl.flipV }); }} />
+                <D />
+              </>}
               {/* Shadow panel for shapes */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Shadow" active={!!selectedEl.shadow?.enabled}
