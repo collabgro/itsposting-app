@@ -597,6 +597,81 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
           : [0, g.c1||'#ffffff', 1, g.c2||'#000000'],
       };
     }
+    // Curved / arch text rendering
+    if (el.textCurve) {
+      const rawText = applyTextTransform(el.text || '', el.textTransform) || '';
+      const fontSize = el.fontSize || 36;
+      const curveR = el.textCurve;
+      const absR = Math.abs(curveR);
+      const w = el.width || 400;
+      const boxH = absR * 0.55 + fontSize * 2;
+      const fontParts = [];
+      const fs = el.fontStyle || 'normal';
+      if (fs === 'bold' || fs === 'bold italic') fontParts.push('bold');
+      if (fs === 'italic' || fs === 'bold italic') fontParts.push('italic');
+      fontParts.push(`${fontSize}px`, el.fontFamily || 'Inter');
+      const fontStr = fontParts.join(' ');
+
+      return (
+        <Shape
+          {...common}
+          width={w}
+          height={boxH}
+          opacity={el.opacity ?? 1}
+          globalCompositeOperation={el.blendMode || 'source-over'}
+          shadowEnabled={el.shadow?.enabled || false}
+          shadowColor={el.shadow?.color || '#000000'}
+          shadowBlur={el.shadow?.blur ?? 4}
+          shadowOffsetX={el.shadow?.offsetX ?? 2}
+          shadowOffsetY={el.shadow?.offsetY ?? 2}
+          shadowOpacity={el.shadow?.opacity ?? 0.5}
+          stroke=''
+          strokeWidth={0}
+          sceneFunc={(ctx) => {
+            ctx.font = fontStr;
+            ctx.fillStyle = el.fill || '#ffffff';
+            ctx.textBaseline = 'middle';
+            const chars = Array.from(rawText);
+            const charWidths = chars.map(c => ctx.measureText(c).width);
+            const totalW = charWidths.reduce((a, b) => a + b, 0);
+            const totalAngle = totalW / absR;
+            const cx = w / 2;
+
+            if (curveR > 0) {
+              // Arch up: circle center at (cx, absR), text along top
+              let angle = -Math.PI / 2 - totalAngle / 2;
+              chars.forEach((char, i) => {
+                const a = angle + charWidths[i] / (2 * absR);
+                const x = cx + absR * Math.cos(a);
+                const y = absR + absR * Math.sin(a);
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(a + Math.PI / 2);
+                ctx.fillText(char, -charWidths[i] / 2, 0);
+                ctx.restore();
+                angle += charWidths[i] / absR;
+              });
+            } else {
+              // Arch down: circle center at (cx, boxH - absR), text along bottom
+              const cy = boxH - absR;
+              let angle = Math.PI / 2 - totalAngle / 2;
+              chars.forEach((char, i) => {
+                const a = angle + charWidths[i] / (2 * absR);
+                const x = cx + absR * Math.cos(a);
+                const y = cy + absR * Math.sin(a);
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(a - Math.PI / 2);
+                ctx.fillText(char, -charWidths[i] / 2, 0);
+                ctx.restore();
+                angle += charWidths[i] / absR;
+              });
+            }
+          }}
+        />
+      );
+    }
+
     const textNode = (
       <Text
         {...common}
@@ -1125,6 +1200,7 @@ export default function TemplatesEditorInner() {
   const [frMatchCount,    setFrMatchCount]    = useState(0);
   const [showAdjustPanel, setShowAdjustPanel] = useState(false);
   const [showSpacingPanel, setShowSpacingPanel] = useState(false);
+  const [showCurvePanel, setShowCurvePanel] = useState(false);
   const [showCropPanel, setShowCropPanel] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [lockAspectRatio, setLockAspectRatio] = useState(false);
@@ -3075,9 +3151,51 @@ export default function TemplatesEditorInner() {
                 })()}
               </div>
               {/* Spacing dropdown */}
+              {/* Curve / arch text */}
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="⌒ Curve" active={!!selectedEl.textCurve || showCurvePanel}
+                  onClick={() => { setShowCurvePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); setShowSpacingPanel(false); }} />
+                {showCurvePanel && (
+                  <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', animation: 'dropdownIn 150ms ease forwards' }}>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                      <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: selectedEl.textCurve ? undefined : 200 }); }}
+                        style={{ flex: 1, padding: '6px 0', borderRadius: 7, border: `1px solid ${selectedEl.textCurve ? '#00C4CC' : t.border}`, background: selectedEl.textCurve ? 'rgba(0,196,204,0.1)' : t.input, color: selectedEl.textCurve ? '#00C4CC' : t.text, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+                        {selectedEl.textCurve ? '✕ Remove curve' : '⌒ Add curve'}
+                      </button>
+                    </div>
+                    {selectedEl.textCurve && <>
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Direction</div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[['⌒', 'Arch up', 1], ['⌣', 'Arch down', -1]].map(([icon, label, dir]) => (
+                            <button key={dir} title={label}
+                              onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: dir * Math.abs(selectedEl.textCurve || 200) }); }}
+                              style={{ flex: 1, padding: '7px 0', borderRadius: 7, border: `1px solid ${(selectedEl.textCurve > 0 ? 1 : -1) === dir ? '#00C4CC' : t.border}`, background: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? 'rgba(0,196,204,0.1)' : t.input, color: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? '#00C4CC' : t.text, fontSize: 16, cursor: 'pointer' }}>
+                              {icon}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, color: t.textMuted }}>Curvature</span>
+                        <span style={{ fontSize: 11, color: t.textMuted }}>r={Math.abs(selectedEl.textCurve || 200)}</span>
+                      </div>
+                      <input type="range" min={60} max={600} step={10}
+                        value={Math.abs(selectedEl.textCurve || 200)}
+                        onChange={e => updateElement({ ...selectedEl, textCurve: (selectedEl.textCurve < 0 ? -1 : 1) * parseInt(e.target.value) })}
+                        onMouseUp={() => pushHistory()}
+                        style={{ width: '100%', accentColor: '#00C4CC' }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                        <span style={{ fontSize: 10, color: t.textMuted }}>More curved</span>
+                        <span style={{ fontSize: 10, color: t.textMuted }}>Straighter</span>
+                      </div>
+                    </>}
+                  </div>
+                )}
+              </div>
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
                 <Btn label="Spacing" active={showSpacingPanel}
-                  onClick={() => { setShowSpacingPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); }} />
+                  onClick={() => { setShowSpacingPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); setShowCurvePanel(false); }} />
                 {showSpacingPanel && (
                   <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
                     {[
