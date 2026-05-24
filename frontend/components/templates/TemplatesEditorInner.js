@@ -8424,10 +8424,10 @@ export default function TemplatesEditorInner() {
                     {selectedEl.type === 'steplist' && (
                       <div style={{ marginTop: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Steps</div>
-                        {(selectedEl.slSteps || ['Step one', 'Step two', 'Step three']).map((s, i) => (
+                        {(selectedEl.steps || ['Step one', 'Step two', 'Step three']).map((s, i) => (
                           <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 5, alignItems: 'center' }}>
                             <span style={{ fontSize: 11, color: t.textMuted, width: 16, flexShrink: 0 }}>{i+1}</span>
-                            <input value={s} onChange={e => { const arr = [...(selectedEl.slSteps||['Step one','Step two','Step three'])]; arr[i] = e.target.value; updateElement({...selectedEl, slSteps: arr}); }} onBlur={() => pushHistory()}
+                            <input value={s} onChange={e => { const arr = [...(selectedEl.steps||['Step one','Step two','Step three'])]; arr[i] = e.target.value; updateElement({...selectedEl, steps: arr}); }} onBlur={() => pushHistory()}
                               style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, outline: 'none' }} />
                           </div>
                         ))}
