@@ -249,13 +249,6 @@ Konva.Filters.Duotone = function(imageData) {
   }
 };
 
-const BLEND_MODES = [
-  ['source-over','Normal'],['multiply','Multiply'],['screen','Screen'],
-  ['overlay','Overlay'],['darken','Darken'],['lighten','Lighten'],
-  ['color-dodge','Color Dodge'],['color-burn','Color Burn'],
-  ['hard-light','Hard Light'],['soft-light','Soft Light'],
-  ['difference','Difference'],['exclusion','Exclusion'],
-];
 
 const QUICK_ACTIONS = [
   { id: 'text',     icon: 'T',  label: 'Add text',        sub: 'Insert a text element',    shortcut: 'T'       },
@@ -6307,7 +6300,7 @@ export default function TemplatesEditorInner() {
               <D />
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Blend</span>
               <select value={selectedEl.blendMode||'source-over'} onChange={e => { pushHistory(); patchElements(p => p.map(el => el.id===selectedEl.id ? {...el, blendMode:e.target.value} : el)); }} style={{ height:24, padding:'0 3px', borderRadius:5, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', flexShrink:0, maxWidth:90 }}>
-                {BLEND_MODES.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                {BLEND_MODES.map(m => <option key={m} value={m}>{BLEND_LABELS[m]}</option>)}
               </select>
             </>
           );
@@ -6401,7 +6394,7 @@ export default function TemplatesEditorInner() {
               <D />
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Blend</span>
               <select value={selectedEl.blendMode||'source-over'} onChange={e => { pushHistory(); patchElements(p => p.map(el => el.id===selectedEl.id ? {...el, blendMode:e.target.value} : el)); }} style={{ height:24, padding:'0 3px', borderRadius:5, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', flexShrink:0, maxWidth:90 }}>
-                {BLEND_MODES.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                {BLEND_MODES.map(m => <option key={m} value={m}>{BLEND_LABELS[m]}</option>)}
               </select>
               <D />
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
@@ -7591,7 +7584,7 @@ export default function TemplatesEditorInner() {
               <D />
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Blend</span>
               <select value={selectedEl.blendMode||'source-over'} onChange={e => { pushHistory(); patchElements(p => p.map(el => el.id===selectedEl.id ? {...el, blendMode:e.target.value} : el)); }} style={{ height:24, padding:'0 3px', borderRadius:5, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', flexShrink:0, maxWidth:90 }}>
-                {BLEND_MODES.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                {BLEND_MODES.map(m => <option key={m} value={m}>{BLEND_LABELS[m]}</option>)}
               </select>
               <D />
               <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />

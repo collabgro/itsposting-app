@@ -630,7 +630,7 @@ Return ONLY valid JSON (no markdown fences):
   });
 
   // ── GET /api/studio/templates — curated templates list ─────────────────────
-  router.get('/templates', authenticateToken, async (req, res) => {
+  router.get('/templates', authenticate, async (req, res) => {
     try {
       const { industry = 'general', category, limit = 30 } = req.query;
       const conditions = ['is_active = true'];
@@ -662,7 +662,7 @@ Return ONLY valid JSON (no markdown fences):
   });
 
   // ── GET /api/studio/templates/:id — full canvas_json ──────────────────────
-  router.get('/templates/:id', authenticateToken, async (req, res) => {
+  router.get('/templates/:id', authenticate, async (req, res) => {
     try {
       const { rows } = await pool.query(
         'SELECT * FROM canvas_templates WHERE id = $1 AND is_active = true',
