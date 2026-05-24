@@ -145,6 +145,7 @@ function BgImage({ url, filter, brightness, contrast, saturation, stageW, stageH
 function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear, locked, hidden }) {
   const shapeRef = useRef(null);
   const [img] = useImage(el.src, 'anonymous');
+  const [isDragging, setIsDragging] = useState(false);
   const w = el.width || 200;
   const h = el.height || 200;
   const flipSX = el.flipH ? -1 : 1;
@@ -159,6 +160,8 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
   };
 
   const handleDragEnd = (e) => {
+    setIsDragging(false);
+    const s = e.target.getStage(); if (s) s.container().style.cursor = '';
     if (onSnapClear) onSnapClear();
     onChange({ ...el, x: e.target.x() - w / 2, y: e.target.y() - h / 2 });
   };
@@ -206,12 +209,13 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
       scaleX={flipSX}
       scaleY={flipSY}
       rotation={el.rotation || 0}
-      opacity={el.opacity ?? 1}
+      opacity={isDragging ? Math.min(el.opacity ?? 1, 0.65) : (el.opacity ?? 1)}
       cornerRadius={el.cornerRadius || 0}
       draggable={!locked}
       visible={!hidden}
       onClick={(e) => !locked && onSelect(el.id, e)}
       onTap={(e) => !locked && onSelect(el.id, e)}
+      onDragStart={e => { setIsDragging(true); const s = e.target.getStage(); if (s) s.container().style.cursor = 'grabbing'; }}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onTransformEnd={handleTransformEnd}
@@ -226,6 +230,7 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
 
 function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDblClick, onDragMove, onSnapClear, locked, hidden }) {
   const shapeRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const isCenterOrigin = ['circle', 'triangle', 'star'].includes(el.type);
 
@@ -252,6 +257,8 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
   };
 
   const handleDragEnd = (e) => {
+    setIsDragging(false);
+    const s = e.target.getStage(); if (s) s.container().style.cursor = '';
     if (onSnapClear) onSnapClear();
     onChange({ ...el, x: e.target.x(), y: e.target.y() });
   };
@@ -287,10 +294,12 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     x: el.x,
     y: el.y,
     rotation: el.rotation || 0,
+    opacity: isDragging ? Math.min(el.opacity ?? 1, 0.65) : (el.opacity ?? 1),
     draggable: !locked,
     visible: !hidden && el.visible !== false,
     onClick: (e) => !locked && onSelect(el.id, e),
     onTap: (e) => !locked && onSelect(el.id, e),
+    onDragStart: e => { setIsDragging(true); const s = e.target.getStage(); if (s) s.container().style.cursor = 'grabbing'; },
     onDragMove: handleDragMove,
     onDragEnd: handleDragEnd,
     onTransformEnd: handleTransformEnd,
@@ -390,6 +399,7 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
 
 function GroupNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDragMove, onSnapClear, locked, hidden }) {
   const groupRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleDragMove = (e) => {
     if (!onDragMove) return;
@@ -398,6 +408,8 @@ function GroupNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDragM
   };
 
   const handleDragEnd = (e) => {
+    setIsDragging(false);
+    const s = e.target.getStage(); if (s) s.container().style.cursor = '';
     if (onSnapClear) onSnapClear();
     onChange({ ...el, x: e.target.x(), y: e.target.y() });
   };
@@ -435,12 +447,13 @@ function GroupNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDragM
       x={el.x}
       y={el.y}
       rotation={el.rotation || 0}
-      opacity={el.opacity ?? 1}
+      opacity={isDragging ? Math.min(el.opacity ?? 1, 0.65) : (el.opacity ?? 1)}
       draggable={!locked}
       visible={!hidden && el.visible !== false}
       globalCompositeOperation={el.blendMode || 'source-over'}
       onClick={(e)  => { e.cancelBubble = true; if (!locked) onSelect(el.id, e); }}
       onTap={(e)    => { e.cancelBubble = true; if (!locked) onSelect(el.id, e); }}
+      onDragStart={e => { setIsDragging(true); const s = e.target.getStage(); if (s) s.container().style.cursor = 'grabbing'; }}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onTransformEnd={handleTransformEnd}
