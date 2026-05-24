@@ -905,6 +905,8 @@ export default function TemplatesEditorInner() {
   const [imgTab, setImgTab] = useState('stock');
   const [uploadMediaTab, setUploadMediaTab] = useState('Images');
   const [bgRemoverDismissed, setBgRemoverDismissed] = useState(false);
+  const [showImgUrlInput, setShowImgUrlInput] = useState(false);
+  const [imgUrlValue, setImgUrlValue] = useState('');
   const [projectTab, setProjectTab] = useState('All');
   const [savedDesigns, setSavedDesigns] = useState([]);
   const [savedDesignsLoading, setSavedDesignsLoading] = useState(false);
@@ -3635,6 +3637,42 @@ export default function TemplatesEditorInner() {
                 <button style={{ background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   🎥 Record yourself
                 </button>
+                {/* Add from URL */}
+                {!showImgUrlInput ? (
+                  <button onClick={() => setShowImgUrlInput(true)}
+                    style={{ background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    🔗 Add from URL
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <input
+                      autoFocus
+                      placeholder="Paste image URL (https://...)"
+                      value={imgUrlValue}
+                      onChange={e => setImgUrlValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && imgUrlValue.trim()) {
+                          addImageElement(imgUrlValue.trim());
+                          setImgUrlValue('');
+                          setShowImgUrlInput(false);
+                        }
+                        if (e.key === 'Escape') { setShowImgUrlInput(false); setImgUrlValue(''); }
+                      }}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.primary}`, background: t.input, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => { if (imgUrlValue.trim()) { addImageElement(imgUrlValue.trim()); setImgUrlValue(''); setShowImgUrlInput(false); } }}
+                        disabled={!imgUrlValue.trim()}
+                        style={{ flex: 1, background: imgUrlValue.trim() ? t.primary : t.border, color: imgUrlValue.trim() ? '#fff' : t.textMuted, border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, fontSize: 13, cursor: imgUrlValue.trim() ? 'pointer' : 'default' }}>
+                        Add
+                      </button>
+                      <button onClick={() => { setShowImgUrlInput(false); setImgUrlValue(''); }}
+                        style={{ flex: 1, background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {/* Tabs */}
                 <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, gap: 4 }}>
                   {['Images', 'Videos', 'Designs', 'Folders'].map(tab => (
