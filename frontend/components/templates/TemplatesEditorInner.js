@@ -2858,6 +2858,75 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'iconshape') {
+    const isw = el.width || 120, ish = el.height || 120;
+    const iconColor = el.fill || '#ffffff';
+    const iconBgColor = el.iconBgColor || 'rgba(0,196,204,0.2)';
+    const iconBgShape = el.iconBgShape || 'circle';
+    const kind = el.iconKind || 'check';
+    return (
+      <Shape {...common} width={isw} height={ish} opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          // Background shape
+          if (iconBgShape !== 'none') {
+            ctx.fillStyle = iconBgColor;
+            if (iconBgShape === 'circle') { ctx.beginPath(); ctx.arc(w/2, h/2, Math.min(w,h)/2 - 1, 0, Math.PI*2); ctx.fill(); }
+            else if (iconBgShape === 'rounded') { ctx.beginPath(); ctx.roundRect(0, 0, w, h, Math.min(w,h)*0.2); ctx.fill(); }
+            else { ctx.fillRect(0, 0, w, h); }
+          }
+          // Icon paths
+          const cx = w/2, cy = h/2;
+          const s = Math.min(w, h) * 0.38;
+          ctx.save();
+          if (kind === 'check') {
+            ctx.beginPath(); ctx.moveTo(cx-s,cy-s*0.05); ctx.lineTo(cx-s*0.2,cy+s*0.75); ctx.lineTo(cx+s,cy-s*0.75);
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.22; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
+          } else if (kind === 'x') {
+            ctx.beginPath(); ctx.moveTo(cx-s*0.72,cy-s*0.72); ctx.lineTo(cx+s*0.72,cy+s*0.72); ctx.moveTo(cx+s*0.72,cy-s*0.72); ctx.lineTo(cx-s*0.72,cy+s*0.72);
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.22; ctx.lineCap='round'; ctx.stroke();
+          } else if (kind === 'plus') {
+            ctx.beginPath(); ctx.moveTo(cx-s*0.85,cy); ctx.lineTo(cx+s*0.85,cy); ctx.moveTo(cx,cy-s*0.85); ctx.lineTo(cx,cy+s*0.85);
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.22; ctx.lineCap='round'; ctx.stroke();
+          } else if (kind === 'arrow') {
+            ctx.beginPath(); ctx.moveTo(cx-s*0.7,cy); ctx.lineTo(cx+s*0.55,cy); ctx.moveTo(cx+s*0.15,cy-s*0.5); ctx.lineTo(cx+s*0.55,cy); ctx.lineTo(cx+s*0.15,cy+s*0.5);
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.22; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
+          } else if (kind === 'star') {
+            const or=s*1.05, ir=or*0.42;
+            ctx.beginPath();
+            for(let i=0;i<5;i++){const oa=(i*4*Math.PI/5)-Math.PI/2;const ia=oa+(2*Math.PI/10);if(i===0)ctx.moveTo(cx+or*Math.cos(oa),cy+or*Math.sin(oa));else ctx.lineTo(cx+or*Math.cos(oa),cy+or*Math.sin(oa));ctx.lineTo(cx+ir*Math.cos(ia),cy+ir*Math.sin(ia));}
+            ctx.closePath(); ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'heart') {
+            const hs=s*1.1;
+            ctx.beginPath(); ctx.moveTo(cx,cy+hs*0.6); ctx.bezierCurveTo(cx-hs*1.2,cy-hs*0.2,cx-hs*1.6,cy-hs*1.0,cx,cy-hs*0.2); ctx.bezierCurveTo(cx+hs*1.6,cy-hs*1.0,cx+hs*1.2,cy-hs*0.2,cx,cy+hs*0.6);
+            ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'warning') {
+            ctx.beginPath(); ctx.moveTo(cx,cy-s*1.0); ctx.lineTo(cx+s*1.0,cy+s*0.75); ctx.lineTo(cx-s*1.0,cy+s*0.75); ctx.closePath();
+            ctx.fillStyle=iconColor; ctx.fill();
+            ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.5)';
+            ctx.fillRect(cx-s*0.1,cy-s*0.32,s*0.2,s*0.58); ctx.beginPath(); ctx.arc(cx,cy+s*0.5,s*0.1,0,Math.PI*2); ctx.fill();
+          } else if (kind === 'shield') {
+            const sw=s*1.0,sh=sw*1.3;
+            ctx.beginPath(); ctx.moveTo(cx,cy-sh*0.85); ctx.lineTo(cx+sw*0.9,cy-sh*0.55); ctx.lineTo(cx+sw*0.9,cy+sh*0.05); ctx.quadraticCurveTo(cx+sw*0.9,cy+sh*0.7,cx,cy+sh*0.9); ctx.quadraticCurveTo(cx-sw*0.9,cy+sh*0.7,cx-sw*0.9,cy+sh*0.05); ctx.lineTo(cx-sw*0.9,cy-sh*0.55); ctx.closePath();
+            ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'info') {
+            const ir2=s*1.1;
+            ctx.beginPath(); ctx.arc(cx,cy,ir2,0,Math.PI*2); ctx.fillStyle=iconColor; ctx.fill();
+            ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.5)';
+            ctx.beginPath(); ctx.arc(cx,cy-ir2*0.38,ir2*0.12,0,Math.PI*2); ctx.fill();
+            ctx.fillRect(cx-ir2*0.11,cy-ir2*0.12,ir2*0.22,ir2*0.58);
+          } else if (kind === 'bolt') {
+            ctx.beginPath(); ctx.moveTo(cx+s*0.3,cy-s*1.05); ctx.lineTo(cx-s*0.12,cy-s*0.05); ctx.lineTo(cx+s*0.28,cy-s*0.05); ctx.lineTo(cx-s*0.3,cy+s*1.05); ctx.lineTo(cx+s*0.12,cy+s*0.05); ctx.lineTo(cx-s*0.22,cy+s*0.05); ctx.closePath();
+            ctx.fillStyle=iconColor; ctx.fill();
+          }
+          ctx.restore();
+          if (isSelected) { ctx.strokeStyle='#00C4CC'; ctx.lineWidth=1.5; ctx.strokeRect(0,0,w,h); }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'counter') {
     const cw = el.width || 200, ch = el.height || 160;
     const bgC = el.bgColor || 'rgba(0,196,204,0.15)';
@@ -3867,6 +3936,19 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addIconShape() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'iconshape',
+      x: canvasSize.w / 2 - 60, y: canvasSize.h / 2 - 60,
+      width: 120, height: 120, opacity: 1,
+      iconKind: 'check', iconBgShape: 'circle',
+      fill: '#ffffff', iconBgColor: 'rgba(0,196,204,0.25)',
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -6295,6 +6377,35 @@ export default function TemplatesEditorInner() {
                   </button>
                 ))}
               </>}
+              {selectedEl.type === 'iconshape' && <>
+                <D />
+                {[['✓','check'],['✗','x'],['+','plus'],['→','arrow'],['★','star'],['♥','heart'],['▲','warning'],['🛡','shield'],['ℹ','info'],['⚡','bolt']].map(([icon,kind]) => (
+                  <button key={kind} onClick={() => { pushHistory(); updateElement({...selectedEl, iconKind: kind}); }}
+                    title={kind}
+                    style={{ width:28, height:28, borderRadius:5, border:`1px solid ${(selectedEl.iconKind||'check')===kind?'#00C4CC':t.border}`, background:(selectedEl.iconKind||'check')===kind?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.iconKind||'check')===kind?'#00C4CC':t.text, fontSize:14, cursor:'pointer', flexShrink:0 }}>
+                    {icon}
+                  </button>
+                ))}
+                <D />
+                {[['None','none'],['⬤','circle'],['◻','square'],['▣','rounded']].map(([icon,s]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, iconBgShape: s}); }}
+                    style={{ width:28, height:28, borderRadius:5, border:`1px solid ${(selectedEl.iconBgShape||'circle')===s?'#00C4CC':t.border}`, background:(selectedEl.iconBgShape||'circle')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.iconBgShape||'circle')===s?'#00C4CC':t.text, fontSize:13, cursor:'pointer', flexShrink:0 }}>
+                    {icon}
+                  </button>
+                ))}
+                <D />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Icon</span>
+                <ColorPickerButton value={selectedEl.fill||'#ffffff'} onChange={c=>updateElement({...selectedEl,fill:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <span style={{fontSize:11,color:t.textMuted,flexShrink:0}}>Bg</span>
+                <ColorPickerButton value={selectedEl.iconBgColor||'rgba(0,196,204,0.2)'} onChange={c=>updateElement({...selectedEl,iconBgColor:c})} onCommit={()=>pushHistory()} recentColors={recentColors} size={18} />
+                <D />
+                {[['Teal','#ffffff','rgba(0,196,204,0.25)'],['Purple','#ffffff','rgba(124,92,252,0.3)'],['Green','#ffffff','rgba(34,197,94,0.3)'],['Red','#ffffff','rgba(239,68,68,0.25)'],['Dark','#ffffff','rgba(30,30,40,0.9)'],['Gold','#1a1a22','rgba(245,158,11,0.3)']].map(([lbl,fc,bgc])=>(
+                  <button key={lbl} onClick={()=>{pushHistory();updateElement({...selectedEl,fill:fc,iconBgColor:bgc});}}
+                    style={{height:26,padding:'0 7px',borderRadius:5,border:`1px solid ${t.border}`,background:bgc,color:fc,fontSize:10,cursor:'pointer',flexShrink:0,fontWeight:600}}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'counter' && <>
                 <D />
                 {[['Plain','plain'],['Card','card'],['Circle','circle']].map(([lbl,s]) => (
@@ -7770,6 +7881,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Before/After', icon: '⟺', fn: () => addBeforeAfter() },
                     { label: 'Grad Rect',  icon: '▨', fn: () => addGradRect() },
                     { label: 'Counter',    icon: '🔢', fn: () => addCounter() },
+                    { label: 'Icon',       icon: '✓', fn: () => addIconShape() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -8857,7 +8969,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : el.type === 'iconshape' ? '✓' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
