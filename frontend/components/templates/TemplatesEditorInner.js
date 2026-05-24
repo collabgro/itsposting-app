@@ -1197,6 +1197,112 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'quote') {
+    const qw = el.width || 300, qh = el.height || 160;
+    const quoteText = el.quoteText || '"Great service, highly recommend!"';
+    const attribution = el.attribution || '— Happy Customer';
+    const accentColor = el.fill || '#00C4CC';
+    const textColor = el.labelColor || '#ffffff';
+    const bgColor = el.bgColor || 'rgba(255,255,255,0.08)';
+    const style = el.quoteStyle || 'block'; // 'block' | 'minimal' | 'bubble'
+
+    return (
+      <Shape {...common}
+        width={qw} height={qh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape) => {
+          const w = shape.width(), h = shape.height();
+          const pad = 18;
+          const r = el.cornerRadius ?? 12;
+
+          if (style === 'block') {
+            // Background card
+            ctx.beginPath();
+            ctx.roundRect(0, 0, w, h, r);
+            ctx.fillStyle = bgColor;
+            ctx.fill();
+            // Left accent bar
+            ctx.beginPath();
+            ctx.roundRect(0, 0, 5, h, [r, 0, 0, r]);
+            ctx.fillStyle = accentColor;
+            ctx.fill();
+            // Big opening quote mark
+            ctx.font = `bold ${Math.min(60, h * 0.45)}px Georgia, serif`;
+            ctx.fillStyle = accentColor;
+            ctx.globalAlpha = 0.35;
+            ctx.textBaseline = 'top';
+            ctx.fillText('“', pad, 4);
+            ctx.globalAlpha = 1;
+            // Quote text
+            const textSize = Math.max(11, Math.min(18, Math.round(h * 0.13)));
+            ctx.font = `italic ${textSize}px Georgia, serif`;
+            ctx.fillStyle = textColor;
+            ctx.textBaseline = 'top';
+            const lines = [];
+            const maxLineW = w - pad * 2 - 8;
+            let line = '';
+            for (const word of quoteText.split(' ')) {
+              const test = line ? `${line} ${word}` : word;
+              if (ctx.measureText(test).width > maxLineW) { lines.push(line); line = word; }
+              else line = test;
+            }
+            if (line) lines.push(line);
+            const lineH = textSize * 1.5;
+            const textBlockH = lines.length * lineH;
+            const textY = (h - textBlockH - textSize * 1.2) / 2 + 8;
+            lines.forEach((l, i) => ctx.fillText(l, pad + 8, textY + i * lineH));
+            // Attribution
+            ctx.font = `bold ${Math.max(10, textSize - 2)}px Inter, sans-serif`;
+            ctx.fillStyle = accentColor;
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(attribution, pad + 8, h - pad * 0.6);
+
+          } else if (style === 'minimal') {
+            // Just big quote mark + text, no background
+            const qSize = Math.min(48, h * 0.35);
+            ctx.font = `bold ${qSize}px Georgia, serif`;
+            ctx.fillStyle = accentColor;
+            ctx.textBaseline = 'top';
+            ctx.fillText('“', 0, 0);
+            const textSize = Math.max(11, Math.min(16, Math.round(h * 0.11)));
+            ctx.font = `italic ${textSize}px Georgia, serif`;
+            ctx.fillStyle = textColor;
+            ctx.fillText(quoteText, 0, qSize * 0.7);
+            ctx.font = `bold ${textSize - 1}px Inter, sans-serif`;
+            ctx.fillStyle = accentColor;
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(attribution, 0, h);
+
+          } else {
+            // Bubble style: circle avatar area on left, text on right
+            const avatarR = Math.min(28, h * 0.28);
+            const avatarX = pad + avatarR, avatarY = h / 2;
+            ctx.beginPath();
+            ctx.arc(avatarX, avatarY, avatarR, 0, Math.PI * 2);
+            ctx.fillStyle = accentColor;
+            ctx.fill();
+            ctx.font = `bold ${avatarR * 0.9}px Inter, sans-serif`;
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText((attribution || '?').replace(/^[^A-Za-z]*/, '')[0]?.toUpperCase() || '?', avatarX, avatarY);
+            const textSize = Math.max(10, Math.min(15, Math.round(h * 0.1)));
+            const textX = pad + avatarR * 2 + 12;
+            ctx.font = `italic ${textSize}px Georgia, serif`;
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(quoteText.slice(0, 60) + (quoteText.length > 60 ? '…' : ''), textX, h / 2 - textSize);
+            ctx.font = `bold ${textSize - 1}px Inter, sans-serif`;
+            ctx.fillStyle = accentColor;
+            ctx.fillText(attribution, textX, h / 2 + textSize);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2059,6 +2165,20 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addQuote() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'quote',
+      x: canvasSize.w / 2 - 150, y: canvasSize.h / 2 - 80,
+      width: 300, height: 160, opacity: 1,
+      fill: '#00C4CC', quoteStyle: 'block',
+      quoteText: '"Great service, highly recommend!"',
+      attribution: '— Happy Customer',
+    };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -4207,6 +4327,24 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'quote' && <>
+                <D />
+                {[['block','Block'],['minimal','Minimal'],['bubble','Bubble']].map(([s, lbl]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, quoteStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.quoteStyle||'block')===s?'#00C4CC':t.border}`, background:(selectedEl.quoteStyle||'block')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.quoteStyle||'block')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Accent</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#00C4CC'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+              </>}
               {selectedEl.type === 'rating' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Rating</span>
@@ -5099,6 +5237,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Table',     icon: '⊞', fn: () => addTable() },
                     { label: 'Countdown', icon: '⏱', fn: () => addCountdown() },
                     { label: 'Rating',    icon: '★', fn: () => addRating() },
+                    { label: 'Quote',     icon: '❝', fn: () => addQuote() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -6186,7 +6325,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
