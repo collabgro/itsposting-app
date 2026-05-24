@@ -731,8 +731,11 @@ export default function TemplatesEditorInner() {
   const [elemTab, setElemTab] = useState('shapes');
   // Pages thumbnail sidebar
   const [showPagesPanel, setShowPagesPanel] = useState(false);
-  // Canvas rulers
+  // Canvas rulers + drag guides
   const [showRulers, setShowRulers] = useState(false);
+  const [rulerGuides, setRulerGuides] = useState({ h: [], v: [] });
+  const [draggingGuide, setDraggingGuide] = useState(null); // { axis:'h'|'v', pos:number } canvas px
+  const canvasWrapperRef = useRef(null);
   // Top bar dropdowns
   const [titleEditing, setTitleEditing] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -1419,6 +1422,32 @@ export default function TemplatesEditorInner() {
   }
 
   function clearSnapGuides() { setSnapGuides({ v: [], h: [] }); }
+
+  // ── Ruler drag guides ──────────────────────────────────────────────────────
+  function startRulerDrag(axis) {
+    const onMove = (ev) => {
+      const rect = canvasWrapperRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const raw = axis === 'h' ? (ev.clientY - rect.top) / stageScale : (ev.clientX - rect.left) / stageScale;
+      const pos = Math.max(0, Math.min(raw, axis === 'h' ? canvasSize.h : canvasSize.w));
+      setDraggingGuide({ axis, pos });
+    };
+    const onUp = (ev) => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      const rect = canvasWrapperRef.current?.getBoundingClientRect();
+      if (rect) {
+        const raw = axis === 'h' ? (ev.clientY - rect.top) / stageScale : (ev.clientX - rect.left) / stageScale;
+        const pos = Math.round(raw);
+        if (pos > 0 && pos < (axis === 'h' ? canvasSize.h : canvasSize.w)) {
+          setRulerGuides(prev => ({ ...prev, [axis]: [...prev[axis], pos] }));
+        }
+      }
+      setDraggingGuide(null);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
 
   // ── Recent colors ──────────────────────────────────────────────────────────
   function pickColor(color, applyFn) {
@@ -3170,11 +3199,12 @@ export default function TemplatesEditorInner() {
                     {showRulers && isActive && (
                       <>
                         <div style={{ position: 'absolute', top: 0, left: 0, width: 20, height: 20, background: t.isDark ? '#1a1a24' : '#ebebeb', zIndex: 3, borderRight: `1px solid ${t.border}`, borderBottom: `1px solid ${t.border}` }} />
-                        <div style={{ position: 'absolute', top: 0, left: 20, zIndex: 3 }}><RulerH canvasW={canvasSize.w} stageScale={stageScale} isDark={!!t.isDark} /></div>
-                        <div style={{ position: 'absolute', top: 20, left: 0, zIndex: 3 }}><RulerV canvasH={canvasSize.h} stageScale={stageScale} isDark={!!t.isDark} /></div>
+                        <div onMouseDown={e => { e.preventDefault(); startRulerDrag('h'); }} style={{ position: 'absolute', top: 0, left: 20, zIndex: 3, cursor: 's-resize' }}><RulerH canvasW={canvasSize.w} stageScale={stageScale} isDark={!!t.isDark} /></div>
+                        <div onMouseDown={e => { e.preventDefault(); startRulerDrag('v'); }} style={{ position: 'absolute', top: 20, left: 0, zIndex: 3, cursor: 'e-resize' }}><RulerV canvasH={canvasSize.h} stageScale={stageScale} isDark={!!t.isDark} /></div>
                       </>
                     )}
                   <div
+                    ref={isActive ? canvasWrapperRef : null}
                     style={{
                       position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0,
                       outline: isActive ? '2px solid #00C4CC' : '2px solid transparent',
@@ -3450,6 +3480,27 @@ export default function TemplatesEditorInner() {
                         </div>
                       );
                     })()}
+
+                    {/* ── Ruler guide lines (click to remove) ── */}
+                    {isActive && rulerGuides.h.map((yPx, i) => (
+                      <div key={`gh${i}`} onClick={() => setRulerGuides(g => ({ ...g, h: g.h.filter((_, j) => j !== i) }))}
+                        style={{ position: 'absolute', left: 0, right: 0, top: Math.round(yPx * stageScale), height: 1, background: 'rgba(0,196,204,0.75)', cursor: 'n-resize', pointerEvents: 'auto', zIndex: 201 }}>
+                        <div style={{ position: 'absolute', right: 4, top: -9, fontSize: 9, color: '#00C4CC', opacity: 0.8, userSelect: 'none', whiteSpace: 'nowrap' }}>{Math.round(yPx)}px ×</div>
+                      </div>
+                    ))}
+                    {isActive && rulerGuides.v.map((xPx, i) => (
+                      <div key={`gv${i}`} onClick={() => setRulerGuides(g => ({ ...g, v: g.v.filter((_, j) => j !== i) }))}
+                        style={{ position: 'absolute', top: 0, bottom: 0, left: Math.round(xPx * stageScale), width: 1, background: 'rgba(0,196,204,0.75)', cursor: 'e-resize', pointerEvents: 'auto', zIndex: 201 }}>
+                        <div style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 9, color: '#00C4CC', opacity: 0.8, userSelect: 'none', whiteSpace: 'nowrap', transform: 'rotate(-90deg)', transformOrigin: 'bottom left' }}>{Math.round(xPx)}px</div>
+                      </div>
+                    ))}
+                    {/* Dragging guide preview */}
+                    {isActive && draggingGuide && draggingGuide.axis === 'h' && (
+                      <div style={{ position: 'absolute', left: 0, right: 0, top: Math.round(draggingGuide.pos * stageScale), height: 1, background: 'rgba(0,196,204,0.9)', pointerEvents: 'none', zIndex: 202 }} />
+                    )}
+                    {isActive && draggingGuide && draggingGuide.axis === 'v' && (
+                      <div style={{ position: 'absolute', top: 0, bottom: 0, left: Math.round(draggingGuide.pos * stageScale), width: 1, background: 'rgba(0,196,204,0.9)', pointerEvents: 'none', zIndex: 202 }} />
+                    )}
                   </div>
                   </div>{/* close ruler wrapper */}
                 </div>
