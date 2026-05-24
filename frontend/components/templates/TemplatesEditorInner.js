@@ -724,6 +724,7 @@ export default function TemplatesEditorInner() {
   const [savedDesigns, setSavedDesigns] = useState([]);
   const [savedDesignsLoading, setSavedDesignsLoading] = useState(false);
   const [hoveredDesign, setHoveredDesign] = useState(null); // { id, title, pagesCount, x, y }
+  const [layerDragId, setLayerDragId] = useState(null);
   // Quick actions palette
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickQuery, setQuickQuery] = useState('');
@@ -2400,6 +2401,7 @@ export default function TemplatesEditorInner() {
             { id: 'text',      icon: 'T',  label: 'Text',      shortcut: 'T' },
             { id: 'brand',     icon: '◈', label: 'Brand',  pro: true },
             { id: 'uploads',   icon: '⬆', label: 'Uploads'   },
+            { id: 'layers',    icon: '▥', label: 'Layers'    },
             { id: 'tools',     icon: '✐', label: 'Tools'     },
             { id: 'projects',  icon: '⊟', label: 'Projects'  },
           ].map(tool => (
@@ -2980,6 +2982,95 @@ export default function TemplatesEditorInner() {
                 </div>
               </div>
             )}
+
+            {/* LAYERS */}
+            {activeLeftTool === 'layers' && (() => {
+              // Reversed so top of list = visually front element
+              const layerEls = [...elements].reverse();
+              const typeIcon = type => type === 'text' ? 'T' : type === 'image' ? '🖼' : type === 'group' ? '⊞' : '▭';
+              const typeName = (el, i) => {
+                if (el.text) return el.text.slice(0, 22) + (el.text.length > 22 ? '…' : '');
+                return el.type === 'image' ? `Image ${i + 1}` : el.type === 'group' ? `Group ${i + 1}` : `Shape ${i + 1}`;
+              };
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>
+                      Page {activePage + 1} — {elements.length} element{elements.length !== 1 ? 's' : ''}
+                    </span>
+                    {selectedId && (
+                      <button onClick={() => setSelectedId(null)} style={{ background: 'none', border: 'none', fontSize: 11, color: t.textMuted, cursor: 'pointer' }}>Deselect</button>
+                    )}
+                  </div>
+                  {layerEls.length === 0 && (
+                    <div style={{ textAlign: 'center', color: t.textMuted, padding: '28px 0', fontSize: 12 }}>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>▥</div>
+                      No elements on this page yet
+                    </div>
+                  )}
+                  {layerEls.map((el, i) => {
+                    const isSelected = selectedId === el.id || selectedIds.includes(el.id);
+                    const isHidden = hiddenIds.has(el.id);
+                    const isLocked = lockedIds.has(el.id);
+                    return (
+                      <div key={el.id}
+                        draggable
+                        onDragStart={() => setLayerDragId(el.id)}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={() => {
+                          if (!layerDragId || layerDragId === el.id) return;
+                          pushHistory();
+                          patchElements(prev => {
+                            const from = prev.findIndex(e => e.id === layerDragId);
+                            const toEl = prev.findIndex(e => e.id === el.id);
+                            if (from < 0 || toEl < 0) return prev;
+                            const arr = [...prev];
+                            const [moved] = arr.splice(from, 1);
+                            arr.splice(toEl, 0, moved);
+                            return arr;
+                          });
+                          setLayerDragId(null);
+                        }}
+                        onDragEnd={() => setLayerDragId(null)}
+                        onClick={() => { setSelectedId(el.id); setSelectedIds([el.id]); }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '7px 8px', borderRadius: 7,
+                          background: isSelected ? t.primaryBg : layerDragId === el.id ? t.input : 'transparent',
+                          border: `1px solid ${isSelected ? '#00C4CC' : 'transparent'}`,
+                          cursor: 'grab', opacity: isHidden ? 0.4 : 1,
+                          transition: 'background 80ms, border-color 80ms',
+                        }}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = t.input; }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <span style={{ fontSize: 13, width: 16, textAlign: 'center', flexShrink: 0, color: isSelected ? '#00C4CC' : t.textMuted }}>
+                          {typeIcon(el.type)}
+                        </span>
+                        <span style={{ flex: 1, fontSize: 12, color: isSelected ? t.text : t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {typeName(el, layerEls.length - 1 - i)}
+                        </span>
+                        <button onClick={e => { e.stopPropagation(); toggleHidden(el.id); }}
+                          title={isHidden ? 'Show element' : 'Hide element'}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: isHidden ? t.textMuted : t.text, fontSize: 13, padding: '0 2px', flexShrink: 0, opacity: isHidden ? 0.5 : 0.75 }}>
+                          {isHidden ? '🙈' : '👁'}
+                        </button>
+                        <button onClick={e => { e.stopPropagation(); toggleLocked(el.id); }}
+                          title={isLocked ? 'Unlock element' : 'Lock element'}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: isLocked ? '#FFB800' : t.textMuted, fontSize: 12, padding: '0 2px', flexShrink: 0 }}>
+                          {isLocked ? '🔒' : '🔓'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {elements.length > 0 && (
+                    <div style={{ marginTop: 10, padding: '8px 0', borderTop: `1px solid ${t.border}`, fontSize: 11, color: t.textMuted, textAlign: 'center' }}>
+                      Drag rows to reorder · Click to select
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* TOOLS / DRAW */}
             {activeLeftTool === 'tools' && (
