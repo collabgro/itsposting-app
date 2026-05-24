@@ -10,7 +10,7 @@ import {
   IpArrowLeft, IpDownload, IpEye,
   IpCopy, IpDelete, IpLock, IpUnlock,
   IpSparkle, IpPalette, IpEdit, IpFolderOpen,
-  IpTextCard, IpPublish,
+  IpTextCard, IpPublish, IpPhoto,
   IpPlus, IpChevronDown,
 } from '../../components/icons';
 
@@ -59,6 +59,12 @@ const IcoEye        = ({size=12}) => <_Ico size={size} sw={1.5}><path d="M1 12s4
 const IcoEyeOff     = ({size=12}) => <_Ico size={size} sw={1.5}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></_Ico>;
 const IcoChevUpSm   = ({size=12}) => <_Ico size={size} sw={1.75}><polyline points="18 15 12 9 6 15"/></_Ico>;
 const IcoChevDownSm = ({size=12}) => <_Ico size={size} sw={1.75}><polyline points="6 9 12 15 18 9"/></_Ico>;
+const IcoEmoji      = ({size=14}) => <_Ico size={size} sw={1.5}><circle cx="12" cy="12" r="9"/><path d="M8 13.5c.5 1.5 2 2.5 4 2.5s3.5-1 4-2.5" strokeLinecap="round"/><circle cx="9.5" cy="9.5" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="9.5" r="1" fill="currentColor" stroke="none"/></_Ico>;
+const IcoTxtTop     = ({size=13}) => <_Ico size={size} sw={1.5}><line x1="4" y1="4" x2="20" y2="4"/><line x1="8"  y1="4" x2="8"  y2="13"/><line x1="16" y1="4" x2="16" y2="9"/></_Ico>;
+const IcoTxtMid     = ({size=13}) => <_Ico size={size} sw={1.5}><line x1="4" y1="12" x2="20" y2="12"/><line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="8" x2="16" y2="16"/></_Ico>;
+const IcoTxtBot     = ({size=13}) => <_Ico size={size} sw={1.5}><line x1="4" y1="20" x2="20" y2="20"/><line x1="8" y1="11" x2="8" y2="20"/><line x1="16" y1="15" x2="16" y2="20"/></_Ico>;
+const IcoCurve      = ({size=14}) => <_Ico size={size} sw={1.5}><path d="M4 17a8 8 0 0 1 16 0"/><line x1="8" y1="7" x2="8" y2="12"/><line x1="12" y1="5" x2="12" y2="10"/><line x1="16" y1="7" x2="16" y2="12"/></_Ico>;
+const IcoChain      = ({size=14}) => <_Ico size={size} sw={1.5}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></_Ico>;
 
 const FONTS = [
   // Sans-serif
@@ -5807,10 +5813,10 @@ export default function TemplatesEditorInner() {
 
       {/* ── Contextual action bar (Canva-style) ── */}
       <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); setShowEmojiPanel(false); setShowEffectsPanel(false); }}
-        style={{ height: 44, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflow: 'hidden' }}>
+        style={{ height: 44, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, position: 'relative' }}>
 
         {/* Scrollable left zone */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 1, overflowX: 'auto' }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 1, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {/* ── Multi-select bar ── */}
         {selectedIds.length > 1 && (() => {
           const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
@@ -5921,7 +5927,7 @@ export default function TemplatesEditorInner() {
               <button onMouseDown={e => { e.preventDefault(); setActiveLeftTool('images'); }} title="Upload image"
                 style={{ height: 30, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, transition: 'background 80ms' }}
                 onMouseEnter={e => e.currentTarget.style.background = t.input} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                🖼 Image
+                <IpPhoto size={13}/> Image
               </button>
               <D />
               <span style={{ fontSize: 11, color: t.textMuted, flexShrink: 0 }}>Background</span>
@@ -5979,7 +5985,7 @@ export default function TemplatesEditorInner() {
                 recentColors={recentColors}
               />
               {/* Gradient text toggle */}
-              <Btn label="⚏ Grad" active={selectedEl.fillType === 'gradient'}
+              <Btn label={<><span style={{display:'inline-block',width:12,height:12,borderRadius:2,background:'linear-gradient(135deg,#7C5CFC,#00C4CC)',flexShrink:0,border:'1px solid rgba(255,255,255,0.15)'}}/>&nbsp;Grad</>} active={selectedEl.fillType === 'gradient'}
                 onClick={() => {
                   if (selectedEl.fillType === 'gradient') {
                     pushHistory(); updateElement({ ...selectedEl, fillType: 'solid' });
@@ -6052,7 +6058,7 @@ export default function TemplatesEditorInner() {
                 onMouseEnter={e => showTip(e, TEXT_XFORM_TIP[textXform])}
                 onMouseLeave={hideTip}
                 onClick={() => handleElementChange({ ...selectedEl, textTransform: TEXT_XFORM_CYCLE[textXform] })}
-                style={{ height: 30, minWidth: 30, padding: '0 7px', border: 'none', borderRadius: 6, background: isUpper ? t.primaryBg : 'transparent', color: isUpper ? t.primary : t.text, fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', letterSpacing: '0.04em' }}>
+                style={{ height: 30, minWidth: 30, padding: '0 7px', border: 'none', borderRadius: 6, background: isUpper ? 'rgba(0,196,204,0.1)' : 'transparent', color: isUpper ? TEAL : t.text, fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', letterSpacing: '0.04em' }}>
                 {TEXT_XFORM_LABEL[textXform]}
               </button>
               <D />
@@ -6062,15 +6068,15 @@ export default function TemplatesEditorInner() {
               ))}
               <D />
               {/* Vertical alignment */}
-              {[['top','⬆','Top'],['middle','⬛','Mid'],['bottom','⬇','Bot']].map(([v,icon,lbl]) => (
+              {[['top',<IcoTxtTop size={13}/>,'Align text top'],['middle',<IcoTxtMid size={13}/>,'Align text middle'],['bottom',<IcoTxtBot size={13}/>,'Align text bottom']].map(([v,icon,lbl]) => (
                 <Btn key={v} label={icon} active={(selectedEl.verticalAlign||'middle') === v}
-                  title={`Align text ${v}`}
+                  title={lbl}
                   onClick={() => handleElementChange({ ...selectedEl, verticalAlign: v })} />
               ))}
               <D />
               {/* Emoji picker */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="😊" active={showEmojiPanel} extraStyle={{ fontSize: 15 }}
+                <Btn label={<IcoEmoji size={14}/>} active={showEmojiPanel}
                   onClick={() => { setShowEmojiPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); }} />
                 {showEmojiPanel && (
                   <>
@@ -6162,7 +6168,7 @@ export default function TemplatesEditorInner() {
               </div>
               {/* Text Effects dropdown */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="✦ Effects" active={showEffectsPanel}
+                <Btn label={<><IpSparkle size={13}/> Effects</>} active={showEffectsPanel}
                   onClick={() => { setShowEffectsPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowSpacingPanel(false); }} />
                 {showEffectsPanel && (() => {
                   const applyEffect = patch => { pushHistory(); updateElement({ ...selectedEl, ...patch }); setShowEffectsPanel(false); };
@@ -6208,7 +6214,7 @@ export default function TemplatesEditorInner() {
               {/* Spacing dropdown */}
               {/* Curve / arch text */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="⌒ Curve" active={!!selectedEl.textCurve || showCurvePanel}
+                <Btn label={<><IcoCurve size={14}/> Curve</>} active={!!selectedEl.textCurve || showCurvePanel}
                   onClick={() => { setShowCurvePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); setShowSpacingPanel(false); }} />
                 {showCurvePanel && (
                   <div style={{ position: 'absolute', top: 38, left: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', animation: 'dropdownIn 150ms ease forwards' }}>
@@ -6398,7 +6404,7 @@ export default function TemplatesEditorInner() {
                 {BLEND_MODES.map(m => <option key={m} value={m}>{BLEND_LABELS[m]}</option>)}
               </select>
               <D />
-              <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
+              <Btn label={lockedIds.has(selectedEl.id)?<IpLock size={13}/>:<IpUnlock size={13}/>} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
               <D />
               {/* Image Filter presets panel */}
               <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
@@ -7588,7 +7594,7 @@ export default function TemplatesEditorInner() {
                 {BLEND_MODES.map(m => <option key={m} value={m}>{BLEND_LABELS[m]}</option>)}
               </select>
               <D />
-              <Btn label={lockedIds.has(selectedEl.id)?'🔒':'🔓'} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
+              <Btn label={lockedIds.has(selectedEl.id)?<IpLock size={13}/>:<IpUnlock size={13}/>} active={lockedIds.has(selectedEl.id)} onClick={() => toggleLocked(selectedEl.id)} />
             </>
           );
         })()}
@@ -7601,9 +7607,16 @@ export default function TemplatesEditorInner() {
             <div style={{ display:'flex', alignItems:'center', gap:1, flexShrink:0, paddingLeft:8, borderLeft:`1px solid ${t.border}`, marginLeft:4 }}>
               {/* Alignment */}
               <div style={{ display:'flex', gap:1, alignItems:'center' }}>
-                {[['left','⊢','Align left'],['centerH','↔','Center H'],['right','⊣','Align right'],['top','⊤','Align top'],['centerV','↕','Center V'],['bottom','⊥','Align bottom']].map(([dir,icon,title]) => (
+                {[
+                  ['left',   <IcoAlignLeft  size={13}/>, 'Align left'],
+                  ['centerH',<IcoAlignCH    size={13}/>, 'Center horizontally'],
+                  ['right',  <IcoAlignRight size={13}/>, 'Align right'],
+                  ['top',    <IcoAlignTop   size={13}/>, 'Align top'],
+                  ['centerV',<IcoAlignCV    size={13}/>, 'Center vertically'],
+                  ['bottom', <IcoAlignBot   size={13}/>, 'Align bottom'],
+                ].map(([dir,icon,title]) => (
                   <button key={dir} title={title} onMouseDown={e => { e.preventDefault(); alignEl(selectedEl.id, dir); }}
-                    style={{ background:'none', border:'none', cursor:'pointer', color:t.text, fontSize:13, width:22, height:24, borderRadius:3, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    style={{ background:'none', border:'none', cursor:'pointer', color:t.text, width:22, height:24, borderRadius:3, display:'flex', alignItems:'center', justifyContent:'center' }}>
                     {icon}
                   </button>
                 ))}
@@ -7632,8 +7645,8 @@ export default function TemplatesEditorInner() {
                 {selectedEl.width != null && selectedEl.height != null && (
                   <button title={lockAspectRatio?'Unlock aspect ratio':'Lock aspect ratio'}
                     onClick={() => setLockAspectRatio(p=>!p)}
-                    style={{ alignSelf:'flex-end', height:24, width:18, border:'none', background:'transparent', cursor:'pointer', color:lockAspectRatio?TEAL:t.textMuted, fontSize:11, padding:0, flexShrink:0 }}>
-                    {lockAspectRatio?'🔒':'🔗'}
+                    style={{ alignSelf:'flex-end', height:24, width:18, border:'none', background:'transparent', cursor:'pointer', color:lockAspectRatio?TEAL:t.textMuted, padding:0, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {lockAspectRatio?<IpLock size={12}/>:<IcoChain size={12}/>}
                   </button>
                 )}
                 {selectedEl.height != null && (
@@ -7709,7 +7722,7 @@ export default function TemplatesEditorInner() {
             { id: 'templates', icon: <IcoTemplates size={20} />, label: 'Templates' },
             { id: 'elements',  icon: <IpSparkle size={20} />,    label: 'Elements'  },
             { id: 'text',      icon: <IpTextCard size={20} />,   label: 'Text',      shortcut: 'T' },
-            { id: 'brand',     icon: <IpPalette size={20} />,    label: 'Brand',     pro: true },
+            { id: 'brand',     icon: <IpPalette size={20} />,    label: 'Brand'    },
             { id: 'uploads',   icon: <IpPublish size={20} />,    label: 'Uploads'   },
             { id: 'layers',    icon: <IcoLayers size={20} />,    label: 'Layers'    },
             { id: 'tools',     icon: <IpEdit size={20} />,       label: 'Tools'     },
@@ -7733,7 +7746,6 @@ export default function TemplatesEditorInner() {
             >
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>{tool.icon}</span>
               {tool.label}
-              {tool.pro && <span style={{ position: 'absolute', top: 6, right: 8, fontSize: 8, color: '#FFB800' }}>👑</span>}
             </button>
           ))}
           <div style={{ flex: 1 }} />

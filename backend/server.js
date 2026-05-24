@@ -470,6 +470,93 @@ console.log('══════════════════════�
     try { await pool.query(sql); }
     catch (e) { console.warn('[Migration] Skipped:', e.message.substring(0, 80)); }
   }
+
+  // Seed canvas templates if table is empty
+  try {
+    const { rows: [{ count }] } = await pool.query('SELECT COUNT(*) FROM canvas_templates');
+    if (parseInt(count) === 0) {
+      const TEAL = '#00C4CC', PURPLE = '#7C5CFC';
+      const seedTemplates = [
+        {
+          name: 'Bold Social Post', industry: 'general', category: 'announcement', sort_order: 1,
+          canvas_json: { activePage: 0, pages: [{ id: 'p1', bgType: 'color', bgColor: '#1a1a2e', lockedIds: [], hiddenIds: [], duration: 5, elements: [
+            { id: 'e1', type: 'rect',  x: 0,   y: 0,    width: 1080, height: 10,  fill: TEAL,  cornerRadius: 0, strokeWidth: 0 },
+            { id: 'e2', type: 'text',  x: 80,  y: 400,  width: 920,  height: 260, content: 'Your Headline\nGoes Here', fontFamily: 'Inter', fontSize: 80, fontWeight: '800', fill: '#ffffff', align: 'center', verticalAlign: 'middle', lineHeight: 1.15 },
+            { id: 'e3', type: 'text',  x: 80,  y: 700,  width: 920,  height: 120, content: 'Add your key message here — keep it short', fontFamily: 'Inter', fontSize: 34, fontWeight: '400', fill: 'rgba(255,255,255,0.65)', align: 'center', verticalAlign: 'top', lineHeight: 1.4 },
+            { id: 'e4', type: 'text',  x: 80,  y: 1240, width: 920,  height: 60,  content: 'Your Business Name • City', fontFamily: 'Inter', fontSize: 24, fontWeight: '500', fill: TEAL, align: 'center', verticalAlign: 'middle' },
+          ] }] },
+        },
+        {
+          name: 'Educational Tip', industry: 'general', category: 'educational', sort_order: 2,
+          canvas_json: { activePage: 0, pages: [{ id: 'p1', bgType: 'color', bgColor: '#ffffff', lockedIds: [], hiddenIds: [], duration: 5, elements: [
+            { id: 'e1', type: 'rect',  x: 80,  y: 120,  width: 260,  height: 60,  fill: TEAL,       cornerRadius: 8, strokeWidth: 0 },
+            { id: 'e2', type: 'text',  x: 80,  y: 120,  width: 260,  height: 60,  content: 'PRO TIP', fontFamily: 'Inter', fontSize: 26, fontWeight: '800', fill: '#ffffff', align: 'center', verticalAlign: 'middle' },
+            { id: 'e3', type: 'text',  x: 80,  y: 220,  width: 920,  height: 140, content: 'Did You Know?', fontFamily: 'Inter', fontSize: 72, fontWeight: '800', fill: '#1a1a2e', align: 'left', verticalAlign: 'top', lineHeight: 1.1 },
+            { id: 'e4', type: 'rect',  x: 80,  y: 380,  width: 120,  height: 5,   fill: TEAL,       cornerRadius: 3, strokeWidth: 0 },
+            { id: 'e5', type: 'text',  x: 80,  y: 420,  width: 920,  height: 480, content: 'Tap here and replace this with your tip or advice. Share something genuinely useful that helps your customers.', fontFamily: 'Inter', fontSize: 42, fontWeight: '400', fill: '#333333', align: 'left', verticalAlign: 'top', lineHeight: 1.55 },
+            { id: 'e6', type: 'text',  x: 80,  y: 1200, width: 920,  height: 80,  content: 'Follow for more tips — Business Name', fontFamily: 'Inter', fontSize: 28, fontWeight: '500', fill: '#888888', align: 'left', verticalAlign: 'middle' },
+          ] }] },
+        },
+        {
+          name: 'Before & After', industry: 'trades', category: 'showcase', sort_order: 3,
+          canvas_json: { activePage: 0, pages: [{ id: 'p1', bgType: 'color', bgColor: '#2d2d2d', lockedIds: [], hiddenIds: [], duration: 5, elements: [
+            { id: 'e1', type: 'rect',  x: 0,   y: 0,   width: 540,  height: 1350, fill: '#2d2d2d', cornerRadius: 0, strokeWidth: 0 },
+            { id: 'e2', type: 'rect',  x: 540, y: 0,   width: 540,  height: 1350, fill: '#f0f9f0', cornerRadius: 0, strokeWidth: 0 },
+            { id: 'e3', type: 'rect',  x: 535, y: 0,   width: 10,   height: 1350, fill: '#ffffff',  cornerRadius: 0, strokeWidth: 0 },
+            { id: 'e4', type: 'text',  x: 40,  y: 60,  width: 460,  height: 60,   content: 'BEFORE', fontFamily: 'Inter', fontSize: 28, fontWeight: '800', fill: '#ffffff',  align: 'left', verticalAlign: 'middle' },
+            { id: 'e5', type: 'text',  x: 580, y: 60,  width: 460,  height: 60,   content: 'AFTER',  fontFamily: 'Inter', fontSize: 28, fontWeight: '800', fill: TEAL,      align: 'left', verticalAlign: 'middle' },
+            { id: 'e6', type: 'text',  x: 40,  y: 560, width: 460,  height: 200,  content: 'Add your\nBefore photo', fontFamily: 'Inter', fontSize: 36, fontWeight: '400', fill: 'rgba(255,255,255,0.35)', align: 'center', verticalAlign: 'middle', lineHeight: 1.4 },
+            { id: 'e7', type: 'text',  x: 580, y: 560, width: 460,  height: 200,  content: 'Add your\nAfter photo',  fontFamily: 'Inter', fontSize: 36, fontWeight: '400', fill: 'rgba(0,100,0,0.3)',    align: 'center', verticalAlign: 'middle', lineHeight: 1.4 },
+            { id: 'e8', type: 'text',  x: 80,  y: 1160, width: 920, height: 120,  content: 'See the difference we make — Business Name', fontFamily: 'Inter', fontSize: 32, fontWeight: '600', fill: '#ffffff', align: 'center', verticalAlign: 'middle' },
+          ] }] },
+        },
+        {
+          name: 'Customer Review', industry: 'general', category: 'social-proof', sort_order: 4,
+          canvas_json: { activePage: 0, pages: [{ id: 'p1', bgType: 'color', bgColor: '#ffffff', lockedIds: [], hiddenIds: [], duration: 5, elements: [
+            { id: 'e1', type: 'rect',  x: 0,   y: 0,    width: 1080, height: 12,  fill: PURPLE,    cornerRadius: 0, strokeWidth: 0 },
+            { id: 'e2', type: 'text',  x: 60,  y: 100,  width: 200,  height: 200, content: '“', fontFamily: 'Georgia', fontSize: 200, fontWeight: '700', fill: TEAL, align: 'left', verticalAlign: 'top', lineHeight: 1 },
+            { id: 'e3', type: 'text',  x: 80,  y: 280,  width: 920,  height: 60,  content: '★ ★ ★ ★ ★', fontFamily: 'Inter', fontSize: 44, fontWeight: '400', fill: '#FFB800', align: 'left', verticalAlign: 'middle' },
+            { id: 'e4', type: 'text',  x: 80,  y: 370,  width: 920,  height: 480, content: '“Paste your customer review here. Keep the most impactful sentence — the one that would make someone hire you on the spot.”', fontFamily: 'Georgia', fontSize: 38, fontWeight: '400', fill: '#333333', align: 'left', verticalAlign: 'top', lineHeight: 1.55 },
+            { id: 'e5', type: 'text',  x: 80,  y: 900,  width: 920,  height: 70,  content: '— Customer Name, City', fontFamily: 'Inter', fontSize: 28, fontWeight: '600', fill: '#555555', align: 'left', verticalAlign: 'middle' },
+            { id: 'e6', type: 'rect',  x: 80,  y: 990,  width: 920,  height: 2,   fill: '#eeeeee',  cornerRadius: 1, strokeWidth: 0 },
+            { id: 'e7', type: 'text',  x: 80,  y: 1020, width: 920,  height: 60,  content: 'Your Business Name', fontFamily: 'Inter', fontSize: 26, fontWeight: '700', fill: PURPLE, align: 'left', verticalAlign: 'middle' },
+          ] }] },
+        },
+        {
+          name: 'Seasonal Alert', industry: 'general', category: 'seasonal', sort_order: 5,
+          canvas_json: { activePage: 0, pages: [{ id: 'p1', bgType: 'color', bgColor: '#0f3460', lockedIds: [], hiddenIds: [], duration: 5, elements: [
+            { id: 'e1', type: 'rect',  x: 80,  y: 200,  width: 300,  height: 56,  fill: '#ef4444', cornerRadius: 28, strokeWidth: 0 },
+            { id: 'e2', type: 'text',  x: 80,  y: 200,  width: 300,  height: 56,  content: '⚠ SEASONAL ALERT', fontFamily: 'Inter', fontSize: 20, fontWeight: '800', fill: '#ffffff', align: 'center', verticalAlign: 'middle' },
+            { id: 'e3', type: 'text',  x: 80,  y: 300,  width: 920,  height: 340, content: "It's That\nTime of Year", fontFamily: 'Inter', fontSize: 90, fontWeight: '900', fill: '#ffffff', align: 'left', verticalAlign: 'top', lineHeight: 1.1 },
+            { id: 'e4', type: 'text',  x: 80,  y: 680,  width: 920,  height: 220, content: 'Replace with your seasonal message — frozen pipes, storm damage, spring AC check — whatever is most urgent for your customers right now.', fontFamily: 'Inter', fontSize: 34, fontWeight: '400', fill: 'rgba(255,255,255,0.85)', align: 'left', verticalAlign: 'top', lineHeight: 1.5 },
+            { id: 'e5', type: 'rect',  x: 80,  y: 960,  width: 500,  height: 80,  fill: TEAL,      cornerRadius: 8, strokeWidth: 0 },
+            { id: 'e6', type: 'text',  x: 80,  y: 960,  width: 500,  height: 80,  content: 'Call Now: (555) 000-0000', fontFamily: 'Inter', fontSize: 30, fontWeight: '700', fill: '#ffffff', align: 'center', verticalAlign: 'middle' },
+            { id: 'e7', type: 'text',  x: 80,  y: 1240, width: 920,  height: 60,  content: 'Business Name — Your City', fontFamily: 'Inter', fontSize: 26, fontWeight: '600', fill: 'rgba(255,255,255,0.6)', align: 'left', verticalAlign: 'middle' },
+          ] }] },
+        },
+        {
+          name: 'Promo Offer', industry: 'general', category: 'promotional', sort_order: 6,
+          canvas_json: { activePage: 0, pages: [{ id: 'p1', bgType: 'color', bgColor: PURPLE, lockedIds: [], hiddenIds: [], duration: 5, elements: [
+            { id: 'e1', type: 'rect',  x: 300, y: 140,  width: 480,  height: 480, fill: '#FFB800',  cornerRadius: 240, strokeWidth: 0 },
+            { id: 'e2', type: 'text',  x: 300, y: 220,  width: 480,  height: 180, content: '20%',   fontFamily: 'Inter', fontSize: 130, fontWeight: '900', fill: '#1a1a2e', align: 'center', verticalAlign: 'top', lineHeight: 1 },
+            { id: 'e3', type: 'text',  x: 300, y: 400,  width: 480,  height: 80,  content: 'OFF',   fontFamily: 'Inter', fontSize: 60,  fontWeight: '900', fill: '#1a1a2e', align: 'center', verticalAlign: 'top' },
+            { id: 'e4', type: 'text',  x: 80,  y: 680,  width: 920,  height: 100, content: 'LIMITED TIME OFFER', fontFamily: 'Inter', fontSize: 42, fontWeight: '800', fill: '#ffffff', align: 'center', verticalAlign: 'middle' },
+            { id: 'e5', type: 'text',  x: 80,  y: 800,  width: 920,  height: 200, content: 'Describe your service offer here — what the customer gets, and why they should act now.', fontFamily: 'Inter', fontSize: 34, fontWeight: '400', fill: 'rgba(255,255,255,0.75)', align: 'center', verticalAlign: 'top', lineHeight: 1.45 },
+            { id: 'e6', type: 'text',  x: 80,  y: 1040, width: 920,  height: 60,  content: 'Offer expires: [Date]  •  Limited spots available', fontFamily: 'Inter', fontSize: 26, fontWeight: '400', fill: 'rgba(255,255,255,0.55)', align: 'center', verticalAlign: 'middle' },
+            { id: 'e7', type: 'rect',  x: 240, y: 1130, width: 600,  height: 3,   fill: TEAL,       cornerRadius: 2, strokeWidth: 0 },
+            { id: 'e8', type: 'text',  x: 80,  y: 1160, width: 920,  height: 80,  content: 'Book now — Business Name', fontFamily: 'Inter', fontSize: 32, fontWeight: '700', fill: TEAL, align: 'center', verticalAlign: 'middle' },
+          ] }] },
+        },
+      ];
+      for (const t of seedTemplates) {
+        await pool.query(
+          'INSERT INTO canvas_templates (name, industry, category, canvas_json, canvas_width, canvas_height, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [t.name, t.industry, t.category, JSON.stringify(t.canvas_json), 1080, 1350, t.sort_order]
+        );
+      }
+      console.log('[Seed] Inserted 6 canvas templates');
+    }
+  } catch (e) { console.warn('[Seed] canvas_templates skipped:', e.message.substring(0, 80)); }
 })();
 
 app.use(helmet());
