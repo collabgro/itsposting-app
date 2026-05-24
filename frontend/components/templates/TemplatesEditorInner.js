@@ -44,6 +44,21 @@ const IcoFit       = ({ size = 13 }) => <_Ico size={size}><polyline points="15 3
 const IcoRuler     = ({ size = 13 }) => <_Ico size={size}><rect x="2" y="7" width="20" height="10" rx="1"/><line x1="7" y1="12" x2="7" y2="7"/><line x1="11" y1="10" x2="11" y2="7"/><line x1="15" y1="12" x2="15" y2="7"/><line x1="19" y1="10" x2="19" y2="7"/></_Ico>;
 const IcoGrid      = ({ size = 13 }) => <_Ico size={size}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></_Ico>;
 const IcoAddPage   = ({ size = 13 }) => <_Ico size={size}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></_Ico>;
+const IcoAlignLeft  = ({size=14}) => <_Ico size={size} sw={1.5}><line x1="3" y1="4" x2="3" y2="20"/><rect x="5" y="7" width="8" height="4" rx="1"/><rect x="5" y="13" width="13" height="4" rx="1"/></_Ico>;
+const IcoAlignRight = ({size=14}) => <_Ico size={size} sw={1.5}><line x1="21" y1="4" x2="21" y2="20"/><rect x="11" y="7" width="8" height="4" rx="1"/><rect x="6" y="13" width="13" height="4" rx="1"/></_Ico>;
+const IcoAlignTop   = ({size=14}) => <_Ico size={size} sw={1.5}><line x1="4" y1="3" x2="20" y2="3"/><rect x="7" y="5" width="4" height="8" rx="1"/><rect x="13" y="5" width="4" height="13" rx="1"/></_Ico>;
+const IcoAlignBot   = ({size=14}) => <_Ico size={size} sw={1.5}><line x1="4" y1="21" x2="20" y2="21"/><rect x="7" y="11" width="4" height="8" rx="1"/><rect x="13" y="6" width="4" height="13" rx="1"/></_Ico>;
+const IcoAlignCH    = ({size=14}) => <_Ico size={size} sw={1.5}><line x1="12" y1="3" x2="12" y2="21"/><rect x="4" y="7" width="8" height="4" rx="1"/><rect x="8" y="13" width="8" height="4" rx="1"/></_Ico>;
+const IcoAlignCV    = ({size=14}) => <_Ico size={size} sw={1.5}><line x1="3" y1="12" x2="21" y2="12"/><rect x="7" y="4" width="4" height="8" rx="1"/><rect x="13" y="8" width="4" height="8" rx="1"/></_Ico>;
+const IcoDistH      = ({size=14}) => <_Ico size={size} sw={1.5}><line x1="3" y1="4" x2="3" y2="20"/><line x1="21" y1="4" x2="21" y2="20"/><rect x="9" y="8" width="6" height="8" rx="1"/></_Ico>;
+const IcoDistV      = ({size=14}) => <_Ico size={size} sw={1.5}><line x1="4" y1="3" x2="20" y2="3"/><line x1="4" y1="21" x2="20" y2="21"/><rect x="8" y="9" width="8" height="6" rx="1"/></_Ico>;
+const IcoFlipH      = ({size=14}) => <_Ico size={size} sw={1.5}><line x1="12" y1="4" x2="12" y2="20"/><polyline points="4 9 8 12 4 15"/><polyline points="20 9 16 12 20 15"/></_Ico>;
+const IcoFlipV      = ({size=14}) => <_Ico size={size} sw={1.5}><line x1="4" y1="12" x2="20" y2="12"/><polyline points="9 4 12 8 15 4"/><polyline points="9 20 12 16 15 20"/></_Ico>;
+const IcoReplace    = ({size=14}) => <_Ico size={size} sw={1.5}><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></_Ico>;
+const IcoEye        = ({size=12}) => <_Ico size={size} sw={1.5}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></_Ico>;
+const IcoEyeOff     = ({size=12}) => <_Ico size={size} sw={1.5}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></_Ico>;
+const IcoChevUpSm   = ({size=12}) => <_Ico size={size} sw={1.75}><polyline points="18 15 12 9 6 15"/></_Ico>;
+const IcoChevDownSm = ({size=12}) => <_Ico size={size} sw={1.75}><polyline points="6 9 12 15 18 9"/></_Ico>;
 
 const FONTS = [
   // Sans-serif
@@ -5806,15 +5821,15 @@ export default function TemplatesEditorInner() {
         {selectedIds.length > 1 && (() => {
           const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
           const Btn = ({ label, onClick, danger }) => (
-            <button onClick={onClick} style={{ height: 30, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: danger ? '#ef4444' : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, transition: 'background 80ms' }}>{label}</button>
+            <button onClick={onClick} style={{ height: 30, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: danger ? t.error : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, transition: 'background 80ms' }}>{label}</button>
           );
           const ALIGNS = [
-            { label: '⊢ Left',   fn: () => { pushHistory(); const minX = Math.min(...selectedIds.map(id => elements.find(e=>e.id===id)?.x || 0)); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, x: minX} : el)); } },
-            { label: '⊣ Right',  fn: () => { pushHistory(); const maxR = Math.max(...selectedIds.map(id => { const el=elements.find(e=>e.id===id); return (el?.x||0)+(el?.width||100); })); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, x: maxR-(el.width||100)} : el)); } },
-            { label: '⊤ Top',    fn: () => { pushHistory(); const minY = Math.min(...selectedIds.map(id => elements.find(e=>e.id===id)?.y || 0)); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, y: minY} : el)); } },
-            { label: '⊥ Bottom', fn: () => { pushHistory(); const maxB = Math.max(...selectedIds.map(id => { const el=elements.find(e=>e.id===id); return (el?.y||0)+(el?.height||60); })); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, y: maxB-(el.height||60)} : el)); } },
-            { label: '⊞ Center H', fn: () => { pushHistory(); const xs = selectedIds.map(id => elements.find(e=>e.id===id)?.x||0); const midX = (Math.min(...xs) + Math.max(...xs)) / 2; patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, x: midX-(el.width||100)/2} : el)); } },
-            { label: '⊟ Center V', fn: () => { pushHistory(); const ys = selectedIds.map(id => elements.find(e=>e.id===id)?.y||0); const midY = (Math.min(...ys) + Math.max(...ys)) / 2; patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, y: midY-(el.height||60)/2} : el)); } },
+            { label: <><IcoAlignLeft size={14} /> Left</>,    fn: () => { pushHistory(); const minX = Math.min(...selectedIds.map(id => elements.find(e=>e.id===id)?.x || 0)); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, x: minX} : el)); } },
+            { label: <><IcoAlignRight size={14} /> Right</>,  fn: () => { pushHistory(); const maxR = Math.max(...selectedIds.map(id => { const el=elements.find(e=>e.id===id); return (el?.x||0)+(el?.width||100); })); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, x: maxR-(el.width||100)} : el)); } },
+            { label: <><IcoAlignTop size={14} /> Top</>,      fn: () => { pushHistory(); const minY = Math.min(...selectedIds.map(id => elements.find(e=>e.id===id)?.y || 0)); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, y: minY} : el)); } },
+            { label: <><IcoAlignBot size={14} /> Bottom</>,   fn: () => { pushHistory(); const maxB = Math.max(...selectedIds.map(id => { const el=elements.find(e=>e.id===id); return (el?.y||0)+(el?.height||60); })); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, y: maxB-(el.height||60)} : el)); } },
+            { label: <><IcoAlignCH size={14} /> Center H</>,  fn: () => { pushHistory(); const xs = selectedIds.map(id => elements.find(e=>e.id===id)?.x||0); const midX = (Math.min(...xs) + Math.max(...xs)) / 2; patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, x: midX-(el.width||100)/2} : el)); } },
+            { label: <><IcoAlignCV size={14} /> Center V</>,  fn: () => { pushHistory(); const ys = selectedIds.map(id => elements.find(e=>e.id===id)?.y||0); const midY = (Math.min(...ys) + Math.max(...ys)) / 2; patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, y: midY-(el.height||60)/2} : el)); } },
           ];
           return (
             <>
@@ -5824,10 +5839,10 @@ export default function TemplatesEditorInner() {
               {selectedIds.length >= 3 && (
                 <>
                   <D />
-                  <Btn label="⇔ Dist H" onClick={distributeH} />
-                  <Btn label="⇕ Dist V" onClick={distributeV} />
+                  <Btn label={<><IcoDistH size={14} /> Dist H</>} onClick={distributeH} />
+                  <Btn label={<><IcoDistV size={14} /> Dist V</>} onClick={distributeV} />
                   <D />
-                  <Btn label="⊞ Tidy up" onClick={() => {
+                  <Btn label="Tidy up" onClick={() => {
                     const els = selectedIds.map(id => elements.find(e => e.id === id)).filter(Boolean);
                     if (els.length < 2) return;
                     pushHistory();
@@ -5856,7 +5871,7 @@ export default function TemplatesEditorInner() {
                 return canMatchSize ? (
                   <>
                     <D />
-                    <Btn label="⊡ Match size" onClick={() => {
+                    <Btn label="Match size" onClick={() => {
                       pushHistory();
                       patchElements(prev => prev.map(el => selectedIds.includes(el.id) && el.id !== first.id
                         ? { ...el, width: first.width, height: first.height }
@@ -5868,13 +5883,13 @@ export default function TemplatesEditorInner() {
               {styleClipboard && (
                 <>
                   <D />
-                  <Btn label="◈ Paste style to all" onClick={pasteStyleToAll} />
+                  <Btn label={<><IpPalette size={14} /> Paste style</>} onClick={pasteStyleToAll} />
                 </>
               )}
               <D />
-              <Btn label="⊡ Group" onClick={groupSelected} />
+              <Btn label="Group" onClick={groupSelected} />
               <D />
-              <Btn label="⧉ Duplicate all" onClick={() => {
+              <Btn label={<><IcoDuplicate size={14} /> Dup all</>} onClick={() => {
                 pushHistory();
                 const copies = selectedIds.map(id => {
                   const el = elements.find(e => e.id === id);
@@ -5885,7 +5900,7 @@ export default function TemplatesEditorInner() {
                 setSelectedId(copies[copies.length - 1]?.id || null);
               }} />
               <D />
-              <Btn label="🗑 Delete all" danger onClick={() => { pushHistory(); const s = new Set(selectedIds); patchElements(prev => prev.filter(e => !s.has(e.id))); clearSelection(); }} />
+              <Btn label={<><IpDelete size={14} /> Delete all</>} danger onClick={() => { pushHistory(); const s = new Set(selectedIds); patchElements(prev => prev.filter(e => !s.has(e.id))); clearSelection(); }} />
               <div style={{ flex: 1 }} />
               <button onClick={clearSelection} style={{ height: 30, padding: '0 8px', border: 'none', borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer' }}>✕ Deselect</button>
             </>
@@ -5958,7 +5973,7 @@ export default function TemplatesEditorInner() {
           const TEXT_XFORM_TIP   = { none: 'Text case: Normal', uppercase: 'Text case: UPPERCASE', lowercase: 'Text case: lowercase', capitalize: 'Text case: Title Case' };
           const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
           const Btn = ({ label, active, onClick, extraStyle = {} }) => (
-            <button onClick={onClick} style={{ height: 30, minWidth: 30, padding: '0 7px', border: 'none', borderRadius: 6, background: active ? t.primaryBg : 'transparent', color: active ? t.primary : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', ...extraStyle }}>{label}</button>
+            <button onClick={onClick} style={{ height: 30, minWidth: 30, padding: '0 7px', border: 'none', borderRadius: 6, background: active ? 'rgba(0,196,204,0.1)' : 'transparent', color: active ? TEAL : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', ...extraStyle }}>{label}</button>
           );
           return (
             <>
@@ -6302,12 +6317,12 @@ export default function TemplatesEditorInner() {
         {selectedIds.length <= 1 && selectedEl?.type === 'image' && (() => {
           const D = () => <div style={{ width:1, height:22, background:t.border, margin:'0 4px', flexShrink:0 }} />;
           const Btn = ({ label, active, onClick }) => (
-            <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?t.primaryBg:'transparent', color:active?t.primary:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', transition:'background 80ms' }}>{label}</button>
+            <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?'rgba(0,196,204,0.1)':'transparent', color:active?TEAL:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4, transition:'background 80ms' }}>{label}</button>
           );
           return (
             <>
-              <Btn label="⇄ Replace" active={false} onClick={() => { replaceImgId.current = null; replaceFileRef.current?.click(); }} title="Replace image (or double-click)" />
-              <Btn label="🖼 Set as BG" active={false} onClick={() => setElementAsBackground(selectedEl)} />
+              <Btn label={<><IcoReplace size={14} /> Replace</>} active={false} onClick={() => { replaceImgId.current = null; replaceFileRef.current?.click(); }} title="Replace image (or double-click)" />
+              <Btn label="Set as BG" active={false} onClick={() => setElementAsBackground(selectedEl)} />
               <D />
               {/* Color tint */}
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Tint</span>
@@ -6321,11 +6336,11 @@ export default function TemplatesEditorInner() {
               <button onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, tintOpacity: 0, tintColor: undefined }); }}
                 style={{ height:24, padding:'0 6px', border:`1px solid ${t.border}`, borderRadius:5, background:'transparent', color:t.textMuted, fontSize:11, cursor:'pointer', flexShrink:0 }} title="Remove tint">×</button>
               <D />
-              <Btn label="⟺ Flip H" active={!!selectedEl.flipH} onClick={flipH} />
-              <Btn label="⇅ Flip V" active={!!selectedEl.flipV} onClick={flipV} />
+              <Btn label={<><IcoFlipH size={14} /> Flip H</>} active={!!selectedEl.flipH} onClick={flipH} />
+              <Btn label={<><IcoFlipV size={14} /> Flip V</>} active={!!selectedEl.flipV} onClick={flipV} />
               <D />
-              <Btn label="⤢ Fit page"  active={false} onClick={fitToPage}  />
-              <Btn label="⤡ Fill page" active={false} onClick={fillPage} />
+              <Btn label={<><IcoFit size={14} /> Fit page</>}  active={false} onClick={fitToPage}  />
+              <Btn label="Fill page" active={false} onClick={fillPage} />
               <D />
               {/* Frame / shape clip presets */}
               {[
@@ -6555,7 +6570,7 @@ export default function TemplatesEditorInner() {
         {selectedIds.length <= 1 && selectedEl && !['text','image'].includes(selectedEl.type) && (() => {
           const D = () => <div style={{ width:1, height:22, background:t.border, margin:'0 4px', flexShrink:0 }} />;
           const Btn = ({ label, active, onClick }) => (
-            <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?t.primaryBg:'transparent', color:active?t.primary:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', transition:'background 80ms' }}>{label}</button>
+            <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?'rgba(0,196,204,0.1)':'transparent', color:active?TEAL:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4, transition:'background 80ms' }}>{label}</button>
           );
           const fillKey = ['line','arrow','draw'].includes(selectedEl.type) ? 'stroke' : 'fill';
           const fillVal = (selectedEl[fillKey] || '#ffffff').startsWith('rgba') ? '#888888' : (selectedEl[fillKey] || '#ffffff');
@@ -7648,8 +7663,8 @@ export default function TemplatesEditorInner() {
               {/* Animate button + panel */}
               <div style={{ position:'relative' }} onClick={e => e.stopPropagation()}>
                 <button onClick={() => { setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }}
-                  style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none'))?t.primaryBg:'transparent', color:(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none'))?t.primary:t.text, fontSize:13, cursor:'pointer', flexShrink:0, transition:'background 80ms', display:'flex', alignItems:'center', gap:4 }}>
-                  <span style={{ color:t.primary }}>✦</span> Animate
+                  style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none'))?'rgba(0,196,204,0.1)':'transparent', color:(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none'))?TEAL:t.text, fontSize:13, cursor:'pointer', flexShrink:0, transition:'background 80ms', display:'flex', alignItems:'center', gap:4 }}>
+                  <IpSparkle size={14} /> Animate
                 </button>
                 {showAnimatePanel && (
                   <div style={{ position:'absolute', top:38, right:0, zIndex:400, background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:14, width:260, boxShadow:'0 8px 32px rgba(0,0,0,0.25)' }}>
@@ -9055,7 +9070,7 @@ export default function TemplatesEditorInner() {
                         style={{
                           width: 22, height: 22, padding: 0, border: 'none', borderRadius: 4,
                           background: 'transparent', cursor: disabled ? 'not-allowed' : 'pointer',
-                          color: disabled ? t.border : danger ? '#ef4444' : t.textMuted,
+                          color: disabled ? t.border : danger ? t.error : t.textMuted,
                           fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center',
                           opacity: disabled ? 0.4 : 1, flexShrink: 0,
                         }}
