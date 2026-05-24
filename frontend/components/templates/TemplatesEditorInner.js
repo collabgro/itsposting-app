@@ -4,13 +4,13 @@ import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle, Line, Transforme
 import useImage from 'use-image';
 import Konva from 'konva';
 import { useTheme } from '../../lib/theme';
-import { studioAPI, customerAPI } from '../../lib/api';
+import { studioAPI, customerAPI, mediaAPI } from '../../lib/api';
 import { useToast } from '../../components/ui';
 import {
   IpArrowLeft, IpDownload, IpEye,
   IpCopy, IpDelete, IpLock, IpUnlock,
   IpSparkle, IpPalette, IpEdit, IpFolderOpen,
-  IpTextCard, IpPublish, IpPhoto,
+  IpTextCard, IpPublish, IpPhoto, IpVideo,
   IpPlus, IpChevronDown, IpSearch,
 } from '../../components/icons';
 
@@ -3856,6 +3856,11 @@ export default function TemplatesEditorInner() {
   const [curatedLoading, setCuratedLoading] = useState(false);
   const [brandProfile, setBrandProfile] = useState(null);
   const [brandLoading, setBrandLoading] = useState(false);
+  const [uploadItems, setUploadItems] = useState([]);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadQuota, setUploadQuota] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(null);
+  const [uploadSearch, setUploadSearch] = useState('');
   const [hoveredDesign, setHoveredDesign] = useState(null); // { id, title, pagesCount, x, y }
   const [layerDragId, setLayerDragId] = useState(null);
   // Quick actions palette
@@ -4100,6 +4105,23 @@ export default function TemplatesEditorInner() {
       .then(r => setBrandProfile(r.data || null))
       .catch(() => {})
       .finally(() => setBrandLoading(false));
+  }, [activeLeftTool]);
+
+  // ── Load media library (uploads panel) ────────────────────────────────────
+  useEffect(() => {
+    if (activeLeftTool !== 'uploads' && activeLeftTool !== 'images') return;
+    if (uploadItems.length > 0) return;
+    setUploadLoading(true);
+    Promise.all([
+      mediaAPI.list({ limit: 100 }),
+      mediaAPI.getQuota(),
+    ])
+      .then(([itemsRes, quotaRes]) => {
+        setUploadItems(Array.isArray(itemsRes.data) ? itemsRes.data : []);
+        setUploadQuota(quotaRes.data || null);
+      })
+      .catch(() => {})
+      .finally(() => setUploadLoading(false));
   }, [activeLeftTool]);
 
   // ── Load existing creation ─────────────────────────────────────────────────
@@ -8664,123 +8686,171 @@ export default function TemplatesEditorInner() {
             )}
 
             {/* UPLOADS */}
-            {(activeLeftTool === 'images' || activeLeftTool === 'uploads') && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {/* Search */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
-                  <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
-                  <input placeholder="Search keywords, tags, color" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
-                </div>
-                {/* Upload + three-dot */}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <label style={{ flex: 1, background: t.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 13, cursor: 'pointer', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <input type="file" accept="image/*,video/*" style={{ display: 'none' }}
-                      onChange={e => { const f = e.target.files[0]; if (f) { const url = URL.createObjectURL(f); addImageElement(url); } }} />
-                    ↑ Upload files
+            {(activeLeftTool === 'images' || activeLeftTool === 'uploads') && (() => {
+              const uploadTabItems = uploadItems.filter(item =>
+                uploadMediaTab === 'Images' ? item.file_type === 'image' : item.file_type === 'video'
+              );
+              const visibleItems = uploadSearch
+                ? uploadTabItems.filter(i => (i.file_name || '').toLowerCase().includes(uploadSearch.toLowerCase()))
+                : uploadTabItems;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* Upload button */}
+                  <label style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
+                      onChange={async e => {
+                        const files = Array.from(e.target.files);
+                        if (!files.length) return;
+                        setUploadProgress(0);
+                        try {
+                          const res = await mediaAPI.upload(files, 'all', p => setUploadProgress(p));
+                          const newItems = res.data?.files || [];
+                          setUploadItems(prev => [...newItems, ...prev]);
+                          if (newItems[0]) addImageElement(newItems[0].url);
+                          const quotaRes = await mediaAPI.getQuota();
+                          setUploadQuota(quotaRes.data || null);
+                        } catch {}
+                        finally { setUploadProgress(null); }
+                      }} />
+                    <IpPublish size={15} color="#fff" /> Upload files
                   </label>
-                  <button style={{ width: 38, background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, cursor: 'pointer', color: t.text, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⋯</button>
-                </div>
-                {/* Record yourself */}
-                <button style={{ background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  🎥 Record yourself
-                </button>
-                {/* Add from URL */}
-                {!showImgUrlInput ? (
-                  <button onClick={() => setShowImgUrlInput(true)}
-                    style={{ background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    🔗 Add from URL
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <input
-                      autoFocus
-                      placeholder="Paste image URL (https://...)"
-                      value={imgUrlValue}
-                      onChange={e => setImgUrlValue(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && imgUrlValue.trim()) {
-                          addImageElement(imgUrlValue.trim());
-                          setImgUrlValue('');
-                          setShowImgUrlInput(false);
-                        }
-                        if (e.key === 'Escape') { setShowImgUrlInput(false); setImgUrlValue(''); }
-                      }}
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.primary}`, background: t.input, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                    />
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => { if (imgUrlValue.trim()) { addImageElement(imgUrlValue.trim()); setImgUrlValue(''); setShowImgUrlInput(false); } }}
-                        disabled={!imgUrlValue.trim()}
-                        style={{ flex: 1, background: imgUrlValue.trim() ? t.primary : t.border, color: imgUrlValue.trim() ? '#fff' : t.textMuted, border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, fontSize: 13, cursor: imgUrlValue.trim() ? 'pointer' : 'default' }}>
-                        Add
-                      </button>
-                      <button onClick={() => { setShowImgUrlInput(false); setImgUrlValue(''); }}
-                        style={{ flex: 1, background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer' }}>
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {/* Tabs */}
-                <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, gap: 4 }}>
-                  {['Images', 'Videos', 'Designs', 'Folders'].map(tab => (
-                    <button key={tab} onClick={() => setUploadMediaTab(tab)}
-                      style={{ paddingBottom: 8, paddingTop: 4, paddingLeft: 6, paddingRight: 6, border: 'none', borderBottom: `2px solid ${uploadMediaTab === tab ? t.primary : 'transparent'}`, background: 'transparent', color: uploadMediaTab === tab ? t.primary : t.textMuted, fontSize: 12, fontWeight: uploadMediaTab === tab ? 600 : 400, cursor: 'pointer', transition: 'all 150ms' }}>
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-                {/* Background Remover promo */}
-                {!bgRemoverDismissed && (
-                  <div style={{ background: t.input, borderRadius: 8, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, border: `1px solid ${t.border}` }}>
-                    <span style={{ fontSize: 20, flexShrink: 0 }}>🎨</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Background Remover</div>
-                      <div style={{ fontSize: 11, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Remove image backgrounds instantly</div>
-                    </div>
-                    <button onClick={() => setBgRemoverDismissed(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18, lineHeight: 1, flexShrink: 0 }}>×</button>
-                  </div>
-                )}
-                {/* Media grid */}
-                {bgPhotosLoading ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
-                    {Array.from({ length: 9 }).map((_, i) => (
-                      <div key={i} style={{ borderRadius: 6, aspectRatio: '1', background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`, backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
-                    ))}
-                  </div>
-                ) : displayedImgPhotos.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: t.textMuted, padding: '30px 0', fontSize: 12 }}>
-                    <div style={{ fontSize: 32, marginBottom: 8 }}>☁</div>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>No media yet</div>
-                    <div>Upload files to get started</div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
-                    {displayedImgPhotos.map(photo => (
-                      <div key={photo.id}
-                        draggable
-                        onDragStart={e => e.dataTransfer.setData('text/plain', photo.url)}
-                        onMouseEnter={() => setHoveredPhotoId(photo.id)}
-                        onMouseLeave={() => setHoveredPhotoId(null)}
-                        style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${t.border}`, position: 'relative', cursor: 'grab', aspectRatio: '1' }}>
-                        <img src={photo.thumbnail_url || photo.url} alt={photo.title || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
-                        {hoveredPhotoId === photo.id && (
-                          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 4 }}>
-                            <button onClick={() => selectBgPhoto(photo)}
-                              style={{ width: '100%', padding: '4px 0', fontSize: 9, fontWeight: 600, borderRadius: 4, border: 'none', background: 'rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer' }}>
-                              Set BG
-                            </button>
-                            <button onClick={() => addImageElement(photo.url)}
-                              style={{ width: '100%', padding: '4px 0', fontSize: 9, fontWeight: 600, borderRadius: 4, border: 'none', background: t.primary, color: '#fff', cursor: 'pointer' }}>
-                              Add
-                            </button>
-                          </div>
-                        )}
+                  {/* Upload progress bar */}
+                  {uploadProgress !== null && (
+                    <div style={{ fontSize: 11, color: t.textMuted }}>
+                      <div style={{ height: 4, borderRadius: 2, background: t.border, marginBottom: 4 }}>
+                        <div style={{ height: '100%', width: `${uploadProgress}%`, borderRadius: 2, background: TEAL, transition: 'width 100ms' }} />
                       </div>
+                      Uploading… {uploadProgress}%
+                    </div>
+                  )}
+                  {/* Quota bar */}
+                  {uploadQuota && (
+                    <div style={{ fontSize: 11, color: t.textMuted }}>
+                      <div style={{ height: 3, borderRadius: 2, background: t.border, marginBottom: 4 }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, parseFloat(uploadQuota.percentUsed))}%`, borderRadius: 2, background: parseFloat(uploadQuota.percentUsed) > 85 ? '#f87171' : TEAL }} />
+                      </div>
+                      {uploadQuota.usedFormatted} of {uploadQuota.quotaFormatted} used
+                    </div>
+                  )}
+                  {/* 2 tabs: Images | Videos */}
+                  <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, gap: 4 }}>
+                    {[
+                      { label: 'Images', icon: <IpPhoto size={12} /> },
+                      { label: 'Videos', icon: <IpVideo size={12} /> },
+                    ].map(({ label, icon }) => (
+                      <button key={label} onClick={() => setUploadMediaTab(label)}
+                        style={{ paddingBottom: 8, paddingTop: 4, paddingLeft: 6, paddingRight: 6, border: 'none', borderBottom: `2px solid ${uploadMediaTab === label ? TEAL : 'transparent'}`, background: 'transparent', color: uploadMediaTab === label ? TEAL : t.textMuted, fontSize: 12, fontWeight: uploadMediaTab === label ? 600 : 400, cursor: 'pointer', transition: 'all 150ms', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {icon} {label}
+                      </button>
                     ))}
                   </div>
-                )}
-              </div>
-            )}
+                  {/* Search */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                    <IpSearch size={13} color={t.textMuted} />
+                    <input
+                      placeholder={`Search ${uploadMediaTab.toLowerCase()}…`}
+                      value={uploadSearch}
+                      onChange={e => setUploadSearch(e.target.value)}
+                      style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                  </div>
+                  {/* Grid */}
+                  {uploadLoading ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <div key={i} style={{ borderRadius: 6, aspectRatio: '1', background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`, backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
+                      ))}
+                    </div>
+                  ) : visibleItems.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: t.textMuted, padding: '30px 0', fontSize: 12 }}>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>{uploadMediaTab === 'Images' ? '🖼️' : '🎬'}</div>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>No {uploadMediaTab.toLowerCase()} yet</div>
+                      <div>{uploadMediaTab === 'Images' ? 'Upload photos from your phone or computer' : 'Upload videos from your jobs — before/afters, time-lapses'}</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
+                      {visibleItems.map(item => (
+                        <div key={item.id}
+                          draggable
+                          onDragStart={e => e.dataTransfer.setData('text/plain', item.url)}
+                          onMouseEnter={() => setHoveredPhotoId(item.id)}
+                          onMouseLeave={() => setHoveredPhotoId(null)}
+                          style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${t.border}`, position: 'relative', cursor: 'grab', aspectRatio: '1', background: t.input }}>
+                          {item.thumbnail_url || item.file_type === 'image' ? (
+                            <img src={item.thumbnail_url || item.url} alt={item.file_name || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <IpVideo size={24} color={t.textMuted} />
+                            </div>
+                          )}
+                          {item.file_type === 'video' && (item.thumbnail_url) && (
+                            <div style={{ position: 'absolute', bottom: 4, right: 4, background: 'rgba(0,0,0,0.6)', borderRadius: 3, padding: '2px 4px', display: 'flex', alignItems: 'center' }}>
+                              <IpVideo size={9} color="#fff" />
+                            </div>
+                          )}
+                          {hoveredPhotoId === item.id && (
+                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 4 }}>
+                              <button onClick={() => selectBgPhoto(item)}
+                                style={{ width: '100%', padding: '4px 0', fontSize: 9, fontWeight: 600, borderRadius: 4, border: 'none', background: 'rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer' }}>
+                                Set BG
+                              </button>
+                              <button onClick={() => addImageElement(item.url)}
+                                style={{ width: '100%', padding: '4px 0', fontSize: 9, fontWeight: 600, borderRadius: 4, border: 'none', background: TEAL, color: '#fff', cursor: 'pointer' }}>
+                                Add
+                              </button>
+                              <button onClick={async () => {
+                                try {
+                                  await mediaAPI.delete(item.id);
+                                  setUploadItems(prev => prev.filter(i => i.id !== item.id));
+                                } catch {}
+                              }}
+                                style={{ width: '100%', padding: '4px 0', fontSize: 9, fontWeight: 600, borderRadius: 4, border: 'none', background: 'rgba(239,68,68,0.85)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                                <IpDelete size={9} color="#fff" /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Add from URL */}
+                  {!showImgUrlInput ? (
+                    <button onClick={() => setShowImgUrlInput(true)}
+                      style={{ background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      + Add from URL
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <input
+                        autoFocus
+                        placeholder="Paste image URL (https://...)"
+                        value={imgUrlValue}
+                        onChange={e => setImgUrlValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && imgUrlValue.trim()) {
+                            addImageElement(imgUrlValue.trim());
+                            setImgUrlValue('');
+                            setShowImgUrlInput(false);
+                          }
+                          if (e.key === 'Escape') { setShowImgUrlInput(false); setImgUrlValue(''); }
+                        }}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.primary}`, background: t.input, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => { if (imgUrlValue.trim()) { addImageElement(imgUrlValue.trim()); setImgUrlValue(''); setShowImgUrlInput(false); } }}
+                          disabled={!imgUrlValue.trim()}
+                          style={{ flex: 1, background: imgUrlValue.trim() ? t.primary : t.border, color: imgUrlValue.trim() ? '#fff' : t.textMuted, border: 'none', borderRadius: 8, padding: '9px', fontWeight: 600, fontSize: 13, cursor: imgUrlValue.trim() ? 'pointer' : 'default' }}>
+                          Add
+                        </button>
+                        <button onClick={() => { setShowImgUrlInput(false); setImgUrlValue(''); }}
+                          style={{ flex: 1, background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer' }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ELEMENTS */}
             {(activeLeftTool === 'shapes' || activeLeftTool === 'elements') && (() => {
