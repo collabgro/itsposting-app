@@ -810,6 +810,7 @@ export default function TemplatesEditorInner() {
   const [showAdjustPanel, setShowAdjustPanel] = useState(false);
   const [showSpacingPanel, setShowSpacingPanel] = useState(false);
   const [showCropPanel, setShowCropPanel] = useState(false);
+  const [lockAspectRatio, setLockAspectRatio] = useState(false);
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
   const [uploadMediaTab, setUploadMediaTab] = useState('Images');
@@ -2533,13 +2534,25 @@ export default function TemplatesEditorInner() {
                       ))}
                     </div>
                     {(selectedEl.width!=null||selectedEl.height!=null) && (
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-                        {[['W','width'],['H','height']].map(([lbl,k]) => (
-                          <div key={k}>
-                            <div style={{ fontSize:10, color:t.textMuted, marginBottom:3 }}>{lbl}</div>
-                            <input type="number" value={Math.round(selectedEl[k]||0)} onChange={e=>updateElement({...selectedEl,[k]:Math.max(1,parseInt(e.target.value)||1)})} onBlur={()=>pushHistory()} style={{ width:'100%', padding:'5px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, boxSizing:'border-box' }} />
+                      <div style={{ marginBottom:8 }}>
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:4, alignItems:'end' }}>
+                          <div>
+                            <div style={{ fontSize:10, color:t.textMuted, marginBottom:3 }}>W</div>
+                            <input type="number" value={Math.round(selectedEl.width||0)}
+                              onChange={e => { const nw=Math.max(1,parseInt(e.target.value)||1); updateElement({...selectedEl, width:nw, height: lockAspectRatio&&selectedEl.height&&selectedEl.width ? Math.max(1,Math.round(nw*selectedEl.height/selectedEl.width)) : selectedEl.height}); }}
+                              onBlur={()=>pushHistory()} style={{ width:'100%', padding:'5px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, boxSizing:'border-box' }} />
                           </div>
-                        ))}
+                          <button onClick={() => setLockAspectRatio(p=>!p)} title={lockAspectRatio?'Unlock aspect ratio':'Lock aspect ratio'}
+                            style={{ height:28, width:20, border:'none', background:'transparent', cursor:'pointer', color:lockAspectRatio?'#00C4CC':t.textMuted, fontSize:13, padding:0, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                            ⛓
+                          </button>
+                          <div>
+                            <div style={{ fontSize:10, color:t.textMuted, marginBottom:3 }}>H</div>
+                            <input type="number" value={Math.round(selectedEl.height||0)}
+                              onChange={e => { const nh=Math.max(1,parseInt(e.target.value)||1); updateElement({...selectedEl, height:nh, width: lockAspectRatio&&selectedEl.height&&selectedEl.width ? Math.max(1,Math.round(nh*selectedEl.width/selectedEl.height)) : selectedEl.width}); }}
+                              onBlur={()=>pushHistory()} style={{ width:'100%', padding:'5px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, boxSizing:'border-box' }} />
+                          </div>
+                        </div>
                       </div>
                     )}
                     <div style={{ marginBottom:12 }}>
@@ -2763,13 +2776,25 @@ export default function TemplatesEditorInner() {
                       ))}
                     </div>
                     {(selectedEl.width!=null||selectedEl.height!=null) && (
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
-                        {[['W','width'],['H','height']].map(([lbl,k]) => (
-                          <div key={k}>
-                            <div style={{ fontSize:10, color:t.textMuted, marginBottom:3 }}>{lbl}</div>
-                            <input type="number" value={Math.round(selectedEl[k]||0)} onChange={e=>updateElement({...selectedEl,[k]:Math.max(1,parseInt(e.target.value)||1)})} onBlur={()=>pushHistory()} style={{ width:'100%', padding:'5px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, boxSizing:'border-box' }} />
+                      <div style={{ marginBottom:8 }}>
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:4, alignItems:'end' }}>
+                          <div>
+                            <div style={{ fontSize:10, color:t.textMuted, marginBottom:3 }}>W</div>
+                            <input type="number" value={Math.round(selectedEl.width||0)}
+                              onChange={e => { const nw=Math.max(1,parseInt(e.target.value)||1); updateElement({...selectedEl, width:nw, height: lockAspectRatio&&selectedEl.height&&selectedEl.width ? Math.max(1,Math.round(nw*selectedEl.height/selectedEl.width)) : selectedEl.height}); }}
+                              onBlur={()=>pushHistory()} style={{ width:'100%', padding:'5px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, boxSizing:'border-box' }} />
                           </div>
-                        ))}
+                          <button onClick={() => setLockAspectRatio(p=>!p)} title={lockAspectRatio?'Unlock aspect ratio':'Lock aspect ratio'}
+                            style={{ height:28, width:20, border:'none', background:'transparent', cursor:'pointer', color:lockAspectRatio?'#00C4CC':t.textMuted, fontSize:13, padding:0, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                            ⛓
+                          </button>
+                          <div>
+                            <div style={{ fontSize:10, color:t.textMuted, marginBottom:3 }}>H</div>
+                            <input type="number" value={Math.round(selectedEl.height||0)}
+                              onChange={e => { const nh=Math.max(1,parseInt(e.target.value)||1); updateElement({...selectedEl, height:nh, width: lockAspectRatio&&selectedEl.height&&selectedEl.width ? Math.max(1,Math.round(nh*selectedEl.width/selectedEl.height)) : selectedEl.width}); }}
+                              onBlur={()=>pushHistory()} style={{ width:'100%', padding:'5px 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, boxSizing:'border-box' }} />
+                          </div>
+                        </div>
                       </div>
                     )}
                     <div style={{ marginBottom:12 }}>
