@@ -18,7 +18,7 @@ const CANVAS_SIZES = [
 
 const FONTS = [
   // Sans-serif
-  'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Nunito', 'Poppins', 'Source Sans Pro',
+  'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Nunito', 'Poppins', 'Source Sans 3',
   // Serif
   'Playfair Display', 'Merriweather', 'EB Garamond', 'Lora',
   // Display

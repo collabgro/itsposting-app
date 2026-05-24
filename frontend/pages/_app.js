@@ -89,7 +89,9 @@ export default function App({ Component, pageProps }) {
           <link rel="manifest" href="/manifest.json" />
           <link rel="apple-touch-icon" href="/icon-192.png" />
           <link rel="icon" href="/fav-icon.png" />
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto:wght@400;700&family=Playfair+Display:wght@700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&family=EB+Garamond:wght@400;700&family=Inter:wght@400;600;700&family=Lato:wght@400;700&family=Lora:wght@400;700&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Nunito:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Oswald:wght@400;600;700&family=Pacifico&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600;700&family=Raleway:wght@400;600;700&family=Roboto:wght@400;700&family=Source+Sans+3:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
         </Head>
         <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
           <defs>
