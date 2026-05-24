@@ -1278,6 +1278,29 @@ export default function TemplatesEditorInner() {
         }
         return;
       }
+      // Paste image from system clipboard when no canvas element is copied
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v' && !clipboard && navigator.clipboard?.read) {
+        e.preventDefault();
+        navigator.clipboard.read().then(items => {
+          for (const item of items) {
+            const imgType = item.types.find(tp => tp.startsWith('image/'));
+            if (imgType) {
+              item.getType(imgType).then(blob => {
+                const url = URL.createObjectURL(blob);
+                const w = canvasSize.w * 0.7;
+                const newEl = { id: uid(), type: 'image', src: url,
+                  x: (canvasSize.w - w) / 2, y: (canvasSize.h - w) / 2,
+                  width: w, height: w, rotation: 0, opacity: 1, flipH: false, flipV: false, cornerRadius: 0 };
+                pushHistory();
+                patchElements(prev => [...prev, newEl]);
+                setSelectedId(newEl.id);
+              });
+              break;
+            }
+          }
+        }).catch(() => {});
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
         e.preventDefault();
         const sel = elements.find(el => el.id === selectedId);
