@@ -2663,6 +2663,106 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'testimonial') {
+    const tmw = el.width || 320, tmh = el.height || 180;
+    const cardBg = el.fill || 'rgba(255,255,255,0.1)';
+    const accentC = el.accentColor || '#00C4CC';
+    const tcText = el.stroke || '#ffffff';
+    const reviewerName = el.reviewerName || 'John Smith';
+    const reviewerRole = el.reviewerRole || 'Homeowner';
+    const reviewText = el.reviewText || '"Absolutely fantastic work! Would recommend to anyone."';
+    const starRating = el.starRating ?? 5;
+    const cornerR2 = el.cornerRadius ?? 14;
+    const avatarR = Math.min(24, tmh * 0.14);
+
+    return (
+      <Shape {...common}
+        width={tmw} height={tmh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+
+          // Card background
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.2)';
+          ctx.shadowBlur = 12;
+          ctx.fillStyle = cardBg;
+          ctx.beginPath();
+          ctx.roundRect(0, 0, w, h, cornerR2);
+          ctx.fill();
+          ctx.restore();
+
+          // Left accent bar
+          ctx.fillStyle = accentC;
+          ctx.beginPath();
+          ctx.roundRect(0, 0, 4, h, [cornerR2, 0, 0, cornerR2]);
+          ctx.fill();
+
+          const pad2 = 16;
+          const contentX = 4 + pad2;
+
+          // Avatar circle
+          const avCY = avatarR + pad2;
+          ctx.beginPath();
+          ctx.arc(contentX + avatarR, avCY, avatarR, 0, Math.PI * 2);
+          ctx.fillStyle = accentC;
+          ctx.fill();
+          // Avatar initial
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `bold ${Math.round(avatarR * 0.95)}px Inter, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(reviewerName.charAt(0).toUpperCase(), contentX + avatarR, avCY);
+
+          // Name & role
+          const nameX = contentX + avatarR * 2 + 10;
+          ctx.textAlign = 'left';
+          ctx.fillStyle = tcText;
+          ctx.font = `bold ${Math.max(11, Math.round(tmw * 0.052))}px Inter, sans-serif`;
+          ctx.textBaseline = 'top';
+          ctx.fillText(reviewerName, nameX, pad2 - 2);
+          ctx.font = `${Math.max(9, Math.round(tmw * 0.038))}px Inter, sans-serif`;
+          ctx.fillStyle = `${tcText}aa`;
+          ctx.fillText(reviewerRole, nameX, pad2 + Math.round(tmw * 0.056));
+
+          // Stars
+          const starY = avCY + avatarR + 10;
+          const starSz = Math.max(10, Math.round(tmh * 0.08));
+          ctx.font = `${starSz}px serif`;
+          ctx.textBaseline = 'top';
+          ctx.textAlign = 'left';
+          ctx.fillText('★'.repeat(starRating) + '☆'.repeat(Math.max(0, 5 - starRating)), contentX, starY);
+
+          // Review quote (word-wrapped)
+          const quoteY = starY + starSz + 8;
+          const maxQW = w - contentX - pad2;
+          const qfSize = Math.max(10, Math.round(tmh * 0.085));
+          ctx.font = `italic ${qfSize}px Inter, sans-serif`;
+          ctx.fillStyle = tcText;
+          ctx.textBaseline = 'top';
+          const qWords = reviewText.split(' ');
+          const qLh = qfSize * 1.4;
+          const qLines = [];
+          let qCur = '';
+          for (const word of qWords) {
+            const test3 = qCur ? qCur + ' ' + word : word;
+            if (ctx.measureText(test3).width > maxQW && qCur) { qLines.push(qCur); qCur = word; }
+            else qCur = test3;
+          }
+          if (qCur) qLines.push(qCur);
+          qLines.slice(0, 3).forEach((line, i) => ctx.fillText(line, contentX, quoteY + i * qLh));
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -3581,6 +3681,22 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addTestimonial() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'testimonial',
+      x: canvasSize.w / 2 - 160, y: canvasSize.h / 2 - 90,
+      width: 320, height: 180, opacity: 1,
+      fill: 'rgba(255,255,255,0.1)', accentColor: '#00C4CC',
+      stroke: '#ffffff', cornerRadius: 14,
+      reviewerName: 'John Smith', reviewerRole: 'Homeowner',
+      reviewText: '"Absolutely fantastic work! Would recommend to anyone."',
+      starRating: 5,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5927,6 +6043,34 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'testimonial' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Stars</span>
+                {[1,2,3,4,5].map(n => (
+                  <button key={n} onClick={() => { pushHistory(); updateElement({...selectedEl, starRating: n}); }}
+                    style={{ width:26, height:26, borderRadius:5, border:`1px solid ${(selectedEl.starRating??5)===n?'#f59e0b':t.border}`, background:(selectedEl.starRating??5)===n?'rgba(245,158,11,0.15)':'transparent', color:(selectedEl.starRating??5)===n?'#f59e0b':t.text, fontSize:13, cursor:'pointer', flexShrink:0 }}>
+                    {n}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Accent</span>
+                <ColorPickerButton
+                  value={selectedEl.accentColor || '#00C4CC'}
+                  onChange={c => updateElement({...selectedEl, accentColor: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Card</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || 'rgba(255,255,255,0.1)'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+              </>}
               {selectedEl.type === 'glasspane' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Tint</span>
@@ -7311,6 +7455,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Pattern',   icon: '⊞', fn: () => addPattern() },
                     { label: 'QR Code',   icon: '▣', fn: () => addQrCode() },
                     { label: 'Glass',     icon: '◫', fn: () => addGlassPane() },
+                    { label: 'Review',    icon: '⭐', fn: () => addTestimonial() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -8398,7 +8543,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
