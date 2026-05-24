@@ -961,6 +961,8 @@ export default function TemplatesEditorInner() {
   const [shareOpen, setShareOpen] = useState(false);
   const [previewOpen, setPreviewOpen]   = useState(false);
   const [previewUrl,  setPreviewUrl]    = useState(null);
+  const [presentPlaying,  setPresentPlaying]  = useState(false);
+  const [presentInterval, setPresentInterval] = useState(3);
 
   // UI
   const [activeLeftTool, setActiveLeftTool] = useState('templates');
@@ -1305,6 +1307,20 @@ export default function TemplatesEditorInner() {
     }, 60);
     return () => clearTimeout(timer);
   }, [previewOpen, activePage]);
+
+  // ── Presentation auto-play ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!presentPlaying || !previewOpen || pages.length < 2) return;
+    const id = setInterval(() => {
+      setActivePage(p => {
+        const next = p + 1;
+        if (next >= pages.length) { setPresentPlaying(false); return p; }
+        return next;
+      });
+    }, presentInterval * 1000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presentPlaying, previewOpen, presentInterval, pages.length]);
 
   // ── History helpers ────────────────────────────────────────────────────────
   function snapshot() {
@@ -5546,21 +5562,36 @@ export default function TemplatesEditorInner() {
       {/* ── Preview modal ── */}
       {previewOpen && (
         <div
-          onClick={() => setPreviewOpen(false)}
+          onClick={() => { setPreviewOpen(false); setPresentPlaying(false); }}
           style={{ position:'fixed', inset:0, zIndex:3000, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center' }}
         >
           {/* Close */}
-          <button onClick={() => setPreviewOpen(false)}
+          <button onClick={() => { setPreviewOpen(false); setPresentPlaying(false); }}
             style={{ position:'absolute', top:16, right:16, background:'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:38, height:38, borderRadius:'50%', cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>
             ✕
           </button>
 
-          {/* Page counter */}
-          {pages.length > 1 && (
-            <div style={{ position:'absolute', top:18, left:'50%', transform:'translateX(-50%)', background:'rgba(255,255,255,0.12)', borderRadius:20, padding:'4px 14px', color:'#fff', fontSize:13, pointerEvents:'none' }}>
-              {activePage + 1} / {pages.length}
-            </div>
-          )}
+          {/* Page counter + auto-play controls */}
+          <div style={{ position:'absolute', top:14, left:'50%', transform:'translateX(-50%)', display:'flex', alignItems:'center', gap:8 }} onClick={e => e.stopPropagation()}>
+            {pages.length > 1 && (
+              <div style={{ background:'rgba(255,255,255,0.12)', borderRadius:20, padding:'4px 14px', color:'#fff', fontSize:13 }}>
+                {activePage + 1} / {pages.length}
+              </div>
+            )}
+            {pages.length > 1 && (
+              <>
+                <button onClick={() => setPresentPlaying(p => !p)}
+                  title={presentPlaying ? 'Pause' : 'Auto-play slides'}
+                  style={{ background: presentPlaying ? '#00C4CC' : 'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:32, height:32, borderRadius:'50%', cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  {presentPlaying ? '⏸' : '▶'}
+                </button>
+                <select value={presentInterval} onChange={e => setPresentInterval(+e.target.value)}
+                  style={{ background:'rgba(255,255,255,0.12)', border:'none', color:'#fff', borderRadius:16, padding:'4px 8px', fontSize:12, cursor:'pointer', outline:'none' }}>
+                  {[2,3,5,8,10].map(s => <option key={s} value={s} style={{ background:'#1e1e28' }}>{s}s</option>)}
+                </select>
+              </>
+            )}
+          </div>
 
           {/* Canvas image */}
           {previewUrl
