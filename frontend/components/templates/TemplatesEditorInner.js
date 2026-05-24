@@ -2350,6 +2350,17 @@ export default function TemplatesEditorInner() {
               <Btn label="⟺ Flip H" active={!!selectedEl.flipH} onClick={flipH} />
               <Btn label="⇅ Flip V" active={!!selectedEl.flipV} onClick={flipV} />
               <D />
+              {/* Shape presets */}
+              {[
+                { label: '▭', title: 'Square', r: 0 },
+                { label: '▢', title: 'Rounded', r: 30 },
+                { label: '●', title: 'Circle', r: Math.round(Math.min(selectedEl.width||200, selectedEl.height||200) / 2) },
+              ].map(({ label, title, r }) => (
+                <button key={title} title={title} onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, cornerRadius: r }); }}
+                  style={{ height:28, padding:'0 8px', border:`1px solid ${(selectedEl.cornerRadius||0)===r ? '#00C4CC' : t.border}`, borderRadius:5, background:(selectedEl.cornerRadius||0)===r?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.cornerRadius||0)===r?'#00C4CC':t.text, fontSize:14, cursor:'pointer', flexShrink:0 }}>
+                  {label}
+                </button>
+              ))}
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Radius</span>
               <input type="range" min={0} max={200} value={selectedEl.cornerRadius||0}
                 onChange={e => updateElement({...selectedEl, cornerRadius:parseInt(e.target.value)})}
