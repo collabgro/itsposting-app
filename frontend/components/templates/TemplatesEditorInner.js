@@ -705,6 +705,29 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     />
   );
 
+  if (el.type === 'draw') return (
+    <Line
+      x={el.x || 0} y={el.y || 0}
+      id={el.id}
+      points={el.points || []}
+      stroke={isSelected ? '#00C4CC' : (el.stroke || '#ffffff')}
+      strokeWidth={el.strokeWidth || 4}
+      opacity={el.opacity ?? 1}
+      tension={0.5}
+      lineCap="round"
+      lineJoin="round"
+      globalCompositeOperation={el.blendMode || 'source-over'}
+      draggable={!locked && !hidden}
+      visible={!hidden && el.visible !== false}
+      listening={!locked && !hidden}
+      onClick={e => { e.cancelBubble = true; if (!locked) onSelect(el.id, e); }}
+      onTap={e => { e.cancelBubble = true; if (!locked) onSelect(el.id, e); }}
+      onDragStart={e => { setIsDragging(true); const s = e.target.getStage(); if (s) s.container().style.cursor = 'grabbing'; }}
+      onDragMove={e => { if (!onDragMove) return; const { x: nx, y: ny } = onDragMove(el.id, e.target.x(), e.target.y(), el.width || 50, el.height || 50); e.target.position({ x: nx, y: ny }); }}
+      onDragEnd={e => { setIsDragging(false); const s = e.target.getStage(); if (s) s.container().style.cursor = ''; if (onSnapClear) onSnapClear(); onChange({ ...el, x: e.target.x(), y: e.target.y() }); }}
+    />
+  );
+
   return null;
 }
 
@@ -994,6 +1017,13 @@ export default function TemplatesEditorInner() {
   // Emoji picker in text bar
   const [showEmojiPanel, setShowEmojiPanel] = useState(false);
   const [emojiCat, setEmojiCat] = useState(0);
+  // Freehand draw mode
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawColor, setDrawColor] = useState('#00C4CC');
+  const [drawWidth, setDrawWidth] = useState(4);
+  const [isDrawingNow, setIsDrawingNow] = useState(false);
+  const currentDrawRef = useRef(null); // in-progress draw element (ref for perf)
+  const [currentDrawEl, setCurrentDrawEl] = useState(null);
   // Canvas rulers + drag guides
   const [showRulers, setShowRulers] = useState(false);
   // Video mode
@@ -1305,6 +1335,7 @@ export default function TemplatesEditorInner() {
 
       if (e.key === 'Escape') {
         if (previewOpen) { setPreviewOpen(false); return; }
+        if (drawMode) { setDrawMode(false); setIsDrawingNow(false); setCurrentDrawEl(null); currentDrawRef.current = null; return; }
         clearSelection();
         setShowShadowPanel(false);
         setShowOutlinePanel(false);
@@ -4238,25 +4269,45 @@ export default function TemplatesEditorInner() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Draw</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                   {[
-                    { icon: '↖', label: 'Select',     active: true  },
-                    { icon: '✏', label: 'Pen'                       },
-                    { icon: '◌', label: 'Highlighter'               },
-                    { icon: 'T', label: 'Text'                      },
-                    { icon: '─', label: 'Line'                      },
-                    { icon: '▭', label: 'Rectangle'                 },
-                    { icon: '⬜', label: 'Frame'                    },
-                    { icon: '⊞', label: 'Grid'                     },
-                    { icon: '⌫', label: 'Eraser'                   },
-                  ].map(tool => (
-                    <button key={tool.label}
-                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 4px', border: `1.5px solid ${tool.active ? t.primary : t.border}`, borderRadius: 10, background: tool.active ? t.primaryBg : t.input, cursor: 'pointer', color: tool.active ? t.primary : t.text }}
-                      onMouseEnter={e => { if (!tool.active) { e.currentTarget.style.borderColor = t.primary; e.currentTarget.style.background = t.primaryBg; } }}
-                      onMouseLeave={e => { if (!tool.active) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.input; } }}>
-                      <span style={{ fontSize: 22 }}>{tool.icon}</span>
-                      <span style={{ fontSize: 10, fontWeight: tool.active ? 600 : 400 }}>{tool.label}</span>
-                    </button>
-                  ))}
+                    { icon: '↖', label: 'Select',     id: 'select'  },
+                    { icon: '✏', label: 'Pen',         id: 'pen'     },
+                    { icon: 'T', label: 'Text',         id: 'text'    },
+                    { icon: '─', label: 'Line',         id: 'line'    },
+                    { icon: '▭', label: 'Rectangle',    id: 'rect'    },
+                    { icon: '○', label: 'Circle',       id: 'circle'  },
+                  ].map(tool => {
+                    const isActive = tool.id === 'pen' ? drawMode : tool.id === 'select' ? !drawMode : false;
+                    return (
+                      <button key={tool.label} onClick={() => {
+                        if (tool.id === 'pen') { setDrawMode(true); clearSelection(); }
+                        else if (tool.id === 'select') { setDrawMode(false); }
+                      }}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 4px', border: `1.5px solid ${isActive ? t.primary : t.border}`, borderRadius: 10, background: isActive ? t.primaryBg : t.input, cursor: 'pointer', color: isActive ? t.primary : t.text, transition: 'all 80ms' }}>
+                        <span style={{ fontSize: 22 }}>{tool.icon}</span>
+                        <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{tool.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
+                {drawMode && (
+                  <div style={{ background: t.input, borderRadius: 10, padding: '12px 12px 10px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pen settings</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36 }}>Color</span>
+                      <input type="color" value={drawColor} onChange={e => setDrawColor(e.target.value)}
+                        style={{ width: 36, height: 28, border: `1px solid ${t.border}`, borderRadius: 6, cursor: 'pointer', padding: 2 }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36 }}>Width</span>
+                      <input type="range" min={1} max={40} step={1} value={drawWidth} onChange={e => setDrawWidth(+e.target.value)}
+                        style={{ flex: 1, accentColor: t.primary }} />
+                      <span style={{ fontSize: 11, color: t.textMuted, minWidth: 20 }}>{drawWidth}</span>
+                    </div>
+                    <button onClick={() => setDrawMode(false)} style={{ width: '100%', padding: '8px', borderRadius: 7, border: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+                      ✓ Done drawing
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -4493,7 +4544,7 @@ export default function TemplatesEditorInner() {
                     style={{
                       position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0,
                       outline: isActive ? '2px solid #00C4CC' : '2px solid transparent',
-                      borderRadius: 8, cursor: isActive ? 'default' : 'pointer',
+                      borderRadius: 8, cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
                       opacity: page.hidden ? 0.35 : 1,
                       background: pageBgType === 'transparent'
                         ? 'repeating-conic-gradient(#aaa 0% 25%, #fff 0% 50%) 0 0 / 20px 20px'
@@ -4519,6 +4570,14 @@ export default function TemplatesEditorInner() {
                         }
                       }) : undefined}
                       onMouseDown={isActive ? (e => {
+                        if (drawMode) {
+                          const pos = e.target.getStage().getRelativePointerPosition();
+                          const newEl = { id: uid(), type: 'draw', points: [pos.x, pos.y], stroke: drawColor, strokeWidth: drawWidth, opacity: 1, x: 0, y: 0 };
+                          currentDrawRef.current = newEl;
+                          setCurrentDrawEl(newEl);
+                          setIsDrawingNow(true);
+                          return;
+                        }
                         // Only start rubber-band when clicking empty canvas
                         if (e.target !== e.target.getStage()) return;
                         const pos = e.target.getRelativePointerPosition();
@@ -4527,6 +4586,13 @@ export default function TemplatesEditorInner() {
                         clearSelection();
                       }) : undefined}
                       onMouseMove={isActive ? (e => {
+                        if (drawMode && isDrawingNow && currentDrawRef.current) {
+                          const pos = e.target.getStage().getRelativePointerPosition();
+                          const updated = { ...currentDrawRef.current, points: [...currentDrawRef.current.points, pos.x, pos.y] };
+                          currentDrawRef.current = updated;
+                          setCurrentDrawEl({ ...updated });
+                          return;
+                        }
                         if (!selectionStart) return;
                         const pos = e.target.getStage().getRelativePointerPosition();
                         setSelectionRect({
@@ -4537,6 +4603,16 @@ export default function TemplatesEditorInner() {
                         });
                       }) : undefined}
                       onMouseUp={isActive ? (() => {
+                        if (drawMode && isDrawingNow && currentDrawRef.current) {
+                          if ((currentDrawRef.current.points || []).length >= 4) {
+                            pushHistory();
+                            patchElements(prev => [...prev, currentDrawRef.current]);
+                          }
+                          currentDrawRef.current = null;
+                          setCurrentDrawEl(null);
+                          setIsDrawingNow(false);
+                          return;
+                        }
                         if (selectionRect && (selectionRect.w > 4 || selectionRect.h > 4)) {
                           const sr = selectionRect;
                           const hit = pageElements.filter(el => {
@@ -4707,6 +4783,19 @@ export default function TemplatesEditorInner() {
                             stroke="#00C4CC"
                             strokeWidth={1 / stageScale}
                             dash={[4 / stageScale, 4 / stageScale]}
+                          />
+                        </Layer>
+                      )}
+                      {/* Layer 6: In-progress freehand draw path */}
+                      {isActive && drawMode && currentDrawEl && currentDrawEl.points.length >= 2 && (
+                        <Layer listening={false}>
+                          <Line
+                            points={currentDrawEl.points}
+                            stroke={currentDrawEl.stroke}
+                            strokeWidth={currentDrawEl.strokeWidth}
+                            tension={0.5}
+                            lineCap="round"
+                            lineJoin="round"
                           />
                         </Layer>
                       )}
@@ -5010,7 +5099,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
