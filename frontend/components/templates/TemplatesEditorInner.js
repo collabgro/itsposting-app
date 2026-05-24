@@ -351,6 +351,12 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
       stroke={isSelected ? '#00C4CC' : undefined}
       strokeWidth={isSelected ? 1.5 : 0}
       globalCompositeOperation={el.blendMode || 'source-over'}
+      shadowEnabled={el.shadow?.enabled || false}
+      shadowColor={el.shadow?.color || '#000000'}
+      shadowBlur={el.shadow?.blur ?? 8}
+      shadowOffsetX={el.shadow?.offsetX ?? 4}
+      shadowOffsetY={el.shadow?.offsetY ?? 4}
+      shadowOpacity={el.shadow?.opacity ?? 0.5}
       {...(cropProp ? { crop: cropProp } : {})}
     />
   );
@@ -2469,6 +2475,37 @@ export default function TemplatesEditorInner() {
                       style={{ width: '100%', padding: '7px 0', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, cursor: 'pointer' }}>
                       Reset crop
                     </button>
+                  </div>
+                )}
+              </div>
+              {/* Shadow panel for images */}
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="Shadow" active={!!selectedEl.shadow?.enabled}
+                  onClick={() => { setShowShadowPanel(p => !p); setShowAdjustPanel(false); setShowCropPanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }} />
+                {showShadowPanel && (
+                  <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
+                      <input type="checkbox" checked={selectedEl.shadow?.enabled || false}
+                        onChange={e => handleElementChange({ ...selectedEl, shadow: { ...(selectedEl.shadow||{}), enabled: e.target.checked } })} />
+                      Enable shadow
+                    </label>
+                    {selectedEl.shadow?.enabled && <>
+                      <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 4 }}>Color</label>
+                      <input type="color" value={selectedEl.shadow?.color || '#000000'}
+                        onChange={e => updateElement({ ...selectedEl, shadow: { ...selectedEl.shadow, color: e.target.value } })}
+                        onBlur={() => pushHistory()} style={{ width: '100%', height: 28, marginBottom: 10, cursor: 'pointer', borderRadius: 6, border: `1px solid ${t.border}` }} />
+                      {[{lbl:'Blur',k:'blur',mn:0,mx:40,def:8},{lbl:'Offset X',k:'offsetX',mn:-30,mx:30,def:4},{lbl:'Offset Y',k:'offsetY',mn:-30,mx:30,def:4}].map(({lbl,k,mn,mx,def}) => (
+                        <div key={k} style={{ marginBottom: 8 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
+                            <span style={{ fontSize:11, color:t.textMuted }}>{lbl}</span>
+                            <span style={{ fontSize:11, color:t.textMuted }}>{selectedEl.shadow?.[k]??def}</span>
+                          </div>
+                          <input type="range" min={mn} max={mx} value={selectedEl.shadow?.[k]??def}
+                            onChange={e => updateElement({ ...selectedEl, shadow: {...(selectedEl.shadow||{}), [k]:parseInt(e.target.value)} })}
+                            onMouseUp={() => pushHistory()} style={{ width:'100%' }} />
+                        </div>
+                      ))}
+                    </>}
                   </div>
                 )}
               </div>
