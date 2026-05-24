@@ -1036,6 +1036,7 @@ export default function TemplatesEditorInner() {
   const [draggingGuide, setDraggingGuide] = useState(null); // { axis:'h'|'v', pos:number } canvas px
   const [liveBounds, setLiveBounds] = useState(null); // { x,y,w,h } shown while dragging/resizing
   const canvasWrapperRef = useRef(null);
+  const replaceImgId  = useRef(null);  // id of image element being replaced (null = use selectedId)
   // Top bar dropdowns
   const [titleEditing, setTitleEditing] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -1939,6 +1940,12 @@ export default function TemplatesEditorInner() {
   function startEditText(id) {
     const el = elements.find(e => e.id === id);
     if (!el) return;
+    if (el.type === 'image') {
+      replaceImgId.current = id;
+      replaceFileRef.current?.click();
+      return;
+    }
+    if (el.type !== 'text') return;
     const stage = stageRef.current;
     if (!stage) return;
     const node = stage.findOne(`#${id}`);
@@ -1949,6 +1956,7 @@ export default function TemplatesEditorInner() {
     setEditingTextId(id);
     patchElements(prev => prev.map(e => e.id === id ? { ...e, visible: false } : e));
   }
+
 
   function commitTextEdit() {
     if (!editingTextId) return;
@@ -2937,7 +2945,7 @@ export default function TemplatesEditorInner() {
           );
           return (
             <>
-              <Btn label="⇄ Replace" active={false} onClick={() => replaceFileRef.current?.click()} />
+              <Btn label="⇄ Replace" active={false} onClick={() => { replaceImgId.current = null; replaceFileRef.current?.click(); }} title="Replace image (or double-click)" />
               <Btn label="🖼 Set as BG" active={false} onClick={() => setElementAsBackground(selectedEl)} />
               <D />
               {/* Color tint */}
@@ -5762,15 +5770,20 @@ export default function TemplatesEditorInner() {
         </div>
       )}
 
-      {/* Hidden file input for image replace */}
+      {/* Hidden file input for image replace (Replace button + double-click) */}
       <input ref={replaceFileRef} type="file" accept="image/*" style={{ display: 'none' }}
         onChange={e => {
           const f = e.target.files?.[0];
-          if (!f || !selectedId) return;
-          const url = URL.createObjectURL(f);
-          pushHistory();
-          patchElements(prev => prev.map(el => el.id === selectedId ? { ...el, url } : el));
+          const targetId = replaceImgId.current || selectedId;
+          if (!f || !targetId) return;
+          const reader = new FileReader();
+          reader.onload = ev => {
+            pushHistory();
+            patchElements(prev => prev.map(el => el.id === targetId ? { ...el, src: ev.target.result } : el));
+          };
+          reader.readAsDataURL(f);
           e.target.value = '';
+          replaceImgId.current = null;
         }} />
 
       {/* ── Design card hover preview ── */}
