@@ -6,6 +6,13 @@ import Konva from 'konva';
 import { useTheme } from '../../lib/theme';
 import { studioAPI } from '../../lib/api';
 import { useToast } from '../../components/ui';
+import {
+  IpArrowLeft, IpDownload, IpEye,
+  IpCopy, IpDelete, IpLock, IpUnlock,
+  IpSparkle, IpPalette, IpEdit, IpFolderOpen,
+  IpTextCard, IpPublish,
+  IpPlus, IpChevronDown,
+} from '../../components/icons';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -21,6 +28,22 @@ const TEAL = '#00C4CC';
 
 const BLEND_MODES = ['source-over','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','hard-light','soft-light','difference','exclusion'];
 const BLEND_LABELS = { 'source-over':'Normal', multiply:'Multiply', screen:'Screen', overlay:'Overlay', darken:'Darken', lighten:'Lighten', 'color-dodge':'Dodge', 'color-burn':'Burn', 'hard-light':'Hard Light', 'soft-light':'Soft Light', difference:'Difference', exclusion:'Exclusion' };
+
+// ─── Editor-specific inline SVG icons (not in main icon library) ──────────────
+const _Ico = ({ size, sw = 1.75, children }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+);
+const IcoUndo      = ({ size = 16 }) => <_Ico size={size}><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 5.5 6"/></_Ico>;
+const IcoRedo      = ({ size = 16 }) => <_Ico size={size}><path d="M21 7v6h-6"/><path d="M21 13A9 9 0 1 1 18.5 6"/></_Ico>;
+const IcoTemplates = ({ size = 20 }) => <_Ico size={size}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></_Ico>;
+const IcoLayers    = ({ size = 20 }) => <_Ico size={size}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></_Ico>;
+const IcoBringFwd  = ({ size = 15 }) => <_Ico size={size}><rect x="3" y="8" width="13" height="13" rx="2"/><path d="M8 8V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3"/></_Ico>;
+const IcoSendBack  = ({ size = 15 }) => <_Ico size={size}><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M5 15H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/></_Ico>;
+const IcoDuplicate = ({ size = 15 }) => <_Ico size={size}><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v1"/></_Ico>;
+const IcoFit       = ({ size = 13 }) => <_Ico size={size}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></_Ico>;
+const IcoRuler     = ({ size = 13 }) => <_Ico size={size}><rect x="2" y="7" width="20" height="10" rx="1"/><line x1="7" y1="12" x2="7" y2="7"/><line x1="11" y1="10" x2="11" y2="7"/><line x1="15" y1="12" x2="15" y2="7"/><line x1="19" y1="10" x2="19" y2="7"/></_Ico>;
+const IcoGrid      = ({ size = 13 }) => <_Ico size={size}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></_Ico>;
+const IcoAddPage   = ({ size = 13 }) => <_Ico size={size}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></_Ico>;
 
 const FONTS = [
   // Sans-serif
@@ -5469,9 +5492,18 @@ export default function TemplatesEditorInner() {
 
           {/* Back */}
           <button onClick={() => router.push('/media?tab=templates')} title="Back to templates"
-            style={{ width: 36, height: 36, border: 'none', borderRadius: 8, background: 'transparent', color: t.text, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            ←
+            style={{ width: 36, height: 36, border: 'none', borderRadius: 8, background: 'transparent', color: t.text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <IpArrowLeft size={18} />
           </button>
+
+          {/* ItsPosting Studio brand mark */}
+          <div style={{
+            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+            background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 55%, #00C4CC 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
+            userSelect: 'none', cursor: 'default',
+          }}>IP</div>
 
           {/* File dropdown */}
           <div style={{ position: 'relative' }}>
@@ -5673,11 +5705,13 @@ export default function TemplatesEditorInner() {
 
           {/* Undo / Redo */}
           <button onClick={undo} disabled={historyIndex < 0}
-            onMouseEnter={e => showTip(e, 'Undo', 'Ctrl+Z')} onMouseLeave={hideTip}
-            style={{ width: 34, height: 34, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: historyIndex < 0 ? t.textMuted : t.text, fontSize: 16, cursor: historyIndex < 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>⟲</button>
+            onMouseEnter={e => { showTip(e, 'Undo', 'Ctrl+Z'); if (historyIndex >= 0) e.currentTarget.style.background = t.input; }}
+            onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
+            style={{ width: 32, height: 32, border: 'none', borderRadius: 7, background: 'transparent', color: historyIndex < 0 ? t.textMuted : t.text, cursor: historyIndex < 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}><IcoUndo size={16} /></button>
           <button onClick={redo} disabled={historyIndex >= history.length - 1}
-            onMouseEnter={e => showTip(e, 'Redo', 'Ctrl+Y')} onMouseLeave={hideTip}
-            style={{ width: 34, height: 34, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: historyIndex >= history.length - 1 ? t.textMuted : t.text, fontSize: 16, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>⟳</button>
+            onMouseEnter={e => { showTip(e, 'Redo', 'Ctrl+Y'); if (historyIndex < history.length - 1) e.currentTarget.style.background = t.input; }}
+            onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
+            style={{ width: 32, height: 32, border: 'none', borderRadius: 7, background: 'transparent', color: historyIndex >= history.length - 1 ? t.textMuted : t.text, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}><IcoRedo size={16} /></button>
 
           <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0 }} />
 
@@ -5703,13 +5737,13 @@ export default function TemplatesEditorInner() {
           <button onClick={() => setPreviewOpen(true)}
             onMouseEnter={e => showTip(e, 'Preview', 'P')} onMouseLeave={hideTip}
             style={{ height: 36, padding: '0 13px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'background 100ms' }}>
-            ⊙ Preview
+            <IpEye size={15} /> Preview
           </button>
 
           {/* Share */}
           <button onClick={() => { setShareOpen(o => !o); setShowFileMenu(false); setShowResizeMenu(false); setShowDownloadMenu(false); setEditModeOpen(false); }}
             onMouseEnter={e => showTip(e, 'Share design')} onMouseLeave={hideTip}
-            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: shareOpen ? '#6B4FE0' : t.primary, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'background 100ms' }}>
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: shareOpen ? 'linear-gradient(135deg, #7C3FBC 0%, #A83EA0 100%)' : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 55%, #00C4CC 100%)', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'opacity 100ms' }}>
             Share
           </button>
 
@@ -5718,7 +5752,7 @@ export default function TemplatesEditorInner() {
             {showDownloadMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowDownloadMenu(false)} />}
             <button onClick={() => { setShowDownloadMenu(m => !m); setShowFileMenu(false); setShowResizeMenu(false); }}
               style={{ height: 36, padding: '0 13px', border: `1px solid ${showDownloadMenu ? t.primary : t.border}`, borderRadius: 8, background: showDownloadMenu ? t.primaryBg : t.input, color: showDownloadMenu ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500 }}>
-              ⬇ <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
+              <IpDownload size={15} /> <IpChevronDown size={9} />
             </button>
             {showDownloadMenu && (
               <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 200, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0', animation: 'dropdownIn 150ms ease forwards' }}>
@@ -7659,18 +7693,18 @@ export default function TemplatesEditorInner() {
         {/* ── Left sidebar: 72px icon strip + 320px collapsible flyout ── */}
 
         {/* 72px icon strip — always visible */}
-        <div style={{ width: 72, borderRight: `1px solid ${t.border}`, background: t.card,
+        <div style={{ width: 72, borderRight: `1px solid ${t.border}`, background: t.sidebar,
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           padding: '8px 0', flexShrink: 0, gap: 2 }}>
           {[
-            { id: 'templates', icon: '▦', label: 'Templates' },
-            { id: 'elements',  icon: '✦', label: 'Elements'  },
-            { id: 'text',      icon: 'T',  label: 'Text',      shortcut: 'T' },
-            { id: 'brand',     icon: '◈', label: 'Brand',  pro: true },
-            { id: 'uploads',   icon: '⬆', label: 'Uploads'   },
-            { id: 'layers',    icon: '▥', label: 'Layers'    },
-            { id: 'tools',     icon: '✐', label: 'Tools'     },
-            { id: 'projects',  icon: '⊟', label: 'Projects'  },
+            { id: 'templates', icon: <IcoTemplates size={20} />, label: 'Templates' },
+            { id: 'elements',  icon: <IpSparkle size={20} />,    label: 'Elements'  },
+            { id: 'text',      icon: <IpTextCard size={20} />,   label: 'Text',      shortcut: 'T' },
+            { id: 'brand',     icon: <IpPalette size={20} />,    label: 'Brand',     pro: true },
+            { id: 'uploads',   icon: <IpPublish size={20} />,    label: 'Uploads'   },
+            { id: 'layers',    icon: <IcoLayers size={20} />,    label: 'Layers'    },
+            { id: 'tools',     icon: <IpEdit size={20} />,       label: 'Tools'     },
+            { id: 'projects',  icon: <IpFolderOpen size={20} />, label: 'Projects'  },
           ].map(tool => (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
               onMouseEnter={e => showTip(e, tool.label, tool.shortcut)}
@@ -7678,9 +7712,9 @@ export default function TemplatesEditorInner() {
               style={{
                 width: 60, padding: '10px 0 6px',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                background: activeLeftTool === tool.id && panelOpen ? t.primaryBg : 'transparent',
+                background: activeLeftTool === tool.id && panelOpen ? 'rgba(0,196,204,0.15)' : 'transparent',
                 border: 'none', borderRadius: 8, cursor: 'pointer',
-                color: activeLeftTool === tool.id && panelOpen ? t.primary : t.textMuted,
+                color: activeLeftTool === tool.id && panelOpen ? TEAL : t.textMuted,
                 fontSize: 10, fontWeight: activeLeftTool === tool.id && panelOpen ? 600 : 400,
                 transition: 'background 100ms ease, color 100ms ease, transform 100ms ease',
                 position: 'relative',
@@ -7688,15 +7722,15 @@ export default function TemplatesEditorInner() {
               onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
               onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
             >
-              <span style={{ fontSize: 20, lineHeight: 1 }}>{tool.icon}</span>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>{tool.icon}</span>
               {tool.label}
               {tool.pro && <span style={{ position: 'absolute', top: 6, right: 8, fontSize: 8, color: '#FFB800' }}>👑</span>}
             </button>
           ))}
           <div style={{ flex: 1 }} />
           {[
-            { id: 'apps',  icon: '⊞', label: 'Apps'  },
-            { id: 'magic', icon: '⟡', label: 'Magic Media' },
+            { id: 'apps',  icon: <IpPlus size={20} />,    label: 'Apps'       },
+            { id: 'magic', icon: <IpSparkle size={20} />, label: 'Magic Media' },
           ].map(tool => (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
               onMouseEnter={e => showTip(e, tool.label)}
@@ -7704,13 +7738,13 @@ export default function TemplatesEditorInner() {
               style={{
                 width: 60, padding: '10px 0 6px',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                background: activeLeftTool === tool.id && panelOpen ? t.primaryBg : 'transparent',
+                background: activeLeftTool === tool.id && panelOpen ? 'rgba(0,196,204,0.15)' : 'transparent',
                 border: 'none', borderRadius: 8, cursor: 'pointer',
-                color: activeLeftTool === tool.id && panelOpen ? t.primary : t.textMuted,
+                color: activeLeftTool === tool.id && panelOpen ? TEAL : t.textMuted,
                 fontSize: 10, fontWeight: activeLeftTool === tool.id && panelOpen ? 600 : 400,
                 transition: 'background 100ms ease, color 100ms ease',
               }}>
-              <span style={{ fontSize: 20, lineHeight: 1 }}>{tool.icon}</span>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>{tool.icon}</span>
               {tool.label}
             </button>
           ))}
@@ -8376,7 +8410,7 @@ export default function TemplatesEditorInner() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {/* AI search bar */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
-                  <span style={{ color: t.primary, fontWeight: 700, fontSize: 15, flexShrink: 0 }}>+</span>
+                  <span style={{ color: t.primary, flexShrink: 0, display: 'flex' }}><IpPlus size={15} /></span>
                   <input placeholder="Describe your ideal element" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
                   <span style={{ color: t.textMuted, fontSize: 13, flexShrink: 0 }}>🎤</span>
                 </div>
@@ -8393,16 +8427,16 @@ export default function TemplatesEditorInner() {
                 <div style={{ fontSize: 12, fontWeight: 600, color: t.text }}>Browse categories</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                   {[
-                    { icon: '▭', label: 'Shapes',     bg: '#FFF0E0', fn: () => addRect() },
-                    { icon: '✦', label: 'Graphics',   bg: '#F0E8FF', fn: () => {} },
-                    { icon: '▶', label: 'Animations', bg: '#E0F8FF', fn: () => {} },
-                    { icon: '⬜', label: 'Frames',    bg: '#FFF0F0', fn: () => addRect({ fill: 'transparent', stroke: '#888', strokeWidth: 3 }) },
-                    { icon: '⊞', label: 'Grids',     bg: '#F0FFE8', fn: () => { for(let r=0;r<2;r++) for(let c=0;c<2;c++) addRect({ x: canvasSize.w/2 - 220 + c*115, y: canvasSize.h/2 - 120 + r*115, width: 110, height: 110 }); } },
-                    { icon: '📊', label: 'Charts',   bg: '#E8F4FF', fn: () => {} },
+                    { icon: '▭', label: 'Shapes',     bg: 'rgba(0,196,204,0.15)',   ic: TEAL,       fn: () => addRect() },
+                    { icon: '✦', label: 'Graphics',   bg: 'rgba(155,79,212,0.15)',  ic: '#9B4FD4',  fn: () => {} },
+                    { icon: '▶', label: 'Animations', bg: 'rgba(59,130,246,0.15)',  ic: '#3b82f6',  fn: () => {} },
+                    { icon: '⬜', label: 'Frames',    bg: 'rgba(234,179,8,0.15)',   ic: '#eab308',  fn: () => addRect({ fill: 'transparent', stroke: '#888', strokeWidth: 3 }) },
+                    { icon: '⊞', label: 'Grids',     bg: 'rgba(34,197,94,0.15)',   ic: '#22c55e',  fn: () => { for(let r=0;r<2;r++) for(let c=0;c<2;c++) addRect({ x: canvasSize.w/2 - 220 + c*115, y: canvasSize.h/2 - 120 + r*115, width: 110, height: 110 }); } },
+                    { icon: '📊', label: 'Charts',   bg: 'rgba(239,68,68,0.15)',   ic: '#ef4444',  fn: () => {} },
                   ].map(c => (
                     <button key={c.label} onMouseDown={e => { e.preventDefault(); c.fn(); }}
                       style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 4px', border: `1px solid ${t.border}`, borderRadius: 10, background: t.input, cursor: 'pointer', color: t.text }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 8, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{c.icon}</div>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: c.ic }}>{c.icon}</div>
                       <span style={{ fontSize: 11, fontWeight: 500 }}>{c.label}</span>
                     </button>
                   ))}
@@ -9044,7 +9078,6 @@ export default function TemplatesEditorInner() {
                     ref={isActive ? canvasWrapperRef : null}
                     style={{
                       position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0,
-                      outline: isActive ? '2px solid #00C4CC' : '2px solid transparent',
                       borderRadius: 8, cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
                       opacity: page.hidden ? 0.35 : 1,
                       background: pageBgType === 'transparent'
@@ -9052,9 +9085,9 @@ export default function TemplatesEditorInner() {
                         : undefined,
                     }}
                     onClick={!isActive ? () => { setActivePage(pageIdx); setSelectedId(null); } : undefined}
-                    onDragOver={isActive ? e => { e.preventDefault(); e.currentTarget.style.outline = '3px solid #00C4CC'; } : undefined}
-                    onDragLeave={isActive ? e => { e.currentTarget.style.outline = '2px solid #00C4CC'; } : undefined}
-                    onDrop={isActive ? e => { e.currentTarget.style.outline = '2px solid #00C4CC'; handleCanvasDrop(e); } : undefined}
+                    onDragOver={isActive ? e => { e.preventDefault(); } : undefined}
+                    onDragLeave={isActive ? e => { } : undefined}
+                    onDrop={isActive ? e => { handleCanvasDrop(e); } : undefined}
                   >
                     <Stage
                       ref={isActive ? stageRef : null}
@@ -9062,7 +9095,7 @@ export default function TemplatesEditorInner() {
                       height={canvasSize.h}
                       scaleX={stageScale}
                       scaleY={stageScale}
-                      style={{ borderRadius: 8, boxShadow: '0 4px 32px rgba(0,0,0,0.3)', display: 'block', width: stageDisplayW, height: stageDisplayH }}
+                      style={{ borderRadius: 8, boxShadow: isActive ? `0 0 0 2px ${TEAL}, 0 12px 48px rgba(0,0,0,0.35)` : '0 8px 40px rgba(0,0,0,0.25)', display: 'block', width: stageDisplayW, height: stageDisplayH }}
                       onClick={isActive ? (e => {
                         if (e.target === e.target.getStage()) {
                           clearSelection();
@@ -9421,20 +9454,20 @@ export default function TemplatesEditorInner() {
                       };
                       const delEl  = () => { pushHistory(); patchElements(prev => prev.filter(e => e.id !== selectedId)); setSelectedId(null); };
                       const BTNS = [
-                        { icon: '⧉', title: 'Copy (Ctrl+C)',      fn: copyEl },
-                        { icon: '⊞', title: 'Duplicate (Ctrl+D)', fn: dupEl },
+                        { icon: <IpCopy size={15} />,        title: 'Copy (Ctrl+C)',            fn: copyEl },
+                        { icon: <IcoDuplicate size={15} />,  title: 'Duplicate (Ctrl+D)',        fn: dupEl },
                         { sep: true },
-                        { icon: '◈', title: 'Copy style (Alt+C)',  fn: copyStyle },
-                        ...(styleClipboard ? [{ icon: '◈', title: 'Paste style (Alt+V)', fn: () => pasteStyle(), highlight: true }] : []),
+                        { icon: <IpPalette size={15} />,     title: 'Copy style (Alt+C)',        fn: copyStyle },
+                        ...(styleClipboard ? [{ icon: <IpPalette size={15} />, title: 'Paste style (Alt+V)', fn: () => pasteStyle(), highlight: true }] : []),
                         { sep: true },
-                        { icon: '↑', title: 'Bring forward',       fn: () => bringForward(selectedId) },
-                        { icon: '↓', title: 'Send backward',       fn: () => sendBackward(selectedId) },
+                        { icon: <IcoBringFwd size={15} />,   title: 'Bring forward',             fn: () => bringForward(selectedId) },
+                        { icon: <IcoSendBack size={15} />,   title: 'Send backward',             fn: () => sendBackward(selectedId) },
                         { sep: true },
-                        ...(el.type === 'group' ? [{ icon: '⊟', title: 'Ungroup (Ctrl+Shift+G)', fn: ungroupSelected }, { sep: true }] : []),
-                        ...(pages.length > 1 ? [{ icon: '⊛', title: 'Add to all pages', fn: () => addElToAllPages(selectedId) }, { sep: true }] : []),
-                        { icon: isLocked ? '🔒' : '🔓', title: isLocked ? 'Unlock' : 'Lock', fn: () => toggleLocked(selectedId) },
+                        ...(el.type === 'group' ? [{ icon: <IpCopy size={15} />, title: 'Ungroup (Ctrl+Shift+G)', fn: ungroupSelected }, { sep: true }] : []),
+                        ...(pages.length > 1 ? [{ icon: <IpPlus size={15} />, title: 'Add to all pages', fn: () => addElToAllPages(selectedId) }, { sep: true }] : []),
+                        { icon: isLocked ? <IpLock size={15} /> : <IpUnlock size={15} />, title: isLocked ? 'Unlock' : 'Lock', fn: () => toggleLocked(selectedId) },
                         { sep: true },
-                        { icon: '🗑', title: 'Delete (Del)', fn: delEl, danger: true },
+                        { icon: <IpDelete size={15} />,      title: 'Delete (Del)',              fn: delEl, danger: true },
                       ];
                       return (
                         <div
@@ -9442,10 +9475,10 @@ export default function TemplatesEditorInner() {
                           style={{
                             position: 'absolute', left: cx, top: toolbarY,
                             transform: 'translateX(-50%)',
-                            background: '#ffffff',
-                            border: '1px solid #e2e2e2',
+                            background: t.card,
+                            border: `1px solid ${t.border}`,
                             borderRadius: 10,
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
+                            boxShadow: t.shadowLg,
                             display: 'flex', alignItems: 'center',
                             padding: '3px 5px', gap: 1,
                             zIndex: 200, whiteSpace: 'nowrap',
@@ -9454,19 +9487,19 @@ export default function TemplatesEditorInner() {
                         >
                           {BTNS.map((b, i) =>
                             b.sep ? (
-                              <div key={i} style={{ width: 1, height: 18, background: '#e2e2e2', margin: '0 3px', flexShrink: 0 }} />
+                              <div key={i} style={{ width: 1, height: 18, background: t.border, margin: '0 3px', flexShrink: 0 }} />
                             ) : (
                               <button
                                 key={i}
                                 onMouseDown={e => { e.stopPropagation(); b.fn(); }}
-                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.danger ? t.errorBg : b.highlight ? 'rgba(0,196,204,0.2)' : '#f0f0f0'; }}
+                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.danger ? t.errorBg : b.highlight ? 'rgba(0,196,204,0.2)' : t.input; }}
                                 onMouseLeave={e => { hideTip(); e.currentTarget.style.background = b.highlight ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
                                 style={{
                                   width: 30, height: 30, border: 'none', borderRadius: 6,
                                   background: b.highlight ? 'rgba(0,196,204,0.1)' : 'transparent',
                                   cursor: 'pointer', fontSize: 14,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  color: b.danger ? '#ef4444' : b.highlight ? TEAL : '#333',
+                                  color: b.danger ? t.error : b.highlight ? TEAL : t.text,
                                   transition: 'background 80ms',
                                   flexShrink: 0,
                                 }}
@@ -9576,7 +9609,7 @@ export default function TemplatesEditorInner() {
           <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
             {['properties', 'layers'].map(tab => (
               <button key={tab} onClick={() => setRightTab(tab)}
-                style={{ flex: 1, padding: '9px 0', border: 'none', background: rightTab === tab ? t.primaryBg : 'transparent', color: rightTab === tab ? t.primary : t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', borderBottom: rightTab === tab ? `2px solid ${t.primary}` : '2px solid transparent', textTransform: 'capitalize' }}>
+                style={{ flex: 1, padding: '9px 0 7px', border: 'none', background: 'transparent', color: rightTab === tab ? TEAL : t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', borderBottom: rightTab === tab ? `2px solid ${TEAL}` : '2px solid transparent', textTransform: 'capitalize' }}>
                 {tab}
               </button>
             ))}
@@ -10053,7 +10086,7 @@ export default function TemplatesEditorInner() {
             display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'background 100ms' }}
           onMouseEnterCapture={e => e.currentTarget.style.color = t.text}
           onMouseLeaveCapture={e => e.currentTarget.style.color = t.textMuted}>
-          ⤢ Fit
+          <IcoFit size={13} /> Fit
         </button>
 
         {/* Zoom out */}
@@ -10113,7 +10146,7 @@ export default function TemplatesEditorInner() {
           style={{ width: 28, height: 26, border: `1px solid ${showRulers ? TEAL : t.border}`, borderRadius: 5,
             background: showRulers ? 'rgba(0,196,204,0.1)' : t.input, color: showRulers ? TEAL : t.text,
             fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>
-          ⊹
+          <IcoRuler size={13} />
         </button>
 
         {/* Grid toggle */}
@@ -10122,7 +10155,7 @@ export default function TemplatesEditorInner() {
           style={{ width: 28, height: 26, border: `1px solid ${showGrid ? TEAL : t.border}`, borderRadius: 5,
             background: showGrid ? 'rgba(0,196,204,0.1)' : t.input, color: showGrid ? TEAL : t.text,
             fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>
-          ⊞
+          <IcoGrid size={13} />
         </button>
 
         {/* Fullscreen */}
