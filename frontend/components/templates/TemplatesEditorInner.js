@@ -666,6 +666,9 @@ export default function TemplatesEditorInner() {
   const [bgPhotosLoading, setBgPhotosLoading] = useState(false);
   const [bgTab, setBgTab] = useState('stock');
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
+  const autosaveTimerRef = useRef(null);
+  const postModalOpen_ref = useRef(false); // prevent autosave opening post modal
   const [postModalOpen, setPostModalOpen] = useState(false);
   const [savedCreationId, setSavedCreationId] = useState(null);
   const [postCaption, setPostCaption] = useState('');
@@ -804,6 +807,18 @@ export default function TemplatesEditorInner() {
       if (c.overlay_title) setTitleForSave(c.overlay_title);
     }).catch(() => {});
   }, [router.query?.id]);
+
+  // ── Autosave to localStorage (2s debounce — prevents data loss) ───────────
+  useEffect(() => {
+    clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      try {
+        const key = `ip_autosave_${router.query?.id || 'new'}`;
+        localStorage.setItem(key, JSON.stringify({ pages, titleForSave, canvasSizeId, ts: Date.now() }));
+      } catch {}
+    }, 2000);
+    return () => clearTimeout(autosaveTimerRef.current);
+  }, [pages]);
 
   // ── Keyboard handler ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -1480,6 +1495,7 @@ export default function TemplatesEditorInner() {
   async function handleSave() {
     if (!stageRef.current) return;
     setSaving(true);
+    setSaveStatus('saving');
     try {
       setSelectedId(null);
       await new Promise(r => requestAnimationFrame(r));
@@ -1490,9 +1506,12 @@ export default function TemplatesEditorInner() {
       const snap = snapshot();
       const data = await studioAPI.save({ imageDataUrl: dataUrl, canvasJson: snap, title: titleForSave, canvasWidth: canvasSize.w, canvasHeight: canvasSize.h, backgroundSource: currentPage.bgSource, backgroundId: currentPage.bgSourceId });
       setSavedCreationId(data.creation.id);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2500);
       setPostModalOpen(true);
     } catch (err) {
       console.error('[TemplatesEditor] save:', err);
+      setSaveStatus('idle');
       alert('Failed to save. Please try again.');
     } finally {
       setSaving(false);
@@ -1726,6 +1745,19 @@ export default function TemplatesEditorInner() {
             style={{ width: 34, height: 34, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: historyIndex >= history.length - 1 ? t.textMuted : t.text, fontSize: 16, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>⟳</button>
 
           <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0 }} />
+
+          {/* Save status indicator */}
+          {saveStatus === 'saving' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.textMuted }}>
+              <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>⟳</span>
+              Saving…
+            </div>
+          )}
+          {saveStatus === 'saved' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#00C4CC', animation: 'save-check 250ms ease forwards' }}>
+              ✓ Saved
+            </div>
+          )}
 
           {/* Preview */}
           <button onClick={() => setPreviewOpen(true)}
@@ -2953,6 +2985,12 @@ export default function TemplatesEditorInner() {
             from { opacity:0; transform:translateY(8px); }
             to   { opacity:1; transform:translateY(0);   }
           }
+          @keyframes save-check {
+            from { opacity:0; transform:scale(0.7); }
+            50%  { opacity:1; transform:scale(1.1); }
+            to   { opacity:1; transform:scale(1);   }
+          }
+          @keyframes spin { to { transform:rotate(360deg); } }
         `}</style>
         <div ref={containerRef} style={{ flex: 1, overflowY: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
