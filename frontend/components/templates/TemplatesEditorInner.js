@@ -1741,6 +1741,28 @@ export default function TemplatesEditorInner() {
   }
 
   // ── Save & Post ────────────────────────────────────────────────────────────
+  async function downloadAllPages() {
+    if (!stageRef.current) return;
+    const savedPage = activePage;
+    clearSelection();
+    setSelectedId(null);
+    if (trLayerRef.current) trLayerRef.current.hide();
+    const pixelRatio = canvasSize.w / stageDisplayW;
+    for (let i = 0; i < pages.length; i++) {
+      setActivePage(i);
+      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => requestAnimationFrame(r));
+      const uri = stageRef.current.toDataURL({ mimeType: 'image/png', quality: 1, pixelRatio });
+      const a = document.createElement('a');
+      a.href = uri;
+      a.download = `${titleForSave || 'design'}_page${i + 1}.png`;
+      a.click();
+      await new Promise(r => setTimeout(r, 80));
+    }
+    if (trLayerRef.current) trLayerRef.current.show();
+    setActivePage(savedPage);
+  }
+
   function downloadCanvas(mimeType, ext, quality) {
     if (!stageRef.current) return;
     const pixelRatio = canvasSize.w / stageDisplayW;
@@ -2056,6 +2078,7 @@ export default function TemplatesEditorInner() {
                 {[
                   { label: 'PNG (lossless)',   fn: () => downloadCanvas('image/png',  'png',  1)    },
                   { label: 'JPEG (smaller)',    fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
+                  ...(pages.length > 1 ? [{ label: `All ${pages.length} pages (PNG)`, fn: downloadAllPages }] : []),
                 ].map((item, i) => (
                   <button key={i} onMouseDown={e => { e.preventDefault(); item.fn(); setShowDownloadMenu(false); }}
                     style={{ width: '100%', padding: '8px 14px', border: 'none', background: 'transparent', color: t.text, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}
