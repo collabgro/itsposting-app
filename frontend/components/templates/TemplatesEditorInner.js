@@ -1558,6 +1558,126 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'callout') {
+    const cbw = el.width || 300, cbh = el.height || 100;
+    const accentColor = el.fill || '#f59e0b';
+    const bgColor = el.bgColor || 'rgba(255,255,255,0.08)';
+    const icon = el.calloutIcon || '💡';
+    const heading = el.calloutHeading || 'Pro Tip';
+    const body = el.calloutBody || 'Here is something useful you should know about this topic.';
+    const calloutStyle = el.calloutStyle || 'side'; // 'side' | 'top' | 'outline'
+    const r = el.cornerRadius ?? 10;
+
+    return (
+      <Shape {...common}
+        width={cbw} height={cbh}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          const pad = 14;
+
+          // Background
+          ctx.beginPath();
+          ctx.roundRect(0, 0, w, h, r);
+          ctx.fillStyle = bgColor;
+          ctx.fill();
+
+          if (calloutStyle === 'side') {
+            // Left accent strip
+            ctx.beginPath();
+            ctx.roundRect(0, 0, 5, h, [r, 0, 0, r]);
+            ctx.fillStyle = accentColor;
+            ctx.fill();
+
+            const iconSize = Math.min(28, h * 0.35);
+            const textX = pad + iconSize + 12;
+            const textW = w - textX - pad;
+
+            // Icon
+            ctx.font = `${iconSize}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(icon, pad + 8 + iconSize / 2, h / 2);
+
+            // Heading
+            const headSize = Math.max(12, Math.round(h * 0.16));
+            ctx.font = `bold ${headSize}px Inter, sans-serif`;
+            ctx.fillStyle = accentColor;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(heading, textX, pad);
+
+            // Body text (word-wrap)
+            const bodySize = Math.max(10, Math.round(h * 0.12));
+            ctx.font = `${bodySize}px Inter, sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            const lines = [];
+            let line = '';
+            for (const word of body.split(' ')) {
+              const test = line ? `${line} ${word}` : word;
+              if (ctx.measureText(test).width > textW) { lines.push(line); line = word; }
+              else line = test;
+            }
+            if (line) lines.push(line);
+            const lineH = bodySize * 1.4;
+            const bodyY = pad + headSize * 1.4;
+            lines.slice(0, 3).forEach((l, i) => ctx.fillText(l, textX, bodyY + i * lineH));
+
+          } else if (calloutStyle === 'top') {
+            // Top accent bar
+            ctx.beginPath();
+            ctx.roundRect(0, 0, w, 5, [r, r, 0, 0]);
+            ctx.fillStyle = accentColor;
+            ctx.fill();
+
+            const iconSize = Math.min(20, h * 0.22);
+            ctx.font = `${iconSize}px Inter, sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(icon, pad, pad + 4);
+
+            const headSize = Math.max(12, Math.round(h * 0.16));
+            ctx.font = `bold ${headSize}px Inter, sans-serif`;
+            ctx.fillStyle = accentColor;
+            ctx.fillText(heading, pad + iconSize + 8, pad + 4);
+
+            const bodySize = Math.max(10, Math.round(h * 0.12));
+            ctx.font = `${bodySize}px Inter, sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            ctx.textBaseline = 'top';
+            ctx.fillText(body.slice(0, 60) + (body.length > 60 ? '…' : ''), pad, pad + headSize * 1.8);
+
+          } else {
+            // Outline style: just a border rectangle
+            ctx.beginPath();
+            ctx.roundRect(0, 0, w, h, r);
+            ctx.strokeStyle = accentColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            const iconSize = Math.min(24, h * 0.28);
+            ctx.font = `${iconSize}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(icon, pad + iconSize / 2, h / 2 - iconSize / 2);
+
+            const headSize = Math.max(12, Math.round(h * 0.16));
+            ctx.font = `bold ${headSize}px Inter, sans-serif`;
+            ctx.fillStyle = accentColor;
+            ctx.textAlign = 'left';
+            ctx.fillText(heading, pad + iconSize + 10, h / 2 - headSize);
+
+            const bodySize = Math.max(10, Math.round(h * 0.12));
+            ctx.font = `${bodySize}px Inter, sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.75)';
+            ctx.fillText(body.slice(0, 55) + (body.length > 55 ? '…' : ''), pad + iconSize + 10, h / 2 + 2);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2420,6 +2540,20 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addCallout() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'callout',
+      x: canvasSize.w / 2 - 150, y: canvasSize.h / 2 - 50,
+      width: 300, height: 100, opacity: 1,
+      fill: '#f59e0b', calloutStyle: 'side',
+      calloutIcon: '💡', calloutHeading: 'Pro Tip',
+      calloutBody: 'Here is something useful you should know.',
+    };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -4630,6 +4764,31 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'callout' && <>
+                <D />
+                {[['side','Side'],['top','Top'],['outline','Outline']].map(([s, lbl]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, calloutStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.calloutStyle||'side')===s?'#00C4CC':t.border}`, background:(selectedEl.calloutStyle||'side')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.calloutStyle||'side')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                {['💡','⚠','✅','🔥','📌','💎','🎯','🚀'].map(ic => (
+                  <button key={ic} onClick={() => { pushHistory(); updateElement({...selectedEl, calloutIcon: ic}); }}
+                    style={{ width:28, height:28, borderRadius:5, border:`1px solid ${selectedEl.calloutIcon===ic?'#00C4CC':t.border}`, background:selectedEl.calloutIcon===ic?'rgba(0,196,204,0.1)':'transparent', fontSize:14, cursor:'pointer', flexShrink:0 }}>
+                    {ic}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Accent</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#f59e0b'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+              </>}
               {selectedEl.type === 'socialstats' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Accent</span>
@@ -5611,6 +5770,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Badge',     icon: '🏷', fn: () => addBadge('sale') },
                     { label: 'Divider',   icon: '─',  fn: () => addDivider() },
                     { label: 'Stats',     icon: '📈', fn: () => addSocialStats() },
+                    { label: 'Callout',   icon: '💡', fn: () => addCallout() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -6698,7 +6858,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
