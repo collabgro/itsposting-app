@@ -2608,8 +2608,45 @@ export default function TemplatesEditorInner() {
                   <D />
                   <Btn label="⇔ Dist H" onClick={distributeH} />
                   <Btn label="⇕ Dist V" onClick={distributeV} />
+                  <D />
+                  <Btn label="⊞ Tidy up" onClick={() => {
+                    const els = selectedIds.map(id => elements.find(e => e.id === id)).filter(Boolean);
+                    if (els.length < 2) return;
+                    pushHistory();
+                    const cols = Math.ceil(Math.sqrt(els.length));
+                    const gap = 20;
+                    const maxW = Math.max(...els.map(e => e.width || 100));
+                    const maxH = Math.max(...els.map(e => e.height || 60));
+                    const minX = Math.min(...els.map(e => e.x || 0));
+                    const minY = Math.min(...els.map(e => e.y || 0));
+                    const arranged = els.map((el, i) => ({
+                      ...el,
+                      x: minX + (i % cols) * (maxW + gap),
+                      y: minY + Math.floor(i / cols) * (maxH + gap),
+                    }));
+                    patchElements(prev => prev.map(el => {
+                      const updated = arranged.find(a => a.id === el.id);
+                      return updated || el;
+                    }));
+                  }} />
                 </>
               )}
+              {selectedIds.length >= 2 && (() => {
+                const selEls = selectedIds.map(id => elements.find(e => e.id === id)).filter(Boolean);
+                const first = selEls[0];
+                const canMatchSize = first && first.width != null && first.height != null;
+                return canMatchSize ? (
+                  <>
+                    <D />
+                    <Btn label="⊡ Match size" onClick={() => {
+                      pushHistory();
+                      patchElements(prev => prev.map(el => selectedIds.includes(el.id) && el.id !== first.id
+                        ? { ...el, width: first.width, height: first.height }
+                        : el));
+                    }} />
+                  </>
+                ) : null;
+              })()}
               {styleClipboard && (
                 <>
                   <D />
