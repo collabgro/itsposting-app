@@ -9112,28 +9112,43 @@ export default function TemplatesEditorInner() {
                     </Stage>
 
                     {/* Inline text textarea (active page only) */}
-                    {isActive && editingTextId && (
-                      <textarea
-                        autoFocus
-                        value={textareaValue}
-                        onChange={e => setTextareaValue(e.target.value)}
-                        onBlur={commitTextEdit}
-                        onKeyDown={e => { if (e.key === 'Escape') commitTextEdit(); }}
-                        style={{
-                          position: 'absolute',
-                          left: textareaPos.x, top: textareaPos.y,
-                          width: textareaPos.w,
-                          fontSize: textareaPos.fontSize,
-                          fontFamily: elements.find(e => e.id === editingTextId)?.fontFamily || 'Inter',
-                          color: elements.find(e => e.id === editingTextId)?.fill || '#ffffff',
-                          background: 'rgba(0,0,0,0.4)',
-                          border: `2px solid ${t.primary}`,
-                          borderRadius: 4, padding: 4, outline: 'none', resize: 'none',
-                          overflow: 'hidden', zIndex: 100, lineHeight: 1.3, minHeight: 40,
-                        }}
-                        rows={3}
-                      />
-                    )}
+                    {isActive && editingTextId && (() => {
+                      const editEl = elements.find(e => e.id === editingTextId);
+                      return (
+                        <textarea
+                          autoFocus
+                          value={textareaValue}
+                          onChange={e => {
+                            setTextareaValue(e.target.value);
+                            // Auto-grow
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onFocus={e => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          onBlur={commitTextEdit}
+                          onKeyDown={e => { if (e.key === 'Escape') commitTextEdit(); }}
+                          style={{
+                            position: 'absolute',
+                            left: textareaPos.x, top: textareaPos.y,
+                            width: textareaPos.w,
+                            fontSize: textareaPos.fontSize,
+                            fontFamily: editEl?.fontFamily || 'Inter',
+                            fontWeight: editEl?.fontStyle?.includes('bold') || editEl?.fontStyle === 'bold' ? 'bold' : (editEl?.fontWeight || 'normal'),
+                            fontStyle: editEl?.fontStyle?.includes('italic') ? 'italic' : 'normal',
+                            textAlign: editEl?.align || 'left',
+                            color: editEl?.fill || '#ffffff',
+                            background: 'rgba(0,0,0,0.35)',
+                            border: `2px solid ${t.primary}`,
+                            borderRadius: 4, padding: '4px 6px', outline: 'none', resize: 'none',
+                            overflow: 'hidden', zIndex: 100, lineHeight: 1.3, minHeight: 40,
+                            letterSpacing: editEl?.letterSpacing ? `${editEl.letterSpacing}px` : undefined,
+                          }}
+                        />
+                      );
+                    })()}
 
                     {/* ── Floating object toolbar (Canva-style) — single-select only ── */}
                     {isActive && selectedIds.length <= 1 && selectedId && selectedId !== '__bg__' && !editingTextId && (() => {
