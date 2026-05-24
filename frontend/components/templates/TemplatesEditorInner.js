@@ -155,6 +155,17 @@ const QUICK_ACTIONS = [
   { id: 'selectall',icon: '⊡',  label: 'Select all',     sub: 'Select all unlocked elements', shortcut: 'Ctrl+A' },
 ];
 
+const ANIMATE_PRESETS = [
+  { id: 'none',       label: 'None',       icon: '○',  desc: 'No animation'      },
+  { id: 'fade',       label: 'Fade',       icon: '◌',  desc: 'Fade in smoothly'   },
+  { id: 'rise',       label: 'Rise',       icon: '↑',  desc: 'Slide up + fade'    },
+  { id: 'sink',       label: 'Sink',       icon: '↓',  desc: 'Slide down + fade'  },
+  { id: 'slide-left', label: 'From left',  icon: '←',  desc: 'Slide in from left' },
+  { id: 'slide-right',label: 'From right', icon: '→',  desc: 'Slide in from right'},
+  { id: 'pop',        label: 'Pop',        icon: '◉',  desc: 'Scale up + fade'    },
+  { id: 'spin',       label: 'Spin',       icon: '↻',  desc: 'Rotate in'          },
+];
+
 const GRADIENT_PRESETS = [
   { label: 'Midnight', c1: '#7C5CFC', c2: '#00C4CC', angle: 135 },
   { label: 'Sunset',   c1: '#f97316', c2: '#ec4899', angle: 135 },
@@ -716,6 +727,7 @@ export default function TemplatesEditorInner() {
   const [showShadowPanel, setShowShadowPanel] = useState(false);
   const [showOutlinePanel, setShowOutlinePanel] = useState(false);
   const [showPositionPanel, setShowPositionPanel] = useState(false);
+  const [showAnimatePanel, setShowAnimatePanel] = useState(false);
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
   const [uploadMediaTab, setUploadMediaTab] = useState('Images');
@@ -991,6 +1003,7 @@ export default function TemplatesEditorInner() {
         setShowShadowPanel(false);
         setShowOutlinePanel(false);
         setShowPositionPanel(false);
+        setShowAnimatePanel(false);
         setCtxMenu(null);
         setQuickOpen(false);
         return;
@@ -1932,7 +1945,7 @@ export default function TemplatesEditorInner() {
       </div>
 
       {/* ── Contextual action bar (Canva-style) ── */}
-      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }}
+      <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); }}
         style={{ height: 44, display: 'flex', alignItems: 'center', gap: 1, padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, overflowX: 'auto' }}>
 
         {/* ── Multi-select bar ── */}
@@ -2177,7 +2190,40 @@ export default function TemplatesEditorInner() {
                   </div>
                 )}
               </div>
-              <Btn label="✦ Animate" active={false} onClick={() => {}} extraStyle={{ color: t.primary, fontWeight: 500 }} />
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="✦ Animate" active={showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none')}
+                  onClick={() => { setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }}
+                  extraStyle={{ color: t.primary, fontWeight: 500 }} />
+                {showAnimatePanel && selectedEl && (
+                  <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 14, width: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Entrance animation</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+                      {ANIMATE_PRESETS.map(a => {
+                        const isActive = (selectedEl.animateIn || 'none') === a.id;
+                        return (
+                          <button key={a.id} title={a.desc}
+                            onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, animateIn: a.id }); }}
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 8, border: `1.5px solid ${isActive ? '#00C4CC' : t.border}`, background: isActive ? 'rgba(0,196,204,0.1)' : t.input, cursor: 'pointer', color: isActive ? '#00C4CC' : t.text }}>
+                            <span style={{ fontSize: 18 }}>{a.icon}</span>
+                            <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{a.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedEl.animateIn && selectedEl.animateIn !== 'none' && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.border}` }}>
+                        <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Duration</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input type="range" min={200} max={2000} step={100} value={selectedEl.animateDuration || 600}
+                            onChange={e => updateElement({ ...selectedEl, animateDuration: parseInt(e.target.value) })}
+                            onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
+                          <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36, textAlign: 'right' }}>{((selectedEl.animateDuration || 600) / 1000).toFixed(1)}s</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           );
         })()}
@@ -2265,7 +2311,39 @@ export default function TemplatesEditorInner() {
                   </div>
                 )}
               </div>
-              <Btn label="✦ Animate" active={false} onClick={() => {}} />
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="✦ Animate" active={showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none')}
+                  onClick={() => { setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }} />
+                {showAnimatePanel && selectedEl && (
+                  <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 14, width: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Entrance animation</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+                      {ANIMATE_PRESETS.map(a => {
+                        const isActive = (selectedEl.animateIn || 'none') === a.id;
+                        return (
+                          <button key={a.id} title={a.desc}
+                            onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, animateIn: a.id }); }}
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 8, border: `1.5px solid ${isActive ? '#00C4CC' : t.border}`, background: isActive ? 'rgba(0,196,204,0.1)' : t.input, cursor: 'pointer', color: isActive ? '#00C4CC' : t.text }}>
+                            <span style={{ fontSize: 18 }}>{a.icon}</span>
+                            <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{a.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedEl.animateIn && selectedEl.animateIn !== 'none' && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.border}` }}>
+                        <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Duration</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input type="range" min={200} max={2000} step={100} value={selectedEl.animateDuration || 600}
+                            onChange={e => updateElement({ ...selectedEl, animateDuration: parseInt(e.target.value) })}
+                            onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
+                          <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36, textAlign: 'right' }}>{((selectedEl.animateDuration || 600) / 1000).toFixed(1)}s</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           );
         })()}
@@ -2379,7 +2457,39 @@ export default function TemplatesEditorInner() {
                   </div>
                 )}
               </div>
-              <Btn label="✦ Animate" active={false} onClick={() => {}} />
+              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <Btn label="✦ Animate" active={showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none')}
+                  onClick={() => { setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }} />
+                {showAnimatePanel && selectedEl && (
+                  <div style={{ position: 'absolute', top: 38, right: 0, zIndex: 400, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 14, width: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Entrance animation</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+                      {ANIMATE_PRESETS.map(a => {
+                        const isActive = (selectedEl.animateIn || 'none') === a.id;
+                        return (
+                          <button key={a.id} title={a.desc}
+                            onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, animateIn: a.id }); }}
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 8, border: `1.5px solid ${isActive ? '#00C4CC' : t.border}`, background: isActive ? 'rgba(0,196,204,0.1)' : t.input, cursor: 'pointer', color: isActive ? '#00C4CC' : t.text }}>
+                            <span style={{ fontSize: 18 }}>{a.icon}</span>
+                            <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{a.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedEl.animateIn && selectedEl.animateIn !== 'none' && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.border}` }}>
+                        <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Duration</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input type="range" min={200} max={2000} step={100} value={selectedEl.animateDuration || 600}
+                            onChange={e => updateElement({ ...selectedEl, animateDuration: parseInt(e.target.value) })}
+                            onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: '#00C4CC' }} />
+                          <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36, textAlign: 'right' }}>{((selectedEl.animateDuration || 600) / 1000).toFixed(1)}s</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           );
         })()}
