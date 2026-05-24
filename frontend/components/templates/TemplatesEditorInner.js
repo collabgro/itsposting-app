@@ -735,7 +735,7 @@ export default function TemplatesEditorInner() {
   // Canvas rulers + drag guides
   const [showRulers, setShowRulers] = useState(false);
   // Video mode
-  const [isVideoMode, setIsVideoMode] = useState(false);
+  const [isVideoMode, setIsVideoMode] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('mode') === 'video');
   const [videoPlayhead, setVideoPlayhead] = useState(0); // seconds
   const [isPlaying, setIsPlaying] = useState(false);
   const playIntervalRef = useRef(null);
@@ -3759,7 +3759,14 @@ export default function TemplatesEditorInner() {
                 {fmtTime(videoPlayhead)} / {fmtTime(totalDur)}
               </span>
               <div style={{ flex: 1 }} />
-              <span style={{ fontSize: 11, color: t.textMuted }}>Video mode — {pages.length} page{pages.length !== 1 ? 's' : ''} · {totalDur}s total</span>
+              <span style={{ fontSize: 11, color: t.textMuted }}>{pages.length} page{pages.length !== 1 ? 's' : ''} · {totalDur}s</span>
+              <button
+                onClick={() => {
+                  alert('Video export: Each page is exported as a PNG frame.\n\nFull MP4 export is coming soon — for now, use File → Download to export individual pages.');
+                }}
+                style={{ height: 26, padding: '0 10px', border: `1px solid ${t.border}`, borderRadius: 5, background: t.input, color: t.text, fontSize: 11, cursor: 'pointer', flexShrink: 0, fontWeight: 500 }}>
+                ⬇ Export
+              </button>
               <button onClick={() => setIsVideoMode(false)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: 16 }}>×</button>
             </div>
 
