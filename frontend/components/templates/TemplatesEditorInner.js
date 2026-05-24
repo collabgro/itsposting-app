@@ -2053,6 +2053,105 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'mappin') {
+    const mpw = el.width || 160, mph = el.height || 180;
+    const pinColor = el.fill || '#ef4444';
+    const textColor = el.stroke || '#ffffff';
+    const labelText = el.labelText || '📍 Location';
+    const subText = el.subText || 'Your City';
+    const pinStyle = el.pinStyle || 'pin'; // 'pin' | 'badge' | 'chip'
+
+    return (
+      <Shape {...common}
+        width={mpw} height={mph}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+          const cx = w / 2;
+
+          if (pinStyle === 'pin') {
+            // Teardrop / map pin shape
+            const pinH = h * 0.78;
+            const r = Math.min(w, pinH) / 2;
+            const tipY = pinH;
+            const ballCY = r;
+            // Circle body
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+            ctx.beginPath();
+            ctx.arc(cx, ballCY, r - 2, 0, Math.PI * 2);
+            ctx.fillStyle = pinColor;
+            ctx.fill();
+            // Triangle tip
+            ctx.beginPath();
+            ctx.moveTo(cx - r * 0.45, ballCY + r * 0.7);
+            ctx.lineTo(cx + r * 0.45, ballCY + r * 0.7);
+            ctx.lineTo(cx, tipY);
+            ctx.closePath();
+            ctx.fillStyle = pinColor;
+            ctx.fill();
+            ctx.restore();
+            // Inner circle highlight
+            ctx.beginPath();
+            ctx.arc(cx, ballCY, r * 0.45, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
+            ctx.fill();
+            // Label text below pin
+            ctx.fillStyle = textColor;
+            ctx.font = `bold ${Math.max(10, Math.round(w * 0.11))}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(subText, cx, tipY + 6);
+          } else if (pinStyle === 'badge') {
+            // Rounded rectangle badge with location icon
+            const bH = h * 0.55, bY = (h - bH) / 2;
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.25)';
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = pinColor;
+            ctx.beginPath();
+            ctx.roundRect(0, bY, w, bH, bH / 2);
+            ctx.fill();
+            ctx.restore();
+            ctx.fillStyle = textColor;
+            ctx.font = `bold ${Math.max(10, Math.round(w * 0.12))}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(labelText, cx, bY + bH * 0.38);
+            ctx.font = `${Math.max(8, Math.round(w * 0.09))}px Inter, sans-serif`;
+            ctx.fillStyle = 'rgba(255,255,255,0.75)';
+            ctx.fillText(subText, cx, bY + bH * 0.68);
+          } else {
+            // Chip style: small pill
+            const chipH = h * 0.42, chipY = (h - chipH) / 2;
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.2)';
+            ctx.shadowBlur = 6;
+            ctx.fillStyle = pinColor;
+            ctx.beginPath();
+            ctx.roundRect(0, chipY, w, chipH, chipH / 2);
+            ctx.fill();
+            ctx.restore();
+            ctx.fillStyle = textColor;
+            ctx.font = `bold ${Math.max(9, Math.round(w * 0.1))}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`📍 ${subText}`, cx, chipY + chipH / 2);
+          }
+
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2971,6 +3070,20 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addMapPin() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'mappin',
+      x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 90,
+      width: 160, height: 180, opacity: 1,
+      fill: '#ef4444', stroke: '#ffffff',
+      labelText: '📍 Location', subText: 'Your City',
+      pinStyle: 'pin',
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5222,6 +5335,30 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'mappin' && <>
+                <D />
+                {[['Pin','pin'],['Badge','badge'],['Chip','chip']].map(([lbl, s]) => (
+                  <button key={s} onClick={() => { pushHistory(); updateElement({...selectedEl, pinStyle: s}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.pinStyle||'pin')===s?'#00C4CC':t.border}`, background:(selectedEl.pinStyle||'pin')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.pinStyle||'pin')===s?'#00C4CC':t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Color</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#ef4444'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                {[['Red','#ef4444'],['Teal','#00C4CC'],['Purple','#7C5CFC'],['Blue','#3b82f6'],['Orange','#f97316'],['Green','#22c55e']].map(([lbl,c]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, fill: c}); }}
+                    title={lbl}
+                    style={{ width:22, height:22, borderRadius:'50%', border:`2px solid ${(selectedEl.fill||'#ef4444')===c?'#fff':t.border}`, background:c, cursor:'pointer', flexShrink:0 }} />
+                ))}
+              </>}
               {selectedEl.type === 'polaroid' && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Frame</span>
@@ -6406,6 +6543,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Sticker',   icon: '🔥', fn: () => addSticker('🔥') },
                     { label: 'Highlight', icon: '🖊', fn: () => addHighlight() },
                     { label: 'Polaroid',  icon: '📷', fn: () => addPolaroid() },
+                    { label: 'Map Pin',   icon: '📍', fn: () => addMapPin() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -7493,7 +7631,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
