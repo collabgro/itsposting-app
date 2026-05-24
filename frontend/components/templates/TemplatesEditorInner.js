@@ -857,6 +857,7 @@ export default function TemplatesEditorInner() {
 
   // Canvas display scale
   const containerRef = useRef(null);
+  const replaceFileRef = useRef(null);
   const [stageScale, setStageScale] = useState(1);
   const [stageDisplayW, setStageDisplayW] = useState(540);
   const [stageDisplayH, setStageDisplayH] = useState(675);
@@ -2236,6 +2237,8 @@ export default function TemplatesEditorInner() {
           );
           return (
             <>
+              <Btn label="⇄ Replace" active={false} onClick={() => replaceFileRef.current?.click()} />
+              <D />
               <Btn label="⟺ Flip H" active={!!selectedEl.flipH} onClick={flipH} />
               <Btn label="⇅ Flip V" active={!!selectedEl.flipV} onClick={flipV} />
               <D />
@@ -4452,6 +4455,17 @@ export default function TemplatesEditorInner() {
           )}
         </div>
       )}
+
+      {/* Hidden file input for image replace */}
+      <input ref={replaceFileRef} type="file" accept="image/*" style={{ display: 'none' }}
+        onChange={e => {
+          const f = e.target.files?.[0];
+          if (!f || !selectedId) return;
+          const url = URL.createObjectURL(f);
+          pushHistory();
+          patchElements(prev => prev.map(el => el.id === selectedId ? { ...el, url } : el));
+          e.target.value = '';
+        }} />
 
       {/* ── Design card hover preview ── */}
       {hoveredDesign && (
