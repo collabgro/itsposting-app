@@ -450,6 +450,21 @@ console.log('══════════════════════�
       UNIQUE(customer_id, generated_date)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_post_ideas_customer_date ON post_ideas(customer_id, generated_date)`,
+    // ItsPosting curated canvas templates (industry-specific, admin-managed)
+    `CREATE TABLE IF NOT EXISTS canvas_templates (
+      id             SERIAL PRIMARY KEY,
+      name           VARCHAR(255) NOT NULL,
+      industry       VARCHAR(100) DEFAULT 'general',
+      category       VARCHAR(100),
+      canvas_json    JSONB NOT NULL DEFAULT '{}',
+      thumbnail_url  TEXT,
+      canvas_width   INTEGER DEFAULT 1080,
+      canvas_height  INTEGER DEFAULT 1350,
+      sort_order     INTEGER DEFAULT 0,
+      is_active      BOOLEAN DEFAULT true,
+      created_at     TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_canvas_templates_industry ON canvas_templates(industry, is_active)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }

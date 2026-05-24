@@ -55,9 +55,14 @@ export default function MediaLibrary() {
   const [newFolderName, setNewFolderName] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
 
-  // ── Templates: creations
+  // ── Templates: creations + curated templates
   const [creations,        setCreations]        = useState([]);
   const [creationsLoading, setCreationsLoading] = useState(false);
+  const [curatedTemplates, setCuratedTemplates] = useState([]);
+  const [curatedLoading,   setCuratedLoading]   = useState(false);
+  const [selectedIndustry, setSelectedIndustry] = useState('all');
+  const [showSizePicker,   setShowSizePicker]   = useState(false);
+  const [pickerSizeId,     setPickerSizeId]      = useState('ig_portrait');
 
   // ── Mount + auth
   useEffect(() => {
@@ -79,9 +84,11 @@ export default function MediaLibrary() {
   // ── Reload files on filter change
   useEffect(() => { if (mounted) loadFiles(); }, [filterType, filterFolder, search]);
 
-  // ── Templates: auto-load creations when tab activates
+  // ── Templates: auto-load when tab activates
   useEffect(() => {
-    if (activeTab === 'templates' && creations.length === 0) loadCreations();
+    if (activeTab !== 'templates') return;
+    if (creations.length === 0) loadCreations();
+    if (curatedTemplates.length === 0) loadCurated();
   }, [activeTab]);
 
   // ─── Media library handlers ───────────────────────────────────────────────
@@ -224,6 +231,15 @@ export default function MediaLibrary() {
       setCreations(data.creations || []);
     } catch {}
     finally { setCreationsLoading(false); }
+  };
+
+  const loadCurated = async (industry = 'all') => {
+    setCuratedLoading(true);
+    try {
+      const data = await studioAPI.getTemplates(industry !== 'all' ? { industry, limit: 30 } : { limit: 30 });
+      setCuratedTemplates(data?.templates || []);
+    } catch {}
+    finally { setCuratedLoading(false); }
   };
 
   // ─── Tab switch ───────────────────────────────────────────────────────────
@@ -498,62 +514,205 @@ export default function MediaLibrary() {
       {/* ══════════════════════════════════════════════════════════════════════
           TEMPLATES TAB
       ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === 'templates' && (
-        <div style={{ maxWidth: 960, paddingBottom: 80 }}>
+      {activeTab === 'templates' && (() => {
+        const INDUSTRIES = ['all', 'plumbing', 'hvac', 'roofing', 'concrete', 'landscaping', 'electrical', 'painting', 'pest_control', 'cleaning', 'general_contractor'];
+        const INDUSTRY_LABELS = { all: 'All', plumbing: 'Plumbing', hvac: 'HVAC', roofing: 'Roofing', concrete: 'Concrete', landscaping: 'Landscaping', electrical: 'Electrical', painting: 'Painting', pest_control: 'Pest Control', cleaning: 'Cleaning', general_contractor: 'General' };
+        const CANVAS_SIZES = [
+          { id: 'ig_portrait', label: 'Instagram Portrait', desc: '1080 × 1350 px — best for feed posts', w: 1080, h: 1350 },
+          { id: 'ig_square',   label: 'Instagram Square',   desc: '1080 × 1080 px — grid-friendly',    w: 1080, h: 1080 },
+          { id: 'ig_story',    label: 'Instagram Story',    desc: '1080 × 1920 px — full screen',      w: 1080, h: 1920 },
+          { id: 'fb_post',     label: 'Facebook Post',      desc: '1200 × 630 px — landscape',         w: 1200, h: 630  },
+          { id: 'google_biz',  label: 'Google Business',    desc: '720 × 720 px — square',             w: 720,  h: 720  },
+        ];
 
-          <div style={{ marginBottom: 32, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => router.push('/templates/editor')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-            >
-              <IpPhotoStudio size={15} /> New Image Template
-            </button>
-            <button
-              onClick={() => router.push('/templates/video-editor')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'transparent', color: t.primary, border: `2px solid ${t.primary}`, borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-            >
-              <IpVideo size={15} /> New Video Template
-            </button>
-          </div>
-          {creationsLoading ? (
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {[1,2,3,4,5,6].map(i => (
-                <div key={i} style={{ width: 160, height: 200, borderRadius: 10, background: t.input }} />
-              ))}
+        return (
+          <div style={{ maxWidth: 960, paddingBottom: 80 }}>
+            {/* ── Action bar ── */}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 36 }}>
+              <button
+                onClick={() => setShowSizePicker(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                <IpPhotoStudio size={15} /> New Image Design
+              </button>
+              <button
+                onClick={() => router.push('/templates/editor?mode=video')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'transparent', color: t.primary, border: `2px solid ${t.primary}`, borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                <IpVideo size={15} /> New Video Design
+              </button>
             </div>
-          ) : creations.length === 0 ? (
-            <EmptyState icon={IpPhotoStudio} title="No templates yet" subtitle="Create your first branded graphic or video" />
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-              {creations.map(c => (
-                <div key={c.id}
-                  onClick={() => router.push(c.creation_type === 'video' ? `/templates/video-editor?id=${c.id}` : `/templates/editor?id=${c.id}`)}
-                  style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', transition: 'border-color 150ms', position: 'relative' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = t.primaryBorder}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = t.border}
-                >
-                  {c.creation_type === 'video'
-                    ? (
-                      <div style={{ position: 'relative', width: '100%', aspectRatio: '9/16', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                        {c.output_url
-                          ? <video src={c.output_url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                          : <div style={{ color: '#666', fontSize: 11 }}>{c.render_status === 'rendering' ? 'Rendering…' : 'Processing'}</div>
+
+            {/* ── ItsPosting Templates section ── */}
+            <div style={{ marginBottom: 48 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <h2 style={{ fontSize: 17, fontWeight: 700, color: t.text, margin: 0 }}>ItsPosting Templates</h2>
+                <span style={{ fontSize: 12, color: t.textMuted }}>Pick a template to start designing</span>
+              </div>
+
+              {/* Industry filter chips */}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+                {INDUSTRIES.map(ind => (
+                  <button key={ind}
+                    onClick={() => {
+                      setSelectedIndustry(ind);
+                      setCuratedTemplates([]);
+                      loadCurated(ind);
+                    }}
+                    style={{
+                      padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                      background: selectedIndustry === ind ? t.primary : t.input,
+                      color: selectedIndustry === ind ? '#fff' : t.textMuted,
+                      border: `1px solid ${selectedIndustry === ind ? t.primary : t.border}`,
+                      cursor: 'pointer', transition: 'all 120ms',
+                    }}>
+                    {INDUSTRY_LABELS[ind]}
+                  </button>
+                ))}
+              </div>
+
+              {/* Curated grid */}
+              {curatedLoading ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} style={{ borderRadius: 10, overflow: 'hidden', background: t.input, aspectRatio: '4/5', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
+                  ))}
+                </div>
+              ) : curatedTemplates.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: t.textMuted, border: `1px dashed ${t.border}`, borderRadius: 12 }}>
+                  <div style={{ fontSize: 36, marginBottom: 12 }}>🎨</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 6 }}>Templates coming soon</div>
+                  <div style={{ fontSize: 13 }}>ItsPosting is building industry-specific templates for your business. Check back soon!</div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                  {curatedTemplates.map(tmpl => (
+                    <div key={tmpl.id}
+                      style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', position: 'relative', transition: 'border-color 150ms, box-shadow 150ms' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '1'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '0'; }}>
+                      <div style={{ aspectRatio: '4/5', background: t.input, position: 'relative', overflow: 'hidden' }}>
+                        {tmpl.thumbnail_url
+                          ? <img src={tmpl.thumbnail_url} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: t.textMuted }}>No preview</div>
                         }
-                        <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: '2px 6px', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <IpVideo size={10} /> Video
+                        <div className="tmpl-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', gap: 8, flexDirection: 'column' }}>
+                          <button
+                            onClick={() => router.push(`/templates/editor?template=${tmpl.id}`)}
+                            style={{ padding: '7px 14px', background: '#7C5CFC', color: '#fff', border: 'none', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                            Use Template
+                          </button>
                         </div>
                       </div>
-                    )
-                    : <img src={c.output_url} alt={c.overlay_title} style={{ width: '100%', aspectRatio: '4/5', objectFit: 'cover', display: 'block' }} />
-                  }
-                  <div style={{ padding: '8px 10px' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.overlay_title || 'Untitled'}</div>
-                    <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>{new Date(c.created_at).toLocaleDateString()}</div>
-                  </div>
+                      <div style={{ padding: '8px 10px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tmpl.name}</div>
+                        {tmpl.category && <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2, textTransform: 'capitalize' }}>{tmpl.category}</div>}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
+
+            {/* ── My Designs section ── */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <h2 style={{ fontSize: 17, fontWeight: 700, color: t.text, margin: 0 }}>My Designs</h2>
+                {creations.length > 0 && <span style={{ fontSize: 12, color: t.textMuted }}>{creations.length} design{creations.length !== 1 ? 's' : ''}</span>}
+              </div>
+              {creationsLoading ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} style={{ borderRadius: 10, overflow: 'hidden', background: t.input, aspectRatio: '4/5' }} />
+                  ))}
+                </div>
+              ) : creations.length === 0 ? (
+                <EmptyState icon={IpPhotoStudio} title="No designs yet" subtitle="Click 'New Image Design' above to create your first branded graphic" />
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                  {creations.map(c => (
+                    <div key={c.id}
+                      style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', position: 'relative', transition: 'border-color 150ms' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.querySelector('.design-hover').style.opacity = '1'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.querySelector('.design-hover').style.opacity = '0'; }}>
+                      {c.creation_type === 'video' ? (
+                        <div style={{ position: 'relative', aspectRatio: '9/16', background: '#000', overflow: 'hidden' }}>
+                          {c.output_url
+                            ? <video src={c.output_url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontSize: 11 }}>{c.render_status === 'rendering' ? 'Rendering…' : 'Processing'}</div>
+                          }
+                          <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: '2px 6px', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <IpVideo size={10} /> Video
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ aspectRatio: '4/5', overflow: 'hidden', position: 'relative' }}>
+                          {c.output_url
+                            ? <img src={c.output_url} alt={c.overlay_title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.input, fontSize: 11, color: t.textMuted }}>No preview</div>
+                          }
+                        </div>
+                      )}
+                      <div className="design-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', padding: 10, gap: 6 }}>
+                        <button
+                          onClick={() => router.push(c.creation_type === 'video' ? `/templates/editor?id=${c.id}&mode=video` : `/templates/editor?id=${c.id}`)}
+                          style={{ flex: 1, padding: '6px 0', background: '#fff', color: '#111', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          Edit
+                        </button>
+                      </div>
+                      <div style={{ padding: '8px 10px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.overlay_title || 'Untitled'}</div>
+                        <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>{new Date(c.created_at).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Size Picker Modal ── */}
+      {showSizePicker && (
+        <div onClick={() => setShowSizePicker(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, width: '100%', maxWidth: 420, overflow: 'hidden' }}>
+            <div style={{ padding: '18px 22px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: t.text, margin: 0 }}>Choose a canvas size</h3>
+              <button onClick={() => setShowSizePicker(false)} style={{ width: 30, height: 30, borderRadius: 7, background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textMuted }}>
+                <IpClose size={15} />
+              </button>
+            </div>
+            <div style={{ padding: 22 }}>
+              {[
+                { id: 'ig_portrait', label: 'Instagram Portrait', desc: '1080 × 1350 px', icon: '📷' },
+                { id: 'ig_square',   label: 'Instagram Square',   desc: '1080 × 1080 px', icon: '⬛' },
+                { id: 'ig_story',    label: 'Instagram Story',    desc: '1080 × 1920 px', icon: '📱' },
+                { id: 'fb_post',     label: 'Facebook Post',      desc: '1200 × 630 px',  icon: '🖼️' },
+                { id: 'google_biz',  label: 'Google Business',    desc: '720 × 720 px',   icon: '🔍' },
+              ].map(size => (
+                <label key={size.id}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', marginBottom: 4, background: pickerSizeId === size.id ? t.primaryBg : 'transparent', border: `1px solid ${pickerSizeId === size.id ? t.primary : 'transparent'}`, transition: 'all 100ms' }}>
+                  <input type="radio" name="canvasSize" value={size.id} checked={pickerSizeId === size.id} onChange={() => setPickerSizeId(size.id)} style={{ accentColor: t.primary }} />
+                  <span style={{ fontSize: 18 }}>{size.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{size.label}</div>
+                    <div style={{ fontSize: 11, color: t.textMuted }}>{size.desc}</div>
+                  </div>
+                </label>
+              ))}
+              <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                <button onClick={() => setShowSizePicker(false)} style={{ flex: 1, padding: '10px 0', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { setShowSizePicker(false); router.push(`/templates/editor?size=${pickerSizeId}`); }}
+                  style={{ flex: 2, padding: '10px 0', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <IpPhotoStudio size={13} /> Create Design →
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

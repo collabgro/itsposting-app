@@ -156,10 +156,10 @@ module.exports = (pool) => {
         pool.query(sql, cleanParams),
         pool.query(countSql, cleanParams.slice(0, cleanParams.length - 2)),
         pool.query(
-          `SELECT id, url, thumbnail_url, file_name AS title, width, height, created_at
+          `SELECT id, url, thumbnail_url, file_name AS title, width, height, uploaded_at AS created_at
            FROM media_library
            WHERE customer_id = $1 AND file_type = 'image'
-           ORDER BY created_at DESC LIMIT 50`,
+           ORDER BY uploaded_at DESC LIMIT 50`,
           [req.customerId]
         ),
       ]);
@@ -626,6 +626,53 @@ Return ONLY valid JSON (no markdown fences):
     } catch (err) {
       console.error('[Studio] POST /ai-clip:', err.message);
       res.status(500).json({ error: 'Failed to generate AI clip' });
+    }
+  });
+
+  // ── GET /api/studio/templates — curated templates list ─────────────────────
+  router.get('/templates', authenticateToken, async (req, res) => {
+    try {
+      const { industry = 'general', category, limit = 30 } = req.query;
+      const conditions = ['is_active = true'];
+      const params = [];
+
+      if (industry && industry !== 'all') {
+        conditions.push(`(industry = $${params.length + 1} OR industry = 'general')`);
+        params.push(industry);
+      }
+      if (category) {
+        conditions.push(`category = $${params.length + 1}`);
+        params.push(category);
+      }
+      params.push(Math.min(parseInt(limit) || 30, 100));
+
+      const result = await pool.query(
+        `SELECT id, name, industry, category, thumbnail_url, canvas_width, canvas_height, sort_order
+         FROM canvas_templates
+         WHERE ${conditions.join(' AND ')}
+         ORDER BY sort_order ASC, created_at DESC
+         LIMIT $${params.length}`,
+        params
+      );
+      res.json({ templates: result.rows });
+    } catch (err) {
+      console.error('[Studio] GET /templates:', err.message);
+      res.status(500).json({ error: 'Failed to load templates' });
+    }
+  });
+
+  // ── GET /api/studio/templates/:id — full canvas_json ──────────────────────
+  router.get('/templates/:id', authenticateToken, async (req, res) => {
+    try {
+      const { rows } = await pool.query(
+        'SELECT * FROM canvas_templates WHERE id = $1 AND is_active = true',
+        [req.params.id]
+      );
+      if (!rows[0]) return res.status(404).json({ error: 'Template not found' });
+      res.json({ template: rows[0] });
+    } catch (err) {
+      console.error('[Studio] GET /templates/:id:', err.message);
+      res.status(500).json({ error: 'Failed to load template' });
     }
   });
 

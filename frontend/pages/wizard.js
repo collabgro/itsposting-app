@@ -1273,6 +1273,26 @@ export default function Wizard() {
                   )}
                 </div>
 
+                {/* Edit in Studio CTA — only for image posts with a generated image */}
+                {results.mediaUrl && results.contentTypeSelection !== 'video' && results.videoRendering !== true && (
+                  <button
+                    onClick={() => router.push(`/templates/editor?addImage=${encodeURIComponent(results.mediaUrl)}&size=ig_portrait`)}
+                    style={{
+                      width: '100%', marginBottom: 10,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '10px 16px', borderRadius: 10,
+                      background: 'transparent', border: `1.5px solid ${t.border}`,
+                      color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      transition: 'border-color 150ms, background 150ms',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#7C5CFC'; e.currentTarget.style.background = t.primaryBg; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <span style={{ fontSize: 15 }}>✐</span>
+                    Edit in Studio
+                  </button>
+                )}
+
                 {/* Platform badges with connection status */}
                 {(() => {
                   const targetPlatforms = results.platform === 'all'

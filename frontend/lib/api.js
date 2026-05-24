@@ -306,6 +306,8 @@ export const studioAPI = {
   renderVideo: (data) => api.post('/api/studio/video-render', data),
   getRenderStatus: (jobId) => api.get(`/api/studio/video-render/${jobId}`),
   aiGenerateClip: (data) => api.post('/api/studio/ai-clip', data),
+  getTemplates: (params) => api.get('/api/studio/templates', { params }),
+  getTemplate: (id) => api.get(`/api/studio/templates/${id}`),
 };
 
 export const receptionistAPI = {

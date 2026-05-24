@@ -3565,6 +3565,8 @@ export default function TemplatesEditorInner() {
   const [projectTab, setProjectTab] = useState('All');
   const [savedDesigns, setSavedDesigns] = useState([]);
   const [savedDesignsLoading, setSavedDesignsLoading] = useState(false);
+  const [curatedTemplates, setCuratedTemplates] = useState([]);
+  const [curatedLoading, setCuratedLoading] = useState(false);
   const [hoveredDesign, setHoveredDesign] = useState(null); // { id, title, pagesCount, x, y }
   const [layerDragId, setLayerDragId] = useState(null);
   // Quick actions palette
@@ -3625,7 +3627,7 @@ export default function TemplatesEditorInner() {
   const [bgTab, setBgTab] = useState('stock');
   const [replaceDocColorOld, setReplaceDocColorOld] = useState(null); // color being replaced
   const [saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
   const autosaveTimerRef = useRef(null);
   const postModalOpen_ref = useRef(false); // prevent autosave opening post modal
   const [postModalOpen, setPostModalOpen] = useState(false);
@@ -3777,13 +3779,24 @@ export default function TemplatesEditorInner() {
 
   // ── Load saved designs for Projects panel ─────────────────────────────────
   useEffect(() => {
-    if (activeLeftTool !== 'projects') return;
+    if (activeLeftTool !== 'projects' && activeLeftTool !== 'templates') return;
     if (savedDesigns.length > 0) return;
     setSavedDesignsLoading(true);
-    studioAPI.getCreations({ limit: 20 })
+    studioAPI.getCreations({ limit: 40 })
       .then(data => setSavedDesigns(data?.creations || []))
       .catch(() => {})
       .finally(() => setSavedDesignsLoading(false));
+  }, [activeLeftTool]);
+
+  // ── Load curated ItsPosting templates ─────────────────────────────────────
+  useEffect(() => {
+    if (activeLeftTool !== 'templates') return;
+    if (curatedTemplates.length > 0) return;
+    setCuratedLoading(true);
+    studioAPI.getTemplates({ limit: 30 })
+      .then(data => setCuratedTemplates(data?.templates || []))
+      .catch(() => {})
+      .finally(() => setCuratedLoading(false));
   }, [activeLeftTool]);
 
   // ── Load existing creation ─────────────────────────────────────────────────
@@ -3796,6 +3809,59 @@ export default function TemplatesEditorInner() {
       if (c.overlay_title) setTitleForSave(c.overlay_title);
     }).catch(() => {});
   }, [router.query?.id]);
+
+  // ── Load canvas size from ?size param (from "Create Design" flow) ───────────
+  useEffect(() => {
+    const sizeId = router.query?.size;
+    if (!sizeId) return;
+    const preset = CANVAS_SIZES.find(s => s.id === sizeId);
+    if (preset) setCanvasSizeId(preset.id);
+  }, [router.query?.size]);
+
+  // ── Load curated template from ?template= param ───────────────────────────
+  useEffect(() => {
+    const templateId = router.query?.template;
+    if (!templateId) return;
+    studioAPI.getTemplate(templateId)
+      .then(data => {
+        if (data?.template?.canvas_json) restoreSnapshot(data.template.canvas_json);
+        if (data?.template?.name) setTitleForSave(data.template.name);
+      })
+      .catch(() => {});
+  }, [router.query?.template]);
+
+  // ── Add AI-generated image as draggable element (?addImage param) ───────────
+  useEffect(() => {
+    const rawUrl = router.query?.addImage;
+    if (!rawUrl) return;
+    const imgUrl = decodeURIComponent(rawUrl);
+    const timer = setTimeout(() => {
+      const id = `img_${Date.now()}`;
+      patchPage({
+        elements: [
+          ...currentPage.elements,
+          {
+            id,
+            type: 'image',
+            src: imgUrl,
+            x: 0,
+            y: 0,
+            width: canvasSize.w,
+            height: canvasSize.h,
+            rotation: 0,
+            opacity: 1,
+            blendMode: 'source-over',
+            scaleX: 1,
+            scaleY: 1,
+            filters: { brightness: 0, contrast: 0, saturation: 0 },
+          },
+        ],
+      });
+      setSelectedId(id);
+    }, 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.query?.addImage]);
 
   // ── Autosave to localStorage (2s debounce — prevents data loss) ───────────
   useEffect(() => {
@@ -5310,8 +5376,8 @@ export default function TemplatesEditorInner() {
       setPostModalOpen(true);
     } catch (err) {
       console.error('[TemplatesEditor] save:', err);
-      setSaveStatus('idle');
-      alert('Failed to save. Please try again.');
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 4000);
     } finally {
       setSaving(false);
     }
@@ -5377,7 +5443,7 @@ export default function TemplatesEditorInner() {
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <DocColorsCtx.Provider value={docColors}>
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 70px)', overflow: 'hidden', background: t.bg }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: t.bg, position: 'fixed', inset: 0, zIndex: 1 }}>
       <style>{`
         @keyframes floatIn { from { opacity:0; transform:translateX(-50%) scale(0.92) translateY(4px); } to { opacity:1; transform:translateX(-50%) scale(1) translateY(0); } }
         @keyframes shimmer { from { background-position:200% 0; } to { background-position:-200% 0; } }
@@ -5580,8 +5646,8 @@ export default function TemplatesEditorInner() {
           </div>
 
           {/* ── Video mode toggle ── */}
-          <button onClick={() => { setIsVideoMode(m => !m); setIsPlaying(false); setVideoPlayhead(0); }}
-            onMouseEnter={e => showTip(e, isVideoMode ? 'Back to Image mode' : 'Edit as Video')} onMouseLeave={hideTip}
+          <button onClick={() => { setIsVideoMode(v => !v); setIsPlaying(false); setVideoPlayhead(0); clearInterval(playIntervalRef.current); }}
+            onMouseEnter={e => showTip(e, isVideoMode ? 'Switch to Image mode' : 'Edit as Video')} onMouseLeave={hideTip}
             style={{ height: 34, padding: '0 11px', border: `1px solid ${isVideoMode ? '#00C4CC' : t.border}`, borderRadius: 7, background: isVideoMode ? 'rgba(0,196,204,0.1)' : t.input, color: isVideoMode ? '#00C4CC' : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 100ms, border-color 100ms, color 100ms', flexShrink: 0 }}>
             {isVideoMode ? '◻ Image' : '▶ Video'}
           </button>
@@ -5629,8 +5695,13 @@ export default function TemplatesEditorInner() {
             </div>
           )}
           {saveStatus === 'saved' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#00C4CC', animation: 'save-check 250ms ease forwards' }}>
-              ✓ Saved
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#22c55e', fontWeight: 500 }}>
+              ✓ All changes saved
+            </div>
+          )}
+          {saveStatus === 'error' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#ef4444', fontWeight: 500 }}>
+              ⚠ Save failed — check connection
             </div>
           )}
 
@@ -7684,13 +7755,119 @@ export default function TemplatesEditorInner() {
             {(activeLeftTool === 'background' || activeLeftTool === 'templates') && (
               <div>
                 {/* Search templates */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}`, marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}`, marginBottom: 14 }}>
                   <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
                   <input placeholder="Search templates" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
-                  <span style={{ color: t.textMuted, fontSize: 13 }}>🎤</span>
                 </div>
+
+                {/* ── ItsPosting Curated Templates ── */}
+                {activeLeftTool === 'templates' && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>ItsPosting Templates</div>
+                    {curatedLoading ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} style={{ aspectRatio: '4/5', borderRadius: 8,
+                            background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`,
+                            backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
+                        ))}
+                      </div>
+                    ) : curatedTemplates.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '16px 0', color: t.textMuted }}>
+                        <div style={{ fontSize: 28, marginBottom: 6 }}>🎨</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Templates coming soon</div>
+                        <div style={{ fontSize: 11 }}>ItsPosting is adding industry templates for your business</div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {curatedTemplates.map(tmpl => (
+                          <div key={tmpl.id}
+                            style={{ cursor: 'pointer', position: 'relative' }}
+                            onMouseEnter={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '1'}
+                            onMouseLeave={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '0'}>
+                            <div style={{ aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, marginBottom: 4, position: 'relative' }}>
+                              {tmpl.thumbnail_url
+                                ? <img src={tmpl.thumbnail_url} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: t.textMuted }}>No preview</div>
+                              }
+                              <div className="tmpl-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms' }}>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const data = await studioAPI.getTemplate(tmpl.id);
+                                      if (data?.template?.canvas_json) restoreSnapshot(data.template.canvas_json);
+                                    } catch {}
+                                  }}
+                                  style={{ color: '#fff', fontSize: 11, fontWeight: 700, background: '#7C5CFC', padding: '5px 10px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
+                                  Use Template
+                                </button>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: 11, fontWeight: 500, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tmpl.name}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── My Designs (only in templates panel) ── */}
+                {activeLeftTool === 'templates' && (
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>My Designs</div>
+                      {savedDesigns.length > 0 && (
+                        <button
+                          onClick={() => router.push('/media?tab=templates')}
+                          style={{ fontSize: 11, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                          See all
+                        </button>
+                      )}
+                    </div>
+                    {savedDesignsLoading ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} style={{ aspectRatio: '4/5', borderRadius: 8,
+                            background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`,
+                            backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
+                        ))}
+                      </div>
+                    ) : savedDesigns.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '20px 0', color: t.textMuted }}>
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>✦</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>No saved designs yet</div>
+                        <div style={{ fontSize: 11 }}>Save this design to see it here</div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        {savedDesigns.slice(0, 6).map(d => (
+                          <div key={d.id}
+                            onClick={() => { if (typeof window !== 'undefined') window.location.href = `/templates/editor?id=${d.id}`; }}
+                            style={{ cursor: 'pointer', position: 'relative' }}
+                            onMouseEnter={e => e.currentTarget.querySelector('.design-overlay').style.opacity = '1'}
+                            onMouseLeave={e => e.currentTarget.querySelector('.design-overlay').style.opacity = '0'}>
+                            <div style={{ aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, marginBottom: 4 }}>
+                              {d.output_url
+                                ? <img src={d.output_url} alt={d.title || 'Design'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: t.textMuted }}>No preview</div>
+                              }
+                              <div className="design-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms' }}>
+                                <span style={{ color: '#fff', fontSize: 11, fontWeight: 700, background: '#7C5CFC', padding: '5px 10px', borderRadius: 20 }}>Open</span>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: 11, fontWeight: 500, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title || 'Untitled'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Background section header ── */}
+                <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Background</div>
+
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Background Color</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Color</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                     {/* Transparent background tile */}
                     <button onClick={() => { pushHistory(); patchPage({ bgType: 'transparent', bgColor: 'transparent' }); }}
