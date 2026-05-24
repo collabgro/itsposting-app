@@ -1987,6 +1987,72 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'polaroid') {
+    const pw = el.width || 200, ph = el.height || 230;
+    const borderColor = el.fill || '#ffffff';
+    const captionText = el.captionText || 'Caption here';
+    const borderW = Math.max(8, pw * 0.06);
+    const captionH = Math.max(32, ph * 0.18);
+    const photoH = ph - captionH - borderW * 2;
+    const photoW = pw - borderW * 2;
+    const shadowBlur = el.shadowBlur ?? 18;
+    const rotation = el.frameRotation ?? 0; // slight tilt for polaroid effect
+
+    return (
+      <Shape {...common}
+        width={pw} height={ph}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+
+          // Drop shadow
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.35)';
+          ctx.shadowBlur = shadowBlur;
+          ctx.shadowOffsetX = 3;
+          ctx.shadowOffsetY = 4;
+
+          // Main white frame
+          ctx.fillStyle = borderColor;
+          ctx.beginPath();
+          ctx.roundRect(0, 0, w, h, 4);
+          ctx.fill();
+          ctx.restore();
+
+          // Photo area (placeholder colored box)
+          const photoColor = el.photoColor || 'rgba(100,120,160,0.35)';
+          ctx.fillStyle = photoColor;
+          ctx.beginPath();
+          ctx.rect(borderW, borderW, photoW, photoH);
+          ctx.fill();
+
+          // Photo placeholder text
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.font = `${Math.max(10, Math.round(pw * 0.07))}px Inter, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Photo', borderW + photoW / 2, borderW + photoH / 2);
+
+          // Caption area
+          const captionY = borderW + photoH;
+          ctx.fillStyle = el.captionColor || '#333333';
+          ctx.font = `${Math.max(9, Math.round(pw * 0.065))}px 'Caveat', cursive, Inter, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(captionText, w / 2, captionY + captionH / 2);
+
+          // Selection
+          if (isSelected) {
+            ctx.strokeStyle = '#00C4CC';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(0, 0, w, h);
+          }
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2905,6 +2971,20 @@ export default function TemplatesEditorInner() {
       fontFamily: 'Inter, sans-serif',
       fill: '#FFE135', stroke: '#1a1a22',
       highlightStyle: 'full',
+    };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addPolaroid() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'polaroid',
+      x: canvasSize.w / 2 - 100, y: canvasSize.h / 2 - 115,
+      width: 200, height: 230, opacity: 1,
+      fill: '#ffffff', captionText: 'Caption here',
+      captionColor: '#333333', photoColor: 'rgba(100,120,160,0.35)',
+      shadowBlur: 18,
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -5142,6 +5222,39 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'polaroid' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Frame</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#ffffff'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Photo</span>
+                <ColorPickerButton
+                  value={selectedEl.photoColor || 'rgba(100,120,160,0.35)'}
+                  onChange={c => updateElement({...selectedEl, photoColor: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Shadow</span>
+                <input type="range" min={0} max={40} step={1} value={selectedEl.shadowBlur ?? 18}
+                  onChange={e => updateElement({...selectedEl, shadowBlur: parseInt(e.target.value)})}
+                  onMouseUp={() => pushHistory()}
+                  style={{ width:64, accentColor:'#00C4CC', cursor:'pointer', flexShrink:0 }} />
+                <D />
+                {[['White','#ffffff','#333333'],['Black','#1a1a22','#ffffff'],['Cream','#f5f0e8','#333333'],['Pink','#ffe0f0','#d14080']].map(([lbl,fr,cp]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, fill: fr, captionColor: cp}); }}
+                    style={{ height:26, padding:'0 8px', borderRadius:5, border:`1px solid ${t.border}`, background:fr, color:cp, fontSize:10, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', fontWeight:600, boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'highlight' && <>
                 <D />
                 {[['Full','full'],['Brush','brush'],['Underline','underline']].map(([lbl, s]) => (
@@ -6292,6 +6405,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Neon',      icon: '✨', fn: () => addNeonText() },
                     { label: 'Sticker',   icon: '🔥', fn: () => addSticker('🔥') },
                     { label: 'Highlight', icon: '🖊', fn: () => addHighlight() },
+                    { label: 'Polaroid',  icon: '📷', fn: () => addPolaroid() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -7379,7 +7493,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
