@@ -1678,6 +1678,94 @@ function ContentNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDbl
     );
   }
 
+  if (el.type === 'coupon') {
+    const cpw = el.width || 340, cph = el.height || 140;
+    const leftColor = el.fill || '#00C4CC';
+    const rightColor = el.couponRightColor || 'rgba(255,255,255,0.1)';
+    const code = el.couponCode || 'SAVE20';
+    const headline = el.couponHeadline || '20% OFF';
+    const subline = el.couponSubline || 'Your next purchase';
+    const expiry = el.couponExpiry || 'Expires soon';
+    const notchR = Math.min(14, cph * 0.12);
+    const divX = cpw * 0.38;
+    const r = el.cornerRadius ?? 12;
+
+    return (
+      <Shape {...common}
+        width={cpw} height={cph}
+        opacity={el.opacity ?? 1}
+        globalCompositeOperation={el.blendMode || 'source-over'}
+        sceneFunc={(ctx, shape2) => {
+          const w = shape2.width(), h = shape2.height();
+
+          // Draw full coupon background as a custom path with notches
+          ctx.beginPath();
+          ctx.moveTo(r, 0);
+          ctx.lineTo(w - r, 0); ctx.arcTo(w, 0, w, r, r);
+          ctx.lineTo(w, h / 2 - notchR);
+          ctx.arc(w, h / 2, notchR, -Math.PI / 2, Math.PI / 2, false); // right notch (inner)
+          ctx.lineTo(w, h - r); ctx.arcTo(w, h, w - r, h, r);
+          ctx.lineTo(r, h); ctx.arcTo(0, h, 0, h - r, r);
+          ctx.lineTo(0, h / 2 + notchR);
+          ctx.arc(0, h / 2, notchR, Math.PI / 2, -Math.PI / 2, false); // left notch (inner)
+          ctx.lineTo(0, r); ctx.arcTo(0, 0, r, 0, r);
+          ctx.closePath();
+          ctx.fillStyle = rightColor;
+          ctx.fill();
+
+          // Left section (colored)
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(r, 0);
+          ctx.lineTo(divX, 0);
+          ctx.lineTo(divX, h / 2 - notchR);
+          ctx.arc(divX, h / 2, notchR, -Math.PI / 2, Math.PI / 2, true); // divider notch
+          ctx.lineTo(divX, h);
+          ctx.lineTo(r, h); ctx.arcTo(0, h, 0, h - r, r);
+          ctx.lineTo(0, h / 2 + notchR);
+          ctx.arc(0, h / 2, notchR, Math.PI / 2, -Math.PI / 2, false);
+          ctx.lineTo(0, r); ctx.arcTo(0, 0, r, 0, r);
+          ctx.closePath();
+          ctx.fillStyle = leftColor;
+          ctx.fill();
+          ctx.restore();
+
+          // Dashed divider line
+          ctx.beginPath();
+          ctx.setLineDash([4, 4]);
+          ctx.moveTo(divX, notchR * 2);
+          ctx.lineTo(divX, h - notchR * 2);
+          ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Left section text
+          const pad = 12;
+          const headSize = Math.max(18, Math.round(cph * 0.25));
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = `bold ${headSize}px Inter, sans-serif`;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(headline, divX / 2, h * 0.38);
+          ctx.font = `${Math.max(10, Math.round(headSize * 0.45))}px Inter, sans-serif`;
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillText(subline, divX / 2, h * 0.62);
+
+          // Right section text
+          const rightX = divX + (w - divX) / 2;
+          ctx.font = `bold ${Math.max(16, Math.round(cph * 0.18))}px 'Courier New', monospace`;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(code, rightX, h * 0.38);
+          ctx.font = `${Math.max(9, Math.round(cph * 0.1))}px Inter, sans-serif`;
+          ctx.fillStyle = 'rgba(255,255,255,0.55)';
+          ctx.fillText('USE CODE', rightX, h * 0.22);
+          ctx.fillText(expiry, rightX, h * 0.76);
+        }}
+      />
+    );
+  }
+
   if (el.type === 'draw') return (
     <Line
       x={el.x || 0} y={el.y || 0}
@@ -2540,6 +2628,19 @@ export default function TemplatesEditorInner() {
   function addSmartShape(kind) {
     pushHistory();
     const el = { id: uid(), type: 'shape', shapeKind: kind, x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 60, width: 160, height: 120, fill: 'rgba(255,255,255,0.15)', opacity: 1 };
+    patchElements(prev => [...prev, el]);
+    setSelectedId(el.id);
+  }
+
+  function addCoupon() {
+    pushHistory();
+    const el = {
+      id: uid(), type: 'coupon',
+      x: canvasSize.w / 2 - 170, y: canvasSize.h / 2 - 70,
+      width: 340, height: 140, opacity: 1,
+      fill: '#7C5CFC', couponCode: 'SAVE20', couponHeadline: '20% OFF',
+      couponSubline: 'Your next purchase', couponExpiry: 'Expires 31 Dec',
+    };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
   }
@@ -4764,6 +4865,25 @@ export default function TemplatesEditorInner() {
                 <Btn label="Secs" active={!!selectedEl.showSeconds}
                   onClick={() => { pushHistory(); updateElement({...selectedEl, showSeconds: !selectedEl.showSeconds}); }} />
               </>}
+              {selectedEl.type === 'coupon' && <>
+                <D />
+                <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Color</span>
+                <ColorPickerButton
+                  value={selectedEl.fill || '#7C5CFC'}
+                  onChange={c => updateElement({...selectedEl, fill: c})}
+                  onCommit={() => pushHistory()}
+                  recentColors={recentColors}
+                  size={18}
+                />
+                <D />
+                {/* Quick discount presets */}
+                {[['10% Off','10% OFF','SAVE10'],['20% Off','20% OFF','SAVE20'],['Free Ship','FREE SHIP','FREESHIP'],['Buy 1 Get 1','BUY 1\nGET 1','B1G1FREE']].map(([lbl, h, code]) => (
+                  <button key={lbl} onClick={() => { pushHistory(); updateElement({...selectedEl, couponHeadline: h, couponCode: code}); }}
+                    style={{ height:26, padding:'0 7px', borderRadius:5, border:`1px solid ${t.border}`, background:'transparent', color:t.text, fontSize:11, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap' }}>
+                    {lbl}
+                  </button>
+                ))}
+              </>}
               {selectedEl.type === 'callout' && <>
                 <D />
                 {[['side','Side'],['top','Top'],['outline','Outline']].map(([s, lbl]) => (
@@ -5771,6 +5891,7 @@ export default function TemplatesEditorInner() {
                     { label: 'Divider',   icon: '─',  fn: () => addDivider() },
                     { label: 'Stats',     icon: '📈', fn: () => addSocialStats() },
                     { label: 'Callout',   icon: '💡', fn: () => addCallout() },
+                    { label: 'Coupon',    icon: '🎟', fn: () => addCoupon() },
                   ].map(({ label, icon, fn }) => (
                     <button key={label} onMouseDown={e => { e.preventDefault(); fn(); }}
                       style={{ padding: '12px 0 8px', borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -6858,7 +6979,7 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : '■';
+                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : '■';
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
