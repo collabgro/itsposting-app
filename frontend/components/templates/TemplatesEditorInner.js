@@ -3228,7 +3228,7 @@ export default function TemplatesEditorInner() {
           const Btn = ({ label, active, onClick }) => (
             <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?t.primaryBg:'transparent', color:active?t.primary:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', transition:'background 80ms' }}>{label}</button>
           );
-          const fillKey = ['line','arrow'].includes(selectedEl.type) ? 'stroke' : 'fill';
+          const fillKey = ['line','arrow','draw'].includes(selectedEl.type) ? 'stroke' : 'fill';
           const fillVal = (selectedEl[fillKey] || '#ffffff').startsWith('rgba') ? '#888888' : (selectedEl[fillKey] || '#ffffff');
           return (
             <>
@@ -3239,8 +3239,8 @@ export default function TemplatesEditorInner() {
                 onCommit={() => pushHistory()}
                 recentColors={recentColors}
               />
-              {/* Gradient toggle (not for lines/arrows) */}
-              {!['line','arrow'].includes(selectedEl.type) && (
+              {/* Gradient toggle (not for lines/arrows/draw) */}
+              {!['line','arrow','draw'].includes(selectedEl.type) && (
                 <>
                   <Btn label="⚏ Gradient" active={selectedEl.fillType === 'gradient'}
                     onClick={() => {
@@ -3271,14 +3271,14 @@ export default function TemplatesEditorInner() {
                   )}
                 </>
               )}
-              {['line','arrow'].includes(selectedEl.type) && <>
+              {['line','arrow','draw'].includes(selectedEl.type) && <>
                 <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Width</span>
-                <input type="range" min={1} max={20} value={selectedEl.strokeWidth||3}
+                <input type="range" min={1} max={selectedEl.type==='draw'?40:20} value={selectedEl.strokeWidth||3}
                   onChange={e => updateElement({...selectedEl, strokeWidth:parseInt(e.target.value)})}
                   onMouseUp={() => pushHistory()} style={{ width:60, flexShrink:0, accentColor:'#00C4CC' }} />
                 <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.strokeWidth||3}px</span>
-                {[['solid','─'],['dashed','╌'],['dotted','···']].map(([s,icon]) => (
+                {selectedEl.type !== 'draw' && [['solid','─'],['dashed','╌'],['dotted','···']].map(([s,icon]) => (
                   <button key={s} title={s.charAt(0).toUpperCase()+s.slice(1)} onClick={() => { pushHistory(); updateElement({...selectedEl, strokeStyle: s}); }}
                     style={{ height:26, padding:'0 8px', border:`1px solid ${(selectedEl.strokeStyle||'solid')===s?'#00C4CC':t.border}`, borderRadius:5, background:(selectedEl.strokeStyle||'solid')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.strokeStyle||'solid')===s?'#00C4CC':t.text, fontSize:13, cursor:'pointer', flexShrink:0, letterSpacing:'0.05em' }}>
                     {icon}
@@ -3339,7 +3339,7 @@ export default function TemplatesEditorInner() {
               </>}
               <D />
               {/* Flip buttons (skip for circle — symmetric) */}
-              {selectedEl.type !== 'circle' && <>
+              {!['circle','draw'].includes(selectedEl.type) && <>
                 <Btn label="⟺ Flip H" active={!!selectedEl.flipH} onClick={() => { pushHistory(); updateElement({ ...selectedEl, flipH: !selectedEl.flipH }); }} />
                 <Btn label="⇅ Flip V" active={!!selectedEl.flipV} onClick={() => { pushHistory(); updateElement({ ...selectedEl, flipV: !selectedEl.flipV }); }} />
                 <D />
