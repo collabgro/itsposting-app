@@ -5811,7 +5811,12 @@ export default function TemplatesEditorInner() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
 
           {/* Back */}
-          <button onClick={() => router.push('/media?tab=templates')} title="Back to templates"
+          <button onClick={() => {
+            const ref = document.referrer;
+            if (ref.includes('/wizard')) router.push('/wizard');
+            else if (ref.includes('/history')) router.push('/history');
+            else router.back();
+          }} title="Back"
             style={{ width: 36, height: 36, border: 'none', borderRadius: 8, background: 'transparent', color: t.text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <IpArrowLeft size={18} />
           </button>
@@ -6058,6 +6063,13 @@ export default function TemplatesEditorInner() {
             onMouseEnter={e => showTip(e, 'Preview', 'P')} onMouseLeave={hideTip}
             style={{ height: 36, padding: '0 13px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'background 100ms' }}>
             <IpEye size={15} /> Preview
+          </button>
+
+          {/* Post — primary CTA */}
+          <button onClick={() => setPostModalOpen(true)}
+            onMouseEnter={e => showTip(e, 'Post to social media')} onMouseLeave={hideTip}
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: '#00C4CC', color: '#000', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+            Post
           </button>
 
           {/* Share */}
