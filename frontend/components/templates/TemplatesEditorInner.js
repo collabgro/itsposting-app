@@ -8510,9 +8510,9 @@ export default function TemplatesEditorInner() {
           })}
         </div>
 
-        {/* 280px collapsible flyout */}
+        {/* 320px collapsible flyout */}
         <div style={{
-          width: panelOpen ? 280 : 0,
+          width: panelOpen ? 320 : 0,
           overflow: 'hidden',
           transition: 'width 200ms ease',
           borderRight: panelOpen ? `1px solid ${t.border}` : 'none',
@@ -8522,9 +8522,27 @@ export default function TemplatesEditorInner() {
           display: 'flex',
           flexDirection: 'column',
         }}>
+          {/* Canva-style subtle collapse handle */}
+          <button onClick={() => setPanelOpen(o => !o)} title={panelOpen ? 'Collapse panel' : 'Expand panel'} style={{
+            position: 'absolute', right: -14, top: '50%',
+            transform: 'translateY(-50%)',
+            width: 14, height: 44,
+            background: t.card, border: `1px solid ${t.border}`,
+            borderLeft: 'none',
+            borderRadius: '0 6px 6px 0', cursor: 'pointer',
+            zIndex: 20, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', color: t.textMuted, fontSize: 10,
+            transition: 'background 100ms, color 100ms',
+            boxShadow: '2px 0 4px rgba(0,0,0,0.07)',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = t.text; }}
+            onMouseLeave={e => { e.currentTarget.style.background = t.card; e.currentTarget.style.color = t.textMuted; }}
+          >
+            {panelOpen ? '‹' : '›'}
+          </button>
           {/* Tool content — rendered only when flyout is open */}
           {panelOpen && (
-          <div key={activeLeftTool} style={{ flex: 1, overflowY: 'auto', padding: '16px', minWidth: 280, animation: 'panel-in 160ms ease forwards' }}>
+          <div key={activeLeftTool} style={{ flex: 1, overflowY: 'auto', padding: '16px', minWidth: 320, animation: 'panel-in 160ms ease forwards' }}>
 
             {/* TEMPLATES / DESIGN */}
             {(activeLeftTool === 'background' || activeLeftTool === 'templates') && (
@@ -10263,7 +10281,9 @@ export default function TemplatesEditorInner() {
                       borderRadius: 8, overflow: 'hidden', cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
                       opacity: page.hidden ? 0.35 : 1,
                       boxShadow: isActive
-                        ? `0 0 0 2px ${TEAL}, 0 4px 24px rgba(0,0,0,0.22), 0 1px 6px rgba(0,0,0,0.12)`
+                        ? panelOpen
+                          ? '0 4px 24px rgba(0,0,0,0.22), 0 1px 6px rgba(0,0,0,0.12)'
+                          : `0 0 0 2px ${TEAL}, 0 4px 24px rgba(0,0,0,0.22), 0 1px 6px rgba(0,0,0,0.12)`
                         : '0 2px 12px rgba(0,0,0,0.16), 0 1px 3px rgba(0,0,0,0.10)',
                       background: pageBgType === 'transparent'
                         ? 'repeating-conic-gradient(#aaa 0% 25%, #fff 0% 50%) 0 0 / 20px 20px'
