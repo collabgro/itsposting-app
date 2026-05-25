@@ -58,6 +58,13 @@ export default function VideoEditorInner() {
   const router = useRouter();
   const { id: editId } = router.query;
 
+  // ─── Auth guard ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !localStorage.getItem('token')) {
+      router.replace('/login');
+    }
+  }, []);
+
   // ── Core state ──────────────────────────────────────────────────────────────
   const [project, setProject] = useState(emptyProject());
   const [title, setTitle] = useState('Untitled Video');
@@ -268,7 +275,21 @@ export default function VideoEditorInner() {
     if (Math.abs(vid.currentTime - clipLocalTime) > 0.25) {
       vid.currentTime = clipLocalTime;
     }
+    vid.playbackRate = activeClip.speed || 1;
+    vid.volume = activeClip.volume ?? 1;
   }, [activeClipIndex, Math.floor(playhead * 5)]);
+
+  // ─── Video element play / pause ───────────────────────────────────────────
+
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (!vid || !activeClip || activeClip.type !== 'video') return;
+    if (playing) {
+      vid.play().catch(() => {});
+    } else {
+      vid.pause();
+    }
+  }, [playing, activeClipIndex]);
 
   // ─── Poll export status ────────────────────────────────────────────────────
 
@@ -318,7 +339,7 @@ export default function VideoEditorInner() {
       id: nanoid(),
       type: isVideo ? 'video' : 'image',
       sourceUrl: file.url,
-      thumbnailUrl: file.url,
+      thumbnailUrl: file.thumbnail_url || file.url,
       sourceMediaId: file.id,
       trackStart,
       trimStart: 0,
@@ -676,32 +697,8 @@ export default function VideoEditorInner() {
 
   // ─── Generate captions (placeholder — calls backend transcription) ────────
 
-  async function handleGenerateCaptions() {
-    const firstVideoClip = project.clips.find(c => c.type === 'video');
-    if (!firstVideoClip) return;
-    setCaptionLoading(true);
-    setCaptionError('');
-    try {
-      const { data } = await studioAPI.generateCaptions({ videoUrl: firstVideoClip.sourceUrl });
-      const captions = data?.captions || [];
-      if (!captions.length) { setCaptionError('No speech detected in video.'); return; }
-      const newTextEls = captions.map((cap, i) => ({
-        id: nanoid(),
-        text: cap.text,
-        startTime: cap.start,
-        endTime: cap.end,
-        xPercent: 50, yPercent: 85,
-        fontSize: 36, fontFamily: 'Inter', fill: '#ffffff',
-        fontStyle: 'bold', align: 'center',
-        bgColor: '#000000', bgOpacity: 0.5,
-        animationIn: 'fade_in', animationOut: 'fade_out',
-      }));
-      mutate(p => ({ ...p, textElements: [...p.textElements, ...newTextEls] }));
-    } catch (err) {
-      setCaptionError(err?.response?.data?.error || 'Caption generation failed. Please try again.');
-    } finally {
-      setCaptionLoading(false);
-    }
+  function handleGenerateCaptions() {
+    setCaptionError('Auto-captions are coming soon. In the meantime, add captions manually using the Text tab — set start/end times to sync them to your video.');
   }
 
   // ─── Text overlay drag on preview ─────────────────────────────────────────
@@ -922,14 +919,10 @@ export default function VideoEditorInner() {
           </div>
           <button
             onClick={handleGenerateCaptions}
-            disabled={captionLoading || !project.clips.some(c => c.type === 'video')}
-            style={{ width: '100%', padding: '9px 0', background: t.primary, border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: captionLoading ? 'wait' : 'pointer', opacity: (captionLoading || !project.clips.some(c => c.type === 'video')) ? 0.6 : 1 }}>
-            {captionLoading ? 'Generating…' : '✦ Generate Captions'}
+            style={{ width: '100%', padding: '9px 0', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.textMuted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            ✦ Auto-Captions (Coming Soon)
           </button>
-          {captionError && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 8 }}>{captionError}</div>}
-          {!project.clips.some(c => c.type === 'video') && (
-            <div style={{ fontSize: 11, color: t.textMuted, marginTop: 8, textAlign: 'center' }}>Add a video clip first.</div>
-          )}
+          {captionError && <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 8, lineHeight: 1.5 }}>{captionError}</div>}
           <div style={{ fontSize: 10, color: t.textMuted, marginTop: 12, lineHeight: 1.5 }}>
             Captions appear as text overlays. Edit timing and style from the Text tab.
           </div>
@@ -1388,12 +1381,18 @@ export default function VideoEditorInner() {
           <div ref={previewRef} style={s.previewBox}>
             {/* Active clip */}
             {activeClip ? (
-              activeClip.type === 'video'
-                ? <video ref={videoRef} src={activeClip.sourceUrl} muted={false} playsInline
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                : activeClip.type === 'image'
-                  ? <img src={activeClip.sourceUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  : <div style={{ width: '100%', height: '100%', background: activeClip.color || '#000' }} />
+              (() => {
+                const f = activeClip.filters || {};
+                const filterStyle = (f.brightness !== 0 || f.contrast !== 0 || f.saturation !== 0)
+                  ? `brightness(${Math.max(0, 1 + (f.brightness || 0))}) contrast(${Math.max(0, 1 + (f.contrast || 0) / 100)}) saturate(${Math.max(0, 1 + (f.saturation || 0) / 100)})`
+                  : undefined;
+                return activeClip.type === 'video'
+                  ? <video ref={videoRef} src={activeClip.sourceUrl} muted={false} playsInline
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: filterStyle }} />
+                  : activeClip.type === 'image'
+                    ? <img src={activeClip.sourceUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: filterStyle }} />
+                    : <div style={{ width: '100%', height: '100%', background: activeClip.color || '#000' }} />;
+              })()
             ) : (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444', fontSize: 13 }}>
                 Add clips to get started
