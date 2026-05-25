@@ -5269,6 +5269,59 @@ export default function TemplatesEditorInner() {
     setSelectedId(el.id);
   }
 
+  // Apply Claude-returned mask polygon to image using Canvas 2D — returns transparent PNG data URL
+  async function applyRemoveBgMask(element, maskData) {
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = element.src;
+    });
+    const W = img.naturalWidth || img.width;
+    const H = img.naturalHeight || img.height;
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = W; srcCanvas.height = H;
+    srcCanvas.getContext('2d').drawImage(img, 0, 0);
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = W; outCanvas.height = H;
+    const ctx = outCanvas.getContext('2d');
+    ctx.drawImage(srcCanvas, 0, 0);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.beginPath();
+    const polygon = maskData.maskPolygon;
+    if (polygon && polygon.length >= 3) {
+      const pts = polygon.map(p => ({ x: (p.xPercent / 100) * W, y: (p.yPercent / 100) * H }));
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+    } else {
+      const bb = maskData.subject?.boundingBox || { xPercent: 0, yPercent: 0, widthPercent: 100, heightPercent: 100 };
+      ctx.rect((bb.xPercent / 100) * W, (bb.yPercent / 100) * H, (bb.widthPercent / 100) * W, (bb.heightPercent / 100) * H);
+    }
+    ctx.fillStyle = '#000';
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    return outCanvas.toDataURL('image/png');
+  }
+
+  // Crop a bounding-box region from an image URL — returns data URL for that crop
+  async function cropImageRegion(imgSrc, boundingBox) {
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = imgSrc; });
+    const natW = img.naturalWidth || img.width;
+    const natH = img.naturalHeight || img.height;
+    const cropX = (boundingBox.xPercent / 100) * natW;
+    const cropY = (boundingBox.yPercent / 100) * natH;
+    const cropW = (boundingBox.widthPercent / 100) * natW;
+    const cropH = (boundingBox.heightPercent / 100) * natH;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, cropW); canvas.height = Math.max(1, cropH);
+    canvas.getContext('2d').drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+    return canvas.toDataURL('image/png');
+  }
+
   function handleCanvasDrop(e) {
     e.preventDefault();
     const rect = (e.currentTarget || canvasWrapperRef.current)?.getBoundingClientRect();
@@ -7142,22 +7195,20 @@ export default function TemplatesEditorInner() {
               <button
                 onClick={async () => {
                   if (!selectedEl?.src || bgRemoveLoading) return;
-                  if (selectedEl.src.startsWith('blob:') || selectedEl.src.startsWith('data:')) {
-                    alert('Please click the image first to add it to your Upload library, then use Remove BG.');
+                  if (selectedEl.src.startsWith('blob:')) {
+                    alert('Please upload the image first, then use Remove BG.');
                     return;
                   }
                   setBgRemoveLoading(true);
                   try {
                     const res = await studioAPI.removeBackground(selectedEl.src);
+                    const maskData = res.data;
+                    if (maskData.error) throw new Error(maskData.error);
+                    const dataUrl = await applyRemoveBgMask(selectedEl, maskData);
                     pushHistory();
-                    updateElement({ ...selectedEl, src: res.data.url });
+                    updateElement({ ...selectedEl, src: dataUrl });
                   } catch (e) {
-                    const msg = e?.response?.data?.error || '';
-                    if (msg.includes('not configured')) {
-                      alert('Background removal is not enabled on this account. Contact support.');
-                    } else {
-                      alert('Background removal failed. Please try again in a moment.');
-                    }
+                    alert('Background removal failed. Try a higher-contrast image.');
                   }
                   setBgRemoveLoading(false);
                 }}
@@ -7166,40 +7217,60 @@ export default function TemplatesEditorInner() {
                 style={{ height: 32, padding: '0 10px', border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 12, cursor: bgRemoveLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, opacity: bgRemoveLoading ? 0.6 : 1 }}>
                 {bgRemoveLoading ? '…' : '✂ Remove BG'}
               </button>
-              {/* Extract Layers — auto foreground+background split, no click needed */}
+              {/* Extract Elements — auto-detects all objects/text/background via Claude vision */}
               <button
                 disabled={extractLoading}
                 onClick={async () => {
                   if (!selectedEl?.src || extractLoading) return;
-                  if (selectedEl.src.startsWith('blob:') || selectedEl.src.startsWith('data:')) {
-                    alert('Please use an uploaded image to extract layers.');
+                  if (selectedEl.src.startsWith('blob:')) {
+                    alert('Please upload the image first, then use Extract.');
                     return;
                   }
                   setExtractLoading(true);
                   try {
-                    const res = await studioAPI.removeBackground(selectedEl.src);
-                    const fgUrl = res.data.url;
+                    const res = await studioAPI.extractElements(selectedEl.src);
+                    const { elements } = res.data;
+                    if (!elements?.length) throw new Error('No elements detected');
+                    const srcEl = selectedEl;
                     pushHistory();
-                    // Replace the original element with two layers: background (original) + foreground (transparent PNG)
-                    const bgEl = { ...selectedEl, id: uid() };
-                    const fgEl = {
-                      id: uid(), type: 'image', src: fgUrl,
-                      x: selectedEl.x, y: selectedEl.y,
-                      width: selectedEl.width, height: selectedEl.height,
-                      rotation: selectedEl.rotation || 0, opacity: 1,
-                      flipH: false, flipV: false, cornerRadius: 0,
-                    };
-                    patchElements(prev => [
-                      ...prev.filter(e => e.id !== selectedEl.id),
-                      bgEl, fgEl,
-                    ]);
-                    setSelectedId(fgEl.id);
+                    for (const el of elements) {
+                      if (el.type === 'background') {
+                        patchElements(prev => [...prev, {
+                          id: uid(), type: 'rect',
+                          x: srcEl.x, y: srcEl.y, width: srcEl.width, height: srcEl.height,
+                          fill: el.dominantColor || '#1a1a2e', opacity: 1, rotation: 0, cornerRadius: 0, stroke: null,
+                        }]);
+                      } else if (el.type === 'text' && el.content && el.boundingBox) {
+                        const x = srcEl.x + (el.boundingBox.xPercent / 100) * srcEl.width;
+                        const y = srcEl.y + (el.boundingBox.yPercent / 100) * srcEl.height;
+                        const w = (el.boundingBox.widthPercent / 100) * srcEl.width;
+                        patchElements(prev => [...prev, {
+                          id: uid(), type: 'text', text: el.content,
+                          x, y, width: w, fontSize: el.estimatedFontSize || 24,
+                          fill: el.textColor || '#ffffff', fontFamily: 'Inter',
+                          fontWeight: '700', align: 'left', opacity: 1, rotation: 0,
+                        }]);
+                      } else if (el.type === 'object' && el.boundingBox) {
+                        const dataUrl = await cropImageRegion(srcEl.src, el.boundingBox);
+                        const x = srcEl.x + (el.boundingBox.xPercent / 100) * srcEl.width;
+                        const y = srcEl.y + (el.boundingBox.yPercent / 100) * srcEl.height;
+                        const w = (el.boundingBox.widthPercent / 100) * srcEl.width;
+                        const h = (el.boundingBox.heightPercent / 100) * srcEl.height;
+                        patchElements(prev => [...prev, {
+                          id: uid(), type: 'image', src: dataUrl,
+                          x, y, width: w, height: h, opacity: 1, rotation: 0,
+                          flipH: false, flipV: false, cornerRadius: 0,
+                        }]);
+                      }
+                    }
+                    patchElements(prev => prev.filter(e => e.id !== srcEl.id));
+                    setSelectedId(null);
                   } catch {
-                    alert('Layer extraction failed. Please try again.');
+                    alert('Element extraction failed. Try a clearer image with distinct objects.');
                   }
                   setExtractLoading(false);
                 }}
-                title="Auto-split image into background + foreground layers"
+                title="Extract image into separate movable elements (AI-powered)"
                 style={{ height: 32, padding: '0 10px', border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 12, cursor: extractLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, opacity: extractLoading ? 0.6 : 1 }}>
                 {extractLoading ? '…' : '✦ Extract'}
               </button>

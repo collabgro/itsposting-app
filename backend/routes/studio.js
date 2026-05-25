@@ -730,57 +730,55 @@ Return ONLY valid JSON (no markdown fences):
   });
 
   // POST /api/studio/remove-background
-  // Uses Replicate's hosted rembg model — no separate service needed
+  // Uses Claude vision to detect subject mask polygon — client applies mask via Canvas 2D
   router.post('/remove-background', authenticate, async (req, res) => {
     try {
       const { imageUrl } = req.body;
       if (!imageUrl) return res.status(400).json({ error: 'imageUrl required' });
 
-      const replicateToken = process.env.REPLICATE_API_TOKEN;
-      if (!replicateToken) return res.status(503).json({ error: 'Background removal not configured' });
+      const imageResp = await fetch(imageUrl);
+      if (!imageResp.ok) return res.status(400).json({ error: 'Could not fetch image' });
+      const buffer = Buffer.from(await imageResp.arrayBuffer());
+      const base64 = buffer.toString('base64');
+      const mimeType = (imageResp.headers.get('content-type') || 'image/jpeg').split(';')[0];
 
-      // Start prediction on Replicate's rembg model
-      const startRes = await fetch('https://api.replicate.com/v1/models/lucataco/remove-bg/predictions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${replicateToken}`, 'Content-Type': 'application/json', 'Prefer': 'wait' },
-        body: JSON.stringify({ input: { image: imageUrl } }),
-      });
-      if (!startRes.ok) {
-        const errText = await startRes.text();
-        console.error('[Studio] Replicate rembg start error:', errText);
-        return res.status(502).json({ error: 'Background removal failed to start' });
-      }
-      const prediction = await startRes.json();
+      const Anthropic = require('@anthropic-ai/sdk');
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-      // Prefer: wait makes Replicate block until done (up to 60s); poll if still processing
-      let outputUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
-      if (!outputUrl && prediction.id) {
-        // Poll until done
-        for (let i = 0; i < 30; i++) {
-          await new Promise(r => setTimeout(r, 2000));
-          const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-            headers: { 'Authorization': `Bearer ${replicateToken}` },
-          });
-          const poll = await pollRes.json();
-          if (poll.status === 'succeeded') {
-            outputUrl = Array.isArray(poll.output) ? poll.output[0] : poll.output;
-            break;
-          }
-          if (poll.status === 'failed') {
-            console.error('[Studio] Replicate rembg failed:', poll.error);
-            return res.status(502).json({ error: 'Background removal failed' });
-          }
-        }
-      }
-      if (!outputUrl) return res.status(502).json({ error: 'Background removal timed out' });
-
-      // Re-upload to Cloudinary so the URL is on our CDN
-      const cloudinary = require('cloudinary').v2;
-      const result = await cloudinary.uploader.upload(outputUrl, {
-        folder: 'itsposting/bg-removed', resource_type: 'image',
+      const message = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2048,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+            { type: 'text', text: `Analyze this image and identify the main subject or foreground.
+Return ONLY valid JSON, no markdown fences, no explanation:
+{
+  "subject": {
+    "description": "brief description",
+    "boundingBox": { "xPercent": 10.0, "yPercent": 5.0, "widthPercent": 80.0, "heightPercent": 90.0 }
+  },
+  "maskPolygon": [
+    {"xPercent": 10.0, "yPercent": 5.0},
+    {"xPercent": 50.0, "yPercent": 3.0}
+  ],
+  "confidence": 0.88
+}
+Rules:
+- All values are PERCENTAGES of image dimensions (0-100)
+- maskPolygon: 8-24 points tracing the subject outline accurately (not just a rectangle)
+- boundingBox must be tight around the subject
+- For people: trace around hair, shoulders, arms carefully
+- confidence: 0.0-1.0` }
+          ]
+        }]
       });
 
-      res.json({ url: result.secure_url });
+      const raw = message.content.filter(b => b.type === 'text').map(b => b.text).join('');
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      res.json(parsed);
     } catch (err) {
       console.error('[Studio] remove-background:', err.message);
       res.status(500).json({ error: 'Background removal failed' });
@@ -892,6 +890,80 @@ Return ONLY valid JSON (no markdown fences):
       res.json({ url: result.secure_url, width, height });
     } catch (err) {
       console.error('[Studio] extract-element:', err.message);
+      res.status(500).json({ error: 'Element extraction failed' });
+    }
+  });
+
+  // POST /api/studio/extract-elements
+  // Uses Claude vision to detect all visual elements in an image — client crops each via Canvas 2D
+  router.post('/extract-elements', authenticate, async (req, res) => {
+    try {
+      const { imageUrl } = req.body;
+      if (!imageUrl) return res.status(400).json({ error: 'imageUrl required' });
+
+      const imageResp = await fetch(imageUrl);
+      if (!imageResp.ok) return res.status(400).json({ error: 'Could not fetch image' });
+      const buffer = Buffer.from(await imageResp.arrayBuffer());
+      const base64 = buffer.toString('base64');
+      const mimeType = (imageResp.headers.get('content-type') || 'image/jpeg').split(';')[0];
+
+      const Anthropic = require('@anthropic-ai/sdk');
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+      const message = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+            { type: 'text', text: `Detect all distinct visual elements in this image.
+Return ONLY valid JSON, no markdown fences, no explanation:
+{
+  "elements": [
+    {
+      "id": "el_bg",
+      "type": "background",
+      "label": "background",
+      "dominantColor": "#1a1a2e"
+    },
+    {
+      "id": "el_1",
+      "type": "object",
+      "label": "person standing",
+      "boundingBox": { "xPercent": 20, "yPercent": 10, "widthPercent": 60, "heightPercent": 80 },
+      "dominantColor": "#3a2a1e"
+    },
+    {
+      "id": "el_2",
+      "type": "text",
+      "label": "headline",
+      "content": "Actual text found in image",
+      "boundingBox": { "xPercent": 5, "yPercent": 5, "widthPercent": 90, "heightPercent": 15 },
+      "textColor": "#ffffff",
+      "estimatedFontSize": 48
+    }
+  ],
+  "totalElements": 3,
+  "hasText": true
+}
+Rules:
+- type must be exactly: "background" | "object" | "text"
+- Always include exactly one "background" element (no boundingBox needed for background)
+- boundingBox values are percentages (0-100) of image dimensions, tight around each element
+- dominantColor must be a valid hex color
+- For text type: include the actual text string found in "content"
+- Detect every distinct visual group: people, logos, shapes, text blocks, decorative elements` }
+          ]
+        }]
+      });
+
+      const raw = message.content.filter(b => b.type === 'text').map(b => b.text).join('');
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      res.json(parsed);
+    } catch (err) {
+      console.error('[Studio] extract-elements:', err.message);
       res.status(500).json({ error: 'Element extraction failed' });
     }
   });
