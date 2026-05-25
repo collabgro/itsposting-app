@@ -63,6 +63,7 @@ export default function MediaLibrary() {
   const [selectedIndustry, setSelectedIndustry] = useState('all');
   const [showSizePicker,   setShowSizePicker]   = useState(false);
   const [pickerSizeId,     setPickerSizeId]      = useState('ig_portrait');
+  const [templateThumbs,   setTemplateThumbs]   = useState({});
 
   // ── Mount + auth
   useEffect(() => {
@@ -241,6 +242,77 @@ export default function MediaLibrary() {
     } catch {}
     finally { setCuratedLoading(false); }
   };
+
+  // ── Client-side thumbnail generation for templates without a stored thumbnail_url ──
+  useEffect(() => {
+    if (curatedTemplates.length === 0) return;
+    const needsThumbs = curatedTemplates.filter(t => !t.thumbnail_url && !templateThumbs[t.id]);
+    if (needsThumbs.length === 0) return;
+    (async () => {
+      const THUMB_W = 270, THUMB_H = 338;
+      const results = {};
+      for (const tmpl of needsThumbs) {
+        const pageData = tmpl.canvas_json?.pages?.[0];
+        if (!pageData) continue;
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = THUMB_W; canvas.height = THUMB_H;
+          const ctx = canvas.getContext('2d');
+          const scale = THUMB_W / 1080;
+          ctx.fillStyle = pageData.bgColor || '#1a1a2e';
+          ctx.fillRect(0, 0, THUMB_W, THUMB_H);
+          for (const el of (pageData.elements || [])) {
+            ctx.save();
+            ctx.globalAlpha = el.opacity ?? 1;
+            if (el.type === 'rect' && el.fill) {
+              ctx.fillStyle = el.fill;
+              const x = (el.x || 0) * scale, y = (el.y || 0) * scale;
+              const w = (el.width || 100) * scale, h = (el.height || 20) * scale;
+              const r = (el.cornerRadius || 0) * scale;
+              if (r > 0) {
+                ctx.beginPath();
+                ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.closePath(); ctx.fill();
+              } else {
+                ctx.fillRect(x, y, w, h);
+              }
+            } else if (el.type === 'text' && el.text) {
+              const fw = parseInt(el.fontWeight) || 400;
+              const isBold = fw >= 600;
+              const isItalic = (el.fontStyle || '').includes('italic');
+              const fontSize = Math.max(5, (el.fontSize || 16) * scale);
+              ctx.font = `${isItalic ? 'italic ' : ''}${isBold ? 'bold ' : ''}${fontSize}px ${el.fontFamily || 'Inter'}, sans-serif`;
+              ctx.fillStyle = el.fill || '#fff';
+              ctx.textAlign = el.align || 'left';
+              const x = (el.x || 0) * scale;
+              const maxW = el.width ? el.width * scale : THUMB_W - x;
+              const lineH = fontSize * (el.lineHeight || 1.2);
+              const words = String(el.text).split(' ');
+              let line = '', lineY = (el.y || 0) * scale + fontSize;
+              for (const word of words) {
+                const test = line ? line + ' ' + word : word;
+                if (ctx.measureText(test).width > maxW && line) {
+                  ctx.fillText(line, x, lineY, maxW); line = word; lineY += lineH;
+                  if (lineY > THUMB_H) break;
+                } else { line = test; }
+              }
+              if (line && lineY <= THUMB_H) ctx.fillText(line, x, lineY, maxW);
+            }
+            ctx.restore();
+          }
+          results[tmpl.id] = canvas.toDataURL('image/jpeg', 0.85);
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, 10));
+      }
+      if (Object.keys(results).length > 0) setTemplateThumbs(prev => ({ ...prev, ...results }));
+    })();
+  }, [curatedTemplates]);
 
   // ─── Tab switch ───────────────────────────────────────────────────────────
 
@@ -595,8 +667,9 @@ export default function MediaLibrary() {
                         {(() => {
                           const CAT_ICONS = { 'before-after': '◑', 'social-proof': '⭐', 'seasonal': '❄', 'educational': '💡', 'promotional': '📣', 'team': '👥' };
                           const bgColor = tmpl.canvas_json?.pages?.[0]?.bgColor || '#1a1a2e';
-                          return tmpl.thumbnail_url
-                            ? <img src={tmpl.thumbnail_url} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          const thumbSrc = tmpl.thumbnail_url || templateThumbs[tmpl.id];
+                          return thumbSrc
+                            ? <img src={thumbSrc} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             : <div style={{ width: '100%', height: '100%', background: bgColor, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10 }}>
                                 <span style={{ fontSize: 24 }}>{CAT_ICONS[tmpl.category] || '✦'}</span>
                                 <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.85)', textAlign: 'center', fontWeight: 700, lineHeight: 1.3, letterSpacing: '0.02em' }}>{tmpl.name}</span>
