@@ -968,5 +968,37 @@ Rules:
     }
   });
 
+  // POST /api/studio/rewrite-text — AI Improve for canvas text elements
+  router.post('/rewrite-text', authenticate, async (req, res) => {
+    const { text, platform = 'instagram', tone = 'friendly' } = req.body;
+    if (!text || typeof text !== 'string' || text.trim().length < 3) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+    const sanitized = text.replace(/[<>`]/g, '').trim().slice(0, 500);
+    try {
+      const { rows } = await pool.query(
+        'SELECT industry, business_name FROM customers WHERE id = $1',
+        [req.customerId]
+      );
+      const customer = rows[0] || {};
+      const industry = customer.industry || 'general_contractor';
+      const Anthropic = require('@anthropic-ai/sdk');
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const msg = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: `Rewrite this canvas text to be more engaging for a ${industry} business posting on ${platform} in a ${tone} tone. Keep it short (under 15 words if possible). Return ONLY the improved text, no quotes, no explanation.\n\nOriginal: ${sanitized}`,
+        }],
+      });
+      const improved = msg.content[0]?.text?.trim() || sanitized;
+      res.json({ improved });
+    } catch (err) {
+      console.error('[studio/rewrite-text]', err.message);
+      res.status(500).json({ error: 'AI rewrite failed' });
+    }
+  });
+
   return router;
 };

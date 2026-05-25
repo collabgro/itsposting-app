@@ -3834,6 +3834,9 @@ export default function TemplatesEditorInner() {
   const [showOutlinePanel, setShowOutlinePanel] = useState(false);
   const [showEffectsPanel, setShowEffectsPanel] = useState(false);
   const [showMorePanel, setShowMorePanel] = useState(false);
+  const [aiImproving, setAiImproving] = useState(false);
+  const [showSafeZones, setShowSafeZones] = useState(false);
+  const [safeZonePlatform, setSafeZonePlatform] = useState('instagram');
   const [showPositionPanel, setShowPositionPanel] = useState(false);
   const [showAnimatePanel, setShowAnimatePanel] = useState(false);
   // Find & Replace
@@ -5991,6 +5994,24 @@ export default function TemplatesEditorInner() {
     }
   }
 
+  async function aiImproveText() {
+    const el = elements.find(e => e.id === selectedId);
+    if (!el || el.type !== 'text' || aiImproving) return;
+    setAiImproving(true);
+    try {
+      const platform = postPlatforms[0] || 'instagram';
+      const { data } = await studioAPI.rewriteText({ text: el.text, platform });
+      if (data?.improved) {
+        pushHistory();
+        updateElement({ ...el, text: data.improved });
+      }
+    } catch (e) {
+      console.error('[AI Improve]', e);
+    } finally {
+      setAiImproving(false);
+    }
+  }
+
   // ─── Document colors (extracted from all elements across all pages) ────────
   const docColors = useMemo(() => {
     const seen = new Set();
@@ -6690,6 +6711,50 @@ export default function TemplatesEditorInner() {
                 )}
               </div>
               <D />
+              {/* ✦ Brand nudge — show if element color/font differs from brand */}
+              {(() => {
+                if (!brandProfile) return null;
+                const bc = brandProfile?.brand_colors || {};
+                const bPrimary = bc.primary || '#00C4CC';
+                const needsColor = selectedEl.fillType !== 'gradient' && selectedEl.fill && selectedEl.fill.toLowerCase() !== bPrimary.toLowerCase();
+                const needsFont = selectedEl.fontFamily && selectedEl.fontFamily !== 'Bebas Neue';
+                if (!needsColor && !needsFont) return null;
+                return (
+                  <button
+                    onClick={() => {
+                      pushHistory();
+                      const patch = {};
+                      if (needsColor) patch.fill = bPrimary;
+                      if (needsFont) patch.fontFamily = 'Bebas Neue';
+                      updateElement({ ...selectedEl, ...patch });
+                    }}
+                    title="Apply your brand colors and fonts"
+                    style={{
+                      height: 34, padding: '0 10px', border: `1px solid ${TEAL}`, borderRadius: 7,
+                      background: 'rgba(0,196,204,0.08)', color: TEAL,
+                      fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center',
+                      gap: 4, flexShrink: 0, whiteSpace: 'nowrap', fontWeight: 600,
+                    }}
+                  >
+                    ✦ Brand
+                  </button>
+                );
+              })()}
+              {/* ✦ AI Improve */}
+              <button
+                onClick={aiImproveText}
+                disabled={aiImproving}
+                style={{
+                  height: 34, padding: '0 10px', border: 'none', borderRadius: 7,
+                  background: aiImproving ? 'rgba(124,92,252,0.1)' : 'transparent',
+                  color: aiImproving ? '#7C5CFC' : t.textMuted,
+                  fontSize: 12, cursor: aiImproving ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+                  transition: 'background 80ms, color 80ms', whiteSpace: 'nowrap',
+                }}
+              >
+                {aiImproving ? '...' : '✦ Improve'}
+              </button>
               {/* ⋯ More — all advanced text controls in one panel */}
               <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                 <button onClick={e => {
@@ -8457,19 +8522,6 @@ export default function TemplatesEditorInner() {
           display: 'flex',
           flexDirection: 'column',
         }}>
-          {/* Collapse/expand arrow */}
-          <button onClick={() => setPanelOpen(o => !o)} style={{
-            position: 'absolute', right: -13, top: '50%',
-            transform: 'translateY(-50%)',
-            width: 26, height: 52,
-            background: t.card, border: `1px solid ${t.border}`,
-            borderRadius: '0 8px 8px 0', cursor: 'pointer',
-            zIndex: 20, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', color: t.textMuted, fontSize: 14,
-          }}>
-            {panelOpen ? '‹' : '›'}
-          </button>
-
           {/* Tool content — rendered only when flyout is open */}
           {panelOpen && (
           <div key={activeLeftTool} style={{ flex: 1, overflowY: 'auto', padding: '16px', minWidth: 280, animation: 'panel-in 160ms ease forwards' }}>
@@ -10710,6 +10762,40 @@ export default function TemplatesEditorInner() {
                         {liveBounds.w > 0 && liveBounds.h > 0 ? `${liveBounds.w} × ${liveBounds.h}` : `${liveBounds.x}, ${liveBounds.y}`}
                       </div>
                     )}
+                    {/* Empty canvas guidance */}
+                    {pageElements.length === 0 && isActive && (
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, pointerEvents: 'none', userSelect: 'none', zIndex: 10 }}>
+                        <div style={{ fontSize: Math.max(14, Math.round(stageDisplayW * 0.045)), fontWeight: 700, color: 'rgba(0,0,0,0.13)', letterSpacing: '-0.01em', textAlign: 'center', lineHeight: 1.2, maxWidth: '70%' }}>
+                          Click to add your headline
+                        </div>
+                        <div style={{ fontSize: Math.max(10, Math.round(stageDisplayW * 0.025)), color: 'rgba(0,0,0,0.08)', textAlign: 'center', maxWidth: '60%', lineHeight: 1.5 }}>
+                          Use the panels on the left to add text, images, and elements
+                        </div>
+                      </div>
+                    )}
+                    {/* Platform safe-zone overlay */}
+                    {showSafeZones && isActive && (
+                      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 15 }}>
+                        {(() => {
+                          const pct = safeZonePlatform === 'facebook'
+                            ? { w: 0.86, h: 0.80 }
+                            : safeZonePlatform === 'google_business'
+                            ? { w: 0.90, h: 0.90 }
+                            : { w: 0.88, h: 0.88 };
+                          const mX = (stageDisplayW * (1 - pct.w)) / 2;
+                          const mY = (stageDisplayH * (1 - pct.h)) / 2;
+                          return (
+                            <svg width={stageDisplayW} height={stageDisplayH} style={{ position: 'absolute', inset: 0 }}>
+                              <rect x={0} y={0} width={stageDisplayW} height={stageDisplayH} fill="rgba(0,0,0,0.07)" />
+                              <rect x={mX} y={mY} width={stageDisplayW - mX * 2} height={stageDisplayH - mY * 2} fill="transparent" stroke={TEAL} strokeWidth={1.5} strokeDasharray="6 4" />
+                              <text x={mX + 6} y={mY + 14} fill={TEAL} fontSize={10} fontFamily="Inter, sans-serif">
+                                {safeZonePlatform === 'google_business' ? 'Google' : safeZonePlatform === 'facebook' ? 'Facebook' : 'Instagram'} safe area
+                              </text>
+                            </svg>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                   </div>{/* close ruler wrapper */}
                 </div>
@@ -10779,7 +10865,7 @@ export default function TemplatesEditorInner() {
         <div style={{ width: 260, borderLeft: `1px solid ${t.border}`, background: t.card, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
           {/* Tabs */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
-            {['properties', 'layers'].map(tab => (
+            {['properties', 'layers', 'caption'].map(tab => (
               <button key={tab} onClick={() => setRightTab(tab)}
                 style={{ flex: 1, padding: '9px 0 7px', border: 'none', background: 'transparent', color: rightTab === tab ? TEAL : t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', borderBottom: rightTab === tab ? `2px solid ${TEAL}` : '2px solid transparent', textTransform: 'capitalize' }}>
                 {tab}
@@ -11065,6 +11151,49 @@ export default function TemplatesEditorInner() {
               </div>
             )}
 
+            {/* CAPTION TAB */}
+            {rightTab === 'caption' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 2 }}>Caption</div>
+                {/* Platform chips */}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[['instagram', 'IG'], ['facebook', 'FB'], ['google_business', 'GB']].map(([id, label]) => {
+                    const active = postPlatforms.includes(id);
+                    return (
+                      <button key={id} onClick={() => setPostPlatforms(prev =>
+                        active ? prev.filter(x => x !== id) : [...prev, id]
+                      )} style={{
+                        flex: 1, height: 28, border: 'none', borderRadius: 6,
+                        background: active ? 'rgba(0,196,204,0.12)' : t.input,
+                        color: active ? TEAL : t.textMuted,
+                        fontSize: 11, fontWeight: active ? 700 : 400, cursor: 'pointer',
+                      }}>{label}</button>
+                    );
+                  })}
+                </div>
+                {/* Caption textarea */}
+                <textarea
+                  value={postCaption}
+                  onChange={e => setPostCaption(e.target.value)}
+                  placeholder="Write your caption here..."
+                  rows={8}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 8,
+                    border: `1px solid ${t.border}`, background: t.input,
+                    color: t.text, fontSize: 12, resize: 'vertical', outline: 'none',
+                    boxSizing: 'border-box', lineHeight: 1.5, fontFamily: 'inherit',
+                  }}
+                />
+                {/* Char count */}
+                <div style={{ fontSize: 11, color: t.textMuted, textAlign: 'right' }}>
+                  {postCaption.length} / {postPlatforms.includes('google_business') ? '1,500' : postPlatforms.includes('facebook') ? '63,206' : '2,200'} chars
+                </div>
+                <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.5 }}>
+                  Caption saves automatically and appears when you click Post.
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       </div>
@@ -11330,6 +11459,26 @@ export default function TemplatesEditorInner() {
           <IcoGrid size={13} />
         </button>
 
+        {/* Safe zones toggle */}
+        <button onClick={() => setShowSafeZones(p => !p)}
+          onMouseEnter={e => showTip(e, 'Platform safe zones')} onMouseLeave={hideTip}
+          style={{ height: 26, padding: '0 8px', border: `1px solid ${showSafeZones ? TEAL : t.border}`, borderRadius: 5,
+            background: showSafeZones ? 'rgba(0,196,204,0.1)' : t.input, color: showSafeZones ? TEAL : t.text,
+            fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', transition: 'background 100ms' }}>
+          ⊞ Safe zones
+        </button>
+        {showSafeZones && (
+          <div style={{ display: 'flex', gap: 3, marginLeft: 2 }}>
+            {[['instagram', 'IG'], ['facebook', 'FB'], ['google_business', 'GB']].map(([id, label]) => (
+              <button key={id} onClick={() => setSafeZonePlatform(id)} style={{
+                height: 22, padding: '0 7px', border: 'none', borderRadius: 4,
+                background: safeZonePlatform === id ? TEAL : 'transparent',
+                color: safeZonePlatform === id ? '#000' : t.textMuted,
+                fontSize: 10, cursor: 'pointer', fontWeight: safeZonePlatform === id ? 700 : 400,
+              }}>{label}</button>
+            ))}
+          </div>
+        )}
         {/* Fullscreen */}
         <button onClick={() => document.documentElement.requestFullscreen?.()}
           onMouseEnter={e => showTip(e, 'Fullscreen')} onMouseLeave={hideTip}
