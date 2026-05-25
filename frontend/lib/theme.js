@@ -4,6 +4,7 @@ const ThemeContext = createContext({ theme: 'dark', toggleTheme: () => {} });
 
 export const tokens = {
   dark: {
+    isDark: true,
     bg: '#0B0B0F',
     sidebar: '#13131A',
     card: '#16161D',
@@ -39,6 +40,7 @@ export const tokens = {
     focusRing: 'rgba(155,79,212,0.35)',
   },
   light: {
+    isDark: false,
     bg: '#FAFAFA',
     sidebar: '#FFFFFF',
     card: '#FFFFFF',

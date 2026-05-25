@@ -12,7 +12,7 @@ import {
   IpCopy, IpDelete, IpLock, IpUnlock,
   IpSparkle, IpPalette, IpEdit, IpFolderOpen,
   IpTextCard, IpPublish, IpPhoto, IpVideo,
-  IpPlus, IpChevronDown, IpSearch,
+  IpPlus, IpChevronDown, IpSearch, IpTeam,
 } from '../../components/icons';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -5140,7 +5140,7 @@ export default function TemplatesEditorInner() {
 
   function handleCanvasDrop(e) {
     e.preventDefault();
-    const rect = canvasWrapperRef.current?.getBoundingClientRect();
+    const rect = (e.currentTarget || canvasWrapperRef.current)?.getBoundingClientRect();
     if (!rect) return;
     const canvasX = (e.clientX - rect.left) / stageScale;
     const canvasY = (e.clientY - rect.top)  / stageScale;
@@ -5175,10 +5175,10 @@ export default function TemplatesEditorInner() {
       return;
     }
 
-    // Handle URL drop from browser
-    const url = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/uri-list');
-    if (url && url.startsWith('http')) {
-      placeImage(url);
+    // Handle URL drop from browser or upload panel
+    const rawUrl = (e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/uri-list') || '').trim();
+    if (rawUrl && (rawUrl.startsWith('http') || rawUrl.startsWith('blob:'))) {
+      placeImage(rawUrl);
       return;
     }
 
@@ -7011,13 +7011,22 @@ export default function TemplatesEditorInner() {
               <button
                 onClick={async () => {
                   if (!selectedEl?.src || bgRemoveLoading) return;
+                  if (selectedEl.src.startsWith('blob:') || selectedEl.src.startsWith('data:')) {
+                    alert('Please click the image first to add it to your Upload library, then use Remove BG.');
+                    return;
+                  }
                   setBgRemoveLoading(true);
                   try {
                     const res = await studioAPI.removeBackground(selectedEl.src);
                     pushHistory();
                     updateElement({ ...selectedEl, src: res.data.url });
                   } catch (e) {
-                    alert('Background removal failed. Please try again.');
+                    const msg = e?.response?.data?.error || '';
+                    if (msg.includes('not configured')) {
+                      alert('Background removal is not enabled on this account. Contact support.');
+                    } else {
+                      alert('Background removal failed. Please try again in a moment.');
+                    }
                   }
                   setBgRemoveLoading(false);
                 }}
@@ -9016,7 +9025,7 @@ export default function TemplatesEditorInner() {
                           onMouseLeave={() => setHoveredPhotoId(null)}
                           style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${t.border}`, position: 'relative', cursor: 'grab', aspectRatio: '1', background: t.input }}>
                           {item.thumbnail_url || item.file_type === 'image' ? (
-                            <img src={item.thumbnail_url || item.url} alt={item.file_name || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
+                            <img src={item.thumbnail_url || item.url} alt={item.file_name || ''} crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
                           ) : (
                             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <IpVideo size={24} color={t.textMuted} />
