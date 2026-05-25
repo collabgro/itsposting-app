@@ -677,31 +677,55 @@ Return ONLY valid JSON (no markdown fences):
   });
 
   // POST /api/studio/remove-background
+  // Uses Replicate's hosted rembg model — no separate service needed
   router.post('/remove-background', authenticate, async (req, res) => {
     try {
       const { imageUrl } = req.body;
       if (!imageUrl) return res.status(400).json({ error: 'imageUrl required' });
 
-      const rembgUrl = process.env.REMBG_SERVICE_URL;
-      if (!rembgUrl) return res.status(503).json({ error: 'Background removal service not configured' });
+      const replicateToken = process.env.REPLICATE_API_TOKEN;
+      if (!replicateToken) return res.status(503).json({ error: 'Background removal not configured' });
 
-      const rembgRes = await fetch(`${rembgUrl}/remove`, {
+      // Start prediction on Replicate's rembg model
+      const startRes = await fetch('https://api.replicate.com/v1/models/lucataco/remove-bg/predictions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl }),
+        headers: { 'Authorization': `Bearer ${replicateToken}`, 'Content-Type': 'application/json', 'Prefer': 'wait' },
+        body: JSON.stringify({ input: { image: imageUrl } }),
       });
-      if (!rembgRes.ok) {
-        const errText = await rembgRes.text();
-        console.error('[Studio] rembg error:', errText);
-        return res.status(502).json({ error: 'Background removal service error' });
+      if (!startRes.ok) {
+        const errText = await startRes.text();
+        console.error('[Studio] Replicate rembg start error:', errText);
+        return res.status(502).json({ error: 'Background removal failed to start' });
       }
-      const { png_base64 } = await rembgRes.json();
+      const prediction = await startRes.json();
 
+      // Prefer: wait makes Replicate block until done (up to 60s); poll if still processing
+      let outputUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+      if (!outputUrl && prediction.id) {
+        // Poll until done
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+            headers: { 'Authorization': `Bearer ${replicateToken}` },
+          });
+          const poll = await pollRes.json();
+          if (poll.status === 'succeeded') {
+            outputUrl = Array.isArray(poll.output) ? poll.output[0] : poll.output;
+            break;
+          }
+          if (poll.status === 'failed') {
+            console.error('[Studio] Replicate rembg failed:', poll.error);
+            return res.status(502).json({ error: 'Background removal failed' });
+          }
+        }
+      }
+      if (!outputUrl) return res.status(502).json({ error: 'Background removal timed out' });
+
+      // Re-upload to Cloudinary so the URL is on our CDN
       const cloudinary = require('cloudinary').v2;
-      const result = await cloudinary.uploader.upload(
-        `data:image/png;base64,${png_base64}`,
-        { folder: 'itsposting/bg-removed', resource_type: 'image' }
-      );
+      const result = await cloudinary.uploader.upload(outputUrl, {
+        folder: 'itsposting/bg-removed', resource_type: 'image',
+      });
 
       res.json({ url: result.secure_url });
     } catch (err) {
