@@ -734,5 +734,114 @@ Return ONLY valid JSON (no markdown fences):
     }
   });
 
+  // POST /api/studio/extract-element
+  // Uses Replicate SAM 2 to segment and extract an element from an image.
+  // pointX, pointY are normalized (0-1) coordinates of the user's click on the image.
+  router.post('/extract-element', authenticate, async (req, res) => {
+    try {
+      const { imageUrl, pointX, pointY } = req.body;
+      if (!imageUrl || pointX == null || pointY == null) {
+        return res.status(400).json({ error: 'imageUrl, pointX, pointY required' });
+      }
+
+      const replicateToken = process.env.REPLICATE_API_TOKEN;
+      if (!replicateToken) return res.status(503).json({ error: 'Element extraction not configured' });
+
+      // Fetch original image to get dimensions
+      const imgBuffer = await fetchImageAsBuffer(imageUrl);
+      const { width, height } = await sharp(imgBuffer).metadata();
+      const absX = Math.round(pointX * width);
+      const absY = Math.round(pointY * height);
+
+      // Call SAM 2 via Replicate
+      const startRes = await fetch('https://api.replicate.com/v1/models/meta/sam-2/predictions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${replicateToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'wait',
+        },
+        body: JSON.stringify({
+          input: {
+            image: imageUrl,
+            point_coords: `[[${absX}, ${absY}]]`,
+            point_labels: '[1]',
+          },
+        }),
+      });
+      if (!startRes.ok) {
+        const errText = await startRes.text();
+        console.error('[Studio] SAM 2 start error:', errText);
+        return res.status(502).json({ error: 'Element extraction failed to start' });
+      }
+      const prediction = await startRes.json();
+
+      // Poll if Replicate didn't finish synchronously
+      let output = prediction.output;
+      if (!output && prediction.id) {
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+            headers: { 'Authorization': `Bearer ${replicateToken}` },
+          });
+          const poll = await pollRes.json();
+          if (poll.status === 'succeeded') { output = poll.output; break; }
+          if (poll.status === 'failed') {
+            console.error('[Studio] SAM 2 failed:', poll.error);
+            return res.status(502).json({ error: 'Element extraction failed' });
+          }
+        }
+      }
+      if (!output) return res.status(502).json({ error: 'Element extraction timed out' });
+
+      // SAM 2 can return { masks: [...] } or an array of mask URLs
+      let maskUrl;
+      if (Array.isArray(output)) {
+        maskUrl = output[0];
+      } else if (output.masks && Array.isArray(output.masks)) {
+        maskUrl = output.masks[0];
+      } else if (typeof output === 'string') {
+        maskUrl = output;
+      }
+      if (!maskUrl) return res.status(502).json({ error: 'No mask returned from SAM 2' });
+
+      // Download mask, resize to image dimensions, extract as grayscale (white=keep)
+      const maskBuffer = await fetchImageAsBuffer(maskUrl);
+      const { data: alphaData } = await sharp(maskBuffer)
+        .resize(width, height)
+        .grayscale()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+      // Get original image as raw RGBA
+      const { data: rgbaData } = await sharp(imgBuffer)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+      // Replace every pixel's alpha channel with the corresponding mask value
+      for (let i = 0; i < width * height; i++) {
+        rgbaData[i * 4 + 3] = alphaData[i];
+      }
+
+      // Encode as PNG (preserves transparency)
+      const resultBuffer = await sharp(rgbaData, {
+        raw: { width, height, channels: 4 },
+      }).png().toBuffer();
+
+      // Upload transparent PNG to Cloudinary
+      const cloudinary = require('cloudinary').v2;
+      const result = await cloudinary.uploader.upload(
+        `data:image/png;base64,${resultBuffer.toString('base64')}`,
+        { folder: 'itsposting/extracted', resource_type: 'image' }
+      );
+
+      res.json({ url: result.secure_url, width, height });
+    } catch (err) {
+      console.error('[Studio] extract-element:', err.message);
+      res.status(500).json({ error: 'Element extraction failed' });
+    }
+  });
+
   return router;
 };

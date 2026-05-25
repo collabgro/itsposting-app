@@ -309,6 +309,7 @@ export const studioAPI = {
   getTemplates: (params) => api.get('/api/studio/templates', { params }),
   getTemplate: (id) => api.get(`/api/studio/templates/${id}`),
   removeBackground: (imageUrl) => api.post('/api/studio/remove-background', { imageUrl }),
+  extractElement: (imageUrl, pointX, pointY) => api.post('/api/studio/extract-element', { imageUrl, pointX, pointY }),
 };
 
 export const receptionistAPI = {
