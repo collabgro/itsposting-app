@@ -3849,6 +3849,7 @@ export default function TemplatesEditorInner() {
   const [imgTab, setImgTab] = useState('stock');
   const [uploadMediaTab, setUploadMediaTab] = useState('Images');
   const [bgRemoverDismissed, setBgRemoverDismissed] = useState(false);
+  const [bgRemoveLoading, setBgRemoveLoading] = useState(false);
   const [showImgUrlInput, setShowImgUrlInput] = useState(false);
   const [imgUrlValue, setImgUrlValue] = useState('');
   const [projectTab, setProjectTab] = useState('All');
@@ -7001,6 +7002,25 @@ export default function TemplatesEditorInner() {
                   document.body
                 )}
               </div>
+              {/* Remove Background button */}
+              <button
+                onClick={async () => {
+                  if (!selectedEl?.src || bgRemoveLoading) return;
+                  setBgRemoveLoading(true);
+                  try {
+                    const res = await studioAPI.removeBackground(selectedEl.src);
+                    pushHistory();
+                    updateElement({ ...selectedEl, src: res.data.url });
+                  } catch (e) {
+                    alert('Background removal failed. Please try again.');
+                  }
+                  setBgRemoveLoading(false);
+                }}
+                disabled={bgRemoveLoading}
+                title="Remove background from image"
+                style={{ height: 32, padding: '0 10px', border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 12, cursor: bgRemoveLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, opacity: bgRemoveLoading ? 0.6 : 1 }}>
+                {bgRemoveLoading ? '…' : '✂ Remove BG'}
+              </button>
             </>
           );
         })()}

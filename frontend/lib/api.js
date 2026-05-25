@@ -308,6 +308,7 @@ export const studioAPI = {
   aiGenerateClip: (data) => api.post('/api/studio/ai-clip', data),
   getTemplates: (params) => api.get('/api/studio/templates', { params }),
   getTemplate: (id) => api.get(`/api/studio/templates/${id}`),
+  removeBackground: (imageUrl) => api.post('/api/studio/remove-background', { imageUrl }),
 };
 
 export const receptionistAPI = {

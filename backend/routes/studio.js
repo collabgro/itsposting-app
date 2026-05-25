@@ -676,5 +676,39 @@ Return ONLY valid JSON (no markdown fences):
     }
   });
 
+  // POST /api/studio/remove-background
+  router.post('/remove-background', authenticate, async (req, res) => {
+    try {
+      const { imageUrl } = req.body;
+      if (!imageUrl) return res.status(400).json({ error: 'imageUrl required' });
+
+      const rembgUrl = process.env.REMBG_SERVICE_URL;
+      if (!rembgUrl) return res.status(503).json({ error: 'Background removal service not configured' });
+
+      const rembgRes = await fetch(`${rembgUrl}/remove`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl }),
+      });
+      if (!rembgRes.ok) {
+        const errText = await rembgRes.text();
+        console.error('[Studio] rembg error:', errText);
+        return res.status(502).json({ error: 'Background removal service error' });
+      }
+      const { png_base64 } = await rembgRes.json();
+
+      const cloudinary = require('cloudinary').v2;
+      const result = await cloudinary.uploader.upload(
+        `data:image/png;base64,${png_base64}`,
+        { folder: 'itsposting/bg-removed', resource_type: 'image' }
+      );
+
+      res.json({ url: result.secure_url });
+    } catch (err) {
+      console.error('[Studio] remove-background:', err.message);
+      res.status(500).json({ error: 'Background removal failed' });
+    }
+  });
+
   return router;
 };
