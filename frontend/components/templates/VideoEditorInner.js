@@ -37,10 +37,13 @@ const FILTER_PRESETS = [
   { id: 'moody',  label: 'Moody',    brightness: -0.05, contrast: 15, saturation: -15 },
 ];
 
-const TRANSITION_TYPES = ['none', 'fade', 'dissolve', 'slide_left'];
-const SPEED_OPTIONS = [0.5, 0.75, 1, 1.5, 2];
-const FONT_FAMILIES = ['Inter', 'Roboto', 'Playfair Display', 'Montserrat', 'Open Sans', 'sans-serif'];
-const ANIM_IN_OPTIONS = ['none', 'fade_in', 'slide_up', 'slide_left', 'scale_up'];
+const TRANSITION_TYPES = ['none', 'fade', 'dissolve', 'slide_left', 'slide_right', 'slide_up', 'zoom_in', 'zoom_out'];
+const TRANSITION_LABELS = { none: 'Cut', fade: 'Fade', dissolve: 'Dissolve', slide_left: '← Slide', slide_right: 'Slide →', slide_up: '↑ Slide', zoom_in: 'Zoom In', zoom_out: 'Zoom Out' };
+const SPEED_OPTIONS = [0.25, 0.5, 0.75, 1, 1.5, 2];
+const FONT_FAMILIES = ['Inter', 'Roboto', 'Playfair Display', 'Montserrat', 'Open Sans', 'Bebas Neue', 'Oswald', 'sans-serif'];
+const ANIM_IN_OPTIONS = ['none', 'fade_in', 'rise', 'slide_up', 'slide_left', 'slide_right', 'scale_up', 'pop', 'typewriter', 'tumble'];
+const ANIM_OUT_OPTIONS = ['none', 'fade_out', 'slide_down', 'slide_right', 'scale_down'];
+const ANIM_LABELS = { none: 'None', fade_in: 'Fade In', rise: 'Rise', slide_up: 'Slide Up', slide_left: 'Slide Left', slide_right: 'Slide Right', scale_up: 'Scale In', pop: 'Pop', typewriter: 'Typewriter', tumble: 'Tumble', fade_out: 'Fade Out', slide_down: 'Slide Down', scale_down: 'Scale Out' };
 
 // ─── Empty project factory ────────────────────────────────────────────────────
 
@@ -86,6 +89,16 @@ export default function VideoEditorInner() {
   // ── Save ────────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  // ── Transition picker ──────────────────────────────────────────────────────
+  const [transitionPickerClipId, setTransitionPickerClipId] = useState(null);
+
+  // ── Upload progress ────────────────────────────────────────────────────────
+  const [uploadProgress, setUploadProgress] = useState(null);
+
+  // ── Caption generation ─────────────────────────────────────────────────────
+  const [captionLoading, setCaptionLoading] = useState(false);
+  const [captionError, setCaptionError] = useState('');
 
   // ── Aspect ratio dropdown ───────────────────────────────────────────────────
   const [aspectOpen, setAspectOpen] = useState(false);
@@ -566,6 +579,115 @@ export default function VideoEditorInner() {
     setPlaying(false);
   }
 
+  // ─── Text clip drag in timeline ──────────────────────────────────────────
+
+  function onTextTimelineDrag(e, te) {
+    e.stopPropagation();
+    setSelectedId(te.id);
+    setSelectedTrack('text');
+    const startX = e.clientX;
+    const origStart = te.startTime;
+    const dur = te.endTime - te.startTime;
+    const onMove = (me) => {
+      const dx = (me.clientX - startX) / zoom;
+      const newStart = Math.max(0, origStart + dx);
+      updateText(te.id, { startTime: newStart, endTime: newStart + dur });
+    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  function onTextTrimRight(e, te) {
+    e.stopPropagation();
+    const startX = e.clientX;
+    const origEnd = te.endTime;
+    const onMove = (me) => {
+      const dx = (me.clientX - startX) / zoom;
+      updateText(te.id, { endTime: Math.max(te.startTime + 0.5, origEnd + dx) });
+    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  // ─── Audio clip drag in timeline ─────────────────────────────────────────
+
+  function onAudioTimelineDrag(e, at) {
+    e.stopPropagation();
+    setSelectedId(at.id);
+    setSelectedTrack('audio');
+    const startX = e.clientX;
+    const origStart = at.startTime;
+    const dur = (at.endTime || totalDuration) - at.startTime;
+    const onMove = (me) => {
+      const dx = (me.clientX - startX) / zoom;
+      const newStart = Math.max(0, origStart + dx);
+      updateAudio(at.id, { startTime: newStart, endTime: at.endTime ? newStart + dur : null });
+    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  function onAudioTrimRight(e, at) {
+    e.stopPropagation();
+    const startX = e.clientX;
+    const origEnd = at.endTime || totalDuration;
+    const onMove = (me) => {
+      const dx = (me.clientX - startX) / zoom;
+      updateAudio(at.id, { endTime: Math.max(at.startTime + 0.5, origEnd + dx) });
+    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  // ─── Upload clips from file picker ───────────────────────────────────────
+
+  async function handleUploadClip(e) {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploadProgress(0);
+    try {
+      const res = await mediaAPI.upload(files, 'all', p => setUploadProgress(p));
+      const newFiles = res.data?.files || [];
+      setMediaFiles(prev => [...newFiles, ...prev]);
+      if (newFiles[0]) addMediaClip(newFiles[0]);
+    } catch {}
+    finally { setUploadProgress(null); e.target.value = ''; }
+  }
+
+  // ─── Generate captions (placeholder — calls backend transcription) ────────
+
+  async function handleGenerateCaptions() {
+    const firstVideoClip = project.clips.find(c => c.type === 'video');
+    if (!firstVideoClip) return;
+    setCaptionLoading(true);
+    setCaptionError('');
+    try {
+      const { data } = await studioAPI.generateCaptions({ videoUrl: firstVideoClip.sourceUrl });
+      const captions = data?.captions || [];
+      if (!captions.length) { setCaptionError('No speech detected in video.'); return; }
+      const newTextEls = captions.map((cap, i) => ({
+        id: nanoid(),
+        text: cap.text,
+        startTime: cap.start,
+        endTime: cap.end,
+        xPercent: 50, yPercent: 85,
+        fontSize: 36, fontFamily: 'Inter', fill: '#ffffff',
+        fontStyle: 'bold', align: 'center',
+        bgColor: '#000000', bgOpacity: 0.5,
+        animationIn: 'fade_in', animationOut: 'fade_out',
+      }));
+      mutate(p => ({ ...p, textElements: [...p.textElements, ...newTextEls] }));
+    } catch (err) {
+      setCaptionError(err?.response?.data?.error || 'Caption generation failed. Please try again.');
+    } finally {
+      setCaptionLoading(false);
+    }
+  }
+
   // ─── Text overlay drag on preview ─────────────────────────────────────────
 
   function onTextMouseDown(e, te) {
@@ -631,7 +753,7 @@ export default function VideoEditorInner() {
       overflowY: 'auto', flexShrink: 0, padding: '12px 12px 60px',
     },
     timeline: {
-      height: 160, borderTop: `1px solid ${t.border}`, background: t.bg,
+      height: 248, borderTop: `1px solid ${t.border}`, background: t.bg,
       display: 'flex', flexShrink: 0,
     },
     timelineLabels: {
@@ -639,7 +761,7 @@ export default function VideoEditorInner() {
       background: t.card, display: 'flex', flexDirection: 'column',
     },
     timelineTrackLabel: {
-      height: 44, borderBottom: `1px solid ${t.border}`, display: 'flex',
+      borderBottom: `1px solid ${t.border}`, display: 'flex',
       alignItems: 'center', paddingLeft: 10, fontSize: 11,
       fontWeight: 600, color: t.textMuted,
     },
@@ -657,6 +779,16 @@ export default function VideoEditorInner() {
     if (activeTool === 'clips') {
       return (
         <div>
+          {/* Upload button */}
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginBottom: 8, padding: '8px 0', background: t.primary, border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxSizing: 'border-box' }}>
+            <input type="file" accept="video/*,image/*" multiple style={{ display: 'none' }} onChange={handleUploadClip} />
+            + Upload Media
+          </label>
+          {uploadProgress !== null && (
+            <div style={{ height: 4, background: t.border, borderRadius: 2, marginBottom: 8, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${uploadProgress}%`, background: t.primary, transition: 'width 200ms' }} />
+            </div>
+          )}
           <button onClick={addColorClip} style={{ width: '100%', marginBottom: 10, padding: '7px 0', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             + Solid Color Clip
           </button>
@@ -766,6 +898,47 @@ export default function VideoEditorInner() {
       );
     }
 
+    if (activeTool === 'captions') {
+      return (
+        <div>
+          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 12, lineHeight: 1.6 }}>
+            Generate captions automatically from your video's spoken audio. Adds subtitle text overlays to your timeline.
+          </div>
+          <button
+            onClick={handleGenerateCaptions}
+            disabled={captionLoading || !project.clips.some(c => c.type === 'video')}
+            style={{ width: '100%', padding: '9px 0', background: t.primary, border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: captionLoading ? 'wait' : 'pointer', opacity: (captionLoading || !project.clips.some(c => c.type === 'video')) ? 0.6 : 1 }}>
+            {captionLoading ? 'Generating…' : '✦ Generate Captions'}
+          </button>
+          {captionError && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 8 }}>{captionError}</div>}
+          {!project.clips.some(c => c.type === 'video') && (
+            <div style={{ fontSize: 11, color: t.textMuted, marginTop: 8, textAlign: 'center' }}>Add a video clip first.</div>
+          )}
+          <div style={{ fontSize: 10, color: t.textMuted, marginTop: 12, lineHeight: 1.5 }}>
+            Captions appear as text overlays. Edit timing and style from the Text tab.
+          </div>
+          {project.textElements.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', marginBottom: 8 }}>
+                Text Overlays ({project.textElements.length})
+              </div>
+              {project.textElements.slice(0, 8).map(te => (
+                <div key={te.id}
+                  onClick={() => { setSelectedId(te.id); setSelectedTrack('text'); setActiveTool('text'); }}
+                  style={{ padding: '7px 10px', borderRadius: 6, border: `1px solid ${selectedId === te.id ? t.primary : t.border}`, background: t.input, cursor: 'pointer', marginBottom: 5 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{te.text}</div>
+                  <div style={{ fontSize: 10, color: t.textMuted }}>{fmtTime(te.startTime)} → {fmtTime(te.endTime)}</div>
+                </div>
+              ))}
+              {project.textElements.length > 8 && (
+                <div style={{ fontSize: 11, color: t.textMuted, textAlign: 'center', marginTop: 4 }}>+{project.textElements.length - 8} more</div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     if (activeTool === 'filters') {
       return (
         <div>
@@ -838,11 +1011,22 @@ export default function VideoEditorInner() {
             </>
           )}
 
+          {selectedClip.type === 'video' && (
+            <>
+              <Label>Reverse</Label>
+              <button
+                onClick={() => updateClip(selectedClip.id, { reverse: !selectedClip.reverse })}
+                style={{ width: '100%', marginBottom: 12, padding: '6px 0', background: selectedClip.reverse ? 'rgba(0,196,204,0.1)' : t.input, border: `1px solid ${selectedClip.reverse ? t.primary : t.border}`, borderRadius: 6, color: selectedClip.reverse ? t.primary : t.text, fontSize: 12, cursor: 'pointer', fontWeight: selectedClip.reverse ? 600 : 400 }}>
+                {selectedClip.reverse ? '⇐ Reversed' : '⇒ Normal'}
+              </button>
+            </>
+          )}
+
           <Label>Transition In</Label>
           <select value={selectedClip.transitionIn?.type || 'none'}
             onChange={e => updateClip(selectedClip.id, { transitionIn: { ...selectedClip.transitionIn, type: e.target.value } })}
             style={{ width: '100%', marginBottom: 12, padding: '6px 8px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12 }}>
-            {TRANSITION_TYPES.map(tt => <option key={tt} value={tt}>{tt}</option>)}
+            {TRANSITION_TYPES.map(tt => <option key={tt} value={tt}>{TRANSITION_LABELS[tt] || tt}</option>)}
           </select>
 
           {selectedClip.transitionIn?.type !== 'none' && (
@@ -934,8 +1118,15 @@ export default function VideoEditorInner() {
           <Label>Animation In</Label>
           <select value={selectedText.animationIn}
             onChange={e => updateText(selectedText.id, { animationIn: e.target.value })}
+            style={{ width: '100%', marginBottom: 10, padding: '6px 8px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12 }}>
+            {ANIM_IN_OPTIONS.map(o => <option key={o} value={o}>{ANIM_LABELS[o] || o}</option>)}
+          </select>
+
+          <Label>Animation Out</Label>
+          <select value={selectedText.animationOut || 'none'}
+            onChange={e => updateText(selectedText.id, { animationOut: e.target.value })}
             style={{ width: '100%', marginBottom: 12, padding: '6px 8px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12 }}>
-            {ANIM_IN_OPTIONS.map(o => <option key={o} value={o}>{o.replace('_', ' ')}</option>)}
+            {ANIM_OUT_OPTIONS.map(o => <option key={o} value={o}>{ANIM_LABELS[o] || o}</option>)}
           </select>
 
           <button onClick={deleteSelected} style={{ width: '100%', padding: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -1006,11 +1197,12 @@ export default function VideoEditorInner() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   const leftToolButtons = [
-    { id: 'clips',   label: 'Clips',   icon: <IpVideo size={14} /> },
-    { id: 'text',    label: 'Text',    icon: <span style={{ fontSize: 12, fontWeight: 700 }}>T</span> },
-    { id: 'audio',   label: 'Audio',   icon: <span style={{ fontSize: 14 }}>♪</span> },
-    { id: 'ai',      label: 'AI Gen',  icon: <IpSparkle size={14} /> },
-    { id: 'filters', label: 'Filters', icon: <IpFilter size={14} /> },
+    { id: 'clips',    label: 'Clips',    icon: <IpVideo size={14} /> },
+    { id: 'text',     label: 'Text',     icon: <span style={{ fontSize: 12, fontWeight: 700 }}>T</span> },
+    { id: 'audio',    label: 'Audio',    icon: <span style={{ fontSize: 14 }}>♪</span> },
+    { id: 'captions', label: 'Captions', icon: <span style={{ fontSize: 10, fontWeight: 700 }}>CC</span> },
+    { id: 'ai',       label: 'AI Gen',   icon: <IpSparkle size={14} /> },
+    { id: 'filters',  label: 'Filters',  icon: <IpFilter size={14} /> },
   ];
 
   const timelineWidth = Math.max(800, (totalDuration + 2) * zoom);
@@ -1114,11 +1306,12 @@ export default function VideoEditorInner() {
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           padding: '8px 0', flexShrink: 0, gap: 2 }}>
           {[
-            { id: 'clips',   icon: <IpVideo size={20} />,   label: 'Clips'   },
-            { id: 'text',    icon: <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>T</span>, label: 'Text' },
-            { id: 'audio',   icon: <span style={{ fontSize: 20, lineHeight: 1 }}>♪</span>, label: 'Audio' },
-            { id: 'ai',      icon: <IpSparkle size={20} />, label: 'AI Gen'  },
-            { id: 'filters', icon: <IpFilter size={20} />,  label: 'Filters' },
+            { id: 'clips',    icon: <IpVideo size={20} />,   label: 'Clips'    },
+            { id: 'text',     icon: <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>T</span>, label: 'Text' },
+            { id: 'audio',    icon: <span style={{ fontSize: 20, lineHeight: 1 }}>♪</span>, label: 'Audio' },
+            { id: 'captions', icon: <span style={{ fontSize: 12, fontWeight: 700 }}>CC</span>, label: 'Captions' },
+            { id: 'ai',       icon: <IpSparkle size={20} />, label: 'AI Gen'   },
+            { id: 'filters',  icon: <IpFilter size={20} />,  label: 'Filters'  },
           ].map(tool => (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
               style={{
@@ -1240,13 +1433,13 @@ export default function VideoEditorInner() {
       </div>
 
       {/* ── Timeline ── */}
-      <div style={s.timeline}>
+      <div style={s.timeline} onClick={() => setTransitionPickerClipId(null)}>
         {/* Track labels */}
         <div style={s.timelineLabels}>
-          <div style={{ height: 18, borderBottom: `1px solid ${t.border}` }} />
-          <div style={{ ...s.timelineTrackLabel, height: 44 }}>Video</div>
-          <div style={{ ...s.timelineTrackLabel, height: 32 }}>Text</div>
-          <div style={{ ...s.timelineTrackLabel, height: 32 }}>Audio</div>
+          <div style={{ height: 20, borderBottom: `1px solid ${t.border}` }} />
+          <div style={{ ...s.timelineTrackLabel, height: 60 }}>Video</div>
+          <div style={{ ...s.timelineTrackLabel, height: 44 }}>Text</div>
+          <div style={{ ...s.timelineTrackLabel, height: 44 }}>Audio</div>
         </div>
 
         {/* Scrollable track area */}
@@ -1255,80 +1448,153 @@ export default function VideoEditorInner() {
             {/* Ruler */}
             {TimelineRuler()}
 
-            {/* Video track */}
+            {/* ── Video track (60px) ── */}
+            <div style={{ position: 'relative', height: 60, borderBottom: `1px solid ${t.border}` }}>
+              {project.clips.map((clip, i) => {
+                const clipW = Math.max(8, clip.duration * zoom);
+                const hasThumbnail = (clip.type === 'image' || clip.type === 'video') && clip.thumbnailUrl;
+                const isSelected = selectedId === clip.id;
+                // transition slot between this clip and the next
+                const nextClip = project.clips[i + 1];
+                const hasTransition = nextClip?.transitionIn?.type && nextClip.transitionIn.type !== 'none';
+                return (
+                  <div key={clip.id} style={{ position: 'absolute', left: clip.trackStart * zoom, width: clipW, top: 4, height: 52, boxSizing: 'border-box' }}>
+                    {/* Clip body */}
+                    <div
+                      onMouseDown={e => onClipMouseDown(e, clip)}
+                      style={{
+                        position: 'absolute', inset: 0,
+                        borderRadius: 5,
+                        backgroundImage: hasThumbnail ? `url(${clip.thumbnailUrl})` : undefined,
+                        backgroundSize: 'cover', backgroundPosition: 'center',
+                        background: hasThumbnail ? undefined : (clip.type === 'color' ? clip.color : clipColor(clip)),
+                        cursor: 'grab', overflow: 'hidden', boxSizing: 'border-box',
+                        border: isSelected ? `2px solid #00C4CC` : `1px solid rgba(255,255,255,0.15)`,
+                        display: 'flex', alignItems: 'center',
+                      }}>
+                      {/* Dark overlay for readability on thumbnails */}
+                      {hasThumbnail && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.38)' }} />}
+                      {/* Trim left handle */}
+                      <div onMouseDown={e => onTrimLeftMouseDown(e, clip)}
+                        style={{ position: 'absolute', left: 0, top: 0, width: 8, height: '100%', cursor: 'ew-resize', background: 'rgba(255,255,255,0.35)', borderRadius: '4px 0 0 4px', zIndex: 2 }} />
+                      {/* Label */}
+                      <span style={{ fontSize: 10, color: '#fff', paddingLeft: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, position: 'relative', zIndex: 1, textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
+                        {clip.type === 'color' ? 'Color' : clip.sourceUrl?.split('/').pop()?.split('?')[0].slice(0, 22) || (clip.type === 'image' ? 'Image' : 'Video')}
+                      </span>
+                      {/* Speed badge */}
+                      {clip.speed && clip.speed !== 1 && (
+                        <span style={{ fontSize: 9, color: '#fff', background: 'rgba(0,0,0,0.55)', padding: '1px 4px', borderRadius: 3, marginRight: 10, position: 'relative', zIndex: 1 }}>{clip.speed}×</span>
+                      )}
+                      {/* Reverse badge */}
+                      {clip.reverse && (
+                        <span style={{ fontSize: 9, color: '#fff', background: 'rgba(0,0,0,0.55)', padding: '1px 4px', borderRadius: 3, marginRight: 4, position: 'relative', zIndex: 1 }}>⇐</span>
+                      )}
+                      {/* Trim right handle */}
+                      <div onMouseDown={e => onTrimRightMouseDown(e, clip)}
+                        style={{ position: 'absolute', right: 0, top: 0, width: 8, height: '100%', cursor: 'ew-resize', background: 'rgba(255,255,255,0.35)', borderRadius: '0 4px 4px 0', zIndex: 2 }} />
+                    </div>
+
+                    {/* Transition slot (between this clip and the next) */}
+                    {nextClip && (
+                      <div
+                        onClick={e => { e.stopPropagation(); setTransitionPickerClipId(transitionPickerClipId === nextClip.id ? null : nextClip.id); setSelectedId(nextClip.id); setSelectedTrack('clip'); }}
+                        title={`Transition: ${TRANSITION_LABELS[nextClip.transitionIn?.type] || 'Cut'}`}
+                        style={{
+                          position: 'absolute', right: -11, top: '50%', transform: 'translateY(-50%)',
+                          width: 22, height: 22, borderRadius: '50%', zIndex: 8,
+                          background: hasTransition ? '#00C4CC' : t.card,
+                          border: `2px solid ${hasTransition ? '#00C4CC' : t.border}`,
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 9, color: hasTransition ? '#000' : t.textMuted,
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                        }}>
+                        ↔
+                        {/* Transition picker popover */}
+                        {transitionPickerClipId === nextClip.id && (
+                          <div onClick={e => e.stopPropagation()}
+                            style={{ position: 'absolute', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 10, width: 220, boxShadow: '0 8px 24px rgba(0,0,0,0.4)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                            <div style={{ gridColumn: '1 / -1', fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 4, textAlign: 'center' }}>Transition</div>
+                            {TRANSITION_TYPES.map(tt => (
+                              <button key={tt}
+                                onClick={() => { updateClip(nextClip.id, { transitionIn: { ...nextClip.transitionIn, type: tt } }); setTransitionPickerClipId(null); }}
+                                style={{ padding: '6px 4px', borderRadius: 6, border: `1px solid ${(nextClip.transitionIn?.type || 'none') === tt ? '#00C4CC' : t.border}`, background: (nextClip.transitionIn?.type || 'none') === tt ? 'rgba(0,196,204,0.12)' : t.input, color: (nextClip.transitionIn?.type || 'none') === tt ? '#00C4CC' : t.text, fontSize: 11, cursor: 'pointer', fontWeight: (nextClip.transitionIn?.type || 'none') === tt ? 600 : 400 }}>
+                                {TRANSITION_LABELS[tt]}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── Text track (44px) ── */}
             <div style={{ position: 'relative', height: 44, borderBottom: `1px solid ${t.border}` }}>
-              {project.clips.map(clip => (
-                <div key={clip.id}
-                  onMouseDown={e => onClipMouseDown(e, clip)}
-                  style={{
-                    position: 'absolute',
-                    left: clip.trackStart * zoom,
-                    width: Math.max(4, clip.duration * zoom),
-                    height: 36,
-                    top: 4,
-                    borderRadius: 4,
-                    background: selectedId === clip.id ? t.primary : clipColor(clip),
-                    opacity: 0.85,
-                    cursor: 'grab',
-                    overflow: 'hidden',
-                    boxSizing: 'border-box',
-                    border: selectedId === clip.id ? `2px solid ${t.primaryLight}` : `1px solid rgba(255,255,255,0.2)`,
-                    display: 'flex', alignItems: 'center',
-                  }}>
-                  {/* Trim left handle */}
-                  <div onMouseDown={e => onTrimLeftMouseDown(e, clip)}
-                    style={{ position: 'absolute', left: 0, top: 0, width: 6, height: '100%', cursor: 'ew-resize', background: 'rgba(255,255,255,0.3)', borderRadius: '3px 0 0 3px' }} />
-                  <span style={{ fontSize: 10, color: '#fff', paddingLeft: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                    {clip.type === 'color' ? 'Color' : clip.type === 'image' ? 'Image' : 'Video'}
-                  </span>
-                  {/* Trim right handle */}
-                  <div onMouseDown={e => onTrimRightMouseDown(e, clip)}
-                    style={{ position: 'absolute', right: 0, top: 0, width: 6, height: '100%', cursor: 'ew-resize', background: 'rgba(255,255,255,0.3)', borderRadius: '0 3px 3px 0' }} />
-                </div>
-              ))}
+              {project.textElements.map(te => {
+                const isSelected = selectedId === te.id;
+                return (
+                  <div key={te.id}
+                    onMouseDown={e => onTextTimelineDrag(e, te)}
+                    style={{
+                      position: 'absolute',
+                      left: te.startTime * zoom,
+                      width: Math.max(8, (te.endTime - te.startTime) * zoom),
+                      height: 32, top: 6,
+                      borderRadius: 5,
+                      background: isSelected ? '#6D28D9' : '#7C3AED',
+                      cursor: 'grab', display: 'flex', alignItems: 'center', overflow: 'hidden',
+                      boxSizing: 'border-box',
+                      border: isSelected ? `2px solid #A78BFA` : `1px solid rgba(255,255,255,0.2)`,
+                    }}>
+                    {/* Trim left (startTime) */}
+                    <div onMouseDown={e => { e.stopPropagation(); const startX = e.clientX; const orig = te.startTime; const dur = te.endTime - te.startTime; const onMove = me => { const dx = (me.clientX - startX) / zoom; const ns = Math.max(0, Math.min(te.endTime - 0.5, orig + dx)); updateText(te.id, { startTime: ns }); }; const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); }; window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp); }}
+                      style={{ position: 'absolute', left: 0, top: 0, width: 7, height: '100%', cursor: 'ew-resize', background: 'rgba(255,255,255,0.3)', borderRadius: '4px 0 0 4px', zIndex: 2 }} />
+                    <span style={{ fontSize: 9, color: '#fff', paddingLeft: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>T {te.text}</span>
+                    {/* Trim right (endTime) */}
+                    <div onMouseDown={e => onTextTrimRight(e, te)}
+                      style={{ position: 'absolute', right: 0, top: 0, width: 7, height: '100%', cursor: 'ew-resize', background: 'rgba(255,255,255,0.3)', borderRadius: '0 4px 4px 0', zIndex: 2 }} />
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Text track */}
-            <div style={{ position: 'relative', height: 32, borderBottom: `1px solid ${t.border}` }}>
-              {project.textElements.map(te => (
-                <div key={te.id}
-                  onClick={e => { e.stopPropagation(); setSelectedId(te.id); setSelectedTrack('text'); }}
-                  style={{
-                    position: 'absolute',
-                    left: te.startTime * zoom,
-                    width: Math.max(4, (te.endTime - te.startTime) * zoom),
-                    height: 22, top: 5,
-                    borderRadius: 4,
-                    background: selectedId === te.id ? t.primary : '#7C3AED',
-                    opacity: 0.8,
-                    cursor: 'pointer',
-                    display: 'flex', alignItems: 'center',
-                    overflow: 'hidden',
-                  }}>
-                  <span style={{ fontSize: 9, color: '#fff', paddingLeft: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{te.text}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Audio track */}
-            <div style={{ position: 'relative', height: 32 }}>
+            {/* ── Audio track (44px) ── */}
+            <div style={{ position: 'relative', height: 44 }}>
               {project.audioTracks.map(at => {
                 const endTime = at.endTime || totalDuration;
+                const w = Math.max(8, (endTime - at.startTime) * zoom);
+                const isSelected = selectedId === at.id;
                 return (
                   <div key={at.id}
-                    onClick={e => { e.stopPropagation(); setSelectedId(at.id); setSelectedTrack('audio'); }}
+                    onMouseDown={e => onAudioTimelineDrag(e, at)}
                     style={{
                       position: 'absolute',
                       left: at.startTime * zoom,
-                      width: Math.max(4, (endTime - at.startTime) * zoom),
-                      height: 22, top: 5,
-                      borderRadius: 4,
-                      background: selectedId === at.id ? t.primary : '#065F46',
-                      opacity: 0.85,
-                      cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', overflow: 'hidden',
+                      width: w,
+                      height: 32, top: 6,
+                      borderRadius: 5,
+                      background: isSelected ? '#047857' : '#065F46',
+                      cursor: 'grab', overflow: 'hidden', boxSizing: 'border-box',
+                      border: isSelected ? `2px solid #34D399` : `1px solid rgba(255,255,255,0.15)`,
                     }}>
-                    <span style={{ fontSize: 9, color: '#fff', paddingLeft: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>♪ audio</span>
+                    {/* Trim left */}
+                    <div onMouseDown={e => { e.stopPropagation(); const startX = e.clientX; const orig = at.startTime; const onMove = me => { const dx = (me.clientX - startX) / zoom; const ns = Math.max(0, orig + dx); updateAudio(at.id, { startTime: ns }); }; const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); }; window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp); }}
+                      style={{ position: 'absolute', left: 0, top: 0, width: 7, height: '100%', cursor: 'ew-resize', background: 'rgba(255,255,255,0.3)', borderRadius: '4px 0 0 4px', zIndex: 2 }} />
+                    {/* Waveform decoration */}
+                    <div style={{ position: 'absolute', left: 10, right: 10, bottom: 3, top: 3, display: 'flex', alignItems: 'flex-end', gap: 1, overflow: 'hidden' }}>
+                      {Array.from({ length: 60 }).map((_, i) => (
+                        <div key={i} style={{ flex: 1, background: 'rgba(255,255,255,0.45)', height: `${30 + Math.round(Math.sin(i * 0.8) * 25 + Math.sin(i * 2.1 + 1) * 15)}%`, minHeight: 2, borderRadius: 1 }} />
+                      ))}
+                    </div>
+                    {/* Audio label */}
+                    <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 9, color: 'rgba(255,255,255,0.85)', fontWeight: 600, textShadow: '0 1px 3px rgba(0,0,0,0.8)', zIndex: 1, pointerEvents: 'none' }}>
+                      ♪ {at.sourceUrl?.split('/').pop()?.split('?')[0].slice(0, 16) || 'Audio'}
+                    </span>
+                    {/* Trim right */}
+                    <div onMouseDown={e => onAudioTrimRight(e, at)}
+                      style={{ position: 'absolute', right: 0, top: 0, width: 7, height: '100%', cursor: 'ew-resize', background: 'rgba(255,255,255,0.3)', borderRadius: '0 4px 4px 0', zIndex: 2 }} />
                   </div>
                 );
               })}
