@@ -8522,24 +8522,6 @@ export default function TemplatesEditorInner() {
           display: 'flex',
           flexDirection: 'column',
         }}>
-          {/* Canva-style subtle collapse handle */}
-          <button onClick={() => setPanelOpen(o => !o)} title={panelOpen ? 'Collapse panel' : 'Expand panel'} style={{
-            position: 'absolute', right: -14, top: '50%',
-            transform: 'translateY(-50%)',
-            width: 14, height: 44,
-            background: t.card, border: `1px solid ${t.border}`,
-            borderLeft: 'none',
-            borderRadius: '0 6px 6px 0', cursor: 'pointer',
-            zIndex: 20, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', color: t.textMuted, fontSize: 10,
-            transition: 'background 100ms, color 100ms',
-            boxShadow: '2px 0 4px rgba(0,0,0,0.07)',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = t.text; }}
-            onMouseLeave={e => { e.currentTarget.style.background = t.card; e.currentTarget.style.color = t.textMuted; }}
-          >
-            {panelOpen ? '‹' : '›'}
-          </button>
           {/* Tool content — rendered only when flyout is open */}
           {panelOpen && (
           <div key={activeLeftTool} style={{ flex: 1, overflowY: 'auto', padding: '16px', minWidth: 320, animation: 'panel-in 160ms ease forwards' }}>
@@ -8595,7 +8577,7 @@ export default function TemplatesEditorInner() {
                         ))}
                       </div>
                       {curatedLoading ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
                           {Array.from({ length: 6 }).map((_, i) => (
                             <div key={i} style={{ aspectRatio: '4/5', borderRadius: 8,
                               background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`,
@@ -8609,7 +8591,7 @@ export default function TemplatesEditorInner() {
                           <div style={{ fontSize: 11 }}>More coming soon</div>
                         </div>
                       ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
                           {filtered.map(tmpl => (
                             <div key={tmpl.id} style={{ cursor: 'pointer' }}
                               onMouseEnter={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '1'}
@@ -8666,7 +8648,7 @@ export default function TemplatesEditorInner() {
                       )}
                     </div>
                     {savedDesignsLoading ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
                         {Array.from({ length: 4 }).map((_, i) => (
                           <div key={i} style={{ aspectRatio: '4/5', borderRadius: 8,
                             background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`,
@@ -8680,7 +8662,7 @@ export default function TemplatesEditorInner() {
                         <div style={{ fontSize: 11 }}>Save this design to see it here</div>
                       </div>
                     ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
                         {savedDesigns.slice(0, 6).map(d => (
                           <div key={d.id}
                             onClick={() => { if (typeof window !== 'undefined') window.location.href = `/templates/editor?id=${d.id}`; }}
@@ -9055,7 +9037,7 @@ export default function TemplatesEditorInner() {
                   {!fontSearch && (
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Font Combinations</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
                         {TEXT_COMBOS.map(combo => (
                           <div key={combo.id} onMouseDown={e => { e.preventDefault(); addTextCombo(combo.lines); }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = TEAL; e.currentTarget.style.transform = 'scale(1.03)'; }}
@@ -10169,6 +10151,29 @@ export default function TemplatesEditorInner() {
           )}
         </div>
 
+        {/* Collapse handle — sibling of flyout, outside overflow:hidden */}
+        <div style={{ position: 'relative', width: 0, flexShrink: 0, overflow: 'visible', zIndex: 20 }}>
+          <button
+            onClick={() => setPanelOpen(o => !o)}
+            title={panelOpen ? 'Collapse panel' : 'Expand panel'}
+            style={{
+              position: 'absolute', left: 0, top: '50%',
+              transform: 'translateY(-50%)',
+              width: 14, height: 44,
+              background: t.card, border: `1px solid ${t.border}`,
+              borderLeft: 'none',
+              borderRadius: '0 6px 6px 0', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: t.textMuted, fontSize: 10, transition: 'background 100ms, color 100ms',
+              boxShadow: '2px 0 4px rgba(0,0,0,0.07)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = t.text; }}
+            onMouseLeave={e => { e.currentTarget.style.background = t.card; e.currentTarget.style.color = t.textMuted; }}
+          >
+            {panelOpen ? '‹' : '›'}
+          </button>
+        </div>
+
         {/* ── Canvas area — multi-page vertical scroll ── */}
         <style>{`
           @keyframes ftb-in {
@@ -10281,9 +10286,7 @@ export default function TemplatesEditorInner() {
                       borderRadius: 8, overflow: 'hidden', cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
                       opacity: page.hidden ? 0.35 : 1,
                       boxShadow: isActive
-                        ? panelOpen
-                          ? '0 4px 24px rgba(0,0,0,0.22), 0 1px 6px rgba(0,0,0,0.12)'
-                          : `0 0 0 2px ${TEAL}, 0 4px 24px rgba(0,0,0,0.22), 0 1px 6px rgba(0,0,0,0.12)`
+                        ? '0 4px 24px rgba(0,0,0,0.22), 0 1px 6px rgba(0,0,0,0.12)'
                         : '0 2px 12px rgba(0,0,0,0.16), 0 1px 3px rgba(0,0,0,0.10)',
                       background: pageBgType === 'transparent'
                         ? 'repeating-conic-gradient(#aaa 0% 25%, #fff 0% 50%) 0 0 / 20px 20px'
