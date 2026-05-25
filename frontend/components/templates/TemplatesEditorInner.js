@@ -3850,6 +3850,10 @@ export default function TemplatesEditorInner() {
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
   const [uploadMediaTab, setUploadMediaTab] = useState('Images');
+  const [stockPhotos, setStockPhotos] = useState([]);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [stockQuery, setStockQuery] = useState('');
+  const [stockInputValue, setStockInputValue] = useState('');
   const [bgRemoverDismissed, setBgRemoverDismissed] = useState(false);
   const [bgRemoveLoading, setBgRemoveLoading] = useState(false);
   const [extractLoading, setExtractLoading] = useState(false);
@@ -3861,6 +3865,7 @@ export default function TemplatesEditorInner() {
   const [curatedTemplates, setCuratedTemplates] = useState([]);
   const [curatedLoading, setCuratedLoading] = useState(false);
   const [templateCategory, setTemplateCategory] = useState('all');
+  const [templateThumbs, setTemplateThumbs] = useState({});
   const [brandProfile, setBrandProfile] = useState(null);
   const [brandLoading, setBrandLoading] = useState(false);
   const [uploadItems, setUploadItems] = useState([]);
@@ -4094,12 +4099,58 @@ export default function TemplatesEditorInner() {
   }, [activeLeftTool]);
 
   // ── Load curated ItsPosting templates ─────────────────────────────────────
+  async function generateTemplateThumbs(templates) {
+    for (const tmpl of templates) {
+      if (tmpl.thumbnail_url || templateThumbs[tmpl.id]) continue;
+      const pageData = tmpl.canvas_json?.pages?.[0];
+      if (!pageData) continue;
+      try {
+        const THUMB_W = 216, THUMB_H = 270;
+        const container = document.createElement('div');
+        container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:216px;height:270px;overflow:hidden';
+        document.body.appendChild(container);
+        const stage = new Konva.Stage({ container, width: THUMB_W, height: THUMB_H });
+        const layer = new Konva.Layer();
+        stage.add(layer);
+        layer.add(new Konva.Rect({ x: 0, y: 0, width: THUMB_W, height: THUMB_H, fill: pageData.bgColor || '#1a1a2e' }));
+        const scale = THUMB_W / 1080;
+        for (const el of (pageData.elements || [])) {
+          if (el.type === 'text' && el.text) {
+            layer.add(new Konva.Text({
+              x: (el.x || 0) * scale, y: (el.y || 0) * scale,
+              text: el.text, fontSize: Math.max(4, (el.fontSize || 16) * scale),
+              fill: el.fill || '#fff', width: el.width ? el.width * scale : undefined,
+              align: el.align || 'left', fontStyle: el.fontStyle || 'normal',
+            }));
+          } else if (el.type === 'rect') {
+            layer.add(new Konva.Rect({
+              x: (el.x || 0) * scale, y: (el.y || 0) * scale,
+              width: (el.width || 100) * scale, height: (el.height || 20) * scale,
+              fill: el.fill || 'transparent', opacity: el.opacity ?? 1,
+              cornerRadius: (el.cornerRadius || 0) * scale,
+            }));
+          }
+        }
+        layer.draw();
+        const dataUrl = stage.toDataURL({ mimeType: 'image/jpeg', quality: 0.85, pixelRatio: 2 });
+        stage.destroy();
+        document.body.removeChild(container);
+        setTemplateThumbs(prev => ({ ...prev, [tmpl.id]: dataUrl }));
+        await new Promise(r => setTimeout(r, 25));
+      } catch (_) {}
+    }
+  }
+
   useEffect(() => {
     if (activeLeftTool !== 'templates') return;
     if (curatedTemplates.length > 0) return;
     setCuratedLoading(true);
     studioAPI.getTemplates({ limit: 60, industry: 'all' })
-      .then(r => setCuratedTemplates(r.data?.templates || []))
+      .then(r => {
+        const templates = r.data?.templates || [];
+        setCuratedTemplates(templates);
+        generateTemplateThumbs(templates);
+      })
       .catch(() => {})
       .finally(() => setCuratedLoading(false));
   }, [activeLeftTool]);
@@ -4114,6 +4165,18 @@ export default function TemplatesEditorInner() {
       .catch(() => {})
       .finally(() => setBrandLoading(false));
   }, [activeLeftTool]);
+
+  // ── Load stock photos (Pexels) when Stock tab opens ───────────────────────
+  useEffect(() => {
+    if (uploadMediaTab !== 'Stock') return;
+    if (stockPhotos.length > 0 && !stockQuery) return;
+    setStockLoading(true);
+    const query = stockQuery || 'home services professional';
+    studioAPI.searchStockPhotos(query)
+      .then(r => setStockPhotos(r.data?.photos || []))
+      .catch(() => setStockPhotos([]))
+      .finally(() => setStockLoading(false));
+  }, [uploadMediaTab, stockQuery]);
 
   // ── Load media library (uploads panel) ────────────────────────────────────
   useEffect(() => {
@@ -8386,24 +8449,30 @@ export default function TemplatesEditorInner() {
                               onMouseEnter={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '1'}
                               onMouseLeave={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '0'}>
                               <div style={{ aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, marginBottom: 4, position: 'relative' }}>
-                                {tmpl.thumbnail_url
-                                  ? <img src={tmpl.thumbnail_url} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                  : (
-                                    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 8 }}>
-                                      <span style={{ fontSize: 28 }}>{CAT_ICONS[tmpl.category] || '✦'}</span>
-                                      <span style={{ fontSize: 9, color: t.textMuted, textAlign: 'center', lineHeight: 1.3 }}>{tmpl.name}</span>
-                                    </div>
-                                  )
-                                }
+                                {(() => {
+                                  const thumbSrc = tmpl.thumbnail_url || templateThumbs[tmpl.id];
+                                  return thumbSrc
+                                    ? <img src={thumbSrc} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    : (
+                                      <div style={{ width: '100%', height: '100%', background: tmpl.canvas_json?.pages?.[0]?.bgColor || '#1a1a2e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 8 }}>
+                                        <span style={{ fontSize: 20 }}>{CAT_ICONS[tmpl.category] || '✦'}</span>
+                                        <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.7)', textAlign: 'center', lineHeight: 1.3, fontWeight: 600 }}>{tmpl.name}</span>
+                                      </div>
+                                    );
+                                })()}
                                 <div className="tmpl-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms' }}>
                                   <button
                                     onClick={async () => {
                                       try {
-                                        const r = await studioAPI.getTemplate(tmpl.id);
-                                        if (r.data?.template?.canvas_json) restoreSnapshot(r.data.template.canvas_json);
+                                        if (tmpl.canvas_json) {
+                                          restoreSnapshot(tmpl.canvas_json);
+                                        } else {
+                                          const r = await studioAPI.getTemplate(tmpl.id);
+                                          if (r.data?.template?.canvas_json) restoreSnapshot(r.data.template.canvas_json);
+                                        }
                                       } catch {}
                                     }}
-                                    style={{ color: '#fff', fontSize: 12, fontWeight: 700, background: '#00C4CC', color: '#000', padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
+                                    style={{ fontSize: 12, fontWeight: 700, background: '#00C4CC', color: '#000', padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
                                     Use
                                   </button>
                                 </div>
@@ -9008,11 +9077,12 @@ export default function TemplatesEditorInner() {
                       {uploadQuota.usedFormatted} of {uploadQuota.quotaFormatted} used
                     </div>
                   )}
-                  {/* 2 tabs: Images | Videos */}
+                  {/* 3 tabs: Images | Videos | Stock */}
                   <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, gap: 0 }}>
                     {[
                       { label: 'Images', icon: <IpPhoto size={12} /> },
                       { label: 'Videos', icon: <IpVideo size={12} /> },
+                      { label: 'Stock', icon: <IpSearch size={12} /> },
                     ].map(({ label, icon }) => (
                       <button key={label} onClick={() => setUploadMediaTab(label)}
                         style={{ flex: 1, paddingBottom: 9, paddingTop: 6, border: 'none', borderBottom: `2px solid ${uploadMediaTab === label ? TEAL : 'transparent'}`, background: 'transparent', color: uploadMediaTab === label ? TEAL : t.textMuted, fontSize: 12, fontWeight: uploadMediaTab === label ? 600 : 400, cursor: 'pointer', transition: 'all 150ms', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
@@ -9020,29 +9090,76 @@ export default function TemplatesEditorInner() {
                       </button>
                     ))}
                   </div>
-                  {/* Search */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
-                    <IpSearch size={13} color={t.textMuted} />
-                    <input
-                      placeholder={`Search ${uploadMediaTab.toLowerCase()}…`}
-                      value={uploadSearch}
-                      onChange={e => setUploadSearch(e.target.value)}
-                      style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
-                  </div>
-                  {/* Grid */}
-                  {uploadLoading ? (
+                  {/* Search — My media or Stock Photos */}
+                  {uploadMediaTab === 'Stock' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                      <IpSearch size={13} color={t.textMuted} />
+                      <input
+                        placeholder="Search stock photos…"
+                        value={stockInputValue}
+                        onChange={e => {
+                          setStockInputValue(e.target.value);
+                          clearTimeout(window._stockSearchTimer);
+                          window._stockSearchTimer = setTimeout(() => setStockQuery(e.target.value.trim() || ''), 500);
+                        }}
+                        onKeyDown={e => { if (e.key === 'Enter') { clearTimeout(window._stockSearchTimer); setStockQuery(stockInputValue.trim() || ''); } }}
+                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                      <IpSearch size={13} color={t.textMuted} />
+                      <input
+                        placeholder={`Search ${uploadMediaTab.toLowerCase()}…`}
+                        value={uploadSearch}
+                        onChange={e => setUploadSearch(e.target.value)}
+                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                    </div>
+                  )}
+                  {/* Stock Photos Grid */}
+                  {uploadMediaTab === 'Stock' ? (
+                    stockLoading ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
+                        {Array.from({ length: 9 }).map((_, i) => (
+                          <div key={i} style={{ borderRadius: 6, aspectRatio: '1', background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`, backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
+                        ))}
+                      </div>
+                    ) : stockPhotos.length === 0 ? (
+                      <div style={{ textAlign: 'center', color: t.textMuted, padding: '30px 0', fontSize: 12 }}>
+                        <div style={{ fontSize: 28, marginBottom: 8 }}>📸</div>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>No results</div>
+                        <div>Try a different search term</div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
+                          {stockPhotos.map(photo => (
+                            <div key={photo.id}
+                              draggable
+                              onDragStart={e => e.dataTransfer.setData('text/plain', photo.url)}
+                              onClick={() => addImageElement(photo.url)}
+                              style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${t.border}`, position: 'relative', cursor: 'pointer', aspectRatio: '1', background: t.input }}>
+                              <img src={photo.thumbUrl} alt="" crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ fontSize: 10, color: t.textMuted, textAlign: 'center' }}>Photos from Pexels · Free to use</div>
+                      </>
+                    )
+                  ) : null}
+                  {/* My Media Grid */}
+                  {uploadMediaTab !== 'Stock' && uploadLoading ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
                       {Array.from({ length: 9 }).map((_, i) => (
                         <div key={i} style={{ borderRadius: 6, aspectRatio: '1', background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`, backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
                       ))}
                     </div>
-                  ) : visibleItems.length === 0 ? (
+                  ) : uploadMediaTab !== 'Stock' && visibleItems.length === 0 ? (
                     <div style={{ textAlign: 'center', color: t.textMuted, padding: '30px 0', fontSize: 12 }}>
                       <div style={{ fontSize: 28, marginBottom: 8 }}>{uploadMediaTab === 'Images' ? '🖼️' : '🎬'}</div>
                       <div style={{ fontWeight: 600, marginBottom: 4 }}>No {uploadMediaTab.toLowerCase()} yet</div>
                       <div>{uploadMediaTab === 'Images' ? 'Upload photos from your phone or computer' : 'Upload videos from your jobs — before/afters, time-lapses'}</div>
                     </div>
-                  ) : (
+                  ) : uploadMediaTab !== 'Stock' ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
                       {visibleItems.map(item => (
                         <div key={item.id}
@@ -9087,7 +9204,7 @@ export default function TemplatesEditorInner() {
                         </div>
                       ))}
                     </div>
-                  )}
+                  ) : null}
                   {/* Add from URL */}
                   {!showImgUrlInput ? (
                     <button onClick={() => setShowImgUrlInput(true)}

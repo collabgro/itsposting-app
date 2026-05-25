@@ -647,7 +647,7 @@ Return ONLY valid JSON (no markdown fences):
       params.push(Math.min(parseInt(limit) || 30, 100));
 
       const result = await pool.query(
-        `SELECT id, name, industry, category, thumbnail_url, canvas_width, canvas_height, sort_order
+        `SELECT id, name, industry, category, thumbnail_url, canvas_json, canvas_width, canvas_height, sort_order
          FROM canvas_templates
          WHERE ${conditions.join(' AND ')}
          ORDER BY sort_order ASC, created_at DESC
@@ -673,6 +673,35 @@ Return ONLY valid JSON (no markdown fences):
     } catch (err) {
       console.error('[Studio] GET /templates/:id:', err.message);
       res.status(500).json({ error: 'Failed to load template' });
+    }
+  });
+
+  // ── GET /api/studio/stock-search — Pexels royalty-free stock photos ─────────
+  router.get('/stock-search', authenticate, async (req, res) => {
+    try {
+      const { q = 'home services', page = 1, per_page = 24 } = req.query;
+      const apiKey = process.env.PEXELS_API_KEY;
+      if (!apiKey) return res.status(503).json({ error: 'Stock photos not configured' });
+
+      const resp = await fetch(
+        `https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=${Math.min(parseInt(per_page) || 24, 40)}&page=${parseInt(page) || 1}`,
+        { headers: { Authorization: apiKey } }
+      );
+      if (!resp.ok) return res.status(resp.status).json({ error: 'Pexels API error' });
+      const data = await resp.json();
+
+      const photos = (data.photos || []).map(p => ({
+        id: p.id,
+        url: p.src.large2x,
+        thumbUrl: p.src.medium,
+        photographer: p.photographer,
+        width: p.width,
+        height: p.height,
+      }));
+      res.json({ photos, totalResults: data.total_results, page: data.page });
+    } catch (err) {
+      console.error('[Studio] GET /stock-search:', err.message);
+      res.status(500).json({ error: 'Stock photo search failed' });
     }
   });
 

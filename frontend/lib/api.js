@@ -308,6 +308,7 @@ export const studioAPI = {
   aiGenerateClip: (data) => api.post('/api/studio/ai-clip', data),
   getTemplates: (params) => api.get('/api/studio/templates', { params }),
   getTemplate: (id) => api.get(`/api/studio/templates/${id}`),
+  searchStockPhotos: (q, page = 1) => api.get('/api/studio/stock-search', { params: { q, page } }),
   removeBackground: (imageUrl) => api.post('/api/studio/remove-background', { imageUrl }),
   extractElement: (imageUrl, pointX, pointY) => api.post('/api/studio/extract-element', { imageUrl, pointX, pointY }),
 };
