@@ -6114,7 +6114,7 @@ export default function TemplatesEditorInner() {
                   </div>
                 </div>
                 {/* Suggested */}
-                <div style={{ padding: '4px 14px 6px', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Suggested</div>
+                <div style={{ padding: '4px 14px 6px', fontSize: 12, fontWeight: 600, color: t.textMuted }}>Suggested</div>
                 <div style={{ display: 'flex', gap: 8, padding: '0 14px 14px', overflowX: 'auto' }}>
                   {[
                     { label: 'Instagram Story',     w: 1080, h: 1920, id: 'ig_story',   tw: 34, th: 60 },
@@ -6139,7 +6139,7 @@ export default function TemplatesEditorInner() {
                   </label>
                   <span style={{ fontSize: 10, color: t.textMuted }}>Magic Resize</span>
                 </div>
-                <div style={{ padding: '4px 14px 4px', fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: `1px solid ${t.border}` }}>Browse by category</div>
+                <div style={{ padding: '4px 14px 4px', fontSize: 12, fontWeight: 600, color: t.textMuted, borderTop: `1px solid ${t.border}` }}>Browse by category</div>
                 {/* Custom size row — expands to W×H form */}
                 <button
                   onClick={() => setShowCustomSizeForm(p => !p)}
@@ -6763,7 +6763,7 @@ export default function TemplatesEditorInner() {
                     <>
                       <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowEffectsPanel(false)} />
                       <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, left: Math.min(panelAnchor.left, window.innerWidth - 292), zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 12, width: 280, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Text effects</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Text effects</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                           {TEXT_EFFECTS.map(fx => (
                             <button key={fx.id} onClick={() => applyEffect(fx.patch)}
@@ -8437,10 +8437,10 @@ export default function TemplatesEditorInner() {
       {/* ── Main layout ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-        {/* ── Left sidebar: 72px icon strip + 320px collapsible flyout ── */}
+        {/* ── Left sidebar: 64px icon strip + 280px collapsible flyout ── */}
 
-        {/* 76px icon strip — always visible */}
-        <div style={{ width: 76, borderRight: `1px solid ${t.border}`, background: t.sidebar,
+        {/* 64px icon strip — always visible */}
+        <div style={{ width: 64, borderRight: `1px solid ${t.border}`, background: t.sidebar,
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           padding: '10px 0', flexShrink: 0, gap: 1 }}>
           {[
@@ -8459,16 +8459,15 @@ export default function TemplatesEditorInner() {
               onMouseEnter={e => { showTip(e, tool.label, tool.shortcut); if (!isActive) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; }}
               onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
               style={{
-                width: 64, padding: '9px 0 6px',
+                width: 52, padding: '8px 0 5px',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                 background: isActive ? 'rgba(0,196,204,0.1)' : 'transparent',
                 border: 'none',
-                borderLeft: isActive ? `3px solid ${TEAL}` : '3px solid transparent',
-                borderRadius: '0 8px 8px 0',
+                borderRadius: 8,
                 cursor: 'pointer',
                 color: isActive ? TEAL : t.textMuted,
                 fontSize: 10, fontWeight: isActive ? 700 : 400,
-                transition: 'background 120ms ease, color 120ms ease, border-color 120ms ease',
+                transition: 'background 120ms ease, color 120ms ease',
                 position: 'relative',
                 flexShrink: 0,
               }}
@@ -8489,12 +8488,11 @@ export default function TemplatesEditorInner() {
               onMouseEnter={e => { showTip(e, tool.label); if (!isActive) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; }}
               onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
               style={{
-                width: 64, padding: '9px 0 6px',
+                width: 52, padding: '8px 0 5px',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                 background: isActive ? 'rgba(0,196,204,0.1)' : 'transparent',
                 border: 'none',
-                borderLeft: isActive ? `3px solid ${TEAL}` : '3px solid transparent',
-                borderRadius: '0 8px 8px 0',
+                borderRadius: 8,
                 cursor: 'pointer',
                 color: isActive ? TEAL : t.textMuted,
                 fontSize: 10, fontWeight: isActive ? 700 : 400,
@@ -8507,9 +8505,9 @@ export default function TemplatesEditorInner() {
           })}
         </div>
 
-        {/* 320px collapsible flyout */}
+        {/* 280px collapsible flyout */}
         <div style={{
-          width: panelOpen ? 320 : 0,
+          width: panelOpen ? 280 : 0,
           overflow: 'hidden',
           transition: 'width 200ms ease',
           borderRight: panelOpen ? `1px solid ${t.border}` : 'none',
@@ -8534,7 +8532,7 @@ export default function TemplatesEditorInner() {
 
           {/* Tool content — rendered only when flyout is open */}
           {panelOpen && (
-          <div key={activeLeftTool} style={{ flex: 1, overflowY: 'auto', padding: 14, minWidth: 320, animation: 'panel-in 160ms ease forwards' }}>
+          <div key={activeLeftTool} style={{ flex: 1, overflowY: 'auto', padding: '16px', minWidth: 280, animation: 'panel-in 160ms ease forwards' }}>
 
             {/* TEMPLATES / DESIGN */}
             {(activeLeftTool === 'background' || activeLeftTool === 'templates') && (
@@ -8563,7 +8561,7 @@ export default function TemplatesEditorInner() {
                   return (
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>ItsPosting Templates</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>ItsPosting Templates</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           {thumbGenProgress ? (
                             <div style={{ fontSize: 10, color: TEAL, fontWeight: 600 }}>{thumbGenProgress.current}/{thumbGenProgress.total}</div>
@@ -8648,7 +8646,7 @@ export default function TemplatesEditorInner() {
                 {activeLeftTool === 'templates' && (
                   <div style={{ marginBottom: 18 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>My Designs</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>My Designs</div>
                       {savedDesigns.length > 0 && (
                         <button
                           onClick={() => router.push('/media?tab=templates')}
@@ -8697,7 +8695,7 @@ export default function TemplatesEditorInner() {
                 )}
 
                 {/* ── Background section header ── */}
-                <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Background</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Background</div>
 
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Color</div>
@@ -8731,7 +8729,7 @@ export default function TemplatesEditorInner() {
                 </div>
                 {/* ── Color Palettes ── */}
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Color Palettes</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Color Palettes</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                     {COLOR_SCHEMES.map(scheme => (
                       <button key={scheme.name} title={scheme.name}
@@ -8755,7 +8753,7 @@ export default function TemplatesEditorInner() {
                 </div>
                 {/* ── Gradient section ── */}
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Gradient</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Gradient</div>
                   {/* Preset swatches */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
                     {GRADIENT_PRESETS.map(g => {
@@ -8863,7 +8861,7 @@ export default function TemplatesEditorInner() {
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Pattern</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Pattern</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
                     {[
                       { id: null,         label: 'None',   preview: null },
@@ -8890,7 +8888,7 @@ export default function TemplatesEditorInner() {
                   {/* Document colors — click to replace all instances */}
                   {docColors.length > 0 && (
                     <div style={{ marginBottom: 16 }} onClick={e => e.stopPropagation()}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Document Colors</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 6 }}>Document Colors</div>
                       <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 8 }}>Click a color to replace all uses</div>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {docColors.map(c => (
@@ -8919,7 +8917,7 @@ export default function TemplatesEditorInner() {
                       </div>
                     </div>
                   )}
-                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Photo Background</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Photo Background</div>
                   <div style={{ display: 'flex', gap: 4, marginBottom: 10, background: t.input, borderRadius: 7, padding: 3 }}>
                     {['stock', 'mine'].map(tab => (
                       <button key={tab} onClick={() => setBgTab(tab)}
@@ -8997,7 +8995,7 @@ export default function TemplatesEditorInner() {
                     return (
                       <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 14 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Brand Kit</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>Brand Kit</span>
                           <button style={{ background: 'none', border: 'none', color: TEAL, fontSize: 12, cursor: 'pointer', padding: 0 }}>Edit</button>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
@@ -9021,7 +9019,7 @@ export default function TemplatesEditorInner() {
                   {/* S5: Default text styles */}
                   {!fontSearch && (
                     <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Default Text Styles</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Default Text Styles</div>
                       {[
                         { label: 'Add a heading',    family: 'Bebas Neue', size: 28, weight: 400, previewText: 'HEADING',    subLabel: 'Bebas Neue · 64px',    overrides: { fontSize: 64,  fontFamily: 'Bebas Neue',   fontStyle: 'normal', text: 'Service Announcement', letterSpacing: 2 } },
                         { label: 'Add a subheading', family: 'Montserrat', size: 17, weight: 700, previewText: 'Subheading', subLabel: 'Montserrat Bold · 36px', overrides: { fontSize: 36,  fontFamily: 'Montserrat',   fontStyle: 'bold',   text: 'Your Local Expert' } },
@@ -9046,7 +9044,7 @@ export default function TemplatesEditorInner() {
                   {/* S6: Font Combinations */}
                   {!fontSearch && (
                     <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Font Combinations</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Font Combinations</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                         {TEXT_COMBOS.map(combo => (
                           <div key={combo.id} onMouseDown={e => { e.preventDefault(); addTextCombo(combo.lines); }}
@@ -9071,7 +9069,7 @@ export default function TemplatesEditorInner() {
 
                   {/* S7: Font list */}
                   <div style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>
                       {fontSearch ? `Fonts — "${fontSearch}"` : 'Fonts'}
                     </div>
                     {fontSearch ? (
@@ -9092,7 +9090,7 @@ export default function TemplatesEditorInner() {
                     ) : (
                       FONT_GROUPS.map(group => (
                         <div key={group.label} style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 9, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4, paddingLeft: 4 }}>{group.label}</div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 4, paddingLeft: 4 }}>{group.label}</div>
                           {group.fonts.map(f => {
                             const isActive = selectedEl?.type === 'text' && (selectedEl.fontFamily || 'Inter') === f;
                             return (
@@ -9185,7 +9183,7 @@ export default function TemplatesEditorInner() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {/* Upload button row */}
                   <div style={{ display: 'flex', gap: 7 }}>
-                    <label style={{ flex: 1, background: TEAL, color: '#000', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <label style={{ flex: 1, background: 'linear-gradient(90deg, #7C5CFC, #00C4CC)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                       <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
                         onChange={async e => {
                           const files = Array.from(e.target.files);
@@ -9628,7 +9626,7 @@ export default function TemplatesEditorInner() {
                         </button>
                       ))}
                     </div>
-                    <div style={{ fontSize:10, fontWeight:700, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.07em', marginTop:4 }}>Quick Add</div>
+                    <div style={{ fontSize:12, fontWeight:600, color:t.textMuted, marginTop:4 }}>Quick Add</div>
                     <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                       {[
                         { label:'▭ Rect',     fn:()=>addRect()        },
@@ -9740,7 +9738,7 @@ export default function TemplatesEditorInner() {
             {/* FILTERS */}
             {activeLeftTool === 'filters' && (
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Filter Presets</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Filter Presets</div>
                 {bgType !== 'image' && <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 10 }}>Select a photo background first</div>}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   {Object.keys(FILTER_PRESETS).map(key => (
@@ -9764,7 +9762,7 @@ export default function TemplatesEditorInner() {
                 ].map(({ label, value, min, max, step, key }) => (
                   <div key={label} style={{ marginBottom: 16 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</label>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>{label}</label>
                       <span style={{ fontSize: 11, color: t.textMuted }}>{value}</span>
                     </div>
                     <input type="range" min={min} max={max} step={step} value={value}
@@ -9802,7 +9800,7 @@ export default function TemplatesEditorInner() {
 
                       {/* S1: Brand Logo */}
                       <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Brand Logo</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Brand Logo</div>
                         {brandProfile?.logo_url ? (
                           <>
                             <div onMouseDown={e => { e.preventDefault(); addImageElement(brandProfile.logo_url); }}
@@ -9823,7 +9821,7 @@ export default function TemplatesEditorInner() {
                       {/* S2: Brand Colors */}
                       <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 16 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Colors</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>Brand Colors</div>
                           <button onClick={() => router.push('/settings')} style={{ background: 'none', border: 'none', color: TEAL, fontSize: 11, cursor: 'pointer', padding: 0, fontWeight: 600 }}>Edit</button>
                         </div>
                         {/* Large swatches row */}
@@ -9858,7 +9856,7 @@ export default function TemplatesEditorInner() {
 
                       {/* S3: Brand Fonts */}
                       <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 16 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Brand Fonts</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Brand Fonts</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {brandFonts.map(f => (
                             <button key={f.role} onMouseDown={e => { e.preventDefault(); addText(f.overrides); }}
@@ -9876,7 +9874,7 @@ export default function TemplatesEditorInner() {
 
                       {/* S4: Brand Voice */}
                       <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Brand Voice</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Brand Voice</div>
                         <div style={{ background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, padding: '12px 14px', marginBottom: 10 }}>
                           <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 8, fontFamily: 'Montserrat', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {brandProfile?.business_name || 'Your Business'}
@@ -10021,7 +10019,7 @@ export default function TemplatesEditorInner() {
                 </div>
                 {drawMode && (
                   <div style={{ background: t.input, borderRadius: 10, padding: '12px 12px 10px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pen settings</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>Pen settings</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36 }}>Color</span>
                       <input type="color" value={drawColor} onChange={e => setDrawColor(e.target.value)}
@@ -10270,8 +10268,11 @@ export default function TemplatesEditorInner() {
                     ref={isActive ? canvasWrapperRef : null}
                     style={{
                       position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0,
-                      borderRadius: 8, cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
+                      borderRadius: 8, overflow: 'hidden', cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
                       opacity: page.hidden ? 0.35 : 1,
+                      boxShadow: isActive
+                        ? `0 0 0 2px ${TEAL}, 0 4px 24px rgba(0,0,0,0.22), 0 1px 6px rgba(0,0,0,0.12)`
+                        : '0 2px 12px rgba(0,0,0,0.16), 0 1px 3px rgba(0,0,0,0.10)',
                       background: pageBgType === 'transparent'
                         ? 'repeating-conic-gradient(#aaa 0% 25%, #fff 0% 50%) 0 0 / 20px 20px'
                         : undefined,
@@ -10287,7 +10288,7 @@ export default function TemplatesEditorInner() {
                       height={canvasSize.h}
                       scaleX={stageScale}
                       scaleY={stageScale}
-                      style={{ borderRadius: 8, boxShadow: isActive ? `0 0 0 2px ${TEAL}, 0 12px 48px rgba(0,0,0,0.35)` : '0 8px 40px rgba(0,0,0,0.25)', display: 'block', width: stageDisplayW, height: stageDisplayH }}
+                      style={{ display: 'block', width: stageDisplayW, height: stageDisplayH }}
                       onClick={isActive ? (e => {
                         if (e.target === e.target.getStage()) {
                           clearSelection();
@@ -10786,7 +10787,7 @@ export default function TemplatesEditorInner() {
         {showPagesPanel && (
           <div style={{ width: 140, borderLeft: `1px solid ${t.border}`, background: t.card, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
             <div style={{ padding: '8px 10px 6px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pages</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>Pages</span>
               <button onClick={() => setShowPagesPanel(false)}
                 style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
             </div>
@@ -10851,7 +10852,7 @@ export default function TemplatesEditorInner() {
             {/* PROPERTIES TAB */}
             {rightTab === 'properties' && (() => {
               const SH = ({ children }) => (
-                <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, marginTop: 14 }}>{children}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 5, marginTop: 14 }}>{children}</div>
               );
               const lbl = { fontSize: 10, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 3 };
               const inp = { width: '100%', padding: '5px 7px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, boxSizing: 'border-box', outline: 'none' };
@@ -11275,7 +11276,7 @@ export default function TemplatesEditorInner() {
 
       {/* ── Bottom status bar (Canva-style) ── */}
       <div style={{
-        height: 40, display: 'flex', alignItems: 'center', gap: 4,
+        height: 32, display: 'flex', alignItems: 'center', gap: 4,
         padding: '0 12px', borderTop: `1px solid ${t.border}`,
         background: t.card, flexShrink: 0, zIndex: 8, position: 'relative',
         fontSize: 12, color: t.textMuted, userSelect: 'none',
@@ -11312,8 +11313,8 @@ export default function TemplatesEditorInner() {
         {/* Fit to screen */}
         <button onClick={() => setZoomFactor(1)}
           onMouseEnter={e => showTip(e, 'Fit to screen', 'Ctrl+0')} onMouseLeave={hideTip}
-          style={{ height: 26, padding: '0 8px', border: `1px solid ${t.border}`, borderRadius: 5,
-            background: t.input, color: t.textMuted, fontSize: 11, cursor: 'pointer',
+          style={{ height: 26, padding: '0 8px', border: 'none', borderRadius: 6,
+            background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'background 100ms' }}
           onMouseEnterCapture={e => e.currentTarget.style.color = t.text}
           onMouseLeaveCapture={e => e.currentTarget.style.color = t.textMuted}>
@@ -11323,8 +11324,8 @@ export default function TemplatesEditorInner() {
         {/* Zoom out */}
         <button onClick={zoomOut}
           onMouseEnter={e => showTip(e, 'Zoom out', 'Ctrl+−')} onMouseLeave={hideTip}
-          style={{ width: 26, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
-            background: t.input, color: t.text, fontSize: 16, lineHeight: 1, cursor: 'pointer',
+          style={{ width: 26, height: 26, border: 'none', borderRadius: 6,
+            background: 'transparent', color: t.text, fontSize: 16, lineHeight: 1, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 100ms' }}>
           −
         </button>
@@ -11338,8 +11339,8 @@ export default function TemplatesEditorInner() {
         {/* Zoom in */}
         <button onClick={zoomIn}
           onMouseEnter={e => showTip(e, 'Zoom in', 'Ctrl++')} onMouseLeave={hideTip}
-          style={{ width: 26, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
-            background: t.input, color: t.text, fontSize: 16, lineHeight: 1, cursor: 'pointer',
+          style={{ width: 26, height: 26, border: 'none', borderRadius: 6,
+            background: 'transparent', color: t.text, fontSize: 16, lineHeight: 1, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 100ms' }}>
           +
         </button>
@@ -11347,8 +11348,8 @@ export default function TemplatesEditorInner() {
         {/* Zoom % pill — click to reset to 100% */}
         <button onClick={() => setZoomFactor(1)}
           onMouseEnter={e => showTip(e, 'Reset zoom', 'Ctrl+0')} onMouseLeave={hideTip}
-          style={{ minWidth: 46, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
-            background: t.input, color: t.text, fontSize: 12, cursor: 'pointer',
+          style={{ minWidth: 46, height: 26, border: 'none', borderRadius: 6,
+            background: 'transparent', color: t.text, fontSize: 12, cursor: 'pointer',
             padding: '0 7px', flexShrink: 0, fontWeight: 500, transition: 'background 100ms' }}>
           {Math.round(zoomFactor * 100)}%
         </button>
