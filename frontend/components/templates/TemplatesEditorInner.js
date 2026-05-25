@@ -4401,6 +4401,32 @@ export default function TemplatesEditorInner() {
     return () => window.removeEventListener('keydown', handler);
   }, [selectedId, selectedIds, editingTextId, history, historyIndex, elements, clipboard, zoomFactor, previewOpen]);
 
+  // ── Canvas-only Ctrl+scroll zoom (passive:false so preventDefault works) ──
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = el.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left + el.scrollLeft;
+      const cursorY = e.clientY - rect.top + el.scrollTop;
+      const factor = e.deltaY > 0 ? 0.92 : 1.08;
+      setZoomFactor(prev => {
+        const next = Math.max(0.1, Math.min(3, parseFloat((prev * factor).toFixed(3))));
+        requestAnimationFrame(() => {
+          const ratio = next / prev;
+          el.scrollLeft = cursorX * ratio - (e.clientX - rect.left);
+          el.scrollTop  = cursorY * ratio - (e.clientY - rect.top);
+        });
+        return next;
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
   // ── Spacebar pan ───────────────────────────────────────────────────────────
   useEffect(() => {
     const el = containerRef.current;
@@ -9708,29 +9734,6 @@ export default function TemplatesEditorInner() {
           }
         `}</style>
         <div ref={containerRef}
-          onWheel={e => {
-            if (e.ctrlKey || e.metaKey) {
-              e.preventDefault();
-              const el = containerRef.current;
-              if (!el) return;
-              // Cursor position relative to scroll container
-              const rect = el.getBoundingClientRect();
-              const cursorY = e.clientY - rect.top + el.scrollTop;
-              const cursorX = e.clientX - rect.left + el.scrollLeft;
-              const factor = e.deltaY > 0 ? 0.92 : 1.08;
-              setZoomFactor(prev => {
-                const next = Math.max(0.1, Math.min(3, parseFloat((prev * factor).toFixed(3))));
-                // After state update, adjust scroll so cursor-under-point stays fixed
-                requestAnimationFrame(() => {
-                  if (!el) return;
-                  const ratio = next / prev;
-                  el.scrollLeft = cursorX * ratio - (e.clientX - rect.left);
-                  el.scrollTop  = cursorY * ratio - (e.clientY - rect.top);
-                });
-                return next;
-              });
-            }
-          }}
           style={{ flex: 1, overflow: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
             {pages.map((page, pageIdx) => {
