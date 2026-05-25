@@ -676,6 +676,30 @@ Return ONLY valid JSON (no markdown fences):
     }
   });
 
+  // ── POST /api/studio/templates/:id/thumbnail — admin: save screenshot as thumbnail ──
+  router.post('/templates/:id/thumbnail', authenticate, async (req, res) => {
+    try {
+      const { rows: [cust] } = await pool.query('SELECT is_admin FROM customers WHERE id = $1', [req.customerId]);
+      if (!cust?.is_admin) return res.status(403).json({ error: 'Admin only' });
+
+      const { dataUrl } = req.body;
+      if (!dataUrl || !dataUrl.startsWith('data:image/')) return res.status(400).json({ error: 'Valid dataUrl required' });
+
+      const cloudinary = require('cloudinary').v2;
+      const result = await cloudinary.uploader.upload(dataUrl, {
+        folder: 'itsposting/template-thumbs',
+        resource_type: 'image',
+        transformation: [{ width: 540, height: 675, crop: 'fill', quality: 85, format: 'jpg' }],
+      });
+
+      await pool.query('UPDATE canvas_templates SET thumbnail_url = $1 WHERE id = $2', [result.secure_url, req.params.id]);
+      res.json({ url: result.secure_url });
+    } catch (err) {
+      console.error('[Studio] POST /templates/:id/thumbnail:', err.message);
+      res.status(500).json({ error: 'Thumbnail save failed' });
+    }
+  });
+
   // ── GET /api/studio/stock-search — Pexels royalty-free stock photos ─────────
   router.get('/stock-search', authenticate, async (req, res) => {
     try {

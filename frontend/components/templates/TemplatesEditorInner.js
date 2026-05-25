@@ -3866,6 +3866,7 @@ export default function TemplatesEditorInner() {
   const [curatedLoading, setCuratedLoading] = useState(false);
   const [templateCategory, setTemplateCategory] = useState('all');
   const [templateThumbs, setTemplateThumbs] = useState({});
+  const [thumbGenProgress, setThumbGenProgress] = useState(null); // null | { current, total, name }
   const [brandProfile, setBrandProfile] = useState(null);
   const [brandLoading, setBrandLoading] = useState(false);
   const [uploadItems, setUploadItems] = useState([]);
@@ -4163,6 +4164,52 @@ export default function TemplatesEditorInner() {
         await new Promise(r => setTimeout(r, 20));
       } catch (_) {}
     }
+  }
+
+  // ── Admin: generate permanent thumbnails by rendering each template into the canvas ──
+  async function generateAllThumbsFromCanvas() {
+    if (thumbGenProgress || !stageRef.current) return;
+    const toProcess = curatedTemplates.filter(t => !t.thumbnail_url);
+    if (toProcess.length === 0) return;
+
+    // Save current canvas state so we can restore it
+    const savedSnapshot = { activePage, pages: JSON.parse(JSON.stringify(pages)) };
+    const token = localStorage.getItem('token');
+
+    for (let i = 0; i < toProcess.length; i++) {
+      const tmpl = toProcess[i];
+      setThumbGenProgress({ current: i + 1, total: toProcess.length, name: tmpl.name });
+
+      // Load template into the main canvas
+      const snapData = tmpl.canvas_json || await studioAPI.getTemplate(tmpl.id).then(r => r.data?.template?.canvas_json).catch(() => null);
+      if (!snapData) continue;
+      restoreSnapshot(snapData);
+
+      // Wait for React to re-render + Konva to draw all elements
+      await new Promise(r => setTimeout(r, 700));
+
+      if (!stageRef.current) continue;
+      try {
+        // Full-resolution screenshot
+        const pixelRatio = 1080 / stageRef.current.width();
+        const dataUrl = stageRef.current.toDataURL({ mimeType: 'image/jpeg', quality: 0.92, pixelRatio });
+
+        // Save to Cloudinary via backend
+        const resp = await fetch(`/api/studio/templates/${tmpl.id}/thumbnail`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ dataUrl }),
+        });
+        const data = await resp.json();
+        if (data.url) {
+          setCuratedTemplates(prev => prev.map(t => t.id === tmpl.id ? { ...t, thumbnail_url: data.url } : t));
+        }
+      } catch (_) {}
+    }
+
+    // Restore the original canvas
+    restoreSnapshot(savedSnapshot);
+    setThumbGenProgress(null);
   }
 
   useEffect(() => {
@@ -8441,7 +8488,18 @@ export default function TemplatesEditorInner() {
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>ItsPosting Templates</div>
-                        <div style={{ fontSize: 11, color: t.textMuted }}>{filtered.length}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {thumbGenProgress ? (
+                            <div style={{ fontSize: 10, color: TEAL, fontWeight: 600 }}>{thumbGenProgress.current}/{thumbGenProgress.total}</div>
+                          ) : brandProfile?.is_admin && curatedTemplates.some(t => !t.thumbnail_url) ? (
+                            <button onClick={generateAllThumbsFromCanvas}
+                              title="Generate permanent thumbnails for all templates (admin only)"
+                              style={{ fontSize: 10, color: TEAL, background: 'rgba(0,196,204,0.1)', border: `1px solid rgba(0,196,204,0.3)`, borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontWeight: 600 }}>
+                              Gen Thumbs
+                            </button>
+                          ) : null}
+                          <div style={{ fontSize: 11, color: t.textMuted }}>{filtered.length}</div>
+                        </div>
                       </div>
                       {/* Category chips */}
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
