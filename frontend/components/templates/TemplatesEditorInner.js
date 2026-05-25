@@ -11587,6 +11587,7 @@ export default function TemplatesEditorInner() {
                       };
                       patchElements(els => [...els, newEl]);
                       setSelectedIds([newEl.id]);
+                      setSelectedId(newEl.id);
                       setExtractModal(false);
                       setExtractResult(null);
                       setExtractClickDot(null);
