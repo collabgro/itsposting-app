@@ -1293,6 +1293,29 @@ export default function Wizard() {
                   </button>
                 )}
 
+                {/* Edit in Video Editor CTA — only for completed video posts */}
+                {results.contentTypeSelection === 'video' && results.mediaUrl && results.videoRendering !== true && (
+                  <button
+                    onClick={() => router.push(results.studioCreationId
+                      ? `/templates/video-editor?id=${results.studioCreationId}`
+                      : `/templates/video-editor?videoUrl=${encodeURIComponent(results.mediaUrl)}`
+                    )}
+                    style={{
+                      width: '100%', marginBottom: 10,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '10px 16px', borderRadius: 10,
+                      background: 'transparent', border: `1.5px solid rgba(0,196,204,0.4)`,
+                      color: '#00C4CC', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      transition: 'border-color 150ms, background 150ms',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#00C4CC'; e.currentTarget.style.background = 'rgba(0,196,204,0.08)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,196,204,0.4)'; e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <span style={{ fontSize: 15 }}>✏️</span>
+                    Edit Video
+                  </button>
+                )}
+
                 {/* Platform badges with connection status */}
                 {(() => {
                   const targetPlatforms = results.platform === 'all'

@@ -67,7 +67,7 @@ function emptyProject(aspectRatio = '9:16') {
 export default function VideoEditorInner() {
   const t = useTheme();
   const router = useRouter();
-  const { id: editId } = router.query;
+  const { id: editId, videoUrl } = router.query;
 
   // ─── Auth guard ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -75,6 +75,30 @@ export default function VideoEditorInner() {
       router.replace('/login');
     }
   }, []);
+
+  // ─── Load connected social accounts ──────────────────────────────────────
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
+    fetch('/api/social/accounts', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => setConnectedAccounts(data.accounts || []))
+      .catch(() => {});
+  }, []);
+
+  // ─── Load AI-generated video from ?videoUrl= param ────────────────────────
+  useEffect(() => {
+    if (!videoUrl) return;
+    const decoded = decodeURIComponent(videoUrl);
+    const clip = {
+      id: nanoid(), url: decoded, name: 'AI Generated Video', type: 'video',
+      duration: 10, trackStart: 0, volume: 1, speed: 1,
+      trimStart: 0, trimEnd: 10,
+      filterPreset: 'none', brightness: 0, contrast: 0, saturation: 0,
+      kenBurns: 'none', transition: 'none',
+    };
+    setProject(p => ({ ...p, clips: [clip] }));
+  }, [videoUrl]);
 
   // ── Core state ──────────────────────────────────────────────────────────────
   const [project, setProject] = useState(emptyProject());
@@ -128,6 +152,13 @@ export default function VideoEditorInner() {
 
   // ── Export quality ──────────────────────────────────────────────────────────
   const [exportQuality, setExportQuality] = useState('1080p');
+
+  // ── Post to social ──────────────────────────────────────────────────────────
+  const [postModal, setPostModal] = useState(false);
+  const [postCaption, setPostCaption] = useState('');
+  const [postPlatforms, setPostPlatforms] = useState([]);
+  const [postStatus, setPostStatus] = useState('idle'); // idle | posting | done | error
+  const [connectedAccounts, setConnectedAccounts] = useState([]);
 
   // ── Real waveform cache ─────────────────────────────────────────────────────
   const [waveformData, setWaveformData] = useState({});
@@ -557,6 +588,40 @@ export default function VideoEditorInner() {
       setSaveError('Save failed');
     } finally {
       setSaving(false);
+    }
+  }
+
+  // ─── Post to social ───────────────────────────────────────────────────────
+
+  async function handlePostNow() {
+    if (postPlatforms.length === 0 || postStatus !== 'idle') return;
+    setPostStatus('posting');
+    try {
+      const token = localStorage.getItem('token');
+      let creationId = editId;
+      if (!creationId) {
+        const saveRes = await fetch('/api/studio/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ videoJson: project, creationType: 'video', title }),
+        });
+        const saveData = await saveRes.json();
+        creationId = saveData.creation?.id;
+      }
+      await fetch(`/api/studio/creations/${creationId}/post`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          caption: postCaption,
+          platforms: connectedAccounts.filter(a => postPlatforms.includes(a.id)).map(a => a.platform),
+          scheduleMode: 'now',
+        }),
+      });
+      setPostStatus('done');
+      setTimeout(() => { setPostModal(false); setPostStatus('idle'); }, 2500);
+    } catch (err) {
+      console.error('[VideoEditor] post error:', err);
+      setPostStatus('error');
     }
   }
 
@@ -1523,9 +1588,9 @@ export default function VideoEditorInner() {
 
       {/* ── Toolbar ── */}
       <div style={s.toolbar}>
-        <button onClick={() => router.push('/media?tab=templates')}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12, cursor: 'pointer' }}>
-          <IpArrowLeft size={14} /> Back
+        <button onClick={() => router.push('/media?tab=studio')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'rgba(255,255,255,0.08)', border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+          <IpArrowLeft size={14} /> ItsPosting
         </button>
 
         {/* Aspect ratio */}
@@ -1580,6 +1645,12 @@ export default function VideoEditorInner() {
           <option value="720p">720p</option>
           <option value="1080p">1080p</option>
         </select>
+
+        {/* Post Video */}
+        <button onClick={() => setPostModal(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', background: '#00C4CC', border: 'none', borderRadius: 6, color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+          Post Video
+        </button>
 
         {/* Export */}
         <button onClick={() => handleExport(exportQuality)} disabled={exporting || !project.clips.length}
@@ -1961,6 +2032,61 @@ export default function VideoEditorInner() {
           </div>
         </div>
       </div>
+
+      {/* ── Post Video modal ── */}
+      {postModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setPostModal(false); }}>
+          <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 28, width: 460, border: '1px solid #2a2a2a', boxShadow: '0 20px 60px rgba(0,0,0,0.6)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>Post Your Video</span>
+              <button onClick={() => setPostModal(false)} style={{ background: 'none', border: 'none', color: '#666', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+
+            {postStatus === 'done' ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#fff', marginBottom: 8 }}>Your video is posting!</div>
+                <div style={{ fontSize: 13, color: '#888' }}>It will appear on your social accounts shortly.</div>
+              </div>
+            ) : (
+              <>
+                <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 6 }}>Caption</label>
+                <textarea value={postCaption} onChange={e => setPostCaption(e.target.value)}
+                  placeholder="Write your caption here…"
+                  style={{ width: '100%', minHeight: 100, padding: 10, borderRadius: 8, border: '1px solid #2a2a2a', background: '#111', color: '#fff', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', marginBottom: 16, outline: 'none' }} />
+
+                <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 8 }}>Post to</label>
+                {connectedAccounts.length === 0 ? (
+                  <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
+                    No social accounts connected. <a href="/settings" style={{ color: '#00C4CC' }}>Connect in Settings →</a>
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+                    {connectedAccounts.map(acct => (
+                      <label key={acct.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 7, background: postPlatforms.includes(acct.id) ? 'rgba(0,196,204,0.15)' : '#111', border: `1px solid ${postPlatforms.includes(acct.id) ? '#00C4CC' : '#2a2a2a'}`, cursor: 'pointer', fontSize: 13, color: '#fff', userSelect: 'none' }}>
+                        <input type="checkbox" checked={postPlatforms.includes(acct.id)}
+                          onChange={() => setPostPlatforms(p => p.includes(acct.id) ? p.filter(x => x !== acct.id) : [...p, acct.id])}
+                          style={{ display: 'none' }} />
+                        {acct.platform_name || acct.platform}
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                {postStatus === 'error' && (
+                  <div style={{ fontSize: 13, color: '#f87171', marginBottom: 12 }}>Posting failed. Please try again.</div>
+                )}
+
+                <button onClick={handlePostNow} disabled={postPlatforms.length === 0 || postStatus === 'posting'}
+                  style={{ width: '100%', height: 44, borderRadius: 8, border: 'none', background: postPlatforms.length === 0 ? '#333' : '#00C4CC', color: postPlatforms.length === 0 ? '#666' : '#000', fontWeight: 700, fontSize: 15, cursor: postPlatforms.length === 0 ? 'not-allowed' : 'pointer', transition: 'background 150ms' }}>
+                  {postStatus === 'posting' ? 'Posting…' : 'Post Now'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
