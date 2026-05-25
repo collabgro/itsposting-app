@@ -5885,26 +5885,25 @@ export default function TemplatesEditorInner() {
                 {/* Menu items */}
                 <div style={{ padding: '4px 0' }}>
                   {[
-                    { icon: '⊕', label: 'Create new design',      fn: () => { if (elements.length === 0 || confirm('Start a new blank design?')) { pushHistory(); setPages([emptyPage()]); setActivePage(0); clearSelection(); setTitleForSave(''); } } },
-                    { icon: '↑', label: 'Upload files',            fn: () => { uploadFileRef.current?.click(); } },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>, label: 'New design', right: 'Ctrl+N', fn: () => { if (elements.length === 0 || confirm('Start a new blank design?')) { pushHistory(); setPages([emptyPage()]); setActivePage(0); clearSelection(); setTitleForSave(''); } } },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>, label: 'Upload files', fn: () => { uploadFileRef.current?.click(); } },
                     null,
-                    { icon: '💾', label: 'Save',                   right: saving ? 'Saving…' : 'All changes saved', fn: () => handleSave() },
-                    { icon: '⧉', label: 'Make a copy',            fn: () => { const copy = JSON.parse(JSON.stringify(pages)); const now = Date.now(); copy.forEach((p,i) => { p.id = `page_${now+i}_copy`; }); pushHistory(); setPages(copy); } },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>, label: 'Save', right: saveStatus === 'saving' ? 'Saving…' : 'Ctrl+S', fn: () => handleSave() },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>, label: 'Make a copy', fn: () => { const copy = JSON.parse(JSON.stringify(pages)); const now = Date.now(); copy.forEach((p,i) => { p.id = `page_${now+i}_copy`; }); pushHistory(); setPages(copy); } },
                     null,
-                    { icon: '⬇', label: 'Download PNG',           fn: () => downloadCanvas('image/png',  'png',  1)    },
-                    { icon: '⬇', label: 'Download JPEG',          fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
-                    { icon: '🖨', label: 'Print',                  right: 'Ctrl+P', fn: () => window.print() },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>, label: 'Download PNG',  right: 'PNG', fn: () => downloadCanvas('image/png',  'png',  1)    },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>, label: 'Download JPEG', right: 'JPG', fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>, label: 'Print', right: 'Ctrl+P', fn: () => window.print() },
                   ].map((item, i) => item === null
-                    ? <div key={i} style={{ height: 1, background: t.border, margin: '4px 0' }} />
+                    ? <div key={i} style={{ height: 1, background: t.border, margin: '3px 0' }} />
                     : (
                       <button key={i} onMouseDown={e => { e.preventDefault(); item.fn(); setShowFileMenu(false); }}
-                        style={{ width: '100%', padding: '8px 16px', border: 'none', background: 'transparent', color: item.danger ? t.error : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', transition: 'background 100ms' }}
+                        style={{ width: '100%', padding: '7px 14px', border: 'none', background: 'transparent', color: item.danger ? t.error : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', transition: 'background 80ms' }}
                         onMouseEnter={e => e.currentTarget.style.background = t.input}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <span style={{ fontSize: 14, width: 16, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                        <span style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', color: t.textMuted }}>{item.icon}</span>
                         <span style={{ flex: 1 }}>{item.label}</span>
-                        {item.right && <span style={{ fontSize: 11, color: t.textMuted, flexShrink: 0 }}>{item.right}</span>}
-                        {item.arrow && <span style={{ color: t.textMuted }}>›</span>}
+                        {item.right && <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0, fontFamily: 'monospace', background: t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)', padding: '2px 5px', borderRadius: 4 }}>{item.right}</span>}
                       </button>
                     )
                   )}
@@ -8194,61 +8193,72 @@ export default function TemplatesEditorInner() {
 
         {/* ── Left sidebar: 72px icon strip + 320px collapsible flyout ── */}
 
-        {/* 72px icon strip — always visible */}
-        <div style={{ width: 72, borderRight: `1px solid ${t.border}`, background: t.sidebar,
+        {/* 76px icon strip — always visible */}
+        <div style={{ width: 76, borderRight: `1px solid ${t.border}`, background: t.sidebar,
           display: 'flex', flexDirection: 'column', alignItems: 'center',
-          padding: '8px 0', flexShrink: 0, gap: 2 }}>
+          padding: '10px 0', flexShrink: 0, gap: 1 }}>
           {[
-            { id: 'templates', icon: <IcoTemplates size={20} />, label: 'Templates' },
-            { id: 'elements',  icon: <IpSparkle size={20} />,    label: 'Elements'  },
-            { id: 'text',      icon: <IpTextCard size={20} />,   label: 'Text',      shortcut: 'T' },
-            { id: 'brand',     icon: <IpPalette size={20} />,    label: 'Brand'    },
-            { id: 'uploads',   icon: <IpPublish size={20} />,    label: 'Uploads'   },
-            { id: 'layers',    icon: <IcoLayers size={20} />,    label: 'Layers'    },
-            { id: 'tools',     icon: <IpEdit size={20} />,       label: 'Tools'     },
-            { id: 'projects',  icon: <IpFolderOpen size={20} />, label: 'Projects'  },
-          ].map(tool => (
+            { id: 'templates', icon: <IcoTemplates size={21} />, label: 'Templates' },
+            { id: 'elements',  icon: <IpSparkle size={21} />,    label: 'Elements'  },
+            { id: 'text',      icon: <IpTextCard size={21} />,   label: 'Text',      shortcut: 'T' },
+            { id: 'brand',     icon: <IpPalette size={21} />,    label: 'Brand'    },
+            { id: 'uploads',   icon: <IpPublish size={21} />,    label: 'Uploads'   },
+            { id: 'layers',    icon: <IcoLayers size={21} />,    label: 'Layers'    },
+            { id: 'tools',     icon: <IpEdit size={21} />,       label: 'Tools'     },
+            { id: 'projects',  icon: <IpFolderOpen size={21} />, label: 'Projects'  },
+          ].map(tool => {
+            const isActive = activeLeftTool === tool.id && panelOpen;
+            return (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
-              onMouseEnter={e => showTip(e, tool.label, tool.shortcut)}
-              onMouseLeave={hideTip}
+              onMouseEnter={e => { showTip(e, tool.label, tool.shortcut); if (!isActive) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; }}
+              onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
               style={{
-                width: 60, padding: '10px 0 6px',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                background: activeLeftTool === tool.id && panelOpen ? 'rgba(0,196,204,0.15)' : 'transparent',
-                border: 'none', borderRadius: 8, cursor: 'pointer',
-                color: activeLeftTool === tool.id && panelOpen ? TEAL : t.textMuted,
-                fontSize: 10, fontWeight: activeLeftTool === tool.id && panelOpen ? 600 : 400,
-                transition: 'background 100ms ease, color 100ms ease, transform 100ms ease',
+                width: 64, padding: '9px 0 6px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                background: isActive ? 'rgba(0,196,204,0.1)' : 'transparent',
+                border: 'none',
+                borderLeft: isActive ? `3px solid ${TEAL}` : '3px solid transparent',
+                borderRadius: '0 8px 8px 0',
+                cursor: 'pointer',
+                color: isActive ? TEAL : t.textMuted,
+                fontSize: 10, fontWeight: isActive ? 700 : 400,
+                transition: 'background 120ms ease, color 120ms ease, border-color 120ms ease',
                 position: 'relative',
+                flexShrink: 0,
               }}
-              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
-              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
             >
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>{tool.icon}</span>
-              {tool.label}
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26 }}>{tool.icon}</span>
+              <span style={{ fontSize: 10, lineHeight: 1, textAlign: 'center', letterSpacing: '0.01em' }}>{tool.label}</span>
             </button>
-          ))}
+            );
+          })}
           <div style={{ flex: 1 }} />
           {[
-            { id: 'apps',  icon: <IpPlus size={20} />,    label: 'Apps'       },
-            { id: 'magic', icon: <IpSparkle size={20} />, label: 'Magic Media' },
-          ].map(tool => (
+            { id: 'apps',  icon: <IpPlus size={21} />,    label: 'Apps'       },
+            { id: 'magic', icon: <IpSparkle size={21} />, label: 'AI Generate' },
+          ].map(tool => {
+            const isActive = activeLeftTool === tool.id && panelOpen;
+            return (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
-              onMouseEnter={e => showTip(e, tool.label)}
-              onMouseLeave={hideTip}
+              onMouseEnter={e => { showTip(e, tool.label); if (!isActive) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; }}
+              onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
               style={{
-                width: 60, padding: '10px 0 6px',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                background: activeLeftTool === tool.id && panelOpen ? 'rgba(0,196,204,0.15)' : 'transparent',
-                border: 'none', borderRadius: 8, cursor: 'pointer',
-                color: activeLeftTool === tool.id && panelOpen ? TEAL : t.textMuted,
-                fontSize: 10, fontWeight: activeLeftTool === tool.id && panelOpen ? 600 : 400,
-                transition: 'background 100ms ease, color 100ms ease',
+                width: 64, padding: '9px 0 6px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                background: isActive ? 'rgba(0,196,204,0.1)' : 'transparent',
+                border: 'none',
+                borderLeft: isActive ? `3px solid ${TEAL}` : '3px solid transparent',
+                borderRadius: '0 8px 8px 0',
+                cursor: 'pointer',
+                color: isActive ? TEAL : t.textMuted,
+                fontSize: 10, fontWeight: isActive ? 700 : 400,
+                transition: 'background 120ms ease, color 120ms ease',
               }}>
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>{tool.icon}</span>
-              {tool.label}
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26 }}>{tool.icon}</span>
+              <span style={{ fontSize: 10, lineHeight: 1, textAlign: 'center', letterSpacing: '0.01em' }}>{tool.label}</span>
             </button>
-          ))}
+            );
+          })}
         </div>
 
         {/* 320px collapsible flyout */}
@@ -8749,18 +8759,24 @@ export default function TemplatesEditorInner() {
                   {!fontSearch && (
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Default Text Styles</div>
-                      <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 64, fontFamily: 'Bebas Neue', fontStyle: 'normal', text: 'Service Announcement', letterSpacing: 2 }); }}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontFamily: 'Bebas Neue', fontSize: 26, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                        Heading
-                      </button>
-                      <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 36, fontFamily: 'Montserrat', fontStyle: 'bold', text: 'Your Local Expert' }); }}
-                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontFamily: 'Montserrat', fontWeight: 700, fontSize: 16, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                        Subheading
-                      </button>
-                      <button onMouseDown={e => { e.preventDefault(); addText({ fontSize: 20, fontFamily: 'Inter', fontStyle: 'normal', text: 'Professional service you can trust' }); }}
-                        style={{ width: '100%', padding: '9px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontFamily: 'Inter', fontWeight: 400, fontSize: 12, textAlign: 'left', cursor: 'pointer', marginBottom: 6, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                        Body text
-                      </button>
+                      {[
+                        { label: 'Add a heading',    family: 'Bebas Neue', size: 28, weight: 400, previewText: 'HEADING',    subLabel: 'Bebas Neue · 64px',    overrides: { fontSize: 64,  fontFamily: 'Bebas Neue',   fontStyle: 'normal', text: 'Service Announcement', letterSpacing: 2 } },
+                        { label: 'Add a subheading', family: 'Montserrat', size: 17, weight: 700, previewText: 'Subheading', subLabel: 'Montserrat Bold · 36px', overrides: { fontSize: 36,  fontFamily: 'Montserrat',   fontStyle: 'bold',   text: 'Your Local Expert' } },
+                        { label: 'Add body text',    family: 'Inter',      size: 12, weight: 400, previewText: 'Body text — professional service you can trust', subLabel: 'Inter · 20px', overrides: { fontSize: 20, fontFamily: 'Inter', fontStyle: 'normal', text: 'Professional service you can trust' } },
+                      ].map(s => (
+                        <button key={s.label} onMouseDown={e => { e.preventDefault(); addText(s.overrides); }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = TEAL; e.currentTarget.style.transform = 'scale(1.01)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = ''; }}
+                          style={{ width: '100%', display: 'block', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, cursor: 'pointer', marginBottom: 7, overflow: 'hidden', textAlign: 'left', padding: 0, transition: 'border-color 150ms, transform 150ms' }}>
+                          <div style={{ padding: '10px 14px 8px', background: t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', borderBottom: `1px solid ${t.border}` }}>
+                            <span style={{ fontFamily: s.family, fontSize: s.size, fontWeight: s.weight, color: t.text, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', lineHeight: 1.3 }}>{s.previewText}</span>
+                          </div>
+                          <div style={{ padding: '4px 10px 5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 10, color: t.textMuted }}>{s.label}</span>
+                            <span style={{ fontSize: 9, color: t.textMuted, opacity: 0.6 }}>{s.subLabel}</span>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   )}
 
@@ -8904,25 +8920,40 @@ export default function TemplatesEditorInner() {
                 : uploadTabItems;
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {/* Upload button */}
-                  <label style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
-                      onChange={async e => {
-                        const files = Array.from(e.target.files);
-                        if (!files.length) return;
-                        setUploadProgress(0);
-                        try {
-                          const res = await mediaAPI.upload(files, 'all', p => setUploadProgress(p));
-                          const newItems = res.data?.files || [];
-                          setUploadItems(prev => [...newItems, ...prev]);
-                          if (newItems[0]) addImageElement(newItems[0].url);
-                          const quotaRes = await mediaAPI.getQuota();
-                          setUploadQuota(quotaRes.data || null);
-                        } catch {}
-                        finally { setUploadProgress(null); }
-                      }} />
-                    <IpPublish size={15} color="#fff" /> Upload files
-                  </label>
+                  {/* Upload button row */}
+                  <div style={{ display: 'flex', gap: 7 }}>
+                    <label style={{ flex: 1, background: TEAL, color: '#000', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }}
+                        onChange={async e => {
+                          const files = Array.from(e.target.files);
+                          if (!files.length) return;
+                          setUploadProgress(0);
+                          try {
+                            const res = await mediaAPI.upload(files, 'all', p => setUploadProgress(p));
+                            const newItems = res.data?.files || [];
+                            setUploadItems(prev => [...newItems, ...prev]);
+                            if (newItems[0]) addImageElement(newItems[0].url);
+                            const quotaRes = await mediaAPI.getQuota();
+                            setUploadQuota(quotaRes.data || null);
+                          } catch {}
+                          finally { setUploadProgress(null); }
+                        }} />
+                      <IpPublish size={15} color="#000" /> Upload files
+                    </label>
+                    <button title="More upload options"
+                      style={{ width: 36, height: 40, border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.textMuted, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      ···
+                    </button>
+                  </div>
+                  {/* Record yourself ghost button */}
+                  <button
+                    onClick={() => { if (typeof window !== 'undefined' && navigator.mediaDevices) { alert('Camera recording coming soon!'); } }}
+                    style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: `1px solid ${t.border}`, background: 'transparent', color: t.textMuted, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'border-color 150ms, color 150ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = TEAL; e.currentTarget.style.color = TEAL; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="10" strokeDasharray="4 3"/></svg>
+                    Record yourself
+                  </button>
                   {/* Upload progress bar */}
                   {uploadProgress !== null && (
                     <div style={{ fontSize: 11, color: t.textMuted }}>
@@ -8942,13 +8973,13 @@ export default function TemplatesEditorInner() {
                     </div>
                   )}
                   {/* 2 tabs: Images | Videos */}
-                  <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, gap: 4 }}>
+                  <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, gap: 0 }}>
                     {[
                       { label: 'Images', icon: <IpPhoto size={12} /> },
                       { label: 'Videos', icon: <IpVideo size={12} /> },
                     ].map(({ label, icon }) => (
                       <button key={label} onClick={() => setUploadMediaTab(label)}
-                        style={{ paddingBottom: 8, paddingTop: 4, paddingLeft: 6, paddingRight: 6, border: 'none', borderBottom: `2px solid ${uploadMediaTab === label ? TEAL : 'transparent'}`, background: 'transparent', color: uploadMediaTab === label ? TEAL : t.textMuted, fontSize: 12, fontWeight: uploadMediaTab === label ? 600 : 400, cursor: 'pointer', transition: 'all 150ms', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        style={{ flex: 1, paddingBottom: 9, paddingTop: 6, border: 'none', borderBottom: `2px solid ${uploadMediaTab === label ? TEAL : 'transparent'}`, background: 'transparent', color: uploadMediaTab === label ? TEAL : t.textMuted, fontSize: 12, fontWeight: uploadMediaTab === label ? 600 : 400, cursor: 'pointer', transition: 'all 150ms', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                         {icon} {label}
                       </button>
                     ))}
@@ -9054,6 +9085,25 @@ export default function TemplatesEditorInner() {
                           style={{ flex: 1, background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px', color: t.text, fontSize: 13, cursor: 'pointer' }}>
                           Cancel
                         </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── BG Remover Promo Card ── */}
+                  {uploadMediaTab === 'Images' && (
+                    <div style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, marginTop: 4 }}>
+                      <div style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #2a1050 60%, #0a2040 100%)', padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 18 }}>✂️</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Background Remover</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginBottom: 10, lineHeight: 1.4 }}>
+                          Place any image on the canvas, select it, then use "✂ Remove BG" in the toolbar.
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span style={{ fontSize: 10, background: 'rgba(0,196,204,0.2)', color: TEAL, padding: '2px 7px', borderRadius: 20, fontWeight: 600 }}>Already included</span>
+                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Instant AI removal</span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -9207,19 +9257,25 @@ export default function TemplatesEditorInner() {
               };
               return (
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                {/* Search bar */}
+                {/* Search bar — AI-powered description search */}
                 <div style={{ display:'flex', alignItems:'center', gap:8, background:t.input, borderRadius:8, padding:'8px 12px', border:`1px solid ${elemSearch ? TEAL : t.border}`, transition:'border-color 150ms' }}>
-                  <span style={{ color:TEAL, flexShrink:0, display:'flex' }}><IpPlus size={15}/></span>
+                  <span style={{ color: elemSearch ? TEAL : t.textMuted, flexShrink:0, display:'flex' }}><IpSearch size={15}/></span>
                   <input value={elemSearch} onChange={e => { setElemSearch(e.target.value); setActiveElemCat(null); }}
-                    placeholder="Search elements..." style={{ flex:1, background:'transparent', border:'none', outline:'none', color:t.text, fontSize:13 }} />
-                  {elemSearch && <button onClick={() => setElemSearch('')} style={{ background:'none', border:'none', color:t.textMuted, cursor:'pointer', padding:0, fontSize:18, lineHeight:1, display:'flex' }}>×</button>}
+                    placeholder="Describe your element…" style={{ flex:1, background:'transparent', border:'none', outline:'none', color:t.text, fontSize:13 }} />
+                  {elemSearch
+                    ? <button onClick={() => setElemSearch('')} style={{ background:'none', border:'none', color:t.textMuted, cursor:'pointer', padding:0, fontSize:18, lineHeight:1, display:'flex' }}>×</button>
+                    : <span title="AI search" style={{ color: t.textMuted, flexShrink:0, display:'flex' }}><IpSparkle size={13}/></span>
+                  }
                 </div>
                 {/* Generate + Search buttons */}
                 <div style={{ display:'flex', gap:8 }}>
-                  <button style={{ flex:1, background:'transparent', color:TEAL, border:`1.5px solid ${TEAL}`, borderRadius:8, padding:'9px 0', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
-                    <IpSparkle size={14}/> Generate
+                  <button style={{ flex:1.1, background:'linear-gradient(90deg,#7C5CFC,#00C4CC)', color:'#fff', border:'none', borderRadius:8, padding:'10px 0', fontSize:13, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                    <IpSparkle size={14}/> AI Generate
                   </button>
-                  <button style={{ flex:1.2, background:'linear-gradient(90deg,#7C5CFC,#00C4CC)', color:'#fff', border:'none', borderRadius:8, padding:'9px 0', fontSize:13, fontWeight:600, cursor:'pointer' }}>Search</button>
+                  <button style={{ flex:1, background:'transparent', color:TEAL, border:`1.5px solid ${TEAL}`, borderRadius:8, padding:'10px 0', fontSize:13, fontWeight:600, cursor:'pointer' }}
+                    onClick={() => { if (elemSearch.trim()) setActiveElemCat(null); }}>
+                    Search
+                  </button>
                 </div>
                 {/* Search Results */}
                 {filtered && (
@@ -9455,20 +9511,36 @@ export default function TemplatesEditorInner() {
 
                       {/* S2: Brand Colors */}
                       <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 16 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Brand Colors</div>
-                        <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Colors</div>
+                          <button onClick={() => router.push('/settings')} style={{ background: 'none', border: 'none', color: TEAL, fontSize: 11, cursor: 'pointer', padding: 0, fontWeight: 600 }}>Edit</button>
+                        </div>
+                        {/* Large swatches row */}
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                           {swatches.map(s => (
-                            <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }}
+                            <div key={s.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}
                               onMouseDown={e => { e.preventDefault(); if (selectedEl) handleElementChange({ ...selectedEl, fill: s.hex }); }}>
                               <div
-                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.12)'}
-                                onMouseLeave={e => e.currentTarget.style.transform = ''}
-                                style={{ width: 36, height: 36, borderRadius: '50%', background: s.hex, border: `2px solid ${t.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.18)', transition: 'transform 0.15s' }} />
+                                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = `0 0 0 2px ${TEAL}`; }}
+                                onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+                                title={`Apply ${s.label} (${s.hex})`}
+                                style={{ width: '100%', height: 48, borderRadius: 8, background: s.hex, border: `1.5px solid ${t.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.18)', cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s' }} />
                               <div style={{ textAlign: 'center', lineHeight: 1.4 }}>
-                                <div style={{ fontSize: 8, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
-                                <div style={{ fontSize: 9, color: t.textMuted, fontFamily: 'monospace' }}>{s.hex}</div>
+                                <div style={{ fontSize: 9, fontWeight: 600, color: t.textMuted }}>{s.label}</div>
+                                <div style={{ fontSize: 9, color: t.textMuted, fontFamily: 'monospace', opacity: 0.7 }}>{s.hex}</div>
                               </div>
                             </div>
+                          ))}
+                        </div>
+                        {/* Quick color chips: all brand colors */}
+                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                          {[brandPrimary, brandSecondary, brandAccent, '#ffffff', '#000000', '#f1f5f9', '#0f172a'].map(hex => (
+                            <button key={hex}
+                              onMouseDown={e => { e.preventDefault(); if (selectedEl) handleElementChange({ ...selectedEl, fill: hex }); }}
+                              title={hex}
+                              style={{ width: 24, height: 24, borderRadius: 6, background: hex, border: `1.5px solid ${t.border}`, cursor: 'pointer', flexShrink: 0, transition: 'transform 100ms' }}
+                              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
+                              onMouseLeave={e => e.currentTarget.style.transform = ''} />
                           ))}
                         </div>
                       </div>
@@ -9476,11 +9548,16 @@ export default function TemplatesEditorInner() {
                       {/* S3: Brand Fonts */}
                       <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 16 }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Brand Fonts</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {brandFonts.map(f => (
                             <button key={f.role} onMouseDown={e => { e.preventDefault(); addText(f.overrides); }}
-                              style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, textAlign: 'left', cursor: 'pointer', fontFamily: f.fontFamily, fontSize: f.previewSize, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                              {f.role}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = TEAL; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; }}
+                              style={{ width: '100%', padding: 0, borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, cursor: 'pointer', overflow: 'hidden', textAlign: 'left', transition: 'border-color 150ms' }}>
+                              <div style={{ padding: '10px 12px 8px', borderBottom: `1px solid ${t.border}`, background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }}>
+                                <span style={{ fontFamily: f.fontFamily, fontSize: f.previewSize, fontWeight: f.previewSize > 18 ? 400 : 700, color: t.text, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{f.role}</span>
+                              </div>
+                              <div style={{ padding: '4px 10px 5px', fontSize: 9, color: t.textMuted }}>{f.role} · {f.fontFamily}</div>
                             </button>
                           ))}
                         </div>
@@ -9818,30 +9895,30 @@ export default function TemplatesEditorInner() {
               return (
                 <div key={page.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                   {/* ── Page label row ── */}
-                  <div style={{ width: showRulers && isActive ? stageDisplayW + 20 : stageDisplayW, display: 'flex', alignItems: 'center', gap: 6, padding: `0 2px 0 ${showRulers && isActive ? 22 : 2}px` }}>
+                  <div style={{ width: showRulers && isActive ? stageDisplayW + 20 : stageDisplayW, display: 'flex', alignItems: 'center', gap: 4, padding: `3px 4px 3px ${showRulers && isActive ? 24 : 4}px`, borderRadius: 7, background: isActive ? (t.isDark ? 'rgba(0,196,204,0.07)' : 'rgba(0,196,204,0.08)') : 'transparent', transition: 'background 150ms' }}>
                     <span
                       onClick={() => { setActivePage(pageIdx); setSelectedId(null); }}
-                      style={{ fontSize: 12, fontWeight: 600, color: isActive ? TEAL : t.textMuted, cursor: 'pointer', minWidth: 52, userSelect: 'none' }}
+                      style={{ fontSize: 11, fontWeight: 700, color: isActive ? TEAL : t.textMuted, cursor: 'pointer', userSelect: 'none', flexShrink: 0, minWidth: 48 }}
                     >
                       Page {pageIdx + 1}
                     </span>
-                    <span style={{ color: t.border, fontSize: 12 }}>–</span>
+                    <span style={{ color: t.border, fontSize: 11, flexShrink: 0 }}>·</span>
                     <input
                       value={page.title || ''}
                       onChange={e => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, title: e.target.value } : p))}
-                      placeholder="Add title"
+                      placeholder="Add page title…"
                       onClick={() => { setActivePage(pageIdx); setSelectedId(null); }}
-                      style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: isActive ? t.text : t.textMuted, fontSize: 12, minWidth: 0 }}
+                      style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: isActive ? t.text : t.textMuted, fontSize: 11, minWidth: 0 }}
                     />
-                    {/* Controls */}
+                    {/* Controls — show on hover of parent row */}
                     {[
-                      { title: 'Move up',    icon: <IcoChevUpSm size={12} />,   action: () => movePageUp(pageIdx),   disabled: pageIdx === 0 },
-                      { title: 'Move down',  icon: <IcoChevDownSm size={12} />, action: () => movePageDown(pageIdx), disabled: pageIdx === pages.length - 1 },
-                      { title: page.hidden ? 'Show page' : 'Hide page', icon: page.hidden ? <IcoEyeOff size={12} /> : <IcoEye size={12} />, action: () => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, hidden: !p.hidden } : p)) },
-                      { title: page.pageLocked ? 'Unlock page' : 'Lock page', icon: page.pageLocked ? <IpLock size={12} /> : <IpUnlock size={12} />, action: () => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, pageLocked: !p.pageLocked } : p)) },
-                      { title: 'Duplicate page', icon: <IcoDuplicate size={12} />, action: () => duplicatePage(pageIdx) },
-                      { title: 'Delete page',    icon: <IpDelete size={12} />,     action: () => deletePage(pageIdx), disabled: pages.length <= 1, danger: true },
-                      { title: 'Add page after', icon: <IcoAddPage size={12} />,   action: () => {
+                      { title: 'Move up',    icon: <IcoChevUpSm size={11} />,   action: () => movePageUp(pageIdx),   disabled: pageIdx === 0 },
+                      { title: 'Move down',  icon: <IcoChevDownSm size={11} />, action: () => movePageDown(pageIdx), disabled: pageIdx === pages.length - 1 },
+                      { title: page.hidden ? 'Show page' : 'Hide page', icon: page.hidden ? <IcoEyeOff size={11} /> : <IcoEye size={11} />, action: () => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, hidden: !p.hidden } : p)) },
+                      { title: page.pageLocked ? 'Unlock page' : 'Lock page', icon: page.pageLocked ? <IpLock size={11} /> : <IpUnlock size={11} />, action: () => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, pageLocked: !p.pageLocked } : p)) },
+                      { title: 'Duplicate page', icon: <IcoDuplicate size={11} />, action: () => duplicatePage(pageIdx) },
+                      { title: 'Delete page',    icon: <IpDelete size={11} />,     action: () => deletePage(pageIdx), disabled: pages.length <= 1, danger: true },
+                      { title: 'Add page after', icon: <IcoAddPage size={11} />,   action: () => {
                           pushHistory();
                           const np = emptyPage();
                           setPages(prev => [...prev.slice(0, pageIdx + 1), np, ...prev.slice(pageIdx + 1)]);
@@ -9855,12 +9932,14 @@ export default function TemplatesEditorInner() {
                         title={title}
                         onClick={e => { e.stopPropagation(); if (!disabled) action(); }}
                         style={{
-                          width: 22, height: 22, padding: 0, border: 'none', borderRadius: 4,
+                          width: 20, height: 20, padding: 0, border: 'none', borderRadius: 4,
                           background: 'transparent', cursor: disabled ? 'not-allowed' : 'pointer',
                           color: disabled ? t.border : danger ? t.error : t.textMuted,
-                          fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          opacity: disabled ? 0.4 : 1, flexShrink: 0,
+                          fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          opacity: disabled ? 0.35 : 1, flexShrink: 0, transition: 'background 80ms, color 80ms',
                         }}
+                        onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = danger ? 'rgba(248,113,113,0.1)' : (t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'); if (!danger) e.currentTarget.style.color = t.text; } }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = danger ? t.error : t.textMuted; }}
                       >
                         {icon}
                       </button>
