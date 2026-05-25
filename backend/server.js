@@ -1076,13 +1076,15 @@ console.log('══════════════════════�
 
     let inserted = 0;
     for (const tmpl of ALL_TEMPLATES) {
-      await pool.query(
-        `INSERT INTO canvas_templates (name, industry, category, canvas_json, canvas_width, canvas_height, sort_order)
-         SELECT $1, $2, $3, $4, $5, $6, $7
-         WHERE NOT EXISTS (SELECT 1 FROM canvas_templates WHERE name = $1)`,
-        [tmpl.name, tmpl.industry, tmpl.category, JSON.stringify(tmpl.canvas_json), 1080, 1350, tmpl.sort_order]
-      );
-      inserted++;
+      const existing = await pool.query('SELECT id FROM canvas_templates WHERE name = $1', [tmpl.name]);
+      if (existing.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO canvas_templates (name, industry, category, canvas_json, canvas_width, canvas_height, sort_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [tmpl.name, tmpl.industry, tmpl.category, JSON.stringify(tmpl.canvas_json), 1080, 1350, tmpl.sort_order]
+        );
+        inserted++;
+      }
     }
     // Remove the old generic seed templates that got replaced with better versions
     await pool.query(`DELETE FROM canvas_templates WHERE name IN ('Bold Social Post','Educational Tip','Before & After','Customer Review','Seasonal Alert','Promo Offer') AND thumbnail_url IS NULL AND sort_order < 10`);
