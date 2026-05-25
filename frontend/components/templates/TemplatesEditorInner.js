@@ -4098,7 +4098,7 @@ export default function TemplatesEditorInner() {
     if (activeLeftTool !== 'templates') return;
     if (curatedTemplates.length > 0) return;
     setCuratedLoading(true);
-    studioAPI.getTemplates({ limit: 30 })
+    studioAPI.getTemplates({ limit: 60, industry: 'all' })
       .then(r => setCuratedTemplates(r.data?.templates || []))
       .catch(() => {})
       .finally(() => setCuratedLoading(false));
