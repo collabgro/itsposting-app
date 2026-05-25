@@ -6108,7 +6108,7 @@ export default function TemplatesEditorInner() {
               <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 320, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden', animation: 'dropdownIn 150ms ease forwards' }}>
                 {/* Search */}
                 <div style={{ padding: '10px 14px 8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '7px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '7px 12px' }}>
                     <span style={{ color: t.textMuted }}>🔍</span>
                     <input placeholder="Search resize options" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
                   </div>
@@ -6285,7 +6285,7 @@ export default function TemplatesEditorInner() {
           {/* Post — primary CTA */}
           <button onClick={() => setPostModalOpen(true)}
             onMouseEnter={e => showTip(e, 'Post to social media')} onMouseLeave={hideTip}
-            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: '#00C4CC', color: '#000', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: 'linear-gradient(90deg, #7C5CFC, #00C4CC)', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
             Post
           </button>
 
@@ -6542,6 +6542,24 @@ export default function TemplatesEditorInner() {
               <rect x="2" y="10" width="12" height="2" rx="1" fill="currentColor"/>
             </svg>
           );
+          const TEXT_EFFECTS = [
+            { id: 'none',      label: 'None',      preview: 'Aa', previewStyle: { color:'#fff', textShadow:'none', WebkitTextStroke:'0' },
+              patch: { shadow: { enabled: false }, outline: { enabled: false }, textBg: { enabled: false, opacity: 0 } } },
+            { id: 'shadow',    label: 'Shadow',    preview: 'Aa', previewStyle: { color:'#fff', textShadow:'3px 3px 4px rgba(0,0,0,0.8)' },
+              patch: { shadow: { enabled: true, color: '#000000', blur: 6, offsetX: 3, offsetY: 3 } } },
+            { id: 'lift',      label: 'Lift',      preview: 'Aa', previewStyle: { color:'#fff', textShadow:'0 6px 12px rgba(0,0,0,0.6)' },
+              patch: { shadow: { enabled: true, color: '#000000', blur: 12, offsetX: 0, offsetY: 6 } } },
+            { id: 'outline',   label: 'Outline',   preview: 'Aa', previewStyle: { color:'transparent', WebkitTextStroke:'1.5px #fff' },
+              patch: { fill: 'transparent', fillType: 'solid', outline: { enabled: true, color: '#ffffff', width: 4 } } },
+            { id: 'neon',      label: 'Neon',      preview: 'Aa', previewStyle: { color:TEAL, textShadow:'0 0 10px #00C4CC, 0 0 20px #00C4CC' },
+              patch: { fill: TEAL, fillType: 'solid', shadow: { enabled: true, color: TEAL, blur: 18, offsetX: 0, offsetY: 0 } } },
+            { id: 'sticker',   label: 'Sticker',   preview: 'Aa', previewStyle: { color:'#111', WebkitTextStroke:'6px #fff', paintOrder:'stroke' },
+              patch: { fill: '#111111', fillType: 'solid', outline: { enabled: true, color: '#ffffff', width: 8 } } },
+            { id: 'highlight', label: 'Highlight', preview: 'Aa', previewStyle: { color:'#111', background:'#ffe234', borderRadius:3, padding:'0 4px' },
+              patch: { fill: '#111111', fillType: 'solid', textBg: { enabled: true, color: '#ffe234', opacity: 1, padding: 8, radius: 4 } } },
+            { id: 'glitch',    label: 'Glitch',    preview: 'Aa', previewStyle: { color:'#fff', textShadow:'-2px 0 #ff0080, 2px 0 #00ffff' },
+              patch: { fill: '#ffffff', fillType: 'solid', shadow: { enabled: true, color: '#ff0080', blur: 0, offsetX: -3, offsetY: 0 } } },
+          ];
           return (
             <>
               {/* Font family */}
@@ -6550,14 +6568,16 @@ export default function TemplatesEditorInner() {
                 {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
               {/* Font size – n + */}
-              <button onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fontSize: Math.max(8, (selectedEl.fontSize || 36) - 1) }); }}
-                style={{ width: 28, height: 34, border: `1px solid ${t.border}`, borderRight: 'none', borderRadius: '7px 0 0 7px', background: t.input, color: t.text, fontSize: 16, cursor: 'pointer', flexShrink: 0, marginLeft: 4 }}>–</button>
-              <input type="number" value={selectedEl.fontSize || 36} min={8} max={400}
-                onChange={e => handleElementChange({ ...selectedEl, fontSize: parseInt(e.target.value) || 36 })}
-                onBlur={() => pushHistory()}
-                style={{ width: 48, height: 34, border: `1px solid ${t.border}`, borderRadius: 0, background: t.input, color: t.text, fontSize: 13, textAlign: 'center', outline: 'none' }} />
-              <button onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fontSize: Math.min(400, (selectedEl.fontSize || 36) + 1) }); }}
-                style={{ width: 28, height: 34, border: `1px solid ${t.border}`, borderLeft: 'none', borderRadius: '0 7px 7px 0', background: t.input, color: t.text, fontSize: 16, cursor: 'pointer', flexShrink: 0 }}>+</button>
+              <div style={{ display: 'flex', alignItems: 'center', background: t.input, borderRadius: 8, marginLeft: 4, overflow: 'hidden' }}>
+                <button onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fontSize: Math.max(8, (selectedEl.fontSize || 36) - 1) }); }}
+                  style={{ width: 26, height: 34, border: 'none', background: 'transparent', color: t.text, fontSize: 16, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>–</button>
+                <input type="number" value={selectedEl.fontSize || 36} min={8} max={400}
+                  onChange={e => handleElementChange({ ...selectedEl, fontSize: parseInt(e.target.value) || 36 })}
+                  onBlur={() => pushHistory()}
+                  style={{ width: 44, height: 34, border: 'none', background: 'transparent', color: t.text, fontSize: 13, textAlign: 'center', outline: 'none' }} />
+                <button onMouseDown={e => { e.preventDefault(); handleElementChange({ ...selectedEl, fontSize: Math.min(400, (selectedEl.fontSize || 36) + 1) }); }}
+                  style={{ width: 26, height: 34, border: 'none', background: 'transparent', color: t.text, fontSize: 16, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+              </div>
               <D />
               {/* Text color swatch */}
               <ColorPickerButton
@@ -6669,255 +6689,175 @@ export default function TemplatesEditorInner() {
                   document.body
                 )}
               </div>
-              {/* Shadow dropdown */}
-              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="Shadow" active={!!selectedEl.shadow?.enabled}
-                  onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowShadowPanel(p => !p); setShowOutlinePanel(false); setShowEmojiPanel(false); setShowMorePanel(false); }} />
-                {showShadowPanel && panelAnchor && createPortal(
-                  <>
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowShadowPanel(false)} />
-                    <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, left: Math.min(panelAnchor.left, window.innerWidth - 222), zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
-                      <input type="checkbox" checked={selectedEl.shadow?.enabled || false}
-                        onChange={e => handleElementChange({ ...selectedEl, shadow: { ...(selectedEl.shadow||{}), enabled: e.target.checked } })} />
-                      Enable shadow
-                    </label>
-                    {selectedEl.shadow?.enabled && <>
-                      <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 4 }}>Color</label>
-                      <input type="color" value={selectedEl.shadow?.color || '#000000'}
-                        onChange={e => updateElement({ ...selectedEl, shadow: { ...selectedEl.shadow, color: e.target.value } })}
-                        onBlur={() => pushHistory()} style={{ width: '100%', height: 28, marginBottom: 10, cursor: 'pointer', borderRadius: 6, border: `1px solid ${t.border}` }} />
-                      {[{lbl:'Blur',k:'blur',mn:0,mx:40,def:4},{lbl:'Offset X',k:'offsetX',mn:-30,mx:30,def:2},{lbl:'Offset Y',k:'offsetY',mn:-30,mx:30,def:2}].map(({lbl,k,mn,mx,def}) => (
-                        <div key={k} style={{ marginBottom: 8 }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
-                            <span style={{ fontSize:11, color:t.textMuted }}>{lbl}</span>
-                            <span style={{ fontSize:11, color:t.textMuted }}>{selectedEl.shadow?.[k]??def}</span>
-                          </div>
-                          <input type="range" min={mn} max={mx} value={selectedEl.shadow?.[k]??def}
-                            onChange={e => updateElement({ ...selectedEl, shadow: {...(selectedEl.shadow||{}), [k]:parseInt(e.target.value)} })}
-                            onMouseUp={() => pushHistory()} style={{ width:'100%' }} />
-                        </div>
-                      ))}
-                    </>}
-                  </div>
-                  </>,
-                  document.body
-                )}
-              </div>
-              {/* Outline dropdown */}
-              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="Outline" active={!!selectedEl.outline?.enabled}
-                  onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowOutlinePanel(p => !p); setShowShadowPanel(false); setShowEmojiPanel(false); setShowMorePanel(false); }} />
-                {showOutlinePanel && panelAnchor && createPortal(
-                  <>
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowOutlinePanel(false)} />
-                    <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, left: Math.min(panelAnchor.left, window.innerWidth - 202), zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 190, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
-                      <input type="checkbox" checked={selectedEl.outline?.enabled || false}
-                        onChange={e => handleElementChange({ ...selectedEl, outline: {...(selectedEl.outline||{}), enabled: e.target.checked} })} />
-                      Enable outline
-                    </label>
-                    {selectedEl.outline?.enabled && <>
-                      <label style={{ fontSize:11, color:t.textMuted, display:'block', marginBottom:4 }}>Color</label>
-                      <input type="color" value={selectedEl.outline?.color||'#000000'}
-                        onChange={e => updateElement({...selectedEl, outline:{...selectedEl.outline, color:e.target.value}})}
-                        onBlur={() => pushHistory()} style={{ width:'100%', height:28, marginBottom:10, cursor:'pointer', borderRadius:6, border:`1px solid ${t.border}` }} />
-                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:2 }}>
-                        <span style={{ fontSize:11, color:t.textMuted }}>Width</span>
-                        <span style={{ fontSize:11, color:t.textMuted }}>{selectedEl.outline?.width??1}</span>
-                      </div>
-                      <input type="range" min={1} max={20} value={selectedEl.outline?.width??1}
-                        onChange={e => updateElement({...selectedEl, outline:{...(selectedEl.outline||{}), width:parseInt(e.target.value)}})}
-                        onMouseUp={() => pushHistory()} style={{ width:'100%' }} />
-                    </>}
-                  </div>
-                  </>,
-                  document.body
-                )}
-              </div>
-              {/* Text Effects dropdown */}
-              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label={<><IpSparkle size={13}/> Effects</>} active={showEffectsPanel}
-                  onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowEffectsPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowSpacingPanel(false); setShowMorePanel(false); }} />
-                {showEffectsPanel && panelAnchor && createPortal((() => {
-                  const applyEffect = patch => { pushHistory(); updateElement({ ...selectedEl, ...patch }); setShowEffectsPanel(false); };
-                  const TEXT_EFFECTS = [
-                    { id: 'none',       label: 'None',       preview: 'Aa', previewStyle: { color:'#fff', textShadow:'none', WebkitTextStroke:'0' },
-                      patch: { shadow: { enabled: false }, outline: { enabled: false }, textBg: { enabled: false, opacity: 0 } } },
-                    { id: 'shadow',     label: 'Shadow',     preview: 'Aa', previewStyle: { color:'#fff', textShadow:'3px 3px 4px rgba(0,0,0,0.8)' },
-                      patch: { shadow: { enabled: true, color: '#000000', blur: 6, offsetX: 3, offsetY: 3 } } },
-                    { id: 'lift',       label: 'Lift',       preview: 'Aa', previewStyle: { color:'#fff', textShadow:'0 6px 12px rgba(0,0,0,0.6)' },
-                      patch: { shadow: { enabled: true, color: '#000000', blur: 12, offsetX: 0, offsetY: 6 } } },
-                    { id: 'outline',    label: 'Outline',    preview: 'Aa', previewStyle: { color:'transparent', WebkitTextStroke:'1.5px #fff' },
-                      patch: { fill: 'transparent', fillType: 'solid', outline: { enabled: true, color: '#ffffff', width: 4 } } },
-                    { id: 'neon',       label: 'Neon',       preview: 'Aa', previewStyle: { color:TEAL, textShadow:'0 0 10px #00C4CC, 0 0 20px #00C4CC' },
-                      patch: { fill: TEAL, fillType: 'solid', shadow: { enabled: true, color: TEAL, blur: 18, offsetX: 0, offsetY: 0 } } },
-                    { id: 'sticker',    label: 'Sticker',    preview: 'Aa', previewStyle: { color:'#111', WebkitTextStroke:'6px #fff', paintOrder:'stroke' },
-                      patch: { fill: '#111111', fillType: 'solid', outline: { enabled: true, color: '#ffffff', width: 8 } } },
-                    { id: 'highlight',  label: 'Highlight',  preview: 'Aa', previewStyle: { color:'#111', background:'#ffe234', borderRadius: 3, padding:'0 4px' },
-                      patch: { fill: '#111111', fillType: 'solid', textBg: { enabled: true, color: '#ffe234', opacity: 1, padding: 8, radius: 4 } } },
-                    { id: 'glitch',     label: 'Glitch',     preview: 'Aa', previewStyle: { color:'#fff', textShadow:'-2px 0 #ff0080, 2px 0 #00ffff' },
-                      patch: { fill: '#ffffff', fillType: 'solid', shadow: { enabled: true, color: '#ff0080', blur: 0, offsetX: -3, offsetY: 0 } } },
-                  ];
-                  return (
-                    <>
-                      <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowEffectsPanel(false)} />
-                      <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, left: Math.min(panelAnchor.left, window.innerWidth - 292), zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 12, width: 280, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Text effects</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                          {TEXT_EFFECTS.map(fx => (
-                            <button key={fx.id} onClick={() => applyEffect(fx.patch)}
-                              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-                                padding: '10px 4px 8px', border: `1px solid ${t.border}`, borderRadius: 8,
-                                background: t.input, cursor: 'pointer' }}>
-                              <div style={{ width: 44, height: 32, background: '#1a1a2e', borderRadius: 5,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                                <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'sans-serif', ...fx.previewStyle }}>{fx.preview}</span>
-                              </div>
-                              <span style={{ fontSize: 10, color: t.text }}>{fx.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  );
-                })(), document.body)}
-              </div>
-              {/* Curve / arch text */}
-              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label={<><IcoCurve size={14}/> Curve</>} active={!!selectedEl.textCurve || showCurvePanel}
-                  onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowCurvePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); setShowSpacingPanel(false); setShowMorePanel(false); }} />
-                {showCurvePanel && panelAnchor && createPortal(
-                  <>
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowCurvePanel(false)} />
-                    <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, left: Math.min(panelAnchor.left, window.innerWidth - 222), zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', animation: 'dropdownIn 150ms ease forwards' }}>
-                    <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                      <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: selectedEl.textCurve ? undefined : 200 }); }}
-                        style={{ flex: 1, padding: '6px 0', borderRadius: 7, border: `1px solid ${selectedEl.textCurve ? TEAL : t.border}`, background: selectedEl.textCurve ? 'rgba(0,196,204,0.1)' : t.input, color: selectedEl.textCurve ? TEAL : t.text, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
-                        {selectedEl.textCurve ? '✕ Remove curve' : '⌒ Add curve'}
-                      </button>
-                    </div>
-                    {selectedEl.textCurve && <>
-                      <div style={{ marginBottom: 10 }}>
-                        <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Direction</div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          {[['⌒', 'Arch up', 1], ['⌣', 'Arch down', -1]].map(([icon, label, dir]) => (
-                            <button key={dir} title={label}
-                              onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: dir * Math.abs(selectedEl.textCurve || 200) }); }}
-                              style={{ flex: 1, padding: '7px 0', borderRadius: 7, border: `1px solid ${(selectedEl.textCurve > 0 ? 1 : -1) === dir ? TEAL : t.border}`, background: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? 'rgba(0,196,204,0.1)' : t.input, color: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? TEAL : t.text, fontSize: 16, cursor: 'pointer' }}>
-                              {icon}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: 11, color: t.textMuted }}>Curvature</span>
-                        <span style={{ fontSize: 11, color: t.textMuted }}>r={Math.abs(selectedEl.textCurve || 200)}</span>
-                      </div>
-                      <input type="range" min={60} max={600} step={10}
-                        value={Math.abs(selectedEl.textCurve || 200)}
-                        onChange={e => updateElement({ ...selectedEl, textCurve: (selectedEl.textCurve < 0 ? -1 : 1) * parseInt(e.target.value) })}
-                        onMouseUp={() => pushHistory()}
-                        style={{ width: '100%', accentColor: TEAL }} />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
-                        <span style={{ fontSize: 10, color: t.textMuted }}>More curved</span>
-                        <span style={{ fontSize: 10, color: t.textMuted }}>Straighter</span>
-                      </div>
-                    </>}
-                  </div>
-                </>, document.body)}
-              </div>
-              {/* Spacing dropdown */}
-              <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-                <Btn label="Spacing" active={showSpacingPanel}
-                  onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowSpacingPanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowEffectsPanel(false); setShowCurvePanel(false); setShowMorePanel(false); }} />
-                {showSpacingPanel && panelAnchor && createPortal(
-                  <>
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowSpacingPanel(false)} />
-                    <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, left: Math.min(panelAnchor.left, window.innerWidth - 222), zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 210, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', animation: 'dropdownIn 150ms ease forwards' }}>
-                      {[
-                        { lbl: 'Letter spacing', k: 'letterSpacing', min: -10, max: 40, step: 0.5, def: 0, fmt: v => `${v}px` },
-                        { lbl: 'Line height',    k: 'lineHeight',    min: 0.5, max: 4,  step: 0.05, def: 1.2, fmt: v => v.toFixed(2) },
-                      ].map(({ lbl, k, min, max, step, def, fmt }) => (
-                        <div key={k} style={{ marginBottom: 12 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <span style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>{lbl}</span>
-                            <span style={{ fontSize: 11, color: t.textMuted }}>{fmt(selectedEl?.[k] ?? def)}</span>
-                          </div>
-                          <input type="range" min={min} max={max} step={step} value={selectedEl?.[k] ?? def}
-                            onChange={e => updateElement({ ...selectedEl, [k]: parseFloat(e.target.value) })}
-                            onMouseUp={() => pushHistory()}
-                            style={{ width: '100%', accentColor: TEAL }} />
-                        </div>
-                      ))}
-                      <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, letterSpacing: 0, lineHeight: 1.2 }); }}
-                        style={{ width: '100%', padding: '6px', border: `1px solid ${t.border}`, borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'pointer' }}>
-                        Reset spacing
-                      </button>
-                    </div>
-                  </>,
-                  document.body
-                )}
-              </div>
               <D />
-              {/* Text background (highlight) */}
-              <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Highlight</span>
-              <ColorPickerButton
-                value={selectedEl.textBg?.color || '#ffff00'}
-                onChange={c => { updateElement({ ...selectedEl, textBg: { ...(selectedEl.textBg||{}), enabled: true, color: c, opacity: selectedEl.textBg?.opacity ?? 1 } }); }}
-                onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
-              <input type="range" min={0} max={1} step={0.05}
-                value={selectedEl.textBg?.enabled ? (selectedEl.textBg?.opacity ?? 1) : 0}
-                onChange={e => { const v = parseFloat(e.target.value); updateElement({ ...selectedEl, textBg: { ...(selectedEl.textBg||{}), enabled: v > 0, color: selectedEl.textBg?.color || '#ffff00', opacity: v } }); }}
-                onMouseUp={() => pushHistory()} style={{ width:50, flexShrink:0, accentColor:TEAL }} />
-              {selectedEl.textBg?.enabled && (
-                <button onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, textBg: { ...selectedEl.textBg, enabled: false, opacity: 0 } }); }}
-                  title="Remove highlight"
-                  style={{ height:24, padding:'0 6px', border:`1px solid ${t.border}`, borderRadius:5, background:'transparent', color:t.textMuted, fontSize:11, cursor:'pointer', flexShrink:0 }}>×</button>
-              )}
-              <D />
-              {/* ••• More panel: opacity + blend + gradient angle */}
+              {/* ⋯ More — all advanced text controls in one panel */}
               <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                 <button onClick={e => {
                   setPanelAnchor(e.currentTarget.getBoundingClientRect());
                   setShowMorePanel(p => !p);
-                  setShowShadowPanel(false); setShowOutlinePanel(false);
-                  setShowEmojiPanel(false); setShowEffectsPanel(false);
-                  setShowCurvePanel(false); setShowSpacingPanel(false);
+                  setShowEmojiPanel(false);
                 }}
-                  style={{ height: 34, padding: '0 10px', border: `1px solid ${showMorePanel ? TEAL : t.border}`,
-                    borderRadius: 7, background: showMorePanel ? 'rgba(0,196,204,0.1)' : t.input,
-                    color: showMorePanel ? TEAL : t.text, fontSize: 13, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-                  ••• <span style={{ fontSize: 11 }}>More</span>
+                  style={{ height: 34, padding: '0 12px', border: 'none', borderRadius: 7,
+                    background: (showMorePanel || selectedEl.shadow?.enabled || selectedEl.outline?.enabled || selectedEl.textBg?.enabled || selectedEl.textCurve) ? 'rgba(0,196,204,0.1)' : 'transparent',
+                    color: (showMorePanel || selectedEl.shadow?.enabled || selectedEl.outline?.enabled || selectedEl.textBg?.enabled || selectedEl.textCurve) ? TEAL : t.text,
+                    fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'background 80ms' }}>
+                  ⋯ More
                 </button>
                 {showMorePanel && panelAnchor && createPortal(
                   <>
                     <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowMorePanel(false)} />
-                    <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, right: Math.max(0, window.innerWidth - panelAnchor.right), zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: 14, width: 220, boxShadow: '0 6px 24px rgba(0,0,0,0.2)', animation: 'dropdownIn 150ms ease forwards' }}>
-                      <div style={{ marginBottom: 14 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <span style={{ fontSize: 12, color: t.text, fontWeight: 500 }}>Opacity</span>
-                          <span style={{ fontSize: 11, color: t.textMuted }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
+                    <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, right: Math.max(4, window.innerWidth - panelAnchor.right), zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 16px', width: 300, boxShadow: '0 8px 32px rgba(0,0,0,0.24)', animation: 'dropdownIn 150ms ease forwards', maxHeight: 'calc(100vh - 80px)', overflowY: 'auto' }}>
+
+                      {/* Effects presets */}
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Effects</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 14 }}>
+                        {TEXT_EFFECTS.map(fx => (
+                          <button key={fx.id} onClick={() => { pushHistory(); updateElement({ ...selectedEl, ...fx.patch }); }}
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px 6px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, cursor: 'pointer' }}>
+                            <div style={{ width: 44, height: 28, background: '#1a1a2e', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                              <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'sans-serif', ...fx.previewStyle }}>{fx.preview}</span>
+                            </div>
+                            <span style={{ fontSize: 10, color: t.text }}>{fx.label}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Shadow */}
+                      <div style={{ height: 1, background: t.border, margin: '0 0 12px' }} />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: selectedEl.shadow?.enabled ? 10 : 12, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
+                        <input type="checkbox" checked={selectedEl.shadow?.enabled || false}
+                          onChange={e => handleElementChange({ ...selectedEl, shadow: { ...(selectedEl.shadow||{}), enabled: e.target.checked } })} />
+                        Shadow
+                      </label>
+                      {selectedEl.shadow?.enabled && (
+                        <div style={{ marginBottom: 12, paddingLeft: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <span style={{ fontSize: 11, color: t.textMuted, minWidth: 52 }}>Color</span>
+                            <input type="color" value={selectedEl.shadow?.color || '#000000'}
+                              onChange={e => updateElement({ ...selectedEl, shadow: { ...selectedEl.shadow, color: e.target.value } })}
+                              onBlur={() => pushHistory()} style={{ width: 28, height: 22, cursor: 'pointer', borderRadius: 4, border: `1px solid ${t.border}` }} />
+                          </div>
+                          {[{lbl:'Blur',k:'blur',mn:0,mx:40,def:4},{lbl:'Offset X',k:'offsetX',mn:-30,mx:30,def:2},{lbl:'Offset Y',k:'offsetY',mn:-30,mx:30,def:2}].map(({lbl,k,mn,mx,def}) => (
+                            <div key={k} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                              <span style={{ fontSize:11, color:t.textMuted, minWidth:52 }}>{lbl}</span>
+                              <input type="range" min={mn} max={mx} value={selectedEl.shadow?.[k]??def}
+                                onChange={e => updateElement({ ...selectedEl, shadow:{...(selectedEl.shadow||{}),[k]:parseInt(e.target.value)}})}
+                                onMouseUp={() => pushHistory()} style={{ flex:1, accentColor:TEAL }} />
+                              <span style={{ fontSize:11, color:t.textMuted, minWidth:22, textAlign:'right' }}>{selectedEl.shadow?.[k]??def}</span>
+                            </div>
+                          ))}
                         </div>
+                      )}
+
+                      {/* Outline */}
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: selectedEl.outline?.enabled ? 10 : 12, fontSize: 13, color: t.text, cursor: 'pointer', fontWeight: 500 }}>
+                        <input type="checkbox" checked={selectedEl.outline?.enabled || false}
+                          onChange={e => handleElementChange({ ...selectedEl, outline: {...(selectedEl.outline||{}), enabled: e.target.checked} })} />
+                        Outline
+                      </label>
+                      {selectedEl.outline?.enabled && (
+                        <div style={{ marginBottom: 12, paddingLeft: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <span style={{ fontSize: 11, color: t.textMuted, minWidth: 52 }}>Color</span>
+                            <input type="color" value={selectedEl.outline?.color||'#000000'}
+                              onChange={e => updateElement({...selectedEl, outline:{...selectedEl.outline, color:e.target.value}})}
+                              onBlur={() => pushHistory()} style={{ width: 28, height: 22, cursor: 'pointer', borderRadius: 4, border: `1px solid ${t.border}` }} />
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 11, color: t.textMuted, minWidth: 52 }}>Width</span>
+                            <input type="range" min={1} max={20} value={selectedEl.outline?.width??1}
+                              onChange={e => updateElement({...selectedEl, outline:{...(selectedEl.outline||{}), width:parseInt(e.target.value)}})}
+                              onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                            <span style={{ fontSize:11, color:t.textMuted, minWidth:22, textAlign:'right' }}>{selectedEl.outline?.width??1}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Highlight */}
+                      <div style={{ height: 1, background: t.border, margin: '0 0 12px' }} />
+                      <div style={{ fontSize: 13, fontWeight: 500, color: t.text, marginBottom: 8 }}>Highlight</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                        <input type="color" value={selectedEl.textBg?.color || '#ffff00'}
+                          onChange={e => updateElement({ ...selectedEl, textBg: { ...(selectedEl.textBg||{}), enabled: true, color: e.target.value, opacity: selectedEl.textBg?.opacity ?? 1 } })}
+                          onBlur={() => pushHistory()} style={{ width: 28, height: 22, cursor: 'pointer', borderRadius: 4, border: `1px solid ${t.border}`, flexShrink: 0 }} />
+                        <input type="range" min={0} max={1} step={0.05}
+                          value={selectedEl.textBg?.enabled ? (selectedEl.textBg?.opacity ?? 1) : 0}
+                          onChange={e => { const v = parseFloat(e.target.value); updateElement({ ...selectedEl, textBg: { ...(selectedEl.textBg||{}), enabled: v > 0, color: selectedEl.textBg?.color || '#ffff00', opacity: v } }); }}
+                          onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                        {selectedEl.textBg?.enabled && (
+                          <button onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, textBg: { ...selectedEl.textBg, enabled: false, opacity: 0 } }); }}
+                            style={{ width: 20, height: 20, border: 'none', borderRadius: 4, background: t.input, color: t.textMuted, fontSize: 12, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                        )}
+                      </div>
+
+                      {/* Spacing */}
+                      <div style={{ height: 1, background: t.border, margin: '0 0 12px' }} />
+                      <div style={{ fontSize: 13, fontWeight: 500, color: t.text, marginBottom: 10 }}>Spacing</div>
+                      {[
+                        { lbl: 'Letters', k: 'letterSpacing', min: -10, max: 40, step: 0.5, def: 0, fmt: v => `${v}px` },
+                        { lbl: 'Line height', k: 'lineHeight', min: 0.5, max: 4, step: 0.05, def: 1.2, fmt: v => v.toFixed(2) },
+                      ].map(({ lbl, k, min, max, step, def, fmt }) => (
+                        <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <span style={{ fontSize: 11, color: t.textMuted, minWidth: 64 }}>{lbl}</span>
+                          <input type="range" min={min} max={max} step={step} value={selectedEl?.[k] ?? def}
+                            onChange={e => updateElement({ ...selectedEl, [k]: parseFloat(e.target.value) })}
+                            onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                          <span style={{ fontSize:11, color:t.textMuted, minWidth:30, textAlign:'right' }}>{fmt(selectedEl?.[k] ?? def)}</span>
+                        </div>
+                      ))}
+
+                      {/* Curve */}
+                      <div style={{ height: 1, background: t.border, margin: '4px 0 12px' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: selectedEl.textCurve ? 10 : 14 }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: t.text }}>Curve text</span>
+                        <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: selectedEl.textCurve ? undefined : 200 }); }}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${selectedEl.textCurve ? TEAL : t.border}`, background: selectedEl.textCurve ? 'rgba(0,196,204,0.1)' : 'transparent', color: selectedEl.textCurve ? TEAL : t.text, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+                          {selectedEl.textCurve ? '✕ Remove' : '⌒ Add'}
+                        </button>
+                      </div>
+                      {selectedEl.textCurve && (
+                        <div style={{ paddingLeft: 4, marginBottom: 14 }}>
+                          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                            {[['⌒', 'Up', 1], ['⌣', 'Down', -1]].map(([icon, label, dir]) => (
+                              <button key={dir} onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: dir * Math.abs(selectedEl.textCurve || 200) }); }}
+                                style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: `1px solid ${(selectedEl.textCurve > 0 ? 1 : -1) === dir ? TEAL : t.border}`, background: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? 'rgba(0,196,204,0.1)' : t.input, color: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? TEAL : t.text, fontSize: 14, cursor: 'pointer' }}>
+                                {icon} {label}
+                              </button>
+                            ))}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 11, color: t.textMuted, minWidth: 64 }}>Curvature</span>
+                            <input type="range" min={60} max={600} step={10}
+                              value={Math.abs(selectedEl.textCurve || 200)}
+                              onChange={e => updateElement({ ...selectedEl, textCurve: (selectedEl.textCurve < 0 ? -1 : 1) * parseInt(e.target.value) })}
+                              onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Opacity + Blend */}
+                      <div style={{ height: 1, background: t.border, margin: '0 0 12px' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <span style={{ fontSize: 11, color: t.textMuted, minWidth: 52 }}>Opacity</span>
                         <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
                           onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: TEAL }} />
+                          onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                        <span style={{ fontSize: 11, color: t.textMuted, minWidth: 30, textAlign: 'right' }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
                       </div>
-                      <div style={{ marginBottom: selectedEl.fillType === 'gradient' ? 14 : 0 }}>
-                        <span style={{ fontSize: 12, color: t.text, fontWeight: 500, display: 'block', marginBottom: 6 }}>Blend mode</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: selectedEl.fillType === 'gradient' ? 10 : 0 }}>
+                        <span style={{ fontSize: 11, color: t.textMuted, minWidth: 52 }}>Blend</span>
                         <select value={selectedEl.blendMode || 'source-over'}
                           onChange={e => { pushHistory(); patchElements(p => p.map(el => el.id === selectedEl.id ? { ...el, blendMode: e.target.value } : el)); }}
-                          style={{ width: '100%', height: 32, padding: '0 8px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer' }}>
+                          style={{ flex: 1, height: 28, padding: '0 6px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer' }}>
                           {BLEND_MODES.map(m => <option key={m} value={m}>{BLEND_LABELS[m]}</option>)}
                         </select>
                       </div>
                       {selectedEl.fillType === 'gradient' && selectedEl.fillGradient && (
-                        <div style={{ marginTop: 14 }}>
-                          <span style={{ fontSize: 12, color: t.text, fontWeight: 500, display: 'block', marginBottom: 6 }}>Gradient angle</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                          <span style={{ fontSize: 11, color: t.textMuted, minWidth: 52 }}>Angle</span>
                           <select value={selectedEl.fillGradient.angle ?? 135}
                             onChange={e => { pushHistory(); updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, angle: parseInt(e.target.value) } }); }}
-                            style={{ width: '100%', height: 32, padding: '0 8px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer' }}>
+                            style={{ flex: 1, height: 28, padding: '0 6px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer' }}>
                             {[0,45,90,135,180,225,270,315].map(a => <option key={a} value={a}>{a}°</option>)}
                           </select>
                         </div>
@@ -8466,14 +8406,14 @@ export default function TemplatesEditorInner() {
                 borderRadius: 8,
                 cursor: 'pointer',
                 color: isActive ? TEAL : t.textMuted,
-                fontSize: 10, fontWeight: isActive ? 700 : 400,
+                fontSize: 10, fontWeight: isActive ? 600 : 400,
                 transition: 'background 120ms ease, color 120ms ease',
                 position: 'relative',
                 flexShrink: 0,
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26 }}>{tool.icon}</span>
-              <span style={{ fontSize: 10, lineHeight: 1, textAlign: 'center', letterSpacing: '0.01em' }}>{tool.label}</span>
+              <span style={{ fontSize: 11, lineHeight: 1, textAlign: 'center', letterSpacing: '0.01em' }}>{tool.label}</span>
             </button>
             );
           })}
@@ -8495,11 +8435,11 @@ export default function TemplatesEditorInner() {
                 borderRadius: 8,
                 cursor: 'pointer',
                 color: isActive ? TEAL : t.textMuted,
-                fontSize: 10, fontWeight: isActive ? 700 : 400,
+                fontSize: 10, fontWeight: isActive ? 600 : 400,
                 transition: 'background 120ms ease, color 120ms ease',
               }}>
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26 }}>{tool.icon}</span>
-              <span style={{ fontSize: 10, lineHeight: 1, textAlign: 'center', letterSpacing: '0.01em' }}>{tool.label}</span>
+              <span style={{ fontSize: 11, lineHeight: 1, textAlign: 'center', letterSpacing: '0.01em' }}>{tool.label}</span>
             </button>
             );
           })}
@@ -8538,7 +8478,7 @@ export default function TemplatesEditorInner() {
             {(activeLeftTool === 'background' || activeLeftTool === 'templates') && (
               <div>
                 {/* Search templates */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}`, marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '8px 12px', marginBottom: 14 }}>
                   <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
                   <input placeholder="Search templates" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
                 </div>
@@ -8628,7 +8568,7 @@ export default function TemplatesEditorInner() {
                                         }
                                       } catch {}
                                     }}
-                                    style={{ fontSize: 12, fontWeight: 700, background: '#00C4CC', color: '#000', padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
+                                    style={{ fontSize: 12, fontWeight: 700, background: 'linear-gradient(90deg, #7C5CFC, #00C4CC)', color: '#fff', padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
                                     Use
                                   </button>
                                 </div>
@@ -8955,7 +8895,7 @@ export default function TemplatesEditorInner() {
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
                 {/* S1: Search */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '7px 10px', marginBottom: 10, border: `1px solid ${fontSearch ? TEAL : t.border}`, transition: 'border-color 0.15s', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '7px 10px', marginBottom: 10, transition: 'box-shadow 0.15s', boxShadow: fontSearch ? `0 0 0 2px ${TEAL}` : 'none', flexShrink: 0 }}>
                   <IpSearch size={14} style={{ color: t.textMuted, flexShrink: 0 }} />
                   <input
                     type="text"
@@ -9248,7 +9188,7 @@ export default function TemplatesEditorInner() {
                   </div>
                   {/* Search — My media or Stock Photos */}
                   {uploadMediaTab === 'Stock' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '8px 12px' }}>
                       <IpSearch size={13} color={t.textMuted} />
                       <input
                         placeholder="Search stock photos…"
@@ -9262,7 +9202,7 @@ export default function TemplatesEditorInner() {
                         style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '8px 12px' }}>
                       <IpSearch size={13} color={t.textMuted} />
                       <input
                         placeholder={`Search ${uploadMediaTab.toLowerCase()}…`}
@@ -10042,7 +9982,7 @@ export default function TemplatesEditorInner() {
             {/* PROJECTS */}
             {activeLeftTool === 'projects' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '8px 12px' }}>
                   <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
                   <input placeholder="Search your content" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
                 </div>
@@ -10104,7 +10044,7 @@ export default function TemplatesEditorInner() {
             {/* APPS */}
             {activeLeftTool === 'apps' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '8px 12px', border: `1px solid ${t.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '8px 12px' }}>
                   <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
                   <input placeholder="Search apps" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
                 </div>
