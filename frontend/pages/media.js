@@ -536,7 +536,7 @@ export default function MediaLibrary() {
                 <IpPhotoStudio size={15} /> New Image Design
               </button>
               <button
-                onClick={() => router.push('/templates/editor?mode=video')}
+                onClick={() => router.push('/templates/video-editor')}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'transparent', color: t.primary, border: `2px solid ${t.primary}`, borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
               >
                 <IpVideo size={15} /> New Video Design
@@ -655,7 +655,7 @@ export default function MediaLibrary() {
                       )}
                       <div className="design-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', padding: 10, gap: 6 }}>
                         <button
-                          onClick={() => router.push(c.creation_type === 'video' ? `/templates/editor?id=${c.id}&mode=video` : `/templates/editor?id=${c.id}`)}
+                          onClick={() => router.push(c.creation_type === 'video' ? `/templates/video-editor?id=${c.id}` : `/templates/editor?id=${c.id}`)}
                           style={{ flex: 1, padding: '6px 0', background: '#fff', color: '#111', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                           Edit
                         </button>

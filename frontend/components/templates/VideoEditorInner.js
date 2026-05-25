@@ -135,10 +135,26 @@ export default function VideoEditorInner() {
   const selectedAudio = selectedTrack === 'audio'
     ? project.audioTracks.find(a => a.id === selectedId) : null;
 
-  // ─── Aspect preview dimensions ────────────────────────────────────────────
+  // ─── Dynamic preview sizing ───────────────────────────────────────────────
 
-  const previewContainerW = 260;
+  const previewAreaRef2 = useRef(null);
+  const [previewAreaSize, setPreviewAreaSize] = useState({ w: 900, h: 500 });
+
+  useEffect(() => {
+    const el = previewAreaRef2.current;
+    if (!el) return;
+    const obs = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setPreviewAreaSize({ w: width, h: height });
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   const { w: aw, h: ah } = ASPECT_DIMS[project.aspectRatio] || ASPECT_DIMS['9:16'];
+  const maxPrevH = Math.max(100, previewAreaSize.h - 80);
+  const maxPrevW = Math.max(80, previewAreaSize.w - 48);
+  const previewContainerW = Math.round(Math.min(maxPrevW, maxPrevH * aw / ah));
   const previewH = Math.round(previewContainerW * ah / aw);
 
   // ─── History ─────────────────────────────────────────────────────────────────
@@ -1217,7 +1233,7 @@ export default function VideoEditorInner() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 130px)', background: t.bg, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: t.bg, overflow: 'hidden' }}>
 
       {/* ── Toolbar ── */}
       <div style={s.toolbar}>
@@ -1252,6 +1268,12 @@ export default function VideoEditorInner() {
         <button onClick={handleRedo} disabled={historyIndex >= history.length - 1}
           style={{ padding: '6px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: historyIndex >= history.length - 1 ? t.textMuted : t.text, fontSize: 12, cursor: 'pointer' }}>
           ⟳
+        </button>
+
+        {/* Split at playhead */}
+        <button onClick={splitClipAtPlayhead} disabled={!selectedClip} title="Split clip at playhead (S)"
+          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: selectedClip ? t.text : t.textMuted, fontSize: 12, cursor: selectedClip ? 'pointer' : 'not-allowed' }}>
+          ✂ Split
         </button>
 
         {/* Title */}
@@ -1362,7 +1384,7 @@ export default function VideoEditorInner() {
         </div>
 
         {/* ── Preview ── */}
-        <div style={s.previewArea} onClick={() => { setSelectedId(null); setSelectedTrack(null); }}>
+        <div ref={previewAreaRef2} style={s.previewArea} onClick={() => { setSelectedId(null); setSelectedTrack(null); }}>
           <div ref={previewRef} style={s.previewBox}>
             {/* Active clip */}
             {activeClip ? (
