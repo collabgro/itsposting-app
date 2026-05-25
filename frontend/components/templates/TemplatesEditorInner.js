@@ -3856,6 +3856,7 @@ export default function TemplatesEditorInner() {
   const [savedDesignsLoading, setSavedDesignsLoading] = useState(false);
   const [curatedTemplates, setCuratedTemplates] = useState([]);
   const [curatedLoading, setCuratedLoading] = useState(false);
+  const [templateCategory, setTemplateCategory] = useState('all');
   const [brandProfile, setBrandProfile] = useState(null);
   const [brandLoading, setBrandLoading] = useState(false);
   const [uploadItems, setUploadItems] = useState([]);
@@ -8256,55 +8257,86 @@ export default function TemplatesEditorInner() {
                 </div>
 
                 {/* ── ItsPosting Curated Templates ── */}
-                {activeLeftTool === 'templates' && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>ItsPosting Templates</div>
-                    {curatedLoading ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                        {Array.from({ length: 4 }).map((_, i) => (
-                          <div key={i} style={{ aspectRatio: '4/5', borderRadius: 8,
-                            background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`,
-                            backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
+                {activeLeftTool === 'templates' && (() => {
+                  const CATS = [
+                    { id: 'all',          label: 'All' },
+                    { id: 'before-after', label: 'Before & After' },
+                    { id: 'social-proof', label: 'Reviews' },
+                    { id: 'seasonal',     label: 'Seasonal' },
+                    { id: 'showcase',     label: 'Showcase' },
+                    { id: 'educational',  label: 'Tips' },
+                    { id: 'promotional',  label: 'Promos' },
+                    { id: 'team',         label: 'Team' },
+                    { id: 'announcement', label: 'News' },
+                  ];
+                  const CAT_ICONS = { 'all':'✦', 'before-after':'◑', 'social-proof':'★', 'seasonal':'📅', 'showcase':'📸', 'educational':'💡', 'promotional':'🎁', 'team':'👥', 'announcement':'📢' };
+                  const filtered = templateCategory === 'all' ? curatedTemplates : curatedTemplates.filter(tmpl => tmpl.category === templateCategory);
+                  return (
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>ItsPosting Templates</div>
+                        <div style={{ fontSize: 11, color: t.textMuted }}>{filtered.length}</div>
+                      </div>
+                      {/* Category chips */}
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
+                        {CATS.map(cat => (
+                          <button key={cat.id} onClick={() => setTemplateCategory(cat.id)}
+                            style={{ padding: '4px 8px', borderRadius: 20, border: `1px solid ${templateCategory === cat.id ? '#00C4CC' : t.border}`, background: templateCategory === cat.id ? 'rgba(0,196,204,0.12)' : t.input, color: templateCategory === cat.id ? '#00C4CC' : t.textMuted, fontSize: 11, fontWeight: templateCategory === cat.id ? 700 : 500, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 80ms' }}>
+                            {CAT_ICONS[cat.id]} {cat.label}
+                          </button>
                         ))}
                       </div>
-                    ) : curatedTemplates.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '16px 0', color: t.textMuted }}>
-                        <div style={{ fontSize: 28, marginBottom: 6 }}>🎨</div>
-                        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Templates coming soon</div>
-                        <div style={{ fontSize: 11 }}>ItsPosting is adding industry templates for your business</div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                        {curatedTemplates.map(tmpl => (
-                          <div key={tmpl.id}
-                            style={{ cursor: 'pointer', position: 'relative' }}
-                            onMouseEnter={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '1'}
-                            onMouseLeave={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '0'}>
-                            <div style={{ aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, marginBottom: 4, position: 'relative' }}>
-                              {tmpl.thumbnail_url
-                                ? <img src={tmpl.thumbnail_url} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: t.textMuted }}>No preview</div>
-                              }
-                              <div className="tmpl-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms' }}>
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      const r = await studioAPI.getTemplate(tmpl.id);
-                                      if (r.data?.template?.canvas_json) restoreSnapshot(r.data.template.canvas_json);
-                                    } catch {}
-                                  }}
-                                  style={{ color: '#fff', fontSize: 11, fontWeight: 700, background: '#7C5CFC', padding: '5px 10px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
-                                  Use Template
-                                </button>
+                      {curatedLoading ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} style={{ aspectRatio: '4/5', borderRadius: 8,
+                              background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`,
+                              backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
+                          ))}
+                        </div>
+                      ) : filtered.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '20px 0', color: t.textMuted }}>
+                          <div style={{ fontSize: 28, marginBottom: 6 }}>🎨</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>No templates in this category yet</div>
+                          <div style={{ fontSize: 11 }}>More coming soon</div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          {filtered.map(tmpl => (
+                            <div key={tmpl.id} style={{ cursor: 'pointer' }}
+                              onMouseEnter={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '1'}
+                              onMouseLeave={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '0'}>
+                              <div style={{ aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, marginBottom: 4, position: 'relative' }}>
+                                {tmpl.thumbnail_url
+                                  ? <img src={tmpl.thumbnail_url} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  : (
+                                    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 8 }}>
+                                      <span style={{ fontSize: 28 }}>{CAT_ICONS[tmpl.category] || '✦'}</span>
+                                      <span style={{ fontSize: 9, color: t.textMuted, textAlign: 'center', lineHeight: 1.3 }}>{tmpl.name}</span>
+                                    </div>
+                                  )
+                                }
+                                <div className="tmpl-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms' }}>
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const r = await studioAPI.getTemplate(tmpl.id);
+                                        if (r.data?.template?.canvas_json) restoreSnapshot(r.data.template.canvas_json);
+                                      } catch {}
+                                    }}
+                                    style={{ color: '#fff', fontSize: 12, fontWeight: 700, background: '#00C4CC', color: '#000', padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
+                                    Use
+                                  </button>
+                                </div>
                               </div>
+                              <div style={{ fontSize: 11, fontWeight: 500, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={tmpl.name}>{tmpl.name}</div>
                             </div>
-                            <div style={{ fontSize: 11, fontWeight: 500, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tmpl.name}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* ── My Designs (only in templates panel) ── */}
                 {activeLeftTool === 'templates' && (
