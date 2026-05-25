@@ -3850,6 +3850,10 @@ export default function TemplatesEditorInner() {
   const [uploadMediaTab, setUploadMediaTab] = useState('Images');
   const [bgRemoverDismissed, setBgRemoverDismissed] = useState(false);
   const [bgRemoveLoading, setBgRemoveLoading] = useState(false);
+  const [extractModal, setExtractModal] = useState(false);
+  const [extractLoading, setExtractLoading] = useState(false);
+  const [extractResult, setExtractResult] = useState(null); // { url, width, height }
+  const [extractClickDot, setExtractClickDot] = useState(null); // { x, y } px within preview img
   const [showImgUrlInput, setShowImgUrlInput] = useState(false);
   const [imgUrlValue, setImgUrlValue] = useState('');
   const [projectTab, setProjectTab] = useState('All');
@@ -7020,6 +7024,13 @@ export default function TemplatesEditorInner() {
                 title="Remove background from image"
                 style={{ height: 32, padding: '0 10px', border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 12, cursor: bgRemoveLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, opacity: bgRemoveLoading ? 0.6 : 1 }}>
                 {bgRemoveLoading ? '…' : '✂ Remove BG'}
+              </button>
+              {/* Extract Elements — AI object isolation via SAM 2 */}
+              <button
+                onClick={() => { setExtractModal(true); setExtractResult(null); setExtractClickDot(null); }}
+                title="Click a point on the image to extract that element with AI"
+                style={{ height: 32, padding: '0 10px', border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                ✦ Extract
               </button>
             </>
           );
@@ -11489,6 +11500,109 @@ export default function TemplatesEditorInner() {
               ›
             </button>
           )}
+        </div>
+      )}
+
+      {/* ── Extract Element modal ── */}
+      {extractModal && selectedEl?.type === 'image' && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget && !extractLoading) { setExtractModal(false); setExtractResult(null); setExtractClickDot(null); } }}>
+          <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 24, width: 520, maxHeight: '90vh', overflowY: 'auto', border: '1px solid #2a2a2a', boxShadow: '0 20px 60px rgba(0,0,0,0.6)' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>Extract Element</span>
+              <button onClick={() => { if (!extractLoading) { setExtractModal(false); setExtractResult(null); setExtractClickDot(null); } }}
+                style={{ background: 'none', border: 'none', color: '#666', fontSize: 20, cursor: extractLoading ? 'not-allowed' : 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <p style={{ color: '#888', fontSize: 13, margin: '0 0 14px' }}>
+              {extractClickDot ? 'Processing…' : 'Click on any object in the image to extract it with a transparent background.'}
+            </p>
+
+            {/* Image preview with click-to-segment */}
+            <div style={{ position: 'relative', cursor: extractLoading ? 'wait' : 'crosshair', borderRadius: 10, overflow: 'hidden', marginBottom: 16, background: '#111', lineHeight: 0 }}>
+              <img
+                src={selectedEl.src}
+                alt=""
+                draggable={false}
+                style={{ width: '100%', maxHeight: 340, objectFit: 'contain', display: 'block', userSelect: 'none' }}
+                onClick={async e => {
+                  if (extractLoading) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const px = e.clientX - rect.left;
+                  const py = e.clientY - rect.top;
+                  setExtractClickDot({ x: px, y: py });
+                  setExtractLoading(true);
+                  setExtractResult(null);
+                  try {
+                    const normX = px / rect.width;
+                    const normY = py / rect.height;
+                    const res = await studioAPI.extractElement(selectedEl.src, normX, normY);
+                    setExtractResult(res.data);
+                  } catch {
+                    alert('Element extraction failed. Try clicking on a different spot.');
+                  }
+                  setExtractLoading(false);
+                }}
+              />
+              {/* Click dot indicator */}
+              {extractClickDot && (
+                <div style={{ position: 'absolute', left: extractClickDot.x - 8, top: extractClickDot.y - 8, width: 16, height: 16, borderRadius: '50%', background: '#00C4CC', border: '2px solid #fff', pointerEvents: 'none' }} />
+              )}
+              {/* Loading overlay */}
+              {extractLoading && (
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #00C4CC', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+                  <span style={{ color: '#fff', fontSize: 13 }}>AI is extracting the element…</span>
+                </div>
+              )}
+            </div>
+
+            {/* Result preview */}
+            {extractResult && (
+              <div>
+                <p style={{ color: '#888', fontSize: 12, margin: '0 0 8px' }}>Extracted element — click "Add to Canvas" to place it:</p>
+                <div style={{ background: 'repeating-conic-gradient(#333 0% 25%, #1a1a1a 0% 50%) 0 0 / 16px 16px', borderRadius: 8, padding: 10, display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                  <img src={extractResult.url} alt="Extracted element" style={{ maxWidth: '100%', maxHeight: 200, objectFit: 'contain' }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      pushHistory();
+                      const scale = Math.min(1, canvasSize.w * 0.5 / extractResult.width, canvasSize.h * 0.5 / extractResult.height);
+                      const newEl = {
+                        id: uid(),
+                        type: 'image',
+                        src: extractResult.url,
+                        x: (selectedEl.x || 0) + 20,
+                        y: (selectedEl.y || 0) + 20,
+                        width: Math.round(extractResult.width * scale),
+                        height: Math.round(extractResult.height * scale),
+                        rotation: 0,
+                        opacity: 1,
+                        blendMode: 'source-over',
+                        scaleX: 1,
+                        scaleY: 1,
+                        filters: { brightness: 0, contrast: 0, saturation: 0 },
+                      };
+                      patchElements(els => [...els, newEl]);
+                      setSelectedIds([newEl.id]);
+                      setExtractModal(false);
+                      setExtractResult(null);
+                      setExtractClickDot(null);
+                    }}
+                    style={{ flex: 1, height: 40, borderRadius: 8, border: 'none', background: '#00C4CC', color: '#000', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+                    Add to Canvas
+                  </button>
+                  <button
+                    onClick={() => { setExtractResult(null); setExtractClickDot(null); }}
+                    style={{ height: 40, padding: '0 16px', borderRadius: 8, border: '1px solid #2a2a2a', background: 'transparent', color: '#aaa', fontSize: 13, cursor: 'pointer' }}>
+                    Try again
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
