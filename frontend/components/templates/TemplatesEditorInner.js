@@ -479,6 +479,7 @@ function BgImage({ url, filter, brightness, contrast, saturation, stageW, stageH
   return (
     <KonvaImage
       ref={ref}
+      name="canvas-bg"
       image={image}
       x={(stageW - scaledW) / 2}
       y={(stageH - scaledH) / 2}
@@ -3754,13 +3755,14 @@ function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageSc
       <Transformer
         ref={trRef}
         borderStroke="#00C4CC"
-        borderStrokeWidth={1.5 / stageScale}
-        anchorSize={10 / stageScale}
-        anchorCornerRadius={2 / stageScale}
+        borderStrokeWidth={1 / stageScale}
+        borderDash={[6 / stageScale, 4 / stageScale]}
+        anchorSize={12 / stageScale}
+        anchorCornerRadius={6 / stageScale}
         anchorStroke="#00C4CC"
         anchorFill="#ffffff"
         anchorStrokeWidth={1.5 / stageScale}
-        rotateAnchorOffset={28 / stageScale}
+        rotateAnchorOffset={32 / stageScale}
         rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
         rotationSnapTolerance={5}
         enabledAnchors={isText
@@ -9914,8 +9916,8 @@ export default function TemplatesEditorInner() {
                           setIsDrawingNow(true);
                           return;
                         }
-                        // Only start rubber-band when clicking empty canvas
-                        if (e.target !== e.target.getStage()) return;
+                        // Start rubber-band on empty canvas OR background rect
+                        if (e.target !== e.target.getStage() && e.target.name() !== 'canvas-bg') return;
                         const pos = e.target.getRelativePointerPosition();
                         setSelectionStart(pos);
                         setSelectionRect({ x: pos.x, y: pos.y, w: 0, h: 0 });
@@ -9985,6 +9987,7 @@ export default function TemplatesEditorInner() {
                             const { startPoint, endPoint } = isRadial ? { startPoint: { x: cx, y: cy }, endPoint: { x: cx, y: cy } } : gradientPoints(g.angle ?? 135, canvasSize.w, canvasSize.h);
                             return (
                               <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h}
+                                name="canvas-bg"
                                 {...(isRadial ? {
                                   fillRadialGradientStartPoint: startPoint,
                                   fillRadialGradientEndPoint: endPoint,
@@ -10008,6 +10011,7 @@ export default function TemplatesEditorInner() {
                           null
                         ) : pageBgType === 'color' ? (
                           <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill={pageBgColor}
+                            name="canvas-bg"
                             onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined} />
                         ) : pageBgImageUrl ? (
                           <BgImage url={pageBgImageUrl} filter={pageBgFilter} brightness={pageBgBrightness} contrast={pageBgContrast} saturation={pageBgSaturation}
@@ -10015,7 +10019,7 @@ export default function TemplatesEditorInner() {
                             onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined}
                             isSelected={isActive && selectedId === '__bg__'} />
                         ) : (
-                          <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill="#1a1a22" />
+                          <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill="#1a1a22" name="canvas-bg" />
                         )}
                         {/* Background pattern overlay */}
                         {pageBgPattern && (
@@ -10230,80 +10234,117 @@ export default function TemplatesEditorInner() {
                       );
                     })()}
 
-                    {/* ── Floating object toolbar (Canva-style) — single-select only ── */}
-                    {isActive && selectedIds.length <= 1 && selectedId && selectedId !== '__bg__' && !editingTextId && (() => {
-                      const el = elements.find(e => e.id === selectedId);
-                      if (!el) return null;
-                      // Compute element bounds in canvas coords
-                      const isCO = ['circle', 'triangle', 'star'].includes(el.type);
-                      const r    = el.radius || el.outerRadius || 60;
-                      const elX  = isCO ? el.x - r : el.x;
-                      const elY  = isCO ? el.y - r : el.y;
-                      const elW  = isCO ? r * 2 : (el.width || 200);
-                      const elH  = isCO ? r * 2 : (el.type === 'text' ? Math.max(60, (el.fontSize || 36) * 1.4) : (el.height || 100));
-                      // Screen coords
-                      const cx       = (elX + elW / 2) * stageScale;
-                      const nearTop  = elY * stageScale < 58;
-                      const toolbarY = nearTop ? (elY + elH) * stageScale + 10 : elY * stageScale - 50;
-                      const isLocked = lockedIds.has(selectedId);
+                    {/* ── Floating object toolbar (Canva-style pill) — single + multi-select ── */}
+                    {isActive && (selectedIds.length > 1 || (selectedId && selectedId !== '__bg__')) && !editingTextId && (() => {
+                      const isMulti = selectedIds.length > 1;
+                      // Collect active elements
+                      const activeEls = isMulti
+                        ? elements.filter(e => selectedIds.includes(e.id))
+                        : [elements.find(e => e.id === selectedId)].filter(Boolean);
+                      if (!activeEls.length) return null;
+
+                      // Compute combined bounding box in canvas coords
+                      const elBounds = activeEls.map(el => {
+                        const isCO = ['circle', 'triangle', 'star'].includes(el.type);
+                        const r = el.radius || el.outerRadius || 60;
+                        return {
+                          x: isCO ? el.x - r : (el.x || 0),
+                          y: isCO ? el.y - r : (el.y || 0),
+                          w: isCO ? r * 2 : (el.width || 200),
+                          h: isCO ? r * 2 : (el.type === 'text' ? Math.max(60, (el.fontSize || 36) * 1.4) : (el.height || 100)),
+                        };
+                      });
+                      const bx1 = Math.min(...elBounds.map(b => b.x));
+                      const by1 = Math.min(...elBounds.map(b => b.y));
+                      const bx2 = Math.max(...elBounds.map(b => b.x + b.w));
+                      const by2 = Math.max(...elBounds.map(b => b.y + b.h));
+                      const bw  = bx2 - bx1;
+                      const bh  = by2 - by1;
+
+                      // Convert to screen coords inside canvasWrapperRef
+                      const cx = (bx1 + bw / 2) * stageScale;
+                      const nearTop  = by1 * stageScale < 56;
+                      const toolbarY = nearTop ? (by1 + bh) * stageScale + 12 : by1 * stageScale - 52;
+
+                      const el = activeEls[0];
+                      const isLocked = !isMulti && lockedIds.has(selectedId);
+                      const isGroup  = !isMulti && el?.type === 'group';
+
                       // Actions
-                      const copyEl = () => setClipboard(JSON.parse(JSON.stringify(el)));
-                      const dupEl  = () => {
-                        const d = { ...JSON.parse(JSON.stringify(el)), id: `el_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, x: el.x + 20, y: el.y + 20 };
-                        pushHistory(); patchElements(prev => [...prev, d]); setSelectedId(d.id);
+                      const dupEl = () => {
+                        pushHistory();
+                        const newEls = activeEls.map(e => ({
+                          ...JSON.parse(JSON.stringify(e)),
+                          id: `el_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+                          x: (e.x || 0) + 20, y: (e.y || 0) + 20,
+                        }));
+                        patchElements(prev => [...prev, ...newEls]);
+                        setSelectedIds(newEls.map(e => e.id));
+                        setSelectedId(newEls[newEls.length - 1].id);
                       };
-                      const delEl  = () => { pushHistory(); patchElements(prev => prev.filter(e => e.id !== selectedId)); setSelectedId(null); };
+                      const delEls = () => {
+                        pushHistory();
+                        const toDelete = new Set(isMulti ? selectedIds : [selectedId]);
+                        patchElements(prev => prev.filter(e => !toDelete.has(e.id)));
+                        clearSelection();
+                      };
+
                       const BTNS = [
-                        { icon: <IpCopy size={15} />,        title: 'Copy (Ctrl+C)',            fn: copyEl },
-                        { icon: <IcoDuplicate size={15} />,  title: 'Duplicate (Ctrl+D)',        fn: dupEl },
+                        ...(isMulti
+                          ? [{ label: 'Group', icon: <IpTeam size={13} />, title: 'Group (Ctrl+G)', fn: groupSelected }]
+                          : isGroup
+                          ? [{ label: 'Ungroup', icon: <IpTeam size={13} />, title: 'Ungroup (Ctrl+Shift+G)', fn: ungroupSelected }]
+                          : []),
+                        ...(isMulti || isGroup ? [{ sep: true }] : []),
+                        ...(!isMulti ? [{ icon: <IpCopy size={14} />, title: 'Copy (Ctrl+C)', fn: () => setClipboard(JSON.parse(JSON.stringify(el))) }] : []),
+                        { icon: <IcoDuplicate size={14} />, title: 'Duplicate (Ctrl+D)', fn: dupEl },
+                        ...(!isMulti ? [
+                          { sep: true },
+                          { icon: <IcoBringFwd size={14} />, title: 'Bring forward', fn: () => bringForward(selectedId) },
+                          { icon: <IcoSendBack size={14} />, title: 'Send backward', fn: () => sendBackward(selectedId) },
+                          { sep: true },
+                          { icon: isLocked ? <IpLock size={14} /> : <IpUnlock size={14} />, title: isLocked ? 'Unlock' : 'Lock', fn: () => toggleLocked(selectedId) },
+                        ] : []),
                         { sep: true },
-                        { icon: <IpPalette size={15} />,     title: 'Copy style (Alt+C)',        fn: copyStyle },
-                        ...(styleClipboard ? [{ icon: <IpPalette size={15} />, title: 'Paste style (Alt+V)', fn: () => pasteStyle(), highlight: true }] : []),
-                        { sep: true },
-                        { icon: <IcoBringFwd size={15} />,   title: 'Bring forward',             fn: () => bringForward(selectedId) },
-                        { icon: <IcoSendBack size={15} />,   title: 'Send backward',             fn: () => sendBackward(selectedId) },
-                        { sep: true },
-                        ...(el.type === 'group' ? [{ icon: <IpCopy size={15} />, title: 'Ungroup (Ctrl+Shift+G)', fn: ungroupSelected }, { sep: true }] : []),
-                        ...(pages.length > 1 ? [{ icon: <IpPlus size={15} />, title: 'Add to all pages', fn: () => addElToAllPages(selectedId) }, { sep: true }] : []),
-                        { icon: isLocked ? <IpLock size={15} /> : <IpUnlock size={15} />, title: isLocked ? 'Unlock' : 'Lock', fn: () => toggleLocked(selectedId) },
-                        { sep: true },
-                        { icon: <IpDelete size={15} />,      title: 'Delete (Del)',              fn: delEl, danger: true },
+                        { icon: <IpDelete size={14} />, title: 'Delete (Del)', fn: delEls, danger: true },
                       ];
+
                       return (
                         <div
-                          key={selectedId}
+                          key={isMulti ? selectedIds.join(',') : selectedId}
                           style={{
                             position: 'absolute', left: cx, top: toolbarY,
                             transform: 'translateX(-50%)',
-                            background: t.card,
+                            background: t.isDark ? 'rgba(28,28,36,0.97)' : 'rgba(255,255,255,0.97)',
                             border: `1px solid ${t.border}`,
-                            borderRadius: 10,
-                            boxShadow: t.shadowLg,
+                            borderRadius: 32,
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.22), 0 1px 4px rgba(0,0,0,0.14)',
                             display: 'flex', alignItems: 'center',
-                            padding: '3px 5px', gap: 1,
+                            padding: '4px 8px', gap: 2,
                             zIndex: 200, whiteSpace: 'nowrap',
-                            animation: 'ftb-in 130ms cubic-bezier(0.19,1,0.22,1) forwards',
+                            animation: 'ftb-in 120ms cubic-bezier(0.19,1,0.22,1) forwards',
+                            backdropFilter: 'blur(12px)',
                           }}
                         >
                           {BTNS.map((b, i) =>
                             b.sep ? (
-                              <div key={i} style={{ width: 1, height: 18, background: t.border, margin: '0 3px', flexShrink: 0 }} />
+                              <div key={i} style={{ width: 1, height: 18, background: t.border, margin: '0 2px', flexShrink: 0 }} />
+                            ) : b.label ? (
+                              <button
+                                key={i}
+                                onMouseDown={e => { e.stopPropagation(); b.fn(); }}
+                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = t.input; }}
+                                onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
+                                style={{ height: 28, padding: '0 10px', border: 'none', borderRadius: 20, background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, color: TEAL, transition: 'background 80ms', flexShrink: 0 }}>
+                                {b.icon}{b.label}
+                              </button>
                             ) : (
                               <button
                                 key={i}
                                 onMouseDown={e => { e.stopPropagation(); b.fn(); }}
-                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.danger ? t.errorBg : b.highlight ? 'rgba(0,196,204,0.2)' : t.input; }}
-                                onMouseLeave={e => { hideTip(); e.currentTarget.style.background = b.highlight ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
-                                style={{
-                                  width: 30, height: 30, border: 'none', borderRadius: 6,
-                                  background: b.highlight ? 'rgba(0,196,204,0.1)' : 'transparent',
-                                  cursor: 'pointer', fontSize: 14,
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  color: b.danger ? t.error : b.highlight ? TEAL : t.text,
-                                  transition: 'background 80ms',
-                                  flexShrink: 0,
-                                }}
-                              >
+                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.danger ? t.errorBg : t.input; }}
+                                onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
+                                style={{ width: 30, height: 30, border: 'none', borderRadius: 8, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: b.danger ? t.error : t.text, transition: 'background 80ms', flexShrink: 0 }}>
                                 {b.icon}
                               </button>
                             )
