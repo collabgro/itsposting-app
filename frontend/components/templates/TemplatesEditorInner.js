@@ -4100,27 +4100,50 @@ export default function TemplatesEditorInner() {
 
   // ── Load curated ItsPosting templates ─────────────────────────────────────
   async function generateTemplateThumbs(templates) {
+    // Pre-load fonts so thumbnails match real rendering
+    try {
+      await Promise.all([
+        document.fonts.load('400 20px Inter'),
+        document.fonts.load('700 20px Inter'),
+        document.fonts.load('900 20px Inter'),
+        document.fonts.load('400 20px Georgia'),
+        document.fonts.load('700 20px Georgia'),
+      ]);
+    } catch (_) {}
+
     for (const tmpl of templates) {
       if (tmpl.thumbnail_url || templateThumbs[tmpl.id]) continue;
       const pageData = tmpl.canvas_json?.pages?.[0];
       if (!pageData) continue;
       try {
-        const THUMB_W = 216, THUMB_H = 270;
+        const THUMB_W = 270, THUMB_H = 338; // 4:5, higher res for quality
         const container = document.createElement('div');
-        container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:216px;height:270px;overflow:hidden';
+        container.style.cssText = `position:absolute;left:-9999px;top:-9999px;width:${THUMB_W}px;height:${THUMB_H}px;overflow:hidden`;
         document.body.appendChild(container);
         const stage = new Konva.Stage({ container, width: THUMB_W, height: THUMB_H });
         const layer = new Konva.Layer();
         stage.add(layer);
-        layer.add(new Konva.Rect({ x: 0, y: 0, width: THUMB_W, height: THUMB_H, fill: pageData.bgColor || '#1a1a2e' }));
         const scale = THUMB_W / 1080;
+        // Background
+        layer.add(new Konva.Rect({ x: 0, y: 0, width: THUMB_W, height: THUMB_H, fill: pageData.bgColor || '#1a1a2e' }));
         for (const el of (pageData.elements || [])) {
           if (el.type === 'text' && el.text) {
+            // Map fontWeight (CSS number) → Konva fontStyle ('bold'/'normal')
+            const fw = parseInt(el.fontWeight) || 400;
+            const isBold = fw >= 600;
+            const isItalic = (el.fontStyle || '').includes('italic');
+            const konvaFontStyle = isBold && isItalic ? 'bold italic' : isBold ? 'bold' : isItalic ? 'italic' : 'normal';
             layer.add(new Konva.Text({
               x: (el.x || 0) * scale, y: (el.y || 0) * scale,
-              text: el.text, fontSize: Math.max(4, (el.fontSize || 16) * scale),
-              fill: el.fill || '#fff', width: el.width ? el.width * scale : undefined,
-              align: el.align || 'left', fontStyle: el.fontStyle || 'normal',
+              text: el.text,
+              fontSize: Math.max(5, (el.fontSize || 16) * scale),
+              fill: el.fill || '#fff',
+              width: el.width ? el.width * scale : undefined,
+              align: el.align || 'left',
+              fontStyle: konvaFontStyle,
+              fontFamily: el.fontFamily || 'Inter',
+              lineHeight: el.lineHeight || 1.2,
+              opacity: el.opacity ?? 1,
             }));
           } else if (el.type === 'rect') {
             layer.add(new Konva.Rect({
@@ -4128,15 +4151,16 @@ export default function TemplatesEditorInner() {
               width: (el.width || 100) * scale, height: (el.height || 20) * scale,
               fill: el.fill || 'transparent', opacity: el.opacity ?? 1,
               cornerRadius: (el.cornerRadius || 0) * scale,
+              stroke: el.stroke, strokeWidth: el.strokeWidth ? el.strokeWidth * scale : 0,
             }));
           }
         }
         layer.draw();
-        const dataUrl = stage.toDataURL({ mimeType: 'image/jpeg', quality: 0.85, pixelRatio: 2 });
+        const dataUrl = stage.toDataURL({ mimeType: 'image/jpeg', quality: 0.92, pixelRatio: 2 });
         stage.destroy();
         document.body.removeChild(container);
         setTemplateThumbs(prev => ({ ...prev, [tmpl.id]: dataUrl }));
-        await new Promise(r => setTimeout(r, 25));
+        await new Promise(r => setTimeout(r, 20));
       } catch (_) {}
     }
   }
