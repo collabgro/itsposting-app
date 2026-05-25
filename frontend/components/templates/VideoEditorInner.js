@@ -28,22 +28,33 @@ const ASPECT_DIMS = {
 };
 
 const FILTER_PRESETS = [
-  { id: 'none',   label: 'Original', brightness: 0, contrast: 0, saturation: 0 },
-  { id: 'warm',   label: 'Warm',     brightness: 0.05, contrast: 5, saturation: 20 },
-  { id: 'cool',   label: 'Cool',     brightness: 0, contrast: 5, saturation: -10 },
-  { id: 'vivid',  label: 'Vivid',    brightness: 0, contrast: 20, saturation: 40 },
-  { id: 'faded',  label: 'Faded',    brightness: 0.1, contrast: -15, saturation: -20 },
-  { id: 'bw',     label: 'B&W',      brightness: 0, contrast: 10, saturation: -100 },
-  { id: 'moody',  label: 'Moody',    brightness: -0.05, contrast: 15, saturation: -15 },
+  { id: 'none',     label: 'Original', brightness: 0,     contrast: 0,   saturation: 0    },
+  { id: 'warm',     label: 'Warm',     brightness: 0.05,  contrast: 5,   saturation: 20   },
+  { id: 'cool',     label: 'Cool',     brightness: 0,     contrast: 5,   saturation: -10  },
+  { id: 'vivid',    label: 'Vivid',    brightness: 0,     contrast: 20,  saturation: 40   },
+  { id: 'faded',    label: 'Faded',    brightness: 0.1,   contrast: -15, saturation: -20  },
+  { id: 'bw',       label: 'B&W',      brightness: 0,     contrast: 10,  saturation: -100 },
+  { id: 'moody',    label: 'Moody',    brightness: -0.05, contrast: 15,  saturation: -15  },
+  { id: 'dramatic', label: 'Dramatic', brightness: -0.1,  contrast: 40,  saturation: -20  },
+  { id: 'golden',   label: 'Golden',   brightness: 0.08,  contrast: 8,   saturation: 35   },
+  { id: 'vintage',  label: 'Vintage',  brightness: 0.05,  contrast: -10, saturation: -30  },
+  { id: 'sunset',   label: 'Sunset',   brightness: 0.1,   contrast: 10,  saturation: 50   },
+  { id: 'arctic',   label: 'Arctic',   brightness: 0.08,  contrast: 12,  saturation: -60  },
+  { id: 'retro',    label: 'Retro',    brightness: 0.12,  contrast: -5,  saturation: -40  },
+  { id: 'cinema',   label: 'Cinema',   brightness: -0.08, contrast: 30,  saturation: -25  },
 ];
 
 const TRANSITION_TYPES = ['none', 'fade', 'dissolve', 'slide_left', 'slide_right', 'slide_up', 'zoom_in', 'zoom_out'];
 const TRANSITION_LABELS = { none: 'Cut', fade: 'Fade', dissolve: 'Dissolve', slide_left: '← Slide', slide_right: 'Slide →', slide_up: '↑ Slide', zoom_in: 'Zoom In', zoom_out: 'Zoom Out' };
 const SPEED_OPTIONS = [0.25, 0.5, 0.75, 1, 1.5, 2];
 const FONT_FAMILIES = ['Inter', 'Roboto', 'Playfair Display', 'Montserrat', 'Open Sans', 'Bebas Neue', 'Oswald', 'sans-serif'];
-const ANIM_IN_OPTIONS = ['none', 'fade_in', 'rise', 'slide_up', 'slide_left', 'slide_right', 'scale_up', 'pop', 'typewriter', 'tumble'];
-const ANIM_OUT_OPTIONS = ['none', 'fade_out', 'slide_down', 'slide_right', 'scale_down'];
-const ANIM_LABELS = { none: 'None', fade_in: 'Fade In', rise: 'Rise', slide_up: 'Slide Up', slide_left: 'Slide Left', slide_right: 'Slide Right', scale_up: 'Scale In', pop: 'Pop', typewriter: 'Typewriter', tumble: 'Tumble', fade_out: 'Fade Out', slide_down: 'Slide Down', scale_down: 'Scale Out' };
+const ANIM_IN_OPTIONS = ['none','fade_in','rise','slide_up','slide_left','slide_right','scale_up','pop','typewriter','tumble','bounce','glitch','wave','roll_left','roll_right','swing','neon_pulse','zoom_bounce'];
+const ANIM_OUT_OPTIONS = ['none','fade_out','slide_down','slide_left','slide_right','scale_down','bounce_out','glitch_out'];
+const ANIM_LABELS = { none:'None', fade_in:'Fade In', rise:'Rise', slide_up:'Slide Up', slide_left:'Slide Left', slide_right:'Slide Right', scale_up:'Scale In', pop:'Pop', typewriter:'Typewriter', tumble:'Tumble', bounce:'Bounce', glitch:'Glitch', wave:'Wave', roll_left:'Roll Left', roll_right:'Roll Right', swing:'Swing', neon_pulse:'Neon Pulse', zoom_bounce:'Zoom Bounce', fade_out:'Fade Out', slide_down:'Slide Down', scale_down:'Scale Out', bounce_out:'Bounce Out', glitch_out:'Glitch Out' };
+const KEN_BURNS_OPTIONS = ['none','zoom_in','zoom_out','pan_left','pan_right','pan_up','pan_down'];
+const KEN_BURNS_LABELS = { none:'None', zoom_in:'Zoom In', zoom_out:'Zoom Out', pan_left:'Pan Left', pan_right:'Pan Right', pan_up:'Pan Up', pan_down:'Pan Down' };
+const TEXT_SHADOW_PRESETS = ['none','soft','hard','glow','neon'];
+const TEXT_SHADOW_LABELS = { none:'None', soft:'Soft Drop', hard:'Hard Drop', glow:'Glow', neon:'Neon' };
 
 // ─── Empty project factory ────────────────────────────────────────────────────
 
@@ -109,6 +120,17 @@ export default function VideoEditorInner() {
 
   // ── Aspect ratio dropdown ───────────────────────────────────────────────────
   const [aspectOpen, setAspectOpen] = useState(false);
+
+  // ── Voiceover recording ─────────────────────────────────────────────────────
+  const [recording, setRecording] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+
+  // ── Export quality ──────────────────────────────────────────────────────────
+  const [exportQuality, setExportQuality] = useState('1080p');
+
+  // ── Real waveform cache ─────────────────────────────────────────────────────
+  const [waveformData, setWaveformData] = useState({});
 
   // ── Refs ────────────────────────────────────────────────────────────────────
   const videoRef = useRef(null);
@@ -313,6 +335,14 @@ export default function VideoEditorInner() {
     return () => clearInterval(interval);
   }, [exportJobId]);
 
+  // ─── Compute waveforms for audio tracks ──────────────────────────────────
+
+  useEffect(() => {
+    project.audioTracks.forEach(at => {
+      if (at.sourceUrl && !waveformData[at.id]) computeWaveform(at.sourceUrl, at.id);
+    });
+  }, [project.audioTracks]);
+
   // ─── Undo / Redo ─────────────────────────────────────────────────────────
 
   function handleUndo() {
@@ -347,6 +377,9 @@ export default function VideoEditorInner() {
       duration,
       volume: 1,
       speed: 1,
+      muted: false,
+      opacity: 1,
+      kenBurns: isVideo ? 'none' : 'zoom_in',
       filters: { brightness: 0, contrast: 0, saturation: 0 },
       transitionIn: { type: 'none', duration: 0.5 },
     };
@@ -539,7 +572,15 @@ export default function VideoEditorInner() {
 
     const onMove = (me) => {
       const dx = me.clientX - startX;
-      const newStart = Math.max(0, origTrackStart + dx / zoom);
+      let newStart = Math.max(0, origTrackStart + dx / zoom);
+      // Magnetic snap — snap to other clips' edges and to t=0
+      const SNAP = 8 / zoom;
+      const others = projectRef.current.clips.filter(c => c.id !== clip.id);
+      for (const oc of others) {
+        if (Math.abs(newStart - (oc.trackStart + oc.duration)) < SNAP) { newStart = oc.trackStart + oc.duration; break; }
+        if (Math.abs((newStart + clip.duration) - oc.trackStart) < SNAP) { newStart = oc.trackStart - clip.duration; break; }
+      }
+      if (Math.abs(newStart) < SNAP) newStart = 0;
       mutate(p => ({ ...p, clips: p.clips.map(c => c.id === clip.id ? { ...c, trackStart: newStart } : c) }));
     };
     const onUp = () => {
@@ -699,6 +740,152 @@ export default function VideoEditorInner() {
 
   function handleGenerateCaptions() {
     setCaptionError('Auto-captions are coming soon. In the meantime, add captions manually using the Text tab — set start/end times to sync them to your video.');
+  }
+
+  // ─── Duplicate selected clip ──────────────────────────────────────────────
+
+  function duplicateSelected() {
+    if (!selectedClip) return;
+    const newClip = { ...selectedClip, id: nanoid(), trackStart: selectedClip.trackStart + selectedClip.duration };
+    mutate(p => ({ ...p, clips: [...p.clips, newClip] }));
+    setSelectedId(newClip.id);
+  }
+
+  // ─── Voiceover recording ──────────────────────────────────────────────────
+
+  async function startVoiceRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      recordedChunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+        const file = new File([blob], `voiceover-${Date.now()}.webm`, { type: 'audio/webm' });
+        try {
+          const res = await mediaAPI.upload([file], 'audio', () => {});
+          if (res.data?.files?.[0]) {
+            setMediaFiles(prev => [...(res.data.files || []), ...prev]);
+            addAudioTrack(res.data.files[0]);
+          }
+        } catch {}
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    } catch {
+      alert('Microphone permission denied. Please allow microphone access and try again.');
+    }
+  }
+
+  function stopVoiceRecording() {
+    mediaRecorderRef.current?.stop();
+    setRecording(false);
+  }
+
+  // ─── Real waveform computation ────────────────────────────────────────────
+
+  async function computeWaveform(audioUrl, id) {
+    if (waveformData[id]) return;
+    try {
+      const response = await fetch(audioUrl);
+      const buffer = await response.arrayBuffer();
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const decoded = await audioCtx.decodeAudioData(buffer);
+      const data = decoded.getChannelData(0);
+      const BARS = 80;
+      const blockSize = Math.floor(data.length / BARS);
+      const peaks = Array.from({ length: BARS }, (_, i) => {
+        let max = 0;
+        for (let j = i * blockSize; j < Math.min((i + 1) * blockSize, data.length); j++) max = Math.max(max, Math.abs(data[j]));
+        return max;
+      });
+      audioCtx.close();
+      setWaveformData(prev => ({ ...prev, [id]: peaks }));
+    } catch {}
+  }
+
+  // ─── Compute live text animation style ────────────────────────────────────
+
+  function computeTextAnimStyle(te) {
+    const localTime = playhead - te.startTime;
+    const dur = te.endTime - te.startTime;
+    const IN_DUR = 0.5, OUT_DUR = 0.4;
+    const inP  = Math.min(1, Math.max(0, localTime / IN_DUR));
+    const outP = Math.min(1, Math.max(0, (localTime - (dur - OUT_DUR)) / OUT_DUR));
+    const outFade = 1 - outP;
+
+    let opacity = outFade;
+    let transform = 'translate(-50%, -50%)';
+    let extraStyle = {};
+
+    if (inP < 1) {
+      switch (te.animationIn) {
+        case 'fade_in':    opacity = inP * outFade; break;
+        case 'rise':       opacity = inP * outFade; transform = `translate(-50%, calc(-50% + ${(1-inP)*24}px))`; break;
+        case 'slide_up':   opacity = inP * outFade; transform = `translate(-50%, calc(-50% + ${(1-inP)*50}px))`; break;
+        case 'slide_left': opacity = inP * outFade; transform = `translate(calc(-50% + ${(1-inP)*80}px), -50%)`; break;
+        case 'slide_right':opacity = inP * outFade; transform = `translate(calc(-50% - ${(1-inP)*80}px), -50%)`; break;
+        case 'scale_up':   opacity = inP * outFade; transform = `translate(-50%, -50%) scale(${0.2 + 0.8*inP})`; break;
+        case 'pop': {
+          const s = inP < 0.6 ? 1 + 0.35*(inP/0.6) : 1 + 0.35*(1 - (inP-0.6)/0.4);
+          opacity = inP * outFade; transform = `translate(-50%, -50%) scale(${s})`; break;
+        }
+        case 'bounce':     transform = `translate(-50%, calc(-50% + ${-Math.sin(inP*Math.PI)*30}px))`; opacity = outFade; break;
+        case 'glitch': {
+          const dx = (Math.random()-0.5)*10*(1-inP), dy = (Math.random()-0.5)*4*(1-inP);
+          opacity = inP * outFade; transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+          extraStyle = { filter: `hue-rotate(${(1-inP)*90}deg) saturate(${1+(1-inP)*3})` }; break;
+        }
+        case 'wave':       opacity = inP * outFade; transform = `translate(-50%, calc(-50% + ${Math.sin(localTime*12)*6*(1-inP)}px))`; break;
+        case 'tumble':     opacity = inP * outFade; transform = `translate(-50%, calc(-50% + ${(1-inP)*40}px)) rotate(${(1-inP)*-20}deg) scale(${0.6+0.4*inP})`; break;
+        case 'roll_left':  opacity = inP * outFade; transform = `translate(calc(-50% + ${(1-inP)*100}px), -50%) perspective(400px) rotateY(${(1-inP)*90}deg)`; break;
+        case 'roll_right': opacity = inP * outFade; transform = `translate(calc(-50% - ${(1-inP)*100}px), -50%) perspective(400px) rotateY(${-(1-inP)*90}deg)`; break;
+        case 'swing': {
+          const ang = (1-inP)*30*Math.cos(inP*Math.PI*2.5);
+          opacity = inP * outFade; transform = `translate(-50%, -50%) rotate(${ang}deg)`; break;
+        }
+        case 'neon_pulse': {
+          const pulse = 0.5+0.5*Math.sin(localTime*20);
+          opacity = inP * outFade; extraStyle = { textShadow: `0 0 ${8+pulse*16}px currentColor, 0 0 ${2+pulse*4}px currentColor` }; break;
+        }
+        case 'zoom_bounce': {
+          const over = inP < 0.7 ? 1+0.4*(inP/0.7) : 1.4-0.4*((inP-0.7)/0.3);
+          opacity = inP * outFade; transform = `translate(-50%, -50%) scale(${over})`; break;
+        }
+        default: opacity = inP * outFade;
+      }
+    } else {
+      // Idle animations after in completes
+      if (te.animationIn === 'wave')       transform = `translate(-50%, calc(-50% + ${Math.sin(localTime*6)*3}px))`;
+      else if (te.animationIn === 'bounce') transform = `translate(-50%, calc(-50% + ${-Math.abs(Math.sin(localTime*4))*6}px))`;
+      else if (te.animationIn === 'neon_pulse') {
+        const p2 = 0.5+0.5*Math.sin(localTime*4);
+        extraStyle = { textShadow: `0 0 ${8+p2*12}px currentColor, 0 0 2px currentColor` };
+      }
+    }
+
+    // Animation out overrides once triggered
+    if (inP >= 1 && outP > 0 && te.animationOut && te.animationOut !== 'none') {
+      switch (te.animationOut) {
+        case 'fade_out':    opacity = 1 - outP; break;
+        case 'slide_down':  opacity = 1 - outP; transform = `translate(-50%, calc(-50% + ${outP*50}px))`; break;
+        case 'slide_left':  opacity = 1 - outP; transform = `translate(calc(-50% - ${outP*80}px), -50%)`; break;
+        case 'slide_right': opacity = 1 - outP; transform = `translate(calc(-50% + ${outP*80}px), -50%)`; break;
+        case 'scale_down':  opacity = 1 - outP; transform = `translate(-50%, -50%) scale(${1 - outP*0.8})`; break;
+        case 'bounce_out': {
+          const y = Math.sin(outP*Math.PI)*-30 + outP*60;
+          opacity = 1 - outP; transform = `translate(-50%, calc(-50% + ${y}px))`; break;
+        }
+        case 'glitch_out': {
+          const dx = (Math.random()-0.5)*12*outP;
+          opacity = 1 - outP; transform = `translate(calc(-50% + ${dx}px), -50%)`;
+          extraStyle = { filter: `hue-rotate(${outP*180}deg)` }; break;
+        }
+      }
+    }
+    return { opacity, transform, ...extraStyle };
   }
 
   // ─── Text overlay drag on preview ─────────────────────────────────────────
@@ -869,6 +1056,44 @@ export default function VideoEditorInner() {
     if (activeTool === 'audio') {
       return (
         <div>
+          {/* Voiceover recording */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', marginBottom: 6 }}>Record Voiceover</div>
+            {!recording ? (
+              <button onClick={startVoiceRecording}
+                style={{ width: '100%', padding: '9px 0', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 6, color: '#ef4444', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                🎤 Record Voiceover
+              </button>
+            ) : (
+              <button onClick={stopVoiceRecording}
+                style={{ width: '100%', padding: '9px 0', background: '#ef4444', border: 'none', borderRadius: 6, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                ⏹ Stop Recording
+              </button>
+            )}
+            {recording && (
+              <div style={{ textAlign: 'center', marginTop: 6, fontSize: 11, color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s ease-in-out infinite' }} />
+                Recording…
+              </div>
+            )}
+          </div>
+
+          {/* Upload audio */}
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginBottom: 10, padding: '8px 0', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12, cursor: 'pointer', boxSizing: 'border-box' }}>
+            <input type="file" accept="audio/*" multiple style={{ display: 'none' }} onChange={async e => {
+              const files = Array.from(e.target.files);
+              if (!files.length) return;
+              try {
+                const res = await mediaAPI.upload(files, 'audio', () => {});
+                const newFiles = res.data?.files || [];
+                setMediaFiles(prev => [...newFiles, ...prev]);
+                if (newFiles[0]) addAudioTrack(newFiles[0]);
+              } catch {}
+              e.target.value = '';
+            }} />
+            + Upload Audio
+          </label>
+
           {mediaLoading && <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: 20 }}>Loading...</div>}
           {audioFiles.length > 0
             ? audioFiles.map(f => (
@@ -878,7 +1103,7 @@ export default function VideoEditorInner() {
                 <div style={{ fontSize: 10, color: t.textMuted }}>{f.duration_seconds ? `${Math.round(f.duration_seconds)}s` : 'audio'}</div>
               </div>
             ))
-            : !mediaLoading && <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: 20 }}>No audio files yet.<br />Upload in My Media.</div>
+            : !mediaLoading && <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: 20 }}>No audio files yet.<br />Upload or record a voiceover.</div>
           }
         </div>
       );
@@ -1063,10 +1288,42 @@ export default function VideoEditorInner() {
             </>
           )}
 
-          <button onClick={deleteSelected} style={{ width: '100%', padding: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <IpDelete size={14} /> Delete Clip
-          </button>
-          <div style={{ fontSize: 10, color: t.textMuted, marginTop: 8, textAlign: 'center' }}>
+          {/* Ken Burns for image/video */}
+          {(selectedClip.type === 'image' || selectedClip.type === 'video') && (
+            <>
+              <Label>Ken Burns</Label>
+              <select value={selectedClip.kenBurns || 'none'}
+                onChange={e => updateClip(selectedClip.id, { kenBurns: e.target.value })}
+                style={{ width: '100%', marginBottom: 12, padding: '6px 8px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12 }}>
+                {KEN_BURNS_OPTIONS.map(k => <option key={k} value={k}>{KEN_BURNS_LABELS[k]}</option>)}
+              </select>
+            </>
+          )}
+
+          {/* Opacity */}
+          <Label>Opacity — {Math.round((selectedClip.opacity ?? 1) * 100)}%</Label>
+          <input type="range" min={0} max={1} step={0.05} value={selectedClip.opacity ?? 1}
+            onChange={e => updateClip(selectedClip.id, { opacity: parseFloat(e.target.value) })}
+            style={{ width: '100%', marginBottom: 12, accentColor: t.primary }} />
+
+          {/* Mute toggle */}
+          {(selectedClip.type === 'video') && (
+            <button onClick={() => updateClip(selectedClip.id, { muted: !selectedClip.muted })}
+              style={{ width: '100%', marginBottom: 10, padding: '6px 0', background: selectedClip.muted ? 'rgba(239,68,68,0.1)' : t.input, border: `1px solid ${selectedClip.muted ? 'rgba(239,68,68,0.4)' : t.border}`, borderRadius: 6, color: selectedClip.muted ? '#ef4444' : t.text, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+              {selectedClip.muted ? '🔇 Unmute Clip' : '🔊 Mute Clip'}
+            </button>
+          )}
+
+          {/* Duplicate + Delete */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+            <button onClick={duplicateSelected} style={{ flex: 1, padding: '7px 0', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+              ⧉ Duplicate
+            </button>
+            <button onClick={deleteSelected} style={{ flex: 1, padding: '7px 0', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              Delete
+            </button>
+          </div>
+          <div style={{ fontSize: 10, color: t.textMuted, marginTop: 6, textAlign: 'center' }}>
             Press S to split at playhead
           </div>
         </div>
@@ -1137,6 +1394,41 @@ export default function VideoEditorInner() {
             style={{ width: '100%', marginBottom: 12, padding: '6px 8px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12 }}>
             {ANIM_OUT_OPTIONS.map(o => <option key={o} value={o}>{ANIM_LABELS[o] || o}</option>)}
           </select>
+
+          <Label>Text Shadow</Label>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
+            {TEXT_SHADOW_PRESETS.map(sp => (
+              <button key={sp} onClick={() => updateText(selectedText.id, { shadowPreset: sp })}
+                style={{ padding: '4px 8px', borderRadius: 4, border: `1px solid ${(selectedText.shadowPreset||'none') === sp ? t.primary : t.border}`, background: (selectedText.shadowPreset||'none') === sp ? t.primaryBg : t.input, color: (selectedText.shadowPreset||'none') === sp ? t.primary : t.text, fontSize: 10, cursor: 'pointer', fontWeight: 500 }}>
+                {TEXT_SHADOW_LABELS[sp]}
+              </button>
+            ))}
+          </div>
+
+          <Label>Outline Width — {selectedText.strokeWidth || 0}px</Label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+            <input type="range" min={0} max={10} step={0.5} value={selectedText.strokeWidth || 0}
+              onChange={e => updateText(selectedText.id, { strokeWidth: parseFloat(e.target.value) })}
+              style={{ flex: 1, accentColor: t.primary }} />
+            <input type="color" value={selectedText.strokeColor || '#000000'}
+              onChange={e => updateText(selectedText.id, { strokeColor: e.target.value })}
+              style={{ width: 32, height: 28, border: `1px solid ${t.border}`, borderRadius: 4, cursor: 'pointer', background: 'none' }} />
+          </div>
+
+          <Label>Background Color</Label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+            <input type="color" value={selectedText.bgColor || '#000000'}
+              onChange={e => updateText(selectedText.id, { bgColor: e.target.value })}
+              style={{ width: 32, height: 28, border: `1px solid ${t.border}`, borderRadius: 4, cursor: 'pointer', background: 'none' }} />
+            <input type="range" min={0} max={1} step={0.05} value={selectedText.bgOpacity ?? 0}
+              onChange={e => updateText(selectedText.id, { bgOpacity: parseFloat(e.target.value), bgColor: selectedText.bgColor || '#000000' })}
+              style={{ flex: 1, accentColor: t.primary }} />
+            <span style={{ fontSize: 10, color: t.textMuted, width: 28 }}>{Math.round((selectedText.bgOpacity ?? 0)*100)}%</span>
+            {selectedText.bgColor && (
+              <button onClick={() => updateText(selectedText.id, { bgColor: null, bgOpacity: 0 })}
+                style={{ padding: '3px 6px', background: 'none', border: `1px solid ${t.border}`, borderRadius: 4, color: t.textMuted, fontSize: 10, cursor: 'pointer' }}>×</button>
+            )}
+          </div>
 
           <button onClick={deleteSelected} style={{ width: '100%', padding: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <IpDelete size={14} /> Delete Text
@@ -1227,6 +1519,7 @@ export default function VideoEditorInner() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: t.bg, overflow: 'hidden' }}>
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }`}</style>
 
       {/* ── Toolbar ── */}
       <div style={s.toolbar}>
@@ -1281,14 +1574,19 @@ export default function VideoEditorInner() {
           <IpSave size={14} /> {saving ? 'Saving…' : 'Save'}
         </button>
 
+        {/* Export quality */}
+        <select value={exportQuality} onChange={e => setExportQuality(e.target.value)}
+          style={{ padding: '6px 8px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12, cursor: 'pointer' }}>
+          <option value="720p">720p</option>
+          <option value="1080p">1080p</option>
+        </select>
+
         {/* Export */}
-        <div style={{ position: 'relative' }}>
-          <button onClick={() => handleExport('720p')} disabled={exporting || !project.clips.length}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: t.primary, border: 'none', borderRadius: 6, color: '#fff', fontSize: 12, fontWeight: 600, cursor: exporting || !project.clips.length ? 'not-allowed' : 'pointer', opacity: (!project.clips.length) ? 0.5 : 1 }}>
-            <IpDownload size={14} />
-            {exporting ? 'Rendering…' : 'Export MP4'}
-          </button>
-        </div>
+        <button onClick={() => handleExport(exportQuality)} disabled={exporting || !project.clips.length}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: t.primary, border: 'none', borderRadius: 6, color: '#fff', fontSize: 12, fontWeight: 600, cursor: exporting || !project.clips.length ? 'not-allowed' : 'pointer', opacity: (!project.clips.length) ? 0.5 : 1 }}>
+          <IpDownload size={14} />
+          {exporting ? 'Rendering…' : 'Export MP4'}
+        </button>
       </div>
 
       {/* ── Export status banner ── */}
@@ -1383,48 +1681,76 @@ export default function VideoEditorInner() {
             {activeClip ? (
               (() => {
                 const f = activeClip.filters || {};
-                const filterStyle = (f.brightness !== 0 || f.contrast !== 0 || f.saturation !== 0)
-                  ? `brightness(${Math.max(0, 1 + (f.brightness || 0))}) contrast(${Math.max(0, 1 + (f.contrast || 0) / 100)}) saturate(${Math.max(0, 1 + (f.saturation || 0) / 100)})`
+                const filterStr = (f.brightness !== 0 || f.contrast !== 0 || f.saturation !== 0)
+                  ? `brightness(${Math.max(0, 1 + (f.brightness||0))}) contrast(${Math.max(0, 1 + (f.contrast||0)/100)}) saturate(${Math.max(0, 1 + (f.saturation||0)/100)})`
                   : undefined;
+                // Ken Burns
+                let kbTransform = 'none';
+                if (activeClip.kenBurns && activeClip.kenBurns !== 'none') {
+                  const dur = Math.max(0.001, activeClip.duration);
+                  const prog = Math.min(1, Math.max(0, (playhead - activeClip.trackStart) / dur));
+                  if (activeClip.kenBurns === 'zoom_in')  kbTransform = `scale(${1 + 0.15*prog})`;
+                  if (activeClip.kenBurns === 'zoom_out') kbTransform = `scale(${1.15 - 0.15*prog})`;
+                  if (activeClip.kenBurns === 'pan_left')  kbTransform = `scale(1.1) translateX(${-prog*5}%)`;
+                  if (activeClip.kenBurns === 'pan_right') kbTransform = `scale(1.1) translateX(${(1-prog)*5-5*0}%)`;
+                  if (activeClip.kenBurns === 'pan_up')   kbTransform = `scale(1.1) translateY(${-prog*5}%)`;
+                  if (activeClip.kenBurns === 'pan_down') kbTransform = `scale(1.1) translateY(${prog*5}%)`;
+                }
+                const mediaStyle = { width:'100%', height:'100%', objectFit:'cover', display:'block', filter: filterStr, transform: kbTransform, transformOrigin:'center center' };
+                const clipOpacity = activeClip.muted ? 0.5 : 1;
                 return activeClip.type === 'video'
-                  ? <video ref={videoRef} src={activeClip.sourceUrl} muted={false} playsInline
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: filterStyle }} />
+                  ? <video ref={videoRef} src={activeClip.sourceUrl} muted={activeClip.muted} playsInline
+                      style={{ ...mediaStyle, opacity: clipOpacity }} />
                   : activeClip.type === 'image'
-                    ? <img src={activeClip.sourceUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: filterStyle }} />
-                    : <div style={{ width: '100%', height: '100%', background: activeClip.color || '#000' }} />;
+                    ? <img src={activeClip.sourceUrl} alt="" style={{ ...mediaStyle, opacity: clipOpacity }} />
+                    : <div style={{ width:'100%', height:'100%', background: activeClip.color || '#000', opacity: activeClip.opacity ?? 1 }} />;
               })()
             ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444', fontSize: 13 }}>
+              <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#444', fontSize: 13 }}>
                 Add clips to get started
               </div>
             )}
 
-            {/* Text overlays */}
-            {visibleText.map(te => (
-              <div key={te.id}
-                onMouseDown={e => onTextMouseDown(e, te)}
-                style={{
-                  position: 'absolute',
-                  left: `${te.xPercent}%`,
-                  top: `${te.yPercent}%`,
-                  transform: 'translate(-50%, -50%)',
-                  cursor: 'move',
-                  userSelect: 'none',
-                  fontFamily: te.fontFamily,
-                  fontSize: Math.round(te.fontSize * previewContainerW / 1080),
-                  fontWeight: (te.fontStyle || '').includes('bold') ? 700 : 400,
-                  fontStyle: (te.fontStyle || '').includes('italic') ? 'italic' : 'normal',
-                  color: te.fill,
-                  textAlign: te.align || 'center',
-                  whiteSpace: 'pre-wrap',
-                  textShadow: '0 1px 4px rgba(0,0,0,0.8)',
-                  border: selectedId === te.id ? '2px solid #00C4CC' : '2px solid transparent',
-                  padding: 4,
-                  borderRadius: 4,
-                }}>
-                {te.text}
-              </div>
-            ))}
+            {/* Text overlays — live animated */}
+            {visibleText.map(te => {
+              const animStyle = computeTextAnimStyle(te);
+              const localTime = playhead - te.startTime;
+              const IN_DUR = 0.5;
+              const inP = Math.min(1, Math.max(0, localTime / IN_DUR));
+              const displayText = te.animationIn === 'typewriter' && inP < 1
+                ? te.text.slice(0, Math.round(inP * te.text.length)) + '▍'
+                : te.text;
+              const shadowMap = {
+                none: 'none', soft: '2px 2px 8px rgba(0,0,0,0.7)',
+                hard: '2px 2px 0 #000,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000',
+                glow: `0 0 20px ${te.fill},0 0 40px ${te.fill}`,
+                neon: `0 0 10px #fff,0 0 20px ${te.fill},0 0 40px ${te.fill},0 0 80px ${te.fill}`,
+              };
+              const textShadow = shadowMap[te.shadowPreset || 'none'] || shadowMap.none;
+              const strokeStyle = te.strokeWidth ? { WebkitTextStroke: `${te.strokeWidth * previewContainerW / 1080}px ${te.strokeColor || '#000'}` } : {};
+              const bgRgb = te.bgColor ? (h => `rgba(${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)},${te.bgOpacity ?? 0.6})`)(te.bgColor) : null;
+              return (
+                <div key={te.id}
+                  onMouseDown={e => onTextMouseDown(e, te)}
+                  style={{
+                    position: 'absolute', left: `${te.xPercent}%`, top: `${te.yPercent}%`,
+                    transform: animStyle.transform, opacity: animStyle.opacity,
+                    cursor: 'move', userSelect: 'none',
+                    fontFamily: te.fontFamily,
+                    fontSize: Math.round(te.fontSize * previewContainerW / 1080),
+                    fontWeight: (te.fontStyle||'').includes('bold') ? 700 : 400,
+                    fontStyle: (te.fontStyle||'').includes('italic') ? 'italic' : 'normal',
+                    color: te.fill, textAlign: te.align || 'center', whiteSpace: 'pre-wrap',
+                    textShadow,
+                    ...(bgRgb && { background: bgRgb, padding: '3px 10px', borderRadius: 4 }),
+                    border: selectedId === te.id ? '2px solid #00C4CC' : '2px solid transparent',
+                    padding: bgRgb ? '3px 10px' : 4, borderRadius: 4,
+                    ...strokeStyle, ...(animStyle.filter ? { filter: animStyle.filter } : {}),
+                  }}>
+                  {displayText}
+                </div>
+              );
+            })}
           </div>
 
           {/* Playback controls */}
@@ -1603,10 +1929,10 @@ export default function VideoEditorInner() {
                     {/* Trim left */}
                     <div onMouseDown={e => { e.stopPropagation(); const startX = e.clientX; const orig = at.startTime; const onMove = me => { const dx = (me.clientX - startX) / zoom; const ns = Math.max(0, orig + dx); updateAudio(at.id, { startTime: ns }); }; const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); }; window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp); }}
                       style={{ position: 'absolute', left: 0, top: 0, width: 7, height: '100%', cursor: 'ew-resize', background: 'rgba(255,255,255,0.3)', borderRadius: '4px 0 0 4px', zIndex: 2 }} />
-                    {/* Waveform decoration */}
-                    <div style={{ position: 'absolute', left: 10, right: 10, bottom: 3, top: 3, display: 'flex', alignItems: 'flex-end', gap: 1, overflow: 'hidden' }}>
-                      {Array.from({ length: 60 }).map((_, i) => (
-                        <div key={i} style={{ flex: 1, background: 'rgba(255,255,255,0.45)', height: `${30 + Math.round(Math.sin(i * 0.8) * 25 + Math.sin(i * 2.1 + 1) * 15)}%`, minHeight: 2, borderRadius: 1 }} />
+                    {/* Waveform — real if computed, decorative fallback */}
+                    <div style={{ position: 'absolute', left: 10, right: 10, bottom: 3, top: 3, display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
+                      {(waveformData[at.id] || Array.from({ length: 80 }, (_, i) => 0.15 + Math.abs(Math.sin(i*0.8)*0.5 + Math.sin(i*2.1+1)*0.25))).map((v, i) => (
+                        <div key={i} style={{ flex: 1, background: 'rgba(255,255,255,0.55)', height: `${Math.max(8, v * 90)}%`, minHeight: 2, borderRadius: 1 }} />
                       ))}
                     </div>
                     {/* Audio label */}
