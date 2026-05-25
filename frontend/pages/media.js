@@ -592,10 +592,16 @@ export default function MediaLibrary() {
                       onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '1'; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '0'; }}>
                       <div style={{ aspectRatio: '4/5', background: t.input, position: 'relative', overflow: 'hidden' }}>
-                        {tmpl.thumbnail_url
-                          ? <img src={tmpl.thumbnail_url} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: t.textMuted }}>No preview</div>
-                        }
+                        {(() => {
+                          const CAT_ICONS = { 'before-after': '◑', 'social-proof': '⭐', 'seasonal': '❄', 'educational': '💡', 'promotional': '📣', 'team': '👥' };
+                          const bgColor = tmpl.canvas_json?.pages?.[0]?.bgColor || '#1a1a2e';
+                          return tmpl.thumbnail_url
+                            ? <img src={tmpl.thumbnail_url} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            : <div style={{ width: '100%', height: '100%', background: bgColor, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10 }}>
+                                <span style={{ fontSize: 24 }}>{CAT_ICONS[tmpl.category] || '✦'}</span>
+                                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.85)', textAlign: 'center', fontWeight: 700, lineHeight: 1.3, letterSpacing: '0.02em' }}>{tmpl.name}</span>
+                              </div>;
+                        })()}
                         <div className="tmpl-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', gap: 8, flexDirection: 'column' }}>
                           <button
                             onClick={() => router.push(`/templates/editor?template=${tmpl.id}`)}

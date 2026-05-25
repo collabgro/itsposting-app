@@ -3850,7 +3850,7 @@ export default function TemplatesEditorInner() {
   const [hoveredPhotoId, setHoveredPhotoId] = useState(null);
   const [imgTab, setImgTab] = useState('stock');
   const [uploadMediaTab, setUploadMediaTab] = useState('Images');
-  const [stockPhotos, setStockPhotos] = useState([]);
+  const [pexelsPhotos, setPexelsPhotos] = useState([]);
   const [stockLoading, setStockLoading] = useState(false);
   const [stockQuery, setStockQuery] = useState('');
   const [stockInputValue, setStockInputValue] = useState('');
@@ -4240,12 +4240,12 @@ export default function TemplatesEditorInner() {
   // ── Load stock photos (Pexels) when Stock tab opens ───────────────────────
   useEffect(() => {
     if (uploadMediaTab !== 'Stock') return;
-    if (stockPhotos.length > 0 && !stockQuery) return;
+    if (pexelsPhotos.length > 0 && !stockQuery) return;
     setStockLoading(true);
     const query = stockQuery || 'home services professional';
     studioAPI.searchStockPhotos(query)
-      .then(r => setStockPhotos(r.data?.photos || []))
-      .catch(() => setStockPhotos([]))
+      .then(r => setPexelsPhotos(r.data?.photos || []))
+      .catch(() => setPexelsPhotos([]))
       .finally(() => setStockLoading(false));
   }, [uploadMediaTab, stockQuery]);
 
@@ -6023,7 +6023,7 @@ export default function TemplatesEditorInner() {
       `}</style>
 
       {/* ── Top toolbar (Canva-style) ── */}
-      <div style={{ height: 56, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 10, position: 'relative' }}>
+      <div style={{ height: 56, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}`, background: t.isDark ? 'linear-gradient(90deg, #0d1a2e 0%, #1a1040 100%)' : 'linear-gradient(90deg, #00C4CC 0%, #7C5CFC 100%)', flexShrink: 0, zIndex: 10, position: 'relative' }}>
 
         {/* ── Left zone ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
@@ -6347,7 +6347,12 @@ export default function TemplatesEditorInner() {
 
       {/* ── Contextual action bar (Canva-style) ── */}
       <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); setShowEmojiPanel(false); setShowEffectsPanel(false); setShowMorePanel(false); }}
-        style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, position: 'relative' }}>
+        style={{ height: (selectedId || selectedIds.length > 0) ? 52 : 32, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, position: 'relative', transition: 'height 150ms ease' }}>
+        {!selectedId && selectedIds.length === 0 && (
+          <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 11, color: t.textMuted, letterSpacing: '0.02em' }}>Click any element to edit</span>
+          </div>
+        )}
 
         {/* Scrollable left zone */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -9276,7 +9281,7 @@ export default function TemplatesEditorInner() {
                           <div key={i} style={{ borderRadius: 6, aspectRatio: '1', background: `linear-gradient(90deg, ${t.input} 25%, ${t.border} 50%, ${t.input} 75%)`, backgroundSize: '1000px 100%', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
                         ))}
                       </div>
-                    ) : stockPhotos.length === 0 ? (
+                    ) : pexelsPhotos.length === 0 ? (
                       <div style={{ textAlign: 'center', color: t.textMuted, padding: '30px 0', fontSize: 12 }}>
                         <div style={{ fontSize: 28, marginBottom: 8 }}>📸</div>
                         <div style={{ fontWeight: 600, marginBottom: 4 }}>No results</div>
@@ -9285,7 +9290,7 @@ export default function TemplatesEditorInner() {
                     ) : (
                       <>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
-                          {stockPhotos.map(photo => (
+                          {pexelsPhotos.map(photo => (
                             <div key={photo.id}
                               draggable
                               onDragStart={e => e.dataTransfer.setData('text/plain', photo.url)}
@@ -10182,7 +10187,7 @@ export default function TemplatesEditorInner() {
           }
         `}</style>
         <div ref={containerRef}
-          style={{ flex: 1, overflow: 'auto', background: t.bg, padding: '24px 0', position: 'relative' }}>
+          style={{ flex: 1, overflow: 'auto', background: t.isDark ? '#111827' : '#e8e8e8', padding: '40px', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
             {pages.map((page, pageIdx) => {
               const isActive = pageIdx === activePage;
