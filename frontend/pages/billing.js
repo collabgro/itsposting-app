@@ -373,10 +373,13 @@ export default function Billing() {
                 style={{
                   background: t.card,
                   border: `2px solid ${isCurrent ? t.primary : plan.popular ? 'rgba(124,92,252,0.4)' : t.border}`,
-                  borderRadius: 16, padding: 24, position: 'relative',
+                  borderRadius: 20, padding: 24, position: 'relative',
                   display: 'flex', flexDirection: 'column',
                   opacity: isDowngrade ? 0.6 : 1,
+                  transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
                 }}
+                onMouseEnter={e => { if (!isDowngrade) { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = t.shadowXl; } }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
               >
                 {plan.popular && !isCurrent && (
                   <div style={{
@@ -404,8 +407,8 @@ export default function Billing() {
                 )}
 
                 <div style={{ marginBottom: 4 }}>
-                  <span style={{ fontSize: 30, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>${price}</span>
-                  <span style={{ color: t.textMuted, fontSize: 13 }}> / mo</span>
+                  <span style={{ fontSize: 48, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>${price}</span>
+                  <span style={{ color: t.textMuted, fontSize: 14 }}> / mo</span>
                   {cycle === 'yearly' && (
                     <span style={{ display: 'block', fontSize: 11, color: t.textMuted, marginTop: 2 }}>
                       billed annually · <span style={{ textDecoration: 'line-through' }}>${plan.price}/mo</span>
@@ -439,7 +442,7 @@ export default function Billing() {
                   }}
                   disabled={isCurrent || !!checkingOut}
                   variant={isCurrent ? 'secondary' : plan.popular ? 'primary' : 'secondary'}
-                  style={{ width: '100%', justifyContent: 'center', padding: '11px', gap: 6 }}
+                  style={{ width: '100%', justifyContent: 'center', height: 44, fontSize: 14, fontWeight: 700, gap: 6 }}
                 >
                   {isCurrent ? (
                     <><IpCheck size={13} strokeWidth={3} /> Current plan</>

@@ -127,8 +127,8 @@ export default function Dashboard() {
     return (
       <Layout>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 16, padding: 40 }}>
-          <div style={{ fontSize: 15, color: '#EF4444' }}>Failed to load dashboard data.</div>
-          <button onClick={loadDashboard} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366F1', color: '#fff', cursor: 'pointer', fontSize: 14 }}>
+          <div style={{ fontSize: 15, color: t.error }}>Failed to load dashboard data.</div>
+          <button onClick={loadDashboard} style={{ padding: '8px 20px', borderRadius: 10, border: 'none', background: t.primary, color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
             Retry
           </button>
         </div>
@@ -248,7 +248,7 @@ export default function Dashboard() {
             />
             <div style={{ background: metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.07)' : t.card, border: `1px solid ${metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.28)' : t.border}`, borderRadius: 12, padding: '16px 18px' }}>
               <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>Posting Streak</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: metrics?.postingStreak >= 3 ? '#EAB308' : t.text, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+              <div style={{ fontSize: 32, fontWeight: 800, color: metrics?.postingStreak >= 3 ? '#EAB308' : t.text, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                 {metrics?.postingStreak >= 3 && <IpFlame size={20} color="#EAB308" />}
                 {metrics?.postingStreak ? `${metrics.postingStreak} days` : '—'}
               </div>
@@ -259,9 +259,9 @@ export default function Dashboard() {
             {/* GEO Score card */}
             <div
               onClick={() => router.push('/geo-audit')}
-              style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', cursor: 'pointer', transition: 'background 150ms' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = t.card)}
+              style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', cursor: 'pointer', transition: 'background 150ms, transform 150ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 150ms ease' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = t.shadowMd; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
             >
               <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>Search Visibility</div>
               {geoScore && geoScore.score > 0 ? (
@@ -275,7 +275,7 @@ export default function Dashboard() {
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: t.text, marginBottom: 3 }}>—</div>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: t.text, marginBottom: 3 }}>—</div>
                   <div style={{ fontSize: 11, color: t.primary, fontWeight: 600 }}>
                     {geoScore?.freeAuditUsed ? 'Check your score →' : 'Get your free score →'}
                   </div>
@@ -425,7 +425,7 @@ export default function Dashboard() {
                   const fmtLabel = post.content_type === 'static' ? 'TEXT' : (post.content_type || '').toUpperCase();
                   return (
                     <div key={post.id} onClick={() => setPreviewPostId(post.id)}
-                      style={{ display: 'flex', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${t.border}`, cursor: 'pointer', alignItems: 'center' }}
+                      style={{ display: 'flex', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${t.border}`, cursor: 'pointer', alignItems: 'center', transition: 'background 120ms ease' }}
                       onMouseEnter={e => (e.currentTarget.style.background = t.cardHover)}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                       <div style={{ width: 72, height: 72, borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
@@ -488,7 +488,7 @@ function MetricCard({ t, label, main, sub, subColor, disclaimer }) {
         {label}
         {disclaimer && <IpInfo size={11} style={{ color: t.textDisabled }} title="Estimate based on industry averages" />}
       </div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: t.text, letterSpacing: '-0.03em', marginBottom: 3 }}>{main}</div>
+      <div style={{ fontSize: 32, fontWeight: 800, color: t.text, letterSpacing: '-0.03em', marginBottom: 3 }}>{main}</div>
       {sub && <div style={{ fontSize: 11, color: subColor || t.textMuted }}>{sub}</div>}
     </div>
   );
