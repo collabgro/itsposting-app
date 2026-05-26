@@ -471,6 +471,30 @@ console.log('══════════════════════�
     catch (e) { console.warn('[Migration] Skipped:', e.message.substring(0, 80)); }
   }
 
+  // Fix any canvas_templates rows whose industry was stored as 'general' but whose name
+  // clearly identifies them as industry-specific. Runs on every startup — safe/idempotent.
+  try {
+    const namePrefixFix = [
+      ['plumbing', 'Plumbing —'],
+      ['hvac',     'HVAC —'],
+      ['hvac',     'Heating & Cooling —'],
+      ['roofing',  'Roofing —'],
+      ['electrical', 'Electrical —'],
+      ['painting', 'Painting —'],
+      ['landscaping', 'Landscaping —'],
+      ['concrete', 'Concrete —'],
+      ['pest_control', 'Pest Control —'],
+      ['cleaning', 'Cleaning —'],
+    ];
+    for (const [industry, prefix] of namePrefixFix) {
+      await pool.query(
+        `UPDATE canvas_templates SET industry = $1 WHERE name LIKE $2 AND industry != $1`,
+        [industry, `${prefix}%`]
+      );
+    }
+    console.log('[Migration] canvas_templates industry correction applied');
+  } catch (e) { console.warn('[Migration] canvas_templates industry fix skipped:', e.message.substring(0, 80)); }
+
   // Seed canvas templates — idempotent: inserts each template only if name not already present
   try {
     const TEAL = '#00C4CC', PURPLE = '#7C5CFC', GOLD = '#FFB800', RED = '#ef4444', NAVY = '#0f3460', DARK = '#1a1a2e';
@@ -1188,6 +1212,12 @@ console.log('══════════════════════�
           [tmpl.name, tmpl.industry, tmpl.category, JSON.stringify(tmpl.canvas_json), 1080, 1350, tmpl.sort_order]
         );
         inserted++;
+      } else {
+        // Always sync industry/category/sort_order so stale DB rows from old seeds get corrected
+        await pool.query(
+          `UPDATE canvas_templates SET industry = $1, category = $2, sort_order = $3 WHERE name = $4`,
+          [tmpl.industry, tmpl.category, tmpl.sort_order, tmpl.name]
+        );
       }
     }
     // Remove the old generic seed templates that got replaced with better versions

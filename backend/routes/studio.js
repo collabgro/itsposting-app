@@ -632,14 +632,16 @@ Return ONLY valid JSON (no markdown fences):
   // ── GET /api/studio/templates — curated templates list ─────────────────────
   router.get('/templates', authenticate, async (req, res) => {
     try {
-      const { industry = 'general', category, limit = 30 } = req.query;
+      const { industry, category, limit = 30 } = req.query;
       const conditions = ['is_active = true'];
       const params = [];
 
       if (industry && industry !== 'all') {
+        // Show templates for the selected industry + general-purpose templates (visible to all)
         conditions.push(`(industry = $${params.length + 1} OR industry = 'general')`);
         params.push(industry);
       }
+      // No industry param or industry='all' → return everything (no filter added)
       if (category) {
         conditions.push(`category = $${params.length + 1}`);
         params.push(category);
