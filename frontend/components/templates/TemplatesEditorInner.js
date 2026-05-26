@@ -11865,6 +11865,57 @@ export default function TemplatesEditorInner() {
                         </div>
                       </div>
 
+                      {/* ── ALIGN TO PAGE ── */}
+                      <SH>Align to page</SH>
+                      {(() => {
+                        const alignEl = (axis, mode) => {
+                          if (!stageRef.current || !selectedId) return;
+                          const node = stageRef.current.findOne(`#${selectedId}`);
+                          if (!node) return;
+                          const scale = stageRef.current.width() / canvasSize.w;
+                          const br = node.getClientRect({ relativeTo: stageRef.current });
+                          const elW = br.width / scale;
+                          const elH = br.height / scale;
+                          const elX = br.x / scale;
+                          const elY = br.y / scale;
+                          pushHistory();
+                          if (axis === 'h') {
+                            // delta: how much to shift selectedEl.x so bounding box aligns
+                            let delta;
+                            if (mode === 'left')   delta = -elX;
+                            if (mode === 'center') delta = canvasSize.w / 2 - (elX + elW / 2);
+                            if (mode === 'right')  delta = canvasSize.w - (elX + elW);
+                            updateElement({ ...selectedEl, x: Math.round(selectedEl.x + delta) });
+                          } else {
+                            let delta;
+                            if (mode === 'top')    delta = -elY;
+                            if (mode === 'middle') delta = canvasSize.h / 2 - (elY + elH / 2);
+                            if (mode === 'bottom') delta = canvasSize.h - (elY + elH);
+                            updateElement({ ...selectedEl, y: Math.round(selectedEl.y + delta) });
+                          }
+                        };
+                        const abtn = (title, children, onClick) => (
+                          <button key={title} onClick={onClick} title={title}
+                            style={{ flex: 1, height: 28, border: `1px solid ${t.border}`, borderRadius: 6, background: t.input, color: t.textSecondary, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = t.input; e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textSecondary; }}>
+                            {children}
+                          </button>
+                        );
+                        return (
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                              {abtn('Align left',            <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="2" width="1.5" height="10" rx="0.75" fill="currentColor"/><rect x="3" y="3.5" width="7" height="3" rx="1" fill="currentColor" opacity=".6"/><rect x="3" y="7.5" width="5" height="3" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('h','left'))}
+                              {abtn('Align center',          <svg width="14" height="14" viewBox="0 0 14 14"><rect x="6.25" y="1" width="1.5" height="12" rx="0.75" fill="currentColor"/><rect x="2" y="3" width="10" height="3" rx="1" fill="currentColor" opacity=".6"/><rect x="3.5" y="8" width="7" height="3" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('h','center'))}
+                              {abtn('Align right',           <svg width="14" height="14" viewBox="0 0 14 14"><rect x="11.5" y="2" width="1.5" height="10" rx="0.75" fill="currentColor"/><rect x="4" y="3.5" width="7" height="3" rx="1" fill="currentColor" opacity=".6"/><rect x="6" y="7.5" width="5" height="3" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('h','right'))}
+                              {abtn('Align top',             <svg width="14" height="14" viewBox="0 0 14 14"><rect x="2" y="1" width="10" height="1.5" rx="0.75" fill="currentColor"/><rect x="3" y="3" width="3" height="7" rx="1" fill="currentColor" opacity=".6"/><rect x="8" y="3" width="3" height="5" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('v','top'))}
+                              {abtn('Align middle',          <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="6.25" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="3" y="2" width="3" height="10" rx="1" fill="currentColor" opacity=".6"/><rect x="8" y="3.5" width="3" height="7" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('v','middle'))}
+                              {abtn('Align bottom',          <svg width="14" height="14" viewBox="0 0 14 14"><rect x="2" y="11.5" width="10" height="1.5" rx="0.75" fill="currentColor"/><rect x="3" y="4" width="3" height="7" rx="1" fill="currentColor" opacity=".6"/><rect x="8" y="6" width="3" height="5" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('v','bottom'))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       {/* ── TEXT: FONT ── */}
                       {selectedEl.type === 'text' && (<>
                         <SH>Font</SH>
@@ -11972,6 +12023,21 @@ export default function TemplatesEditorInner() {
 
                       {/* ── IMAGE: ADJUST / FRAME ── */}
                       {selectedEl.type === 'image' && (<>
+                        <SH>Flip</SH>
+                        <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
+                          {[
+                            { label: 'Flip H', prop: 'flipX', title: 'Flip horizontal' },
+                            { label: 'Flip V', prop: 'flipY', title: 'Flip vertical' },
+                          ].map(({ label: lbl2, prop, title }) => (
+                            <button key={prop} onClick={() => { pushHistory(); updateElement({ ...selectedEl, [prop]: !selectedEl[prop] }); }}
+                              title={title}
+                              style={{ flex: 1, height: 28, border: `1px solid ${selectedEl[prop] ? t.primaryBorder : t.border}`, borderRadius: 7, background: selectedEl[prop] ? t.primaryBg : t.input, color: selectedEl[prop] ? t.primary : t.text, fontSize: 11, cursor: 'pointer', fontWeight: 500 }}
+                              onMouseEnter={e => { if (!selectedEl[prop]) { e.currentTarget.style.background = t.cardHover; } }}
+                              onMouseLeave={e => { if (!selectedEl[prop]) { e.currentTarget.style.background = t.input; } }}>
+                              {lbl2}
+                            </button>
+                          ))}
+                        </div>
                         <SH>Adjust</SH>
                         {[
                           { key: 'brightness', label: 'Brightness', min: -1, max: 1, step: 0.05, fmt: v => `${Math.round(v * 100)}%` },
