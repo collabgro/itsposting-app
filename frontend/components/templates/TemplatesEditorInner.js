@@ -1166,6 +1166,20 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
               i === 0 ? ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
                       : ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
             }
+          } else if (kind === 'hexagon') {
+            const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2;
+            for (let i = 0; i < 6; i++) {
+              const a = (Math.PI * 2 / 6) * i - Math.PI / 2;
+              i === 0 ? ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
+                      : ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+            }
+          } else if (kind === 'cloud') {
+            const cx = w / 2, cy = h / 2;
+            ctx.arc(cx * 0.55, cy * 1.1, w * 0.22, Math.PI, 0);
+            ctx.arc(cx * 0.82, cy * 0.75, w * 0.2, Math.PI * 0.9, 0.1);
+            ctx.arc(cx * 1.18, cy * 0.65, w * 0.25, Math.PI * 0.85, 0.05);
+            ctx.arc(cx * 1.5, cy * 0.85, w * 0.19, Math.PI * 0.8, 0.2);
+            ctx.arc(cx * 1.45, cy * 1.1, w * 0.18, 0, Math.PI);
           } else if (kind === 'parallelogram') {
             const skew = w * 0.2;
             ctx.moveTo(skew, 0); ctx.lineTo(w, 0); ctx.lineTo(w - skew, h); ctx.lineTo(0, h);
@@ -3576,6 +3590,91 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.fillStyle=iconColor; ctx.fill();
             ctx.beginPath(); ctx.arc(cx,cy,s*0.42,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
             ctx.beginPath(); ctx.arc(cx,cy,s*0.2,0,Math.PI*2); ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'pipe') {
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.38; ctx.lineCap='round';
+            ctx.beginPath(); ctx.moveTo(cx-s*1.05,cy); ctx.lineTo(cx+s*0.3,cy); ctx.stroke();
+            ctx.lineWidth=s*0.28;
+            ctx.beginPath(); ctx.moveTo(cx-s*1.05,cy-s*0.35); ctx.lineTo(cx-s*1.05,cy+s*0.35); ctx.stroke();
+            ctx.lineWidth=s*0.32;
+            ctx.beginPath(); ctx.moveTo(cx+s*0.3,cy); ctx.lineTo(cx+s*0.3,cy-s*0.78); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx+s*0.3,cy-s*0.78); ctx.lineTo(cx+s*1.05,cy-s*0.78); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx+s*1.05,cy-s*0.48); ctx.lineTo(cx+s*1.05,cy-s*1.05); ctx.stroke();
+          } else if (kind === 'snowflake') {
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.18; ctx.lineCap='round';
+            for(let i=0;i<6;i++){
+              const a=(Math.PI/3)*i;
+              ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a)*s*1.05,cy+Math.sin(a)*s*1.05); ctx.stroke();
+              const bx=cx+Math.cos(a)*s*0.58, by=cy+Math.sin(a)*s*0.58, ba=a+Math.PI/2;
+              ctx.beginPath(); ctx.moveTo(bx+Math.cos(ba)*s*0.26,by+Math.sin(ba)*s*0.26); ctx.lineTo(bx-Math.cos(ba)*s*0.26,by-Math.sin(ba)*s*0.26); ctx.stroke();
+            }
+            ctx.beginPath(); ctx.arc(cx,cy,s*0.14,0,Math.PI*2); ctx.fillStyle=iconColor; ctx.fill();
+          } else if (kind === 'fan') {
+            ctx.fillStyle=iconColor;
+            for(let i=0;i<3;i++){
+              ctx.save(); ctx.translate(cx,cy); ctx.rotate((Math.PI*2/3)*i);
+              ctx.beginPath(); ctx.ellipse(-s*0.22,-(s*0.62),s*0.38,s*0.7,Math.PI*0.15,0,Math.PI*2);
+              ctx.fill(); ctx.restore();
+            }
+            ctx.beginPath(); ctx.arc(cx,cy,s*0.2,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
+          } else if (kind === 'hardhat') {
+            ctx.fillStyle=iconColor;
+            ctx.beginPath(); ctx.arc(cx,cy-s*0.18,s*0.92,Math.PI,0); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.roundRect(cx-s*1.05,cy-s*0.02,s*2.1,s*0.35,s*0.08); ctx.fill();
+            ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.35)';
+            ctx.beginPath(); ctx.moveTo(cx-s*0.16,cy-s*1.1); ctx.lineTo(cx+s*0.16,cy-s*1.1); ctx.lineTo(cx+s*0.08,cy-s*0.2); ctx.lineTo(cx-s*0.08,cy-s*0.2); ctx.closePath(); ctx.fill();
+          } else if (kind === 'paintbrush') {
+            ctx.save(); ctx.translate(cx,cy); ctx.rotate(-Math.PI*0.25);
+            ctx.fillStyle=iconColor;
+            ctx.beginPath(); ctx.roundRect(-s*0.1,-s*1.3,s*0.2,s*1.3,s*0.06); ctx.fill();
+            ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.35)';
+            ctx.beginPath(); ctx.rect(-s*0.13,0,s*0.26,s*0.3); ctx.fill();
+            ctx.fillStyle=iconColor;
+            ctx.beginPath(); ctx.moveTo(-s*0.2,s*0.3); ctx.lineTo(s*0.2,s*0.3); ctx.lineTo(s*0.06,s*0.82); ctx.lineTo(-s*0.06,s*0.82); ctx.closePath(); ctx.fill();
+            ctx.restore();
+          } else if (kind === 'spray') {
+            ctx.fillStyle=iconColor;
+            ctx.beginPath(); ctx.roundRect(cx-s*0.5,cy-s*0.35,s*1.0,s*1.32,s*0.14); ctx.fill();
+            ctx.beginPath(); ctx.roundRect(cx-s*0.15,cy-s*1.02,s*0.58,s*0.7,s*0.09); ctx.fill();
+            [[cx+s*0.62,cy-s*0.9],[cx+s*0.82,cy-s*0.68],[cx+s*0.75,cy-s*0.45],[cx+s*0.98,cy-s*0.55]].forEach(([mx,my])=>{ ctx.beginPath(); ctx.arc(mx,my,s*0.07,0,Math.PI*2); ctx.fill(); });
+          } else if (kind === 'truck') {
+            ctx.fillStyle=iconColor;
+            ctx.beginPath(); ctx.roundRect(cx-s*1.05,cy-s*0.62,s*1.42,s*0.96,s*0.08); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(cx+s*0.37,cy-s*0.62); ctx.lineTo(cx+s*0.37,cy-s*1.06); ctx.lineTo(cx+s*0.94,cy-s*1.06); ctx.quadraticCurveTo(cx+s*1.08,cy-s*1.06,cx+s*1.08,cy-s*0.92); ctx.lineTo(cx+s*1.08,cy+s*0.34); ctx.lineTo(cx+s*0.37,cy+s*0.34); ctx.closePath(); ctx.fill();
+            ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)';
+            ctx.beginPath(); ctx.arc(cx-s*0.58,cy+s*0.44,s*0.25,0,Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx+s*0.82,cy+s*0.44,s*0.25,0,Math.PI*2); ctx.fill();
+            ctx.fillStyle=iconColor;
+            ctx.beginPath(); ctx.arc(cx-s*0.58,cy+s*0.44,s*0.11,0,Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx+s*0.82,cy+s*0.44,s*0.11,0,Math.PI*2); ctx.fill();
+          } else if (kind === 'broom') {
+            ctx.save(); ctx.translate(cx,cy); ctx.rotate(Math.PI*0.15);
+            ctx.fillStyle=iconColor;
+            ctx.beginPath(); ctx.roundRect(-s*0.08,-s*1.35,s*0.16,s*1.6,s*0.06); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(-s*0.62,s*0.25); ctx.lineTo(s*0.62,s*0.25); ctx.lineTo(s*0.52,s*0.85); ctx.quadraticCurveTo(s*0.32,s*1.02,0,s*1.02); ctx.quadraticCurveTo(-s*0.32,s*1.02,-s*0.52,s*0.85); ctx.closePath(); ctx.fill();
+            ctx.restore();
+          } else if (kind === 'ladder') {
+            ctx.strokeStyle=iconColor; ctx.lineWidth=s*0.18; ctx.lineCap='round';
+            ctx.beginPath(); ctx.moveTo(cx-s*0.48,cy-s*1.12); ctx.lineTo(cx-s*0.48,cy+s*1.12); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx+s*0.48,cy-s*1.12); ctx.lineTo(cx+s*0.48,cy+s*1.12); ctx.stroke();
+            [-0.82,-0.41,0,0.41,0.82].forEach(y=>{ ctx.beginPath(); ctx.moveTo(cx-s*0.48,cy+s*y); ctx.lineTo(cx+s*0.48,cy+s*y); ctx.stroke(); });
+          } else if (kind === 'gear') {
+            const gr=s*0.88, teeth=8;
+            ctx.fillStyle=iconColor;
+            ctx.beginPath();
+            for(let i=0;i<teeth;i++){
+              const a1=(Math.PI*2/teeth)*i-Math.PI/teeth*0.38;
+              const a2=a1+Math.PI/teeth*0.38, a3=a2+Math.PI/teeth*0.24, a4=a3+Math.PI/teeth*0.38;
+              i===0?ctx.moveTo(cx+gr*Math.cos(a1),cy+gr*Math.sin(a1)):ctx.lineTo(cx+gr*Math.cos(a1),cy+gr*Math.sin(a1));
+              ctx.lineTo(cx+gr*1.22*Math.cos(a2),cy+gr*1.22*Math.sin(a2));
+              ctx.lineTo(cx+gr*1.22*Math.cos(a3),cy+gr*1.22*Math.sin(a3));
+              ctx.lineTo(cx+gr*Math.cos(a4),cy+gr*Math.sin(a4));
+            }
+            ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx,cy,gr*0.52,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
+          } else if (kind === 'tag') {
+            ctx.fillStyle=iconColor;
+            ctx.beginPath(); ctx.moveTo(cx-s*0.92,cy-s*0.92); ctx.lineTo(cx+s*0.18,cy-s*0.92); ctx.lineTo(cx+s*1.02,cy); ctx.lineTo(cx+s*0.18,cy+s*0.92); ctx.lineTo(cx-s*0.92,cy+s*0.92); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx-s*0.56,cy-s*0.44,s*0.17,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
           }
           ctx.restore();
           if (isSelected) { ctx.strokeStyle='#9B4FD4'; ctx.lineWidth=1.5; ctx.strokeRect(0,0,w,h); }
@@ -3851,6 +3950,7 @@ function RulerV({ canvasH, stageScale, isDark }) {
 
 function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageScale, canvasW, canvasH, onLiveBounds, onLiveBoundsClear }) {
   const trRef = useRef(null);
+  const { t } = useTheme();
 
   useLayoutEffect(() => {
     if (!trRef.current || !stageRef.current) return;
@@ -3873,15 +3973,14 @@ function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageSc
     <>
       <Transformer
         ref={trRef}
-        borderStroke="#9B4FD4"
-        borderStrokeWidth={1 / stageScale}
-        borderDash={[6 / stageScale, 4 / stageScale]}
-        anchorSize={12 / stageScale}
-        anchorCornerRadius={6 / stageScale}
-        anchorStroke="#9B4FD4"
+        borderStroke={t.primary}
+        borderStrokeWidth={1.5 / stageScale}
+        anchorSize={10 / stageScale}
+        anchorCornerRadius={2 / stageScale}
+        anchorStroke="rgba(30,30,30,0.55)"
         anchorFill="#ffffff"
         anchorStrokeWidth={1.5 / stageScale}
-        rotateAnchorOffset={32 / stageScale}
+        rotateAnchorOffset={28 / stageScale}
         rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
         rotationSnapTolerance={5}
         enabledAnchors={isText
@@ -3911,7 +4010,7 @@ function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageSc
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function TemplatesEditorInner() {
-  const { t } = useTheme();
+  const { t, toggleTheme, theme } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -5307,6 +5406,20 @@ export default function TemplatesEditorInner() {
     setSelectedId(newEls[0].id);
   }
 
+  function addBackground(fill) {
+    pushHistory();
+    const el = { id: uid(), type: 'rect', x: 0, y: 0, width: canvasSize.w, height: canvasSize.h, fill, cornerRadius: 0, opacity: 1 };
+    patchElements(prev => [el, ...prev]);
+    setSelectedId(el.id);
+  }
+
+  function addGradientBackground(c1, c2, angle) {
+    pushHistory();
+    const el = { id: uid(), type: 'rect', x: 0, y: 0, width: canvasSize.w, height: canvasSize.h, fill: c1, fillType: 'gradient', fillGradient: { c1, c2, angle: angle ?? 135 }, cornerRadius: 0, opacity: 1 };
+    patchElements(prev => [el, ...prev]);
+    setSelectedId(el.id);
+  }
+
   function addCallout() {
     pushHistory();
     const el = {
@@ -6273,6 +6386,8 @@ export default function TemplatesEditorInner() {
         @keyframes slideInRight { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
         @keyframes contextIn { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
         @keyframes panelFadeIn { from { opacity:0; } to { opacity:1; } }
+        @keyframes ctxbar-in { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes panel-in { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
       `}</style>
 
       {/* ── Top toolbar (Canva-style) ── */}
@@ -6474,16 +6589,33 @@ export default function TemplatesEditorInner() {
 
           {/* ── Video mode toggle ── */}
           <button onClick={() => { setIsVideoMode(v => !v); setIsPlaying(false); setVideoPlayhead(0); clearInterval(playIntervalRef.current); }}
-            onMouseEnter={e => showTip(e, isVideoMode ? 'Switch to Image mode' : 'Edit as Video')} onMouseLeave={hideTip}
-            style={{ height: 32, padding: '0 11px', border: `1px solid ${isVideoMode ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: isVideoMode ? t.primaryBg : 'transparent', color: isVideoMode ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', flexShrink: 0, letterSpacing: '-0.01em' }}
-            onMouseEnter={e => { if (!isVideoMode) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
-            onMouseLeave={e => { if (!isVideoMode) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
+            onMouseEnter={e => { showTip(e, isVideoMode ? 'Switch to Image mode' : 'Edit as Video'); if (!isVideoMode) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }} onMouseLeave={e => { hideTip(); if (!isVideoMode) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}
+            style={{ height: 32, padding: '0 11px', border: `1px solid ${isVideoMode ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: isVideoMode ? t.primaryBg : 'transparent', color: isVideoMode ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', flexShrink: 0, letterSpacing: '-0.01em' }}>
             {isVideoMode ? '◻ Image' : '▶ Video'}
+          </button>
+
+          {/* ── Separator ── */}
+          <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0, margin: '0 2px' }} />
+
+          {/* ── Undo / Redo — always visible in left zone ── */}
+          <button onClick={undo} disabled={historyIndex < 0}
+            title="Undo (Ctrl+Z)"
+            onMouseEnter={e => { showTip(e, 'Undo', 'Ctrl+Z'); if (historyIndex >= 0) e.currentTarget.style.background = t.cardHover; }}
+            onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
+            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: historyIndex < 0 ? t.textMuted : t.text, cursor: historyIndex < 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms', flexShrink: 0 }}>
+            <IcoUndo size={17} />
+          </button>
+          <button onClick={redo} disabled={historyIndex >= history.length - 1}
+            title="Redo (Ctrl+Y)"
+            onMouseEnter={e => { showTip(e, 'Redo', 'Ctrl+Y'); if (historyIndex < history.length - 1) e.currentTarget.style.background = t.cardHover; }}
+            onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
+            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: historyIndex >= history.length - 1 ? t.textMuted : t.text, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms', flexShrink: 0 }}>
+            <IcoRedo size={17} />
           </button>
         </div>
 
-        {/* ── Center zone: absolutely centered editable title ── */}
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center' }}>
+        {/* ── Center zone: absolutely centered editable title — clamped width ── */}
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', maxWidth: 'min(260px, 28vw)', pointerEvents: 'auto' }}>
           {titleEditing ? (
             <input
               autoFocus
@@ -6491,14 +6623,15 @@ export default function TemplatesEditorInner() {
               onChange={e => setTitleForSave(e.target.value)}
               onBlur={() => setTitleEditing(false)}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') e.target.blur(); }}
-              style={{ padding: '5px 12px', borderRadius: 7, border: `1.5px solid ${t.primary}`, background: t.input, color: t.text, fontSize: 14, fontWeight: 600, outline: 'none', minWidth: 180, textAlign: 'center' }}
+              style={{ padding: '4px 10px', borderRadius: 8, border: `1.5px solid ${t.primary}`, background: t.input, color: t.text, fontSize: 13, fontWeight: 600, outline: 'none', width: 220, textAlign: 'center', boxShadow: `0 0 0 3px ${t.primaryBg}` }}
             />
           ) : (
             <button onClick={() => setTitleEditing(true)} title="Click to rename"
-              style={{ padding: '5px 12px', border: '1px solid transparent', borderRadius: 7, background: 'transparent', color: t.text, fontSize: 14, fontWeight: 600, cursor: 'text', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              style={{ padding: '4px 10px', border: '1px solid transparent', borderRadius: 8, background: 'transparent', color: t.text, fontSize: 13, fontWeight: 600, cursor: 'text', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
               onMouseEnter={e => { e.currentTarget.style.border = `1px solid ${t.border}`; e.currentTarget.style.background = t.input; }}
               onMouseLeave={e => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.background = 'transparent'; }}>
-              {titleForSave || 'Untitled design'} ✎
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleForSave || 'Untitled design'}</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.45, flexShrink: 0 }}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
           )}
         </div>
@@ -6506,15 +6639,16 @@ export default function TemplatesEditorInner() {
         {/* ── Right zone ── */}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
 
-          {/* Undo / Redo */}
-          <button onClick={undo} disabled={historyIndex < 0}
-            onMouseEnter={e => { showTip(e, 'Undo', 'Ctrl+Z'); if (historyIndex >= 0) e.currentTarget.style.background = t.input; }}
+          {/* Theme toggle */}
+          <button onClick={toggleTheme} title={theme === 'dark' ? 'Switch to Light mode' : 'Switch to Dark mode'}
+            onMouseEnter={e => { showTip(e, theme === 'dark' ? 'Light mode' : 'Dark mode'); e.currentTarget.style.background = t.cardHover; }}
             onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
-            style={{ width: 32, height: 32, border: 'none', borderRadius: 7, background: 'transparent', color: historyIndex < 0 ? t.textMuted : t.text, cursor: historyIndex < 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}><IcoUndo size={16} /></button>
-          <button onClick={redo} disabled={historyIndex >= history.length - 1}
-            onMouseEnter={e => { showTip(e, 'Redo', 'Ctrl+Y'); if (historyIndex < history.length - 1) e.currentTarget.style.background = t.input; }}
-            onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
-            style={{ width: 32, height: 32, border: 'none', borderRadius: 7, background: 'transparent', color: historyIndex >= history.length - 1 ? t.textMuted : t.text, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}><IcoRedo size={16} /></button>
+            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: t.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms, color 100ms', flexShrink: 0 }}>
+            {theme === 'dark'
+              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            }
+          </button>
 
           <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0 }} />
 
@@ -7543,18 +7677,18 @@ export default function TemplatesEditorInner() {
                 disabled={extractLoading}
                 onClick={async () => {
                   if (!selectedEl?.src || extractLoading) return;
-                  if (selectedEl.src.startsWith('blob:')) {
-                    alert('Please upload the image first, then use Extract.');
+                  if (selectedEl.src.startsWith('blob:') || selectedEl.src.startsWith('data:')) {
+                    alert('Please save your image first, then use Extract.');
                     return;
                   }
                   setExtractLoading(true);
                   try {
                     const res = await studioAPI.extractElements(selectedEl.src);
-                    const { elements } = res.data;
-                    if (!elements?.length) throw new Error('No elements detected');
+                    const detectedEls = res.data?.elements;
+                    if (!detectedEls?.length) throw new Error('No elements detected');
                     const srcEl = selectedEl;
                     pushHistory();
-                    for (const el of elements) {
+                    for (const el of detectedEls) {
                       if (el.type === 'background') {
                         patchElements(prev => [...prev, {
                           id: uid(), type: 'rect',
@@ -7572,22 +7706,27 @@ export default function TemplatesEditorInner() {
                           fontWeight: '700', align: 'left', opacity: 1, rotation: 0,
                         }]);
                       } else if (el.type === 'object' && el.boundingBox) {
-                        const dataUrl = await cropImageRegion(srcEl.src, el.boundingBox);
-                        const x = srcEl.x + (el.boundingBox.xPercent / 100) * srcEl.width;
-                        const y = srcEl.y + (el.boundingBox.yPercent / 100) * srcEl.height;
-                        const w = (el.boundingBox.widthPercent / 100) * srcEl.width;
-                        const h = (el.boundingBox.heightPercent / 100) * srcEl.height;
-                        patchElements(prev => [...prev, {
-                          id: uid(), type: 'image', src: dataUrl,
-                          x, y, width: w, height: h, opacity: 1, rotation: 0,
-                          flipH: false, flipV: false, cornerRadius: 0,
-                        }]);
+                        try {
+                          const dataUrl = await cropImageRegion(srcEl.src, el.boundingBox);
+                          const x = srcEl.x + (el.boundingBox.xPercent / 100) * srcEl.width;
+                          const y = srcEl.y + (el.boundingBox.yPercent / 100) * srcEl.height;
+                          const w = (el.boundingBox.widthPercent / 100) * srcEl.width;
+                          const h = (el.boundingBox.heightPercent / 100) * srcEl.height;
+                          patchElements(prev => [...prev, {
+                            id: uid(), type: 'image', src: dataUrl,
+                            x, y, width: w, height: h, opacity: 1, rotation: 0,
+                            flipH: false, flipV: false, cornerRadius: 0,
+                          }]);
+                        } catch (cropErr) {
+                          console.warn('[Extract] crop failed (possible CORS):', cropErr.message);
+                        }
                       }
                     }
                     patchElements(prev => prev.filter(e => e.id !== srcEl.id));
                     setSelectedId(null);
-                  } catch {
-                    alert('Element extraction failed. Try a clearer image with distinct objects.');
+                  } catch (err) {
+                    console.error('[Extract]', err);
+                    alert('Element extraction failed. Please try again.');
                   }
                   setExtractLoading(false);
                 }}
@@ -7925,10 +8064,10 @@ export default function TemplatesEditorInner() {
               </>}
               {selectedEl.type === 'iconshape' && <>
                 <D />
-                {[['✓','check'],['✗','x'],['+','plus'],['→','arrow'],['★','star'],['♥','heart'],['▲','warning'],['🛡','shield'],['ℹ','info'],['⚡','bolt']].map(([icon,kind]) => (
+                {[['✓','check'],['✗','x'],['+','plus'],['→','arrow'],['★','star'],['♥','heart'],['▲','warning'],['🛡','shield'],['ℹ','info'],['⚡','bolt'],['🔧','wrench'],['🔨','hammer'],['🏠','house'],['💧','drop'],['🔥','flame'],['🍃','leaf'],['📞','phone'],['🕐','clock'],['📍','location'],['✉','mail'],['$','dollar'],['🏆','trophy'],['📅','calendar'],['📷','camera'],['↑','arrowup'],['←','arrowleft'],['↻','refresh'],['📶','wifi'],['🔒','lock'],['👁','eye2'],['〰','pipe'],['❄','snowflake'],['🌀','fan'],['⛑','hardhat'],['🖌','paintbrush'],['💨','spray'],['🚐','truck'],['🧹','broom'],['🪜','ladder'],['⚙','gear'],['🏷','tag']].map(([icon,kind]) => (
                   <button key={kind} onClick={() => { pushHistory(); updateElement({...selectedEl, iconKind: kind}); }}
                     title={kind}
-                    style={{ width:28, height:28, borderRadius:5, border:`1px solid ${(selectedEl.iconKind||'check')===kind?TEAL:t.border}`, background:(selectedEl.iconKind||'check')===kind?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.iconKind||'check')===kind?TEAL:t.text, fontSize:14, cursor:'pointer', flexShrink:0 }}>
+                    style={{ width:28, height:28, borderRadius:5, border:`1px solid ${(selectedEl.iconKind||'check')===kind?TEAL:t.border}`, background:(selectedEl.iconKind||'check')===kind?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.iconKind||'check')===kind?TEAL:t.text, fontSize:13, cursor:'pointer', flexShrink:0 }}>
                     {icon}
                   </button>
                 ))}
@@ -8753,72 +8892,202 @@ export default function TemplatesEditorInner() {
 
       </div>
 
+      {/* ── Canva-style contextual bar ── */}
+      {(() => {
+        if (!selectedEl || selectedId === '__bg__') return null;
+        const updSel = (changes) => patchElements(prev => prev.map(el => el.id === selectedId ? { ...el, ...changes } : el));
+        const btnSt = (active) => ({
+          height: 28, minWidth: 28, padding: '0 6px', border: `1px solid ${active ? t.primaryBorder : t.border}`,
+          borderRadius: 6, background: active ? t.primaryBg : t.input, color: active ? t.primary : t.text,
+          fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          transition: 'all 100ms ease',
+        });
+        const divSt = { width: 1, height: 22, background: t.border, margin: '0 6px', flexShrink: 0 };
+        const isText = selectedEl.type === 'text';
+        const isImage = selectedEl.type === 'image';
+        const isShape = ['rect','shape','circle','iconshape'].includes(selectedEl.type);
+        const fs = selectedEl.fontStyle || '';
+        return (
+          <div style={{
+            height: 44, display: 'flex', alignItems: 'center', padding: '0 12px', gap: 3, flexShrink: 0,
+            borderBottom: `1px solid ${t.border}`,
+            background: t.isDark ? 'rgba(14,14,18,0.97)' : 'rgba(255,255,255,0.97)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            zIndex: 9, overflow: 'hidden',
+            animation: 'ctxbar-in 150ms cubic-bezier(0.16,1,0.3,1) forwards',
+          }}>
+            {isText && (
+              <>
+                {/* Font family */}
+                <select value={selectedEl.fontFamily || 'Inter'}
+                  onChange={e => { pushHistory(); updSel({ fontFamily: e.target.value }); }}
+                  style={{ height: 30, padding: '0 6px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', outline: 'none', minWidth: 118, flexShrink: 0 }}>
+                  {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+                <div style={divSt} />
+                {/* Font size */}
+                <button onClick={() => { pushHistory(); updSel({ fontSize: Math.max(8, (selectedEl.fontSize || 24) - 2) }); }} style={btnSt(false)}>−</button>
+                <input type="number" min={8} max={400} value={Math.round(selectedEl.fontSize || 24)}
+                  onChange={e => updSel({ fontSize: Math.max(8, parseInt(e.target.value) || 24) })}
+                  onBlur={() => pushHistory()}
+                  style={{ width: 48, height: 30, textAlign: 'center', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, outline: 'none', flexShrink: 0 }} />
+                <button onClick={() => { pushHistory(); updSel({ fontSize: Math.min(400, (selectedEl.fontSize || 24) + 2) }); }} style={btnSt(false)}>+</button>
+                <div style={divSt} />
+                {/* Text color */}
+                <label title="Text color" style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+                  <input type="color" value={selectedEl.fill || '#ffffff'}
+                    onChange={e => updSel({ fill: e.target.value })}
+                    onBlur={() => pushHistory()}
+                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
+                  <div style={{ width: 30, height: 26, borderRadius: 6, border: `2px solid ${t.border}`, background: selectedEl.fill || '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                </label>
+                <div style={divSt} />
+                {/* Bold / Italic / Underline */}
+                <button onClick={() => { pushHistory(); updSel({ fontStyle: fs.includes('bold') ? fs.replace('bold','').trim() : (fs + ' bold').trim() }); }}
+                  style={{ ...btnSt(fs.includes('bold')), fontWeight: 900, fontFamily: 'inherit' }}>B</button>
+                <button onClick={() => { pushHistory(); updSel({ fontStyle: fs.includes('italic') ? fs.replace('italic','').trim() : (fs + ' italic').trim() }); }}
+                  style={{ ...btnSt(fs.includes('italic')), fontStyle: 'italic' }}>I</button>
+                <button onClick={() => { pushHistory(); updSel({ textDecoration: selectedEl.textDecoration === 'underline' ? 'none' : 'underline' }); }}
+                  style={{ ...btnSt(selectedEl.textDecoration === 'underline'), textDecoration: 'underline' }}>U</button>
+                <div style={divSt} />
+                {/* Alignment */}
+                {[['left',<IcoAlignLeft size={13}/>],['center',<IcoAlignCH size={13}/>],['right',<IcoAlignRight size={13}/>]].map(([a,ic])=>(
+                  <button key={a} onClick={() => { pushHistory(); updSel({ align: a }); }} style={btnSt(selectedEl.align===a)}>{ic}</button>
+                ))}
+              </>
+            )}
+            {isImage && (
+              <>
+                {/* Flip H/V */}
+                <button onClick={() => { pushHistory(); updSel({ flipX: !selectedEl.flipX }); }} style={btnSt(selectedEl.flipX)}>
+                  <IcoFlipH size={13} />
+                </button>
+                <button onClick={() => { pushHistory(); updSel({ flipY: !selectedEl.flipY }); }} style={btnSt(selectedEl.flipY)}>
+                  <IcoFlipV size={13} />
+                </button>
+                <div style={divSt} />
+                {/* Brightness */}
+                <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>Brightness</span>
+                <input type="range" min={-100} max={100} step={5} value={selectedEl.brightness ?? 0}
+                  onChange={e => updSel({ brightness: parseInt(e.target.value) })}
+                  onMouseUp={() => pushHistory()}
+                  style={{ width: 70, accentColor: t.primary, flexShrink: 0 }} />
+              </>
+            )}
+            {isShape && (
+              <>
+                {/* Fill color */}
+                <label title="Fill color" style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+                  <input type="color" value={selectedEl.fill || '#7C5CFC'}
+                    onChange={e => updSel({ fill: e.target.value })}
+                    onBlur={() => pushHistory()}
+                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
+                  <div style={{ width: 30, height: 26, borderRadius: 6, border: `2px solid ${t.border}`, background: selectedEl.fill || '#7C5CFC', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                </label>
+                <div style={divSt} />
+                {/* Border color */}
+                {selectedEl.stroke && (
+                  <label title="Border color" style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+                    <input type="color" value={selectedEl.stroke || '#ffffff'}
+                      onChange={e => updSel({ stroke: e.target.value })}
+                      onBlur={() => pushHistory()}
+                      style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
+                    <div style={{ width: 30, height: 26, borderRadius: 6, border: `2px solid ${selectedEl.stroke || '#ffffff'}`, background: 'transparent', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                  </label>
+                )}
+              </>
+            )}
+            {/* Right section — always shown */}
+            <div style={{ flex: 1 }} />
+            {/* Position W/H */}
+            {selectedEl.width != null && selectedEl.height != null && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {[['W','width'],['H','height']].map(([lbl,prop])=>(
+                  <div key={prop} style={{ display:'flex', alignItems:'center', gap:2 }}>
+                    <span style={{ fontSize:10, color:t.textMuted, width:12, textAlign:'right' }}>{lbl}</span>
+                    <input type="number" value={Math.round(selectedEl[prop]||0)}
+                      onChange={e=>updSel({[prop]:Math.max(1,parseInt(e.target.value)||0)})}
+                      onBlur={()=>pushHistory()}
+                      style={{ width:50, height:26, textAlign:'center', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, outline:'none' }} />
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={divSt} />
+            {/* Opacity */}
+            <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>Opacity</span>
+            <input type="range" min={0} max={1} step={0.01} value={selectedEl.opacity ?? 1}
+              onChange={e => updSel({ opacity: parseFloat(e.target.value) })}
+              onMouseUp={() => pushHistory()}
+              style={{ width: 64, accentColor: t.primary, flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: t.textMuted, minWidth: 32, textAlign: 'right', flexShrink: 0 }}>{Math.round((selectedEl.opacity??1)*100)}%</span>
+          </div>
+        );
+      })()}
+
       {/* ── Main layout ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* ── Left sidebar: 64px icon strip + 280px collapsible flyout ── */}
 
-        {/* 64px icon strip — always visible */}
-        <div style={{ width: 64, borderRight: `1px solid ${t.border}`, background: t.sidebar,
+        {/* 72px icon strip — always visible (Canva-style) */}
+        <div style={{ width: 72, borderRight: `1px solid ${t.border}`, background: t.sidebar,
           display: 'flex', flexDirection: 'column', alignItems: 'center',
-          padding: '8px 0', flexShrink: 0, gap: 2 }}>
+          padding: '10px 0 8px', flexShrink: 0, gap: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
           {[
-            { id: 'templates', icon: <IcoTemplates size={20} />, label: 'Templates' },
-            { id: 'elements',  icon: <IpSparkle size={20} />,    label: 'Elements'  },
-            { id: 'text',      icon: <IpTextCard size={20} />,   label: 'Text',      shortcut: 'T' },
-            { id: 'brand',     icon: <IpPalette size={20} />,    label: 'Brand'    },
-            { id: 'uploads',   icon: <IpPublish size={20} />,    label: 'Uploads'   },
-            { id: 'layers',    icon: <IcoLayers size={20} />,    label: 'Layers'    },
-            { id: 'tools',     icon: <IpEdit size={20} />,       label: 'Tools'     },
-            { id: 'projects',  icon: <IpFolderOpen size={20} />, label: 'Projects'  },
+            { id: 'templates', icon: <IcoTemplates size={22} />, label: 'Templates' },
+            { id: 'elements',  icon: <IpSparkle size={22} />,    label: 'Elements'  },
+            { id: 'text',      icon: <IpTextCard size={22} />,   label: 'Text',      shortcut: 'T' },
+            { id: 'brand',     icon: <IpPalette size={22} />,    label: 'Brand'    },
+            { id: 'uploads',   icon: <IpPublish size={22} />,    label: 'Uploads'   },
+            { id: 'layers',    icon: <IcoLayers size={22} />,    label: 'Layers'    },
+            { id: 'tools',     icon: <IpEdit size={22} />,       label: 'Draw'      },
+            { id: 'projects',  icon: <IpFolderOpen size={22} />, label: 'Projects'  },
           ].map(tool => {
             const isActive = activeLeftTool === tool.id && panelOpen;
             return (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
-              onMouseEnter={e => { showTip(e, tool.label, tool.shortcut); if (!isActive) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.transform = 'scale(1.08)'; } }}
-              onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? t.primaryBg : 'transparent'; e.currentTarget.style.transform = 'scale(1)'; }}
+              onMouseEnter={e => { showTip(e, tool.label, tool.shortcut); if (!isActive) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; }}
+              onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? t.primaryBg : 'transparent'; }}
               style={{
-                width: 48, padding: '7px 0 5px',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                width: 60, height: 56, padding: '0',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
                 background: isActive ? t.primaryBg : 'transparent',
                 border: 'none',
                 borderRadius: 12,
                 cursor: 'pointer',
-                color: isActive ? t.primary : t.textMuted,
-                fontSize: 10, fontWeight: isActive ? 600 : 400,
-                transition: 'background 150ms cubic-bezier(0.34,1.56,0.64,1), color 120ms ease, transform 150ms cubic-bezier(0.34,1.56,0.64,1)',
-                position: 'relative',
-                flexShrink: 0,
+                color: isActive ? t.primary : t.textSecondary,
+                transition: 'background 120ms ease, color 100ms ease',
+                position: 'relative', flexShrink: 0,
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>{tool.icon}</span>
-              <span style={{ fontSize: 10, lineHeight: 1, textAlign: 'center' }}>{tool.label}</span>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tool.icon}</span>
+              <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400, lineHeight: 1, textAlign: 'center', letterSpacing: '-0.01em' }}>{tool.label}</span>
+              {isActive && <div style={{ position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, borderRadius: '0 3px 3px 0', background: t.primary }} />}
             </button>
             );
           })}
           <div style={{ flex: 1 }} />
+          <div style={{ width: 40, height: 1, background: t.border, margin: '6px 0' }} />
           {[
-            { id: 'apps',  icon: <IpPlus size={20} />,    label: 'Apps'       },
-            { id: 'magic', icon: <IpSparkle size={20} />, label: 'AI Generate' },
+            { id: 'apps',  icon: <IpPlus size={22} />,    label: 'Apps'  },
+            { id: 'magic', icon: <IpSparkle size={22} />, label: 'AI'    },
           ].map(tool => {
             const isActive = activeLeftTool === tool.id && panelOpen;
             return (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
-              onMouseEnter={e => { showTip(e, tool.label); if (!isActive) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.transform = 'scale(1.08)'; } }}
-              onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? t.primaryBg : 'transparent'; e.currentTarget.style.transform = 'scale(1)'; }}
+              onMouseEnter={e => { showTip(e, tool.label); if (!isActive) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; }}
+              onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? t.primaryBg : 'transparent'; }}
               style={{
-                width: 48, padding: '7px 0 5px',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                width: 60, height: 56,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
                 background: isActive ? t.primaryBg : 'transparent',
-                border: 'none',
-                borderRadius: 12,
-                cursor: 'pointer',
-                color: isActive ? t.primary : t.textMuted,
-                fontSize: 10, fontWeight: isActive ? 600 : 400,
-                transition: 'background 150ms cubic-bezier(0.34,1.56,0.64,1), color 120ms ease, transform 150ms cubic-bezier(0.34,1.56,0.64,1)',
+                border: 'none', borderRadius: 12, cursor: 'pointer',
+                color: isActive ? t.primary : t.textSecondary,
+                transition: 'background 120ms ease, color 100ms ease', flexShrink: 0,
               }}>
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>{tool.icon}</span>
-              <span style={{ fontSize: 10, lineHeight: 1, textAlign: 'center' }}>{tool.label}</span>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tool.icon}</span>
+              <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400, lineHeight: 1, textAlign: 'center', letterSpacing: '-0.01em' }}>{tool.label}</span>
             </button>
             );
           })}
@@ -9742,6 +10011,11 @@ export default function TemplatesEditorInner() {
                     { label:'Pentagon',   fn:()=>addSmartShape('pentagon'),               svg:<polygon points="32,10 52,26 44,46 20,46 12,26" fill="#fff" opacity=".85"/> },
                     { label:'Octagon',    fn:()=>addSmartShape('octagon'),                svg:<polygon points="22,8 42,8 54,20 54,36 42,48 22,48 10,36 10,20" fill="#fff" opacity=".85"/> },
                     { label:'Cross',      fn:()=>addSmartShape('cross'),                  svg:<path d="M24,10h16v14h14v16H40v14H24V40H10V24h14Z" fill="#fff" opacity=".85"/> },
+                    { label:'Hexagon',    fn:()=>addSmartShape('hexagon'),               svg:<polygon points="32,10 50,20 50,36 32,46 14,36 14,20" fill="#fff" opacity=".85"/> },
+                    { label:'Cloud',      fn:()=>addSmartShape('cloud'),                 svg:<path d="M18,38 C12,38 8,34 8,29 C8,24 12,21 17,22 C17,16 22,12 28,12 C32,12 36,14 38,18 C40,16 43,15 46,16 C50,17 53,21 53,25 C53,30 49,34 44,34Z" fill="#fff" opacity=".85"/> },
+                    { label:'Parallelogram',fn:()=>addSmartShape('parallelogram'),       svg:<polygon points="22,12 54,12 42,44 10,44" fill="#fff" opacity=".85"/> },
+                    { label:'Banner',     fn:()=>addSmartShape('banner'),               svg:<polygon points="6,12 58,12 52,28 58,44 6,44 12,28" fill="#fff" opacity=".85"/> },
+                    { label:'Speech →',   fn:()=>addSmartShape('speechbubble_right'),   svg:<><rect x="8" y="8" width="44" height="30" rx="8" fill="#fff" opacity=".85"/><polygon points="36,38 50,50 52,38" fill="#fff" opacity=".85"/></> },
                   ],
                 },
                 { id:'lines', label:'Lines', grad:'linear-gradient(135deg,#7C5CFC,#5B3FE0)',
@@ -9753,6 +10027,9 @@ export default function TemplatesEditorInner() {
                     { label:'Diagonal',   fn:()=>addLine({points:[0,0,300,300]}),         svg:<line x1="12" y1="44" x2="52" y2="12" stroke="#fff" strokeWidth="3" opacity=".9"/> },
                     { label:'Divider',    fn:()=>addDivider(),                            svg:<><line x1="8" y1="24" x2="56" y2="24" stroke="#fff" strokeWidth="1.5" opacity=".5"/><circle cx="32" cy="28" r="4" fill="#fff" opacity=".9"/><line x1="8" y1="32" x2="56" y2="32" stroke="#fff" strokeWidth="1.5" opacity=".5"/></> },
                     { label:'← → Arrow', fn:()=>addArrow(),                              svg:<><polygon points="14,22 4,28 14,34" fill="#fff" opacity=".9"/><line x1="4" y1="28" x2="60" y2="28" stroke="#fff" strokeWidth="2.5" opacity=".9"/><polygon points="50,22 60,28 50,34" fill="#fff" opacity=".9"/></> },
+                    { label:'Dotted',     fn:()=>addLine({dash:[4,6]}),                  svg:<line x1="10" y1="28" x2="54" y2="28" stroke="#fff" strokeWidth="3" strokeDasharray="4 6" opacity=".9"/> },
+                    { label:'Thick',      fn:()=>addLine({strokeWidth:8}),               svg:<line x1="10" y1="28" x2="54" y2="28" stroke="#fff" strokeWidth="8" strokeLinecap="round" opacity=".9"/> },
+                    { label:'Double',     fn:()=>{ addLine(); addLine({points:[0,0,300,0]}); }, svg:<><line x1="10" y1="22" x2="54" y2="22" stroke="#fff" strokeWidth="2.5" opacity=".9"/><line x1="10" y1="34" x2="54" y2="34" stroke="#fff" strokeWidth="2.5" opacity=".9"/></> },
                   ],
                 },
                 { id:'frames', label:'Frames', grad:'linear-gradient(135deg,#f59e0b,#d97706)',
@@ -9764,6 +10041,9 @@ export default function TemplatesEditorInner() {
                     { label:'Before/After',fn:()=>addBeforeAfter(),                       svg:<><rect x="8" y="10" width="48" height="36" rx="3" fill="none" stroke="#fff" strokeWidth="2" opacity=".8"/><line x1="32" y1="10" x2="32" y2="46" stroke="#fff" strokeWidth="2" opacity=".7"/><text x="20" y="33" fill="#fff" fontSize="8" textAnchor="middle" opacity=".9">B</text><text x="44" y="33" fill="#fff" fontSize="8" textAnchor="middle" opacity=".9">A</text></> },
                     { label:'Map Pin',     fn:()=>addMapPin(),                            svg:<><path d="M32,10 C22,10 14,18 14,26 C14,36 32,48 32,48 C32,48 50,36 50,26 C50,18 42,10 32,10Z" fill="#fff" opacity=".75"/><circle cx="32" cy="26" r="6" fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="2"/></> },
                     { label:'QR Code',     fn:()=>addQrCode(),                            svg:<><rect x="8" y="8" width="48" height="48" rx="3" fill="none" stroke="#fff" strokeWidth="2" opacity=".9"/><rect x="12" y="12" width="16" height="16" rx="1" fill="#fff" opacity=".5"/><rect x="36" y="12" width="16" height="16" rx="1" fill="#fff" opacity=".5"/><rect x="12" y="36" width="16" height="16" rx="1" fill="#fff" opacity=".5"/><rect x="32" y="32" width="20" height="20" rx="1" fill="#fff" opacity=".25"/></> },
+                    { label:'Phone',       fn:()=>addRect({width:140,height:260,cornerRadius:22,fill:'rgba(255,255,255,0.08)',stroke:'#ffffff',strokeWidth:4}), svg:<><rect x="18" y="6" width="28" height="44" rx="6" fill="none" stroke="#fff" strokeWidth="3" opacity=".9"/><rect x="22" y="10" width="20" height="32" rx="3" fill="rgba(255,255,255,0.15)"/><circle cx="32" cy="46" r="2" fill="#fff" opacity=".6"/><line x1="26" y1="7" x2="38" y2="7" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity=".6"/></> },
+                    { label:'Film Strip',  fn:()=>addRect({width:300,height:160,fill:'rgba(0,0,0,0.7)',stroke:'#ffffff',strokeWidth:2}), svg:<><rect x="4" y="10" width="56" height="36" rx="2" fill="rgba(255,255,255,0.15)" stroke="#fff" strokeWidth="1.5"/><rect x="4" y="10" width="7" height="36" fill="rgba(0,0,0,0.5)"/><rect x="53" y="10" width="7" height="36" fill="rgba(0,0,0,0.5)"/>{[0,1,2,3,4].map(i=><rect key={i} x={5} y={12+i*7} width={5} height={4} rx={1} fill="#fff" opacity=".8"/>)}{[0,1,2,3,4].map(i=><rect key={i} x={54} y={12+i*7} width={5} height={4} rx={1} fill="#fff" opacity=".8"/>)}</> },
+                    { label:'Circle Crop', fn:()=>addCircle({fill:'rgba(255,255,255,0.12)',stroke:'#ffffff',strokeWidth:3,radius:100}), svg:<><circle cx="32" cy="28" r="20" fill="rgba(255,255,255,0.15)" stroke="#fff" strokeWidth="3" opacity=".9"/><circle cx="32" cy="28" r="13" fill="rgba(255,255,255,0.08)"/><text x="32" y="32" fill="#fff" fontSize="10" textAnchor="middle" opacity=".6">photo</text></> },
                   ],
                 },
                 { id:'charts', label:'Charts', grad:'linear-gradient(135deg,#ef4444,#dc2626)',
@@ -9814,6 +10094,9 @@ export default function TemplatesEditorInner() {
                     { label:'Grad Rect',  fn:()=>addGradRect(),                           svg:<><defs><linearGradient id="dg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#7C5CFC" stopOpacity=".9"/><stop offset="100%" stopColor="#00C4CC" stopOpacity=".9"/></linearGradient></defs><rect x="8" y="10" width="48" height="36" rx="4" fill="url(#dg1)"/></> },
                     { label:'Step List',  fn:()=>addStepList(),                           svg:<><circle cx="14" cy="20" r="6" fill="rgba(255,255,255,0.25)" stroke="#fff" strokeWidth="1.5"/><text x="14" y="24" fill="#fff" fontSize="8" textAnchor="middle">1</text><circle cx="14" cy="36" r="6" fill="rgba(255,255,255,0.25)" stroke="#fff" strokeWidth="1.5"/><text x="14" y="40" fill="#fff" fontSize="8" textAnchor="middle">2</text><line x1="20" y1="20" x2="54" y2="20" stroke="#fff" strokeWidth="1.5" opacity=".5"/><line x1="20" y1="36" x2="54" y2="36" stroke="#fff" strokeWidth="1.5" opacity=".5"/></> },
                     { label:'Icon Shape', fn:()=>addIconShape(),                          svg:<><circle cx="32" cy="28" r="18" fill="rgba(255,255,255,0.2)"/><text x="32" y="34" fill="#fff" fontSize="16" textAnchor="middle" opacity=".9">✓</text></> },
+                    { label:'Confetti',   fn:()=>addSticker('🎉'),                       svg:<><rect x="14" y="16" width="5" height="10" rx="2" fill="#fff" opacity=".8" transform="rotate(-20 16 21)"/><rect x="28" y="10" width="5" height="8" rx="2" fill="#fff" opacity=".7" transform="rotate(15 30 14)"/><rect x="42" y="18" width="5" height="10" rx="2" fill="#fff" opacity=".8" transform="rotate(-30 44 23)"/><circle cx="20" cy="36" r="4" fill="#fff" opacity=".6"/><circle cx="38" cy="32" r="3" fill="#fff" opacity=".7"/><circle cx="48" cy="40" r="3" fill="#fff" opacity=".6"/></> },
+                    { label:'Sparkle',    fn:()=>addSticker('✨'),                       svg:<><polygon points="32,8 33.5,22 46,22 35.5,30 39,44 32,35 25,44 28.5,30 18,22 30.5,22" fill="#fff" opacity=".9"/><circle cx="14" cy="14" r="3" fill="#fff" opacity=".6"/><circle cx="50" cy="14" r="3" fill="#fff" opacity=".6"/></> },
+                    { label:'Rainbow',    fn:()=>addGradRect(),                          svg:<><defs><linearGradient id="rbg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#f59e0b"/><stop offset="33%" stopColor="#22c55e"/><stop offset="66%" stopColor="#3b82f6"/><stop offset="100%" stopColor="#a855f7"/></linearGradient></defs><rect x="8" y="20" width="48" height="16" rx="8" fill="url(#rbg)" opacity=".9"/></> },
                   ],
                 },
                 { id:'graphics', label:'Graphics', grad:'linear-gradient(135deg,#f97316,#ea580c)',
@@ -9849,6 +10132,73 @@ export default function TemplatesEditorInner() {
                     { label:'WiFi',       fn:()=>addIconShape({iconKind:'wifi'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M18 26 C20 21 25.5 17 32 17 C38.5 17 44 21 46 26" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity=".9"/><path d="M22 30 C24 26.5 27.5 24 32 24 C36.5 24 40 26.5 42 30" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity=".9"/><path d="M26 34 C27.5 31.5 29.5 30 32 30 C34.5 30 36.5 31.5 38 34" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity=".9"/><circle cx="32" cy="38" r="2.5" fill="#fff" opacity=".9"/></> },
                     { label:'Lock',       fn:()=>addIconShape({iconKind:'lock'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M22 24 C22 18 26.5 13 32 13 C37.5 13 42 18 42 24" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/><rect x="20" y="23" width="24" height="18" rx="3" fill="#fff" opacity=".9"/><circle cx="32" cy="32" r="3" fill="rgba(255,255,255,0.25)"/></> },
                     { label:'Eye',        fn:()=>addIconShape({iconKind:'eye2'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M13 28 C18 20 24.5 17 32 17 C39.5 17 46 20 51 28 C46 36 39.5 39 32 39 C24.5 39 18 36 13 28Z" fill="#fff" opacity=".9"/><circle cx="32" cy="28" r="6" fill="rgba(255,255,255,0.25)"/><circle cx="32" cy="28" r="3" fill="#fff" opacity=".85"/></> },
+                  ],
+                },
+                { id:'backgrounds', label:'Backgrounds', grad:'linear-gradient(135deg,#1a1a2e,#16213e)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="6" y="6" width="52" height="42" rx="6" fill="#1a1a2e"/><rect x="10" y="10" width="20" height="14" rx="2" fill="rgba(255,255,255,0.2)"/><rect x="34" y="10" width="20" height="14" rx="2" fill="#7C5CFC" opacity=".6"/><rect x="10" y="28" width="44" height="14" rx="2" fill="rgba(124,92,252,0.3)"/></svg>,
+                  items:[
+                    { label:'Black',      fn:()=>addBackground('#000000'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#000" stroke="rgba(255,255,255,0.25)" strokeWidth="1"/> },
+                    { label:'Dark',       fn:()=>addBackground('#111111'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#111" stroke="rgba(255,255,255,0.2)" strokeWidth="1"/> },
+                    { label:'Navy',       fn:()=>addBackground('#1a1a2e'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#1a1a2e"/> },
+                    { label:'White',      fn:()=>addBackground('#ffffff'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#fff" stroke="rgba(0,0,0,0.12)" strokeWidth="1"/> },
+                    { label:'Light Gray', fn:()=>addBackground('#f5f5f7'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#f5f5f7" stroke="rgba(0,0,0,0.1)" strokeWidth="1"/> },
+                    { label:'Warm',       fn:()=>addBackground('#fdf6ec'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#fdf6ec" stroke="rgba(0,0,0,0.1)" strokeWidth="1"/> },
+                    { label:'Purple',     fn:()=>addBackground('#7C5CFC'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#7C5CFC"/> },
+                    { label:'Teal',       fn:()=>addBackground('#00C4CC'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#00C4CC"/> },
+                    { label:'Rose',       fn:()=>addBackground('#f43f5e'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#f43f5e"/> },
+                    { label:'Forest',     fn:()=>addBackground('#166534'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#166534"/> },
+                    { label:'Amber',      fn:()=>addBackground('#d97706'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#d97706"/> },
+                    { label:'Slate',      fn:()=>addBackground('#334155'),       svg:<rect x="6" y="6" width="52" height="42" rx="4" fill="#334155"/> },
+                    { label:'Sunset',     fn:()=>addGradientBackground('#f43f5e','#f97316',135), svg:<><defs><linearGradient id="bgs1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#f43f5e"/><stop offset="100%" stopColor="#f97316"/></linearGradient></defs><rect x="6" y="6" width="52" height="42" rx="4" fill="url(#bgs1)"/></> },
+                    { label:'Ocean',      fn:()=>addGradientBackground('#0ea5e9','#6366f1',135), svg:<><defs><linearGradient id="bgs2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#0ea5e9"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs><rect x="6" y="6" width="52" height="42" rx="4" fill="url(#bgs2)"/></> },
+                    { label:'Aurora',     fn:()=>addGradientBackground('#7C5CFC','#00C4CC',135), svg:<><defs><linearGradient id="bgs3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#7C5CFC"/><stop offset="100%" stopColor="#00C4CC"/></linearGradient></defs><rect x="6" y="6" width="52" height="42" rx="4" fill="url(#bgs3)"/></> },
+                    { label:'Midnight',   fn:()=>addGradientBackground('#0f0c29','#302b63',135), svg:<><defs><linearGradient id="bgs4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#0f0c29"/><stop offset="100%" stopColor="#302b63"/></linearGradient></defs><rect x="6" y="6" width="52" height="42" rx="4" fill="url(#bgs4)"/></> },
+                    { label:'Peach',      fn:()=>addGradientBackground('#ffecd2','#fcb69f',135), svg:<><defs><linearGradient id="bgs5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ffecd2"/><stop offset="100%" stopColor="#fcb69f"/></linearGradient></defs><rect x="6" y="6" width="52" height="42" rx="4" fill="url(#bgs5)"/></> },
+                    { label:'Forest',     fn:()=>addGradientBackground('#134e5e','#71b280',135), svg:<><defs><linearGradient id="bgs6" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#134e5e"/><stop offset="100%" stopColor="#71b280"/></linearGradient></defs><rect x="6" y="6" width="52" height="42" rx="4" fill="url(#bgs6)"/></> },
+                    { label:'Rose Gold',  fn:()=>addGradientBackground('#f7797d','#FBD786',90),  svg:<><defs><linearGradient id="bgs7" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#f7797d"/><stop offset="100%" stopColor="#FBD786"/></linearGradient></defs><rect x="6" y="6" width="52" height="42" rx="4" fill="url(#bgs7)"/></> },
+                    { label:'Night Sky',  fn:()=>addGradientBackground('#0F2027','#203A43',180), svg:<><defs><linearGradient id="bgs8" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#0F2027"/><stop offset="100%" stopColor="#2C5364"/></linearGradient></defs><rect x="6" y="6" width="52" height="42" rx="4" fill="url(#bgs8)"/></> },
+                  ],
+                },
+                { id:'stickers', label:'Stickers', grad:'linear-gradient(135deg,#f59e0b,#ec4899)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><text x="16" y="30" fontSize="22" textAnchor="middle">🔥</text><text x="38" y="22" fontSize="18" textAnchor="middle">⭐</text><text x="50" y="40" fontSize="16" textAnchor="middle">❤️</text><text x="14" y="48" fontSize="14" textAnchor="middle">🎉</text></svg>,
+                  sections: STICKER_SETS.map(s => ({
+                    label: s.label,
+                    items: s.stickers.map(emoji => ({
+                      label: emoji,
+                      fn: () => addSticker(emoji),
+                      svg: <text x="32" y="40" fontSize="26" textAnchor="middle">{emoji}</text>,
+                    })),
+                  })),
+                  get items() { return this.sections.flatMap(s => s.items); },
+                },
+                { id:'trades', label:'Trades', grad:'linear-gradient(135deg,#475569,#1e293b)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><circle cx="20" cy="18" r="11" fill="rgba(255,255,255,0.25)"/><line x1="14" y1="18" x2="20" y2="18" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><line x1="20" y1="18" x2="20" y2="10" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><circle cx="44" cy="18" r="11" fill="rgba(255,255,255,0.25)"/><line x1="38" y1="12" x2="50" y2="24" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><line x1="50" y1="12" x2="38" y2="24" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><circle cx="20" cy="40" r="11" fill="rgba(255,255,255,0.25)"/><polygon points="20,31 26,44 14,44" fill="#fff" opacity=".8"/><circle cx="44" cy="40" r="11" fill="rgba(255,255,255,0.25)"/><rect x="38" y="35" width="12" height="10" rx="1" fill="#fff" opacity=".8"/><rect x="40" y="33" width="8" height="4" rx="1" fill="#fff" opacity=".6"/></svg>,
+                  items:[
+                    { label:'Pipe',       fn:()=>addIconShape({iconKind:'pipe'}),       svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="14" y1="28" x2="36" y2="28" stroke="#fff" strokeWidth="4" strokeLinecap="round"/><line x1="14" y1="21" x2="14" y2="35" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/><line x1="36" y1="28" x2="36" y2="19" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/><line x1="36" y1="19" x2="50" y2="19" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/><line x1="50" y1="14" x2="50" y2="24" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/></> },
+                    { label:'Snowflake',  fn:()=>addIconShape({iconKind:'snowflake'}),  svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="32" y1="12" x2="32" y2="44" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><line x1="15" y1="20" x2="49" y2="36" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><line x1="15" y1="36" x2="49" y2="20" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><line x1="23" y1="14" x2="29" y2="20" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><line x1="41" y1="14" x2="35" y2="20" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></> },
+                    { label:'Fan / AC',   fn:()=>addIconShape({iconKind:'fan'}),        svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><ellipse cx="26" cy="19" rx="7" ry="11" fill="#fff" opacity=".8" transform="rotate(15 26 19)"/><ellipse cx="42" cy="25" rx="7" ry="11" fill="#fff" opacity=".8" transform="rotate(135 42 25)"/><ellipse cx="25" cy="39" rx="7" ry="11" fill="#fff" opacity=".8" transform="rotate(255 25 39)"/><circle cx="32" cy="28" r="4" fill="rgba(255,255,255,0.25)"/></> },
+                    { label:'Hard Hat',   fn:()=>addIconShape({iconKind:'hardhat'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M14 33 C14 24 22 16 32 16 C42 16 50 24 50 33Z" fill="#fff" opacity=".9"/><rect x="13" y="33" width="38" height="6" rx="2" fill="#fff" opacity=".9"/><rect x="29" y="11" width="6" height="10" rx="2" fill="rgba(255,255,255,0.6)"/></> },
+                    { label:'Paintbrush', fn:()=>addIconShape({iconKind:'paintbrush'}), svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="22" y1="14" x2="42" y2="34" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"/><rect x="36" y="30" width="10" height="7" rx="2" fill="#fff" opacity=".5" transform="rotate(45 41 33)"/><ellipse cx="44" cy="38" rx="4" ry="6" fill="#fff" opacity=".85" transform="rotate(45 44 38)"/></> },
+                    { label:'Spray',      fn:()=>addIconShape({iconKind:'spray'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="22" y="22" width="16" height="22" rx="4" fill="#fff" opacity=".9"/><rect x="28" y="14" width="10" height="10" rx="2" fill="#fff" opacity=".8"/><circle cx="46" cy="18" r="2" fill="#fff" opacity=".8"/><circle cx="48" cy="22" r="1.5" fill="#fff" opacity=".7"/><circle cx="46" cy="26" r="1.5" fill="#fff" opacity=".6"/></> },
+                    { label:'Service Van', fn:()=>addIconShape({iconKind:'truck'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="10" y="20" width="28" height="16" rx="2" fill="#fff" opacity=".9"/><path d="M38 24 L38 18 L50 18 L50 36 L38 36Z" fill="#fff" opacity=".85"/><circle cx="18" cy="37" r="4" fill="rgba(255,255,255,0.5)"/><circle cx="18" cy="37" r="2" fill="#fff"/><circle cx="44" cy="37" r="4" fill="rgba(255,255,255,0.5)"/><circle cx="44" cy="37" r="2" fill="#fff"/></> },
+                    { label:'Broom',      fn:()=>addIconShape({iconKind:'broom'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="32" y1="13" x2="32" y2="30" stroke="#fff" strokeWidth="3" strokeLinecap="round" transform="rotate(-10 32 13)"/><path d="M20 32 L44 32 L42 42 C38 46 26 46 22 42Z" fill="#fff" opacity=".9"/></> },
+                    { label:'Ladder',     fn:()=>addIconShape({iconKind:'ladder'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="22" y1="12" x2="22" y2="46" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><line x1="42" y1="12" x2="42" y2="46" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><line x1="22" y1="20" x2="42" y2="20" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><line x1="22" y1="28" x2="42" y2="28" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><line x1="22" y1="36" x2="42" y2="36" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/></> },
+                    { label:'Gear',       fn:()=>addIconShape({iconKind:'gear'}),       svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><circle cx="32" cy="28" r="12" fill="#fff" opacity=".9"/><circle cx="32" cy="28" r="6" fill="rgba(255,255,255,0.25)"/>{[0,45,90,135].map(a=><rect key={a} x="30" y="13" width="4" height="5" rx="1" fill="#fff" opacity=".9" transform={`rotate(${a} 32 28)`}/>)}</> },
+                    { label:'Price Tag',  fn:()=>addIconShape({iconKind:'tag'}),        svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M14 28 L22 16 L44 16 L52 28 L44 40 L22 40Z" fill="#fff" opacity=".9"/><circle cx="28" cy="22" r="3" fill="rgba(255,255,255,0.3)"/><line x1="26" y1="30" x2="40" y2="30" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5"/></> },
+                    { label:'Fire Haz.',  fn:()=>addIconShape({iconKind:'flame'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32 11 C36 17 40 21 39 26 C38 30 35 31 33 28 C36 23 32 18 32 18 C32 18 28 23 31 28 C29 31 26 30 25 26 C24 21 28 17 32 11Z" fill="#fff" opacity=".9"/><ellipse cx="32" cy="36" rx="3" ry="4" fill="#fff" opacity=".7"/></> },
+                  ],
+                },
+                { id:'grids', label:'Grids', grad:'linear-gradient(135deg,#6366f1,#4f46e5)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="6" y="8" width="24" height="38" rx="3" fill="rgba(255,255,255,0.3)"/><rect x="34" y="8" width="24" height="17" rx="3" fill="rgba(255,255,255,0.3)"/><rect x="34" y="29" width="24" height="17" rx="3" fill="rgba(255,255,255,0.3)"/></svg>,
+                  items:[
+                    { label:'2 Columns',  fn:()=>addGridLayout('2col'),    svg:<><rect x="8" y="12" width="21" height="32" rx="3" fill="#fff" opacity=".7"/><rect x="35" y="12" width="21" height="32" rx="3" fill="#fff" opacity=".7"/></> },
+                    { label:'3 Columns',  fn:()=>addGridLayout('3col'),    svg:<><rect x="6" y="14" width="14" height="28" rx="2" fill="#fff" opacity=".7"/><rect x="25" y="14" width="14" height="28" rx="2" fill="#fff" opacity=".7"/><rect x="44" y="14" width="14" height="28" rx="2" fill="#fff" opacity=".7"/></> },
+                    { label:'4 Columns',  fn:()=>addGridLayout('4col'),    svg:<><rect x="4" y="16" width="11" height="24" rx="2" fill="#fff" opacity=".7"/><rect x="18" y="16" width="11" height="24" rx="2" fill="#fff" opacity=".7"/><rect x="32" y="16" width="11" height="24" rx="2" fill="#fff" opacity=".7"/><rect x="46" y="16" width="11" height="24" rx="2" fill="#fff" opacity=".7"/></> },
+                    { label:'2 Rows',     fn:()=>addGridLayout('2row'),    svg:<><rect x="10" y="8" width="44" height="17" rx="3" fill="#fff" opacity=".7"/><rect x="10" y="29" width="44" height="17" rx="3" fill="#fff" opacity=".7"/></> },
+                    { label:'4 Square',   fn:()=>addGridLayout('4sq'),     svg:<><rect x="8" y="8" width="21" height="17" rx="2" fill="#fff" opacity=".7"/><rect x="35" y="8" width="21" height="17" rx="2" fill="#fff" opacity=".7"/><rect x="8" y="29" width="21" height="17" rx="2" fill="#fff" opacity=".7"/><rect x="35" y="29" width="21" height="17" rx="2" fill="#fff" opacity=".7"/></> },
+                    { label:'9 Square',   fn:()=>addGridLayout('9sq'),     svg:<><rect x="6" y="8" width="14" height="11" rx="1" fill="#fff" opacity=".7"/><rect x="25" y="8" width="14" height="11" rx="1" fill="#fff" opacity=".7"/><rect x="44" y="8" width="14" height="11" rx="1" fill="#fff" opacity=".7"/><rect x="6" y="22" width="14" height="11" rx="1" fill="#fff" opacity=".7"/><rect x="25" y="22" width="14" height="11" rx="1" fill="#fff" opacity=".7"/><rect x="44" y="22" width="14" height="11" rx="1" fill="#fff" opacity=".7"/><rect x="6" y="36" width="14" height="11" rx="1" fill="#fff" opacity=".7"/><rect x="25" y="36" width="14" height="11" rx="1" fill="#fff" opacity=".7"/><rect x="44" y="36" width="14" height="11" rx="1" fill="#fff" opacity=".7"/></> },
+                    { label:'3-Strip',    fn:()=>addGridLayout('3strip'),  svg:<><rect x="6" y="10" width="14" height="36" rx="2" fill="#fff" opacity=".7"/><rect x="25" y="10" width="14" height="36" rx="2" fill="#fff" opacity=".7"/><rect x="44" y="10" width="14" height="36" rx="2" fill="#fff" opacity=".7"/></> },
+                    { label:'2 Tall',     fn:()=>addGridLayout('2row_tall'), svg:<><rect x="8" y="8" width="21" height="38" rx="3" fill="#fff" opacity=".7"/><rect x="35" y="8" width="21" height="38" rx="3" fill="#fff" opacity=".7"/></> },
                   ],
                 },
               ];
@@ -9910,9 +10260,20 @@ export default function TemplatesEditorInner() {
                       style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', color:t.text, fontSize:13, fontWeight:600, cursor:'pointer', padding:'4px 0 10px' }}>
                       ← {activeCat.label}
                     </button>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:7 }}>
-                      {activeCat.items.map(it => renderCard({...it, catId:activeCat.id}))}
-                    </div>
+                    {activeCat.sections ? (
+                      activeCat.sections.map(section => (
+                        <div key={section.label} style={{ marginBottom:16 }}>
+                          <div style={{ fontSize:10, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>{section.label}</div>
+                          <div style={{ display:'grid', gridTemplateColumns:`repeat(${activeCat.id==='stickers'?4:3},1fr)`, gap:activeCat.id==='stickers'?4:6 }}>
+                            {section.items.map(it => renderCard({...it, catId:activeCat.id}))}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ display:'grid', gridTemplateColumns:`repeat(${activeCat.id==='stickers'?4:3},1fr)`, gap:activeCat.id==='stickers'?4:7 }}>
+                        {activeCat.items.map(it => renderCard({...it, catId:activeCat.id}))}
+                      </div>
+                    )}
                   </div>
                 )}
                 {/* ── Photos sub-panel ──────────────────────────────────── */}
@@ -10657,7 +11018,7 @@ export default function TemplatesEditorInner() {
           }
         `}</style>
         <div ref={containerRef}
-          style={{ flex: 1, overflow: 'auto', background: t.isDark ? '#0A0A0A' : '#E8E8EC', padding: '40px', position: 'relative' }}>
+          style={{ flex: 1, overflow: 'auto', background: t.isDark ? '#111113' : '#EAEAEF', padding: '48px 56px', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
             {pages.map((page, pageIdx) => {
               const isActive = pageIdx === activePage;
@@ -10742,12 +11103,10 @@ export default function TemplatesEditorInner() {
                       position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0,
                       borderRadius: 12, overflow: 'hidden', cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
                       opacity: page.hidden ? 0.35 : 1,
-                      outline: isActive ? `2px solid ${t.primary}` : '2px solid transparent',
-                      outlineOffset: 2,
                       boxShadow: isActive
-                        ? '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)'
-                        : '0 2px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.10)',
-                      transition: 'box-shadow 200ms ease, outline-color 150ms ease',
+                        ? `0 0 0 2px ${t.primary}, 0 12px 48px rgba(0,0,0,0.32), 0 4px 16px rgba(0,0,0,0.18)`
+                        : `0 4px 16px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)`,
+                      transition: 'box-shadow 180ms ease',
                       background: pageBgType === 'transparent'
                         ? 'repeating-conic-gradient(#aaa 0% 25%, #fff 0% 50%) 0 0 / 20px 20px'
                         : undefined,
@@ -11039,10 +11398,10 @@ export default function TemplatesEditorInner() {
                           <Rect
                             x={selectionRect.x} y={selectionRect.y}
                             width={selectionRect.w} height={selectionRect.h}
-                            fill="rgba(155,79,212,0.05)"
-                            stroke="#9B4FD4"
-                            strokeWidth={1 / stageScale}
-                            dash={[4 / stageScale, 4 / stageScale]}
+                            fill="rgba(124,92,252,0.07)"
+                            stroke="#7C5CFC"
+                            strokeWidth={1.5 / stageScale}
+                            dash={[6 / stageScale, 3 / stageScale]}
                           />
                         </Layer>
                       )}
