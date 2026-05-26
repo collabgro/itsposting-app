@@ -879,10 +879,28 @@ Return ONLY valid JSON (no markdown fences):
     try {
       const { imageUrl } = req.body;
       if (!imageUrl) return res.status(400).json({ error: 'imageUrl required' });
+      if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:')) {
+        return res.status(400).json({ error: 'Save your image to the library first, then use Extract.' });
+      }
 
-      const imageResp = await fetch(imageUrl);
-      if (!imageResp.ok) return res.status(400).json({ error: 'Could not fetch image' });
-      const rawBuffer = Buffer.from(await imageResp.arrayBuffer());
+      // Fetch with 30s timeout
+      const controller = new AbortController();
+      const fetchTimeout = setTimeout(() => controller.abort(), 30000);
+      let rawBuffer;
+      try {
+        const imageResp = await fetch(imageUrl, { signal: controller.signal });
+        if (!imageResp.ok) return res.status(400).json({ error: 'Could not fetch image' });
+        rawBuffer = Buffer.from(await imageResp.arrayBuffer());
+      } finally {
+        clearTimeout(fetchTimeout);
+      }
+
+      // Validate minimum dimensions
+      const meta = await sharp(rawBuffer).metadata();
+      if (!meta.width || !meta.height) return res.status(400).json({ error: 'Could not read image dimensions' });
+      if (meta.width < 50 || meta.height < 50) {
+        return res.status(400).json({ error: 'Image is too small (minimum 50×50px)' });
+      }
 
       // Resize to max 1024px so base64 payload stays small and Claude responds reliably
       const resizedBuffer = await sharp(rawBuffer)
@@ -891,18 +909,21 @@ Return ONLY valid JSON (no markdown fences):
         .toBuffer();
 
       const base64 = resizedBuffer.toString('base64');
+      console.log(`[Studio] extract-elements: ${meta.width}x${meta.height} ${meta.format} → base64 ${Math.round(base64.length / 1024)}KB`);
 
       const Anthropic = require('@anthropic-ai/sdk');
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-      const message = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-            { type: 'text', text: `Detect all distinct visual elements in this image.
+      let message;
+      try {
+        message = await client.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4096,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+              { type: 'text', text: `Detect all distinct visual elements in this image.
 Return ONLY a valid JSON object. No markdown, no explanation, nothing before or after the JSON.
 
 {
@@ -938,19 +959,46 @@ Rules:
 - type must be exactly: "background" | "object" | "text"
 - Always include exactly one "background" element (no boundingBox needed)
 - boundingBox values are percentages (0-100) of image dimensions, tight around each element
-- dominantColor must be a valid hex color string
+- dominantColor must be a valid hex color string like "#rrggbb"
 - For text type: include the actual visible text string in "content"
-- Detect every distinct visual group: people, logos, shapes, text blocks, objects` }
-          ]
-        }]
-      });
+- Detect every distinct visual group: people, logos, shapes, text blocks, objects
+- Max 12 elements total` }
+            ]
+          }]
+        });
+      } catch (apiErr) {
+        console.error('[Studio] Claude API error during extract-elements:', apiErr.message, apiErr.status);
+        if (apiErr.status === 429) return res.status(429).json({ error: 'Too many requests — please wait a moment and try again.' });
+        throw apiErr;
+      }
 
       const raw = message.content.filter(b => b.type === 'text').map(b => b.text).join('');
-      // Extract the JSON object even if Claude wraps it in extra text
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON in Claude response');
       const parsed = JSON.parse(jsonMatch[0]);
       if (!parsed.elements || !Array.isArray(parsed.elements)) throw new Error('Invalid elements structure');
+
+      // Clamp bounding boxes and sanitize colors so the frontend never gets bad data
+      const hexRe = /^#[0-9A-Fa-f]{6}$/;
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Number(v) || 0));
+      parsed.elements = parsed.elements.slice(0, 12).map(el => {
+        if (el.boundingBox) {
+          const bb = el.boundingBox;
+          const x = clamp(bb.xPercent, 0, 99);
+          const y = clamp(bb.yPercent, 0, 99);
+          el.boundingBox = {
+            xPercent: x,
+            yPercent: y,
+            widthPercent:  clamp(bb.widthPercent,  1, 100 - x),
+            heightPercent: clamp(bb.heightPercent, 1, 100 - y),
+          };
+        }
+        if (el.dominantColor && !hexRe.test(el.dominantColor)) el.dominantColor = '#1a1a2e';
+        if (el.textColor    && !hexRe.test(el.textColor))    el.textColor = '#ffffff';
+        if (el.type === 'text' && el.content) el.content = String(el.content).replace(/[<>]/g, '').trim().slice(0, 500);
+        return el;
+      });
+
       res.json(parsed);
     } catch (err) {
       console.error('[Studio] extract-elements:', err.message);

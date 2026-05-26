@@ -4077,6 +4077,7 @@ export default function TemplatesEditorInner() {
   const [stockInputValue, setStockInputValue] = useState('');
   const [bgRemoverDismissed, setBgRemoverDismissed] = useState(false);
   const [bgRemoveLoading, setBgRemoveLoading] = useState(false);
+  const [bgProgress, setBgProgress] = useState('');
   const [extractLoading, setExtractLoading] = useState(false);
   const [showImgUrlInput, setShowImgUrlInput] = useState(false);
   const [imgUrlValue, setImgUrlValue] = useState('');
@@ -5619,15 +5620,23 @@ export default function TemplatesEditorInner() {
   async function cropImageRegion(imgSrc, boundingBox) {
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
-    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = imgSrc; });
+    // Cache-bust so the browser re-fetches with CORS headers if the image was previously cached without them
+    const src = imgSrc.includes('?') ? `${imgSrc}&_cors=1` : `${imgSrc}?_cors=1`;
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = src; });
     const natW = img.naturalWidth || img.width;
     const natH = img.naturalHeight || img.height;
-    const cropX = (boundingBox.xPercent / 100) * natW;
-    const cropY = (boundingBox.yPercent / 100) * natH;
-    const cropW = (boundingBox.widthPercent / 100) * natW;
-    const cropH = (boundingBox.heightPercent / 100) * natH;
+    if (!natW || !natH) throw new Error('Image has zero dimensions');
+    // Clamp all bounding-box values to valid range (backend already clamps, but be defensive)
+    const xPct = Math.max(0, Math.min(99,  boundingBox.xPercent      || 0));
+    const yPct = Math.max(0, Math.min(99,  boundingBox.yPercent      || 0));
+    const wPct = Math.max(1, Math.min(100 - xPct, boundingBox.widthPercent  || 100));
+    const hPct = Math.max(1, Math.min(100 - yPct, boundingBox.heightPercent || 100));
+    const cropX = Math.round(xPct / 100 * natW);
+    const cropY = Math.round(yPct / 100 * natH);
+    const cropW = Math.max(8, Math.min(natW - cropX, Math.round(wPct / 100 * natW)));
+    const cropH = Math.max(8, Math.min(natH - cropY, Math.round(hPct / 100 * natH)));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, cropW); canvas.height = Math.max(1, cropH);
+    canvas.width = cropW; canvas.height = cropH;
     canvas.getContext('2d').drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
     return canvas.toDataURL('image/png');
   }
@@ -7650,27 +7659,48 @@ export default function TemplatesEditorInner() {
                   document.body
                 )}
               </div>
-              {/* Remove Background button — runs ML model in-browser via @imgly/background-removal (WASM, no API key) */}
+              {/* Remove Background — runs BiRefNet ML model in-browser via @imgly/background-removal (WASM, no API) */}
               <button
                 onClick={async () => {
                   if (!selectedEl?.src || bgRemoveLoading) return;
                   setBgRemoveLoading(true);
+                  setBgProgress('Loading…');
+                  // Safety reset — if something hangs silently, unblock the UI after 3 min
+                  const safetyTimer = setTimeout(() => { setBgRemoveLoading(false); setBgProgress(''); }, 180000);
                   try {
+                    // Pre-fetch image as Blob so the WASM module never hits CORS issues
+                    let imageInput = selectedEl.src;
+                    if (!selectedEl.src.startsWith('blob:') && !selectedEl.src.startsWith('data:')) {
+                      try {
+                        setBgProgress('Fetching image…');
+                        const resp = await fetch(selectedEl.src);
+                        imageInput = await resp.blob();
+                      } catch (_) {
+                        // Fall back to URL — library will attempt its own fetch
+                        imageInput = selectedEl.src;
+                      }
+                    }
+                    setBgProgress('Removing BG…');
                     const { removeBackground } = await import('@imgly/background-removal');
-                    const blob = await removeBackground(selectedEl.src);
-                    const url = URL.createObjectURL(blob);
+                    const resultBlob = await removeBackground(imageInput);
+                    const url = URL.createObjectURL(resultBlob);
+                    // Revoke old blob URL to prevent memory leak
+                    if (selectedEl.src?.startsWith('blob:')) URL.revokeObjectURL(selectedEl.src);
                     pushHistory();
                     updateElement({ ...selectedEl, src: url });
                   } catch (e) {
                     console.error('[RemoveBG]', e);
                     alert('Background removal failed. Please try again.');
+                  } finally {
+                    clearTimeout(safetyTimer);
+                    setBgRemoveLoading(false);
+                    setBgProgress('');
                   }
-                  setBgRemoveLoading(false);
                 }}
                 disabled={bgRemoveLoading}
-                title="Remove background from image (runs in browser)"
+                title="Remove background (AI model runs in browser — first use downloads ~5MB model)"
                 style={{ height: 32, padding: '0 10px', border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 12, cursor: bgRemoveLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, opacity: bgRemoveLoading ? 0.6 : 1 }}>
-                {bgRemoveLoading ? '✂ Removing…' : '✂ Remove BG'}
+                {bgRemoveLoading ? `✂ ${bgProgress || 'Removing…'}` : '✂ Remove BG'}
               </button>
               {/* Extract Elements — auto-detects all objects/text/background via Claude vision */}
               <button
@@ -7684,8 +7714,10 @@ export default function TemplatesEditorInner() {
                   setExtractLoading(true);
                   try {
                     const res = await studioAPI.extractElements(selectedEl.src);
-                    const detectedEls = res.data?.elements;
+                    let detectedEls = res.data?.elements;
                     if (!detectedEls?.length) throw new Error('No elements detected');
+                    // Cap at 12 to prevent canvas overload
+                    if (detectedEls.length > 12) detectedEls = detectedEls.slice(0, 12);
                     const srcEl = selectedEl;
                     pushHistory();
                     for (const el of detectedEls) {
@@ -7699,9 +7731,11 @@ export default function TemplatesEditorInner() {
                         const x = srcEl.x + (el.boundingBox.xPercent / 100) * srcEl.width;
                         const y = srcEl.y + (el.boundingBox.yPercent / 100) * srcEl.height;
                         const w = (el.boundingBox.widthPercent / 100) * srcEl.width;
+                        // Clamp font size to a readable range
+                        const fontSize = Math.max(10, Math.min(200, el.estimatedFontSize || 24));
                         patchElements(prev => [...prev, {
-                          id: uid(), type: 'text', text: el.content,
-                          x, y, width: w, fontSize: el.estimatedFontSize || 24,
+                          id: uid(), type: 'text', text: String(el.content).replace(/[<>]/g, '').trim(),
+                          x, y, width: w, fontSize,
                           fill: el.textColor || '#ffffff', fontFamily: 'Inter',
                           fontWeight: '700', align: 'left', opacity: 1, rotation: 0,
                         }]);
@@ -7710,8 +7744,8 @@ export default function TemplatesEditorInner() {
                           const dataUrl = await cropImageRegion(srcEl.src, el.boundingBox);
                           const x = srcEl.x + (el.boundingBox.xPercent / 100) * srcEl.width;
                           const y = srcEl.y + (el.boundingBox.yPercent / 100) * srcEl.height;
-                          const w = (el.boundingBox.widthPercent / 100) * srcEl.width;
-                          const h = (el.boundingBox.heightPercent / 100) * srcEl.height;
+                          const w = Math.max(20, (el.boundingBox.widthPercent  / 100) * srcEl.width);
+                          const h = Math.max(20, (el.boundingBox.heightPercent / 100) * srcEl.height);
                           patchElements(prev => [...prev, {
                             id: uid(), type: 'image', src: dataUrl,
                             x, y, width: w, height: h, opacity: 1, rotation: 0,
@@ -11101,11 +11135,11 @@ export default function TemplatesEditorInner() {
                     ref={isActive ? canvasWrapperRef : null}
                     style={{
                       position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0,
-                      borderRadius: 12, overflow: 'hidden', cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
+                      borderRadius: 4, overflow: 'hidden', cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
                       opacity: page.hidden ? 0.35 : 1,
                       boxShadow: isActive
-                        ? `0 0 0 2px ${t.primary}, 0 12px 48px rgba(0,0,0,0.32), 0 4px 16px rgba(0,0,0,0.18)`
-                        : `0 4px 16px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08)`,
+                        ? `0 0 0 2px ${t.primary}, 0 12px 48px rgba(0,0,0,0.28), 0 4px 16px rgba(0,0,0,0.16)`
+                        : `0 4px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10)`,
                       transition: 'box-shadow 180ms ease',
                       background: pageBgType === 'transparent'
                         ? 'repeating-conic-gradient(#aaa 0% 25%, #fff 0% 50%) 0 0 / 20px 20px'
