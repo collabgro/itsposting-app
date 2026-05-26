@@ -7680,9 +7680,23 @@ export default function TemplatesEditorInner() {
                         imageInput = selectedEl.src;
                       }
                     }
-                    setBgProgress('Removing BG…');
+                    setBgProgress('Starting…');
                     const { removeBackground } = await import('@imgly/background-removal');
-                    const resultBlob = await removeBackground(imageInput);
+                    const resultBlob = await removeBackground(imageInput, {
+                      model: 'isnet_quint8', // smallest/fastest quantized model
+                      progress: (key, current, total) => {
+                        if (key.startsWith('fetch:')) {
+                          if (total > 0) {
+                            const pct = Math.round((current / total) * 100);
+                            setBgProgress(`Downloading model… ${pct}%`);
+                          } else {
+                            setBgProgress('Downloading model…');
+                          }
+                        } else if (key.startsWith('compute:')) {
+                          setBgProgress('Removing BG…');
+                        }
+                      },
+                    });
                     const url = URL.createObjectURL(resultBlob);
                     // Revoke old blob URL to prevent memory leak
                     if (selectedEl.src?.startsWith('blob:')) URL.revokeObjectURL(selectedEl.src);
@@ -11549,19 +11563,27 @@ export default function TemplatesEditorInner() {
                       };
 
                       const BTNS = [
+                        // AI Assist — opens AI panel
+                        { label: 'AI', icon: <IpSparkle size={13} />, title: 'AI Assist', fn: () => { handleToolClick('magic'); }, ai: true },
+                        { sep: true },
+                        // Group/Ungroup for multi-select
                         ...(isMulti
                           ? [{ label: 'Group', icon: <IpTeam size={13} />, title: 'Group (Ctrl+G)', fn: groupSelected }]
                           : isGroup
                           ? [{ label: 'Ungroup', icon: <IpTeam size={13} />, title: 'Ungroup (Ctrl+Shift+G)', fn: ungroupSelected }]
                           : []),
                         ...(isMulti || isGroup ? [{ sep: true }] : []),
-                        ...(!isMulti ? [{ icon: <IpCopy size={14} />, title: 'Copy (Ctrl+C)', fn: () => setClipboard(JSON.parse(JSON.stringify(el))) }] : []),
+                        // Duplicate
                         { icon: <IcoDuplicate size={14} />, title: 'Duplicate (Ctrl+D)', fn: dupEl },
                         ...(!isMulti ? [
+                          // Copy
+                          { icon: <IpCopy size={14} />, title: 'Copy (Ctrl+C)', fn: () => setClipboard(JSON.parse(JSON.stringify(el))) },
                           { sep: true },
-                          { icon: <IcoBringFwd size={14} />, title: 'Bring forward', fn: () => bringForward(selectedId) },
-                          { icon: <IcoSendBack size={14} />, title: 'Send backward', fn: () => sendBackward(selectedId) },
+                          // Arrange
+                          { icon: <IcoBringFwd size={14} />, title: 'Bring forward (Ctrl+])', fn: () => bringForward(selectedId) },
+                          { icon: <IcoSendBack size={14} />, title: 'Send backward (Ctrl+[)', fn: () => sendBackward(selectedId) },
                           { sep: true },
+                          // Lock
                           { icon: isLocked ? <IpLock size={14} /> : <IpUnlock size={14} />, title: isLocked ? 'Unlock' : 'Lock', fn: () => toggleLocked(selectedId) },
                         ] : []),
                         { sep: true },
@@ -11587,23 +11609,23 @@ export default function TemplatesEditorInner() {
                         >
                           {BTNS.map((b, i) =>
                             b.sep ? (
-                              <div key={i} style={{ width: 1, height: 18, background: t.border, margin: '0 2px', flexShrink: 0 }} />
+                              <div key={i} style={{ width: 1, height: 18, background: t.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)', margin: '0 2px', flexShrink: 0 }} />
                             ) : b.label ? (
                               <button
                                 key={i}
                                 onMouseDown={e => { e.stopPropagation(); b.fn(); }}
-                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = t.input; }}
-                                onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
-                                style={{ height: 28, padding: '0 10px', border: 'none', borderRadius: 20, background: 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, color: t.primary, transition: 'background 80ms', flexShrink: 0 }}>
+                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.ai ? 'rgba(124,92,252,0.15)' : (t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'); }}
+                                onMouseLeave={e => { hideTip(); e.currentTarget.style.background = b.ai ? 'rgba(124,92,252,0.08)' : 'transparent'; }}
+                                style={{ height: 30, padding: '0 10px', border: b.ai ? '1px solid rgba(124,92,252,0.3)' : 'none', borderRadius: 20, background: b.ai ? 'rgba(124,92,252,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5, color: b.ai ? t.primary : t.text, transition: 'background 80ms', flexShrink: 0, letterSpacing: '-0.01em' }}>
                                 {b.icon}{b.label}
                               </button>
                             ) : (
                               <button
                                 key={i}
                                 onMouseDown={e => { e.stopPropagation(); b.fn(); }}
-                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.danger ? t.errorBg : t.input; }}
+                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.danger ? (t.isDark ? 'rgba(248,113,113,0.15)' : 'rgba(239,68,68,0.08)') : (t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'); }}
                                 onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
-                                style={{ width: 30, height: 30, border: 'none', borderRadius: 8, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: b.danger ? t.error : t.text, transition: 'background 80ms', flexShrink: 0 }}>
+                                style={{ width: 32, height: 32, border: 'none', borderRadius: 8, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: b.danger ? t.error : t.text, transition: 'background 80ms', flexShrink: 0 }}>
                                 {b.icon}
                               </button>
                             )
@@ -11787,6 +11809,32 @@ export default function TemplatesEditorInner() {
                   {selectedEl && (
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: t.text, textTransform: 'capitalize', paddingBottom: 4, borderBottom: `1px solid ${t.border}` }}>{selectedEl.type}</div>
+
+                      {/* ── ARRANGE ── */}
+                      <SH>Arrange</SH>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 4 }}>
+                        {[
+                          { label: 'Forward',  fn: () => bringForward(selectedId) },
+                          { label: 'Backward', fn: () => sendBackward(selectedId) },
+                          { label: 'To Front', fn: () => bringToFront(selectedId) },
+                          { label: 'To Back',  fn: () => sendToBack(selectedId) },
+                        ].map(({ label: label2, fn }) => (
+                          <button key={label2} onClick={fn}
+                            style={{ height: 28, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 11, cursor: 'pointer', fontWeight: 500, transition: 'all 100ms ease' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = t.input; e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.text; }}>
+                            {label2}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Lock/Unlock */}
+                      <button onClick={() => toggleLocked(selectedId)}
+                        style={{ width: '100%', height: 28, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 11, cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}
+                        onMouseEnter={e => { e.currentTarget.style.background = t.cardHover; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = t.input; }}>
+                        {lockedIds.has(selectedId) ? <IpLock size={12} /> : <IpUnlock size={12} />}
+                        {lockedIds.has(selectedId) ? 'Unlock element' : 'Lock element'}
+                      </button>
 
                       {/* TEXT content */}
                       {selectedEl.type === 'text' && (
