@@ -1125,8 +1125,9 @@ export default function Settings() {
               const hasAny = connectedAccounts.length > 0;
               return (
                 <div key={platform} style={{
-                  padding: '14px 16px', background: t.input, borderRadius: 10,
+                  padding: '16px 18px', background: t.input, borderRadius: 12,
                   border: `1px solid ${hasAny ? config.color + '40' : t.border}`,
+                  transition: 'border-color 150ms ease',
                 }}>
                   {/* Platform header row */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
@@ -1167,9 +1168,11 @@ export default function Settings() {
                           : null;
                         const expiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
                         return (
-                          <div key={acct.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 10px', background: t.card, borderRadius: 8, border: `1px solid ${t.border}`, flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                              <IpCheck size={13} style={{ color: t.success, flexShrink: 0 }} />
+                          <div key={acct.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', minHeight: 64, background: t.card, borderRadius: 10, border: `1px solid ${t.border}`, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: t.success + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <IpCheck size={14} style={{ color: t.success }} />
+                              </div>
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {acct.account_name || 'Connected'}
@@ -1180,11 +1183,14 @@ export default function Settings() {
                               </div>
                               {expiringSoon && <Badge variant="warning">Reconnect in {daysLeft}d</Badge>}
                             </div>
-                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+                              {/* Apple-style toggle switch */}
                               <button type="button" onClick={() => handleToggleAutoPost(acct)}
-                                style={{ padding: '3px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600, background: acct.auto_post ? 'rgba(34,197,94,0.1)' : t.card, border: `1px solid ${acct.auto_post ? 'rgba(34,197,94,0.3)' : t.border}`, color: acct.auto_post ? t.success : t.textMuted, cursor: 'pointer' }}>
-                                {acct.auto_post ? 'Auto: On' : 'Auto: Off'}
+                                title={acct.auto_post ? 'Auto-post on — click to disable' : 'Auto-post off — click to enable'}
+                                style={{ width: 48, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer', padding: 3, background: acct.auto_post ? '#34C759' : t.borderStrong, transition: 'background 150ms ease', display: 'flex', alignItems: 'center', justifyContent: acct.auto_post ? 'flex-end' : 'flex-start', flexShrink: 0 }}>
+                                <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'transform 150ms cubic-bezier(0.34,1.56,0.64,1)' }} />
                               </button>
+                              <span style={{ fontSize: 11, color: acct.auto_post ? t.success : t.textMuted, fontWeight: 600, minWidth: 36 }}>{acct.auto_post ? 'Auto' : 'Off'}</span>
                               <Button variant="ghost" size="sm" onClick={() => handleDisconnectById(acct)} style={{ color: t.error, fontSize: 12 }}>
                                 Disconnect
                               </Button>

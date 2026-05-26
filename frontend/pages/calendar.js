@@ -371,22 +371,30 @@ export default function Calendar() {
                         style={{
                           minHeight: isMobile ? 52 : 88,
                           padding: isMobile ? '3px 2px' : 6,
-                          borderRadius: isMobile ? 6 : 8,
+                          borderRadius: isMobile ? 7 : 10,
                           cursor: 'pointer',
-                          border: `${isMobile ? 1 : 2}px solid ${isSelected ? t.primary : isToday ? t.primaryBorder : t.border}`,
+                          border: isSelected
+                            ? `1.5px solid ${t.primary}`
+                            : isToday
+                            ? `1.5px solid ${t.primaryBorder}`
+                            : !hasPosts && !isPast && isCurrentMonth
+                            ? `1px dashed ${t.border}`
+                            : `1px solid ${t.border}`,
                           background: isSelected ? t.primaryBg : isToday ? 'rgba(124,92,252,0.05)' : isCurrentMonth ? t.card : t.input,
                           opacity: !isCurrentMonth ? 0.35 : isPast ? 0.45 : 1,
-                          transition: 'all 150ms',
+                          transition: 'border-color 120ms ease, background 120ms ease',
                         }}
                         onMouseEnter={e => {
                           if (!isSelected) {
                             e.currentTarget.style.borderColor = t.primaryBorder;
+                            e.currentTarget.style.borderStyle = 'solid';
                             e.currentTarget.style.background = isToday ? 'rgba(124,92,252,0.08)' : t.cardHover;
                           }
                         }}
                         onMouseLeave={e => {
                           if (!isSelected) {
                             e.currentTarget.style.borderColor = isToday ? t.primaryBorder : t.border;
+                            e.currentTarget.style.borderStyle = (!hasPosts && !isPast && isCurrentMonth) ? 'dashed' : 'solid';
                             e.currentTarget.style.background = isToday ? 'rgba(124,92,252,0.05)' : isCurrentMonth ? t.card : t.input;
                           }
                         }}
