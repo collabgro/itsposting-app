@@ -502,6 +502,8 @@ console.log('══════════════════════�
     // t() maps 'content' → 'text' so elements render correctly in the Konva canvas
     const t = (id, c, props) => { const { content, ...rest } = props; return { id, type: 'text', text: content !== undefined ? content : rest.text, ...rest }; };
     const r = (id, c, props) => ({ id, type: 'rect', cornerRadius: 0, strokeWidth: 0, ...props });
+    // Photo-zone placeholder: renders as a dashed drop-zone in the editor; user fills with their own photo
+    const img = (id, c, props) => ({ id, type: 'image', src: '', opacity: 1, flipH: false, flipV: false, cornerRadius: 0, rotation: 0, frameType: 'none', ...props });
 
     const ALL_TEMPLATES = [
       // ── BEFORE & AFTER ────────────────────────────────────────────────────────
@@ -2137,6 +2139,178 @@ console.log('══════════════════════�
           t('e14',null,{ x:80,y:1124,width:920,height:44,text:'Link in bio  ·  Takes 60 seconds',fontFamily:'Inter',fontSize:24,fill:'rgba(255,255,255,0.28)',align:'center',verticalAlign:'middle' }),
           r('e15',null,{ x:80,y:1238,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
           t('e16',null,{ x:80,y:1260,width:920,height:52,text:'Business Name  ·  [City]  ·  Fully Insured',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.35)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      // ── PHOTO-ZONE TEMPLATES (Canva-style — real photo placeholders) ──────────
+
+      { name: 'Plumbing — Photo Hero Card', industry: 'plumbing', category: 'promotional', sort_order: 215,
+        canvas_json: mkPage('#1E3689', [
+          // Right-side plumber photo — the dominant visual anchor
+          img('p1',null,{ x:480,y:0,width:600,height:1080,placeholder:'Add plumber photo',placeholderFill:'rgba(10,18,55,0.65)' }),
+          // Left dark overlay for text legibility
+          r('ov',null,{ x:0,y:0,width:540,height:1080,fill:'rgba(10,20,80,0.45)' }),
+          // Brand badge top-left
+          r('badge',null,{ x:40,y:52,width:310,height:52,fill:'rgba(255,255,255,0.12)',cornerRadius:26 }),
+          t('brandtxt',null,{ x:40,y:52,width:310,height:52,text:'⚙  Business Name',fontFamily:'Inter',fontSize:17,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('h1',null,{ x:40,y:152,width:430,height:56,text:'PROFESSIONAL',fontFamily:'Inter',fontSize:44,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('h2',null,{ x:40,y:208,width:430,height:148,text:'PLUMBING',fontFamily:'Inter',fontSize:124,fontStyle:'bold',fill:'#FFC107',align:'left',verticalAlign:'middle' }),
+          t('h3',null,{ x:40,y:354,width:430,height:112,text:'SERVICES',fontFamily:'Inter',fontSize:92,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Three circular service photo zones
+          img('c1',null,{ x:42,y:506,width:152,height:152,frameType:'circle',placeholder:'Pipes',placeholderFill:'rgba(255,255,255,0.10)' }),
+          img('c2',null,{ x:212,y:506,width:152,height:152,frameType:'circle',placeholder:'Drains',placeholderFill:'rgba(255,255,255,0.10)' }),
+          img('c3',null,{ x:382,y:506,width:152,height:152,frameType:'circle',placeholder:'Water heater',placeholderFill:'rgba(255,255,255,0.10)' }),
+          // White footer strip
+          r('foot',null,{ x:0,y:1080,width:1080,height:270,fill:'#EEF2FF' }),
+          // 24 / EMERGENCY SERVICES block (left)
+          t('e24',null,{ x:40,y:1098,width:110,height:80,text:'24',fontFamily:'Inter',fontSize:76,fontStyle:'bold',fill:'#1E3689',align:'left',verticalAlign:'middle' }),
+          t('emrg',null,{ x:152,y:1106,width:220,height:64,text:'EMERGENCY\nSERVICES',fontFamily:'Inter',fontSize:20,fontStyle:'bold',fill:'#1E3689',align:'left',verticalAlign:'middle',lineHeight:1.25 }),
+          r('div',null,{ x:398,y:1108,width:2,height:100,fill:'rgba(30,54,137,0.18)' }),
+          // CALL NOW + phone (right of divider)
+          t('callnow',null,{ x:416,y:1108,width:260,height:36,text:'CALL NOW!',fontFamily:'Inter',fontSize:21,fontStyle:'bold',fill:'#1E3689',align:'left',verticalAlign:'middle' }),
+          t('phone',null,{ x:416,y:1150,width:280,height:44,text:'(555) 000-0000',fontFamily:'Inter',fontSize:32,fontStyle:'bold',fill:'#1E3689',align:'left',verticalAlign:'middle' }),
+          // Book Now pill button
+          r('btn',null,{ x:726,y:1098,width:314,height:84,fill:'#FFC107',cornerRadius:42 }),
+          t('btntxt',null,{ x:726,y:1098,width:314,height:84,text:'BOOK NOW →',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#1E3689',align:'center',verticalAlign:'middle' }),
+          // Footer label
+          t('ftlbl',null,{ x:40,y:1218,width:1000,height:36,text:'Licensed & Insured  ·  [City]',fontFamily:'Inter',fontSize:17,fill:'rgba(30,54,137,0.42)',align:'center',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Plumbing — Clean Split Card', industry: 'plumbing', category: 'social-proof', sort_order: 216,
+        canvas_json: mkPage('#ffffff', [
+          // Right photo zone — plumber in action
+          img('p1',null,{ x:540,y:0,width:540,height:860,placeholder:'Plumber photo',placeholderFill:'rgba(50,80,160,0.18)' }),
+          // Subtle right-panel tint for photo readability
+          r('tint',null,{ x:540,y:0,width:540,height:860,fill:'rgba(30,54,137,0.08)' }),
+          // Brand logo badge (top right)
+          r('badge',null,{ x:730,y:42,width:270,height:52,fill:'rgba(30,54,137,0.90)',cornerRadius:26 }),
+          t('brand',null,{ x:730,y:42,width:270,height:52,text:'⚙  LARANA CO.',fontFamily:'Inter',fontSize:17,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Left content
+          t('h1',null,{ x:40,y:100,width:480,height:128,text:'Plumbing',fontFamily:'Inter',fontSize:106,fontStyle:'bold',fill:'#1a1a2e',align:'left',verticalAlign:'middle' }),
+          t('h2',null,{ x:40,y:228,width:480,height:108,text:'Solutions',fontFamily:'Inter',fontSize:90,fontStyle:'bold',fill:'#2563EB',align:'left',verticalAlign:'middle' }),
+          t('h3',null,{ x:40,y:334,width:480,height:108,text:'Specialists',fontFamily:'Inter',fontSize:90,fontStyle:'bold',fill:'#1a1a2e',align:'left',verticalAlign:'middle' }),
+          // Service list card (dark pill)
+          r('scard',null,{ x:40,y:484,width:480,height:310,fill:'rgba(15,20,40,0.88)',cornerRadius:18 }),
+          t('s1',null,{ x:68,y:506,width:200,height:40,text:'🔧  Pipe Installation',fontFamily:'Inter',fontSize:19,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('s2',null,{ x:68,y:554,width:200,height:40,text:'🚿  Shower Install',fontFamily:'Inter',fontSize:19,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('s3',null,{ x:68,y:602,width:200,height:40,text:'🪠  Blocked Drains',fontFamily:'Inter',fontSize:19,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('s4',null,{ x:300,y:506,width:200,height:40,text:'🌊  Drain Cleaning',fontFamily:'Inter',fontSize:19,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('s5',null,{ x:300,y:554,width:200,height:40,text:'❄  Frozen Pipes',fontFamily:'Inter',fontSize:19,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('s6',null,{ x:300,y:602,width:200,height:40,text:'⚡  Emergency',fontFamily:'Inter',fontSize:19,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          r('div2',null,{ x:68,y:654,width:424,height:1,fill:'rgba(255,255,255,0.12)' }),
+          t('slbl',null,{ x:68,y:664,width:424,height:36,text:'24/7 · Licensed & Insured · Background Checked',fontFamily:'Inter',fontSize:14,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          // Dark bottom bar
+          r('bbar',null,{ x:0,y:860,width:1080,height:490,fill:'#1B2A5E' }),
+          // Contact button
+          r('ctabtn',null,{ x:40,y:894,width:340,height:74,fill:'#E86F2C',cornerRadius:37 }),
+          t('ctatxt',null,{ x:40,y:894,width:340,height:74,text:'CONTACT US  →',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Discount badge
+          r('disc',null,{ x:450,y:882,width:168,height:100,fill:'#E74C3C',cornerRadius:10 }),
+          t('dpct',null,{ x:450,y:888,width:168,height:56,text:'35%\nOFF',fontFamily:'Inter',fontSize:30,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle',lineHeight:1.1 }),
+          r('salebadge',null,{ x:450,y:958,width:168,height:32,fill:'rgba(0,0,0,0.30)',cornerRadius:6 }),
+          t('saletxt',null,{ x:450,y:958,width:168,height:32,text:'SALE!',fontFamily:'Inter',fontSize:15,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('formemb',null,{ x:634,y:894,width:260,height:88,text:'FOR NEW\nMEMBER',fontFamily:'Inter',fontSize:28,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle',lineHeight:1.2 }),
+          // Contact row
+          r('ctrow',null,{ x:0,y:1240,width:1080,height:110,fill:'rgba(0,0,0,0.25)' }),
+          t('ph2',null,{ x:40,y:1255,width:300,height:40,text:'📱  (555) 000-0000',fontFamily:'Inter',fontSize:19,fill:'rgba(255,255,255,0.72)',align:'left',verticalAlign:'middle' }),
+          t('ig',null,{ x:390,y:1255,width:300,height:40,text:'📷  @businessname',fontFamily:'Inter',fontSize:19,fill:'rgba(255,255,255,0.72)',align:'left',verticalAlign:'middle' }),
+          t('web',null,{ x:740,y:1255,width:300,height:40,text:'🌐  yoursite.com',fontFamily:'Inter',fontSize:19,fill:'rgba(255,255,255,0.72)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Plumbing — Expert Banner Card', industry: 'plumbing', category: 'announcement', sort_order: 217,
+        canvas_json: mkPage('#3B82F6', [
+          // Full-width photo zone (top ~55%) — plumber portrait or job shot
+          img('p1',null,{ x:0,y:0,width:1080,height:740,placeholder:'Add plumber / job photo',placeholderFill:'rgba(20,40,100,0.55)' }),
+          // Orange header strip across top (brand identity bar)
+          r('topbar',null,{ x:0,y:0,width:1080,height:100,fill:'#F97316' }),
+          t('brandtag',null,{ x:0,y:0,width:600,height:100,text:'⚙  Wardiere Inc.',fontFamily:'Inter',fontSize:28,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle',x:40 }),
+          // Main title block overlaid on photo bottom
+          r('tblock',null,{ x:0,y:600,width:700,height:140,fill:'#F97316' }),
+          t('main1',null,{ x:20,y:608,width:680,height:62,text:'YOUR GO-TO',fontFamily:'Inter',fontSize:52,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('main2',null,{ x:20,y:668,width:680,height:72,text:'PLUMBING EXPERTS',fontFamily:'Inter',fontSize:52,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Blue info band
+          r('blueband',null,{ x:0,y:740,width:1080,height:200,fill:'#3B82F6' }),
+          t('body',null,{ x:40,y:754,width:1000,height:100,text:'From quick repairs to full installations, we\'re your go-to plumbing experts you can count on anytime.',fontFamily:'Inter',fontSize:28,fill:'rgba(255,255,255,0.88)',align:'left',verticalAlign:'middle',lineHeight:1.45 }),
+          // 4 service icon circles
+          r('irow',null,{ x:0,y:940,width:1080,height:270,fill:'rgba(20,50,140,0.90)' }),
+          r('ic1bg',null,{ x:80,y:970,width:180,height:180,fill:'#F97316',cornerRadius:90 }),
+          t('ic1',null,{ x:80,y:970,width:180,height:180,text:'⚙',fontFamily:'Inter',fontSize:80,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('ic1l',null,{ x:60,y:1158,width:220,height:38,text:'Leak Repair',fontFamily:'Inter',fontSize:19,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          r('ic2bg',null,{ x:300,y:970,width:180,height:180,fill:'#F97316',cornerRadius:90 }),
+          t('ic2',null,{ x:300,y:970,width:180,height:180,text:'🔧',fontFamily:'Inter',fontSize:80,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('ic2l',null,{ x:280,y:1158,width:220,height:38,text:'Drain Clearing',fontFamily:'Inter',fontSize:19,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          r('ic3bg',null,{ x:520,y:970,width:180,height:180,fill:'#F97316',cornerRadius:90 }),
+          t('ic3',null,{ x:520,y:970,width:180,height:180,text:'🚿',fontFamily:'Inter',fontSize:80,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('ic3l',null,{ x:500,y:1158,width:220,height:38,text:'Water Heater',fontFamily:'Inter',fontSize:19,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          r('ic4bg',null,{ x:740,y:970,width:180,height:180,fill:'#F97316',cornerRadius:90 }),
+          t('ic4',null,{ x:740,y:970,width:180,height:180,text:'🪠',fontFamily:'Inter',fontSize:80,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('ic4l',null,{ x:720,y:1158,width:220,height:38,text:'Pipe Upgrades',fontFamily:'Inter',fontSize:19,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Footer contact bar
+          r('ftbar',null,{ x:0,y:1210,width:1080,height:140,fill:'rgba(10,20,70,0.90)' }),
+          t('ftph',null,{ x:40,y:1230,width:280,height:40,text:'📞  (555) 000-0000',fontFamily:'Inter',fontSize:19,fill:'rgba(255,255,255,0.70)',align:'left',verticalAlign:'middle' }),
+          t('ftweb',null,{ x:390,y:1230,width:300,height:40,text:'🌐  yoursite.com',fontFamily:'Inter',fontSize:19,fill:'rgba(255,255,255,0.70)',align:'left',verticalAlign:'middle' }),
+          t('ftem',null,{ x:750,y:1230,width:290,height:40,text:'✉  hello@business.com',fontFamily:'Inter',fontSize:17,fill:'rgba(255,255,255,0.70)',align:'left',verticalAlign:'middle' }),
+          t('city',null,{ x:40,y:1278,width:1000,height:36,text:'Business Name  ·  [City]  ·  Licensed & Insured',fontFamily:'Inter',fontSize:18,fill:'rgba(255,255,255,0.32)',align:'center',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Plumbing — Diagonal Services Card', industry: 'plumbing', category: 'educational', sort_order: 218,
+        canvas_json: mkPage('#ffffff', [
+          // Navy diagonal band (rotated rect — creates the angular split)
+          r('diag',null,{ x:-200,y:480,width:1000,height:700,fill:'#1B2A5E',rotation:-18 }),
+          // Top right: circular photo zone (plumber portrait)
+          img('p1',null,{ x:560,y:30,width:460,height:460,frameType:'circle',placeholder:'Your photo',placeholderFill:'rgba(30,50,140,0.20)' }),
+          // Yellow dot grid decoration (top right corner)
+          t('dot',null,{ x:890,y:40,width:160,height:160,text:'· · · ·\n· · · ·\n· · · ·\n· · · ·',fontFamily:'Inter',fontSize:24,fill:'rgba(30,54,137,0.18)',align:'left',verticalAlign:'top',lineHeight:1.8 }),
+          // Left: big headline on white
+          t('h1',null,{ x:40,y:60,width:500,height:60,text:'WE ARE EXPERTS IN THE FIELD',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'rgba(30,54,137,0.60)',align:'left',verticalAlign:'middle' }),
+          t('h2',null,{ x:40,y:134,width:500,height:148,text:'PLUMBING',fontFamily:'Inter',fontSize:122,fontStyle:'bold',fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          t('h3',null,{ x:40,y:278,width:500,height:108,text:'SERVICES',fontFamily:'Inter',fontSize:90,fontStyle:'bold',fill:'#FFC107',align:'left',verticalAlign:'middle' }),
+          // White checklist panel on right (overlaid on diagonal)
+          r('chkpanel',null,{ x:560,y:640,width:480,height:380,fill:'rgba(255,255,255,0.97)',cornerRadius:16 }),
+          t('chkhdr',null,{ x:580,y:660,width:440,height:36,text:'WHAT WE OFFER',fontFamily:'Inter',fontSize:16,fontStyle:'bold',fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          r('chkdiv',null,{ x:580,y:702,width:440,height:1,fill:'rgba(30,54,137,0.12)' }),
+          t('ck1',null,{ x:580,y:714,width:440,height:44,text:'Pipe Installation Services   ✅',fontFamily:'Inter',fontSize:21,fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          t('ck2',null,{ x:580,y:762,width:440,height:44,text:'Plumbing Repair Solutions   ✅',fontFamily:'Inter',fontSize:21,fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          t('ck3',null,{ x:580,y:810,width:440,height:44,text:'24/7 Emergency Plumbing   ✅',fontFamily:'Inter',fontSize:21,fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          t('ck4',null,{ x:580,y:858,width:440,height:44,text:'Drain & Sewer Services   ✅',fontFamily:'Inter',fontSize:21,fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          r('chkbtm',null,{ x:580,y:906,width:440,height:1,fill:'rgba(30,54,137,0.10)' }),
+          t('chkft',null,{ x:580,y:918,width:440,height:36,text:'Licensed  ·  Insured  ·  Background Checked',fontFamily:'Inter',fontSize:14,fill:'rgba(30,54,137,0.45)',align:'center',verticalAlign:'middle' }),
+          // Phone CTA bar (bottom left — on the diagonal)
+          r('phonebar',null,{ x:40,y:1062,width:480,height:88,fill:'#FFC107',cornerRadius:14 }),
+          t('phonetxt',null,{ x:40,y:1062,width:480,height:88,text:'📞  CONTACT US   (555) 000-0000',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#1B2A5E',align:'center',verticalAlign:'middle' }),
+          // Address footer
+          r('addrbar',null,{ x:0,y:1280,width:1080,height:70,fill:'rgba(27,42,94,0.06)' }),
+          t('addr',null,{ x:40,y:1295,width:1000,height:40,text:'📍  123 Anywhere St., [City]  ·  yoursite.com',fontFamily:'Inter',fontSize:18,fill:'rgba(30,54,137,0.55)',align:'center',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Plumbing — Emergency Yellow Bold', industry: 'plumbing', category: 'announcement', sort_order: 219,
+        canvas_json: mkPage('#FFC300', [
+          // Navy blob decorations (organic rounded rects, slightly rotated)
+          r('blob1',null,{ x:700,y:-120,width:580,height:580,fill:'#1B2A5E',cornerRadius:290,rotation:20,opacity:0.90 }),
+          r('blob2',null,{ x:820,y:900,width:400,height:400,fill:'#1B2A5E',cornerRadius:200,rotation:-15,opacity:0.85 }),
+          // Large rectangular photo zone — top section
+          img('p1',null,{ x:40,y:40,width:620,height:440,placeholder:'Add job site photo',placeholderFill:'rgba(20,40,100,0.22)',cornerRadius:14 }),
+          // Circular photo zone — mid right (service close-up)
+          img('p2',null,{ x:700,y:260,width:320,height:320,frameType:'circle',placeholder:'Service photo',placeholderFill:'rgba(20,40,100,0.22)' }),
+          // Big editorial headline
+          t('h1',null,{ x:40,y:520,width:660,height:130,text:'Emergency',fontFamily:'Inter',fontSize:110,fontStyle:'bold',fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          t('h2',null,{ x:40,y:648,width:660,height:130,text:'Plumbing',fontFamily:'Inter',fontSize:110,fontStyle:'bold',fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          t('h3',null,{ x:40,y:776,width:660,height:108,text:'Services',fontFamily:'Inter',fontSize:90,fontStyle:'bold',fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          // Sub-copy
+          t('body',null,{ x:40,y:904,width:620,height:100,text:'Count on us for immediate assistance with any plumbing emergency, day or night, to restore comfort to your home.',fontFamily:'Inter',fontSize:23,fill:'rgba(27,42,94,0.70)',align:'left',verticalAlign:'top',lineHeight:1.5 }),
+          // Plumber icon (decorative)
+          t('icon',null,{ x:40,y:1070,width:80,height:80,text:'🔧',fontFamily:'Inter',fontSize:64,fill:'rgba(27,42,94,0.55)',align:'center',verticalAlign:'middle' }),
+          t('dots',null,{ x:40,y:1040,width:80,height:26,text:'+ + +',fontFamily:'Inter',fontSize:18,fill:'rgba(27,42,94,0.38)',align:'center',verticalAlign:'middle' }),
+          // Call for details block (right side lower)
+          r('callbox',null,{ x:720,y:636,width:320,height:130,fill:'rgba(27,42,94,0.08)',cornerRadius:12 }),
+          t('callhdr',null,{ x:730,y:650,width:300,height:36,text:'📞  CALL FOR DETAILS',fontFamily:'Inter',fontSize:17,fontStyle:'bold',fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          t('callph',null,{ x:730,y:694,width:300,height:40,text:'(555) 000-0000',fontFamily:'Inter',fontSize:28,fontStyle:'bold',fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          // Location block
+          r('locbox',null,{ x:720,y:784,width:320,height:110,fill:'rgba(27,42,94,0.08)',cornerRadius:12 }),
+          t('lochdr',null,{ x:730,y:798,width:300,height:36,text:'📍  BUSINESS NAME',fontFamily:'Inter',fontSize:17,fontStyle:'bold',fill:'#1B2A5E',align:'left',verticalAlign:'middle' }),
+          t('locaddr',null,{ x:730,y:840,width:300,height:44,text:'123 Main St., [City]',fontFamily:'Inter',fontSize:20,fill:'rgba(27,42,94,0.65)',align:'left',verticalAlign:'middle' }),
+          // Footer
+          t('ftlbl',null,{ x:40,y:1290,width:1000,height:40,text:'Licensed & Insured  ·  Background Checked  ·  24/7',fontFamily:'Inter',fontSize:18,fill:'rgba(27,42,94,0.50)',align:'center',verticalAlign:'middle' }),
         ]) },
 
     ];

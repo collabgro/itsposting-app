@@ -590,6 +590,105 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
     node.offsetY(newH / 2);
   };
 
+  // ── Photo-zone placeholder (empty src) ─────────────────────────────────────
+  if (!el.src) {
+    const cr = el.frameType === 'circle'  ? Math.round(Math.min(w, h) * 0.5)
+             : el.frameType === 'rounded' ? Math.round(Math.min(w, h) * 0.2)
+             : (el.cornerRadius || 0);
+    const iconSz  = Math.round(Math.min(w, h) * 0.20);
+    const labelSz = Math.max(10, Math.round(Math.min(w * 0.07, 16)));
+    const phLabel = el.placeholder || 'Drop photo here';
+    const phFill  = el.placeholderFill || 'rgba(30,35,50,0.72)';
+
+    return (
+      <Shape
+        ref={shapeRef}
+        id={el.id}
+        x={el.x + w / 2}
+        y={el.y + h / 2}
+        offsetX={w / 2}
+        offsetY={h / 2}
+        width={w}
+        height={h}
+        rotation={el.rotation || 0}
+        opacity={el.opacity ?? 1}
+        draggable={!locked}
+        visible={!hidden}
+        onClick={e => !locked && onSelect(el.id, e)}
+        onTap={e => !locked && onSelect(el.id, e)}
+        onMouseEnter={e => { if (!locked) { const s = e.target.getStage(); if (s) s.container().style.cursor = 'pointer'; } }}
+        onMouseLeave={e => { const s = e.target.getStage(); if (s) s.container().style.cursor = ''; }}
+        onDragStart={e => { setIsDragging(true); const s = e.target.getStage(); if (s) s.container().style.cursor = 'grabbing'; }}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onTransformEnd={handleTransformEnd}
+        hitFunc={(ctx, shape) => { ctx.beginPath(); ctx.rect(0, 0, shape.width(), shape.height()); ctx.closePath(); ctx.fillStrokeShape(shape); }}
+        sceneFunc={(ctx, shape) => {
+          const W = shape.width(), H = shape.height();
+          ctx.save();
+          // Clip to frame shape
+          ctx.beginPath();
+          if (el.frameType === 'circle') {
+            ctx.arc(W / 2, H / 2, Math.min(W / 2, H / 2), 0, Math.PI * 2);
+          } else if (cr > 0) {
+            ctx.roundRect(0, 0, W, H, cr);
+          } else {
+            ctx.rect(0, 0, W, H);
+          }
+          ctx.clip();
+          // Fill
+          ctx.fillStyle = phFill;
+          ctx.fillRect(0, 0, W, H);
+          // Dashed border
+          const inset = 3;
+          ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([9, 6]);
+          ctx.beginPath();
+          if (el.frameType === 'circle') {
+            ctx.arc(W / 2, H / 2, Math.min(W / 2, H / 2) - inset, 0, Math.PI * 2);
+          } else if (cr > 0) {
+            ctx.roundRect(inset, inset, W - inset * 2, H - inset * 2, Math.max(0, cr - inset));
+          } else {
+            ctx.rect(inset, inset, W - inset * 2, H - inset * 2);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // Camera icon
+          ctx.fillStyle = 'rgba(255,255,255,0.55)';
+          ctx.font = `${iconSz}px Inter, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('📷', W / 2, H * 0.40);
+          // Label
+          ctx.fillStyle = 'rgba(255,255,255,0.38)';
+          ctx.font = `${labelSz}px Inter, sans-serif`;
+          ctx.textBaseline = 'top';
+          ctx.fillText(phLabel, W / 2, H * 0.63);
+          ctx.restore();
+          // Selection ring (drawn outside clip region)
+          if (isSelected) {
+            ctx.save();
+            ctx.strokeStyle = '#9B4FD4';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            if (el.frameType === 'circle') {
+              ctx.arc(W / 2, H / 2, Math.min(W / 2, H / 2) - 1, 0, Math.PI * 2);
+            } else if (cr > 0) {
+              ctx.roundRect(1, 1, W - 2, H - 2, cr);
+            } else {
+              ctx.rect(1, 1, W - 2, H - 2);
+            }
+            ctx.stroke();
+            ctx.restore();
+          }
+          ctx.fillStrokeShape(shape);
+        }}
+      />
+    );
+  }
+
   return (
     <KonvaImage
       ref={shapeRef}
