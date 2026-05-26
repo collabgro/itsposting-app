@@ -304,7 +304,7 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 3, marginBottom: 8 }}>
             {EXTENDED_PALETTE.map(c => (
               <button key={c} onMouseDown={() => { apply(c); close(); }}
-                style={{ aspectRatio: '1', background: c, border: hex === c ? '2px solid #00C4CC' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0 }} />
+                style={{ aspectRatio: '1', background: c, border: hex === c ? '2px solid #9B4FD4' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0 }} />
             ))}
           </div>
           {/* Document colors */}
@@ -314,7 +314,7 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
                 {docColors.map(c => (
                   <button key={c} onMouseDown={() => { apply(c); close(); }}
-                    style={{ width: 20, height: 20, background: c, border: hex === c ? '2px solid #00C4CC' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
+                    style={{ width: 20, height: 20, background: c, border: hex === c ? '2px solid #9B4FD4' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
                 ))}
               </div>
             </>
@@ -487,7 +487,7 @@ function BgImage({ url, filter, brightness, contrast, saturation, stageW, stageH
       height={scaledH}
       onClick={onClick}
       onTap={onClick}
-      stroke={isSelected ? TEAL : undefined}
+      stroke={isSelected ? '#9B4FD4' : undefined}
       strokeWidth={isSelected ? 3 : 0}
     />
   );
@@ -632,7 +632,7 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onTransformEnd={handleTransformEnd}
-      stroke={isSelected ? TEAL : (el.borderEnabled && el.borderColor ? el.borderColor : undefined)}
+      stroke={isSelected ? '#9B4FD4' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined)}
       strokeWidth={isSelected ? 1.5 : (el.borderEnabled && el.borderWidth ? el.borderWidth : 0)}
       dash={isSelected ? undefined : (() => { if (!el.borderEnabled) return undefined; const s=el.borderStyle||'solid'; const w=el.borderWidth||2; if(s==='dashed') return [w*4,w*3]; if(s==='dotted') return [w,w*2.5]; return undefined; })()}
       globalCompositeOperation={el.blendMode || 'source-over'}
@@ -739,7 +739,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
     onDragMove: handleDragMove,
     onDragEnd: handleDragEnd,
     onTransformEnd: handleTransformEnd,
-    stroke: isSelected ? TEAL : (isHovered && !locked ? 'rgba(0,196,204,0.5)' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined)),
+    stroke: isSelected ? '#9B4FD4' : (isHovered && !locked ? 'rgba(155,79,212,0.5)' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined)),
     strokeWidth: isSelected ? 1.5 : (isHovered && !locked && !el.borderEnabled ? 1 : (el.borderEnabled && el.borderWidth ? el.borderWidth : 0)),
     dash: isSelected ? undefined : (() => {
       if (!el.borderEnabled) return undefined;
@@ -3095,7 +3095,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.fillStyle = `${col2Color}dd`;
             ctx.fillText((row.col2 || '').slice(0, 30), colW + colW / 2, cy5);
           });
-          if (isSelected) { ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+          if (isSelected) { ctx.strokeStyle = '#9B4FD4'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
         }}
       />
     );
@@ -3141,7 +3141,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.textAlign = 'center'; ctx.textBaseline = 'top';
             ctx.fillText(tagline, w / 2, h * 0.6);
           }
-          if (isSelected) { ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+          if (isSelected) { ctx.strokeStyle = '#9B4FD4'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
         }}
       />
     );
@@ -3212,7 +3212,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
               ctx.fillText(step, cx2, lineY + dotR + 8);
             }
           }
-          if (isSelected) { ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+          if (isSelected) { ctx.strokeStyle = '#9B4FD4'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
         }}
       />
     );
@@ -3279,7 +3279,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.font = `${featureSize}px Inter, sans-serif`;
             ctx.fillText(f, w * 0.1 + featureSize * 1.4, fy + featureSize);
           });
-          if (isSelected) { ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+          if (isSelected) { ctx.strokeStyle = '#9B4FD4'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
         }}
       />
     );
@@ -3459,7 +3459,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.beginPath(); ctx.arc(cx,cy,s*0.2,0,Math.PI*2); ctx.fillStyle=iconColor; ctx.fill();
           }
           ctx.restore();
-          if (isSelected) { ctx.strokeStyle=TEAL; ctx.lineWidth=1.5; ctx.strokeRect(0,0,w,h); }
+          if (isSelected) { ctx.strokeStyle='#9B4FD4'; ctx.lineWidth=1.5; ctx.strokeRect(0,0,w,h); }
         }}
       />
     );
@@ -3508,7 +3508,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.textBaseline = 'top';
             ctx.fillText(label, w / 2, h * 0.68);
           }
-          if (isSelected) { ctx.strokeStyle = TEAL; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+          if (isSelected) { ctx.strokeStyle = '#9B4FD4'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
         }}
       />
     );
@@ -3561,7 +3561,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
       x={el.x || 0} y={el.y || 0}
       id={el.id}
       points={el.points || []}
-      stroke={isSelected ? TEAL : (el.stroke || '#ffffff')}
+      stroke={isSelected ? '#9B4FD4' : (el.stroke || '#ffffff')}
       strokeWidth={el.strokeWidth || 4}
       opacity={el.opacity ?? 1}
       tension={0.5}
@@ -3652,7 +3652,7 @@ function GroupNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDragM
       )}
       {isSelected && (
         <Rect x={0} y={0} width={el.width} height={el.height}
-          stroke="#00C4CC" strokeWidth={1.5} fill="transparent" listening={false} />
+          stroke="#9B4FD4" strokeWidth={1.5} fill="transparent" listening={false} />
       )}
     </Group>
   );
@@ -3754,12 +3754,12 @@ function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageSc
     <>
       <Transformer
         ref={trRef}
-        borderStroke="#00C4CC"
+        borderStroke="#9B4FD4"
         borderStrokeWidth={1 / stageScale}
         borderDash={[6 / stageScale, 4 / stageScale]}
         anchorSize={12 / stageScale}
         anchorCornerRadius={6 / stageScale}
-        anchorStroke="#00C4CC"
+        anchorStroke="#9B4FD4"
         anchorFill="#ffffff"
         anchorStrokeWidth={1.5 / stageScale}
         rotateAnchorOffset={32 / stageScale}
@@ -3898,7 +3898,7 @@ export default function TemplatesEditorInner() {
   const [emojiCat, setEmojiCat] = useState(0);
   // Freehand draw mode
   const [drawMode, setDrawMode] = useState(false);
-  const [drawColor, setDrawColor] = useState(TEAL);
+  const [drawColor, setDrawColor] = useState('#9B4FD4');
   const [drawWidth, setDrawWidth] = useState(4);
   const [isDrawingNow, setIsDrawingNow] = useState(false);
   const currentDrawRef = useRef(null); // in-progress draw element (ref for perf)
@@ -4924,7 +4924,7 @@ export default function TemplatesEditorInner() {
       width: 200, height: 60, opacity: 1,
       wmLogo: 'YourBrand', wmTagline: 'itsposting.com',
       wmStyle: 'pill',
-      bgColor: 'rgba(0,0,0,0.55)', fill: '#ffffff', accentColor: TEAL,
+      bgColor: 'rgba(0,0,0,0.55)', fill: '#ffffff', accentColor: t.primary,
       fontSize: 22,
     };
     patchElements(prev => [...prev, el]);
@@ -4937,7 +4937,7 @@ export default function TemplatesEditorInner() {
       id: uid(), type: 'htimeline',
       x: canvasSize.w / 2 - 240, y: canvasSize.h / 2 - 90,
       width: 480, height: 180, opacity: 1,
-      accentColor: TEAL, fill: '#ffffff', bgColor: 'transparent',
+      accentColor: t.primary, fill: '#ffffff', bgColor: 'transparent',
       tlSteps: ['Contact Us', 'Get Quote', 'We Work', 'Done!'],
       tlDotStyle: 'filled', tlLineStyle: 'solid', cornerRadius: 10,
     };
@@ -4951,7 +4951,7 @@ export default function TemplatesEditorInner() {
       id: uid(), type: 'pricetag',
       x: canvasSize.w / 2 - 130, y: canvasSize.h / 2 - 160,
       width: 260, height: 320, opacity: 1,
-      bgColor: '#1a1a2e', accentColor: TEAL, fill: '#ffffff',
+      bgColor: '#1a1a2e', accentColor: t.primary, fill: '#ffffff',
       ptCurrency: '$', ptPrice: '29', ptPeriod: '/mo',
       ptLabel: 'Pro Plan',
       ptFeatures: ['Unlimited posts', 'Priority support', 'Analytics'],
@@ -4983,7 +4983,7 @@ export default function TemplatesEditorInner() {
       counterValue: 1234, counterPrefix: '', counterSuffix: '+',
       counterLabel: 'Customers Served',
       counterStyle: 'card',
-      fill: '#ffffff', bgColor: 'rgba(0,196,204,0.15)', accentColor: TEAL,
+      fill: '#ffffff', bgColor: 'rgba(0,196,204,0.15)', accentColor: t.primary,
       fontSize: 52, cornerRadius: 12,
     };
     patchElements(prev => [...prev, el]);
@@ -5024,7 +5024,7 @@ export default function TemplatesEditorInner() {
       id: uid(), type: 'testimonial',
       x: canvasSize.w / 2 - 160, y: canvasSize.h / 2 - 90,
       width: 320, height: 180, opacity: 1,
-      fill: 'rgba(255,255,255,0.1)', accentColor: TEAL,
+      fill: 'rgba(255,255,255,0.1)', accentColor: t.primary,
       stroke: '#ffffff', cornerRadius: 14,
       reviewerName: 'John Smith', reviewerRole: 'Homeowner',
       reviewText: '"Absolutely fantastic work! Would recommend to anyone."',
@@ -6143,7 +6143,7 @@ export default function TemplatesEditorInner() {
           {/* ItsPosting Studio brand mark */}
           <div style={{
             width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-            background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 55%, #00C4CC 100%)',
+            background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 55%, #E040A0 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
             userSelect: 'none', cursor: 'default',
@@ -6153,8 +6153,10 @@ export default function TemplatesEditorInner() {
           <div style={{ position: 'relative' }}>
             {showFileMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowFileMenu(false)} />}
             <button onClick={() => { setShowFileMenu(m => !m); setShowResizeMenu(false); setShowDownloadMenu(false); }}
-              style={{ height: 34, padding: '0 10px', border: `1px solid ${showFileMenu ? t.primary : t.border}`, borderRadius: 7, background: showFileMenu ? t.primaryBg : t.input, color: showFileMenu ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-              File <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
+              style={{ height: 32, padding: '0 10px', border: `1px solid ${showFileMenu ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: showFileMenu ? t.primaryBg : 'transparent', color: showFileMenu ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
+              onMouseEnter={e => { if (!showFileMenu) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+              onMouseLeave={e => { if (!showFileMenu) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
+              File <span style={{ fontSize: 9, opacity: 0.5, marginLeft: 1 }}>▾</span>
             </button>
             {showFileMenu && (
               <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 290, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden', animation: 'dropdownIn 150ms ease forwards' }}>
@@ -6201,9 +6203,11 @@ export default function TemplatesEditorInner() {
           <div style={{ position: 'relative' }}>
             {showResizeMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowResizeMenu(false)} />}
             <button onClick={() => { setShowResizeMenu(m => !m); setShowFileMenu(false); setShowDownloadMenu(false); }}
-              style={{ height: 34, padding: '0 10px', border: `1px solid ${showResizeMenu ? t.primary : t.border}`, borderRadius: 7, background: showResizeMenu ? t.primaryBg : t.input, color: showResizeMenu ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              style={{ height: 32, padding: '0 10px', border: `1px solid ${showResizeMenu ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: showResizeMenu ? t.primaryBg : 'transparent', color: showResizeMenu ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, maxWidth: 160, overflow: 'hidden', transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
+              onMouseEnter={e => { if (!showResizeMenu) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+              onMouseLeave={e => { if (!showResizeMenu) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{canvasSize.label}</span>
-              <span style={{ fontSize: 9, opacity: 0.6, flexShrink: 0 }}>▾</span>
+              <span style={{ fontSize: 9, opacity: 0.5, flexShrink: 0, marginLeft: 1 }}>▾</span>
             </button>
             {showResizeMenu && (
               <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 320, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden', animation: 'dropdownIn 150ms ease forwards' }}>
@@ -6235,7 +6239,7 @@ export default function TemplatesEditorInner() {
                 <div style={{ padding: '8px 16px', borderTop: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: t.text, userSelect: 'none', flex: 1 }}>
                     <input type="checkbox" checked={scaleOnResize} onChange={e => setScaleOnResize(e.target.checked)}
-                      style={{ accentColor: TEAL, width: 14, height: 14, cursor: 'pointer' }} />
+                      style={{ accentColor: t.primary, width: 14, height: 14, cursor: 'pointer' }} />
                     Scale content with canvas
                   </label>
                   <span style={{ fontSize: 10, color: t.textMuted }}>Magic Resize</span>
@@ -6289,8 +6293,10 @@ export default function TemplatesEditorInner() {
           <div style={{ position: 'relative' }}>
             {editModeOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setEditModeOpen(false)} />}
             <button onClick={() => { setEditModeOpen(o => !o); setShowFileMenu(false); setShowResizeMenu(false); setShowDownloadMenu(false); }}
-              style={{ height: 34, padding: '0 10px', border: `1px solid ${editModeOpen ? t.primary : t.border}`, borderRadius: 7, background: editModeOpen ? t.primaryBg : t.input, color: editModeOpen ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-              ✏ Editing <span style={{ fontSize: 9, opacity: 0.6 }}>▾</span>
+              style={{ height: 32, padding: '0 10px', border: `1px solid ${editModeOpen ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: editModeOpen ? t.primaryBg : 'transparent', color: editModeOpen ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
+              onMouseEnter={e => { if (!editModeOpen) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+              onMouseLeave={e => { if (!editModeOpen) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
+              ✏ Editing <span style={{ fontSize: 9, opacity: 0.5, marginLeft: 1 }}>▾</span>
             </button>
             {editModeOpen && (
               <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 220, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0', animation: 'dropdownIn 150ms ease forwards' }}>
@@ -6307,7 +6313,7 @@ export default function TemplatesEditorInner() {
                       <div style={{ fontWeight: 500 }}>{m.label}</div>
                       <div style={{ fontSize: 11, color: t.textMuted }}>{m.sub}</div>
                     </div>
-                    {editMode === m.id && <span style={{ color: TEAL, fontSize: 14 }}>✓</span>}
+                    {editMode === m.id && <span style={{ color: t.primary, fontSize: 14 }}>✓</span>}
                   </button>
                 ))}
               </div>
@@ -6317,7 +6323,9 @@ export default function TemplatesEditorInner() {
           {/* ── Video mode toggle ── */}
           <button onClick={() => { setIsVideoMode(v => !v); setIsPlaying(false); setVideoPlayhead(0); clearInterval(playIntervalRef.current); }}
             onMouseEnter={e => showTip(e, isVideoMode ? 'Switch to Image mode' : 'Edit as Video')} onMouseLeave={hideTip}
-            style={{ height: 34, padding: '0 11px', border: `1px solid ${isVideoMode ? TEAL : t.border}`, borderRadius: 7, background: isVideoMode ? 'rgba(0,196,204,0.1)' : t.input, color: isVideoMode ? TEAL : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 100ms, border-color 100ms, color 100ms', flexShrink: 0 }}>
+            style={{ height: 32, padding: '0 11px', border: `1px solid ${isVideoMode ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: isVideoMode ? t.primaryBg : 'transparent', color: isVideoMode ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', flexShrink: 0, letterSpacing: '-0.01em' }}
+            onMouseEnter={e => { if (!isVideoMode) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+            onMouseLeave={e => { if (!isVideoMode) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
             {isVideoMode ? '◻ Image' : '▶ Video'}
           </button>
         </div>
@@ -6398,8 +6406,8 @@ export default function TemplatesEditorInner() {
           {editingTemplateId && !isAdmin && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
-              background: 'rgba(0,196,204,0.08)', border: `1px solid rgba(0,196,204,0.25)`,
-              borderRadius: 7, fontSize: 11, color: TEAL, fontWeight: 500, flexShrink: 0,
+              background: t.primaryBg, border: `1px solid ${t.primaryBorder}`,
+              borderRadius: 7, fontSize: 11, color: t.primary, fontWeight: 500, flexShrink: 0,
             }}>
               ✦ Using template — save creates your own copy
             </div>
@@ -6419,7 +6427,9 @@ export default function TemplatesEditorInner() {
           {/* Preview */}
           <button onClick={() => setPreviewOpen(true)}
             onMouseEnter={e => showTip(e, 'Preview', 'P')} onMouseLeave={hideTip}
-            style={{ height: 36, padding: '0 13px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'background 100ms' }}>
+            style={{ height: 32, padding: '0 12px', border: `1px solid transparent`, borderRadius: 8, background: 'transparent', color: t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
+            onMouseEnter={e => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; }}>
             <IpEye size={15} /> Preview
           </button>
 
@@ -6443,14 +6453,18 @@ export default function TemplatesEditorInner() {
           {/* Post — primary CTA */}
           <button onClick={() => setPostModalOpen(true)}
             onMouseEnter={e => showTip(e, 'Post to social media')} onMouseLeave={hideTip}
-            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: 'linear-gradient(90deg, #7C5CFC, #00C4CC)', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: `linear-gradient(135deg, ${t.primary} 0%, ${t.primaryHover} 100%)`, color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0, boxShadow: '0 2px 8px rgba(155,79,212,0.35)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', letterSpacing: '-0.01em' }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(155,79,212,0.5)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(155,79,212,0.35)'; }}>
             Post
           </button>
 
           {/* Share */}
           <button onClick={() => { setShareOpen(o => !o); setShowFileMenu(false); setShowResizeMenu(false); setShowDownloadMenu(false); setEditModeOpen(false); }}
             onMouseEnter={e => showTip(e, 'Share design')} onMouseLeave={hideTip}
-            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: shareOpen ? 'linear-gradient(135deg, #7C3FBC 0%, #A83EA0 100%)' : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 55%, #00C4CC 100%)', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'opacity 100ms' }}>
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: shareOpen ? t.primaryBg : 'transparent', border: `1px solid ${shareOpen ? t.primaryBorder : t.border}`, color: shareOpen ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
+            onMouseEnter={e => { if (!shareOpen) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+            onMouseLeave={e => { if (!shareOpen) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
             Share
           </button>
 
@@ -6458,7 +6472,9 @@ export default function TemplatesEditorInner() {
           <div style={{ position: 'relative' }}>
             {showDownloadMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowDownloadMenu(false)} />}
             <button onClick={() => { setShowDownloadMenu(m => !m); setShowFileMenu(false); setShowResizeMenu(false); }}
-              style={{ height: 36, padding: '0 13px', border: `1px solid ${showDownloadMenu ? t.primary : t.border}`, borderRadius: 8, background: showDownloadMenu ? t.primaryBg : t.input, color: showDownloadMenu ? t.primary : t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500 }}>
+              style={{ height: 32, padding: '0 12px', border: `1px solid ${showDownloadMenu ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: showDownloadMenu ? t.primaryBg : 'transparent', color: showDownloadMenu ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
+              onMouseEnter={e => { if (!showDownloadMenu) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+              onMouseLeave={e => { if (!showDownloadMenu) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
               <IpDownload size={15} /> <IpChevronDown size={9} />
             </button>
             {showDownloadMenu && (
@@ -6505,10 +6521,10 @@ export default function TemplatesEditorInner() {
 
       {/* ── Contextual action bar (Canva-style) ── */}
       <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); setShowEmojiPanel(false); setShowEffectsPanel(false); setShowMorePanel(false); }}
-        style={{ height: (selectedId || selectedIds.length > 0) ? 52 : 32, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.card, flexShrink: 0, zIndex: 9, position: 'relative', transition: 'height 150ms ease' }}>
+        style={{ height: (selectedId || selectedIds.length > 0) ? 48 : 30, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.sidebar, flexShrink: 0, zIndex: 9, position: 'relative', transition: 'height 180ms cubic-bezier(0.16,1,0.3,1)' }}>
         {!selectedId && selectedIds.length === 0 && (
           <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 11, color: t.textMuted, letterSpacing: '0.02em' }}>Click any element to edit</span>
+            <span style={{ fontSize: 11, color: t.textDisabled, letterSpacing: '0.04em' }}>Select an element to edit</span>
           </div>
         )}
 
@@ -6516,9 +6532,12 @@ export default function TemplatesEditorInner() {
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {/* ── Multi-select bar ── */}
         {selectedIds.length > 1 && (() => {
-          const D = () => <div style={{ width: 1, height: 22, background: t.border, margin: '0 4px', flexShrink: 0 }} />;
+          const D = () => <div style={{ width: 1, height: 18, background: t.border, margin: '0 6px', flexShrink: 0, opacity: 0.7 }} />;
           const Btn = ({ label, onClick, danger }) => (
-            <button onClick={onClick} style={{ height: 30, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: danger ? t.error : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, transition: 'background 80ms' }}>{label}</button>
+            <button onClick={onClick} style={{ height: 30, padding: '0 10px', border: 'none', borderRadius: 8, background: 'transparent', color: danger ? t.error : t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', letterSpacing: '-0.01em' }}
+              onMouseEnter={e => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = danger ? t.error : t.textSecondary; }}
+            >{label}</button>
           );
           const ALIGNS = [
             { label: <><IcoAlignLeft size={14} /> Left</>,    fn: () => { pushHistory(); const minX = Math.min(...selectedIds.map(id => elements.find(e=>e.id===id)?.x || 0)); patchElements(prev => prev.map(el => selectedIds.includes(el.id) ? {...el, x: minX} : el)); } },
@@ -6671,11 +6690,13 @@ export default function TemplatesEditorInner() {
           const D = () => <div style={{ width: 1, height: 24, background: t.border, margin: '0 8px', flexShrink: 0 }} />;
           const Btn = ({ label, active, onClick, title, extraStyle = {} }) => (
             <button onClick={onClick} title={title}
-              style={{ height: 34, minWidth: 34, padding: '0 8px', border: 'none', borderRadius: 7,
-                background: active ? 'rgba(0,196,204,0.1)' : 'transparent',
-                color: active ? TEAL : t.text, fontSize: 13, cursor: 'pointer', flexShrink: 0,
+              style={{ height: 32, minWidth: 32, padding: '0 8px', border: 'none', borderRadius: 8,
+                background: active ? t.primaryBg : 'transparent',
+                color: active ? t.primary : t.textSecondary, fontSize: 13, cursor: 'pointer', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'background 80ms', ...extraStyle }}>
+                transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', ...extraStyle }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
               {label}
             </button>
           );
@@ -6745,13 +6766,13 @@ export default function TemplatesEditorInner() {
                 recentColors={recentColors}
               />
               {/* Gradient text toggle */}
-              <Btn label={<><span style={{display:'inline-block',width:12,height:12,borderRadius:2,background:'linear-gradient(135deg,#7C5CFC,#00C4CC)',flexShrink:0,border:'1px solid rgba(255,255,255,0.15)'}}/>&nbsp;Grad</>} active={selectedEl.fillType === 'gradient'}
+              <Btn label={<><span style={{display:'inline-block',width:12,height:12,borderRadius:2,background:'linear-gradient(135deg,#9B4FD4,#C44BB8)',flexShrink:0,border:'1px solid rgba(255,255,255,0.15)'}}/>&nbsp;Grad</>} active={selectedEl.fillType === 'gradient'}
                 onClick={() => {
                   if (selectedEl.fillType === 'gradient') {
                     pushHistory(); updateElement({ ...selectedEl, fillType: 'solid' });
                   } else {
                     pushHistory(); updateElement({ ...selectedEl, fillType: 'gradient',
-                      fillGradient: selectedEl.fillGradient || { c1: selectedEl.fill || '#7C5CFC', c2: TEAL, angle: 135 } });
+                      fillGradient: selectedEl.fillGradient || { c1: selectedEl.fill || '#9B4FD4', c2: '#C44BB8', angle: 135 } });
                   }
                 }} />
               {selectedEl.fillType === 'gradient' && selectedEl.fillGradient && (
@@ -6773,7 +6794,7 @@ export default function TemplatesEditorInner() {
                         onChange={e => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, midStop: parseInt(e.target.value) / 100 } })}
                         onMouseUp={() => pushHistory()}
                         title="Mid stop position"
-                        style={{ width: 44, flexShrink: 0, accentColor: TEAL }} />
+                        style={{ width: 44, flexShrink: 0, accentColor: t.primary }} />
                       <button title="Remove mid color" onClick={() => { pushHistory(); const { midColor, midStop, ...rest } = selectedEl.fillGradient; updateElement({ ...selectedEl, fillGradient: rest }); }}
                         style={{ width: 16, height: 16, borderRadius: '50%', border: 'none', background: t.border, color: t.textMuted, fontSize: 10, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
                       <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>→</span>
@@ -6798,7 +6819,9 @@ export default function TemplatesEditorInner() {
                 onMouseEnter={e => showTip(e, TEXT_XFORM_TIP[textXform])}
                 onMouseLeave={hideTip}
                 onClick={() => handleElementChange({ ...selectedEl, textTransform: TEXT_XFORM_CYCLE[textXform] })}
-                style={{ height: 34, minWidth: 34, padding: '0 8px', border: 'none', borderRadius: 7, background: isUpper ? 'rgba(0,196,204,0.1)' : 'transparent', color: isUpper ? TEAL : t.text, fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 80ms', letterSpacing: '0.04em' }}>
+                style={{ height: 32, minWidth: 32, padding: '0 8px', border: 'none', borderRadius: 8, background: isUpper ? t.primaryBg : 'transparent', color: isUpper ? t.primary : t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', letterSpacing: '0.04em' }}
+                onMouseEnter={e => { if (!isUpper) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+                onMouseLeave={e => { if (!isUpper) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
                 {TEXT_XFORM_LABEL[textXform]}
               </button>
               <D />
@@ -6867,8 +6890,8 @@ export default function TemplatesEditorInner() {
                     }}
                     title="Apply your brand colors and fonts"
                     style={{
-                      height: 34, padding: '0 10px', border: `1px solid ${TEAL}`, borderRadius: 7,
-                      background: 'rgba(0,196,204,0.08)', color: TEAL,
+                      height: 32, padding: '0 10px', border: `1px solid ${t.primaryBorder}`, borderRadius: 8,
+                      background: t.primaryBg, color: t.primary,
                       fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center',
                       gap: 4, flexShrink: 0, whiteSpace: 'nowrap', fontWeight: 600,
                     }}
@@ -6899,10 +6922,10 @@ export default function TemplatesEditorInner() {
                   setShowMorePanel(p => !p);
                   setShowEmojiPanel(false);
                 }}
-                  style={{ height: 34, padding: '0 12px', border: 'none', borderRadius: 7,
-                    background: (showMorePanel || selectedEl.shadow?.enabled || selectedEl.outline?.enabled || selectedEl.textBg?.enabled || selectedEl.textCurve) ? 'rgba(0,196,204,0.1)' : 'transparent',
-                    color: (showMorePanel || selectedEl.shadow?.enabled || selectedEl.outline?.enabled || selectedEl.textBg?.enabled || selectedEl.textCurve) ? TEAL : t.text,
-                    fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'background 80ms' }}>
+                  style={{ height: 32, padding: '0 12px', border: 'none', borderRadius: 8,
+                    background: (showMorePanel || selectedEl.shadow?.enabled || selectedEl.outline?.enabled || selectedEl.textBg?.enabled || selectedEl.textCurve) ? t.primaryBg : 'transparent',
+                    color: (showMorePanel || selectedEl.shadow?.enabled || selectedEl.outline?.enabled || selectedEl.textBg?.enabled || selectedEl.textCurve) ? t.primary : t.textSecondary,
+                    fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}>
                   ⋯ More
                 </button>
                 {showMorePanel && panelAnchor && createPortal(
@@ -6969,7 +6992,7 @@ export default function TemplatesEditorInner() {
                             <span style={{ fontSize: 11, color: t.textMuted, minWidth: 52 }}>Width</span>
                             <input type="range" min={1} max={20} value={selectedEl.outline?.width??1}
                               onChange={e => updateElement({...selectedEl, outline:{...(selectedEl.outline||{}), width:parseInt(e.target.value)}})}
-                              onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                              onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
                             <span style={{ fontSize:11, color:t.textMuted, minWidth:22, textAlign:'right' }}>{selectedEl.outline?.width??1}</span>
                           </div>
                         </div>
@@ -6985,7 +7008,7 @@ export default function TemplatesEditorInner() {
                         <input type="range" min={0} max={1} step={0.05}
                           value={selectedEl.textBg?.enabled ? (selectedEl.textBg?.opacity ?? 1) : 0}
                           onChange={e => { const v = parseFloat(e.target.value); updateElement({ ...selectedEl, textBg: { ...(selectedEl.textBg||{}), enabled: v > 0, color: selectedEl.textBg?.color || '#ffff00', opacity: v } }); }}
-                          onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                          onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
                         {selectedEl.textBg?.enabled && (
                           <button onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, textBg: { ...selectedEl.textBg, enabled: false, opacity: 0 } }); }}
                             style={{ width: 20, height: 20, border: 'none', borderRadius: 4, background: t.input, color: t.textMuted, fontSize: 12, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
@@ -7003,7 +7026,7 @@ export default function TemplatesEditorInner() {
                           <span style={{ fontSize: 11, color: t.textMuted, minWidth: 64 }}>{lbl}</span>
                           <input type="range" min={min} max={max} step={step} value={selectedEl?.[k] ?? def}
                             onChange={e => updateElement({ ...selectedEl, [k]: parseFloat(e.target.value) })}
-                            onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                            onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
                           <span style={{ fontSize:11, color:t.textMuted, minWidth:30, textAlign:'right' }}>{fmt(selectedEl?.[k] ?? def)}</span>
                         </div>
                       ))}
@@ -7013,7 +7036,7 @@ export default function TemplatesEditorInner() {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: selectedEl.textCurve ? 10 : 14 }}>
                         <span style={{ fontSize: 13, fontWeight: 500, color: t.text }}>Curve text</span>
                         <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: selectedEl.textCurve ? undefined : 200 }); }}
-                          style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${selectedEl.textCurve ? TEAL : t.border}`, background: selectedEl.textCurve ? 'rgba(0,196,204,0.1)' : 'transparent', color: selectedEl.textCurve ? TEAL : t.text, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+                          style={{ padding: '4px 10px', borderRadius: 8, border: `1px solid ${selectedEl.textCurve ? t.primaryBorder : t.border}`, background: selectedEl.textCurve ? t.primaryBg : 'transparent', color: selectedEl.textCurve ? t.primary : t.textSecondary, fontSize: 12, cursor: 'pointer', fontWeight: 500, transition: 'all 120ms ease' }}>
                           {selectedEl.textCurve ? '✕ Remove' : '⌒ Add'}
                         </button>
                       </div>
@@ -7022,7 +7045,7 @@ export default function TemplatesEditorInner() {
                           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                             {[['⌒', 'Up', 1], ['⌣', 'Down', -1]].map(([icon, label, dir]) => (
                               <button key={dir} onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: dir * Math.abs(selectedEl.textCurve || 200) }); }}
-                                style={{ flex: 1, padding: '5px 0', borderRadius: 6, border: `1px solid ${(selectedEl.textCurve > 0 ? 1 : -1) === dir ? TEAL : t.border}`, background: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? 'rgba(0,196,204,0.1)' : t.input, color: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? TEAL : t.text, fontSize: 14, cursor: 'pointer' }}>
+                                style={{ flex: 1, padding: '5px 0', borderRadius: 8, border: `1px solid ${(selectedEl.textCurve > 0 ? 1 : -1) === dir ? t.primaryBorder : t.border}`, background: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? t.primaryBg : t.input, color: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? t.primary : t.textSecondary, fontSize: 14, cursor: 'pointer', transition: 'all 120ms ease' }}>
                                 {icon} {label}
                               </button>
                             ))}
@@ -7032,7 +7055,7 @@ export default function TemplatesEditorInner() {
                             <input type="range" min={60} max={600} step={10}
                               value={Math.abs(selectedEl.textCurve || 200)}
                               onChange={e => updateElement({ ...selectedEl, textCurve: (selectedEl.textCurve < 0 ? -1 : 1) * parseInt(e.target.value) })}
-                              onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                              onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
                           </div>
                         </div>
                       )}
@@ -7043,7 +7066,7 @@ export default function TemplatesEditorInner() {
                         <span style={{ fontSize: 11, color: t.textMuted, minWidth: 52 }}>Opacity</span>
                         <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
                           onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-                          onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                          onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
                         <span style={{ fontSize: 11, color: t.textMuted, minWidth: 30, textAlign: 'right' }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: selectedEl.fillType === 'gradient' ? 10 : 0 }}>
@@ -7077,7 +7100,10 @@ export default function TemplatesEditorInner() {
         {selectedIds.length <= 1 && selectedEl?.type === 'image' && (() => {
           const D = () => <div style={{ width:1, height:22, background:t.border, margin:'0 4px', flexShrink:0 }} />;
           const Btn = ({ label, active, onClick }) => (
-            <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?'rgba(0,196,204,0.1)':'transparent', color:active?TEAL:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4, transition:'background 80ms' }}>{label}</button>
+            <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:8, background:active?t.primaryBg:'transparent', color:active?t.primary:t.textSecondary, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4, transition:'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}
+            >{label}</button>
           );
           return (
             <>
@@ -7115,7 +7141,7 @@ export default function TemplatesEditorInner() {
                 const active = (selectedEl.frameType || null) === ft;
                 return (
                   <button key={title} title={title} onMouseDown={e => { e.preventDefault(); pushHistory(); updateElement({ ...selectedEl, frameType: ft, cornerRadius: 0 }); }}
-                    style={{ height:28, padding:'0 8px', border:`1px solid ${active ? TEAL : t.border}`, borderRadius:5, background: active ?'rgba(0,196,204,0.1)':'transparent', color: active ?TEAL:t.text, fontSize:14, cursor:'pointer', flexShrink:0 }}>
+                    style={{ height:28, padding:'0 8px', border:`1px solid ${active ? t.primaryBorder : t.border}`, borderRadius:6, background: active ? t.primaryBg : 'transparent', color: active ? t.primary : t.textSecondary, fontSize:14, cursor:'pointer', flexShrink:0, transition:'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}>
                     {label}
                   </button>
                 );
@@ -7142,7 +7168,7 @@ export default function TemplatesEditorInner() {
                 <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.borderWidth||3}px</span>
                 {[['solid','─'],['dashed','╌'],['dotted','···']].map(([s,icon]) => (
                   <button key={s} title={s.charAt(0).toUpperCase()+s.slice(1)} onClick={() => { pushHistory(); updateElement({...selectedEl, borderStyle: s}); }}
-                    style={{ height:26, padding:'0 8px', border:`1px solid ${(selectedEl.borderStyle||'solid')===s?TEAL:t.border}`, borderRadius:5, background:(selectedEl.borderStyle||'solid')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.borderStyle||'solid')===s?TEAL:t.text, fontSize:13, cursor:'pointer', flexShrink:0, letterSpacing:'0.05em' }}>
+                    style={{ height:26, padding:'0 8px', border:`1px solid ${(selectedEl.borderStyle||'solid')===s?t.primaryBorder:t.border}`, borderRadius:6, background:(selectedEl.borderStyle||'solid')===s?t.primaryBg:'transparent', color:(selectedEl.borderStyle||'solid')===s?t.primary:t.textSecondary, fontSize:13, cursor:'pointer', flexShrink:0, letterSpacing:'0.05em', transition:'all 120ms ease' }}>
                     {icon}
                   </button>
                 ))}
@@ -7184,7 +7210,7 @@ export default function TemplatesEditorInner() {
                               pushHistory();
                               updateElement({ ...selectedEl, filterPreset: key, brightness: p.brightness, contrast: p.contrast, saturation: p.saturation });
                             }}
-                            style={{ padding: '6px 0', borderRadius: 7, border: `1.5px solid ${isActive ? TEAL : t.border}`, background: isActive ? 'rgba(0,196,204,0.12)' : t.input, color: isActive ? TEAL : t.text, fontSize: 10, fontWeight: 500, cursor: 'pointer', textTransform: 'capitalize' }}>
+                            style={{ padding: '6px 0', borderRadius: 8, border: `1.5px solid ${isActive ? t.primaryBorder : t.border}`, background: isActive ? t.primaryBg : t.input, color: isActive ? t.primary : t.textSecondary, fontSize: 10, fontWeight: 500, cursor: 'pointer', textTransform: 'capitalize', transition: 'all 120ms ease' }}>
                             {key}
                           </button>
                         );
@@ -7196,8 +7222,8 @@ export default function TemplatesEditorInner() {
                         <span style={{ fontSize: 11, fontWeight: 600, color: t.textMuted }}>Duotone</span>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 11, color: t.text }}>
                           <input type="checkbox" checked={selectedEl.duotone?.enabled || false}
-                            onChange={e => { pushHistory(); updateElement({ ...selectedEl, duotone: { ...(selectedEl.duotone||{}), enabled: e.target.checked, c1: selectedEl.duotone?.c1||'#1a1a22', c2: selectedEl.duotone?.c2||TEAL } }); }}
-                            style={{ accentColor: TEAL, cursor: 'pointer' }} />
+                            onChange={e => { pushHistory(); updateElement({ ...selectedEl, duotone: { ...(selectedEl.duotone||{}), enabled: e.target.checked, c1: selectedEl.duotone?.c1||'#1a1a22', c2: selectedEl.duotone?.c2||'#9B4FD4' } }); }}
+                            style={{ accentColor: t.primary, cursor: 'pointer' }} />
                           On
                         </label>
                       </div>
@@ -7207,14 +7233,14 @@ export default function TemplatesEditorInner() {
                             onChange={c => updateElement({ ...selectedEl, duotone: { ...selectedEl.duotone, c1: c } })}
                             onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
                           <span style={{ color: t.textMuted, fontSize: 11 }}>→</span>
-                          <ColorPickerButton value={selectedEl.duotone?.c2 || TEAL}
+                          <ColorPickerButton value={selectedEl.duotone?.c2 || '#9B4FD4'}
                             onChange={c => updateElement({ ...selectedEl, duotone: { ...selectedEl.duotone, c2: c } })}
                             onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
                         </div>
                       )}
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                         {[
-                          { c1: '#1a1a22', c2: TEAL },
+                          { c1: '#1a1a22', c2: '#9B4FD4' },
                           { c1: '#1a1a22', c2: '#7C5CFC' },
                           { c1: '#1a1a22', c2: '#f97316' },
                           { c1: '#0c1445', c2: '#ec4899' },
@@ -7256,7 +7282,7 @@ export default function TemplatesEditorInner() {
                         </div>
                         <input type="range" min={min} max={max} step={step} value={selectedEl[k] ?? def}
                           onChange={e => updateElement({ ...selectedEl, [k]: parseFloat(e.target.value) })}
-                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: TEAL }} />
+                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: t.primary }} />
                       </div>
                     ))}
                     <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, brightness: 0, contrast: 0, saturation: 0, blur: 0 }); }}
@@ -7291,7 +7317,7 @@ export default function TemplatesEditorInner() {
                         <input type="range" min={0} max={49} step={1} value={selectedEl[k] || 0}
                           onChange={e => updateElement({ ...selectedEl, [k]: parseInt(e.target.value) })}
                           onMouseUp={() => pushHistory()}
-                          style={{ width: '100%', accentColor: TEAL }} />
+                          style={{ width: '100%', accentColor: t.primary }} />
                       </div>
                     ))}
                     <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, cropTop: 0, cropBottom: 0, cropLeft: 0, cropRight: 0 }); }}
@@ -7429,7 +7455,10 @@ export default function TemplatesEditorInner() {
         {selectedIds.length <= 1 && selectedEl && !['text','image'].includes(selectedEl.type) && (() => {
           const D = () => <div style={{ width:1, height:22, background:t.border, margin:'0 4px', flexShrink:0 }} />;
           const Btn = ({ label, active, onClick }) => (
-            <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:6, background:active?'rgba(0,196,204,0.1)':'transparent', color:active?TEAL:t.text, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4, transition:'background 80ms' }}>{label}</button>
+            <button onClick={onClick} style={{ height:30, padding:'0 9px', border:'none', borderRadius:8, background:active?t.primaryBg:'transparent', color:active?t.primary:t.textSecondary, fontSize:13, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4, transition:'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
+              onMouseEnter={e => { if (!active) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+              onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}
+            >{label}</button>
           );
           const fillKey = ['line','arrow','draw'].includes(selectedEl.type) ? 'stroke' : 'fill';
           const fillVal = (selectedEl[fillKey] || '#ffffff').startsWith('rgba') ? '#888888' : (selectedEl[fillKey] || '#ffffff');
@@ -7474,7 +7503,7 @@ export default function TemplatesEditorInner() {
                             onChange={e => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, midStop: parseInt(e.target.value) / 100 } })}
                             onMouseUp={() => pushHistory()}
                             title="Mid stop position"
-                            style={{ width: 44, flexShrink: 0, accentColor: TEAL }} />
+                            style={{ width: 44, flexShrink: 0, accentColor: t.primary }} />
                           <button title="Remove mid color" onClick={() => { pushHistory(); const { midColor, midStop, ...rest } = selectedEl.fillGradient; updateElement({ ...selectedEl, fillGradient: rest }); }}
                             style={{ width: 16, height: 16, borderRadius: '50%', border: 'none', background: t.border, color: t.textMuted, fontSize: 10, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>×</button>
                           <span style={{ fontSize: 10, color: t.textMuted }}>→</span>
@@ -8393,7 +8422,7 @@ export default function TemplatesEditorInner() {
                 <span style={{ fontSize:11, color:t.textMuted, minWidth:24, flexShrink:0 }}>{selectedEl.borderWidth||2}px</span>
                 {[['solid','─'],['dashed','╌'],['dotted','···']].map(([s,icon]) => (
                   <button key={s} title={s.charAt(0).toUpperCase()+s.slice(1)} onClick={() => { pushHistory(); updateElement({...selectedEl, borderStyle: s}); }}
-                    style={{ height:26, padding:'0 8px', border:`1px solid ${(selectedEl.borderStyle||'solid')===s?TEAL:t.border}`, borderRadius:5, background:(selectedEl.borderStyle||'solid')===s?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.borderStyle||'solid')===s?TEAL:t.text, fontSize:13, cursor:'pointer', flexShrink:0, letterSpacing:'0.05em' }}>
+                    style={{ height:26, padding:'0 8px', border:`1px solid ${(selectedEl.borderStyle||'solid')===s?t.primaryBorder:t.border}`, borderRadius:6, background:(selectedEl.borderStyle||'solid')===s?t.primaryBg:'transparent', color:(selectedEl.borderStyle||'solid')===s?t.primary:t.textSecondary, fontSize:13, cursor:'pointer', flexShrink:0, letterSpacing:'0.05em', transition:'all 120ms ease' }}>
                     {icon}
                   </button>
                 ))}
@@ -8697,7 +8726,7 @@ export default function TemplatesEditorInner() {
                           ) : brandProfile?.is_admin && curatedTemplates.some(t => !t.thumbnail_url) ? (
                             <button onClick={generateAllThumbsFromCanvas}
                               title="Generate permanent thumbnails for all templates (admin only)"
-                              style={{ fontSize: 10, color: TEAL, background: 'rgba(0,196,204,0.1)', border: `1px solid rgba(0,196,204,0.3)`, borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontWeight: 600 }}>
+                              style={{ fontSize: 10, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '3px 7px', cursor: 'pointer', fontWeight: 600 }}>
                               Gen Thumbs
                             </button>
                           ) : null}
@@ -8708,7 +8737,7 @@ export default function TemplatesEditorInner() {
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
                         {CATS.map(cat => (
                           <button key={cat.id} onClick={() => setTemplateCategory(cat.id)}
-                            style={{ padding: '4px 8px', borderRadius: 20, border: `1px solid ${templateCategory === cat.id ? '#00C4CC' : t.border}`, background: templateCategory === cat.id ? 'rgba(0,196,204,0.12)' : t.input, color: templateCategory === cat.id ? '#00C4CC' : t.textMuted, fontSize: 11, fontWeight: templateCategory === cat.id ? 700 : 500, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 80ms' }}>
+                            style={{ padding: '4px 10px', borderRadius: 20, border: `1px solid ${templateCategory === cat.id ? t.primaryBorder : t.border}`, background: templateCategory === cat.id ? t.primaryBg : 'transparent', color: templateCategory === cat.id ? t.primary : t.textMuted, fontSize: 11, fontWeight: templateCategory === cat.id ? 600 : 400, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}>
                             {CAT_ICONS[cat.id]} {cat.label}
                           </button>
                         ))}
@@ -8730,10 +8759,10 @@ export default function TemplatesEditorInner() {
                       ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
                           {filtered.map(tmpl => (
-                            <div key={tmpl.id} style={{ cursor: 'pointer' }}
-                              onMouseEnter={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '1'}
-                              onMouseLeave={e => e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '0'}>
-                              <div style={{ aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, marginBottom: 4, position: 'relative' }}>
+                            <div key={tmpl.id} style={{ cursor: 'pointer', transition: 'transform 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
+                              onMouseEnter={e => { e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '1'; e.currentTarget.style.transform = 'scale(1.03)'; }}
+                              onMouseLeave={e => { e.currentTarget.querySelector('.tmpl-overlay').style.opacity = '0'; e.currentTarget.style.transform = 'scale(1)'; }}>
+                              <div style={{ aspectRatio: '4/5', borderRadius: 10, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, marginBottom: 4, position: 'relative', boxShadow: t.shadowSm }}>
                                 {(() => {
                                   const thumbSrc = tmpl.thumbnail_url || templateThumbs[tmpl.id];
                                   return thumbSrc
@@ -8745,7 +8774,7 @@ export default function TemplatesEditorInner() {
                                       </div>
                                     );
                                 })()}
-                                <div className="tmpl-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms' }}>
+                                <div className="tmpl-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 120ms ease', backdropFilter: 'blur(2px)' }}>
                                   <button
                                     onClick={async () => {
                                       try {
@@ -8757,8 +8786,8 @@ export default function TemplatesEditorInner() {
                                         }
                                       } catch {}
                                     }}
-                                    style={{ fontSize: 12, fontWeight: 700, background: 'linear-gradient(90deg, #7C5CFC, #00C4CC)', color: '#fff', padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer' }}>
-                                    Use
+                                    style={{ fontSize: 12, fontWeight: 600, background: t.primary, color: '#fff', padding: '7px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.3)', letterSpacing: '-0.01em' }}>
+                                    Use Template
                                   </button>
                                 </div>
                               </div>
@@ -8954,7 +8983,7 @@ export default function TemplatesEditorInner() {
                             <input type="range" min={5} max={95} step={5} value={Math.round((bgGradient.midStop ?? 0.5) * 100)}
                               onChange={e => patchPage({ bgGradient: { ...bgGradient, midStop: parseInt(e.target.value) / 100 } })}
                               onMouseUp={() => pushHistory()}
-                              style={{ width: '100%', accentColor: TEAL, marginTop: 6 }} />
+                              style={{ width: '100%', accentColor: t.primary, marginTop: 6 }} />
                           </div>
                           <button title="Remove mid color" onClick={() => { pushHistory(); const { midColor, midStop, ...rest } = bgGradient; patchPage({ bgGradient: rest }); }}
                             style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${t.border}`, background: t.card, color: t.textMuted, cursor: 'pointer', flexShrink: 0, fontSize: 14, marginBottom: 0 }}>
@@ -8974,7 +9003,7 @@ export default function TemplatesEditorInner() {
                           <input type="range" min={0} max={360} step={15} value={bgGradient.angle ?? 135}
                             onChange={e => patchPage({ bgGradient: { ...bgGradient, angle: parseInt(e.target.value) } })}
                             onMouseUp={() => pushHistory()}
-                            style={{ flex: 1, accentColor: TEAL }} />
+                            style={{ flex: 1, accentColor: t.primary }} />
                           <span style={{ fontSize: 10, color: t.textMuted, width: 28, textAlign: 'right' }}>{bgGradient.angle ?? 135}°</span>
                         </div>
                       )}
@@ -9277,14 +9306,14 @@ export default function TemplatesEditorInner() {
                       <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap', width: 70 }}>Line height</span>
                       <input type="range" min={0.8} max={3} step={0.05} value={selectedEl.lineHeight ?? 1.2}
                         onChange={e => updateElement({ ...selectedEl, lineHeight: parseFloat(e.target.value) })}
-                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
                       <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{(selectedEl.lineHeight ?? 1.2).toFixed(1)}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                       <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap', width: 70 }}>Spacing</span>
                       <input type="range" min={-5} max={30} step={0.5} value={selectedEl.letterSpacing ?? 0}
                         onChange={e => updateElement({ ...selectedEl, letterSpacing: parseFloat(e.target.value) })}
-                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
                       <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{(selectedEl.letterSpacing ?? 0).toFixed(1)}</span>
                     </div>
                     {/* Opacity */}
@@ -9292,7 +9321,7 @@ export default function TemplatesEditorInner() {
                       <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap', width: 70 }}>Opacity</span>
                       <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
                         onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: TEAL }} />
+                        onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
                       <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
                     </div>
                   </div>
@@ -10563,11 +10592,14 @@ export default function TemplatesEditorInner() {
                     ref={isActive ? canvasWrapperRef : null}
                     style={{
                       position: 'relative', width: stageDisplayW, height: stageDisplayH, flexShrink: 0,
-                      borderRadius: 8, overflow: 'hidden', cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
+                      borderRadius: 12, overflow: 'hidden', cursor: isActive ? (drawMode ? 'crosshair' : 'default') : 'pointer',
                       opacity: page.hidden ? 0.35 : 1,
+                      outline: isActive ? `2px solid ${t.primary}` : '2px solid transparent',
+                      outlineOffset: 2,
                       boxShadow: isActive
-                        ? '0 4px 24px rgba(0,0,0,0.22), 0 1px 6px rgba(0,0,0,0.12)'
-                        : '0 2px 12px rgba(0,0,0,0.16), 0 1px 3px rgba(0,0,0,0.10)',
+                        ? '0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)'
+                        : '0 2px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.10)',
+                      transition: 'box-shadow 200ms ease, outline-color 150ms ease',
                       background: pageBgType === 'transparent'
                         ? 'repeating-conic-gradient(#aaa 0% 25%, #fff 0% 50%) 0 0 / 20px 20px'
                         : undefined,
@@ -11106,7 +11138,10 @@ export default function TemplatesEditorInner() {
             })}
 
             {/* Add page button */}
-            <button onClick={addPage} style={{ marginTop: 4, padding: '10px 28px', borderRadius: 8, border: `2px dashed ${t.border}`, background: 'none', color: t.textMuted, fontSize: 13, fontWeight: 600, cursor: 'pointer', letterSpacing: '0.03em' }}>
+            <button onClick={addPage}
+              style={{ marginTop: 4, padding: '10px 28px', borderRadius: 10, border: `1.5px dashed ${t.borderStrong}`, background: 'none', color: t.textMuted, fontSize: 13, fontWeight: 500, cursor: 'pointer', letterSpacing: '-0.01em', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.color = t.textMuted; }}>
               + Add Page
             </button>
           </div>
@@ -11126,10 +11161,10 @@ export default function TemplatesEditorInner() {
                 return (
                   <div key={page.id} style={{ position: 'relative' }}>
                     {/* Page number label */}
-                    <div style={{ fontSize: 9, fontWeight: 600, color: isAct ? TEAL : t.textMuted, textAlign: 'center', marginBottom: 3 }}>{i + 1}</div>
+                    <div style={{ fontSize: 9, fontWeight: 600, color: isAct ? t.primary : t.textMuted, textAlign: 'center', marginBottom: 3 }}>{i + 1}</div>
                     {/* Thumbnail tile */}
                     <div onClick={() => { setActivePage(i); setSelectedId(null); setSelectedIds([]); }}
-                      style={{ width: '100%', aspectRatio: `${canvasSize.w} / ${canvasSize.h}`, borderRadius: 5, border: `2px solid ${isAct ? TEAL : t.border}`, background: page.bgType === 'gradient' && page.bgGradient ? `linear-gradient(${page.bgGradient.angle}deg, ${page.bgGradient.c1}, ${page.bgGradient.c2})` : (page.bgColor || '#1a1a22'), cursor: 'pointer', overflow: 'hidden', position: 'relative', boxSizing: 'border-box' }}>
+                      style={{ width: '100%', aspectRatio: `${canvasSize.w} / ${canvasSize.h}`, borderRadius: 6, border: `2px solid ${isAct ? t.primary : t.border}`, background: page.bgType === 'gradient' && page.bgGradient ? `linear-gradient(${page.bgGradient.angle}deg, ${page.bgGradient.c1}, ${page.bgGradient.c2})` : (page.bgColor || '#1a1a22'), cursor: 'pointer', overflow: 'hidden', position: 'relative', boxSizing: 'border-box' }}>
                       {/* Tiny color-coded element indicators */}
                       {page.elements.slice(0, 8).map(el => (
                         <div key={el.id} style={{
@@ -11157,7 +11192,9 @@ export default function TemplatesEditorInner() {
               })}
               {/* Add page button */}
               <button onClick={addPage}
-                style={{ width: '100%', aspectRatio: `${canvasSize.w} / ${canvasSize.h}`, borderRadius: 5, border: `2px dashed ${t.border}`, background: 'none', color: t.textMuted, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                style={{ width: '100%', aspectRatio: `${canvasSize.w} / ${canvasSize.h}`, borderRadius: 6, border: `1.5px dashed ${t.borderStrong}`, background: 'none', color: t.textMuted, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.color = t.textMuted; }}>
                 +
               </button>
             </div>
@@ -11181,15 +11218,20 @@ export default function TemplatesEditorInner() {
             {/* PROPERTIES TAB */}
             {rightTab === 'properties' && (() => {
               const SH = ({ children }) => (
-                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 5, marginTop: 14 }}>{children}</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: t.textMuted, marginBottom: 6, marginTop: 16, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{children}</div>
               );
-              const lbl = { fontSize: 10, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 3 };
-              const inp = { width: '100%', padding: '5px 7px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, boxSizing: 'border-box', outline: 'none' };
+              const lbl = { fontSize: 11, fontWeight: 500, color: t.textMuted, display: 'block', marginBottom: 4, letterSpacing: '-0.01em' };
+              const inp = { width: '100%', padding: '6px 8px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, boxSizing: 'border-box', outline: 'none', transition: 'border-color 120ms ease, box-shadow 120ms ease' };
               const hasSize = selectedEl && ['rect','image','arrow','circle','shape','draw','progressbar','chart','table','badge','glasspane','testimonial','socialstats','coupon','beforeafter','comparison','sticker'].includes(selectedEl.type);
               const btnBase = { height: 26, width: 26, border: `1px solid ${t.border}`, borderRadius: 5, background: t.input, color: t.text, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 };
               return (
                 <>
-                  {!selectedId && <div style={{ fontSize: 12, color: t.textMuted, textAlign: 'center', paddingTop: 40 }}>Click an element to edit it</div>}
+                  {!selectedId && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 48, paddingBottom: 24, gap: 8, opacity: 0.6 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, border: `1.5px dashed ${t.borderStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✦</div>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, textAlign: 'center', lineHeight: 1.5 }}>Select an element<br/>to view properties</div>
+                    </div>
+                  )}
 
                   {selectedId === '__bg__' && bgType === 'image' && (
                     <div>
@@ -11276,7 +11318,7 @@ export default function TemplatesEditorInner() {
                           </div>
                           <input type="range" min={0.8} max={3} step={0.05} value={selectedEl.lineHeight ?? 1.2}
                             onChange={e => handleElementChange({ ...selectedEl, lineHeight: parseFloat(e.target.value) })}
-                            onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: TEAL }} />
+                            onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: t.primary }} />
                         </div>
                         <div style={{ marginBottom: 6 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
@@ -11285,7 +11327,7 @@ export default function TemplatesEditorInner() {
                           </div>
                           <input type="range" min={-2} max={20} step={0.5} value={selectedEl.letterSpacing ?? 0}
                             onChange={e => handleElementChange({ ...selectedEl, letterSpacing: parseFloat(e.target.value) })}
-                            onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: TEAL }} />
+                            onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: t.primary }} />
                         </div>
                       </>)}
 
@@ -11318,7 +11360,7 @@ export default function TemplatesEditorInner() {
                         </div>
                         <input type="range" min={0} max={150} step={1} value={selectedEl.cornerRadius ?? 0}
                           onChange={e => handleElementChange({ ...selectedEl, cornerRadius: +e.target.value })}
-                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: TEAL, marginBottom: 4 }} />
+                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: t.primary, marginBottom: 4 }} />
                       </>)}
 
                       {/* ── CIRCLE / SHAPE: FILL ── */}
@@ -11355,7 +11397,7 @@ export default function TemplatesEditorInner() {
                             </div>
                             <input type="range" min={min} max={max} step={step} value={selectedEl[key] ?? 0}
                               onChange={e => handleElementChange({ ...selectedEl, [key]: parseFloat(e.target.value) })}
-                              onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: TEAL }} />
+                              onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: t.primary }} />
                           </div>
                         ))}
                         <SH>Frame</SH>
@@ -11365,7 +11407,7 @@ export default function TemplatesEditorInner() {
                         </div>
                         <input type="range" min={0} max={150} step={1} value={selectedEl.cornerRadius ?? 0}
                           onChange={e => handleElementChange({ ...selectedEl, cornerRadius: +e.target.value })}
-                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: TEAL, marginBottom: 4 }} />
+                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: t.primary, marginBottom: 4 }} />
                       </>)}
 
                       {/* ── ARROW / LINE: STROKE ── */}
@@ -11396,7 +11438,7 @@ export default function TemplatesEditorInner() {
                         </div>
                         <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
                           onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
-                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: TEAL }} />
+                          onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: t.primary }} />
                       </div>
                       <div style={{ marginBottom: 10 }}>
                         <label style={lbl}>Blend mode</label>
