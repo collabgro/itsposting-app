@@ -45,7 +45,7 @@ a {
 
 /* ── Text selection ──────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(155, 79, 212, 0.28);
+  background: rgba(155, 79, 212, 0.25);
   color: inherit;
 }
 
@@ -161,11 +161,11 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
 .shimmer {
   background: linear-gradient(
     90deg,
-    #16161D 0%,
-    #1C1C25 40%,
-    #232331 50%,
-    #1C1C25 60%,
-    #16161D 100%
+    #111111 0%,
+    #1A1A1A 40%,
+    #222222 50%,
+    #1A1A1A 60%,
+    #111111 100%
   );
   background-size: 400% 100%;
   animation: shimmer 2s ease-in-out infinite;
@@ -174,11 +174,11 @@ body[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
 body[data-theme="light"] .shimmer {
   background: linear-gradient(
     90deg,
-    #F4F4F5 0%,
-    #E4E4E7 40%,
-    #D4D4D8 50%,
-    #E4E4E7 60%,
-    #F4F4F5 100%
+    #F5F5F7 0%,
+    #E5E5EA 40%,
+    #D1D1D6 50%,
+    #E5E5EA 60%,
+    #F5F5F7 100%
   );
   background-size: 400% 100%;
   animation: shimmer 2s ease-in-out infinite;

@@ -231,15 +231,15 @@ export default function Layout({ children, title, subtitle, action }) {
         {/* LOGO */}
         <div
           style={{
-            height: 64, display: 'flex', alignItems: 'center',
+            height: 56, display: 'flex', alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 20px',
+            padding: '0 16px',
             borderBottom: `1px solid ${t.border}`, flexShrink: 0,
           }}
         >
           {!isMobile && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <img src="/itsposting-logo.png" alt="ItsPosting" width={32} height={32} style={{ borderRadius: 8, flexShrink: 0, objectFit: 'cover' }} />
+              <img src="/itsposting-logo.png" alt="ItsPosting" width={36} height={36} style={{ borderRadius: 10, flexShrink: 0, objectFit: 'cover' }} />
               <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.03em', color: t.text, whiteSpace: 'nowrap' }}>ItsPosting</span>
             </div>
           )}
@@ -423,7 +423,7 @@ export default function Layout({ children, title, subtitle, action }) {
           {visibleNavItems.map((item) => {
             if (item.isDivider) {
               return (
-                <div key={`divider-${item.label}`} style={{ padding: '16px 10px 5px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.09em', opacity: 0.6 }}>
+                <div key={`divider-${item.label}`} style={{ padding: '16px 10px 5px', fontSize: 10, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   {item.label}
                 </div>
               );
@@ -436,24 +436,26 @@ export default function Layout({ children, title, subtitle, action }) {
                 href={item.href}
                 style={{
                   display: 'flex', alignItems: 'center',
-                  gap: 12, padding: '9px 12px', marginBottom: 1,
-                  borderRadius: 8, fontSize: 13, fontWeight: active ? 600 : 500,
+                  gap: 10, padding: '8px 10px', marginBottom: 1,
+                  borderRadius: 10, fontSize: 13, fontWeight: active ? 600 : 500,
                   color: active ? t.text : t.textSecondary,
                   background: active ? (item.isAdmin ? 'rgba(124,92,252,0.15)' : t.primaryBg) : 'transparent',
-                  border: active ? `1px solid ${item.isAdmin ? 'rgba(124,92,252,0.4)' : t.primaryBorder}` : '1px solid transparent',
-                  transition: 'all 150ms ease', whiteSpace: 'nowrap',
+                  borderLeft: active ? `3px solid ${item.isAdmin ? t.primary : t.primary}` : '3px solid transparent',
+                  transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', whiteSpace: 'nowrap',
                   textDecoration: 'none', position: 'relative',
                 }}
                 onMouseEnter={(e) => {
                   if (!active) {
                     e.currentTarget.style.background = t.cardHover;
                     e.currentTarget.style.color = t.text;
+                    e.currentTarget.style.transform = 'translateX(2px)';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!active) {
                     e.currentTarget.style.background = 'transparent';
                     e.currentTarget.style.color = t.textSecondary;
+                    e.currentTarget.style.transform = 'translateX(0)';
                   }
                 }}
               >
@@ -484,7 +486,6 @@ export default function Layout({ children, title, subtitle, action }) {
                     Beta
                   </span>
                 )}
-                {active && !item.badgeKey && !item.isQuickPost && !item.betaBadge && <IpChevronRight size={14} style={{ color: t.textMuted }} />}
               </Link>
             );
           })}
@@ -604,13 +605,13 @@ export default function Layout({ children, title, subtitle, action }) {
         {/* TOP BAR */}
         <header
           style={{
-            height: 64, background: t.bg, borderBottom: `1px solid ${t.border}`,
+            height: 52, background: t.isDark ? 'rgba(0,0,0,0.8)' : 'rgba(245,245,247,0.8)', backdropFilter: 'blur(20px) saturate(180%)', borderBottom: `1px solid ${t.border}`,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: isMobile ? '0 16px' : '0 32px', position: 'sticky', top: 0, zIndex: 40,
+            padding: isMobile ? '0 16px' : '0 28px', position: 'sticky', top: 0, zIndex: 40,
           }}
         >
           <div>
-            {title && <h1 style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>{title}</h1>}
+            {title && <h1 style={{ fontSize: 15, fontWeight: 600, color: t.text, letterSpacing: '-0.02em' }}>{title}</h1>}
             {subtitle && <p style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{subtitle}</p>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>

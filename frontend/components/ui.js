@@ -177,16 +177,16 @@ export function Card({ children, padding = 24, style = {}, hoverable = false, on
       onClick={onClick}
       style={{
         background: t.card, border: `1px solid ${t.border}`,
-        borderRadius: 14, padding,
-        transition: 'border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease',
+        borderRadius: 16, padding,
+        transition: 'border-color 150ms ease, box-shadow 200ms cubic-bezier(0.34,1.56,0.64,1), transform 200ms cubic-bezier(0.34,1.56,0.64,1)',
         boxShadow: t.shadowSm,
         cursor: isClickable ? 'pointer' : undefined,
         ...style,
       }}
       onMouseEnter={isClickable ? (e) => {
         e.currentTarget.style.borderColor = t.primaryBorder;
-        e.currentTarget.style.boxShadow = `${t.shadowMd}, 0 0 0 1px ${t.primaryBorder}`;
-        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.boxShadow = t.shadowMd;
+        e.currentTarget.style.transform = 'translateY(-3px)';
       } : undefined}
       onMouseLeave={isClickable ? (e) => {
         e.currentTarget.style.borderColor = t.border;
@@ -194,7 +194,7 @@ export function Card({ children, padding = 24, style = {}, hoverable = false, on
         e.currentTarget.style.transform = 'translateY(0)';
       } : undefined}
       onMouseDown={isClickable ? (e) => { e.currentTarget.style.transform = 'translateY(-1px)'; } : undefined}
-      onMouseUp={isClickable ? (e) => { e.currentTarget.style.transform = 'translateY(-2px)'; } : undefined}
+      onMouseUp={isClickable ? (e) => { e.currentTarget.style.transform = 'translateY(-3px)'; } : undefined}
       {...rest}
     >
       {children}
@@ -239,30 +239,31 @@ export function Button({
       disabled={isDisabled}
       style={{
         ...sizes[size], background: bg[variant], color: color[variant], border: border[variant],
-        borderRadius: 8, fontWeight: 600, letterSpacing: '-0.01em',
+        borderRadius: 10, fontWeight: 600, letterSpacing: '-0.01em',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        transition: 'background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 120ms ease',
+        transition: 'background 150ms ease, border-color 150ms ease, box-shadow 150ms cubic-bezier(0.34,1.56,0.64,1), transform 150ms cubic-bezier(0.34,1.56,0.64,1)',
         cursor: isDisabled ? 'not-allowed' : 'pointer',
         opacity: isDisabled ? 0.55 : 1,
         position: 'relative', userSelect: 'none',
+        boxShadow: variant === 'primary' && !isDisabled ? `inset 0 1px 0 rgba(255,255,255,0.08), ${t.shadowSm}` : 'none',
         ...style,
       }}
       onMouseEnter={(e) => {
         if (isDisabled) return;
-        if (variant === 'primary') { e.currentTarget.style.background = t.primaryHover; e.currentTarget.style.boxShadow = `0 4px 14px ${t.focusRing}`; }
-        if (variant === 'secondary') { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.borderStrong; }
+        if (variant === 'primary') { e.currentTarget.style.background = t.primaryHover; e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 14px ${t.focusRing}`; e.currentTarget.style.transform = 'translateY(-1px)'; }
+        if (variant === 'secondary') { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.transform = 'translateY(-1px)'; }
         if (variant === 'ghost') { e.currentTarget.style.background = t.cardHover; }
-        if (variant === 'danger') { e.currentTarget.style.opacity = '0.88'; }
+        if (variant === 'danger') { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)'; }
       }}
       onMouseLeave={(e) => {
         if (isDisabled) return;
-        if (variant === 'primary') { e.currentTarget.style.background = t.primary; e.currentTarget.style.boxShadow = 'none'; }
-        if (variant === 'secondary') { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }
+        if (variant === 'primary') { e.currentTarget.style.background = t.primary; e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,0.08), ${t.shadowSm}`; e.currentTarget.style.transform = 'translateY(0)'; }
+        if (variant === 'secondary') { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = 'translateY(0)'; }
         if (variant === 'ghost') { e.currentTarget.style.background = 'transparent'; }
-        if (variant === 'danger') { e.currentTarget.style.opacity = '1'; }
+        if (variant === 'danger') { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)'; }
       }}
-      onMouseDown={(e) => { if (!isDisabled) e.currentTarget.style.transform = 'scale(0.97)'; }}
-      onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+      onMouseDown={(e) => { if (!isDisabled) e.currentTarget.style.transform = 'translateY(0) scale(0.97)'; }}
+      onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-1px) scale(1)'; }}
       {...rest}
     >
       {loading && (
@@ -286,17 +287,17 @@ export function Input({ style = {}, error, ...rest }) {
     <input
       style={{
         width: '100%', padding: '10px 14px', background: t.input,
-        border: `1.5px solid ${error ? t.error : t.borderStrong}`, borderRadius: 8, color: t.text,
-        fontSize: 13, transition: 'border-color 150ms ease, box-shadow 150ms ease',
+        border: `1.5px solid ${error ? t.error : t.border}`, borderRadius: 10, color: t.text,
+        fontSize: 13, transition: 'border-color 120ms ease, box-shadow 120ms ease',
         lineHeight: 1.5,
         ...style,
       }}
       onFocus={(e) => {
         e.currentTarget.style.borderColor = error ? t.error : t.primary;
-        e.currentTarget.style.boxShadow = `0 0 0 3px ${error ? 'rgba(239,68,68,0.15)' : t.focusRing}`;
+        e.currentTarget.style.boxShadow = `0 0 0 3px ${error ? 'rgba(255,59,48,0.15)' : t.focusRing}`;
       }}
       onBlur={(e) => {
-        e.currentTarget.style.borderColor = error ? t.error : t.borderStrong;
+        e.currentTarget.style.borderColor = error ? t.error : t.border;
         e.currentTarget.style.boxShadow = 'none';
       }}
       {...rest}
@@ -312,17 +313,17 @@ export function Textarea({ style = {}, error, ...rest }) {
     <textarea
       style={{
         width: '100%', padding: '10px 14px', background: t.input,
-        border: `1.5px solid ${error ? t.error : t.borderStrong}`, borderRadius: 8, color: t.text,
+        border: `1.5px solid ${error ? t.error : t.border}`, borderRadius: 10, color: t.text,
         fontSize: 13, fontFamily: 'inherit', resize: 'vertical', minHeight: 80,
-        transition: 'border-color 150ms ease, box-shadow 150ms ease', lineHeight: 1.6,
+        transition: 'border-color 120ms ease, box-shadow 120ms ease', lineHeight: 1.6,
         ...style,
       }}
       onFocus={(e) => {
         e.currentTarget.style.borderColor = error ? t.error : t.primary;
-        e.currentTarget.style.boxShadow = `0 0 0 3px ${error ? 'rgba(239,68,68,0.15)' : t.focusRing}`;
+        e.currentTarget.style.boxShadow = `0 0 0 3px ${error ? 'rgba(255,59,48,0.15)' : t.focusRing}`;
       }}
       onBlur={(e) => {
-        e.currentTarget.style.borderColor = error ? t.error : t.borderStrong;
+        e.currentTarget.style.borderColor = error ? t.error : t.border;
         e.currentTarget.style.boxShadow = 'none';
       }}
       {...rest}
@@ -341,6 +342,7 @@ export function Badge({ variant = 'default', children, style = {} }) {
     warning: { bg: t.warningBg, color: t.warning, border: t.warningBorder },
     error:   { bg: t.errorBg,   color: t.error,   border: t.errorBorder },
     info:    { bg: t.infoBg,    color: t.info,     border: t.infoBorder },
+    glass:   { bg: 'rgba(255,255,255,0.08)', color: '#fff', border: 'rgba(255,255,255,0.15)' },
   };
   const v = variants[variant] || variants.default;
   return (
@@ -349,6 +351,7 @@ export function Badge({ variant = 'default', children, style = {} }) {
         display: 'inline-flex', alignItems: 'center', padding: '3px 10px',
         background: v.bg, color: v.color, border: `1px solid ${v.border}`,
         borderRadius: 9999, fontSize: 11, fontWeight: 600, letterSpacing: '-0.01em',
+        backdropFilter: variant === 'glass' ? 'blur(8px)' : undefined,
         ...style,
       }}
     >
@@ -365,7 +368,7 @@ export function StatCard({ label, value, hint, accent = 'primary', onClick }) {
   return (
     <Card onClick={onClick} hoverable={!!onClick}>
       <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, letterSpacing: '-0.01em' }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: t.text, marginTop: 8, letterSpacing: '-0.04em', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 32, fontWeight: 800, color: t.text, marginTop: 8, letterSpacing: '-0.04em', lineHeight: 1 }}>{value}</div>
       {hint && <div style={{ fontSize: 12, color: accents[accent] || t.primary, marginTop: 6, fontWeight: 500 }}>{hint}</div>}
     </Card>
   );
