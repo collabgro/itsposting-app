@@ -324,7 +324,7 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9, 1fr)', gap: 3, marginBottom: 8 }}>
             {EXTENDED_PALETTE.map(c => (
               <button key={c} onMouseDown={() => { apply(c); close(); }}
-                style={{ aspectRatio: '1', background: c, border: hex === c ? '2px solid #9B4FD4' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0 }} />
+                style={{ aspectRatio: '1', background: c, border: hex === c ? '2px solid #7C5CFC' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0 }} />
             ))}
           </div>
           {/* Document colors */}
@@ -334,7 +334,7 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
                 {docColors.map(c => (
                   <button key={c} onMouseDown={() => { apply(c); close(); }}
-                    style={{ width: 20, height: 20, background: c, border: hex === c ? '2px solid #9B4FD4' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
+                    style={{ width: 20, height: 20, background: c, border: hex === c ? '2px solid #7C5CFC' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
                 ))}
               </div>
             </>
@@ -507,7 +507,7 @@ function BgImage({ url, filter, brightness, contrast, saturation, stageW, stageH
       height={scaledH}
       onClick={onClick}
       onTap={onClick}
-      stroke={isSelected ? '#9B4FD4' : undefined}
+      stroke={isSelected ? '#7C5CFC' : undefined}
       strokeWidth={isSelected ? 3 : 0}
     />
   );
@@ -689,7 +689,7 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
           // Selection ring (drawn outside clip region)
           if (isSelected) {
             ctx.save();
-            ctx.strokeStyle = '#9B4FD4';
+            ctx.strokeStyle = '#7C5CFC';
             ctx.lineWidth = 2;
             ctx.setLineDash([]);
             ctx.beginPath();
@@ -751,7 +751,7 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onTransformEnd={handleTransformEnd}
-      stroke={isSelected ? '#9B4FD4' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined)}
+      stroke={isSelected ? '#7C5CFC' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined)}
       strokeWidth={isSelected ? 1.5 : (el.borderEnabled && el.borderWidth ? el.borderWidth : 0)}
       dash={isSelected ? undefined : (() => { if (!el.borderEnabled) return undefined; const s=el.borderStyle||'solid'; const w=el.borderWidth||2; if(s==='dashed') return [w*4,w*3]; if(s==='dotted') return [w,w*2.5]; return undefined; })()}
       globalCompositeOperation={el.blendMode || 'source-over'}
@@ -858,7 +858,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
     onDragMove: handleDragMove,
     onDragEnd: handleDragEnd,
     onTransformEnd: handleTransformEnd,
-    stroke: isSelected ? '#9B4FD4' : (isHovered && !locked ? 'rgba(155,79,212,0.5)' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined)),
+    stroke: isSelected ? '#7C5CFC' : (isHovered && !locked ? 'rgba(124,92,252,0.5)' : (el.borderEnabled && el.borderColor ? el.borderColor : undefined)),
     strokeWidth: isSelected ? 1.5 : (isHovered && !locked && !el.borderEnabled ? 1 : (el.borderEnabled && el.borderWidth ? el.borderWidth : 0)),
     dash: isSelected ? undefined : (() => {
       if (!el.borderEnabled) return undefined;
@@ -3228,7 +3228,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.fillStyle = `${col2Color}dd`;
             ctx.fillText((row.col2 || '').slice(0, 30), colW + colW / 2, cy5);
           });
-          if (isSelected) { ctx.strokeStyle = '#9B4FD4'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+          if (isSelected) { ctx.strokeStyle = '#7C5CFC'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
         }}
       />
     );
@@ -3274,7 +3274,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.textAlign = 'center'; ctx.textBaseline = 'top';
             ctx.fillText(tagline, w / 2, h * 0.6);
           }
-          if (isSelected) { ctx.strokeStyle = '#9B4FD4'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+          if (isSelected) { ctx.strokeStyle = '#7C5CFC'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
         }}
       />
     );
@@ -3345,7 +3345,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
               ctx.fillText(step, cx2, lineY + dotR + 8);
             }
           }
-          if (isSelected) { ctx.strokeStyle = '#9B4FD4'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+          if (isSelected) { ctx.strokeStyle = '#7C5CFC'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
         }}
       />
     );
@@ -3412,7 +3412,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.font = `${featureSize}px Inter, sans-serif`;
             ctx.fillText(f, w * 0.1 + featureSize * 1.4, fy + featureSize);
           });
-          if (isSelected) { ctx.strokeStyle = '#9B4FD4'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+          if (isSelected) { ctx.strokeStyle = '#7C5CFC'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
         }}
       />
     );
@@ -3677,7 +3677,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.beginPath(); ctx.arc(cx-s*0.56,cy-s*0.44,s*0.17,0,Math.PI*2); ctx.fillStyle=iconBgShape!=='none'?iconBgColor:'rgba(0,0,0,0.4)'; ctx.fill();
           }
           ctx.restore();
-          if (isSelected) { ctx.strokeStyle='#9B4FD4'; ctx.lineWidth=1.5; ctx.strokeRect(0,0,w,h); }
+          if (isSelected) { ctx.strokeStyle='#7C5CFC'; ctx.lineWidth=1.5; ctx.strokeRect(0,0,w,h); }
         }}
       />
     );
@@ -3726,7 +3726,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
             ctx.textBaseline = 'top';
             ctx.fillText(label, w / 2, h * 0.68);
           }
-          if (isSelected) { ctx.strokeStyle = '#9B4FD4'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
+          if (isSelected) { ctx.strokeStyle = '#7C5CFC'; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, w, h); }
         }}
       />
     );
@@ -3779,7 +3779,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
       x={el.x || 0} y={el.y || 0}
       id={el.id}
       points={el.points || []}
-      stroke={isSelected ? '#9B4FD4' : (el.stroke || '#ffffff')}
+      stroke={isSelected ? '#7C5CFC' : (el.stroke || '#ffffff')}
       strokeWidth={el.strokeWidth || 4}
       opacity={el.opacity ?? 1}
       tension={0.5}
@@ -3870,7 +3870,7 @@ function GroupNode({ el, isSelected, onSelect, onChange, stageW, stageH, onDragM
       )}
       {isSelected && (
         <Rect x={0} y={0} width={el.width} height={el.height}
-          stroke="#9B4FD4" strokeWidth={1.5} fill="transparent" listening={false} />
+          stroke="#7C5CFC" strokeWidth={1.5} fill="transparent" listening={false} />
       )}
     </Group>
   );
@@ -4117,7 +4117,7 @@ export default function TemplatesEditorInner() {
   const [emojiCat, setEmojiCat] = useState(0);
   // Freehand draw mode
   const [drawMode, setDrawMode] = useState(false);
-  const [drawColor, setDrawColor] = useState('#9B4FD4');
+  const [drawColor, setDrawColor] = useState('#7C5CFC');
   const [drawWidth, setDrawWidth] = useState(4);
   const [isDrawingNow, setIsDrawingNow] = useState(false);
   const currentDrawRef = useRef(null); // in-progress draw element (ref for perf)
@@ -6420,7 +6420,7 @@ export default function TemplatesEditorInner() {
           {/* ItsPosting Studio brand mark */}
           <div style={{
             width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-            background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 55%, #E040A0 100%)',
+            background: 'linear-gradient(135deg, #00C4CC 0%, #7C5CFC 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
             userSelect: 'none', cursor: 'default',
@@ -7055,13 +7055,13 @@ export default function TemplatesEditorInner() {
                 recentColors={recentColors}
               />
               {/* Gradient text toggle */}
-              <Btn label={<><span style={{display:'inline-block',width:12,height:12,borderRadius:2,background:'linear-gradient(135deg,#9B4FD4,#C44BB8)',flexShrink:0,border:'1px solid rgba(255,255,255,0.15)'}}/>&nbsp;Grad</>} active={selectedEl.fillType === 'gradient'}
+              <Btn label={<><span style={{display:'inline-block',width:12,height:12,borderRadius:2,background:'linear-gradient(135deg,#00C4CC,#7C5CFC)',flexShrink:0,border:'1px solid rgba(255,255,255,0.15)'}}/>&nbsp;Grad</>} active={selectedEl.fillType === 'gradient'}
                 onClick={() => {
                   if (selectedEl.fillType === 'gradient') {
                     pushHistory(); updateElement({ ...selectedEl, fillType: 'solid' });
                   } else {
                     pushHistory(); updateElement({ ...selectedEl, fillType: 'gradient',
-                      fillGradient: selectedEl.fillGradient || { c1: selectedEl.fill || '#9B4FD4', c2: '#C44BB8', angle: 135 } });
+                      fillGradient: selectedEl.fillGradient || { c1: selectedEl.fill || '#7C5CFC', c2: '#9B7FFF', angle: 135 } });
                   }
                 }} />
               {selectedEl.fillType === 'gradient' && selectedEl.fillGradient && (
@@ -7534,7 +7534,7 @@ export default function TemplatesEditorInner() {
                         <span style={{ fontSize: 11, fontWeight: 600, color: t.textMuted }}>Duotone</span>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 11, color: t.text }}>
                           <input type="checkbox" checked={selectedEl.duotone?.enabled || false}
-                            onChange={e => { pushHistory(); updateElement({ ...selectedEl, duotone: { ...(selectedEl.duotone||{}), enabled: e.target.checked, c1: selectedEl.duotone?.c1||'#1a1a22', c2: selectedEl.duotone?.c2||'#9B4FD4' } }); }}
+                            onChange={e => { pushHistory(); updateElement({ ...selectedEl, duotone: { ...(selectedEl.duotone||{}), enabled: e.target.checked, c1: selectedEl.duotone?.c1||'#1a1a22', c2: selectedEl.duotone?.c2||'#7C5CFC' } }); }}
                             style={{ accentColor: t.primary, cursor: 'pointer' }} />
                           On
                         </label>
@@ -7545,14 +7545,14 @@ export default function TemplatesEditorInner() {
                             onChange={c => updateElement({ ...selectedEl, duotone: { ...selectedEl.duotone, c1: c } })}
                             onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
                           <span style={{ color: t.textMuted, fontSize: 11 }}>→</span>
-                          <ColorPickerButton value={selectedEl.duotone?.c2 || '#9B4FD4'}
+                          <ColorPickerButton value={selectedEl.duotone?.c2 || '#7C5CFC'}
                             onChange={c => updateElement({ ...selectedEl, duotone: { ...selectedEl.duotone, c2: c } })}
                             onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
                         </div>
                       )}
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                         {[
-                          { c1: '#1a1a22', c2: '#9B4FD4' },
+                          { c1: '#1a1a22', c2: '#7C5CFC' },
                           { c1: '#1a1a22', c2: '#7C5CFC' },
                           { c1: '#1a1a22', c2: '#f97316' },
                           { c1: '#0c1445', c2: '#ec4899' },
@@ -7832,7 +7832,7 @@ export default function TemplatesEditorInner() {
                         pushHistory(); updateElement({ ...selectedEl, fillType: 'solid' });
                       } else {
                         pushHistory(); updateElement({ ...selectedEl, fillType: 'gradient',
-                          fillGradient: selectedEl.fillGradient || { c1: selectedEl.fill || '#9B4FD4', c2: '#C44BB8', angle: 135 } });
+                          fillGradient: selectedEl.fillGradient || { c1: selectedEl.fill || '#7C5CFC', c2: '#9B7FFF', angle: 135 } });
                       }
                     }} />
                   {selectedEl.fillType === 'gradient' && selectedEl.fillGradient && (
@@ -7862,7 +7862,7 @@ export default function TemplatesEditorInner() {
                         </>
                       )}
                       <ColorPickerButton
-                        value={selectedEl.fillGradient.c2 || '#C44BB8'}
+                        value={selectedEl.fillGradient.c2 || '#9B7FFF'}
                         onChange={c => updateElement({ ...selectedEl, fillGradient: { ...selectedEl.fillGradient, c2: c } })}
                         onCommit={() => pushHistory()} recentColors={recentColors} size={18} />
                       <select value={selectedEl.fillGradient.angle ?? 135}
@@ -9644,7 +9644,7 @@ export default function TemplatesEditorInner() {
                       { label: 'Subheading', fontFamily: 'Montserrat', previewSize: 14, overrides: { fontSize: 36, fontFamily: 'Montserrat',  fontStyle: 'bold',   text: 'Your Local Expert' } },
                       { label: 'Body',       fontFamily: 'Inter',      previewSize: 11, overrides: { fontSize: 20, fontFamily: 'Inter',        fontStyle: 'normal', text: 'Professional service you can trust' } },
                     ];
-                    const BRAND_COLORS = ['#9B4FD4', '#C44BB8', '#7C5CFC', '#1a1a2e', '#ffffff', '#0f172a'];
+                    const BRAND_COLORS = ['#00C4CC', '#7C5CFC', '#9B7FFF', '#1a1a2e', '#ffffff', '#0f172a'];
                     return (
                       <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 14 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -11901,13 +11901,13 @@ export default function TemplatesEditorInner() {
                     {isActive && rulerGuides.h.map((yPx, i) => (
                       <div key={`gh${i}`} onClick={() => setRulerGuides(g => ({ ...g, h: g.h.filter((_, j) => j !== i) }))}
                         style={{ position: 'absolute', left: 0, right: 0, top: Math.round(yPx * stageScale), height: 1, background: 'rgba(155,79,212,0.75)', cursor: 'n-resize', pointerEvents: 'auto', zIndex: 201 }}>
-                        <div style={{ position: 'absolute', right: 4, top: -9, fontSize: 9, color: '#9B4FD4', opacity: 0.8, userSelect: 'none', whiteSpace: 'nowrap' }}>{Math.round(yPx)}px ×</div>
+                        <div style={{ position: 'absolute', right: 4, top: -9, fontSize: 9, color: '#7C5CFC', opacity: 0.8, userSelect: 'none', whiteSpace: 'nowrap' }}>{Math.round(yPx)}px ×</div>
                       </div>
                     ))}
                     {isActive && rulerGuides.v.map((xPx, i) => (
                       <div key={`gv${i}`} onClick={() => setRulerGuides(g => ({ ...g, v: g.v.filter((_, j) => j !== i) }))}
                         style={{ position: 'absolute', top: 0, bottom: 0, left: Math.round(xPx * stageScale), width: 1, background: 'rgba(155,79,212,0.75)', cursor: 'e-resize', pointerEvents: 'auto', zIndex: 201 }}>
-                        <div style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 9, color: '#9B4FD4', opacity: 0.8, userSelect: 'none', whiteSpace: 'nowrap', transform: 'rotate(-90deg)', transformOrigin: 'bottom left' }}>{Math.round(xPx)}px</div>
+                        <div style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 9, color: '#7C5CFC', opacity: 0.8, userSelect: 'none', whiteSpace: 'nowrap', transform: 'rotate(-90deg)', transformOrigin: 'bottom left' }}>{Math.round(xPx)}px</div>
                       </div>
                     ))}
                     {/* Dragging guide preview */}
@@ -11948,8 +11948,8 @@ export default function TemplatesEditorInner() {
                           return (
                             <svg width={stageDisplayW} height={stageDisplayH} style={{ position: 'absolute', inset: 0 }}>
                               <rect x={0} y={0} width={stageDisplayW} height={stageDisplayH} fill="rgba(0,0,0,0.07)" />
-                              <rect x={mX} y={mY} width={stageDisplayW - mX * 2} height={stageDisplayH - mY * 2} fill="transparent" stroke="#9B4FD4" strokeWidth={1.5} strokeDasharray="6 4" />
-                              <text x={mX + 6} y={mY + 14} fill="#9B4FD4" fontSize={10} fontFamily="Inter, sans-serif">
+                              <rect x={mX} y={mY} width={stageDisplayW - mX * 2} height={stageDisplayH - mY * 2} fill="transparent" stroke="#7C5CFC" strokeWidth={1.5} strokeDasharray="6 4" />
+                              <text x={mX + 6} y={mY + 14} fill="#7C5CFC" fontSize={10} fontFamily="Inter, sans-serif">
                                 {safeZonePlatform === 'google_business' ? 'Google' : safeZonePlatform === 'facebook' ? 'Facebook' : 'Instagram'} safe area
                               </text>
                             </svg>
@@ -12237,7 +12237,7 @@ export default function TemplatesEditorInner() {
                       {/* ── RECT: FILL / STROKE / CORNERS ── */}
                       {(selectedEl.type === 'rect' || selectedEl.type === 'gradrect') && (<>
                         <SH>Fill</SH>
-                        <input type="color" value={selectedEl.fill || '#9B4FD4'} onChange={e => updateElement({ ...selectedEl, fill: e.target.value })} onBlur={() => pushHistory()}
+                        <input type="color" value={selectedEl.fill || '#7C5CFC'} onChange={e => updateElement({ ...selectedEl, fill: e.target.value })} onBlur={() => pushHistory()}
                           style={{ width: '100%', height: 28, borderRadius: 6, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 1 }} />
                         <SH>Stroke</SH>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
@@ -12269,7 +12269,7 @@ export default function TemplatesEditorInner() {
                       {/* ── CIRCLE / SHAPE: FILL ── */}
                       {(selectedEl.type === 'circle' || selectedEl.type === 'shape') && (<>
                         <SH>Fill</SH>
-                        <input type="color" value={selectedEl.fill || '#9B4FD4'} onChange={e => updateElement({ ...selectedEl, fill: e.target.value })} onBlur={() => pushHistory()}
+                        <input type="color" value={selectedEl.fill || '#7C5CFC'} onChange={e => updateElement({ ...selectedEl, fill: e.target.value })} onBlur={() => pushHistory()}
                           style={{ width: '100%', height: 28, borderRadius: 6, border: `1px solid ${t.border}`, cursor: 'pointer', padding: 1, marginBottom: 4 }} />
                         <SH>Stroke</SH>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
@@ -12562,16 +12562,16 @@ export default function TemplatesEditorInner() {
                           onClick={() => { setActivePage(i); setSelectedId(null); }}
                           onDoubleClick={e => { e.stopPropagation(); setEditingClipIdx(i); }}
                           title={`Page ${i + 1} · ${dur}s — dbl-click to set duration`}
-                          style={{ position: 'absolute', left, top: 3, width: w, height: TRACK_H - 8, borderRadius: 4, background: isActivePage ? 'rgba(155,79,212,0.35)' : 'rgba(155,79,212,0.3)', border: `1px solid ${isActivePage ? '#9B4FD4' : 'rgba(155,79,212,0.5)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden', gap: 4 }}>
+                          style={{ position: 'absolute', left, top: 3, width: w, height: TRACK_H - 8, borderRadius: 4, background: isActivePage ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.3)', border: `1px solid ${isActivePage ? '#7C5CFC' : 'rgba(124,92,252,0.5)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden', gap: 4 }}>
                           {isEditingThis ? (
                             <input autoFocus type="number" min={1} max={60} defaultValue={dur}
                               onBlur={e => { const v = Math.max(1, Math.min(60, parseFloat(e.target.value) || dur)); patchPage({ duration: v }); setEditingClipIdx(null); }}
                               onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingClipIdx(null); }}
                               onClick={e => e.stopPropagation()}
-                              style={{ width: 44, fontSize: 10, background: t.card, border: `1px solid #9B4FD4`, borderRadius: 3, color: t.text, padding: '1px 3px', outline: 'none' }} />
+                              style={{ width: 44, fontSize: 10, background: t.card, border: `1px solid #7C5CFC`, borderRadius: 3, color: t.text, padding: '1px 3px', outline: 'none' }} />
                           ) : (
                             <>
-                              <span style={{ fontSize: 10, fontWeight: 600, color: isActivePage ? '#9B4FD4' : t.text, whiteSpace: 'nowrap' }}>P{i + 1}</span>
+                              <span style={{ fontSize: 10, fontWeight: 600, color: isActivePage ? '#7C5CFC' : t.text, whiteSpace: 'nowrap' }}>P{i + 1}</span>
                               <span style={{ fontSize: 9, color: t.textMuted, whiteSpace: 'nowrap' }}>{dur}s</span>
                             </>
                           )}
@@ -12602,8 +12602,8 @@ export default function TemplatesEditorInner() {
                 <div style={{ height: TRACK_H, position: 'relative', background: t.bg }} />
 
                 {/* Playhead */}
-                <div style={{ position: 'absolute', top: 0, left: videoPlayhead * pxPerSec, width: 2, height: '100%', background: '#9B4FD4', pointerEvents: 'none', zIndex: 5 }}>
-                  <div style={{ width: 8, height: 8, background: '#9B4FD4', borderRadius: '50%', position: 'absolute', top: 0, left: -3 }} />
+                <div style={{ position: 'absolute', top: 0, left: videoPlayhead * pxPerSec, width: 2, height: '100%', background: t.primary, pointerEvents: 'none', zIndex: 5 }}>
+                  <div style={{ width: 8, height: 8, background: t.primary, borderRadius: '50%', position: 'absolute', top: 0, left: -3 }} />
                 </div>
               </div>
             </div>
@@ -13120,7 +13120,7 @@ export default function TemplatesEditorInner() {
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{hoveredDesign.title}</div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginBottom: 3 }}>{canvasSize.w}×{canvasSize.h}px</div>
           {hoveredDesign.pagesCount > 1 && (
-            <div style={{ fontSize: 11, color: '#9B4FD4' }}>{hoveredDesign.pagesCount} pages</div>
+            <div style={{ fontSize: 11, color: '#7C5CFC' }}>{hoveredDesign.pagesCount} pages</div>
           )}
           <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Click to open</div>
         </div>
@@ -13262,7 +13262,7 @@ export default function TemplatesEditorInner() {
               <>
                 <button onClick={() => setPresentPlaying(p => !p)}
                   title={presentPlaying ? 'Pause' : 'Auto-play slides'}
-                  style={{ background: presentPlaying ? '#9B4FD4' : 'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:32, height:32, borderRadius:'50%', cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  style={{ background: presentPlaying ? '#7C5CFC' : 'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:32, height:32, borderRadius:'50%', cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
                   {presentPlaying ? '⏸' : '▶'}
                 </button>
                 <select value={presentInterval} onChange={e => setPresentInterval(+e.target.value)}
