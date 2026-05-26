@@ -10347,7 +10347,10 @@ export default function TemplatesEditorInner() {
                     {activeCat.sections ? (
                       activeCat.sections.map(section => (
                         <div key={section.label} style={{ marginBottom:16 }}>
-                          <div style={{ fontSize:10, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>{section.label}</div>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                            <div style={{ fontSize:10, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em' }}>{section.label}</div>
+                            <button style={{ fontSize:11, color:t.primary, background:'none', border:'none', cursor:'pointer', padding:0, fontWeight:500 }}>See all</button>
+                          </div>
                           <div style={{ display:'grid', gridTemplateColumns:`repeat(${activeCat.id==='stickers'?4:3},1fr)`, gap:activeCat.id==='stickers'?4:6 }}>
                             {section.items.map(it => renderCard({...it, catId:activeCat.id}))}
                           </div>
