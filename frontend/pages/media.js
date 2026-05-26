@@ -63,8 +63,9 @@ export default function MediaLibrary() {
   const [selectedIndustry, setSelectedIndustry] = useState('all');
   const [showSizePicker,   setShowSizePicker]   = useState(false);
   const [pickerSizeId,     setPickerSizeId]      = useState('ig_portrait');
-  const [templateThumbs,   setTemplateThumbs]   = useState({});
-  const [isAdmin,          setIsAdmin]          = useState(false);
+  const [templateThumbs,       setTemplateThumbs]       = useState({});
+  const [templatePexelsThumbs, setTemplatePexelsThumbs] = useState({});
+  const [isAdmin,              setIsAdmin]              = useState(false);
 
   // ── Mount + auth
   useEffect(() => {
@@ -244,6 +245,35 @@ export default function MediaLibrary() {
     } catch {}
     finally { setCuratedLoading(false); }
   };
+
+  // ── Pexels photo thumbnails for templates that have a known query ────────────
+  const TEMPLATE_PEXELS_QUERIES = {
+    'Roofing — Storm Damage Alert':      'dark storm clouds dramatic sky',
+    'Roofing — Before & After Showcase': 'new roof installation shingles',
+    'Roofing — 5-Star Review Spotlight': 'happy homeowner house exterior',
+    'Roofing — 5 Warning Signs':         'old damaged roof shingles',
+    'Roofing — Free Estimate Offer':     'beautiful new roof sunny day',
+  };
+
+  useEffect(() => {
+    if (curatedTemplates.length === 0) return;
+    const needsPexels = curatedTemplates.filter(
+      t => !t.thumbnail_url && TEMPLATE_PEXELS_QUERIES[t.name] && !templatePexelsThumbs[t.id]
+    );
+    if (!needsPexels.length) return;
+    (async () => {
+      const fetched = {};
+      for (const tmpl of needsPexels) {
+        try {
+          const { data } = await studioAPI.searchStockPhotos(TEMPLATE_PEXELS_QUERIES[tmpl.name], 1);
+          const thumb = data?.photos?.[0]?.thumbUrl;
+          if (thumb) fetched[tmpl.id] = thumb;
+        } catch {} // Pexels may not be configured — fail silently
+        await new Promise(r => setTimeout(r, 80)); // avoid hammering the backend
+      }
+      if (Object.keys(fetched).length) setTemplatePexelsThumbs(prev => ({ ...prev, ...fetched }));
+    })();
+  }, [curatedTemplates]);
 
   // ── Client-side thumbnail generation for templates without a stored thumbnail_url ──
   useEffect(() => {
@@ -669,7 +699,7 @@ export default function MediaLibrary() {
                         {(() => {
                           const CAT_ICONS = { 'before-after': '◑', 'social-proof': '⭐', 'seasonal': '❄', 'educational': '💡', 'promotional': '📣', 'team': '👥' };
                           const bgColor = tmpl.canvas_json?.pages?.[0]?.bgColor || '#1a1a2e';
-                          const thumbSrc = tmpl.thumbnail_url || templateThumbs[tmpl.id];
+                          const thumbSrc = tmpl.thumbnail_url || templatePexelsThumbs[tmpl.id] || templateThumbs[tmpl.id];
                           return thumbSrc
                             ? <img src={thumbSrc} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             : <div style={{ width: '100%', height: '100%', background: bgColor, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10 }}>
