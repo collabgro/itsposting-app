@@ -4152,6 +4152,7 @@ export default function TemplatesEditorInner() {
   // UI
   const [activeLeftTool, setActiveLeftTool] = useState('templates');
   const [panelOpen, setPanelOpen] = useState(true);
+  const [positionTab, setPositionTab] = useState('arrange');
   const [elemSearch, setElemSearch] = useState('');
   const [activeElemCat, setActiveElemCat] = useState(null);
   const [elemSubPanel, setElemSubPanel] = useState(null); // null | 'photos' | 'videos'
@@ -6489,8 +6490,8 @@ export default function TemplatesEditorInner() {
               <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 320, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden', animation: 'dropdownIn 150ms ease forwards' }}>
                 {/* Search */}
                 <div style={{ padding: '10px 14px 8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '7px 12px' }}>
-                    <span style={{ color: t.textMuted }}>🔍</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '0 12px', height: 36, border: `1px solid ${t.border}` }}>
+                    <IpSearch size={14} color={t.textMuted} style={{ flexShrink: 0 }} />
                     <input placeholder="Search resize options" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
                   </div>
                 </div>
@@ -7220,7 +7221,7 @@ export default function TemplatesEditorInner() {
               </button>
               {/* Position — opens the Position left flyout panel */}
               <button
-                onClick={() => { setActiveLeftTool('position'); setLeftPanelOpen(true); }}
+                onClick={() => { setActiveLeftTool('position'); setPanelOpen(true); }}
                 style={{ height: 32, padding: '0 10px', border: 'none', borderRadius: 8, background: activeLeftTool === 'position' ? t.primaryBg : 'transparent', color: activeLeftTool === 'position' ? t.primary : t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 120ms ease', whiteSpace: 'nowrap' }}
                 onMouseEnter={e => { if (activeLeftTool !== 'position') { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
                 onMouseLeave={e => { if (activeLeftTool !== 'position') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
@@ -8952,7 +8953,7 @@ export default function TemplatesEditorInner() {
               </div>
               {/* Position — opens left panel (Canva-parity) */}
               <button
-                onClick={() => { setActiveLeftTool('position'); setLeftPanelOpen(true); }}
+                onClick={() => { setActiveLeftTool('position'); setPanelOpen(true); }}
                 style={{ height:30, padding:'0 9px', border:'none', borderRadius:8, background: activeLeftTool==='position' ? t.primaryBg : 'transparent', color: activeLeftTool==='position' ? t.primary : t.textSecondary, fontSize:13, cursor:'pointer', flexShrink:0, transition:'all 150ms cubic-bezier(0.34,1.56,0.64,1)', display:'flex', alignItems:'center', gap:4, whiteSpace:'nowrap' }}
                 onMouseEnter={e => { if (activeLeftTool !== 'position') { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
                 onMouseLeave={e => { if (activeLeftTool !== 'position') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
@@ -10475,6 +10476,31 @@ export default function TemplatesEditorInner() {
                   const tileBtn = { display:'flex', flexDirection:'column', alignItems:'center', gap:7, background:'none', border:'none', cursor:'pointer', padding:0 };
                   return (
                     <>
+                      {/* ── Recommended for you ── */}
+                      <div>
+                        <div style={{ fontSize:10, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>Recommended for you</div>
+                        <div style={{ display:'flex', gap:8, overflowX:'auto', paddingBottom:4, scrollbarWidth:'none' }}>
+                          {[
+                            { label:'Rectangle', fn:()=>addRect(),         grad:'linear-gradient(135deg,#00C4CC,#0099A3)', svg:<rect x="10" y="18" width="34" height="20" rx="2" fill="#fff" opacity=".85"/> },
+                            { label:'Circle',    fn:()=>addCircle(),        grad:'linear-gradient(135deg,#7C5CFC,#5E3ED9)', svg:<circle cx="27" cy="28" r="16" fill="#fff" opacity=".85"/> },
+                            { label:'Arrow',     fn:()=>addArrow(),         grad:'linear-gradient(135deg,#f59e0b,#d97706)', svg:<><line x1="8" y1="28" x2="38" y2="28" stroke="#fff" strokeWidth="3"/><polygon points="35,21 46,28 35,35" fill="#fff"/></> },
+                            { label:'Star',      fn:()=>addStar(),          grad:'linear-gradient(135deg,#ef4444,#dc2626)', svg:<polygon points="27,9 30,20 42,20 32,27 36,39 27,32 18,39 22,27 12,20 24,20" fill="#fff" opacity=".85"/> },
+                            { label:'Text',      fn:()=>addText(),          grad:'linear-gradient(135deg,#3b82f6,#1d4ed8)', svg:<text x="27" y="34" fill="#fff" fontSize="24" textAnchor="middle" fontWeight="bold" opacity=".9">T</text> },
+                            { label:'Line',      fn:()=>addLine(),          grad:'linear-gradient(135deg,#22c55e,#16a34a)', svg:<line x1="8" y1="28" x2="46" y2="28" stroke="#fff" strokeWidth="3" strokeLinecap="round"/> },
+                          ].map(rec => (
+                            <button key={rec.label} onMouseDown={e => { e.preventDefault(); rec.fn(); }}
+                              title={rec.label}
+                              style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:5, background:'none', border:'none', cursor:'pointer', padding:0 }}>
+                              <div style={{ width:56, height:56, borderRadius:14, background:rec.grad, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 10px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.18)', transition:'transform 120ms' }}
+                                onMouseEnter={e => { e.currentTarget.style.transform='scale(1.07) translateY(-2px)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.transform='scale(1)'; }}>
+                                <svg viewBox="0 0 54 56" width="36" height="36">{rec.svg}</svg>
+                              </div>
+                              <span style={{ fontSize:10, color:t.text, fontWeight:500 }}>{rec.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <div style={{ fontSize:12, fontWeight:600, color:t.text }}>Browse categories</div>
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
                         {/* Photos */}
@@ -10884,6 +10910,205 @@ export default function TemplatesEditorInner() {
               );
             })()}
 
+            {/* POSITION / ARRANGE */}
+            {activeLeftTool === 'position' && (() => {
+              const SHP = { fontSize: 10, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, marginTop: 16 };
+              const alignEl = (axis, mode) => {
+                if (!stageRef.current || !selectedId) return;
+                const node = stageRef.current.findOne(`#${selectedId}`);
+                if (!node) return;
+                const scale = stageRef.current.width() / canvasSize.w;
+                const br = node.getClientRect({ relativeTo: stageRef.current });
+                const elW = br.width / scale;
+                const elH = br.height / scale;
+                const elX = br.x / scale;
+                const elY = br.y / scale;
+                pushHistory();
+                if (axis === 'h') {
+                  let delta;
+                  if (mode === 'left')   delta = -elX;
+                  if (mode === 'center') delta = canvasSize.w / 2 - (elX + elW / 2);
+                  if (mode === 'right')  delta = canvasSize.w - (elX + elW);
+                  updateElement({ ...selectedEl, x: Math.round(selectedEl.x + delta) });
+                } else {
+                  let delta;
+                  if (mode === 'top')    delta = -elY;
+                  if (mode === 'middle') delta = canvasSize.h / 2 - (elY + elH / 2);
+                  if (mode === 'bottom') delta = canvasSize.h - (elY + elH);
+                  updateElement({ ...selectedEl, y: Math.round(selectedEl.y + delta) });
+                }
+              };
+              const abtn = (title, children, onClick) => (
+                <button key={title} onClick={onClick} title={title}
+                  style={{ flex: 1, height: 32, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.textSecondary, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = t.input; e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textSecondary; }}>
+                  {children}
+                </button>
+              );
+              const posinp = { width: '100%', padding: '6px 8px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 12, boxSizing: 'border-box', outline: 'none' };
+              const poslbl = { fontSize: 11, fontWeight: 500, color: t.textMuted, display: 'block', marginBottom: 4 };
+              const hasSz = selectedEl && ['rect','image','arrow','circle','shape','draw','progressbar','chart','table','badge','glasspane','testimonial','socialstats','coupon','beforeafter','comparison','sticker'].includes(selectedEl.type);
+              const layerEls = [...elements].reverse();
+              const typeIcon = type => type === 'text' ? 'T' : type === 'image' ? '🖼' : type === 'group' ? '⊞' : '▭';
+              const typeName = (el, i) => {
+                if (el.text) return el.text.slice(0, 22) + (el.text.length > 22 ? '…' : '');
+                return el.type === 'image' ? `Image ${i + 1}` : el.type === 'group' ? `Group ${i + 1}` : `Shape ${i + 1}`;
+              };
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {/* Tab bar */}
+                  <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, marginBottom: 4, marginTop: -4 }}>
+                    {['arrange','layers'].map(tab => (
+                      <button key={tab} onClick={() => setPositionTab(tab)}
+                        style={{ flex: 1, height: 38, border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: positionTab === tab ? 600 : 400, color: positionTab === tab ? t.primary : t.textMuted, borderBottom: positionTab === tab ? `2px solid ${t.primary}` : '2px solid transparent', transition: 'all 120ms ease', textTransform: 'capitalize' }}>
+                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ── ARRANGE TAB ── */}
+                  {positionTab === 'arrange' && (
+                    <div>
+                      <div style={SHP}>Arrange</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
+                        {[
+                          { label: 'Forward',  fn: () => bringForward(selectedId) },
+                          { label: 'Backward', fn: () => sendBackward(selectedId) },
+                          { label: 'To Front', fn: () => bringToFront(selectedId) },
+                          { label: 'To Back',  fn: () => sendToBack(selectedId) },
+                        ].map(({ label: lbl2, fn }) => (
+                          <button key={lbl2} onClick={fn}
+                            style={{ height: 32, border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', fontWeight: 500, transition: 'all 100ms ease' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = t.input; e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.text; }}>
+                            {lbl2}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div style={SHP}>Align to page</div>
+                      {selectedId ? (
+                        <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
+                          {abtn('Align left',   <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="2" width="1.5" height="10" rx="0.75" fill="currentColor"/><rect x="3" y="3.5" width="7" height="3" rx="1" fill="currentColor" opacity=".6"/><rect x="3" y="7.5" width="5" height="3" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('h','left'))}
+                          {abtn('Align center', <svg width="14" height="14" viewBox="0 0 14 14"><rect x="6.25" y="1" width="1.5" height="12" rx="0.75" fill="currentColor"/><rect x="2" y="3" width="10" height="3" rx="1" fill="currentColor" opacity=".6"/><rect x="3.5" y="8" width="7" height="3" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('h','center'))}
+                          {abtn('Align right',  <svg width="14" height="14" viewBox="0 0 14 14"><rect x="11.5" y="2" width="1.5" height="10" rx="0.75" fill="currentColor"/><rect x="4" y="3.5" width="7" height="3" rx="1" fill="currentColor" opacity=".6"/><rect x="6" y="7.5" width="5" height="3" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('h','right'))}
+                          {abtn('Align top',    <svg width="14" height="14" viewBox="0 0 14 14"><rect x="2" y="1" width="10" height="1.5" rx="0.75" fill="currentColor"/><rect x="3" y="3" width="3" height="7" rx="1" fill="currentColor" opacity=".6"/><rect x="8" y="3" width="3" height="5" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('v','top'))}
+                          {abtn('Align middle', <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="6.25" width="12" height="1.5" rx="0.75" fill="currentColor"/><rect x="3" y="2" width="3" height="10" rx="1" fill="currentColor" opacity=".6"/><rect x="8" y="3.5" width="3" height="7" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('v','middle'))}
+                          {abtn('Align bottom', <svg width="14" height="14" viewBox="0 0 14 14"><rect x="2" y="11.5" width="10" height="1.5" rx="0.75" fill="currentColor"/><rect x="3" y="4" width="3" height="7" rx="1" fill="currentColor" opacity=".6"/><rect x="8" y="6" width="3" height="5" rx="1" fill="currentColor" opacity=".6"/></svg>, () => alignEl('v','bottom'))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 12 }}>Select an element to align it</div>
+                      )}
+
+                      {selectedEl && (
+                        <>
+                          <div style={SHP}>Position & Size</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 4 }}>
+                            <div><label style={poslbl}>X</label>
+                              <input type="number" value={Math.round(selectedEl.x)} onChange={e => updateElement({ ...selectedEl, x: +e.target.value || 0 })} onBlur={() => pushHistory()} style={posinp} /></div>
+                            <div><label style={poslbl}>Y</label>
+                              <input type="number" value={Math.round(selectedEl.y)} onChange={e => updateElement({ ...selectedEl, y: +e.target.value || 0 })} onBlur={() => pushHistory()} style={posinp} /></div>
+                            {hasSz && <>
+                              <div><label style={poslbl}>W</label>
+                                <input type="number" value={Math.round(selectedEl.width || 0)} onChange={e => updateElement({ ...selectedEl, width: +e.target.value || 1 })} onBlur={() => pushHistory()} style={posinp} /></div>
+                              <div><label style={poslbl}>H</label>
+                                <input type="number" value={Math.round(selectedEl.height || selectedEl.width || 0)} onChange={e => updateElement({ ...selectedEl, height: +e.target.value || 1 })} onBlur={() => pushHistory()} style={posinp} /></div>
+                            </>}
+                            <div style={{ gridColumn: '1/-1' }}>
+                              <label style={poslbl}>Rotation °</label>
+                              <input type="number" value={Math.round(selectedEl.rotation || 0)} min={-360} max={360}
+                                onChange={e => updateElement({ ...selectedEl, rotation: +e.target.value || 0 })} onBlur={() => pushHistory()} style={posinp} />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── LAYERS TAB ── */}
+                  {positionTab === 'layers' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>
+                          Page {activePage + 1} — {elements.length} element{elements.length !== 1 ? 's' : ''}
+                        </span>
+                        {selectedId && (
+                          <button onClick={() => setSelectedId(null)} style={{ background: 'none', border: 'none', fontSize: 11, color: t.textMuted, cursor: 'pointer' }}>Deselect</button>
+                        )}
+                      </div>
+                      {layerEls.length === 0 && (
+                        <div style={{ textAlign: 'center', color: t.textMuted, padding: '28px 0', fontSize: 12 }}>
+                          <div style={{ fontSize: 28, marginBottom: 8 }}>▥</div>
+                          No elements on this page yet
+                        </div>
+                      )}
+                      {layerEls.map((el, i) => {
+                        const isSelected = selectedId === el.id || selectedIds.includes(el.id);
+                        const isHidden = hiddenIds.has(el.id);
+                        const isLocked = lockedIds.has(el.id);
+                        return (
+                          <div key={el.id}
+                            draggable
+                            onDragStart={() => setLayerDragId(el.id)}
+                            onDragOver={e => e.preventDefault()}
+                            onDrop={() => {
+                              if (!layerDragId || layerDragId === el.id) return;
+                              pushHistory();
+                              patchElements(prev => {
+                                const from = prev.findIndex(e => e.id === layerDragId);
+                                const toEl = prev.findIndex(e => e.id === el.id);
+                                if (from < 0 || toEl < 0) return prev;
+                                const arr = [...prev];
+                                const [moved] = arr.splice(from, 1);
+                                arr.splice(toEl, 0, moved);
+                                return arr;
+                              });
+                              setLayerDragId(null);
+                            }}
+                            onDragEnd={() => setLayerDragId(null)}
+                            onClick={() => { setSelectedId(el.id); setSelectedIds([el.id]); }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 8,
+                              padding: '7px 8px', borderRadius: 7,
+                              background: isSelected ? t.primaryBg : layerDragId === el.id ? t.input : 'transparent',
+                              border: `1px solid ${isSelected ? t.primaryBorder : 'transparent'}`,
+                              cursor: 'grab', opacity: isHidden ? 0.4 : 1,
+                              transition: 'background 80ms, border-color 80ms',
+                            }}
+                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = t.input; }}
+                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <span style={{ fontSize: 13, width: 16, textAlign: 'center', flexShrink: 0, color: isSelected ? t.primary : t.textMuted }}>
+                              {typeIcon(el.type)}
+                            </span>
+                            <span style={{ flex: 1, fontSize: 12, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {typeName(el, layerEls.length - 1 - i)}
+                            </span>
+                            <button onClick={e => { e.stopPropagation(); toggleHidden(el.id); }}
+                              title={isHidden ? 'Show element' : 'Hide element'}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: isHidden ? t.textMuted : t.text, fontSize: 13, padding: '0 2px', flexShrink: 0, opacity: isHidden ? 0.5 : 0.75 }}>
+                              {isHidden ? '🙈' : '👁'}
+                            </button>
+                            <button onClick={e => { e.stopPropagation(); toggleLocked(el.id); }}
+                              title={isLocked ? 'Unlock element' : 'Lock element'}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: isLocked ? '#FFB800' : t.textMuted, fontSize: 12, padding: '0 2px', flexShrink: 0 }}>
+                              {isLocked ? '🔒' : '🔓'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                      {elements.length > 0 && (
+                        <div style={{ marginTop: 10, padding: '8px 0', borderTop: `1px solid ${t.border}`, fontSize: 11, color: t.textMuted, textAlign: 'center' }}>
+                          Drag rows to reorder · Click to select
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* TOOLS / DRAW */}
             {activeLeftTool === 'tools' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -10935,8 +11160,8 @@ export default function TemplatesEditorInner() {
             {/* PROJECTS */}
             {activeLeftTool === 'projects' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '8px 12px' }}>
-                  <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '0 12px', height: 36, border: `1px solid ${t.border}` }}>
+                  <IpSearch size={14} color={t.textMuted} style={{ flexShrink: 0 }} />
                   <input placeholder="Search your content" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
                 </div>
                 <button style={{ background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px 12px', color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -10997,8 +11222,8 @@ export default function TemplatesEditorInner() {
             {/* APPS */}
             {activeLeftTool === 'apps' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '8px 12px' }}>
-                  <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 8, padding: '0 12px', height: 36, border: `1px solid ${t.border}` }}>
+                  <IpSearch size={14} color={t.textMuted} style={{ flexShrink: 0 }} />
                   <input placeholder="Search apps" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
                 </div>
                 {[
@@ -12475,6 +12700,14 @@ export default function TemplatesEditorInner() {
         <span style={{ fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap', flexShrink: 0, minWidth: 32, textAlign: 'center' }}>
           {activePage + 1}/{pages.length}
         </span>
+
+        {/* Add page button */}
+        <button onClick={addPage}
+          style={{ width: 24, height: 24, border: `1px solid ${t.border}`, borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 120ms ease', flexShrink: 0 }}
+          onMouseEnter={e => { showTip(e, 'Add page'); e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.color = t.primary; e.currentTarget.style.borderColor = t.primaryBorder; }}
+          onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted; e.currentTarget.style.borderColor = t.border; }}>
+          +
+        </button>
 
         <div style={{ width: 1, height: 18, background: t.border, margin: '0 4px', flexShrink: 0 }} />
 
