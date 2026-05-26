@@ -235,6 +235,26 @@ const EXTENDED_PALETTE = [
   '#1a1a22','#7C5CFC',TEAL,'#10b981',
 ];
 
+const STICKER_SETS = [
+  { id:'popular',     label:'Popular',          stickers:['🔥','⭐','❤️','💯','🎉','💪','🙌','👍','💰','🏆','⚡','💎','🎯','🌟','✨','🚀','💫','🔑','💡','🏅'] },
+  { id:'business',    label:'Business & Trades', stickers:['🏠','🔧','💧','❄️','⚡','🌿','🔑','🛠️','📋','💼','🤝','📊','📞','📍','⚙️','🔩','🪛','🪚','🔨','🏗️'] },
+  { id:'celebration', label:'Celebration',       stickers:['🎉','🎊','🥳','🎈','🎁','🎀','🏆','🥂','🍾','🎵','🎶','🎤','✨','🌠','🎆','🎇','🎂','🎗️','🥇','🎖️'] },
+  { id:'nature',      label:'Nature & Weather',  stickers:['🌸','🌹','🌺','🌻','🍀','🌿','🌱','🌲','🌴','🌊','⛅','🌈','☀️','🌙','❄️','🌷','🌼','🌾','🍃','🌦️'] },
+  { id:'faces',       label:'Faces & Gestures',  stickers:['😊','😄','😎','🤔','😍','🥰','😂','🤩','💪','🙌','👍','🤟','✌️','🤞','🙏','👋','🫶','❤️','💙','💜'] },
+  { id:'objects',     label:'Fun & Objects',     stickers:['☕','🍕','🍔','🥗','🎯','📱','💻','⌚','🎸','📚','🔭','🏖️','🌍','🚗','✈️','🎓','🎮','🎲','🛎️','🎪'] },
+];
+
+const GRID_LAYOUTS = [
+  { id:'2col',        label:'2 Columns',   cols:2, rows:1 },
+  { id:'3col',        label:'3 Columns',   cols:3, rows:1 },
+  { id:'4col',        label:'4 Columns',   cols:4, rows:1 },
+  { id:'2row',        label:'2 Rows',      cols:1, rows:2 },
+  { id:'4sq',         label:'4 Square',    cols:2, rows:2 },
+  { id:'9sq',         label:'9 Square',    cols:3, rows:3 },
+  { id:'3strip',      label:'3-Strip',     cols:3, rows:1 },
+  { id:'2row_tall',   label:'2 Tall Rows', cols:1, rows:2, tallRatio:true },
+];
+
 // ─── ColorPickerButton ────────────────────────────────────────────────────────
 function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors = [], size = 22 }) {
   const [open, setOpen] = useState(false);
@@ -5254,6 +5274,39 @@ export default function TemplatesEditorInner() {
     setSelectedId(el.id);
   }
 
+  function addGridLayout(layoutId) {
+    pushHistory();
+    const cx = canvasSize.w / 2;
+    const cy = canvasSize.h / 2;
+    const GAP = 10;
+    const layout = GRID_LAYOUTS.find(l => l.id === layoutId);
+    if (!layout) return;
+    const totalW = Math.min(canvasSize.w * 0.85, 700);
+    const tallRatio = layout.tallRatio;
+    const cellW = (totalW - GAP * (layout.cols - 1)) / layout.cols;
+    const cellH = tallRatio ? cellW * 1.4 : cellW * (layout.rows === 1 ? 0.65 : 1);
+    const totalH = cellH * layout.rows + GAP * (layout.rows - 1);
+    const startX = cx - totalW / 2;
+    const startY = cy - totalH / 2;
+    const newEls = [];
+    for (let r = 0; r < layout.rows; r++) {
+      for (let c = 0; c < layout.cols; c++) {
+        newEls.push({
+          id: uid(), type: 'rect',
+          x: startX + c * (cellW + GAP),
+          y: startY + r * (cellH + GAP),
+          width: cellW, height: cellH,
+          fill: 'rgba(255,255,255,0.06)',
+          stroke: 'rgba(255,255,255,0.35)',
+          strokeWidth: 1.5, dash: [10, 6],
+          cornerRadius: 10, opacity: 1,
+        });
+      }
+    }
+    patchElements(prev => [...prev, ...newEls]);
+    setSelectedId(newEls[0].id);
+  }
+
   function addCallout() {
     pushHistory();
     const el = {
@@ -7463,31 +7516,27 @@ export default function TemplatesEditorInner() {
                   document.body
                 )}
               </div>
-              {/* Remove Background button */}
+              {/* Remove Background button — runs ML model in-browser via @imgly/background-removal (WASM, no API key) */}
               <button
                 onClick={async () => {
                   if (!selectedEl?.src || bgRemoveLoading) return;
-                  if (selectedEl.src.startsWith('blob:')) {
-                    alert('Please upload the image first, then use Remove BG.');
-                    return;
-                  }
                   setBgRemoveLoading(true);
                   try {
-                    const res = await studioAPI.removeBackground(selectedEl.src);
-                    const maskData = res.data;
-                    if (maskData.error) throw new Error(maskData.error);
-                    const dataUrl = await applyRemoveBgMask(selectedEl, maskData);
+                    const { removeBackground } = await import('@imgly/background-removal');
+                    const blob = await removeBackground(selectedEl.src);
+                    const url = URL.createObjectURL(blob);
                     pushHistory();
-                    updateElement({ ...selectedEl, src: dataUrl });
+                    updateElement({ ...selectedEl, src: url });
                   } catch (e) {
-                    alert('Background removal failed. Try a higher-contrast image.');
+                    console.error('[RemoveBG]', e);
+                    alert('Background removal failed. Please try again.');
                   }
                   setBgRemoveLoading(false);
                 }}
                 disabled={bgRemoveLoading}
-                title="Remove background from image"
+                title="Remove background from image (runs in browser)"
                 style={{ height: 32, padding: '0 10px', border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 12, cursor: bgRemoveLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, opacity: bgRemoveLoading ? 0.6 : 1 }}>
-                {bgRemoveLoading ? '…' : '✂ Remove BG'}
+                {bgRemoveLoading ? '✂ Removing…' : '✂ Remove BG'}
               </button>
               {/* Extract Elements — auto-detects all objects/text/background via Claude vision */}
               <button

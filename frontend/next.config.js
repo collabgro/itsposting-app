@@ -27,6 +27,7 @@ const securityHeaders = [
       "img-src 'self' data: https: blob:",
       "media-src 'self' https: blob:",
       "connect-src 'self' https:",
+      "worker-src 'self' blob:",
       "frame-ancestors 'none'",
     ].join('; '),
   },
@@ -48,6 +49,10 @@ const nextConfig = {
   },
   experimental: {
     optimizePackageImports: ['date-fns'],
+  },
+  webpack: (config) => {
+    config.experiments = { ...config.experiments, asyncWebAssembly: true, layers: true };
+    return config;
   },
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];

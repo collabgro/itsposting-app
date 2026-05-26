@@ -9,6 +9,7 @@
     "lint": "eslint pages components lib --ext .js,.jsx"
   },
   "dependencies": {
+    "@imgly/background-removal": "^1.7.0",
     "axios": "^1.6.2",
     "date-fns": "^2.30.0",
     "konva": "^9.3.22",

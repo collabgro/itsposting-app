@@ -759,60 +759,9 @@ Return ONLY valid JSON (no markdown fences):
     }
   });
 
-  // POST /api/studio/remove-background
-  // Uses Claude vision to detect subject mask polygon — client applies mask via Canvas 2D
+  // POST /api/studio/remove-background — kept for backward compatibility; client now handles this via @imgly/background-removal
   router.post('/remove-background', authenticate, async (req, res) => {
-    try {
-      const { imageUrl } = req.body;
-      if (!imageUrl) return res.status(400).json({ error: 'imageUrl required' });
-
-      const imageResp = await fetch(imageUrl);
-      if (!imageResp.ok) return res.status(400).json({ error: 'Could not fetch image' });
-      const buffer = Buffer.from(await imageResp.arrayBuffer());
-      const base64 = buffer.toString('base64');
-      const mimeType = (imageResp.headers.get('content-type') || 'image/jpeg').split(';')[0];
-
-      const Anthropic = require('@anthropic-ai/sdk');
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-      const message = await client.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
-            { type: 'text', text: `Analyze this image and identify the main subject or foreground.
-Return ONLY valid JSON, no markdown fences, no explanation:
-{
-  "subject": {
-    "description": "brief description",
-    "boundingBox": { "xPercent": 10.0, "yPercent": 5.0, "widthPercent": 80.0, "heightPercent": 90.0 }
-  },
-  "maskPolygon": [
-    {"xPercent": 10.0, "yPercent": 5.0},
-    {"xPercent": 50.0, "yPercent": 3.0}
-  ],
-  "confidence": 0.88
-}
-Rules:
-- All values are PERCENTAGES of image dimensions (0-100)
-- maskPolygon: 8-24 points tracing the subject outline accurately (not just a rectangle)
-- boundingBox must be tight around the subject
-- For people: trace around hair, shoulders, arms carefully
-- confidence: 0.0-1.0` }
-          ]
-        }]
-      });
-
-      const raw = message.content.filter(b => b.type === 'text').map(b => b.text).join('');
-      const clean = raw.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
-      res.json(parsed);
-    } catch (err) {
-      console.error('[Studio] remove-background:', err.message);
-      res.status(500).json({ error: 'Background removal failed' });
-    }
+    res.status(501).json({ error: 'Background removal is handled client-side' });
   });
 
   // POST /api/studio/extract-element
