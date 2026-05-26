@@ -277,22 +277,21 @@ export default function Analytics() {
         }
       >
         {/* ── TAB BAR ──────────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: `1px solid ${t.border}`, paddingBottom: 0 }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 24, padding: 4, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, width: 'fit-content' }}>
           {TAB_DEFS.map(tab => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
               style={{
-                padding: '10px 18px',
-                fontSize: 14,
+                padding: '8px 20px',
+                fontSize: 13,
                 fontWeight: activeTab === tab.id ? 700 : 500,
                 color: activeTab === tab.id ? t.primary : t.textSecondary,
-                background: 'transparent',
-                border: 'none',
-                borderBottom: activeTab === tab.id ? `2px solid ${t.primary}` : '2px solid transparent',
+                background: activeTab === tab.id ? t.primaryBg : 'transparent',
+                border: activeTab === tab.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
+                borderRadius: 8,
                 cursor: 'pointer',
-                marginBottom: -1,
-                transition: 'all 150ms',
+                transition: 'all 150ms ease',
               }}
             >
               {tab.label}
@@ -746,24 +745,24 @@ export default function Analytics() {
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
                   <Card style={{ padding: '18px 20px' }}>
                     <p style={{ margin: '0 0 6px', fontSize: 12, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Posts Published</p>
-                    <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: t.primary, fontFamily: 'monospace' }}>{reportPosts.length}</p>
+                    <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color: t.primary, fontFamily: 'monospace' }}>{reportPosts.length}</p>
                     <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textSecondary }}>in {monthLabel}</p>
                   </Card>
                   <Card style={{ padding: '18px 20px' }}>
                     <p style={{ margin: '0 0 6px', fontSize: 12, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated Reach</p>
-                    <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: t.info || '#3B82F6', fontFamily: 'monospace' }}>
+                    <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color: t.info || '#3B82F6', fontFamily: 'monospace' }}>
                       {totalReach > 999 ? `~${(totalReach/1000).toFixed(1)}k` : `~${totalReach}`}
                     </p>
                     <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textSecondary }}>estimated local people</p>
                   </Card>
                   <Card style={{ padding: '18px 20px' }}>
                     <p style={{ margin: '0 0 6px', fontSize: 12, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Engagement</p>
-                    <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: t.warning || '#F59E0B', fontFamily: 'monospace' }}>{totalEng}</p>
+                    <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color: t.warning || '#F59E0B', fontFamily: 'monospace' }}>{totalEng}</p>
                     <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textSecondary }}>likes + comments + shares</p>
                   </Card>
                   <Card style={{ padding: '18px 20px' }}>
                     <p style={{ margin: '0 0 6px', fontSize: 12, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Best Day</p>
-                    <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: t.success || '#22C55E', fontFamily: 'monospace' }}>
+                    <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color: t.success || '#22C55E', fontFamily: 'monospace' }}>
                       {reportPosts.length > 0 ? DAYS_FULL[bestDowIdx].slice(0, 3) : '—'}
                     </p>
                     <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textSecondary }}>
