@@ -874,7 +874,7 @@ Return ONLY valid JSON (no markdown fences):
   });
 
   // POST /api/studio/extract-elements
-  // Uses Claude vision to detect all visual elements in an image — client crops each via Canvas 2D
+  // Uses Claude vision to detect all visual elements — resizes to 1024px max before sending to avoid timeouts
   router.post('/extract-elements', authenticate, async (req, res) => {
     try {
       const { imageUrl } = req.body;
@@ -882,9 +882,15 @@ Return ONLY valid JSON (no markdown fences):
 
       const imageResp = await fetch(imageUrl);
       if (!imageResp.ok) return res.status(400).json({ error: 'Could not fetch image' });
-      const buffer = Buffer.from(await imageResp.arrayBuffer());
-      const base64 = buffer.toString('base64');
-      const mimeType = (imageResp.headers.get('content-type') || 'image/jpeg').split(';')[0];
+      const rawBuffer = Buffer.from(await imageResp.arrayBuffer());
+
+      // Resize to max 1024px so base64 payload stays small and Claude responds reliably
+      const resizedBuffer = await sharp(rawBuffer)
+        .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+
+      const base64 = resizedBuffer.toString('base64');
 
       const Anthropic = require('@anthropic-ai/sdk');
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -895,9 +901,10 @@ Return ONLY valid JSON (no markdown fences):
         messages: [{
           role: 'user',
           content: [
-            { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
             { type: 'text', text: `Detect all distinct visual elements in this image.
-Return ONLY valid JSON, no markdown fences, no explanation:
+Return ONLY a valid JSON object. No markdown, no explanation, nothing before or after the JSON.
+
 {
   "elements": [
     {
@@ -926,20 +933,24 @@ Return ONLY valid JSON, no markdown fences, no explanation:
   "totalElements": 3,
   "hasText": true
 }
+
 Rules:
 - type must be exactly: "background" | "object" | "text"
-- Always include exactly one "background" element (no boundingBox needed for background)
+- Always include exactly one "background" element (no boundingBox needed)
 - boundingBox values are percentages (0-100) of image dimensions, tight around each element
-- dominantColor must be a valid hex color
-- For text type: include the actual text string found in "content"
-- Detect every distinct visual group: people, logos, shapes, text blocks, decorative elements` }
+- dominantColor must be a valid hex color string
+- For text type: include the actual visible text string in "content"
+- Detect every distinct visual group: people, logos, shapes, text blocks, objects` }
           ]
         }]
       });
 
       const raw = message.content.filter(b => b.type === 'text').map(b => b.text).join('');
-      const clean = raw.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
+      // Extract the JSON object even if Claude wraps it in extra text
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON in Claude response');
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (!parsed.elements || !Array.isArray(parsed.elements)) throw new Error('Invalid elements structure');
       res.json(parsed);
     } catch (err) {
       console.error('[Studio] extract-elements:', err.message);
