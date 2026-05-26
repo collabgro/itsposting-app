@@ -6400,7 +6400,7 @@ export default function TemplatesEditorInner() {
       `}</style>
 
       {/* ── Top toolbar (Canva-style) ── */}
-      <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: `1px solid ${t.border}`, background: t.isDark ? 'rgba(10,10,10,0.95)' : 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px) saturate(180%)', flexShrink: 0, zIndex: 10 }}>
+      <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,0.15)', background: 'linear-gradient(to right, #00C4CC, #7C5CFC)', flexShrink: 0, zIndex: 10 }}>
 
         {/* ── Left zone ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
@@ -6412,7 +6412,7 @@ export default function TemplatesEditorInner() {
             else if (ref.includes('/history')) router.push('/history');
             else router.back();
           }} title="Back"
-            style={{ width: 36, height: 36, border: 'none', borderRadius: 8, background: 'transparent', color: t.text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            style={{ width: 36, height: 36, border: 'none', borderRadius: 8, background: 'transparent', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <IpArrowLeft size={18} />
           </button>
 
@@ -6429,10 +6429,10 @@ export default function TemplatesEditorInner() {
           <div style={{ position: 'relative' }}>
             {showFileMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowFileMenu(false)} />}
             <button onClick={() => { setShowFileMenu(m => !m); setShowResizeMenu(false); setShowDownloadMenu(false); }}
-              style={{ height: 32, padding: '0 10px', border: `1px solid ${showFileMenu ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: showFileMenu ? t.primaryBg : 'transparent', color: showFileMenu ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
-              onMouseEnter={e => { if (!showFileMenu) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
-              onMouseLeave={e => { if (!showFileMenu) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
-              File <span style={{ fontSize: 9, opacity: 0.5, marginLeft: 1 }}>▾</span>
+              style={{ height: 32, padding: '0 10px', border: `1px solid ${showFileMenu ? 'rgba(255,255,255,0.4)' : 'transparent'}`, borderRadius: 8, background: showFileMenu ? 'rgba(255,255,255,0.2)' : 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
+              onMouseEnter={e => { if (!showFileMenu) { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; } }}
+              onMouseLeave={e => { if (!showFileMenu) { e.currentTarget.style.background = 'transparent'; } }}>
+              File <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 1 }}>▾</span>
             </button>
             {showFileMenu && (
               <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 290, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, overflow: 'hidden', animation: 'dropdownIn 150ms ease forwards' }}>
@@ -6479,9 +6479,9 @@ export default function TemplatesEditorInner() {
           <div style={{ position: 'relative' }}>
             {showResizeMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowResizeMenu(false)} />}
             <button onClick={() => { setShowResizeMenu(m => !m); setShowFileMenu(false); setShowDownloadMenu(false); }}
-              style={{ height: 32, padding: '0 10px', border: `1px solid ${showResizeMenu ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: showResizeMenu ? t.primaryBg : 'transparent', color: showResizeMenu ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, maxWidth: 160, overflow: 'hidden', transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
-              onMouseEnter={e => { if (!showResizeMenu) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
-              onMouseLeave={e => { if (!showResizeMenu) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
+              style={{ height: 32, padding: '0 10px', border: `1px solid ${showResizeMenu ? 'rgba(255,255,255,0.4)' : 'transparent'}`, borderRadius: 8, background: showResizeMenu ? 'rgba(255,255,255,0.2)' : 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, maxWidth: 160, overflow: 'hidden', transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
+              onMouseEnter={e => { if (!showResizeMenu) { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; } }}
+              onMouseLeave={e => { if (!showResizeMenu) { e.currentTarget.style.background = 'transparent'; } }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{canvasSize.label}</span>
               <span style={{ fontSize: 9, opacity: 0.5, flexShrink: 0, marginLeft: 1 }}>▾</span>
             </button>
@@ -6569,10 +6569,10 @@ export default function TemplatesEditorInner() {
           <div style={{ position: 'relative' }}>
             {editModeOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setEditModeOpen(false)} />}
             <button onClick={() => { setEditModeOpen(o => !o); setShowFileMenu(false); setShowResizeMenu(false); setShowDownloadMenu(false); }}
-              style={{ height: 32, padding: '0 10px', border: `1px solid ${editModeOpen ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: editModeOpen ? t.primaryBg : 'transparent', color: editModeOpen ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
-              onMouseEnter={e => { if (!editModeOpen) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
-              onMouseLeave={e => { if (!editModeOpen) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
-              ✏ Editing <span style={{ fontSize: 9, opacity: 0.5, marginLeft: 1 }}>▾</span>
+              style={{ height: 32, padding: '0 10px', border: `1px solid ${editModeOpen ? 'rgba(255,255,255,0.4)' : 'transparent'}`, borderRadius: 8, background: editModeOpen ? 'rgba(255,255,255,0.2)' : 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
+              onMouseEnter={e => { if (!editModeOpen) { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; } }}
+              onMouseLeave={e => { if (!editModeOpen) { e.currentTarget.style.background = 'transparent'; } }}>
+              ✏ Editing <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 1 }}>▾</span>
             </button>
             {editModeOpen && (
               <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 220, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0', animation: 'dropdownIn 150ms ease forwards' }}>
@@ -6598,36 +6598,36 @@ export default function TemplatesEditorInner() {
 
           {/* ── Video mode toggle ── */}
           <button onClick={() => { setIsVideoMode(v => !v); setIsPlaying(false); setVideoPlayhead(0); clearInterval(playIntervalRef.current); }}
-            onMouseEnter={e => { showTip(e, isVideoMode ? 'Switch to Image mode' : 'Edit as Video'); if (!isVideoMode) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }} onMouseLeave={e => { hideTip(); if (!isVideoMode) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}
-            style={{ height: 32, padding: '0 11px', border: `1px solid ${isVideoMode ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: isVideoMode ? t.primaryBg : 'transparent', color: isVideoMode ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', flexShrink: 0, letterSpacing: '-0.01em' }}>
+            onMouseEnter={e => { showTip(e, isVideoMode ? 'Switch to Image mode' : 'Edit as Video'); if (!isVideoMode) { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; } }} onMouseLeave={e => { hideTip(); if (!isVideoMode) { e.currentTarget.style.background = 'transparent'; } }}
+            style={{ height: 32, padding: '0 11px', border: `1px solid ${isVideoMode ? 'rgba(255,255,255,0.4)' : 'transparent'}`, borderRadius: 8, background: isVideoMode ? 'rgba(255,255,255,0.2)' : 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', flexShrink: 0, letterSpacing: '-0.01em' }}>
             {isVideoMode ? '◻ Image' : '▶ Video'}
           </button>
 
           {/* ── Separator ── */}
-          <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0, margin: '0 2px' }} />
+          <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.25)', flexShrink: 0, margin: '0 2px' }} />
 
           {/* ── Undo / Redo — always visible in left zone ── */}
           <button onClick={undo} disabled={historyIndex < 0}
             title="Undo (Ctrl+Z)"
-            onMouseEnter={e => { showTip(e, 'Undo', 'Ctrl+Z'); if (historyIndex >= 0) e.currentTarget.style.background = t.cardHover; }}
+            onMouseEnter={e => { showTip(e, 'Undo', 'Ctrl+Z'); if (historyIndex >= 0) e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
             onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
-            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: historyIndex < 0 ? t.textMuted : t.text, cursor: historyIndex < 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms', flexShrink: 0 }}>
+            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: historyIndex < 0 ? 'rgba(255,255,255,0.35)' : '#fff', cursor: historyIndex < 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms', flexShrink: 0 }}>
             <IcoUndo size={17} />
           </button>
           <button onClick={redo} disabled={historyIndex >= history.length - 1}
             title="Redo (Ctrl+Y)"
-            onMouseEnter={e => { showTip(e, 'Redo', 'Ctrl+Y'); if (historyIndex < history.length - 1) e.currentTarget.style.background = t.cardHover; }}
+            onMouseEnter={e => { showTip(e, 'Redo', 'Ctrl+Y'); if (historyIndex < history.length - 1) e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
             onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
-            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: historyIndex >= history.length - 1 ? t.textMuted : t.text, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms', flexShrink: 0 }}>
+            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: historyIndex >= history.length - 1 ? 'rgba(255,255,255,0.35)' : '#fff', cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms', flexShrink: 0 }}>
             <IcoRedo size={17} />
           </button>
 
           {/* Theme toggle — left zone so it doesn't crowd the right-side admin badges */}
-          <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0, margin: '0 2px' }} />
+          <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.25)', flexShrink: 0, margin: '0 2px' }} />
           <button onClick={toggleTheme} title={theme === 'dark' ? 'Switch to Light mode' : 'Switch to Dark mode'}
-            onMouseEnter={e => { showTip(e, theme === 'dark' ? 'Light mode' : 'Dark mode'); e.currentTarget.style.background = t.cardHover; }}
+            onMouseEnter={e => { showTip(e, theme === 'dark' ? 'Light mode' : 'Dark mode'); e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
             onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
-            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: t.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms, color 100ms', flexShrink: 0 }}>
+            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms, color 100ms', flexShrink: 0 }}>
             {theme === 'dark'
               ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
               : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -6644,12 +6644,12 @@ export default function TemplatesEditorInner() {
               onChange={e => setTitleForSave(e.target.value)}
               onBlur={() => setTitleEditing(false)}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') e.target.blur(); }}
-              style={{ padding: '4px 10px', borderRadius: 8, border: `1.5px solid ${t.primary}`, background: t.input, color: t.text, fontSize: 13, fontWeight: 600, outline: 'none', width: 220, textAlign: 'center', boxShadow: `0 0 0 3px ${t.primaryBg}` }}
+              style={{ padding: '4px 10px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: 13, fontWeight: 600, outline: 'none', width: 220, textAlign: 'center', boxShadow: '0 0 0 3px rgba(255,255,255,0.1)' }}
             />
           ) : (
             <button onClick={() => setTitleEditing(true)} title="Click to rename"
-              style={{ padding: '4px 10px', border: '1px solid transparent', borderRadius: 8, background: 'transparent', color: t.text, fontSize: 13, fontWeight: 600, cursor: 'text', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
-              onMouseEnter={e => { e.currentTarget.style.border = `1px solid ${t.border}`; e.currentTarget.style.background = t.input; }}
+              style={{ padding: '4px 10px', border: '1px solid transparent', borderRadius: 8, background: 'transparent', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'text', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
+              onMouseEnter={e => { e.currentTarget.style.border = '1px solid rgba(255,255,255,0.3)'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
               onMouseLeave={e => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.background = 'transparent'; }}>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleForSave || 'Untitled design'}</span>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.45, flexShrink: 0 }}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -6662,36 +6662,36 @@ export default function TemplatesEditorInner() {
 
           {/* Save status indicator */}
           {saveStatus === 'saving' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.textMuted }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
               <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>⟳</span>
               Saving…
             </div>
           )}
           {saveStatus === 'saved' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.success, fontWeight: 500 }}>
-              ✓ All changes saved
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
+              ✓ Saved
             </div>
           )}
           {saveStatus === 'error' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.error, fontWeight: 500 }}>
-              ⚠ Save failed — check connection
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#FFD0D0', fontWeight: 500 }}>
+              ⚠ Save failed
             </div>
           )}
 
           {/* Template status: admin save indicator */}
           {tmplSaveStatus === 'saving' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#7C5CFC', fontWeight: 500 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>
               <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>⟳</span>
-              Updating template…
+              Updating…
             </div>
           )}
           {tmplSaveStatus === 'saved' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.success, fontWeight: 500 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
               ✓ Template updated
             </div>
           )}
           {tmplSaveStatus === 'error' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.error, fontWeight: 500 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#FFD0D0', fontWeight: 500 }}>
               ⚠ Update failed
             </div>
           )}
@@ -6700,10 +6700,10 @@ export default function TemplatesEditorInner() {
           {editingTemplateId && !isAdmin && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
-              background: t.primaryBg, border: `1px solid ${t.primaryBorder}`,
-              borderRadius: 7, fontSize: 11, color: t.primary, fontWeight: 500, flexShrink: 0,
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: 7, fontSize: 11, color: '#fff', fontWeight: 500, flexShrink: 0,
             }}>
-              ✦ Using template — save creates your own copy
+              ✦ Using template
             </div>
           )}
 
@@ -6711,19 +6711,17 @@ export default function TemplatesEditorInner() {
           {editingTemplateId && isAdmin && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
-              background: 'rgba(124,92,252,0.1)', border: `1px solid rgba(124,92,252,0.3)`,
-              borderRadius: 7, fontSize: 11, color: '#7C5CFC', fontWeight: 600, flexShrink: 0,
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: 7, fontSize: 11, color: '#fff', fontWeight: 600, flexShrink: 0,
             }}>
-              ✏ Admin — editing template
+              ✏ Admin
             </div>
           )}
 
           {/* Preview */}
           <button onClick={() => setPreviewOpen(true)}
-            onMouseEnter={e => showTip(e, 'Preview', 'P')} onMouseLeave={hideTip}
-            style={{ height: 32, padding: '0 12px', border: `1px solid transparent`, borderRadius: 8, background: 'transparent', color: t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
-            onMouseEnter={e => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; }}>
+            onMouseEnter={e => { showTip(e, 'Preview', 'P'); e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
+            style={{ height: 32, padding: '0 12px', border: '1px solid transparent', borderRadius: 8, background: 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}>
             <IpEye size={15} /> Preview
           </button>
 
@@ -6735,8 +6733,8 @@ export default function TemplatesEditorInner() {
               onMouseEnter={e => showTip(e, 'Save changes back to the template')} onMouseLeave={hideTip}
               style={{
                 height: 36, padding: '0 16px', borderRadius: 8,
-                background: tmplSaving ? 'rgba(124,92,252,0.4)' : 'linear-gradient(90deg,#7C5CFC,#5b3fe0)',
-                color: '#fff', border: 'none', fontSize: 13, fontWeight: 700,
+                background: tmplSaving ? 'rgba(255,255,255,0.5)' : '#fff',
+                color: '#7C5CFC', border: 'none', fontSize: 13, fontWeight: 700,
                 cursor: tmplSaving ? 'not-allowed' : 'pointer', flexShrink: 0,
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
@@ -6746,19 +6744,15 @@ export default function TemplatesEditorInner() {
 
           {/* Post — primary CTA */}
           <button onClick={() => setPostModalOpen(true)}
-            onMouseEnter={e => showTip(e, 'Post to social media')} onMouseLeave={hideTip}
-            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: `linear-gradient(135deg, ${t.primary} 0%, ${t.primaryHover} 100%)`, color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0, boxShadow: '0 2px 8px rgba(155,79,212,0.35)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', letterSpacing: '-0.01em' }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(155,79,212,0.5)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(155,79,212,0.35)'; }}>
+            onMouseEnter={e => { showTip(e, 'Post to social media'); e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)'; }}
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: '#fff', color: '#7C5CFC', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.15)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', letterSpacing: '-0.01em' }}>
             Post
           </button>
 
           {/* Share */}
           <button onClick={() => { setShareOpen(o => !o); setShowFileMenu(false); setShowResizeMenu(false); setShowDownloadMenu(false); setEditModeOpen(false); }}
-            onMouseEnter={e => showTip(e, 'Share design')} onMouseLeave={hideTip}
-            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: shareOpen ? t.primaryBg : 'transparent', border: `1px solid ${shareOpen ? t.primaryBorder : t.border}`, color: shareOpen ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
-            onMouseEnter={e => { if (!shareOpen) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
-            onMouseLeave={e => { if (!shareOpen) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
+            onMouseEnter={e => { showTip(e, 'Share design'); if (!shareOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; }} onMouseLeave={e => { hideTip(); if (!shareOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: shareOpen ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 120ms ease', letterSpacing: '-0.01em' }}>
             Share
           </button>
 
@@ -6766,9 +6760,9 @@ export default function TemplatesEditorInner() {
           <div style={{ position: 'relative' }}>
             {showDownloadMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowDownloadMenu(false)} />}
             <button onClick={() => { setShowDownloadMenu(m => !m); setShowFileMenu(false); setShowResizeMenu(false); }}
-              style={{ height: 32, padding: '0 12px', border: `1px solid ${showDownloadMenu ? t.primaryBorder : 'transparent'}`, borderRadius: 8, background: showDownloadMenu ? t.primaryBg : 'transparent', color: showDownloadMenu ? t.primary : t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
-              onMouseEnter={e => { if (!showDownloadMenu) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
-              onMouseLeave={e => { if (!showDownloadMenu) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
+              style={{ height: 32, padding: '0 12px', border: `1px solid ${showDownloadMenu ? 'rgba(255,255,255,0.4)' : 'transparent'}`, borderRadius: 8, background: showDownloadMenu ? 'rgba(255,255,255,0.2)' : 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
+              onMouseEnter={e => { if (!showDownloadMenu) { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; } }}
+              onMouseLeave={e => { if (!showDownloadMenu) { e.currentTarget.style.background = 'transparent'; } }}>
               <IpDownload size={15} /> <IpChevronDown size={9} />
             </button>
             {showDownloadMenu && (
@@ -7208,6 +7202,29 @@ export default function TemplatesEditorInner() {
                 }}
               >
                 {aiImproving ? '...' : '✦ Improve'}
+              </button>
+              <D />
+              {/* Effects — stub button (visual parity with Canva) */}
+              <button
+                style={{ height: 32, padding: '0 10px', border: 'none', borderRadius: 8, background: 'transparent', color: t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 120ms ease', whiteSpace: 'nowrap' }}
+                onMouseEnter={e => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; }}>
+                Effects
+              </button>
+              {/* Animate — stub button (visual parity with Canva) */}
+              <button
+                style={{ height: 32, padding: '0 10px', border: 'none', borderRadius: 8, background: 'transparent', color: t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 120ms ease', whiteSpace: 'nowrap' }}
+                onMouseEnter={e => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; }}>
+                Animate
+              </button>
+              {/* Position — opens the Position left flyout panel */}
+              <button
+                onClick={() => { setActiveLeftTool('position'); setLeftPanelOpen(true); }}
+                style={{ height: 32, padding: '0 10px', border: 'none', borderRadius: 8, background: activeLeftTool === 'position' ? t.primaryBg : 'transparent', color: activeLeftTool === 'position' ? t.primary : t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 120ms ease', whiteSpace: 'nowrap' }}
+                onMouseEnter={e => { if (activeLeftTool !== 'position') { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+                onMouseLeave={e => { if (activeLeftTool !== 'position') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
+                Position
               </button>
               {/* ⋯ More — all advanced text controls in one panel */}
               <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -8933,6 +8950,14 @@ export default function TemplatesEditorInner() {
                   document.body
                 )}
               </div>
+              {/* Position — opens left panel (Canva-parity) */}
+              <button
+                onClick={() => { setActiveLeftTool('position'); setLeftPanelOpen(true); }}
+                style={{ height:30, padding:'0 9px', border:'none', borderRadius:8, background: activeLeftTool==='position' ? t.primaryBg : 'transparent', color: activeLeftTool==='position' ? t.primary : t.textSecondary, fontSize:13, cursor:'pointer', flexShrink:0, transition:'all 150ms cubic-bezier(0.34,1.56,0.64,1)', display:'flex', alignItems:'center', gap:4, whiteSpace:'nowrap' }}
+                onMouseEnter={e => { if (activeLeftTool !== 'position') { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+                onMouseLeave={e => { if (activeLeftTool !== 'position') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
+                Position
+              </button>
             </div>
           );
         })()}
@@ -9110,7 +9135,7 @@ export default function TemplatesEditorInner() {
             >
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tool.icon}</span>
               <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400, lineHeight: 1, textAlign: 'center', letterSpacing: '-0.01em' }}>{tool.label}</span>
-              {isActive && <div style={{ position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, borderRadius: '0 3px 3px 0', background: t.primary }} />}
+              {/* active indicator removed — Canva uses background fill only, no border line */}
             </button>
             );
           })}
@@ -9159,10 +9184,15 @@ export default function TemplatesEditorInner() {
             {/* TEMPLATES / DESIGN */}
             {(activeLeftTool === 'background' || activeLeftTool === 'templates') && (
               <div>
-                {/* Search templates */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: t.input, borderRadius: 20, padding: '8px 12px', marginBottom: 14 }}>
-                  <span style={{ color: t.textMuted, fontSize: 13 }}>🔍</span>
+                {/* Search templates — Canva style: [+] prefix LEFT + mic RIGHT */}
+                <div style={{ display: 'flex', alignItems: 'center', background: t.input, borderRadius: 22, padding: '0 14px', marginBottom: 14, height: 44, border: `1px solid ${t.border}` }}>
+                  {/* [+] prefix icon on left */}
+                  <span style={{ color: t.textMuted, fontSize: 20, fontWeight: 300, lineHeight: 1, flexShrink: 0, marginRight: 8, userSelect: 'none' }}>+</span>
                   <input placeholder="Search templates" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
+                  {/* Mic icon on right */}
+                  <button style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: 8 }} title="Search by voice">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                  </button>
                 </div>
 
                 {/* ── ItsPosting Curated Templates ── */}
@@ -9595,15 +9625,15 @@ export default function TemplatesEditorInner() {
                 {/* Scrollable content: sections 2–7 */}
                 <div style={{ flex: 1, overflowY: 'auto' }}>
 
-                  {/* S2: Add a text box */}
+                  {/* S2: Add a text box — full-width purple primary (Canva: "T + Add a text box") */}
                   <button onMouseDown={e => { e.preventDefault(); addText(); }}
                     style={{ width: '100%', padding: '11px 0', borderRadius: 8, border: 'none', background: `linear-gradient(135deg, ${t.primary}, ${t.primaryHover})`, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <IpTextCard size={15} /> Add a text box
+                    <IpTextCard size={15} /> + Add a text box
                   </button>
 
-                  {/* S3: PostCore Write */}
-                  <button style={{ width: '100%', padding: '10px 0', borderRadius: 8, border: `1.5px solid ${t.primaryBorder}`, background: 'transparent', color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <IpSparkle size={14} /> PostCore Write
+                  {/* S3: Magic Write (PostCore Write) — neutral outlined button, like Canva's "✦ Magic Write" */}
+                  <button style={{ width: '100%', padding: '10px 0', borderRadius: 8, border: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontSize: 13, fontWeight: 500, cursor: 'pointer', marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <IpSparkle size={14} color={t.primary} /> Magic Write
                   </button>
 
                   {/* S4: Brand Kit */}
@@ -10279,12 +10309,18 @@ export default function TemplatesEditorInner() {
                     : <span title="AI search" style={{ color: t.textMuted, flexShrink:0, display:'flex' }}><IpSparkle size={13}/></span>
                   }
                 </div>
-                {/* Generate + Search buttons */}
+                {/* Generate (split-button) + Search (purple pill) — Canva-style */}
                 <div style={{ display:'flex', gap:8 }}>
-                  <button style={{ flex:1.1, background:`linear-gradient(135deg, ${t.primary}, ${t.primaryHover})`, color:'#fff', border:'none', borderRadius:8, padding:'10px 0', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                    <IpSparkle size={14}/> AI Generate
-                  </button>
-                  <button style={{ flex:1, background:'transparent', color:t.primary, border:`1.5px solid ${t.primaryBorder}`, borderRadius:8, padding:'10px 0', fontSize:13, fontWeight:600, cursor:'pointer' }}
+                  {/* Generate split-button: white outlined + sparkle + Generate text + ▾ dropdown */}
+                  <div style={{ flex:1.1, display:'flex', borderRadius:22, border:`1px solid ${t.border}`, overflow:'hidden', background:t.card }}>
+                    <button style={{ flex:1, height:40, display:'flex', alignItems:'center', justifyContent:'center', gap:6, background:'none', border:'none', cursor:'pointer', color:t.text, fontSize:13, fontWeight:500, whiteSpace:'nowrap' }}>
+                      <IpSparkle size={14} color={t.primary}/> Generate
+                    </button>
+                    <div style={{ width:1, background:t.border, flexShrink:0 }} />
+                    <button style={{ width:36, height:40, background:'none', border:'none', cursor:'pointer', color:t.textMuted, display:'flex', alignItems:'center', justifyContent:'center', fontSize:11 }}>▾</button>
+                  </div>
+                  {/* Search — solid purple pill */}
+                  <button style={{ flex:1, height:40, borderRadius:22, background:t.primary, color:'#fff', border:'none', cursor:'pointer', fontSize:13, fontWeight:600 }}
                     onClick={() => { if (elemSearch.trim()) setActiveElemCat(null); }}>
                     Search
                   </button>
@@ -11562,8 +11598,8 @@ export default function TemplatesEditorInner() {
                       };
 
                       const BTNS = [
-                        // AI Assist — opens AI panel
-                        { label: 'AI', icon: <IpSparkle size={13} />, title: 'AI Assist', fn: () => { handleToolClick('magic'); }, ai: true },
+                        // Ask PostCore — branded gradient pill (like Canva's "Ask Canva")
+                        { label: 'Ask PostCore', icon: <IpSparkle size={13} />, title: 'Ask PostCore AI', fn: () => { handleToolClick('magic'); }, branded: true },
                         { sep: true },
                         // Group/Ungroup for multi-select
                         ...(isMulti
@@ -11613,9 +11649,9 @@ export default function TemplatesEditorInner() {
                               <button
                                 key={i}
                                 onMouseDown={e => { e.stopPropagation(); b.fn(); }}
-                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.ai ? 'rgba(124,92,252,0.15)' : (t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'); }}
-                                onMouseLeave={e => { hideTip(); e.currentTarget.style.background = b.ai ? 'rgba(124,92,252,0.08)' : 'transparent'; }}
-                                style={{ height: 30, padding: '0 10px', border: b.ai ? '1px solid rgba(124,92,252,0.3)' : 'none', borderRadius: 20, background: b.ai ? 'rgba(124,92,252,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5, color: b.ai ? t.primary : t.text, transition: 'background 80ms', flexShrink: 0, letterSpacing: '-0.01em' }}>
+                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.opacity = '0.85'; }}
+                                onMouseLeave={e => { hideTip(); e.currentTarget.style.opacity = '1'; }}
+                                style={{ height: 30, padding: '0 12px', border: 'none', borderRadius: 20, background: b.branded ? 'linear-gradient(135deg, #00C4CC, #7C5CFC)' : b.ai ? 'rgba(124,92,252,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5, color: b.branded ? '#fff' : b.ai ? t.primary : t.text, transition: 'opacity 80ms', flexShrink: 0, letterSpacing: '-0.01em', boxShadow: b.branded ? '0 2px 8px rgba(0,196,204,0.35)' : 'none' }}>
                                 {b.icon}{b.label}
                               </button>
                             ) : (
