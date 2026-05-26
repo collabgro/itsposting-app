@@ -6124,7 +6124,7 @@ export default function TemplatesEditorInner() {
       `}</style>
 
       {/* ── Top toolbar (Canva-style) ── */}
-      <div style={{ height: 56, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'}`, background: t.isDark ? 'linear-gradient(90deg, #0d1a2e 0%, #1a1040 100%)' : 'linear-gradient(90deg, #00C4CC 0%, #7C5CFC 100%)', flexShrink: 0, zIndex: 10, position: 'relative' }}>
+      <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: `1px solid ${t.border}`, background: t.isDark ? 'rgba(10,10,10,0.95)' : 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px) saturate(180%)', flexShrink: 0, zIndex: 10, position: 'relative' }}>
 
         {/* ── Left zone ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
@@ -8584,76 +8584,76 @@ export default function TemplatesEditorInner() {
         {/* 64px icon strip — always visible */}
         <div style={{ width: 64, borderRight: `1px solid ${t.border}`, background: t.sidebar,
           display: 'flex', flexDirection: 'column', alignItems: 'center',
-          padding: '10px 0', flexShrink: 0, gap: 1 }}>
+          padding: '8px 0', flexShrink: 0, gap: 2 }}>
           {[
-            { id: 'templates', icon: <IcoTemplates size={21} />, label: 'Templates' },
-            { id: 'elements',  icon: <IpSparkle size={21} />,    label: 'Elements'  },
-            { id: 'text',      icon: <IpTextCard size={21} />,   label: 'Text',      shortcut: 'T' },
-            { id: 'brand',     icon: <IpPalette size={21} />,    label: 'Brand'    },
-            { id: 'uploads',   icon: <IpPublish size={21} />,    label: 'Uploads'   },
-            { id: 'layers',    icon: <IcoLayers size={21} />,    label: 'Layers'    },
-            { id: 'tools',     icon: <IpEdit size={21} />,       label: 'Tools'     },
-            { id: 'projects',  icon: <IpFolderOpen size={21} />, label: 'Projects'  },
+            { id: 'templates', icon: <IcoTemplates size={20} />, label: 'Templates' },
+            { id: 'elements',  icon: <IpSparkle size={20} />,    label: 'Elements'  },
+            { id: 'text',      icon: <IpTextCard size={20} />,   label: 'Text',      shortcut: 'T' },
+            { id: 'brand',     icon: <IpPalette size={20} />,    label: 'Brand'    },
+            { id: 'uploads',   icon: <IpPublish size={20} />,    label: 'Uploads'   },
+            { id: 'layers',    icon: <IcoLayers size={20} />,    label: 'Layers'    },
+            { id: 'tools',     icon: <IpEdit size={20} />,       label: 'Tools'     },
+            { id: 'projects',  icon: <IpFolderOpen size={20} />, label: 'Projects'  },
           ].map(tool => {
             const isActive = activeLeftTool === tool.id && panelOpen;
             return (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
-              onMouseEnter={e => { showTip(e, tool.label, tool.shortcut); if (!isActive) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; }}
-              onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
+              onMouseEnter={e => { showTip(e, tool.label, tool.shortcut); if (!isActive) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.transform = 'scale(1.08)'; } }}
+              onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? t.primaryBg : 'transparent'; e.currentTarget.style.transform = 'scale(1)'; }}
               style={{
-                width: 52, padding: '8px 0 5px',
+                width: 48, padding: '7px 0 5px',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                background: isActive ? 'rgba(0,196,204,0.1)' : 'transparent',
+                background: isActive ? t.primaryBg : 'transparent',
                 border: 'none',
-                borderRadius: 8,
+                borderRadius: 12,
                 cursor: 'pointer',
-                color: isActive ? TEAL : t.textMuted,
+                color: isActive ? t.primary : t.textMuted,
                 fontSize: 10, fontWeight: isActive ? 600 : 400,
-                transition: 'background 120ms ease, color 120ms ease',
+                transition: 'background 150ms cubic-bezier(0.34,1.56,0.64,1), color 120ms ease, transform 150ms cubic-bezier(0.34,1.56,0.64,1)',
                 position: 'relative',
                 flexShrink: 0,
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26 }}>{tool.icon}</span>
-              <span style={{ fontSize: 11, lineHeight: 1, textAlign: 'center', letterSpacing: '0.01em' }}>{tool.label}</span>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>{tool.icon}</span>
+              <span style={{ fontSize: 10, lineHeight: 1, textAlign: 'center' }}>{tool.label}</span>
             </button>
             );
           })}
           <div style={{ flex: 1 }} />
           {[
-            { id: 'apps',  icon: <IpPlus size={21} />,    label: 'Apps'       },
-            { id: 'magic', icon: <IpSparkle size={21} />, label: 'AI Generate' },
+            { id: 'apps',  icon: <IpPlus size={20} />,    label: 'Apps'       },
+            { id: 'magic', icon: <IpSparkle size={20} />, label: 'AI Generate' },
           ].map(tool => {
             const isActive = activeLeftTool === tool.id && panelOpen;
             return (
             <button key={tool.id} onClick={() => handleToolClick(tool.id)}
-              onMouseEnter={e => { showTip(e, tool.label); if (!isActive) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; }}
-              onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? 'rgba(0,196,204,0.1)' : 'transparent'; }}
+              onMouseEnter={e => { showTip(e, tool.label); if (!isActive) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.transform = 'scale(1.08)'; } }}
+              onMouseLeave={e => { hideTip(); e.currentTarget.style.background = isActive ? t.primaryBg : 'transparent'; e.currentTarget.style.transform = 'scale(1)'; }}
               style={{
-                width: 52, padding: '8px 0 5px',
+                width: 48, padding: '7px 0 5px',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                background: isActive ? 'rgba(0,196,204,0.1)' : 'transparent',
+                background: isActive ? t.primaryBg : 'transparent',
                 border: 'none',
-                borderRadius: 8,
+                borderRadius: 12,
                 cursor: 'pointer',
-                color: isActive ? TEAL : t.textMuted,
+                color: isActive ? t.primary : t.textMuted,
                 fontSize: 10, fontWeight: isActive ? 600 : 400,
-                transition: 'background 120ms ease, color 120ms ease',
+                transition: 'background 150ms cubic-bezier(0.34,1.56,0.64,1), color 120ms ease, transform 150ms cubic-bezier(0.34,1.56,0.64,1)',
               }}>
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26 }}>{tool.icon}</span>
-              <span style={{ fontSize: 11, lineHeight: 1, textAlign: 'center', letterSpacing: '0.01em' }}>{tool.label}</span>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>{tool.icon}</span>
+              <span style={{ fontSize: 10, lineHeight: 1, textAlign: 'center' }}>{tool.label}</span>
             </button>
             );
           })}
         </div>
 
-        {/* 320px collapsible flyout */}
+        {/* 300px collapsible flyout */}
         <div style={{
-          width: panelOpen ? 320 : 0,
+          width: panelOpen ? 300 : 0,
           overflow: 'hidden',
-          transition: 'width 200ms ease',
+          transition: 'width 180ms cubic-bezier(0.16,1,0.3,1)',
           borderRight: panelOpen ? `1px solid ${t.border}` : 'none',
-          background: t.card,
+          background: t.sidebar,
           position: 'relative',
           flexShrink: 0,
           display: 'flex',
@@ -8661,7 +8661,7 @@ export default function TemplatesEditorInner() {
         }}>
           {/* Tool content — rendered only when flyout is open */}
           {panelOpen && (
-          <div key={activeLeftTool} style={{ flex: 1, overflowY: 'auto', padding: '16px', minWidth: 320, animation: 'panel-in 160ms ease forwards' }}>
+          <div key={activeLeftTool} style={{ flex: 1, overflowY: 'auto', padding: '16px', minWidth: 300, animation: 'panel-in 180ms cubic-bezier(0.16,1,0.3,1) forwards' }}>
 
             {/* TEMPLATES / DESIGN */}
             {(activeLeftTool === 'background' || activeLeftTool === 'templates') && (
@@ -10457,12 +10457,12 @@ export default function TemplatesEditorInner() {
         {/* ── Canvas area — multi-page vertical scroll ── */}
         <style>{`
           @keyframes ftb-in {
-            from { opacity:0; transform:translateX(-50%) translateY(6px) scale(0.94); }
-            to   { opacity:1; transform:translateX(-50%) translateY(0)   scale(1);    }
+            from { opacity:0; transform:translateX(-50%) translateY(-4px) scale(0.97); }
+            to   { opacity:1; transform:translateX(-50%) translateY(0)    scale(1);    }
           }
           @keyframes panel-in {
-            from { opacity:0; transform:translateY(8px); }
-            to   { opacity:1; transform:translateY(0);   }
+            from { opacity:0; transform:translateX(-6px); }
+            to   { opacity:1; transform:translateX(0);    }
           }
           @keyframes save-check {
             from { opacity:0; transform:scale(0.7); }
@@ -10480,7 +10480,7 @@ export default function TemplatesEditorInner() {
           }
         `}</style>
         <div ref={containerRef}
-          style={{ flex: 1, overflow: 'auto', background: t.isDark ? '#111827' : '#e8e8e8', padding: '40px', position: 'relative' }}>
+          style={{ flex: 1, overflow: 'auto', background: t.isDark ? '#0A0A0A' : '#E8E8EC', padding: '40px', position: 'relative' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
             {pages.map((page, pageIdx) => {
               const isActive = pageIdx === activePage;
@@ -11001,15 +11001,15 @@ export default function TemplatesEditorInner() {
                           style={{
                             position: 'absolute', left: cx, top: toolbarY,
                             transform: 'translateX(-50%)',
-                            background: t.isDark ? 'rgba(28,28,36,0.97)' : 'rgba(255,255,255,0.97)',
-                            border: `1px solid ${t.border}`,
+                            background: t.isDark ? 'rgba(12,12,14,0.88)' : 'rgba(255,255,255,0.88)',
+                            border: t.isDark ? '1px solid rgba(255,255,255,0.10)' : '1px solid rgba(0,0,0,0.08)',
                             borderRadius: 32,
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.22), 0 1px 4px rgba(0,0,0,0.14)',
+                            boxShadow: t.isDark ? '0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)',
                             display: 'flex', alignItems: 'center',
                             padding: '4px 8px', gap: 2,
                             zIndex: 200, whiteSpace: 'nowrap',
-                            animation: 'ftb-in 120ms cubic-bezier(0.19,1,0.22,1) forwards',
-                            backdropFilter: 'blur(12px)',
+                            animation: 'ftb-in 150ms cubic-bezier(0.34,1.56,0.64,1) forwards',
+                            backdropFilter: 'blur(20px) saturate(180%)',
                           }}
                         >
                           {BTNS.map((b, i) =>
@@ -11165,12 +11165,12 @@ export default function TemplatesEditorInner() {
         )}
 
         {/* ── Right panel ── */}
-        <div style={{ width: 260, borderLeft: `1px solid ${t.border}`, background: t.card, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ width: 264, borderLeft: `1px solid ${t.border}`, background: t.sidebar, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
           {/* Tabs */}
-          <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
+          <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, flexShrink: 0, height: 44 }}>
             {['properties', 'layers', 'caption'].map(tab => (
               <button key={tab} onClick={() => setRightTab(tab)}
-                style={{ flex: 1, padding: '9px 0 7px', border: 'none', background: 'transparent', color: rightTab === tab ? TEAL : t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', borderBottom: rightTab === tab ? `2px solid ${TEAL}` : '2px solid transparent', textTransform: 'capitalize' }}>
+                style={{ flex: 1, padding: '0 0 0', border: 'none', background: 'transparent', color: rightTab === tab ? t.primary : t.textMuted, fontSize: 12, fontWeight: rightTab === tab ? 600 : 500, cursor: 'pointer', borderBottom: rightTab === tab ? `2px solid ${t.primary}` : '2px solid transparent', textTransform: 'capitalize', transition: 'color 150ms ease, border-color 150ms ease' }}>
                 {tab}
               </button>
             ))}
@@ -11646,11 +11646,11 @@ export default function TemplatesEditorInner() {
         );
       })()}
 
-      {/* ── Bottom status bar (Canva-style) ── */}
+      {/* ── Bottom status bar ── */}
       <div style={{
-        height: 32, display: 'flex', alignItems: 'center', gap: 4,
+        height: 40, display: 'flex', alignItems: 'center', gap: 4,
         padding: '0 12px', borderTop: `1px solid ${t.border}`,
-        background: t.card, flexShrink: 0, zIndex: 8, position: 'relative',
+        background: t.sidebar, flexShrink: 0, zIndex: 8, position: 'relative',
         fontSize: 12, color: t.textMuted, userSelect: 'none',
       }}>
         {/* Notes panel */}
@@ -11684,56 +11684,53 @@ export default function TemplatesEditorInner() {
 
         {/* Fit to screen */}
         <button onClick={() => setZoomFactor(1)}
-          onMouseEnter={e => showTip(e, 'Fit to screen', 'Ctrl+0')} onMouseLeave={hideTip}
-          style={{ height: 26, padding: '0 8px', border: 'none', borderRadius: 6,
+          onMouseEnter={e => { showTip(e, 'Fit to screen', 'Ctrl+0'); e.currentTarget.style.color = t.text; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.color = t.textMuted; }}
+          style={{ height: 28, padding: '0 8px', border: 'none', borderRadius: 7,
             background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'background 100ms' }}
-          onMouseEnterCapture={e => e.currentTarget.style.color = t.text}
-          onMouseLeaveCapture={e => e.currentTarget.style.color = t.textMuted}>
+            display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'color 100ms' }}>
           <IcoFit size={13} /> Fit
         </button>
 
-        {/* Zoom out */}
-        <button onClick={zoomOut}
-          onMouseEnter={e => showTip(e, 'Zoom out', 'Ctrl+−')} onMouseLeave={hideTip}
-          style={{ width: 26, height: 26, border: 'none', borderRadius: 6,
-            background: 'transparent', color: t.text, fontSize: 16, lineHeight: 1, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 100ms' }}>
-          −
-        </button>
+        {/* Zoom pill group */}
+        <div style={{ display: 'flex', alignItems: 'center', background: t.card, border: `1px solid ${t.border}`, borderRadius: 20, padding: '0 4px', gap: 0, flexShrink: 0 }}>
+          <button onClick={zoomOut}
+            onMouseEnter={e => showTip(e, 'Zoom out', 'Ctrl+−')} onMouseLeave={hideTip}
+            style={{ width: 24, height: 24, border: 'none', borderRadius: 16,
+              background: 'transparent', color: t.textSecondary, fontSize: 16, lineHeight: 1, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            −
+          </button>
 
-        {/* Zoom slider */}
-        <input type="range" min={25} max={300} step={25}
-          value={Math.round(zoomFactor * 100)}
-          onChange={e => setZoomFactor(parseInt(e.target.value) / 100)}
-          style={{ width: 90, flexShrink: 0, cursor: 'pointer', accentColor: TEAL }} />
+          <input type="range" min={25} max={300} step={25}
+            value={Math.round(zoomFactor * 100)}
+            onChange={e => setZoomFactor(parseInt(e.target.value) / 100)}
+            style={{ width: 80, flexShrink: 0, cursor: 'pointer', accentColor: t.primary }} />
 
-        {/* Zoom in */}
-        <button onClick={zoomIn}
-          onMouseEnter={e => showTip(e, 'Zoom in', 'Ctrl++')} onMouseLeave={hideTip}
-          style={{ width: 26, height: 26, border: 'none', borderRadius: 6,
-            background: 'transparent', color: t.text, fontSize: 16, lineHeight: 1, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 100ms' }}>
-          +
-        </button>
+          <button onClick={zoomIn}
+            onMouseEnter={e => showTip(e, 'Zoom in', 'Ctrl++')} onMouseLeave={hideTip}
+            style={{ width: 24, height: 24, border: 'none', borderRadius: 16,
+              background: 'transparent', color: t.textSecondary, fontSize: 16, lineHeight: 1, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            +
+          </button>
 
-        {/* Zoom % pill — click to reset to 100% */}
-        <button onClick={() => setZoomFactor(1)}
-          onMouseEnter={e => showTip(e, 'Reset zoom', 'Ctrl+0')} onMouseLeave={hideTip}
-          style={{ minWidth: 46, height: 26, border: 'none', borderRadius: 6,
-            background: 'transparent', color: t.text, fontSize: 12, cursor: 'pointer',
-            padding: '0 7px', flexShrink: 0, fontWeight: 500, transition: 'background 100ms' }}>
-          {Math.round(zoomFactor * 100)}%
-        </button>
+          <button onClick={() => setZoomFactor(1)}
+            onMouseEnter={e => showTip(e, 'Reset zoom', 'Ctrl+0')} onMouseLeave={hideTip}
+            style={{ minWidth: 42, height: 24, border: 'none', borderRadius: 16,
+              background: 'transparent', color: t.textSecondary, fontSize: 12, cursor: 'pointer',
+              padding: '0 6px', flexShrink: 0, fontWeight: 500 }}>
+            {Math.round(zoomFactor * 100)}%
+          </button>
+        </div>
 
         <div style={{ width: 1, height: 18, background: t.border, margin: '0 4px', flexShrink: 0 }} />
 
         {/* Pages toggle */}
         <button onClick={() => setShowPagesPanel(o => !o)}
           onMouseEnter={e => showTip(e, 'Pages panel')} onMouseLeave={hideTip}
-          style={{ height: 26, padding: '0 10px', border: `1px solid ${showPagesPanel ? TEAL : t.border}`, borderRadius: 5,
-            background: showPagesPanel ? 'rgba(0,196,204,0.1)' : t.input, color: showPagesPanel ? TEAL : t.text,
-            fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', transition: 'background 100ms' }}>
+          style={{ height: 28, padding: '0 10px', border: `1px solid ${showPagesPanel ? t.primaryBorder : t.border}`, borderRadius: 8,
+            background: showPagesPanel ? t.primaryBg : 'transparent', color: showPagesPanel ? t.primary : t.textSecondary,
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', transition: 'all 150ms ease' }}>
           Pages
         </button>
 
@@ -11747,37 +11744,38 @@ export default function TemplatesEditorInner() {
         {/* Rulers toggle */}
         <button onClick={() => setShowRulers(o => !o)}
           onMouseEnter={e => showTip(e, 'Toggle rulers', 'Shift+R')} onMouseLeave={hideTip}
-          style={{ width: 28, height: 26, border: `1px solid ${showRulers ? TEAL : t.border}`, borderRadius: 5,
-            background: showRulers ? 'rgba(0,196,204,0.1)' : t.input, color: showRulers ? TEAL : t.text,
-            fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>
+          style={{ width: 28, height: 28, border: `1px solid ${showRulers ? t.primaryBorder : t.border}`, borderRadius: 8,
+            background: showRulers ? t.primaryBg : 'transparent', color: showRulers ? t.primary : t.textMuted,
+            fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms ease' }}>
           <IcoRuler size={13} />
         </button>
 
         {/* Grid toggle */}
         <button onClick={() => setShowGrid(o => !o)}
           onMouseEnter={e => showTip(e, 'Toggle grid', 'G')} onMouseLeave={hideTip}
-          style={{ width: 28, height: 26, border: `1px solid ${showGrid ? TEAL : t.border}`, borderRadius: 5,
-            background: showGrid ? 'rgba(0,196,204,0.1)' : t.input, color: showGrid ? TEAL : t.text,
-            fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms' }}>
+          style={{ width: 28, height: 28, border: `1px solid ${showGrid ? t.primaryBorder : t.border}`, borderRadius: 8,
+            background: showGrid ? t.primaryBg : 'transparent', color: showGrid ? t.primary : t.textMuted,
+            fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms ease' }}>
           <IcoGrid size={13} />
         </button>
 
         {/* Safe zones toggle */}
         <button onClick={() => setShowSafeZones(p => !p)}
           onMouseEnter={e => showTip(e, 'Platform safe zones')} onMouseLeave={hideTip}
-          style={{ height: 26, padding: '0 8px', border: `1px solid ${showSafeZones ? TEAL : t.border}`, borderRadius: 5,
-            background: showSafeZones ? 'rgba(0,196,204,0.1)' : t.input, color: showSafeZones ? TEAL : t.text,
-            fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', transition: 'background 100ms' }}>
+          style={{ height: 28, padding: '0 8px', border: `1px solid ${showSafeZones ? t.primaryBorder : t.border}`, borderRadius: 8,
+            background: showSafeZones ? t.primaryBg : 'transparent', color: showSafeZones ? t.primary : t.textMuted,
+            fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', transition: 'all 150ms ease' }}>
           ⊞ Safe zones
         </button>
         {showSafeZones && (
-          <div style={{ display: 'flex', gap: 3, marginLeft: 2 }}>
+          <div style={{ display: 'flex', gap: 2, marginLeft: 2, background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, padding: '0 3px' }}>
             {[['instagram', 'IG'], ['facebook', 'FB'], ['google_business', 'GB']].map(([id, label]) => (
               <button key={id} onClick={() => setSafeZonePlatform(id)} style={{
-                height: 22, padding: '0 7px', border: 'none', borderRadius: 4,
-                background: safeZonePlatform === id ? TEAL : 'transparent',
-                color: safeZonePlatform === id ? '#000' : t.textMuted,
-                fontSize: 10, cursor: 'pointer', fontWeight: safeZonePlatform === id ? 700 : 400,
+                height: 26, padding: '0 8px', border: 'none', borderRadius: 6,
+                background: safeZonePlatform === id ? t.primary : 'transparent',
+                color: safeZonePlatform === id ? '#fff' : t.textMuted,
+                fontSize: 11, cursor: 'pointer', fontWeight: safeZonePlatform === id ? 700 : 400,
+                transition: 'all 150ms ease',
               }}>{label}</button>
             ))}
           </div>
@@ -11785,18 +11783,18 @@ export default function TemplatesEditorInner() {
         {/* Fullscreen */}
         <button onClick={() => document.documentElement.requestFullscreen?.()}
           onMouseEnter={e => showTip(e, 'Fullscreen')} onMouseLeave={hideTip}
-          style={{ width: 28, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
-            background: t.input, color: t.text, fontSize: 13, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 100ms' }}>
+          style={{ width: 28, height: 28, border: `1px solid ${t.border}`, borderRadius: 8,
+            background: 'transparent', color: t.textMuted, fontSize: 13, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 100ms' }}>
           ⤢
         </button>
 
         {/* Help */}
         <button onClick={() => setQuickOpen(true)}
           onMouseEnter={e => showTip(e, 'Keyboard shortcuts', '?')} onMouseLeave={hideTip}
-          style={{ width: 28, height: 26, border: `1px solid ${t.border}`, borderRadius: 5,
-            background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', fontWeight: 600,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 100ms' }}>
+          style={{ width: 28, height: 28, border: `1px solid ${t.border}`, borderRadius: 8,
+            background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'pointer', fontWeight: 600,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 100ms' }}>
           ?
         </button>
       </div>
