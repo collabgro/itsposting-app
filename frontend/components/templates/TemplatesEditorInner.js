@@ -6400,7 +6400,7 @@ export default function TemplatesEditorInner() {
       `}</style>
 
       {/* ── Top toolbar (Canva-style) ── */}
-      <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: `1px solid ${t.border}`, background: t.isDark ? 'rgba(10,10,10,0.95)' : 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px) saturate(180%)', flexShrink: 0, zIndex: 10, position: 'relative' }}>
+      <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: `1px solid ${t.border}`, background: t.isDark ? 'rgba(10,10,10,0.95)' : 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px) saturate(180%)', flexShrink: 0, zIndex: 10 }}>
 
         {/* ── Left zone ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
@@ -6635,8 +6635,8 @@ export default function TemplatesEditorInner() {
           </button>
         </div>
 
-        {/* ── Center zone: absolutely centered editable title — clamped width ── */}
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', maxWidth: 'min(260px, 28vw)', pointerEvents: 'auto' }}>
+        {/* ── Center zone: flex:1 true 3-column layout — no absolute positioning ── */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0, padding: '0 8px' }}>
           {titleEditing ? (
             <input
               autoFocus
@@ -6658,7 +6658,7 @@ export default function TemplatesEditorInner() {
         </div>
 
         {/* ── Right zone ── */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
 
           {/* Save status indicator */}
           {saveStatus === 'saving' && (
