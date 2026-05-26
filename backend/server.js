@@ -1866,6 +1866,279 @@ console.log('══════════════════════�
           t('e16',null,{ x:80,y:1260,width:920,height:52,text:'Business Name  ·  [City]  ·  Licensed & Insured',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.35)',align:'left',verticalAlign:'middle' }),
         ]) },
 
+      // ── LANDSCAPING ───────────────────────────────────────────────────────────
+
+      { name: 'Landscaping — Spring Lawn Revival', industry: 'landscaping', category: 'seasonal', sort_order: 400,
+        canvas_json: mkPage('#0B2014', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0B2014' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#52B788' }),
+          // Ghost leaf watermark
+          t('e3',null,{ x:200,y:-40,width:880,height:520,text:'🌿',fontFamily:'Inter',fontSize:480,fill:'rgba(82,183,136,0.05)',align:'center',verticalAlign:'middle' }),
+          // Season badge
+          r('e4',null,{ x:80,y:80,width:340,height:56,fill:'rgba(82,183,136,0.16)',cornerRadius:28 }),
+          t('e5',null,{ x:80,y:80,width:340,height:56,text:'🌱  SPRING IS HERE',fontFamily:'Inter',fontSize:20,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          // Headline stacked
+          t('e6',null,{ x:80,y:184,width:920,height:128,text:'WAKE YOUR',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e7',null,{ x:80,y:310,width:920,height:128,text:'LAWN UP.',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'#52B788',align:'left',verticalAlign:'middle' }),
+          // Sub
+          t('e8',null,{ x:80,y:468,width:920,height:112,text:'Spring is the most important time for your lawn. One good treatment now pays back all summer. [City] homeowners — we have openings this week.',fontFamily:'Inter',fontSize:26,fill:'rgba(255,255,255,0.60)',align:'left',verticalAlign:'top',lineHeight:1.55 }),
+          // What we do label
+          t('e9',null,{ x:80,y:614,width:920,height:32,text:'SPRING REVIVAL INCLUDES:',fontFamily:'Inter',fontSize:14,fontStyle:'bold',fill:'rgba(82,183,136,0.70)',align:'left',verticalAlign:'middle' }),
+          t('e10',null,{ x:80,y:660,width:920,height:40,text:'✓  Aeration + overseeding — thick healthy growth',fontFamily:'Inter',fontSize:25,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:712,width:920,height:40,text:'✓  Pre-emergent weed control — stop them early',fontFamily:'Inter',fontSize:25,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e12',null,{ x:80,y:764,width:920,height:40,text:'✓  Slow-release fertiliser — feeds for 8 weeks',fontFamily:'Inter',fontSize:25,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:816,width:920,height:40,text:'✓  Free lawn health assessment included',fontFamily:'Inter',fontSize:25,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // CTA
+          r('e14',null,{ x:80,y:912,width:920,height:116,fill:'#52B788',cornerRadius:16 }),
+          t('e15',null,{ x:80,y:912,width:920,height:116,text:'(555) 000-0000',fontFamily:'Inter',fontSize:72,fontStyle:'bold',fill:'#0B2014',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:80,y:1046,width:920,height:44,text:'Book your spring lawn revival — [City]',fontFamily:'Inter',fontSize:24,fill:'rgba(82,183,136,0.60)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e17',null,{ x:80,y:1264,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e18',null,{ x:80,y:1284,width:920,height:48,text:'Business Name  ·  [City]  ·  Fully Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Landscaping — Before & After Transformation', industry: 'landscaping', category: 'before-after', sort_order: 401,
+        canvas_json: mkPage('#1A2A1A', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#1A2A1A' }),
+          r('e2',null,{ x:0,y:0,width:12,height:1350,fill:'#52B788' }),
+          t('e3',null,{ x:80,y:88,width:840,height:30,text:'REAL JOB  ·  REAL RESULT  ·  [CITY]',fontFamily:'Inter',fontSize:17,fontStyle:'bold',fill:'#52B788',align:'left',verticalAlign:'middle' }),
+          // Split headline
+          t('e4',null,{ x:80,y:148,width:920,height:128,text:'OVERGROWN.',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:274,width:920,height:128,text:'STUNNING.',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'#52B788',align:'left',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:400,width:920,height:72,text:'SPOT THE DIFFERENCE. 🌳',fontFamily:'Inter',fontSize:54,fontStyle:'bold',fill:'rgba(236,240,241,0.86)',align:'left',verticalAlign:'middle' }),
+          // Job card
+          r('e7',null,{ x:80,y:518,width:920,height:190,fill:'rgba(255,255,255,0.04)',cornerRadius:14 }),
+          t('e8',null,{ x:120,y:540,width:840,height:28,text:'THE JOB',fontFamily:'Inter',fontSize:14,fontStyle:'bold',fill:'#52B788',align:'left',verticalAlign:'middle' }),
+          t('e9',null,{ x:120,y:578,width:840,height:68,text:'Full yard cleanup + fresh mulch + edging',fontFamily:'Inter',fontSize:38,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e10',null,{ x:120,y:660,width:240,height:34,text:'1 day job',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'left',verticalAlign:'middle' }),
+          t('e11',null,{ x:380,y:660,width:260,height:34,text:'3-man crew',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'left',verticalAlign:'middle' }),
+          t('e12',null,{ x:660,y:660,width:280,height:34,text:'★ 5.0 rated',fontFamily:'Inter',fontSize:22,fill:'#52B788',align:'left',verticalAlign:'middle' }),
+          // Photo placeholder
+          r('e13',null,{ x:80,y:756,width:920,height:200,fill:'rgba(255,255,255,0.03)',cornerRadius:10 }),
+          t('e14',null,{ x:80,y:756,width:920,height:200,text:'📸  Add your before & after\nyard photos here',fontFamily:'Inter',fontSize:30,fill:'rgba(255,255,255,0.10)',align:'center',verticalAlign:'middle',lineHeight:1.5 }),
+          // Swipe CTA
+          r('e15',null,{ x:80,y:1002,width:720,height:66,fill:'#52B788',cornerRadius:33 }),
+          t('e16',null,{ x:80,y:1002,width:720,height:66,text:'Swipe to see the full transformation →',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#1A2A1A',align:'center',verticalAlign:'middle' }),
+          // Hook fact
+          t('e17',null,{ x:80,y:1112,width:920,height:44,text:'Curb appeal adds up to 10% to your home\'s value. 🏡',fontFamily:'Inter',fontSize:23,fill:'rgba(82,183,136,0.70)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e18',null,{ x:80,y:1256,width:920,height:1,fill:'rgba(255,255,255,0.08)' }),
+          t('e19',null,{ x:80,y:1278,width:920,height:46,text:'Business Name  •  [City]  •  (555) 000-0000',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Landscaping — 5-Star Customer Review', industry: 'landscaping', category: 'social-proof', sort_order: 402,
+        canvas_json: mkPage('#0F1F0F', [
+          r('e1',null,{ x:0,y:0,width:1080,height:900,fill:'#0F1F0F' }),
+          r('e2',null,{ x:0,y:900,width:1080,height:450,fill:'#0A160A' }),
+          r('e3',null,{ x:0,y:0,width:1080,height:8,fill:'#52B788' }),
+          t('e4',null,{ x:60,y:52,width:240,height:220,text:'"',fontFamily:'Inter',fontSize:220,fontStyle:'bold',fill:'rgba(82,183,136,0.08)',align:'left',verticalAlign:'top' }),
+          t('e5',null,{ x:80,y:136,width:920,height:70,text:'★★★★★',fontFamily:'Inter',fontSize:54,fill:'#FFC300',align:'left',verticalAlign:'middle' }),
+          r('e6',null,{ x:80,y:226,width:210,height:44,fill:'rgba(82,183,136,0.16)',cornerRadius:22 }),
+          t('e7',null,{ x:80,y:226,width:210,height:44,text:'Google Review',fontFamily:'Inter',fontSize:15,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e8',null,{ x:80,y:288,width:920,height:560,text:'"Replace with your best customer review. The strongest landscaping reviews mention what the yard looked like before, how professional the crew was, and how the neighbours reacted. Real words convert best."',fontFamily:'Inter',fontSize:37,fill:'#ffffff',align:'left',verticalAlign:'top',lineHeight:1.55 }),
+          r('e9',null,{ x:0,y:900,width:1080,height:1,fill:'rgba(82,183,136,0.16)' }),
+          r('e10',null,{ x:80,y:936,width:88,height:88,fill:'#52B788',cornerRadius:44 }),
+          t('e11',null,{ x:80,y:936,width:88,height:88,text:'TR',fontFamily:'Inter',fontSize:30,fontStyle:'bold',fill:'#0F1F0F',align:'center',verticalAlign:'middle' }),
+          t('e12',null,{ x:188,y:948,width:700,height:38,text:'Tom R.',fontFamily:'Inter',fontSize:27,fontStyle:'bold',fill:'#FFC300',align:'left',verticalAlign:'middle' }),
+          t('e13',null,{ x:188,y:994,width:700,height:34,text:'[City]  ·  Full Yard Makeover',fontFamily:'Inter',fontSize:21,fill:'rgba(255,255,255,0.40)',align:'left',verticalAlign:'middle' }),
+          r('e14',null,{ x:80,y:1058,width:80,height:3,fill:'#52B788',cornerRadius:2 }),
+          t('e15',null,{ x:80,y:1080,width:920,height:44,text:'We show up on time and clean up every last leaf.',fontFamily:'Inter',fontSize:24,fill:'#52B788',align:'left',verticalAlign:'middle' }),
+          r('e16',null,{ x:80,y:1200,width:920,height:1,fill:'rgba(255,255,255,0.06)' }),
+          t('e17',null,{ x:80,y:1222,width:920,height:42,text:'Business Name  ·  [City]',fontFamily:'Inter',fontSize:22,fill:'rgba(82,183,136,0.55)',align:'left',verticalAlign:'middle' }),
+          t('e18',null,{ x:80,y:1280,width:920,height:42,text:'(555) 000-0000  ·  Fully Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.22)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Landscaping — 5 Signs Your Lawn Needs Help', industry: 'landscaping', category: 'educational', sort_order: 403,
+        canvas_json: mkPage('#111D11', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#111D11' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#52B788' }),
+          t('e3',null,{ x:80,y:108,width:920,height:148,text:'5 SIGNS',fontFamily:'Inter',fontSize:126,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e4',null,{ x:80,y:254,width:920,height:148,text:'YOUR LAWN',fontFamily:'Inter',fontSize:126,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:400,width:920,height:148,text:'IS STRUGGLING.',fontFamily:'Inter',fontSize:96,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:544,width:920,height:80,text:'(And how to fix it.) 🌱',fontFamily:'Inter',fontSize:54,fontStyle:'bold',fill:'rgba(236,240,241,0.82)',align:'center',verticalAlign:'middle' }),
+          r('e7',null,{ x:80,y:686,width:920,height:3,fill:'rgba(82,183,136,0.22)',cornerRadius:2 }),
+          t('e8',null,{ x:80,y:712,width:920,height:48,text:'🟡  Patchy yellow or brown spots in grass',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.52)',align:'center',verticalAlign:'middle' }),
+          t('e9',null,{ x:80,y:768,width:920,height:48,text:'🌿  Weeds taking over entire sections',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.52)',align:'center',verticalAlign:'middle' }),
+          t('e10',null,{ x:80,y:824,width:920,height:48,text:'💧  Water pooling after every rain',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.52)',align:'center',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:880,width:920,height:48,text:'🪲  Grubs, moles, or lawn pests visible',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.52)',align:'center',verticalAlign:'middle' }),
+          t('e12',null,{ x:80,y:936,width:920,height:48,text:'🌑  Thatch so thick grass can\'t breathe',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.52)',align:'center',verticalAlign:'middle' }),
+          r('e13',null,{ x:180,y:1042,width:720,height:68,fill:'#52B788',cornerRadius:34 }),
+          t('e14',null,{ x:180,y:1042,width:720,height:68,text:'Free lawn assessment — (555) 000-0000',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#111D11',align:'center',verticalAlign:'middle' }),
+          t('e15',null,{ x:80,y:1148,width:920,height:44,text:'Most lawn problems are fixable in one treatment.',fontFamily:'Inter',fontSize:22,fill:'rgba(82,183,136,0.65)',align:'center',verticalAlign:'middle' }),
+          r('e16',null,{ x:80,y:1256,width:920,height:1,fill:'rgba(255,255,255,0.08)' }),
+          t('e17',null,{ x:80,y:1278,width:920,height:42,text:'Business Name  ·  [City]  ·  Fully Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.26)',align:'center',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Landscaping — Fall Cleanup Special', industry: 'landscaping', category: 'seasonal', sort_order: 404,
+        canvas_json: mkPage('#1C1004', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#1C1004' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#E67E22' }),
+          // Ghost leaf watermark
+          t('e3',null,{ x:100,y:-30,width:880,height:520,text:'🍂',fontFamily:'Inter',fontSize:460,fill:'rgba(230,126,34,0.05)',align:'center',verticalAlign:'middle' }),
+          // Badge
+          r('e4',null,{ x:80,y:80,width:360,height:56,fill:'rgba(230,126,34,0.16)',cornerRadius:28 }),
+          t('e5',null,{ x:80,y:80,width:360,height:56,text:'🍂  FALL CLEANUP TIME',fontFamily:'Inter',fontSize:19,fontStyle:'bold',fill:'#E67E22',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('e6',null,{ x:80,y:184,width:920,height:128,text:'PROTECT YOUR',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e7',null,{ x:80,y:310,width:920,height:128,text:'LAWN THIS',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'rgba(255,255,255,0.62)',align:'left',verticalAlign:'middle' }),
+          t('e8',null,{ x:80,y:436,width:920,height:128,text:'WINTER.',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'#E67E22',align:'left',verticalAlign:'middle' }),
+          // Body
+          t('e9',null,{ x:80,y:594,width:920,height:110,text:'Leaves left on the lawn through winter kill the grass beneath. Book your fall cleanup now — [City] slots are filling fast.',fontFamily:'Inter',fontSize:26,fill:'rgba(255,255,255,0.58)',align:'left',verticalAlign:'top',lineHeight:1.55 }),
+          // Checklist
+          t('e10',null,{ x:80,y:736,width:920,height:32,text:'CLEANUP INCLUDES:',fontFamily:'Inter',fontSize:14,fontStyle:'bold',fill:'rgba(230,126,34,0.70)',align:'left',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:782,width:920,height:40,text:'✓  Full leaf removal + haul-away',fontFamily:'Inter',fontSize:25,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e12',null,{ x:80,y:834,width:920,height:40,text:'✓  Final mow + edge trim',fontFamily:'Inter',fontSize:25,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:886,width:920,height:40,text:'✓  Bed cleanup + mulch topdress',fontFamily:'Inter',fontSize:25,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // CTA
+          r('e14',null,{ x:80,y:982,width:920,height:116,fill:'#E67E22',cornerRadius:16 }),
+          t('e15',null,{ x:80,y:982,width:920,height:116,text:'(555) 000-0000',fontFamily:'Inter',fontSize:72,fontStyle:'bold',fill:'#1C1004',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:80,y:1116,width:920,height:44,text:'Book your fall cleanup — [City]',fontFamily:'Inter',fontSize:24,fill:'rgba(230,126,34,0.60)',align:'center',verticalAlign:'middle' }),
+          r('e17',null,{ x:80,y:1264,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e18',null,{ x:80,y:1284,width:920,height:48,text:'Business Name  ·  [City]  ·  Fully Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Landscaping — Free Estimate Offer', industry: 'landscaping', category: 'promotional', sort_order: 405,
+        canvas_json: mkPage('#0D1F0D', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0D1F0D' }),
+          // Ghost "FREE" watermark
+          t('e2',null,{ x:-80,y:30,width:1200,height:440,text:'FREE',fontFamily:'Inter',fontSize:370,fontStyle:'bold',fill:'rgba(82,183,136,0.04)',align:'left',verticalAlign:'middle' }),
+          // Badge
+          r('e3',null,{ x:80,y:80,width:420,height:50,fill:'rgba(82,183,136,0.12)',cornerRadius:25 }),
+          t('e4',null,{ x:80,y:80,width:420,height:50,text:'NO OBLIGATION  ·  NO PRESSURE',fontFamily:'Inter',fontSize:16,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('e5',null,{ x:80,y:172,width:920,height:116,text:'GET YOUR',fontFamily:'Inter',fontSize:94,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:286,width:920,height:168,text:'FREE',fontFamily:'Inter',fontSize:158,fontStyle:'bold',fill:'#52B788',align:'left',verticalAlign:'middle' }),
+          t('e7',null,{ x:80,y:448,width:920,height:108,text:'LANDSCAPE',fontFamily:'Inter',fontSize:84,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e8',null,{ x:80,y:550,width:920,height:108,text:'ESTIMATE.',fontFamily:'Inter',fontSize:84,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // What's included
+          t('e9',null,{ x:80,y:698,width:920,height:28,text:'YOUR ESTIMATE INCLUDES:',fontFamily:'Inter',fontSize:15,fontStyle:'bold',fill:'rgba(82,183,136,0.62)',align:'left',verticalAlign:'middle' }),
+          t('e10',null,{ x:80,y:740,width:920,height:44,text:'✓  Full property walk — front, back, and sides',fontFamily:'Inter',fontSize:27,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:798,width:920,height:44,text:'✓  Written plan with photos and pricing',fontFamily:'Inter',fontSize:27,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e12',null,{ x:80,y:856,width:920,height:44,text:'✓  Seasonal maintenance recommendations',fontFamily:'Inter',fontSize:27,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:914,width:920,height:44,text:'✓  Zero obligation — ever',fontFamily:'Inter',fontSize:27,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // CTA
+          r('e14',null,{ x:80,y:1018,width:920,height:108,fill:'#52B788',cornerRadius:14 }),
+          t('e15',null,{ x:80,y:1018,width:920,height:108,text:'(555) 000-0000',fontFamily:'Inter',fontSize:68,fontStyle:'bold',fill:'#0D1F0D',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:80,y:1144,width:920,height:40,text:'Call or text to book your free estimate',fontFamily:'Inter',fontSize:22,fill:'rgba(82,183,136,0.55)',align:'center',verticalAlign:'middle' }),
+          r('e17',null,{ x:80,y:1248,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e18',null,{ x:80,y:1268,width:920,height:52,text:'Business Name  •  [City]',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Landscaping — Weekly Maintenance Program', industry: 'landscaping', category: 'promotional', sort_order: 406,
+        canvas_json: mkPage('#0A1A0A', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0A1A0A' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#52B788' }),
+          // Hook headline
+          t('e3',null,{ x:80,y:90,width:920,height:58,text:'STOP DOING IT YOURSELF.',fontFamily:'Inter',fontSize:42,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e4',null,{ x:80,y:178,width:920,height:158,text:'WEEKLY',fontFamily:'Inter',fontSize:138,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:334,width:920,height:158,text:'LAWN CARE',fontFamily:'Inter',fontSize:118,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:488,width:920,height:88,text:'from $49/visit.',fontFamily:'Inter',fontSize:70,fontStyle:'bold',fill:'rgba(255,255,255,0.78)',align:'center',verticalAlign:'middle' }),
+          // Divider
+          r('e7',null,{ x:80,y:598,width:920,height:2,fill:'rgba(82,183,136,0.22)' }),
+          // Program features
+          t('e8',null,{ x:80,y:634,width:920,height:34,text:'EVERY VISIT INCLUDES:',fontFamily:'Inter',fontSize:14,fontStyle:'bold',fill:'rgba(82,183,136,0.62)',align:'left',verticalAlign:'middle' }),
+          // Features 2-col grid
+          t('e9',null,{ x:80,y:684,width:420,height:40,text:'🌿  Mow + edge',fontFamily:'Inter',fontSize:24,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e10',null,{ x:580,y:684,width:420,height:40,text:'🍂  Blow + cleanup',fontFamily:'Inter',fontSize:24,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:736,width:420,height:40,text:'✂  Trim shrubs',fontFamily:'Inter',fontSize:24,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e12',null,{ x:580,y:736,width:420,height:40,text:'📋  Photo report',fontFamily:'Inter',fontSize:24,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:788,width:920,height:40,text:'💧  Irrigation check — every visit',fontFamily:'Inter',fontSize:24,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Perks banner
+          r('e14',null,{ x:80,y:866,width:920,height:100,fill:'rgba(82,183,136,0.10)',cornerRadius:14 }),
+          t('e15',null,{ x:80,y:878,width:920,height:44,text:'No contracts  ·  Pause any time  ·  Insured crew',fontFamily:'Inter',fontSize:26,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:80,y:926,width:920,height:34,text:'First visit FREE when you sign up this week',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.45)',align:'center',verticalAlign:'middle' }),
+          // CTA
+          r('e17',null,{ x:80,y:1014,width:920,height:114,fill:'#52B788',cornerRadius:16 }),
+          t('e18',null,{ x:80,y:1014,width:920,height:114,text:'(555) 000-0000',fontFamily:'Inter',fontSize:70,fontStyle:'bold',fill:'#0A1A0A',align:'center',verticalAlign:'middle' }),
+          t('e19',null,{ x:80,y:1146,width:920,height:44,text:'Text "WEEKLY" to get your first visit free',fontFamily:'Inter',fontSize:24,fill:'rgba(82,183,136,0.55)',align:'center',verticalAlign:'middle' }),
+          r('e20',null,{ x:80,y:1266,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e21',null,{ x:80,y:1286,width:920,height:48,text:'Business Name  ·  [City]  ·  Fully Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Landscaping — Lawn Care How It Works', industry: 'landscaping', category: 'educational', sort_order: 407,
+        canvas_json: mkPage('#0C1C0C', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0C1C0C' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#52B788' }),
+          // Headline
+          t('e3',null,{ x:80,y:90,width:920,height:58,text:'HOW IT WORKS',fontFamily:'Inter',fontSize:42,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e4',null,{ x:80,y:168,width:920,height:148,text:'FROM CALL',fontFamily:'Inter',fontSize:126,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:314,width:920,height:148,text:'TO CURB',fontFamily:'Inter',fontSize:126,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:460,width:920,height:80,text:'APPEAL. 🏡',fontFamily:'Inter',fontSize:62,fontStyle:'bold',fill:'rgba(236,240,241,0.84)',align:'center',verticalAlign:'middle' }),
+          r('e7',null,{ x:80,y:568,width:920,height:2,fill:'rgba(82,183,136,0.22)' }),
+          // Steps
+          r('e8',null,{ x:80,y:592,width:56,height:56,fill:'rgba(82,183,136,0.16)',cornerRadius:28 }),
+          t('e9',null,{ x:80,y:592,width:56,height:56,text:'01',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e10',null,{ x:152,y:592,width:848,height:56,text:'You call or text — we respond within the hour',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          r('e11',null,{ x:80,y:670,width:56,height:56,fill:'rgba(82,183,136,0.16)',cornerRadius:28 }),
+          t('e12',null,{ x:80,y:670,width:56,height:56,text:'02',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e13',null,{ x:152,y:670,width:848,height:56,text:'Free walk-through — we assess and quote on the spot',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          r('e14',null,{ x:80,y:748,width:56,height:56,fill:'rgba(82,183,136,0.16)',cornerRadius:28 }),
+          t('e15',null,{ x:80,y:748,width:56,height:56,text:'03',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:152,y:748,width:848,height:56,text:'You approve — we schedule and show up on time',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          r('e17',null,{ x:80,y:826,width:56,height:56,fill:'rgba(82,183,136,0.16)',cornerRadius:28 }),
+          t('e18',null,{ x:80,y:826,width:56,height:56,text:'04',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e19',null,{ x:152,y:826,width:848,height:56,text:'We do the work + clean up every scrap',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          r('e20',null,{ x:80,y:904,width:56,height:56,fill:'rgba(82,183,136,0.16)',cornerRadius:28 }),
+          t('e21',null,{ x:80,y:904,width:56,height:56,text:'05',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e22',null,{ x:152,y:904,width:848,height:56,text:'You enjoy the best-looking yard on the block',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // CTA
+          r('e23',null,{ x:80,y:1014,width:920,height:114,fill:'#52B788',cornerRadius:16 }),
+          t('e24',null,{ x:80,y:1014,width:920,height:114,text:'(555) 000-0000',fontFamily:'Inter',fontSize:70,fontStyle:'bold',fill:'#0C1C0C',align:'center',verticalAlign:'middle' }),
+          t('e25',null,{ x:80,y:1146,width:920,height:44,text:'Free estimate — [City] same week',fontFamily:'Inter',fontSize:24,fill:'rgba(82,183,136,0.55)',align:'center',verticalAlign:'middle' }),
+          r('e26',null,{ x:80,y:1268,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e27',null,{ x:80,y:1288,width:920,height:48,text:'Business Name  ·  [City]  ·  Fully Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Landscaping — Meet the Crew', industry: 'landscaping', category: 'team', sort_order: 408,
+        canvas_json: mkPage('#0E1E0E', [
+          r('e1',null,{ x:0,y:0,width:1080,height:780,fill:'#071407' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:780,fill:'#000000',opacity:0.26 }),
+          t('e3',null,{ x:80,y:290,width:920,height:200,text:'📸  Add your crew photo here\n1080 × 780 px',fontFamily:'Inter',fontSize:30,fill:'rgba(255,255,255,0.12)',align:'center',verticalAlign:'middle',lineHeight:1.6 }),
+          r('e4',null,{ x:0,y:580,width:1080,height:120,fill:'#0E1E0E',opacity:0.55 }),
+          r('e5',null,{ x:0,y:700,width:1080,height:80,fill:'#0E1E0E',opacity:0.90 }),
+          r('e6',null,{ x:0,y:780,width:1080,height:570,fill:'#0E1E0E' }),
+          // Name pill (yellow — earthy contrast on green)
+          r('e7',null,{ x:80,y:720,width:560,height:62,fill:'#FFC300',cornerRadius:10 }),
+          t('e8',null,{ x:80,y:720,width:560,height:62,text:'Carlos V.  ·  Lead Landscaper',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#0E1E0E',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('e9',null,{ x:80,y:828,width:920,height:68,text:'The hands behind',fontFamily:'Inter',fontSize:54,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e10',null,{ x:80,y:894,width:920,height:68,text:'your dream yard. 🌳',fontFamily:'Inter',fontSize:54,fontStyle:'bold',fill:'#52B788',align:'left',verticalAlign:'middle' }),
+          // Stats bar
+          r('e11',null,{ x:80,y:994,width:920,height:108,fill:'rgba(255,255,255,0.04)',cornerRadius:12 }),
+          t('e12',null,{ x:80,y:1008,width:280,height:54,text:'10+',fontFamily:'Inter',fontSize:44,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:1064,width:280,height:28,text:'Years',fontFamily:'Inter',fontSize:17,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          r('e14',null,{ x:372,y:1012,width:1,height:88,fill:'#ffffff',opacity:0.10 }),
+          t('e15',null,{ x:400,y:1008,width:280,height:54,text:'1,200+',fontFamily:'Inter',fontSize:44,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:400,y:1064,width:280,height:28,text:'Yards Done',fontFamily:'Inter',fontSize:17,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          r('e17',null,{ x:694,y:1012,width:1,height:88,fill:'#ffffff',opacity:0.10 }),
+          t('e18',null,{ x:720,y:1008,width:280,height:54,text:'5.0 ⭐',fontFamily:'Inter',fontSize:44,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          t('e19',null,{ x:720,y:1064,width:280,height:28,text:'Rating',fontFamily:'Inter',fontSize:17,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          t('e20',null,{ x:80,y:1148,width:920,height:72,text:'10 years transforming [City] yards. Takes pride in every edge, every detail — and always leaves the site cleaner than I found it.',fontFamily:'Inter',fontSize:24,fill:'#52B788',align:'left',verticalAlign:'top',lineHeight:1.5,opacity:0.85 }),
+          r('e21',null,{ x:80,y:1240,width:920,height:1,fill:'#ffffff',opacity:0.10 }),
+          t('e22',null,{ x:80,y:1260,width:680,height:42,text:'Business Name  ·  Fully Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.40)',align:'left',verticalAlign:'middle' }),
+          t('e23',null,{ x:800,y:1260,width:200,height:42,text:'[City]',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.22)',align:'right',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Landscaping — Google Review Ask', industry: 'landscaping', category: 'social-proof', sort_order: 409,
+        canvas_json: mkPage('#0A1A0C', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0A1A0C' }),
+          r('e2',null,{ x:190,y:280,width:700,height:700,fill:'#4285F4',opacity:0.05,cornerRadius:350 }),
+          t('e3',null,{ x:180,y:40,width:720,height:800,text:'G',fontFamily:'Inter',fontSize:760,fontStyle:'bold',fill:'rgba(66,133,244,0.05)',align:'center',verticalAlign:'top' }),
+          t('e4',null,{ x:80,y:200,width:920,height:100,text:'⭐⭐⭐⭐⭐',fontFamily:'Inter',fontSize:76,fill:'#FFC300',align:'center',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:360,width:920,height:108,text:'Love what we',fontFamily:'Inter',fontSize:88,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:466,width:920,height:108,text:'did to your yard? 🌿',fontFamily:'Inter',fontSize:78,fontStyle:'bold',fill:'#52B788',align:'center',verticalAlign:'middle' }),
+          r('e7',null,{ x:440,y:624,width:200,height:2,fill:'#52B788',opacity:0.32 }),
+          t('e8',null,{ x:80,y:666,width:920,height:52,text:'Your review helps [City] homeowners',fontFamily:'Inter',fontSize:34,fill:'#52B788',align:'center',verticalAlign:'middle',opacity:0.90 }),
+          t('e9',null,{ x:80,y:720,width:920,height:52,text:'find a landscaper they can trust.',fontFamily:'Inter',fontSize:34,fill:'#52B788',align:'center',verticalAlign:'middle',opacity:0.90 }),
+          t('e10',null,{ x:80,y:816,width:920,height:50,text:'It takes 60 seconds — and it means everything to us.',fontFamily:'Inter',fontSize:26,fill:'rgba(255,255,255,0.40)',align:'center',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:880,width:920,height:44,text:'We recently completed: your yard transformation.',fontFamily:'Inter',fontSize:23,fill:'rgba(255,255,255,0.28)',align:'center',verticalAlign:'middle' }),
+          r('e12',null,{ x:80,y:966,width:920,height:120,fill:'#4285F4',cornerRadius:60 }),
+          t('e13',null,{ x:80,y:966,width:920,height:120,text:'Leave a Google Review →',fontFamily:'Inter',fontSize:38,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e14',null,{ x:80,y:1124,width:920,height:44,text:'Link in bio  ·  Takes 60 seconds',fontFamily:'Inter',fontSize:24,fill:'rgba(255,255,255,0.28)',align:'center',verticalAlign:'middle' }),
+          r('e15',null,{ x:80,y:1238,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e16',null,{ x:80,y:1260,width:920,height:52,text:'Business Name  ·  [City]  ·  Fully Insured',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.35)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
     ];
 
     let inserted = 0;
