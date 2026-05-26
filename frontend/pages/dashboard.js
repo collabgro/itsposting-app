@@ -196,7 +196,7 @@ export default function Dashboard() {
 
         {/* ── 1. PostCore Briefing Banner ── */}
         {showBrief && bd && (
-          <div style={{ background: t.card, border: `1px solid ${t.primaryBorder}`, borderRadius: 14, padding: 20, marginBottom: 20, position: 'relative' }}>
+          <div style={{ background: t.card, border: `1px solid ${t.primaryBorder}`, borderLeft: `4px solid #00C4CC`, borderRadius: 14, padding: 20, marginBottom: 20, position: 'relative', boxShadow: t.shadowMd }}>
             <button onClick={dismissBriefing} style={{ position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: 7, background: t.input, border: `1px solid ${t.border}`, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <IpClose size={13} />
             </button>
@@ -483,7 +483,10 @@ export default function Dashboard() {
 
 function MetricCard({ t, label, main, sub, subColor, disclaimer }) {
   return (
-    <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '16px 18px' }}>
+    <div
+      style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: '16px 18px', transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease, border-color 150ms ease' }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; e.currentTarget.style.borderColor = t.primaryBorder; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = t.border; }}>
       <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
         {label}
         {disclaimer && <IpInfo size={11} style={{ color: t.textDisabled }} title="Estimate based on industry averages" />}
