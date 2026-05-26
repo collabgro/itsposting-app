@@ -3960,6 +3960,11 @@ export default function TemplatesEditorInner() {
   const [postError, setPostError] = useState('');
   const [postSuccess, setPostSuccess] = useState(false);
   const [titleForSave, setTitleForSave] = useState('Untitled');
+  // Template editing (admin)
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState(null);
+  const [tmplSaving, setTmplSaving] = useState(false);
+  const [tmplSaveStatus, setTmplSaveStatus] = useState(''); // '' | 'saving' | 'saved' | 'error'
 
   // Tooltip
   const [tip, setTip] = useState(null);
@@ -4238,6 +4243,13 @@ export default function TemplatesEditorInner() {
       .finally(() => setCuratedLoading(false));
   }, [activeLeftTool]);
 
+  // ── Load admin status once on mount ───────────────────────────────────────
+  useEffect(() => {
+    customerAPI.getProfile()
+      .then(r => setIsAdmin(!!r.data?.is_admin))
+      .catch(() => {});
+  }, []);
+
   // ── Load customer brand profile ────────────────────────────────────────────
   useEffect(() => {
     if (activeLeftTool !== 'brand') return;
@@ -4320,7 +4332,8 @@ export default function TemplatesEditorInner() {
   // ── Load curated template from ?template= param ───────────────────────────
   useEffect(() => {
     const templateId = router.query?.template;
-    if (!templateId) return;
+    if (!templateId) { setEditingTemplateId(null); return; }
+    setEditingTemplateId(templateId);
     studioAPI.getTemplate(templateId)
       .then(r => {
         if (r.data?.template?.canvas_json) restoreSnapshot(r.data.template.canvas_json);
@@ -5983,6 +5996,40 @@ export default function TemplatesEditorInner() {
     }
   }
 
+  // ── Admin: update the template itself (not a user's design) ──────────────
+  async function handleUpdateTemplate() {
+    if (!editingTemplateId || !isAdmin || tmplSaving) return;
+    setTmplSaving(true);
+    setTmplSaveStatus('saving');
+    try {
+      const snap = snapshot();
+      await studioAPI.updateTemplate(editingTemplateId, { name: titleForSave, canvas_json: snap });
+      // Auto-regenerate thumbnail
+      if (stageRef.current) {
+        try {
+          if (trLayerRef.current) trLayerRef.current.hide();
+          const pixelRatio = 1080 / stageRef.current.width();
+          const dataUrl = stageRef.current.toDataURL({ mimeType: 'image/jpeg', quality: 0.92, pixelRatio });
+          if (trLayerRef.current) trLayerRef.current.show();
+          const token = localStorage.getItem('token');
+          await fetch(`/api/studio/templates/${editingTemplateId}/thumbnail`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ dataUrl }),
+          });
+        } catch (_) {}
+      }
+      setTmplSaveStatus('saved');
+      setTimeout(() => setTmplSaveStatus(''), 4000);
+    } catch (err) {
+      console.error('[UpdateTemplate]', err);
+      setTmplSaveStatus('error');
+      setTimeout(() => setTmplSaveStatus(''), 4000);
+    } finally {
+      setTmplSaving(false);
+    }
+  }
+
   async function handlePost() {
     if (!savedCreationId) return;
     setPosting(true);
@@ -6329,12 +6376,69 @@ export default function TemplatesEditorInner() {
             </div>
           )}
 
+          {/* Template status: admin save indicator */}
+          {tmplSaveStatus === 'saving' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#7C5CFC', fontWeight: 500 }}>
+              <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>⟳</span>
+              Updating template…
+            </div>
+          )}
+          {tmplSaveStatus === 'saved' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.success, fontWeight: 500 }}>
+              ✓ Template updated
+            </div>
+          )}
+          {tmplSaveStatus === 'error' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.error, fontWeight: 500 }}>
+              ⚠ Update failed
+            </div>
+          )}
+
+          {/* Template badge for regular users */}
+          {editingTemplateId && !isAdmin && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
+              background: 'rgba(0,196,204,0.08)', border: `1px solid rgba(0,196,204,0.25)`,
+              borderRadius: 7, fontSize: 11, color: TEAL, fontWeight: 500, flexShrink: 0,
+            }}>
+              ✦ Using template — save creates your own copy
+            </div>
+          )}
+
+          {/* Admin: template mode badge */}
+          {editingTemplateId && isAdmin && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
+              background: 'rgba(124,92,252,0.1)', border: `1px solid rgba(124,92,252,0.3)`,
+              borderRadius: 7, fontSize: 11, color: '#7C5CFC', fontWeight: 600, flexShrink: 0,
+            }}>
+              ✏ Admin — editing template
+            </div>
+          )}
+
           {/* Preview */}
           <button onClick={() => setPreviewOpen(true)}
             onMouseEnter={e => showTip(e, 'Preview', 'P')} onMouseLeave={hideTip}
             style={{ height: 36, padding: '0 13px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'background 100ms' }}>
             <IpEye size={15} /> Preview
           </button>
+
+          {/* Admin: Update Template CTA */}
+          {editingTemplateId && isAdmin && (
+            <button
+              onClick={handleUpdateTemplate}
+              disabled={tmplSaving}
+              onMouseEnter={e => showTip(e, 'Save changes back to the template')} onMouseLeave={hideTip}
+              style={{
+                height: 36, padding: '0 16px', borderRadius: 8,
+                background: tmplSaving ? 'rgba(124,92,252,0.4)' : 'linear-gradient(90deg,#7C5CFC,#5b3fe0)',
+                color: '#fff', border: 'none', fontSize: 13, fontWeight: 700,
+                cursor: tmplSaving ? 'not-allowed' : 'pointer', flexShrink: 0,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+              {tmplSaving ? '⟳ Updating…' : '✓ Update Template'}
+            </button>
+          )}
 
           {/* Post — primary CTA */}
           <button onClick={() => setPostModalOpen(true)}

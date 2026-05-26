@@ -314,6 +314,7 @@ export const studioAPI = {
   extractElement: (imageUrl, pointX, pointY) => api.post('/api/studio/extract-element', { imageUrl, pointX, pointY }),
   extractElements: (imageUrl) => api.post('/api/studio/extract-elements', { imageUrl }),
   rewriteText: (data) => api.post('/api/studio/rewrite-text', data),
+  updateTemplate: (id, data) => api.patch(`/api/studio/templates/${id}`, data),
 };
 
 export const receptionistAPI = {

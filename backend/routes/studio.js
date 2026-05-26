@@ -663,6 +663,34 @@ Return ONLY valid JSON (no markdown fences):
     }
   });
 
+  // ── PATCH /api/studio/templates/:id — admin: update template content ────────
+  router.patch('/templates/:id', authenticate, async (req, res) => {
+    try {
+      const { rows: [cust] } = await pool.query('SELECT is_admin FROM customers WHERE id = $1', [req.customerId]);
+      if (!cust?.is_admin) return res.status(403).json({ error: 'Admin only' });
+
+      const { name, category, industry, tags, canvas_json } = req.body;
+      const sets = [];
+      const params = [];
+      if (name && typeof name === 'string') { sets.push(`name = $${params.length + 1}`); params.push(name.slice(0, 200)); }
+      if (category && typeof category === 'string') { sets.push(`category = $${params.length + 1}`); params.push(category); }
+      if (industry && typeof industry === 'string') { sets.push(`industry = $${params.length + 1}`); params.push(industry); }
+      if (tags) { sets.push(`tags = $${params.length + 1}`); params.push(JSON.stringify(tags)); }
+      if (canvas_json && typeof canvas_json === 'object') { sets.push(`canvas_json = $${params.length + 1}`); params.push(JSON.stringify(canvas_json)); }
+      if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
+
+      params.push(req.params.id);
+      await pool.query(
+        `UPDATE canvas_templates SET ${sets.join(', ')} WHERE id = $${params.length} AND is_active = true`,
+        params
+      );
+      res.json({ success: true });
+    } catch (err) {
+      console.error('[Studio] PATCH /templates/:id:', err.message);
+      res.status(500).json({ error: 'Failed to update template' });
+    }
+  });
+
   // ── GET /api/studio/templates/:id — full canvas_json ──────────────────────
   router.get('/templates/:id', authenticate, async (req, res) => {
     try {

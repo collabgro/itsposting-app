@@ -8,7 +8,7 @@ import {
 import Layout from '../components/Layout';
 import { Card, Button, Badge, EmptyState, Spinner, useToast, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { mediaAPI, studioAPI } from '../lib/api';
+import { mediaAPI, studioAPI, customerAPI } from '../lib/api';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -64,6 +64,7 @@ export default function MediaLibrary() {
   const [showSizePicker,   setShowSizePicker]   = useState(false);
   const [pickerSizeId,     setPickerSizeId]      = useState('ig_portrait');
   const [templateThumbs,   setTemplateThumbs]   = useState({});
+  const [isAdmin,          setIsAdmin]          = useState(false);
 
   // ── Mount + auth
   useEffect(() => {
@@ -74,6 +75,7 @@ export default function MediaLibrary() {
       setCustomFolders(Array.isArray(stored) ? stored : []);
     } catch { setCustomFolders([]); }
     loadAll();
+    customerAPI.getProfile().then(r => setIsAdmin(!!r.data?.is_admin)).catch(() => {});
   }, []);
 
   // ── Read ?tab= query param
@@ -678,9 +680,16 @@ export default function MediaLibrary() {
                         <div className="tmpl-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', gap: 8, flexDirection: 'column' }}>
                           <button
                             onClick={() => router.push(`/templates/editor?template=${tmpl.id}`)}
-                            style={{ padding: '7px 14px', background: '#7C5CFC', color: '#fff', border: 'none', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                            style={{ padding: '7px 18px', background: '#7C5CFC', color: '#fff', border: 'none', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                             Use Template
                           </button>
+                          {isAdmin && (
+                            <button
+                              onClick={e => { e.stopPropagation(); router.push(`/templates/editor?template=${tmpl.id}`); }}
+                              style={{ padding: '5px 14px', background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.5)', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                              ✏ Edit Template
+                            </button>
+                          )}
                         </div>
                       </div>
                       <div style={{ padding: '8px 10px' }}>
