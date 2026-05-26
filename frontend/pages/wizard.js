@@ -1304,12 +1304,12 @@ export default function Wizard() {
                       width: '100%', marginBottom: 10,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       padding: '10px 16px', borderRadius: 10,
-                      background: 'transparent', border: `1.5px solid rgba(0,196,204,0.4)`,
-                      color: '#00C4CC', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      background: 'transparent', border: `1.5px solid ${t.primaryBorder}`,
+                      color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer',
                       transition: 'border-color 150ms, background 150ms',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#00C4CC'; e.currentTarget.style.background = 'rgba(0,196,204,0.08)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,196,204,0.4)'; e.currentTarget.style.background = 'transparent'; }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = t.primary; e.currentTarget.style.background = t.primaryBg; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = 'transparent'; }}
                   >
                     <span style={{ fontSize: 15 }}>✏️</span>
                     Edit Video
@@ -1385,7 +1385,9 @@ export default function Wizard() {
                       <div
                         key={label}
                         onClick={() => { if (!isEditing) { setSelectedVariation(label); setIsEditing(false); } }}
-                        style={{ background: t.card, border: `2px solid ${isSelected ? color : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: isEditing ? 'default' : 'pointer', transition: 'all 150ms', boxShadow: isSelected ? `0 4px 16px ${color}25` : 'none' }}
+                        style={{ background: t.card, border: `2px solid ${isSelected ? color : t.border}`, borderRadius: 16, overflow: 'hidden', cursor: isEditing ? 'default' : 'pointer', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', boxShadow: isSelected ? `0 4px 16px ${color}25` : 'none' }}
+                        onMouseEnter={(e) => { if (!isSelected && !isEditing) { e.currentTarget.style.borderColor = `${color}60`; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 4px 16px ${color}18`; } }}
+                        onMouseLeave={(e) => { if (!isSelected && !isEditing) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; } }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: isSelected ? `${color}10` : 'transparent', borderBottom: `1px solid ${t.border}` }}>
                           <div style={{ width: 24, height: 24, borderRadius: 6, background: isSelected ? color : t.input, border: `2px solid ${isSelected ? color : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12, color: isSelected ? '#fff' : t.textMuted, flexShrink: 0 }}>
@@ -1637,13 +1639,15 @@ function ThemeCard({ selected, onClick, t, children }) {
       style={{
         padding: '22px 16px', background: selected ? t.primaryBg : t.card,
         border: `2px solid ${selected ? t.primary : t.border}`,
-        borderRadius: 14, cursor: 'pointer', transition: 'all 200ms ease',
+        borderRadius: 16, cursor: 'pointer',
+        transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
         textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center',
-        position: 'relative', transform: selected ? 'translateY(-2px)' : 'none',
-        boxShadow: selected ? '0 8px 24px rgba(124,92,252,0.2)' : 'none',
+        position: 'relative',
+        transform: selected ? 'translateY(-4px) scale(1.02)' : 'none',
+        boxShadow: selected ? `0 8px 32px rgba(124,92,252,0.25), 0 0 0 4px rgba(124,92,252,0.08)` : 'none',
       }}
-      onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.4)'; e.currentTarget.style.background = 'rgba(124,92,252,0.04)'; } }}
-      onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; } }}
+      onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.4)'; e.currentTarget.style.background = 'rgba(124,92,252,0.04)'; e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(124,92,252,0.15)'; } }}
+      onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; } }}
     >
       {selected && (
         <div style={{ position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: '50%', background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1667,10 +1671,11 @@ function SelectionPill({ t, icon, label }) {
 function Toggle({ value, onChange, t }) {
   return (
     <button
+      type="button"
       onClick={() => onChange(!value)}
-      style={{ width: 44, height: 24, borderRadius: 12, flexShrink: 0, background: value ? t.primary : t.border, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 200ms' }}
+      style={{ width: 48, height: 28, borderRadius: 14, flexShrink: 0, background: value ? '#34C759' : t.borderStrong, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 150ms ease', padding: 3, display: 'flex', alignItems: 'center', justifyContent: value ? 'flex-end' : 'flex-start' }}
     >
-      <div style={{ position: 'absolute', top: 3, left: value ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 200ms ease', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+      <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'transform 150ms cubic-bezier(0.34,1.56,0.64,1)' }} />
     </button>
   );
 }
@@ -1686,9 +1691,9 @@ function WizardNav({ t, onBack, onNext, canNext, nextLabel = 'Next →', nextSty
         <IpArrowLeft size={14} /> Back
       </button>
       <button onClick={onNext} disabled={!canNext}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 24px', background: canNext ? t.primary : t.textDisabled, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: canNext ? 'pointer' : 'not-allowed', transition: 'all 150ms', opacity: canNext ? 1 : 0.5, ...nextStyle }}
-        onMouseEnter={(e) => { if (canNext && !nextStyle.background) e.currentTarget.style.background = t.primaryHover; }}
-        onMouseLeave={(e) => { if (canNext && !nextStyle.background) e.currentTarget.style.background = t.primary; }}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 24px', background: canNext ? t.primary : t.textDisabled, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: canNext ? 'pointer' : 'not-allowed', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', opacity: canNext ? 1 : 0.5, ...nextStyle }}
+        onMouseEnter={(e) => { if (canNext) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.4)'; if (!nextStyle.background) e.currentTarget.style.background = t.primaryHover; } }}
+        onMouseLeave={(e) => { if (canNext) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; if (!nextStyle.background) e.currentTarget.style.background = t.primary; } }}
       >
         {nextLabel}
       </button>

@@ -278,12 +278,15 @@ export default function QuickPost() {
                   style={{
                     padding: '20px 18px',
                     background: sel ? t.primaryBg : (dark ? 'rgba(255,255,255,0.03)' : t.card),
-                    border: `1px solid ${sel ? t.primary : (dark ? 'rgba(255,255,255,0.07)' : t.border)}`,
-                    borderRadius: 14, cursor: 'pointer', textAlign: 'left',
-                    transition: 'all 150ms ease',
-                    boxShadow: sel ? `0 0 0 1px ${t.primary}22` : 'none',
+                    border: `2px solid ${sel ? t.primary : (dark ? 'rgba(255,255,255,0.07)' : t.border)}`,
+                    borderRadius: 16, cursor: 'pointer', textAlign: 'left',
+                    transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
+                    boxShadow: sel ? `0 4px 20px rgba(155,79,212,0.25), 0 0 0 3px rgba(155,79,212,0.08)` : 'none',
+                    transform: sel ? 'translateY(-2px)' : 'none',
                     display: 'flex', flexDirection: 'column', gap: 12,
                   }}
+                  onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 4px 16px rgba(155,79,212,0.12)`; } }}
+                  onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor = dark ? 'rgba(255,255,255,0.07)' : t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; } }}
                 >
                   <div style={{
                     width: 48, height: 48, borderRadius: 12,
@@ -342,12 +345,15 @@ export default function QuickPost() {
                     background: sel
                       ? `${jt.color}18`
                       : dark ? 'rgba(255,255,255,0.03)' : t.card,
-                    border: `1px solid ${sel ? jt.color + '55' : dark ? 'rgba(255,255,255,0.07)' : t.border}`,
+                    border: `2px solid ${sel ? jt.color + '88' : dark ? 'rgba(255,255,255,0.07)' : t.border}`,
                     borderRadius: 14, cursor: 'pointer', textAlign: 'center',
-                    transition: 'all 150ms ease',
-                    boxShadow: sel ? `0 0 0 1px ${jt.color}25` : 'none',
+                    transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
+                    boxShadow: sel ? `0 4px 16px ${jt.color}28` : 'none',
+                    transform: sel ? 'translateY(-2px) scale(1.02)' : 'none',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                   }}
+                  onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor = jt.color + '55'; e.currentTarget.style.background = `${jt.color}08`; e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'; e.currentTarget.style.boxShadow = `0 4px 16px ${jt.color}18`; } }}
+                  onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor = dark ? 'rgba(255,255,255,0.07)' : t.border; e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.03)' : t.card; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; } }}
                 >
                   <div style={{
                     width: 38, height: 38, borderRadius: 10,
@@ -556,9 +562,11 @@ export default function QuickPost() {
               border: `1px solid ${generating || !jobType ? t.border : 'transparent'}`,
               borderRadius: 14, fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em',
               cursor: generating ? 'not-allowed' : 'pointer',
-              transition: 'all 200ms',
+              transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
               boxShadow: generating || !jobType ? 'none' : '0 4px 24px rgba(155,79,212,0.35)',
             }}
+          onMouseEnter={e => { if (!generating && jobType) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(155,79,212,0.5)'; } }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = (!generating && jobType) ? '0 4px 24px rgba(155,79,212,0.35)' : 'none'; }}
           >
             {generating ? (
               <><Spinner size={17} color={t.textMuted} />{LOADING_MSGS[contentType][loadMsgIdx]}</>
@@ -701,7 +709,9 @@ export default function QuickPost() {
                 <button
                   onClick={handlePostNow}
                   disabled={posting || !result?.postId}
-                  style={{ width: '100%', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: posting ? 'rgba(124,92,252,0.6)' : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: posting ? 'not-allowed' : 'pointer', boxShadow: '0 2px 12px rgba(124,92,252,0.28)', transition: 'all 150ms' }}
+                  style={{ width: '100%', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: posting ? 'rgba(124,92,252,0.6)' : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: posting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 16px rgba(124,92,252,0.35)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
+                  onMouseEnter={e => { if (!posting) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(124,92,252,0.5)'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.35)'; }}
                 >
                   {posting ? <><Spinner size={15} /> Publishing…</> : <><IpSend size={15} color="#fff" /> Post Now</>}
                 </button>
