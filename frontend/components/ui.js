@@ -368,7 +368,7 @@ export function StatCard({ label, value, hint, accent = 'primary', onClick }) {
   return (
     <Card onClick={onClick} hoverable={!!onClick}>
       <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, letterSpacing: '-0.01em' }}>{label}</div>
-      <div style={{ fontSize: 32, fontWeight: 800, color: t.text, marginTop: 8, letterSpacing: '-0.04em', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 36, fontWeight: 800, color: t.text, marginTop: 8, letterSpacing: '-0.04em', lineHeight: 1 }}>{value}</div>
       {hint && <div style={{ fontSize: 12, color: accents[accent] || t.primary, marginTop: 6, fontWeight: 500 }}>{hint}</div>}
     </Card>
   );

@@ -148,10 +148,10 @@ export default function ForgotPassword() {
                       width: '100%', padding: '14px', display: 'flex',
                       alignItems: 'center', justifyContent: 'center', gap: 6,
                       fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
-                      background: loading ? t.textDisabled : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)',
+                      background: loading ? t.textDisabled : 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)',
                       border: 'none', borderRadius: 10, color: '#fff',
                       cursor: loading ? 'not-allowed' : 'pointer',
-                      boxShadow: loading ? 'none' : '0 4px 24px rgba(155,79,212,0.4)',
+                      boxShadow: loading ? 'none' : '0 4px 24px rgba(124,92,252,0.4)',
                       transition: 'opacity 150ms, box-shadow 150ms',
                     }}
                   >

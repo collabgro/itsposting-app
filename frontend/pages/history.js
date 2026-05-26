@@ -434,7 +434,7 @@ export default function History() {
                         {(isDraft || isScheduled) && (
                           <button
                             onClick={() => openPreview(post.id, 'edit')}
-                            style={{ padding: '5px 11px', background: 'rgba(155,79,212,0.10)', border: '1px solid rgba(155,79,212,0.3)', borderRadius: 7, fontSize: 11, fontWeight: 600, color: '#9B4FD4', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                            style={{ padding: '5px 11px', background: 'rgba(124,92,252,0.10)', border: '1px solid rgba(124,92,252,0.3)', borderRadius: 7, fontSize: 11, fontWeight: 600, color: '#7C5CFC', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                           >
                             <IpEdit size={11} /> Edit
                           </button>

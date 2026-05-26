@@ -423,26 +423,26 @@ export default function QuickPost() {
                     position: 'relative',
                     padding: '24px 10px 22px',
                     background: allActive
-                      ? 'rgba(155,79,212,0.14)'
+                      ? t.primaryBg
                       : dark ? 'rgba(255,255,255,0.03)' : t.card,
-                    border: `2px solid ${allActive ? '#9B4FD4' : (dark ? 'rgba(255,255,255,0.08)' : t.border)}`,
+                    border: `2px solid ${allActive ? t.primary : (dark ? 'rgba(255,255,255,0.08)' : t.border)}`,
                     borderRadius: 18, cursor: 'pointer',
                     display: 'flex', flexDirection: 'column',
                     alignItems: 'center', justifyContent: 'center', gap: 12,
                     transition: 'all 160ms ease',
-                    boxShadow: allActive ? '0 0 0 3px rgba(155,79,212,0.22), 0 4px 18px rgba(155,79,212,0.18)' : 'none',
+                    boxShadow: allActive ? `0 0 0 3px ${t.focusRing}, 0 4px 18px rgba(124,92,252,0.18)` : 'none',
                   }}
                 >
                   {allActive && (
-                    <div style={{ position: 'absolute', top: 9, right: 9, width: 20, height: 20, borderRadius: '50%', background: '#9B4FD4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ position: 'absolute', top: 9, right: 9, width: 20, height: 20, borderRadius: '50%', background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <IpCheck size={11} color="#fff" />
                     </div>
                   )}
                   <div style={{
                     width: 60, height: 60, borderRadius: 16,
-                    background: allActive ? 'rgba(155,79,212,0.22)' : dark ? 'rgba(255,255,255,0.06)' : t.input,
+                    background: allActive ? t.primaryBg : dark ? 'rgba(255,255,255,0.06)' : t.input,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: `1px solid ${allActive ? 'rgba(155,79,212,0.45)' : 'transparent'}`,
+                    border: `1px solid ${allActive ? t.primaryBorder : 'transparent'}`,
                     transition: 'background 160ms',
                   }}>
                     {/* Mini 2×2 grid of platform dots */}
@@ -452,7 +452,7 @@ export default function QuickPost() {
                       ))}
                     </div>
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.01em', textAlign: 'center', color: allActive ? '#9B4FD4' : t.textSecondary, lineHeight: 1.2 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.01em', textAlign: 'center', color: allActive ? t.primary : t.textSecondary, lineHeight: 1.2 }}>
                     All
                   </span>
                 </button>
@@ -557,16 +557,16 @@ export default function QuickPost() {
               width: '100%', height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
               background: generating || !jobType
                 ? dark ? 'rgba(255,255,255,0.06)' : t.input
-                : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)',
+                : 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)',
               color: generating || !jobType ? t.textMuted : '#fff',
               border: `1px solid ${generating || !jobType ? t.border : 'transparent'}`,
               borderRadius: 14, fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em',
               cursor: generating ? 'not-allowed' : 'pointer',
               transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
-              boxShadow: generating || !jobType ? 'none' : '0 4px 24px rgba(155,79,212,0.35)',
+              boxShadow: generating || !jobType ? 'none' : '0 4px 24px rgba(124,92,252,0.35)',
             }}
-          onMouseEnter={e => { if (!generating && jobType) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(155,79,212,0.5)'; } }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = (!generating && jobType) ? '0 4px 24px rgba(155,79,212,0.35)' : 'none'; }}
+          onMouseEnter={e => { if (!generating && jobType) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(124,92,252,0.5)'; } }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = (!generating && jobType) ? '0 4px 24px rgba(124,92,252,0.35)' : 'none'; }}
           >
             {generating ? (
               <><Spinner size={17} color={t.textMuted} />{LOADING_MSGS[contentType][loadMsgIdx]}</>
@@ -709,7 +709,7 @@ export default function QuickPost() {
                 <button
                   onClick={handlePostNow}
                   disabled={posting || !result?.postId}
-                  style={{ width: '100%', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: posting ? 'rgba(124,92,252,0.6)' : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: posting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 16px rgba(124,92,252,0.35)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
+                  style={{ width: '100%', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: posting ? 'rgba(124,92,252,0.6)' : 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: posting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 16px rgba(124,92,252,0.35)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
                   onMouseEnter={e => { if (!posting) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(124,92,252,0.5)'; } }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.35)'; }}
                 >

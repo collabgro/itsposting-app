@@ -131,7 +131,7 @@ export default function Signup() {
                   height: 4, borderRadius: 4,
                   width: step >= s ? 48 : 24,
                   background: step >= s
-                    ? 'linear-gradient(90deg, #9B4FD4, #C44BB8)'
+                    ? 'linear-gradient(90deg, #00C4CC, #7C5CFC)'
                     : theme === 'dark' ? 'rgba(255,255,255,0.1)' : t.border,
                   transition: 'all 400ms cubic-bezier(0.16,1,0.3,1)',
                 }} />
@@ -226,9 +226,9 @@ export default function Signup() {
                       width: '100%', padding: '14px', display: 'flex',
                       alignItems: 'center', justifyContent: 'center', gap: 6,
                       fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
-                      background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)',
+                      background: 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)',
                       border: 'none', borderRadius: 10, color: '#fff', cursor: 'pointer',
-                      boxShadow: '0 4px 24px rgba(155,79,212,0.4)',
+                      boxShadow: '0 4px 24px rgba(124,92,252,0.4)',
                       transition: 'opacity 150ms, box-shadow 150ms',
                     }}
                   >
@@ -299,10 +299,10 @@ export default function Signup() {
                         flex: 1, padding: '14px', display: 'flex',
                         alignItems: 'center', justifyContent: 'center', gap: 6,
                         fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
-                        background: loading ? t.textDisabled : 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)',
+                        background: loading ? t.textDisabled : 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)',
                         border: 'none', borderRadius: 10, color: '#fff',
                         cursor: loading ? 'not-allowed' : 'pointer',
-                        boxShadow: loading ? 'none' : '0 4px 24px rgba(155,79,212,0.4)',
+                        boxShadow: loading ? 'none' : '0 4px 24px rgba(124,92,252,0.4)',
                         transition: 'opacity 150ms, box-shadow 150ms',
                       }}
                     >

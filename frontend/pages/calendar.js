@@ -376,7 +376,7 @@ export default function Calendar() {
                           border: isSelected
                             ? `1.5px solid ${t.primary}`
                             : isToday
-                            ? `1.5px solid ${t.primaryBorder}`
+                            ? `1.5px solid ${t.primary}`
                             : !hasPosts && !isPast && isCurrentMonth
                             ? `1px dashed ${t.border}`
                             : `1px solid ${t.border}`,
@@ -393,7 +393,7 @@ export default function Calendar() {
                         }}
                         onMouseLeave={e => {
                           if (!isSelected) {
-                            e.currentTarget.style.borderColor = isToday ? t.primaryBorder : t.border;
+                            e.currentTarget.style.borderColor = isToday ? t.primary : t.border;
                             e.currentTarget.style.borderStyle = (!hasPosts && !isPast && isCurrentMonth) ? 'dashed' : 'solid';
                             e.currentTarget.style.background = isToday ? 'rgba(124,92,252,0.05)' : isCurrentMonth ? t.card : t.input;
                           }
@@ -428,9 +428,9 @@ export default function Calendar() {
                                   key={post.id}
                                   title={caption}
                                   style={{
-                                    fontSize: 10, padding: '3px 5px', borderRadius: 4,
+                                    fontSize: 10, padding: '3px 5px', borderRadius: 6,
                                     background: `${typeColor}18`,
-                                    border: `1px solid ${typeColor}40`,
+                                    borderLeft: `3px solid ${typeColor}`,
                                     color: typeColor,
                                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                     display: 'flex', alignItems: 'center', gap: 3,

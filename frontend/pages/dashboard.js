@@ -574,14 +574,14 @@ function ContentHealthBar({ data, t, router }) {
 const TOUR_STEPS = [
   {
     iconBg: 'rgba(124,92,252,0.15)',
-    iconColor: '#9B4FD4',
+    iconColor: '#7C5CFC',
     Icon: IpSparkle,
     title: 'Meet PostCore, your AI advisor',
     body: 'PostCore learns your trade, your season, and your location — then writes social posts that actually sound like you. No blank boxes, no guessing what to say.',
   },
   {
     iconBg: 'rgba(196,75,184,0.15)',
-    iconColor: '#C44BB8',
+    iconColor: '#9B7FFF',
     Icon: IpPlus,
     title: 'Generate a post in 60 seconds',
     body: 'Tap the + button any time. PostCore asks 3 quick questions and returns 3 ready-to-use variations with images. Tap one, post it. Done.',
@@ -631,7 +631,7 @@ function DashboardTour({ onClose, router }) {
             <div key={i} style={{
               height: 3, flex: i === step ? 2 : 1, borderRadius: 3,
               background: i <= step
-                ? 'linear-gradient(90deg, #9B4FD4, #C44BB8)'
+                ? 'linear-gradient(90deg, #00C4CC, #7C5CFC)'
                 : t.border,
               transition: 'all 400ms cubic-bezier(0.16,1,0.3,1)',
             }} />
@@ -672,7 +672,7 @@ function DashboardTour({ onClose, router }) {
             onClick={isLast ? goCreate : next}
             style={{
               padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 6,
-              background: 'linear-gradient(135deg, #9B4FD4 0%, #C44BB8 100%)',
+              background: 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)',
               border: 'none', borderRadius: 10, color: '#fff',
               fontSize: 13, fontWeight: 700, cursor: 'pointer',
               boxShadow: '0 4px 16px rgba(155,79,212,0.35)',

@@ -96,9 +96,9 @@ export default function App({ Component, pageProps }) {
         <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
           <defs>
             <linearGradient id="brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%"   stopColor="#9B4FD4" />
-              <stop offset="50%"  stopColor="#C44BB8" />
-              <stop offset="100%" stopColor="#E040A0" />
+              <stop offset="0%"   stopColor="#00C4CC" />
+              <stop offset="50%"  stopColor="#7C5CFC" />
+              <stop offset="100%" stopColor="#9B7FFF" />
             </linearGradient>
           </defs>
         </svg>

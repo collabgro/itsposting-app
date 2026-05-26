@@ -161,7 +161,7 @@ export default function PostPreviewModal({ post, allPosts, onClose, onNavigate, 
               <>
                 <button
                   onClick={() => setMode('edit')}
-                  style={{ padding: '9px 22px', background: 'linear-gradient(135deg,#9B4FD4,#C44BB8)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(155,79,212,0.3)' }}
+                  style={{ padding: '9px 22px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(124,92,252,0.3)' }}
                 >
                   ✏ Edit Post
                 </button>
@@ -258,7 +258,7 @@ export default function PostPreviewModal({ post, allPosts, onClose, onNavigate, 
                 <button
                   onClick={handleSave}
                   disabled={saving || charOver}
-                  style={{ flex: 2, padding: '10px', background: saving || charOver ? t.border : 'linear-gradient(135deg,#9B4FD4,#C44BB8)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving || charOver ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}
+                  style={{ flex: 2, padding: '10px', background: saving || charOver ? t.border : 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, cursor: saving || charOver ? 'default' : 'pointer', opacity: saving ? 0.7 : 1 }}
                 >
                   {saving ? 'Saving…' : 'Save Changes'}
                 </button>
