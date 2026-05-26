@@ -45,7 +45,7 @@ a {
 
 /* ── Text selection ──────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(155, 79, 212, 0.25);
+  background: rgba(124, 92, 252, 0.25);
   color: inherit;
 }
 
@@ -57,7 +57,7 @@ textarea::placeholder {
 
 /* ── Focus-visible (keyboard nav) ────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid #9B4FD4;
+  outline: 2px solid #7C5CFC;
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -185,14 +185,14 @@ body[data-theme="light"] .shimmer {
 }
 
 .icon-gradient {
-  background: linear-gradient(135deg, #9B4FD4 0%, #C44BB8 50%, #E040A0 100%);
+  background: linear-gradient(135deg, #00C4CC 0%, #7C5CFC 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .animated-gradient-text {
-  background: linear-gradient(135deg, #9B4FD4, #C44BB8, #E040A0, #9B4FD4);
+  background: linear-gradient(135deg, #00C4CC, #7C5CFC, #9B7FFF, #00C4CC);
   background-size: 300% 300%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
