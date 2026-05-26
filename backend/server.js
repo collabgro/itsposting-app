@@ -1200,6 +1200,197 @@ console.log('══════════════════════�
           r('e17',null,{ x:80,y:1248,width:920,height:1,fill:'rgba(255,255,255,0.08)' }),
           t('e18',null,{ x:80,y:1268,width:920,height:52,text:'Business Name  •  [City]',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
         ]) },
+
+      // ── ROOFING batch 2 ───────────────────────────────────────────────────────
+
+      { name: 'Roofing — Meet the Crew', industry: 'roofing', category: 'team', sort_order: 205,
+        canvas_json: mkPage('#17263C', [
+          // ── Photo zone ──────────────────────────────────────────────────────
+          r('e1',null,{ x:0,y:0,width:1080,height:820,fill:'#0D1B2E' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:820,fill:'#000000',opacity:0.30 }),
+          t('e3',null,{ x:80,y:330,width:920,height:160,text:'📸  Add your crew photo here\n1080 × 820 px',fontFamily:'Inter',fontSize:30,fill:'rgba(255,255,255,0.14)',align:'center',verticalAlign:'middle',lineHeight:1.6 }),
+          // gradient fade effect — two stacked rects
+          r('e4',null,{ x:0,y:600,width:1080,height:120,fill:'#17263C',opacity:0.55 }),
+          r('e5',null,{ x:0,y:720,width:1080,height:100,fill:'#17263C',opacity:0.90 }),
+          // ── Info panel ──────────────────────────────────────────────────────
+          r('e6',null,{ x:0,y:820,width:1080,height:530,fill:'#17263C' }),
+          // Name tag pill
+          r('e7',null,{ x:80,y:756,width:580,height:64,fill:'#FFC107',cornerRadius:10 }),
+          t('e8',null,{ x:80,y:756,width:580,height:64,text:'Mike Torres  ·  Lead Roofer',fontFamily:'Inter',fontSize:26,fontStyle:'bold',fill:'#17263C',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('e9',null,{ x:80,y:864,width:920,height:72,text:'The people protecting',fontFamily:'Inter',fontSize:56,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e10',null,{ x:80,y:934,width:920,height:72,text:'your home. 🏠',fontFamily:'Inter',fontSize:56,fontStyle:'bold',fill:'#FFC107',align:'left',verticalAlign:'middle' }),
+          // Stats bar bg
+          r('e11',null,{ x:80,y:1038,width:920,height:108,fill:'rgba(255,255,255,0.05)',cornerRadius:12 }),
+          // Stat: Years
+          t('e12',null,{ x:80,y:1052,width:280,height:54,text:'15+',fontFamily:'Inter',fontSize:46,fontStyle:'bold',fill:'#FFC107',align:'center',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:1108,width:280,height:28,text:'Years',fontFamily:'Inter',fontSize:18,fill:'rgba(255,255,255,0.45)',align:'center',verticalAlign:'middle' }),
+          r('e14',null,{ x:372,y:1056,width:1,height:88,fill:'#ffffff',opacity:0.10 }),
+          // Stat: Roofs
+          t('e15',null,{ x:400,y:1052,width:280,height:54,text:'800+',fontFamily:'Inter',fontSize:46,fontStyle:'bold',fill:'#FFC107',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:400,y:1108,width:280,height:28,text:'Roofs Done',fontFamily:'Inter',fontSize:18,fill:'rgba(255,255,255,0.45)',align:'center',verticalAlign:'middle' }),
+          r('e17',null,{ x:694,y:1056,width:1,height:88,fill:'#ffffff',opacity:0.10 }),
+          // Stat: Rating
+          t('e18',null,{ x:720,y:1052,width:280,height:54,text:'5.0 ⭐',fontFamily:'Inter',fontSize:46,fontStyle:'bold',fill:'#FFC107',align:'center',verticalAlign:'middle' }),
+          t('e19',null,{ x:720,y:1108,width:280,height:28,text:'Rating',fontFamily:'Inter',fontSize:18,fill:'rgba(255,255,255,0.45)',align:'center',verticalAlign:'middle' }),
+          // Bio
+          t('e20',null,{ x:80,y:1188,width:920,height:76,text:'12 years installing roofs across the region. Dad, coffee fanatic, and genuinely proud to serve this community.',fontFamily:'Inter',fontSize:25,fill:'#FFC107',align:'left',verticalAlign:'top',lineHeight:1.5,opacity:0.85 }),
+          // Footer
+          r('e21',null,{ x:80,y:1278,width:920,height:1,fill:'#ffffff',opacity:0.10 }),
+          t('e22',null,{ x:80,y:1298,width:680,height:42,text:'Peak Roofing Co.  ·  Licensed & Insured',fontFamily:'Inter',fontSize:21,fill:'rgba(255,255,255,0.42)',align:'left',verticalAlign:'middle' }),
+          t('e23',null,{ x:800,y:1298,width:200,height:42,text:'GAF Elite',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.22)',align:'right',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Roofing — Insurance Claim Help', industry: 'roofing', category: 'educational', sort_order: 206,
+        canvas_json: mkPage('#1F3A5F', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#1F3A5F' }),
+          // Green top banner
+          r('e2',null,{ x:0,y:0,width:1080,height:110,fill:'#43B97F' }),
+          t('e3',null,{ x:0,y:0,width:1080,height:110,text:'INSURANCE CLAIM HELP',fontFamily:'Inter',fontSize:38,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Big headline stacked
+          t('e4',null,{ x:80,y:148,width:920,height:112,text:'YOUR INSURANCE',fontFamily:'Inter',fontSize:92,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:258,width:920,height:112,text:'SHOULD PAY',fontFamily:'Inter',fontSize:92,fontStyle:'bold',fill:'#43B97F',align:'left',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:368,width:920,height:112,text:'FOR THAT.',fontFamily:'Inter',fontSize:92,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Body copy
+          t('e7',null,{ x:80,y:502,width:920,height:156,text:'Most homeowners end up paying out of pocket for something insurance should cover. We\'ve helped hundreds of [City] families get their roof replaced through insurance.',fontFamily:'Inter',fontSize:26,fill:'rgba(255,255,255,0.72)',align:'left',verticalAlign:'top',lineHeight:1.55 }),
+          // Steps label
+          t('e8',null,{ x:80,y:686,width:920,height:36,text:'HOW IT WORKS',fontFamily:'Inter',fontSize:15,fontStyle:'bold',fill:'#43B97F',align:'left',verticalAlign:'middle' }),
+          // Step 1
+          r('e9',null,{ x:80,y:738,width:56,height:56,fill:'rgba(67,185,127,0.18)',cornerRadius:28 }),
+          t('e10',null,{ x:80,y:738,width:56,height:56,text:'01',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#43B97F',align:'center',verticalAlign:'middle' }),
+          t('e11',null,{ x:150,y:738,width:850,height:56,text:'Free inspection — we document everything for your claim',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Step 2
+          r('e12',null,{ x:80,y:812,width:56,height:56,fill:'rgba(67,185,127,0.18)',cornerRadius:28 }),
+          t('e13',null,{ x:80,y:812,width:56,height:56,text:'02',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#43B97F',align:'center',verticalAlign:'middle' }),
+          t('e14',null,{ x:150,y:812,width:850,height:56,text:'We meet your adjuster on-site and advocate for you',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Step 3
+          r('e15',null,{ x:80,y:886,width:56,height:56,fill:'rgba(67,185,127,0.18)',cornerRadius:28 }),
+          t('e16',null,{ x:80,y:886,width:56,height:56,text:'03',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#43B97F',align:'center',verticalAlign:'middle' }),
+          t('e17',null,{ x:150,y:886,width:850,height:56,text:'Full roof replacement — start to finish, no surprises',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Step 4
+          r('e18',null,{ x:80,y:960,width:56,height:56,fill:'rgba(67,185,127,0.18)',cornerRadius:28 }),
+          t('e19',null,{ x:80,y:960,width:56,height:56,text:'04',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#43B97F',align:'center',verticalAlign:'middle' }),
+          t('e20',null,{ x:150,y:960,width:850,height:56,text:'You enjoy a brand-new roof — insurer handles the bill',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Phone
+          t('e21',null,{ x:80,y:1072,width:920,height:96,text:'(555) 000-0000',fontFamily:'Inter',fontSize:70,fontStyle:'bold',fill:'#43B97F',align:'center',verticalAlign:'middle' }),
+          t('e22',null,{ x:80,y:1182,width:920,height:44,text:'DM us \'CLAIM\' for a free damage assessment',fontFamily:'Inter',fontSize:24,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e23',null,{ x:80,y:1258,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e24',null,{ x:80,y:1280,width:920,height:50,text:'Business Name  ·  [City]  ·  Licensed & Insured',fontFamily:'Inter',fontSize:21,fill:'rgba(255,255,255,0.35)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Roofing — Reel Hook', industry: 'roofing', category: 'video', sort_order: 207,
+        canvas_json: mkPage('#000000', [
+          // Dark cinematic background
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0A1628' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:1350,fill:'#000000',opacity:0.50 }),
+          // Bottom vignette
+          r('e3',null,{ x:0,y:700,width:1080,height:650,fill:'#000000',opacity:0.72 }),
+          // Video placeholder label (center zone)
+          t('e4',null,{ x:80,y:200,width:920,height:200,text:'🎬  Add your best job-site\naction shot or video frame here',fontFamily:'Inter',fontSize:32,fill:'rgba(255,255,255,0.12)',align:'center',verticalAlign:'middle',lineHeight:1.5 }),
+          // POV badge (yellow)
+          r('e5',null,{ x:80,y:80,width:138,height:56,fill:'#F5C518',cornerRadius:8 }),
+          t('e6',null,{ x:80,y:80,width:138,height:56,text:'POV',fontFamily:'Inter',fontSize:26,fontStyle:'bold',fill:'#0A2342',align:'center',verticalAlign:'middle' }),
+          // Duration badge (dark glass)
+          r('e7',null,{ x:840,y:80,width:162,height:56,fill:'rgba(0,0,0,0.62)',cornerRadius:8 }),
+          t('e8',null,{ x:840,y:80,width:162,height:56,text:'0:27 · Reel',fontFamily:'Inter',fontSize:20,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Hook text — 3-line punch
+          t('e9',null,{ x:80,y:420,width:920,height:98,text:'This 25-year-old roof',fontFamily:'Inter',fontSize:74,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e10',null,{ x:80,y:516,width:920,height:98,text:'got completely replaced',fontFamily:'Inter',fontSize:74,fontStyle:'bold',fill:'#F5C518',align:'center',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:612,width:920,height:98,text:'in under 2 days. 🤯',fontFamily:'Inter',fontSize:74,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Play button (yellow circle + triangle)
+          r('e12',null,{ x:450,y:748,width:180,height:180,fill:'#F5C518',cornerRadius:90,opacity:0.92 }),
+          t('e13',null,{ x:450,y:748,width:180,height:180,text:'▶',fontFamily:'Inter',fontSize:70,fill:'#0A2342',align:'center',verticalAlign:'middle' }),
+          // Scene bars label
+          t('e14',null,{ x:80,y:988,width:920,height:26,text:'SCENES',fontFamily:'Inter',fontSize:13,fontStyle:'bold',fill:'rgba(255,255,255,0.32)',align:'left',verticalAlign:'middle' }),
+          // Scene bar 1 — full (active)
+          r('e15',null,{ x:80,y:1022,width:920,height:5,fill:'#F5C518',cornerRadius:3 }),
+          t('e16',null,{ x:80,y:1036,width:540,height:22,text:'Arrival shot',fontFamily:'Inter',fontSize:16,fill:'rgba(255,255,255,0.45)',align:'left',verticalAlign:'middle' }),
+          t('e17',null,{ x:620,y:1036,width:380,height:22,text:'0:00 – 0:04',fontFamily:'Inter',fontSize:16,fill:'rgba(255,255,255,0.28)',align:'right',verticalAlign:'middle' }),
+          // Scene bar 2
+          r('e18',null,{ x:80,y:1068,width:700,height:5,fill:'#F5C518',cornerRadius:3,opacity:0.75 }),
+          r('e19',null,{ x:780,y:1068,width:220,height:5,fill:'rgba(255,255,255,0.10)',cornerRadius:3 }),
+          t('e20',null,{ x:80,y:1082,width:920,height:22,text:'Old roof — wide shot',fontFamily:'Inter',fontSize:16,fill:'rgba(255,255,255,0.45)',align:'left',verticalAlign:'middle' }),
+          // Scene bar 3
+          r('e21',null,{ x:80,y:1114,width:440,height:5,fill:'#F5C518',cornerRadius:3,opacity:0.50 }),
+          r('e22',null,{ x:524,y:1114,width:476,height:5,fill:'rgba(255,255,255,0.10)',cornerRadius:3 }),
+          t('e23',null,{ x:80,y:1128,width:920,height:22,text:'Tear-off timelapse',fontFamily:'Inter',fontSize:16,fill:'rgba(255,255,255,0.45)',align:'left',verticalAlign:'middle' }),
+          // Scene bar 4
+          r('e24',null,{ x:80,y:1160,width:200,height:5,fill:'#F5C518',cornerRadius:3,opacity:0.28 }),
+          r('e25',null,{ x:284,y:1160,width:716,height:5,fill:'rgba(255,255,255,0.10)',cornerRadius:3 }),
+          t('e26',null,{ x:80,y:1174,width:920,height:22,text:'New shingles install',fontFamily:'Inter',fontSize:16,fill:'rgba(255,255,255,0.45)',align:'left',verticalAlign:'middle' }),
+          // Scene bar 5
+          r('e27',null,{ x:80,y:1206,width:80,height:5,fill:'#F5C518',cornerRadius:3,opacity:0.14 }),
+          r('e28',null,{ x:164,y:1206,width:836,height:5,fill:'rgba(255,255,255,0.10)',cornerRadius:3 }),
+          t('e29',null,{ x:80,y:1220,width:920,height:22,text:'Final reveal + brand card',fontFamily:'Inter',fontSize:16,fill:'rgba(255,255,255,0.45)',align:'left',verticalAlign:'middle' }),
+          // Business name + handle
+          t('e30',null,{ x:80,y:1290,width:920,height:40,text:'Peak Roofing Co.  ·  @peakroofing',fontFamily:'Inter',fontSize:20,fontStyle:'bold',fill:'rgba(255,255,255,0.55)',align:'right',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Roofing — Financing Available', industry: 'roofing', category: 'promotional', sort_order: 208,
+        canvas_json: mkPage('#0F2027', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0F2027' }),
+          // Subtle bg gradient variation
+          r('e2',null,{ x:0,y:0,width:1080,height:700,fill:'#203A43',opacity:0.50 }),
+          // Green glow (large faint ellipse top-right)
+          r('e3',null,{ x:600,y:-100,width:700,height:700,fill:'#43EA80',opacity:0.04,cornerRadius:350 }),
+          // Ghost "FREE" watermark
+          t('e4',null,{ x:-80,y:20,width:1200,height:460,text:'FREE',fontFamily:'Inter',fontSize:370,fontStyle:'bold',fill:'rgba(67,234,128,0.04)',align:'left',verticalAlign:'middle' }),
+          // Financing badge
+          r('e5',null,{ x:80,y:80,width:480,height:60,fill:'rgba(67,234,128,0.10)',cornerRadius:30 }),
+          t('e6',null,{ x:80,y:80,width:480,height:60,text:'💳  FINANCING AVAILABLE',fontFamily:'Inter',fontSize:20,fontStyle:'bold',fill:'#43EA80',align:'center',verticalAlign:'middle' }),
+          // Headline stacked
+          t('e7',null,{ x:80,y:192,width:920,height:118,text:'A NEW ROOF',fontFamily:'Inter',fontSize:100,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e8',null,{ x:80,y:308,width:920,height:118,text:'WITHOUT THE',fontFamily:'Inter',fontSize:100,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e9',null,{ x:80,y:424,width:920,height:118,text:'STICKER SHOCK.',fontFamily:'Inter',fontSize:100,fontStyle:'bold',fill:'#43EA80',align:'left',verticalAlign:'middle' }),
+          // Body copy
+          t('e10',null,{ x:80,y:572,width:920,height:160,text:'We offer flexible financing for [City] homeowners so you can stop patching and start protecting your family. Approved on credit — ask us today.',fontFamily:'Inter',fontSize:26,fill:'rgba(255,255,255,0.65)',align:'left',verticalAlign:'top',lineHeight:1.55 }),
+          // Offer label
+          t('e11',null,{ x:80,y:764,width:920,height:36,text:'CURRENT OFFER',fontFamily:'Inter',fontSize:15,fontStyle:'bold',fill:'rgba(67,234,128,0.70)',align:'left',verticalAlign:'middle' }),
+          // Big offer text
+          t('e12',null,{ x:80,y:800,width:920,height:92,text:'0% interest for 18 months',fontFamily:'Inter',fontSize:64,fontStyle:'bold',fill:'#43EA80',align:'left',verticalAlign:'middle' }),
+          // Terms
+          t('e13',null,{ x:80,y:904,width:920,height:62,text:'On approved credit. Full replacements over $3,000. [City] residents.',fontFamily:'Inter',fontSize:21,fill:'rgba(255,255,255,0.42)',align:'left',verticalAlign:'top',lineHeight:1.4 }),
+          // Divider
+          r('e14',null,{ x:80,y:978,width:920,height:1,fill:'#43EA80',opacity:0.18 }),
+          // Phone button (dark glass)
+          r('e15',null,{ x:80,y:1012,width:920,height:118,fill:'rgba(255,255,255,0.08)',cornerRadius:16 }),
+          t('e16',null,{ x:80,y:1012,width:920,height:118,text:'(555) 000-0000',fontFamily:'Inter',fontSize:74,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Sub label
+          t('e17',null,{ x:80,y:1158,width:920,height:44,text:'Ask about financing — [City] residents',fontFamily:'Inter',fontSize:24,fill:'rgba(67,234,128,0.55)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e18',null,{ x:80,y:1244,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e19',null,{ x:80,y:1266,width:920,height:52,text:'Business Name  ·  [City]',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.32)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Roofing — Google Review Ask', industry: 'roofing', category: 'social-proof', sort_order: 209,
+        canvas_json: mkPage('#1B2838', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#1B2838' }),
+          // Radial glow (large faint circle centred behind stars/headline)
+          r('e2',null,{ x:190,y:320,width:700,height:700,fill:'#4285F4',opacity:0.05,cornerRadius:350 }),
+          // Decorative oversized "G" letterform (recognition without using Google's logo)
+          t('e3',null,{ x:180,y:40,width:720,height:800,text:'G',fontFamily:'Inter',fontSize:760,fontStyle:'bold',fill:'rgba(66,133,244,0.05)',align:'center',verticalAlign:'top' }),
+          // 5 gold stars
+          t('e4',null,{ x:80,y:224,width:920,height:100,text:'⭐⭐⭐⭐⭐',fontFamily:'Inter',fontSize:76,fill:'#FBBC04',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('e5',null,{ x:80,y:386,width:920,height:108,text:'Did we do',fontFamily:'Inter',fontSize:88,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:492,width:920,height:108,text:'a great job?',fontFamily:'Inter',fontSize:88,fontStyle:'bold',fill:'#FBBC04',align:'center',verticalAlign:'middle' }),
+          // Short gold accent divider
+          r('e7',null,{ x:440,y:644,width:200,height:2,fill:'#FBBC04',opacity:0.32 }),
+          // Body copy — warm, human, not pushy
+          t('e8',null,{ x:80,y:686,width:920,height:52,text:'Your review helps [City] families',fontFamily:'Inter',fontSize:35,fill:'#FBBC04',align:'center',verticalAlign:'middle',opacity:0.90 }),
+          t('e9',null,{ x:80,y:740,width:920,height:52,text:'find a roofer they can actually trust.',fontFamily:'Inter',fontSize:35,fill:'#FBBC04',align:'center',verticalAlign:'middle',opacity:0.90 }),
+          t('e10',null,{ x:80,y:832,width:920,height:50,text:'It takes 60 seconds — and it means everything to us.',fontFamily:'Inter',fontSize:26,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:900,width:920,height:44,text:'We recently completed: your full roof replacement.',fontFamily:'Inter',fontSize:23,fill:'rgba(255,255,255,0.30)',align:'center',verticalAlign:'middle' }),
+          // Google blue CTA button (rounded pill)
+          r('e12',null,{ x:80,y:988,width:920,height:120,fill:'#4285F4',cornerRadius:60 }),
+          t('e13',null,{ x:80,y:988,width:920,height:120,text:'Leave a Google Review →',fontFamily:'Inter',fontSize:38,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Link note below button
+          t('e14',null,{ x:80,y:1142,width:920,height:44,text:'Link in bio  ·  Takes 60 seconds',fontFamily:'Inter',fontSize:24,fill:'rgba(255,255,255,0.30)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e15',null,{ x:80,y:1238,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e16',null,{ x:80,y:1260,width:920,height:52,text:'Business Name  ·  Licensed & Insured',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.35)',align:'left',verticalAlign:'middle' }),
+        ]) },
     ];
 
     let inserted = 0;

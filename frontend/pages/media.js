@@ -253,6 +253,11 @@ export default function MediaLibrary() {
     'Roofing — 5-Star Review Spotlight': 'happy homeowner house exterior',
     'Roofing — 5 Warning Signs':         'old damaged roof shingles',
     'Roofing — Free Estimate Offer':     'beautiful new roof sunny day',
+    'Roofing — Meet the Crew':           'construction workers hard hats job site',
+    'Roofing — Insurance Claim Help':    'homeowner insurance paperwork storm damage',
+    'Roofing — Reel Hook':               'roofer installing shingles residential home',
+    'Roofing — Financing Available':     'white house maple trees suburban',
+    'Roofing — Google Review Ask':       'happy people smiling satisfied customers',
   };
 
   useEffect(() => {
