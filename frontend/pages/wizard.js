@@ -363,7 +363,7 @@ export default function Wizard() {
   const [theme, setTheme] = useState(null);       // Step 3
   const [tone, setTone] = useState(null);         // Step 4
   const [details, setDetails] = useState('');     // Step 5
-  const [platform, setPlatform] = useState(null); // Step 6
+  const [selectedPlatforms, setSelectedPlatforms] = useState([]); // Step 6
   const [includeCTA, setIncludeCTA] = useState(true);
 
   const [results, setResults] = useState(null);
@@ -435,7 +435,8 @@ export default function Wizard() {
             ? data.pre_generated_caption
             : data.pre_generated_caption?.caption || '';
           setResults({ variations: { a: { caption, hashtags: [], imagePrompt: '', engagementQuestion: '' } }, fromSuggestion: true });
-          setPlatform(data.platform || 'all');
+          const sp = data.platform || 'all';
+          setSelectedPlatforms(sp === 'all' ? ['facebook','instagram','google_business','linkedin','tiktok'] : [sp]);
           setStep('results');
         }
         sessionStorage.removeItem('suggestionPost');
@@ -449,7 +450,7 @@ export default function Wizard() {
         const data = JSON.parse(quickPostResult);
         if (data.result && (!data.timestamp || Date.now() - data.timestamp < 30 * 60 * 1000)) {
           setResults(data.result);
-          setPlatform(data.platforms?.[0] || 'facebook');
+          setSelectedPlatforms(data.platforms || [data.platforms?.[0] || 'facebook']);
           setTone(data.tone || 'friendly');
           setStep('results');
         }
@@ -542,7 +543,7 @@ export default function Wizard() {
     if (step === 3) return !!theme;
     if (step === 4) return !!tone;
     if (step === 5) return true;
-    if (step === 6) return !!platform;
+    if (step === 6) return selectedPlatforms.length > 0;
     return false;
   };
 
@@ -558,7 +559,7 @@ export default function Wizard() {
   };
 
   const handleReset = () => {
-    setStep(1); setContentType(null); setVideoType('services'); setTheme(null); setTone(null); setPlatform(null);
+    setStep(1); setContentType(null); setVideoType('services'); setTheme(null); setTone(null); setSelectedPlatforms([]);
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
     setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null);
     setSelectedVariation('A'); setActionLoading(false); setActionToast(null);
@@ -572,6 +573,20 @@ export default function Wizard() {
 
   const handleTryDifferentTone = () => {
     setStep(4); setTone(null); setResults(null);
+  };
+
+  const ALL_PLATFORM_IDS = PLATFORMS.filter(p => p.id !== 'all').map(p => p.id);
+
+  const togglePlatform = (id) => {
+    if (id === 'all') {
+      setSelectedPlatforms(prev =>
+        prev.length === ALL_PLATFORM_IDS.length ? [] : [...ALL_PLATFORM_IDS]
+      );
+    } else {
+      setSelectedPlatforms(prev =>
+        prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+      );
+    }
   };
 
   const handleGenerate = async () => {
@@ -588,7 +603,9 @@ export default function Wizard() {
       await apiPost('/api/wizard/step', { wizardId, stepId: 'tone', answers: { value: tone } });
       const detailsObj = buildDetailsObject(theme, details.trim());
       await apiPost('/api/wizard/step', { wizardId, stepId: 'details', answers: { ...detailsObj, includeCTA } });
-      await apiPost('/api/wizard/step', { wizardId, stepId: 'platform', answers: { value: platform } });
+      const platformValue = selectedPlatforms.length >= ALL_PLATFORM_IDS.length ? 'all' :
+        selectedPlatforms.length === 1 ? selectedPlatforms[0] : 'all';
+      await apiPost('/api/wizard/step', { wizardId, stepId: 'platform', answers: { value: platformValue } });
       if (selectedFormat) {
         await apiPost('/api/wizard/step', { wizardId, stepId: 'selected_format', answers: { value: selectedFormat } });
       }
@@ -1119,25 +1136,27 @@ export default function Wizard() {
         ───────────────────────────────────────────────────────────────────── */}
         {step === 6 && (
           <div>
-            <StepHeading t={t} icon="all_platforms" title="Where are we posting?" sub="PostCore will adapt the caption style for each platform" />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 32 }}>
+            <StepHeading t={t} icon="all_platforms" title="Where are we posting?" sub="Select one or more platforms — PostCore adapts the caption for each" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 16 }}>
               {PLATFORMS.map((item) => {
-                const selected = platform === item.id;
+                const selected = item.id === 'all'
+                  ? selectedPlatforms.length === ALL_PLATFORM_IDS.length
+                  : selectedPlatforms.includes(item.id);
                 const Icon = item.icon;
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setPlatform(item.id)}
+                    onClick={() => togglePlatform(item.id)}
                     style={{
                       padding: '22px 16px', background: selected ? item.bg : t.card,
                       border: `2px solid ${selected ? item.color : t.border}`,
-                      borderRadius: 14, cursor: 'pointer', transition: 'all 200ms ease',
+                      borderRadius: 14, cursor: 'pointer', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
                       textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center',
                       position: 'relative', transform: selected ? 'translateY(-2px)' : 'none',
                       boxShadow: selected ? `0 8px 24px ${item.bg}` : 'none',
                     }}
-                    onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = item.border; e.currentTarget.style.background = item.bg; } }}
-                    onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; } }}
+                    onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = item.border; e.currentTarget.style.background = item.bg; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+                    onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; e.currentTarget.style.transform = 'none'; } }}
                   >
                     {selected && (
                       <div style={{ position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: '50%', background: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1152,6 +1171,12 @@ export default function Wizard() {
                   </button>
                 );
               })}
+            </div>
+            {/* Selection summary */}
+            <div style={{ marginBottom: 20, fontSize: 13, color: selectedPlatforms.length > 0 ? t.primary : t.textMuted, fontWeight: 500, minHeight: 20 }}>
+              {selectedPlatforms.length === 0 && 'Select at least one platform to continue'}
+              {selectedPlatforms.length === ALL_PLATFORM_IDS.length && `All ${ALL_PLATFORM_IDS.length} platforms selected`}
+              {selectedPlatforms.length > 0 && selectedPlatforms.length < ALL_PLATFORM_IDS.length && `${selectedPlatforms.length} platform${selectedPlatforms.length > 1 ? 's' : ''} selected`}
             </div>
             {error && (
               <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: t.error, fontSize: 13, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
