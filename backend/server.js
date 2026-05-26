@@ -1559,6 +1559,313 @@ console.log('══════════════════════�
           r('e15',null,{ x:80,y:1238,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
           t('e16',null,{ x:80,y:1260,width:920,height:52,text:'Business Name  ·  Licensed & Insured',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.35)',align:'left',verticalAlign:'middle' }),
         ]) },
+
+      // ── HVAC ─────────────────────────────────────────────────────────────────
+
+      { name: 'HVAC — AC Tune-Up Summer Special', industry: 'hvac', category: 'seasonal', sort_order: 300,
+        canvas_json: mkPage('#0A1628', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0A1628' }),
+          // Cool blue top bar
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#00AEEF' }),
+          // Ghost snowflake watermark
+          t('e3',null,{ x:-80,y:60,width:1200,height:500,text:'❄',fontFamily:'Inter',fontSize:540,fill:'rgba(0,174,239,0.04)',align:'left',verticalAlign:'middle' }),
+          // Season badge
+          r('e4',null,{ x:80,y:80,width:360,height:56,fill:'rgba(0,174,239,0.14)',cornerRadius:28 }),
+          t('e5',null,{ x:80,y:80,width:360,height:56,text:'❄  SUMMER SPECIAL',fontFamily:'Inter',fontSize:19,fontStyle:'bold',fill:'#00AEEF',align:'center',verticalAlign:'middle' }),
+          // Giant stacked headline
+          t('e6',null,{ x:80,y:182,width:920,height:128,text:'AC TUNE-UP',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e7',null,{ x:80,y:308,width:920,height:128,text:'BEFORE THE',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'rgba(255,255,255,0.60)',align:'left',verticalAlign:'middle' }),
+          t('e8',null,{ x:80,y:434,width:920,height:128,text:'HEAT HITS.',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'#00AEEF',align:'left',verticalAlign:'middle' }),
+          // Body copy
+          t('e9',null,{ x:80,y:592,width:920,height:130,text:'A $99 tune-up now prevents a $2,000 breakdown in July. Keep your family cool all summer — book while slots last.',fontFamily:'Inter',fontSize:27,fill:'rgba(255,255,255,0.62)',align:'left',verticalAlign:'top',lineHeight:1.55 }),
+          // Checklist
+          t('e10',null,{ x:80,y:756,width:920,height:40,text:'TUNE-UP INCLUDES:',fontFamily:'Inter',fontSize:15,fontStyle:'bold',fill:'rgba(0,174,239,0.70)',align:'left',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:806,width:920,height:40,text:'✓  Coil cleaning + refrigerant check',fontFamily:'Inter',fontSize:25,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e12',null,{ x:80,y:856,width:920,height:40,text:'✓  Thermostat calibration + filter swap',fontFamily:'Inter',fontSize:25,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:906,width:920,height:40,text:'✓  Full system safety inspection',fontFamily:'Inter',fontSize:25,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // CTA button
+          r('e14',null,{ x:80,y:998,width:920,height:116,fill:'#00AEEF',cornerRadius:16 }),
+          t('e15',null,{ x:80,y:998,width:920,height:116,text:'(555) 000-0000',fontFamily:'Inter',fontSize:72,fontStyle:'bold',fill:'#0A1628',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:80,y:1132,width:920,height:44,text:'Book your AC tune-up — [City] same week',fontFamily:'Inter',fontSize:24,fill:'rgba(0,174,239,0.60)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e17',null,{ x:80,y:1262,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e18',null,{ x:80,y:1282,width:920,height:48,text:'Business Name  ·  [City]  ·  Licensed & Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'HVAC — Furnace Check Before Winter', industry: 'hvac', category: 'seasonal', sort_order: 301,
+        canvas_json: mkPage('#1A0F0A', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#1A0F0A' }),
+          // Warm orange top bar
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#FF6B35' }),
+          // Ghost flame watermark
+          t('e3',null,{ x:100,y:-60,width:880,height:580,text:'🔥',fontFamily:'Inter',fontSize:480,fill:'rgba(255,107,53,0.05)',align:'center',verticalAlign:'middle' }),
+          // Urgency badge
+          r('e4',null,{ x:80,y:80,width:420,height:56,fill:'rgba(255,107,53,0.14)',cornerRadius:28 }),
+          t('e5',null,{ x:80,y:80,width:420,height:56,text:'🔥  DON\'T WAIT UNTIL IT\'S COLD',fontFamily:'Inter',fontSize:17,fontStyle:'bold',fill:'#FF6B35',align:'center',verticalAlign:'middle' }),
+          // Headline stacked
+          t('e6',null,{ x:80,y:180,width:920,height:118,text:'GET YOUR',fontFamily:'Inter',fontSize:98,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e7',null,{ x:80,y:296,width:920,height:118,text:'FURNACE',fontFamily:'Inter',fontSize:98,fontStyle:'bold',fill:'#FF6B35',align:'left',verticalAlign:'middle' }),
+          t('e8',null,{ x:80,y:412,width:920,height:118,text:'READY NOW.',fontFamily:'Inter',fontSize:98,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Sub
+          t('e9',null,{ x:80,y:558,width:920,height:82,text:'Every year in [City], families wake up to a cold house because they skipped the fall furnace check. Don\'t let that be you.',fontFamily:'Inter',fontSize:26,fill:'rgba(255,255,255,0.58)',align:'left',verticalAlign:'top',lineHeight:1.5 }),
+          // What we check
+          t('e10',null,{ x:80,y:676,width:920,height:34,text:'WHAT WE CHECK:',fontFamily:'Inter',fontSize:14,fontStyle:'bold',fill:'rgba(255,107,53,0.70)',align:'left',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:724,width:920,height:40,text:'✓  Heat exchanger for cracks (carbon monoxide risk)',fontFamily:'Inter',fontSize:24,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e12',null,{ x:80,y:776,width:920,height:40,text:'✓  Igniter, burner, and gas pressure',fontFamily:'Inter',fontSize:24,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:828,width:920,height:40,text:'✓  Blower motor + belt + lubrication',fontFamily:'Inter',fontSize:24,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e14',null,{ x:80,y:880,width:920,height:40,text:'✓  Thermostat accuracy check',fontFamily:'Inter',fontSize:24,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // CTA
+          r('e15',null,{ x:80,y:978,width:920,height:114,fill:'#FF6B35',cornerRadius:16 }),
+          t('e16',null,{ x:80,y:978,width:920,height:114,text:'(555) 000-0000',fontFamily:'Inter',fontSize:70,fontStyle:'bold',fill:'#1A0F0A',align:'center',verticalAlign:'middle' }),
+          t('e17',null,{ x:80,y:1110,width:920,height:44,text:'Book your fall furnace check — [City]',fontFamily:'Inter',fontSize:24,fill:'rgba(255,107,53,0.60)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e18',null,{ x:80,y:1262,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e19',null,{ x:80,y:1282,width:920,height:48,text:'Business Name  ·  [City]  ·  Licensed & Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'HVAC — Before & After Air Quality', industry: 'hvac', category: 'before-after', sort_order: 302,
+        canvas_json: mkPage('#141414', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#141414' }),
+          r('e2',null,{ x:0,y:0,width:12,height:1350,fill:'#00AEEF' }),
+          t('e3',null,{ x:80,y:88,width:840,height:30,text:'REAL JOB  ·  REAL RESULT  ·  [CITY]',fontFamily:'Inter',fontSize:17,fontStyle:'bold',fill:'#00AEEF',align:'left',verticalAlign:'middle' }),
+          // Bold split headline
+          t('e4',null,{ x:80,y:148,width:920,height:128,text:'DIRTY DUCTS.',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:274,width:920,height:128,text:'CLEAN AIR.',fontFamily:'Inter',fontSize:108,fontStyle:'bold',fill:'#00AEEF',align:'left',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:400,width:920,height:80,text:'SEE THE DIFFERENCE. 🌬',fontFamily:'Inter',fontSize:60,fontStyle:'bold',fill:'rgba(236,240,241,0.86)',align:'left',verticalAlign:'middle' }),
+          // Job card
+          r('e7',null,{ x:80,y:522,width:920,height:190,fill:'rgba(255,255,255,0.04)',cornerRadius:14 }),
+          t('e8',null,{ x:120,y:546,width:840,height:28,text:'THE JOB',fontFamily:'Inter',fontSize:14,fontStyle:'bold',fill:'#00AEEF',align:'left',verticalAlign:'middle' }),
+          t('e9',null,{ x:120,y:582,width:840,height:68,text:'Full duct cleaning + air handler service',fontFamily:'Inter',fontSize:38,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e10',null,{ x:120,y:664,width:240,height:34,text:'3 hr job',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'left',verticalAlign:'middle' }),
+          t('e11',null,{ x:380,y:664,width:260,height:34,text:'Before photos',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'left',verticalAlign:'middle' }),
+          t('e12',null,{ x:660,y:664,width:280,height:34,text:'★ 5.0 rated',fontFamily:'Inter',fontSize:22,fill:'#00AEEF',align:'left',verticalAlign:'middle' }),
+          // Photo placeholder
+          r('e13',null,{ x:80,y:760,width:920,height:200,fill:'rgba(255,255,255,0.03)',cornerRadius:10 }),
+          t('e14',null,{ x:80,y:760,width:920,height:200,text:'📸  Add your before & after\nduct / filter photos here',fontFamily:'Inter',fontSize:30,fill:'rgba(255,255,255,0.10)',align:'center',verticalAlign:'middle',lineHeight:1.5 }),
+          // Swipe CTA pill
+          r('e15',null,{ x:80,y:1006,width:720,height:66,fill:'#00AEEF',cornerRadius:33 }),
+          t('e16',null,{ x:80,y:1006,width:720,height:66,text:'Swipe to see the full clean →',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#141414',align:'center',verticalAlign:'middle' }),
+          // Trust line
+          t('e17',null,{ x:80,y:1114,width:920,height:44,text:'The average home has 6 lbs of dust in its ducts. 😬',fontFamily:'Inter',fontSize:24,fill:'rgba(0,174,239,0.65)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e18',null,{ x:80,y:1260,width:920,height:1,fill:'rgba(255,255,255,0.08)' }),
+          t('e19',null,{ x:80,y:1282,width:920,height:46,text:'Business Name  •  [City]  •  (555) 000-0000',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'HVAC — 5-Star Customer Review', industry: 'hvac', category: 'social-proof', sort_order: 303,
+        canvas_json: mkPage('#0C1A2E', [
+          r('e1',null,{ x:0,y:0,width:1080,height:900,fill:'#0C1A2E' }),
+          r('e2',null,{ x:0,y:900,width:1080,height:450,fill:'#071022' }),
+          r('e3',null,{ x:0,y:0,width:1080,height:8,fill:'#00AEEF' }),
+          // Giant opening quote
+          t('e4',null,{ x:60,y:52,width:240,height:220,text:'"',fontFamily:'Inter',fontSize:220,fontStyle:'bold',fill:'rgba(0,174,239,0.08)',align:'left',verticalAlign:'top' }),
+          t('e5',null,{ x:80,y:136,width:920,height:70,text:'★★★★★',fontFamily:'Inter',fontSize:54,fill:'#00AEEF',align:'left',verticalAlign:'middle' }),
+          r('e6',null,{ x:80,y:226,width:210,height:44,fill:'rgba(0,174,239,0.16)',cornerRadius:22 }),
+          t('e7',null,{ x:80,y:226,width:210,height:44,text:'Google Review',fontFamily:'Inter',fontSize:15,fontStyle:'bold',fill:'#00AEEF',align:'center',verticalAlign:'middle' }),
+          // Review body
+          t('e8',null,{ x:80,y:288,width:920,height:560,text:'"Replace with your best customer review. The strongest HVAC reviews mention the temperature problem, how fast you came, and how comfortable the home feels now. Real words convert best."',fontFamily:'Inter',fontSize:38,fill:'#ffffff',align:'left',verticalAlign:'top',lineHeight:1.55 }),
+          // Reviewer section
+          r('e9',null,{ x:0,y:900,width:1080,height:1,fill:'rgba(0,174,239,0.16)' }),
+          r('e10',null,{ x:80,y:936,width:88,height:88,fill:'#00AEEF',cornerRadius:44 }),
+          t('e11',null,{ x:80,y:936,width:88,height:88,text:'SM',fontFamily:'Inter',fontSize:30,fontStyle:'bold',fill:'#0C1A2E',align:'center',verticalAlign:'middle' }),
+          t('e12',null,{ x:188,y:948,width:700,height:38,text:'Sarah M.',fontFamily:'Inter',fontSize:27,fontStyle:'bold',fill:'#00AEEF',align:'left',verticalAlign:'middle' }),
+          t('e13',null,{ x:188,y:994,width:700,height:34,text:'[City]  ·  AC Replacement',fontFamily:'Inter',fontSize:21,fill:'rgba(255,255,255,0.40)',align:'left',verticalAlign:'middle' }),
+          r('e14',null,{ x:80,y:1058,width:80,height:3,fill:'#00AEEF',cornerRadius:2 }),
+          t('e15',null,{ x:80,y:1080,width:920,height:44,text:'24/7 emergency service — we\'re never far.',fontFamily:'Inter',fontSize:24,fill:'#00AEEF',align:'left',verticalAlign:'middle' }),
+          // Footer
+          r('e16',null,{ x:80,y:1200,width:920,height:1,fill:'rgba(255,255,255,0.06)' }),
+          t('e17',null,{ x:80,y:1222,width:920,height:42,text:'Business Name  ·  [City]',fontFamily:'Inter',fontSize:22,fill:'rgba(0,174,239,0.55)',align:'left',verticalAlign:'middle' }),
+          t('e18',null,{ x:80,y:1280,width:920,height:42,text:'(555) 000-0000  ·  Licensed & Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.22)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'HVAC — 5 Warning Signs Your AC Is Failing', industry: 'hvac', category: 'educational', sort_order: 304,
+        canvas_json: mkPage('#0F1923', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0F1923' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#00AEEF' }),
+          // Stacked headline
+          t('e3',null,{ x:80,y:108,width:920,height:148,text:'5 SIGNS',fontFamily:'Inter',fontSize:126,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e4',null,{ x:80,y:254,width:920,height:148,text:'YOUR AC',fontFamily:'Inter',fontSize:126,fontStyle:'bold',fill:'#00AEEF',align:'center',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:400,width:920,height:148,text:'IS CRYING',fontFamily:'Inter',fontSize:126,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:542,width:920,height:80,text:'FOR HELP. 🌡',fontFamily:'Inter',fontSize:62,fontStyle:'bold',fill:'rgba(236,240,241,0.86)',align:'center',verticalAlign:'middle' }),
+          r('e7',null,{ x:80,y:694,width:920,height:3,fill:'rgba(0,174,239,0.22)',cornerRadius:2 }),
+          // Warning signs
+          t('e8',null,{ x:80,y:720,width:920,height:48,text:'🌬  Weak airflow from vents',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          t('e9',null,{ x:80,y:776,width:920,height:48,text:'💧  Moisture or pooling water near the unit',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          t('e10',null,{ x:80,y:832,width:920,height:48,text:'🔊  Banging, hissing, or clicking noises',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:888,width:920,height:48,text:'📈  Energy bill jumped for no reason',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          t('e12',null,{ x:80,y:944,width:920,height:48,text:'🌡  Room never reaches set temperature',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          // CTA pill
+          r('e13',null,{ x:180,y:1048,width:720,height:66,fill:'#00AEEF',cornerRadius:33 }),
+          t('e14',null,{ x:180,y:1048,width:720,height:66,text:'Free diagnostic — call (555) 000-0000',fontFamily:'Inter',fontSize:23,fontStyle:'bold',fill:'#0F1923',align:'center',verticalAlign:'middle' }),
+          t('e15',null,{ x:80,y:1152,width:920,height:44,text:'Catch it early — before you need a full replacement',fontFamily:'Inter',fontSize:22,fill:'rgba(0,174,239,0.60)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e16',null,{ x:80,y:1260,width:920,height:1,fill:'rgba(255,255,255,0.08)' }),
+          t('e17',null,{ x:80,y:1282,width:920,height:42,text:'Business Name  ·  [City]  ·  Licensed & Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.26)',align:'center',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'HVAC — How Often to Change Your Filter', industry: 'hvac', category: 'educational', sort_order: 305,
+        canvas_json: mkPage('#122233', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#122233' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#00AEEF' }),
+          // Hook headline
+          t('e3',null,{ x:80,y:90,width:920,height:60,text:'THE #1 THING HOMEOWNERS FORGET',fontFamily:'Inter',fontSize:28,fontStyle:'bold',fill:'#00AEEF',align:'center',verticalAlign:'middle' }),
+          t('e4',null,{ x:80,y:170,width:920,height:160,text:'CHANGE YOUR',fontFamily:'Inter',fontSize:132,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:326,width:920,height:160,text:'AIR FILTER.',fontFamily:'Inter',fontSize:132,fontStyle:'bold',fill:'#00AEEF',align:'center',verticalAlign:'middle' }),
+          // Divider
+          r('e6',null,{ x:80,y:510,width:920,height:2,fill:'rgba(0,174,239,0.22)' }),
+          // Schedule label
+          t('e7',null,{ x:80,y:546,width:920,height:34,text:'REPLACEMENT SCHEDULE BY HOME TYPE',fontFamily:'Inter',fontSize:14,fontStyle:'bold',fill:'rgba(0,174,239,0.62)',align:'left',verticalAlign:'middle' }),
+          // Row 1
+          r('e8',null,{ x:80,y:596,width:920,height:72,fill:'rgba(255,255,255,0.04)',cornerRadius:10 }),
+          t('e9',null,{ x:100,y:596,width:560,height:72,text:'No pets, no allergies',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e10',null,{ x:700,y:596,width:280,height:72,text:'Every 90 days',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#00AEEF',align:'right',verticalAlign:'middle' }),
+          // Row 2
+          r('e11',null,{ x:80,y:680,width:920,height:72,fill:'rgba(255,255,255,0.03)',cornerRadius:10 }),
+          t('e12',null,{ x:100,y:680,width:560,height:72,text:'1 pet in the home',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e13',null,{ x:700,y:680,width:280,height:72,text:'Every 60 days',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#00AEEF',align:'right',verticalAlign:'middle' }),
+          // Row 3
+          r('e14',null,{ x:80,y:764,width:920,height:72,fill:'rgba(255,255,255,0.04)',cornerRadius:10 }),
+          t('e15',null,{ x:100,y:764,width:560,height:72,text:'Multiple pets / allergies',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e16',null,{ x:700,y:764,width:280,height:72,text:'Every 30 days',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#00AEEF',align:'right',verticalAlign:'middle' }),
+          // Row 4
+          r('e17',null,{ x:80,y:848,width:920,height:72,fill:'rgba(255,255,255,0.03)',cornerRadius:10 }),
+          t('e18',null,{ x:100,y:848,width:560,height:72,text:'Asthma / severe allergies',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e19',null,{ x:700,y:848,width:280,height:72,text:'Every 20 days',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'rgba(0,174,239,0.80)',align:'right',verticalAlign:'middle' }),
+          // Callout
+          r('e20',null,{ x:80,y:962,width:920,height:88,fill:'rgba(0,174,239,0.08)',cornerRadius:14 }),
+          t('e21',null,{ x:80,y:962,width:920,height:88,text:'A dirty filter makes your AC work 15% harder\nand shortens the system\'s life by years.',fontFamily:'Inter',fontSize:25,fill:'#00AEEF',align:'center',verticalAlign:'middle',lineHeight:1.45,opacity:0.88 }),
+          // CTA
+          r('e22',null,{ x:80,y:1098,width:920,height:108,fill:'#00AEEF',cornerRadius:14 }),
+          t('e23',null,{ x:80,y:1098,width:920,height:108,text:'(555) 000-0000',fontFamily:'Inter',fontSize:66,fontStyle:'bold',fill:'#122233',align:'center',verticalAlign:'middle' }),
+          t('e24',null,{ x:80,y:1224,width:920,height:40,text:'Call us — we also sell filters for every system size',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.36)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e25',null,{ x:80,y:1296,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e26',null,{ x:80,y:1316,width:920,height:28,text:'Business Name  ·  [City]',fontFamily:'Inter',fontSize:18,fill:'rgba(255,255,255,0.25)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'HVAC — Emergency No Heat No AC', industry: 'hvac', category: 'announcement', sort_order: 306,
+        canvas_json: mkPage('#0A0A14', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0A0A14' }),
+          // Dual top stripes (hot + cold signal)
+          r('e2',null,{ x:0,y:0,width:540,height:8,fill:'#FF6B35' }),
+          r('e3',null,{ x:540,y:0,width:540,height:8,fill:'#00AEEF' }),
+          // Left brand stripe
+          r('e4',null,{ x:0,y:0,width:12,height:1350,fill:'#00AEEF' }),
+          // Emergency badge
+          r('e5',null,{ x:160,y:74,width:760,height:58,fill:'rgba(231,76,60,0.90)',cornerRadius:8 }),
+          t('e6',null,{ x:160,y:74,width:760,height:58,text:'⚠️  EMERGENCY SERVICE  ⚠️',fontFamily:'Inter',fontSize:23,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Giant headline
+          t('e7',null,{ x:80,y:168,width:920,height:186,text:'NO',fontFamily:'Inter',fontSize:178,fontStyle:'bold',fill:'#FF6B35',align:'center',verticalAlign:'middle' }),
+          t('e8',null,{ x:80,y:352,width:920,height:186,text:'HEAT?',fontFamily:'Inter',fontSize:178,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e9',null,{ x:80,y:538,width:920,height:100,text:'NO AC?',fontFamily:'Inter',fontSize:86,fontStyle:'bold',fill:'#00AEEF',align:'center',verticalAlign:'middle' }),
+          // Reassurance
+          t('e10',null,{ x:80,y:660,width:920,height:60,text:'We\'re on the way. Day or night.',fontFamily:'Inter',fontSize:38,fill:'rgba(255,255,255,0.82)',align:'center',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:732,width:920,height:46,text:'Same-day service  ·  No overtime charge  ·  24/7',fontFamily:'Inter',fontSize:25,fontStyle:'bold',fill:'#00AEEF',align:'center',verticalAlign:'middle',opacity:0.80 }),
+          // Divider
+          r('e12',null,{ x:240,y:802,width:600,height:2,fill:'#00AEEF',opacity:0.28 }),
+          // Phone CTA
+          r('e13',null,{ x:80,y:830,width:920,height:122,fill:'#00AEEF',cornerRadius:16 }),
+          t('e14',null,{ x:80,y:830,width:920,height:122,text:'(555) 000-0000',fontFamily:'Inter',fontSize:76,fontStyle:'bold',fill:'#0A0A14',align:'center',verticalAlign:'middle' }),
+          t('e15',null,{ x:80,y:970,width:920,height:46,text:'Call or text — we answer 24 hours',fontFamily:'Inter',fontSize:26,fill:'rgba(210,232,248,0.55)',align:'center',verticalAlign:'middle' }),
+          // Trust row
+          t('e16',null,{ x:80,y:1200,width:920,height:40,text:'Licensed  ·  Insured  ·  Background-checked',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.35)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e17',null,{ x:80,y:1296,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e18',null,{ x:200,y:1312,width:760,height:30,text:'Business Name  ·  [City]',fontFamily:'Inter',fontSize:19,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'HVAC — New System Financing', industry: 'hvac', category: 'promotional', sort_order: 307,
+        canvas_json: mkPage('#0C1E12', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0C1E12' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:700,fill:'#162D1C',opacity:0.60 }),
+          // Green glow top-right
+          r('e3',null,{ x:580,y:-120,width:700,height:700,fill:'#27AE60',opacity:0.05,cornerRadius:350 }),
+          // Ghost "FREE" watermark
+          t('e4',null,{ x:-80,y:30,width:1200,height:440,text:'FREE',fontFamily:'Inter',fontSize:370,fontStyle:'bold',fill:'rgba(39,174,96,0.04)',align:'left',verticalAlign:'middle' }),
+          // Financing badge
+          r('e5',null,{ x:80,y:80,width:460,height:60,fill:'rgba(39,174,96,0.12)',cornerRadius:30 }),
+          t('e6',null,{ x:80,y:80,width:460,height:60,text:'💳  HVAC FINANCING AVAILABLE',fontFamily:'Inter',fontSize:19,fontStyle:'bold',fill:'#27AE60',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('e7',null,{ x:80,y:192,width:920,height:116,text:'A NEW HVAC',fontFamily:'Inter',fontSize:98,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e8',null,{ x:80,y:306,width:920,height:116,text:'SYSTEM —',fontFamily:'Inter',fontSize:98,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e9',null,{ x:80,y:420,width:920,height:116,text:'$0 TODAY.',fontFamily:'Inter',fontSize:98,fontStyle:'bold',fill:'#27AE60',align:'left',verticalAlign:'middle' }),
+          // Body copy
+          t('e10',null,{ x:80,y:568,width:920,height:150,text:'Stop sweating the cost. We offer flexible financing for [City] homeowners — approved in minutes, installed this week.',fontFamily:'Inter',fontSize:26,fill:'rgba(255,255,255,0.62)',align:'left',verticalAlign:'top',lineHeight:1.55 }),
+          // Offer label
+          t('e11',null,{ x:80,y:752,width:920,height:34,text:'CURRENT OFFER',fontFamily:'Inter',fontSize:14,fontStyle:'bold',fill:'rgba(39,174,96,0.70)',align:'left',verticalAlign:'middle' }),
+          t('e12',null,{ x:80,y:788,width:920,height:90,text:'0% interest for 24 months',fontFamily:'Inter',fontSize:62,fontStyle:'bold',fill:'#27AE60',align:'left',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:890,width:920,height:58,text:'On approved credit. Full HVAC installs over $2,500. [City] residents.',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.40)',align:'left',verticalAlign:'top',lineHeight:1.4 }),
+          // Divider
+          r('e14',null,{ x:80,y:960,width:920,height:1,fill:'#27AE60',opacity:0.18 }),
+          // Phone CTA
+          r('e15',null,{ x:80,y:994,width:920,height:116,fill:'rgba(255,255,255,0.07)',cornerRadius:16 }),
+          t('e16',null,{ x:80,y:994,width:920,height:116,text:'(555) 000-0000',fontFamily:'Inter',fontSize:72,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e17',null,{ x:80,y:1128,width:920,height:44,text:'Ask about financing — [City] residents',fontFamily:'Inter',fontSize:24,fill:'rgba(39,174,96,0.55)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e18',null,{ x:80,y:1246,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e19',null,{ x:80,y:1268,width:920,height:52,text:'Business Name  ·  [City]',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.30)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'HVAC — Meet the Tech', industry: 'hvac', category: 'team', sort_order: 308,
+        canvas_json: mkPage('#0B1E30', [
+          // ── Photo zone ──────────────────────────────────────────────────────
+          r('e1',null,{ x:0,y:0,width:1080,height:780,fill:'#071422' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:780,fill:'#000000',opacity:0.26 }),
+          t('e3',null,{ x:80,y:290,width:920,height:200,text:'📸  Add your tech photo here\n1080 × 780 px',fontFamily:'Inter',fontSize:30,fill:'rgba(255,255,255,0.12)',align:'center',verticalAlign:'middle',lineHeight:1.6 }),
+          r('e4',null,{ x:0,y:580,width:1080,height:120,fill:'#0B1E30',opacity:0.55 }),
+          r('e5',null,{ x:0,y:700,width:1080,height:80,fill:'#0B1E30',opacity:0.90 }),
+          // ── Info panel ──────────────────────────────────────────────────────
+          r('e6',null,{ x:0,y:780,width:1080,height:570,fill:'#0B1E30' }),
+          // Name tag pill (blue — HVAC brand colour)
+          r('e7',null,{ x:80,y:722,width:580,height:62,fill:'#00AEEF',cornerRadius:10 }),
+          t('e8',null,{ x:80,y:722,width:580,height:62,text:'Chris Park  ·  Senior HVAC Technician',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#0B1E30',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('e9',null,{ x:80,y:830,width:920,height:68,text:'The tech keeping',fontFamily:'Inter',fontSize:54,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e10',null,{ x:80,y:896,width:920,height:68,text:'your home comfortable. ❄🔥',fontFamily:'Inter',fontSize:46,fontStyle:'bold',fill:'#00AEEF',align:'left',verticalAlign:'middle' }),
+          // Stats bar
+          r('e11',null,{ x:80,y:996,width:920,height:108,fill:'rgba(255,255,255,0.04)',cornerRadius:12 }),
+          t('e12',null,{ x:80,y:1010,width:280,height:54,text:'12+',fontFamily:'Inter',fontSize:44,fontStyle:'bold',fill:'#00AEEF',align:'center',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:1066,width:280,height:28,text:'Years',fontFamily:'Inter',fontSize:17,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          r('e14',null,{ x:372,y:1014,width:1,height:88,fill:'#ffffff',opacity:0.10 }),
+          t('e15',null,{ x:400,y:1010,width:280,height:54,text:'3,100+',fontFamily:'Inter',fontSize:44,fontStyle:'bold',fill:'#00AEEF',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:400,y:1066,width:280,height:28,text:'Systems Serviced',fontFamily:'Inter',fontSize:15,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          r('e17',null,{ x:694,y:1014,width:1,height:88,fill:'#ffffff',opacity:0.10 }),
+          t('e18',null,{ x:720,y:1010,width:280,height:54,text:'NATE',fontFamily:'Inter',fontSize:38,fontStyle:'bold',fill:'#00AEEF',align:'center',verticalAlign:'middle' }),
+          t('e19',null,{ x:720,y:1066,width:280,height:28,text:'Certified',fontFamily:'Inter',fontSize:17,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          // Bio
+          t('e20',null,{ x:80,y:1148,width:920,height:72,text:'NATE-certified tech with 12 years in residential HVAC. Fast, clean, and honest — I treat your home like mine.',fontFamily:'Inter',fontSize:24,fill:'#00AEEF',align:'left',verticalAlign:'top',lineHeight:1.5,opacity:0.85 }),
+          // Footer
+          r('e21',null,{ x:80,y:1240,width:920,height:1,fill:'#ffffff',opacity:0.10 }),
+          t('e22',null,{ x:80,y:1260,width:680,height:42,text:'Business Name  ·  Licensed & Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.40)',align:'left',verticalAlign:'middle' }),
+          t('e23',null,{ x:800,y:1260,width:200,height:42,text:'[City]',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.22)',align:'right',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'HVAC — Google Review Ask', industry: 'hvac', category: 'social-proof', sort_order: 309,
+        canvas_json: mkPage('#0A1422', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0A1422' }),
+          r('e2',null,{ x:190,y:280,width:700,height:700,fill:'#4285F4',opacity:0.05,cornerRadius:350 }),
+          t('e3',null,{ x:180,y:40,width:720,height:800,text:'G',fontFamily:'Inter',fontSize:760,fontStyle:'bold',fill:'rgba(66,133,244,0.05)',align:'center',verticalAlign:'top' }),
+          // 5 gold stars
+          t('e4',null,{ x:80,y:200,width:920,height:100,text:'⭐⭐⭐⭐⭐',fontFamily:'Inter',fontSize:76,fill:'#FBBC04',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('e5',null,{ x:80,y:360,width:920,height:108,text:'Happy with your',fontFamily:'Inter',fontSize:84,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:466,width:920,height:108,text:'comfort level? ❄🔥',fontFamily:'Inter',fontSize:72,fontStyle:'bold',fill:'#FBBC04',align:'center',verticalAlign:'middle' }),
+          // Accent divider
+          r('e7',null,{ x:440,y:622,width:200,height:2,fill:'#FBBC04',opacity:0.32 }),
+          // Body copy
+          t('e8',null,{ x:80,y:664,width:920,height:52,text:'Your review helps [City] homeowners',fontFamily:'Inter',fontSize:34,fill:'#FBBC04',align:'center',verticalAlign:'middle',opacity:0.90 }),
+          t('e9',null,{ x:80,y:718,width:920,height:52,text:'find an HVAC company they can trust.',fontFamily:'Inter',fontSize:34,fill:'#FBBC04',align:'center',verticalAlign:'middle',opacity:0.90 }),
+          t('e10',null,{ x:80,y:812,width:920,height:50,text:'It takes 60 seconds — and it means everything to us.',fontFamily:'Inter',fontSize:26,fill:'rgba(255,255,255,0.40)',align:'center',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:876,width:920,height:44,text:'We recently completed: your HVAC service.',fontFamily:'Inter',fontSize:23,fill:'rgba(255,255,255,0.28)',align:'center',verticalAlign:'middle' }),
+          // Google blue CTA
+          r('e12',null,{ x:80,y:962,width:920,height:120,fill:'#4285F4',cornerRadius:60 }),
+          t('e13',null,{ x:80,y:962,width:920,height:120,text:'Leave a Google Review →',fontFamily:'Inter',fontSize:38,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e14',null,{ x:80,y:1120,width:920,height:44,text:'Link in bio  ·  Takes 60 seconds',fontFamily:'Inter',fontSize:24,fill:'rgba(255,255,255,0.28)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e15',null,{ x:80,y:1238,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e16',null,{ x:80,y:1260,width:920,height:52,text:'Business Name  ·  [City]  ·  Licensed & Insured',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.35)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
     ];
 
     let inserted = 0;
