@@ -6,18 +6,22 @@
   padding: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html, body {
   font-family: 'Inter', -apple-system, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.011em;
-  background: #0B0B0F;
-  color: #F4F4F5;
+  background: #000000;
+  color: #F5F5F7;
 }
 
 body[data-theme="light"] {
-  background: #FAFAFA;
-  color: #18181B;
+  background: #F5F5F7;
+  color: #1D1D1F;
 }
 
 button {
@@ -73,18 +77,18 @@ select:focus-visible {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2E2E3A;
-  border-radius: 999px;
+  background: #333333;
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3F3F4D;
+  background: #444444;
 }
 
 body[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: #D4D4D8;
+  background: #C7C7CC;
 }
 body[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-  background: #A1A1AA;
+  background: #AEAEB2;
 }
 
 /* ── Mobile touch feedback ───────────────────────────────────────────────── */

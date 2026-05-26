@@ -1259,8 +1259,8 @@ const corsMiddleware = cors({
       if (process.env.NODE_ENV === 'production') return cb(new Error('Origin header required'));
       return cb(null, true);
     }
-    // In development, allow any localhost port so devs aren't blocked by FRONTEND_URL mismatches
-    if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin)) {
+    // Always allow any localhost port — real production servers never receive localhost origins from browsers
+    if (/^http:\/\/localhost:\d+$/.test(origin)) {
       return cb(null, true);
     }
     if (allowed.includes(origin)) return cb(null, true);
