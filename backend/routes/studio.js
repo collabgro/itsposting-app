@@ -970,6 +970,38 @@ Rules:
     }
   });
 
+  // ── GET /api/studio/stock-videos — Pexels royalty-free stock videos ─────────
+  router.get('/stock-videos', authenticate, async (req, res) => {
+    try {
+      const { q = 'home services professional', page = 1, per_page = 12 } = req.query;
+      const apiKey = process.env.PEXELS_API_KEY;
+      if (!apiKey) return res.status(503).json({ error: 'Stock videos not configured' });
+
+      const resp = await fetch(
+        `https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=${Math.min(parseInt(per_page) || 12, 20)}&page=${parseInt(page) || 1}`,
+        { headers: { Authorization: apiKey } }
+      );
+      if (!resp.ok) return res.status(resp.status).json({ error: 'Pexels video API error' });
+      const data = await resp.json();
+
+      const videos = (data.videos || []).map(v => ({
+        id: v.id,
+        thumbnail_url: v.image,
+        pexels_url: v.url,
+        duration: v.duration,
+        width: v.width,
+        height: v.height,
+        video_url: v.video_files?.find(f => f.quality === 'hd')?.link
+          || v.video_files?.find(f => f.quality === 'sd')?.link
+          || v.video_files?.[0]?.link,
+      }));
+      res.json({ videos, total: data.total_results, page: data.page });
+    } catch (err) {
+      console.error('[Studio] GET /stock-videos:', err.message);
+      res.status(500).json({ error: 'Stock video search failed' });
+    }
+  });
+
   // POST /api/studio/rewrite-text — AI Improve for canvas text elements
   router.post('/rewrite-text', authenticate, async (req, res) => {
     const { text, platform = 'instagram', tone = 'friendly' } = req.body;

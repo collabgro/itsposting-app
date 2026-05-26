@@ -3935,6 +3935,15 @@ export default function TemplatesEditorInner() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [elemSearch, setElemSearch] = useState('');
   const [activeElemCat, setActiveElemCat] = useState(null);
+  const [elemSubPanel, setElemSubPanel] = useState(null); // null | 'photos' | 'videos'
+  const [elemPhotos, setElemPhotos] = useState([]);
+  const [elemPhotosLoading, setElemPhotosLoading] = useState(false);
+  const [elemPhotosQuery, setElemPhotosQuery] = useState('');
+  const [elemPhotosInput, setElemPhotosInput] = useState('');
+  const [pexelsVideos, setPexelsVideos] = useState([]);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoQuery, setVideoQuery] = useState('');
+  const [videoInput, setVideoInput] = useState('');
   const [bgPhotos, setBgPhotos] = useState([]);
   const [bgPhotosLoading, setBgPhotosLoading] = useState(false);
   const [bgTab, setBgTab] = useState('stock');
@@ -4251,6 +4260,26 @@ export default function TemplatesEditorInner() {
       .catch(() => setPexelsPhotos([]))
       .finally(() => setStockLoading(false));
   }, [uploadMediaTab, stockQuery]);
+
+  // ── Load stock photos for Elements > Photos sub-panel ────────────────────
+  function loadElemPhotos(query) {
+    const q = query !== undefined ? query : (elemPhotosQuery || 'home services professional');
+    setElemPhotosLoading(true);
+    studioAPI.searchStockPhotos(q)
+      .then(r => setElemPhotos(r.data?.photos || []))
+      .catch(() => setElemPhotos([]))
+      .finally(() => setElemPhotosLoading(false));
+  }
+
+  // ── Load stock videos for Elements > Videos sub-panel ────────────────────
+  function loadElemVideos(query) {
+    const q = query !== undefined ? query : (videoQuery || 'home services professional');
+    setVideoLoading(true);
+    studioAPI.searchStockVideos(q)
+      .then(r => setPexelsVideos(r.data?.videos || []))
+      .catch(() => setPexelsVideos([]))
+      .finally(() => setVideoLoading(false));
+  }
 
   // ── Load media library (uploads panel) ────────────────────────────────────
   useEffect(() => {
@@ -5991,6 +6020,10 @@ export default function TemplatesEditorInner() {
     } else {
       setActiveLeftTool(toolId);
       setPanelOpen(true);
+      if (toolId !== 'elements' && toolId !== 'shapes') {
+        setElemSubPanel(null);
+        setActiveElemCat(null);
+      }
     }
   }
 
@@ -9601,45 +9634,188 @@ export default function TemplatesEditorInner() {
                     </div>
                   </div>
                 )}
-                {/* Browse Categories */}
-                {!filtered && !activeCat && (
-                  <>
-                    <div style={{ fontSize:12, fontWeight:600, color:t.text }}>Browse categories</div>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
-                      {cats.map(cat => (
-                        <button key={cat.id} onClick={() => setActiveElemCat(cat.id)}
-                          style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:0, border:`1px solid ${t.border}`, borderRadius:10, background:t.input, cursor:'pointer', overflow:'hidden', padding:'0 0 8px', transition:'transform 80ms, border-color 150ms' }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor=TEAL; e.currentTarget.style.transform='scale(1.03)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor=t.border; e.currentTarget.style.transform='scale(1)'; }}>
-                          <div style={{ width:'100%', background:cat.grad, display:'flex', alignItems:'center', justifyContent:'center', paddingTop:4, paddingBottom:2 }}>
-                            {cat.preview}
+                {/* ── Photos sub-panel ──────────────────────────────────── */}
+                {!filtered && !activeCat && elemSubPanel === 'photos' && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    <button onClick={() => setElemSubPanel(null)}
+                      style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', color:t.text, fontSize:13, fontWeight:600, cursor:'pointer', padding:'2px 0 6px' }}>
+                      ← Photos
+                    </button>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <input value={elemPhotosInput} onChange={e => setElemPhotosInput(e.target.value)}
+                        onKeyDown={e => { if (e.key==='Enter') { setElemPhotosQuery(elemPhotosInput); loadElemPhotos(elemPhotosInput); } }}
+                        placeholder="Search photos…"
+                        style={{ flex:1, padding:'8px 10px', borderRadius:7, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, outline:'none' }} />
+                      <button onClick={() => { setElemPhotosQuery(elemPhotosInput); loadElemPhotos(elemPhotosInput); }}
+                        style={{ padding:'8px 12px', borderRadius:7, background:TEAL, color:'#000', border:'none', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                        Search
+                      </button>
+                    </div>
+                    {elemPhotosLoading ? (
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:6 }}>
+                        {Array.from({length:6}).map((_,i)=>(
+                          <div key={i} style={{ borderRadius:8, background:t.input, aspectRatio:'1', animation:'shimmer 1.4s ease-in-out infinite' }} />
+                        ))}
+                      </div>
+                    ) : elemPhotos.length === 0 ? (
+                      <div style={{ textAlign:'center', padding:'30px 0', color:t.textMuted, fontSize:12 }}>
+                        <div style={{ fontSize:28, marginBottom:8 }}>📷</div>
+                        {elemPhotosQuery ? 'No photos found' : 'Search for stock photos'}
+                      </div>
+                    ) : (
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:6 }}>
+                        {elemPhotos.map(photo => (
+                          <div key={photo.id}
+                            onClick={() => addImageElement(photo.url)}
+                            style={{ borderRadius:8, overflow:'hidden', cursor:'pointer', border:`1.5px solid transparent`, transition:'border-color 120ms, transform 80ms', aspectRatio:'1' }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor=TEAL; e.currentTarget.style.transform='scale(1.03)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor='transparent'; e.currentTarget.style.transform='scale(1)'; }}>
+                            <img src={photo.thumbUrl || photo.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block', pointerEvents:'none' }} />
                           </div>
-                          <span style={{ fontSize:11, color:t.text, fontWeight:500, marginTop:6 }}>{cat.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div style={{ fontSize:12, fontWeight:600, color:t.textMuted, marginTop:4 }}>Quick Add</div>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                      {[
-                        { label:'▭ Rect',     fn:()=>addRect()        },
-                        { label:'● Circle',   fn:()=>addCircle()      },
-                        { label:'▲ Triangle', fn:()=>addTriangle()    },
-                        { label:'★ Star',     fn:()=>addStar()        },
-                        { label:'→ Arrow',    fn:()=>addArrow()       },
-                        { label:'─ Line',     fn:()=>addLine()        },
-                        { label:'T Text',     fn:()=>addText()        },
-                        { label:'💬 Speech',  fn:()=>addSpeechBubble()},
-                      ].map(q => (
-                        <button key={q.label} onMouseDown={e => { e.preventDefault(); q.fn(); }}
-                          style={{ padding:'5px 9px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer' }}
-                          onMouseEnter={e => { e.currentTarget.style.background='rgba(0,196,204,0.1)'; e.currentTarget.style.borderColor=TEAL; }}
-                          onMouseLeave={e => { e.currentTarget.style.background=t.input; e.currentTarget.style.borderColor=t.border; }}>
-                          {q.label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
+                        ))}
+                      </div>
+                    )}
+                    {elemPhotos.length > 0 && (
+                      <div style={{ fontSize:10, color:t.textMuted, textAlign:'center' }}>
+                        Photos by <a href="https://www.pexels.com" target="_blank" rel="noreferrer" style={{ color:TEAL }}>Pexels</a>
+                      </div>
+                    )}
+                  </div>
                 )}
+                {/* ── Videos sub-panel ──────────────────────────────────── */}
+                {!filtered && !activeCat && elemSubPanel === 'videos' && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    <button onClick={() => setElemSubPanel(null)}
+                      style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', color:t.text, fontSize:13, fontWeight:600, cursor:'pointer', padding:'2px 0 6px' }}>
+                      ← Videos
+                    </button>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <input value={videoInput} onChange={e => setVideoInput(e.target.value)}
+                        onKeyDown={e => { if (e.key==='Enter') { setVideoQuery(videoInput); loadElemVideos(videoInput); } }}
+                        placeholder="Search videos…"
+                        style={{ flex:1, padding:'8px 10px', borderRadius:7, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:12, outline:'none' }} />
+                      <button onClick={() => { setVideoQuery(videoInput); loadElemVideos(videoInput); }}
+                        style={{ padding:'8px 12px', borderRadius:7, background:TEAL, color:'#000', border:'none', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                        Search
+                      </button>
+                    </div>
+                    {videoLoading ? (
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:6 }}>
+                        {Array.from({length:4}).map((_,i)=>(
+                          <div key={i} style={{ borderRadius:8, background:t.input, aspectRatio:'16/9', animation:'shimmer 1.4s ease-in-out infinite' }} />
+                        ))}
+                      </div>
+                    ) : pexelsVideos.length === 0 ? (
+                      <div style={{ textAlign:'center', padding:'30px 0', color:t.textMuted, fontSize:12 }}>
+                        <div style={{ fontSize:28, marginBottom:8 }}>🎬</div>
+                        {videoQuery ? 'No videos found' : 'Search for stock videos'}
+                      </div>
+                    ) : (
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:6 }}>
+                        {pexelsVideos.map(video => (
+                          <div key={video.id}
+                            onClick={() => addImageElement(video.thumbnail_url)}
+                            title="Click to add video thumbnail to canvas"
+                            style={{ borderRadius:8, overflow:'hidden', cursor:'pointer', border:`1.5px solid transparent`, transition:'border-color 120ms, transform 80ms', aspectRatio:'16/9', position:'relative' }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor=TEAL; e.currentTarget.style.transform='scale(1.03)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor='transparent'; e.currentTarget.style.transform='scale(1)'; }}>
+                            <img src={video.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block', pointerEvents:'none' }} />
+                            <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.25)' }}>
+                              <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(255,255,255,0.9)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                <svg viewBox="0 0 12 12" width="11" height="11"><polygon points="3,1 11,6 3,11" fill="#000"/></svg>
+                              </div>
+                            </div>
+                            {video.duration && <div style={{ position:'absolute', bottom:4, right:5, fontSize:9, color:'#fff', background:'rgba(0,0,0,0.6)', borderRadius:3, padding:'1px 4px', fontWeight:600 }}>{Math.round(video.duration)}s</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {pexelsVideos.length > 0 && (
+                      <div style={{ fontSize:10, color:t.textMuted, textAlign:'center' }}>
+                        Videos by <a href="https://www.pexels.com" target="_blank" rel="noreferrer" style={{ color:TEAL }}>Pexels</a>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* ── Browse Categories (3D app-icon tiles) ─────────────── */}
+                {!filtered && !activeCat && !elemSubPanel && (() => {
+                  const catTileStyle = (grad) => ({
+                    width:'100%', aspectRatio:'1', borderRadius:18, background:grad,
+                    boxShadow:'0 6px 16px rgba(0,0,0,0.28), 0 2px 4px rgba(0,0,0,0.10), inset 0 1.5px 0 rgba(255,255,255,0.22)',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    transition:'transform 120ms, box-shadow 120ms', overflow:'hidden',
+                  });
+                  const hoverIn = e => { e.currentTarget.style.transform='scale(1.07) translateY(-2px)'; e.currentTarget.style.boxShadow='0 14px 30px rgba(0,0,0,0.32), inset 0 1.5px 0 rgba(255,255,255,0.25)'; };
+                  const hoverOut = e => { e.currentTarget.style.transform='scale(1)'; e.currentTarget.style.boxShadow='0 6px 16px rgba(0,0,0,0.28), 0 2px 4px rgba(0,0,0,0.10), inset 0 1.5px 0 rgba(255,255,255,0.22)'; };
+                  const tileBtn = { display:'flex', flexDirection:'column', alignItems:'center', gap:7, background:'none', border:'none', cursor:'pointer', padding:0 };
+                  return (
+                    <>
+                      <div style={{ fontSize:12, fontWeight:600, color:t.text }}>Browse categories</div>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+                        {/* Photos */}
+                        <button style={tileBtn} onClick={() => { setElemSubPanel('photos'); if(elemPhotos.length===0) loadElemPhotos(); }}>
+                          <div style={catTileStyle('linear-gradient(145deg,#5b86e5,#36d1dc)')} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>
+                            <svg viewBox="0 0 54 54" width="38" height="38">
+                              <rect x="8" y="15" width="38" height="27" rx="4" fill="rgba(255,255,255,0.18)"/>
+                              <rect x="8" y="15" width="38" height="8" rx="4" fill="rgba(255,255,255,0.32)"/>
+                              <circle cx="21" cy="31" r="7" fill="rgba(255,255,255,0.55)"/>
+                              <circle cx="21" cy="31" r="4" fill="#5b86e5" opacity=".5"/>
+                              <polygon points="10,41 24,27 33,35 39,27 46,38 46,42 10,42" fill="rgba(255,255,255,0.72)"/>
+                              <rect x="21" y="8" width="12" height="8" rx="2" fill="rgba(255,255,255,0.48)"/>
+                              <circle cx="27" cy="12" r="2" fill="rgba(255,255,255,0.85)"/>
+                            </svg>
+                          </div>
+                          <span style={{ fontSize:11, color:t.text, fontWeight:500 }}>Photos</span>
+                        </button>
+                        {/* Videos */}
+                        <button style={tileBtn} onClick={() => { setElemSubPanel('videos'); if(pexelsVideos.length===0) loadElemVideos(); }}>
+                          <div style={catTileStyle('linear-gradient(145deg,#a855f7,#f43f5e)')} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>
+                            <svg viewBox="0 0 54 54" width="38" height="38">
+                              <rect x="6" y="13" width="42" height="28" rx="5" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.45)" strokeWidth="1.5"/>
+                              <polygon points="22,19 22,35 38,27" fill="rgba(255,255,255,0.88)"/>
+                              <rect x="6" y="8" width="5" height="5" rx="1" fill="rgba(255,255,255,0.5)"/>
+                              <rect x="13" y="8" width="5" height="5" rx="1" fill="rgba(255,255,255,0.5)"/>
+                              <rect x="20" y="8" width="5" height="5" rx="1" fill="rgba(255,255,255,0.5)"/>
+                              <rect x="27" y="8" width="5" height="5" rx="1" fill="rgba(255,255,255,0.5)"/>
+                              <rect x="34" y="8" width="5" height="5" rx="1" fill="rgba(255,255,255,0.5)"/>
+                              <rect x="41" y="8" width="7" height="5" rx="1" fill="rgba(255,255,255,0.5)"/>
+                            </svg>
+                          </div>
+                          <span style={{ fontSize:11, color:t.text, fontWeight:500 }}>Videos</span>
+                        </button>
+                        {/* Element categories */}
+                        {cats.map(cat => (
+                          <button key={cat.id} style={tileBtn} onClick={() => setActiveElemCat(cat.id)}>
+                            <div style={catTileStyle(cat.grad)} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>
+                              {cat.preview}
+                            </div>
+                            <span style={{ fontSize:11, color:t.text, fontWeight:500 }}>{cat.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ fontSize:12, fontWeight:600, color:t.textMuted, marginTop:4 }}>Quick Add</div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                        {[
+                          { label:'▭ Rect',     fn:()=>addRect()        },
+                          { label:'● Circle',   fn:()=>addCircle()      },
+                          { label:'▲ Triangle', fn:()=>addTriangle()    },
+                          { label:'★ Star',     fn:()=>addStar()        },
+                          { label:'→ Arrow',    fn:()=>addArrow()       },
+                          { label:'─ Line',     fn:()=>addLine()        },
+                          { label:'T Text',     fn:()=>addText()        },
+                          { label:'💬 Speech',  fn:()=>addSpeechBubble()},
+                        ].map(q => (
+                          <button key={q.label} onMouseDown={e => { e.preventDefault(); q.fn(); }}
+                            style={{ padding:'5px 9px', borderRadius:6, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer' }}
+                            onMouseEnter={e => { e.currentTarget.style.background='rgba(0,196,204,0.1)'; e.currentTarget.style.borderColor=TEAL; }}
+                            onMouseLeave={e => { e.currentTarget.style.background=t.input; e.currentTarget.style.borderColor=t.border; }}>
+                            {q.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
                 {/* Properties panel for selected shape */}
                 {selectedEl && !['text','image'].includes(selectedEl.type) && (
                   <div style={{ borderTop:`1px solid ${t.border}`, paddingTop:12, marginTop:4 }}>
