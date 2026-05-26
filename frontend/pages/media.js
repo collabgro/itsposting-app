@@ -393,9 +393,9 @@ export default function MediaLibrary() {
             <div
               key={file.id}
               onClick={() => setPreviewFile(file)}
-              style={{ background: t.card, border: `2px solid ${isSelected ? t.primary : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'all 150ms ease', position: 'relative' }}
-              onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.borderColor = t.primaryBorder; }}
-              onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.borderColor = t.border; }}
+              style={{ background: t.card, border: `2px solid ${isSelected ? t.primary : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', position: 'relative' }}
+              onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = t.shadowMd; } }}
+              onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; } }}
             >
               <button
                 onClick={(e) => { e.stopPropagation(); toggleSelect(file.id); }}
@@ -588,9 +588,9 @@ export default function MediaLibrary() {
                     <div
                       key={f.folder}
                       onClick={() => setFilterFolder(f.folder)}
-                      style={{ background: t.card, border: `2px solid ${t.border}`, borderRadius: 12, cursor: 'pointer', transition: 'all 150ms ease', padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 110 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; }}
+                      style={{ background: t.card, border: `2px solid ${t.border}`, borderRadius: 12, cursor: 'pointer', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 110 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
                     >
                       <IpFolderOpen size={34} color={t.primary} />
                       <div style={{ textAlign: 'center' }}>
@@ -697,9 +697,9 @@ export default function MediaLibrary() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
                   {curatedTemplates.map(tmpl => (
                     <div key={tmpl.id}
-                      style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', position: 'relative', transition: 'border-color 150ms, box-shadow 150ms' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '1'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '0'; }}>
+                      style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', position: 'relative', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = t.shadowMd; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '1'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '0'; }}>
                       <div style={{ aspectRatio: '4/5', background: t.input, position: 'relative', overflow: 'hidden' }}>
                         {(() => {
                           const CAT_ICONS = { 'before-after': '◑', 'social-proof': '⭐', 'seasonal': '❄', 'educational': '💡', 'promotional': '📣', 'team': '👥' };
