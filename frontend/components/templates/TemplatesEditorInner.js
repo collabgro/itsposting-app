@@ -6621,6 +6621,18 @@ export default function TemplatesEditorInner() {
             style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: historyIndex >= history.length - 1 ? t.textMuted : t.text, cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms', flexShrink: 0 }}>
             <IcoRedo size={17} />
           </button>
+
+          {/* Theme toggle — left zone so it doesn't crowd the right-side admin badges */}
+          <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0, margin: '0 2px' }} />
+          <button onClick={toggleTheme} title={theme === 'dark' ? 'Switch to Light mode' : 'Switch to Dark mode'}
+            onMouseEnter={e => { showTip(e, theme === 'dark' ? 'Light mode' : 'Dark mode'); e.currentTarget.style.background = t.cardHover; }}
+            onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
+            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: t.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms, color 100ms', flexShrink: 0 }}>
+            {theme === 'dark'
+              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            }
+          </button>
         </div>
 
         {/* ── Center zone: absolutely centered editable title — clamped width ── */}
@@ -6647,19 +6659,6 @@ export default function TemplatesEditorInner() {
 
         {/* ── Right zone ── */}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-
-          {/* Theme toggle */}
-          <button onClick={toggleTheme} title={theme === 'dark' ? 'Switch to Light mode' : 'Switch to Dark mode'}
-            onMouseEnter={e => { showTip(e, theme === 'dark' ? 'Light mode' : 'Dark mode'); e.currentTarget.style.background = t.cardHover; }}
-            onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
-            style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: t.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms, color 100ms', flexShrink: 0 }}>
-            {theme === 'dark'
-              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-            }
-          </button>
-
-          <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0 }} />
 
           {/* Save status indicator */}
           {saveStatus === 'saving' && (
