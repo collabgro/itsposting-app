@@ -18,7 +18,7 @@ export const tokens = {
     textDisabled:  '#48484A',
     primary:       '#7C5CFC',
     primaryHover:  '#9B7FFF',
-    primaryLight:  '#C44BB8',
+    primaryLight:  '#9B7FFF',
     primaryBg:     'rgba(124,92,252,0.10)',
     primaryBorder: 'rgba(124,92,252,0.25)',
     success:       '#30D158',

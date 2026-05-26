@@ -75,7 +75,7 @@ function FormatMockup({ frame, platformColor, uid }) {
       <svg viewBox="0 0 90 162" style={{ width: '100%', display: 'block', maxHeight: 128 }}>
         <defs>
           <linearGradient id={gId} x1="0" y1="0" x2="0.4" y2="1">
-            <stop offset="0%" stopColor="#9B4FD4" stopOpacity="0.28" />
+            <stop offset="0%" stopColor="#7C5CFC" stopOpacity="0.28" />
             <stop offset="100%" stopColor="#E040A0" stopOpacity="0.13" />
           </linearGradient>
         </defs>
@@ -94,7 +94,7 @@ function FormatMockup({ frame, platformColor, uid }) {
       <svg viewBox="0 0 160 90" style={{ width: '100%', display: 'block', maxHeight: 128 }}>
         <defs>
           <linearGradient id={gId} x1="0" y1="0" x2="1" y2="0.6">
-            <stop offset="0%" stopColor="#9B4FD4" stopOpacity="0.28" />
+            <stop offset="0%" stopColor="#7C5CFC" stopOpacity="0.28" />
             <stop offset="100%" stopColor="#E040A0" stopOpacity="0.13" />
           </linearGradient>
         </defs>
@@ -113,7 +113,7 @@ function FormatMockup({ frame, platformColor, uid }) {
     <svg viewBox="0 0 120 120" style={{ width: '100%', display: 'block', maxHeight: 128 }}>
       <defs>
         <linearGradient id={gId} x1="0" y1="0" x2="0.5" y2="1">
-          <stop offset="0%" stopColor="#9B4FD4" stopOpacity="0.28" />
+          <stop offset="0%" stopColor="#7C5CFC" stopOpacity="0.28" />
           <stop offset="100%" stopColor="#E040A0" stopOpacity="0.13" />
         </linearGradient>
       </defs>

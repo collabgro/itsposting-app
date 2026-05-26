@@ -272,7 +272,7 @@ export default function Signup() {
                   {/* Free credits callout */}
                   <div style={{
                     padding: '12px 14px', background: t.primaryBg,
-                    borderLeft: '3px solid #9B4FD4',
+                    borderLeft: '3px solid #7C5CFC',
                     borderRadius: '0 8px 8px 0',
                     marginBottom: 24, fontSize: 13, color: t.primary,
                     display: 'flex', alignItems: 'center', gap: 8,
