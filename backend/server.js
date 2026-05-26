@@ -1363,6 +1363,174 @@ console.log('══════════════════════�
           t('e19',null,{ x:80,y:1266,width:920,height:52,text:'Business Name  ·  [City]',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.32)',align:'left',verticalAlign:'middle' }),
         ]) },
 
+      // ── PLUMBING batch 1 ─────────────────────────────────────────────────────
+
+      { name: 'Plumbing — Emergency Burst Pipe', industry: 'plumbing', category: 'promotional', sort_order: 210,
+        canvas_json: mkPage('#0B2545', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0B2545' }),
+          // Orange left brand stripe — hazard signal + identity
+          r('e2',null,{ x:0,y:0,width:14,height:1350,fill:'#F4A722' }),
+          // Danger red top strip
+          r('e3',null,{ x:0,y:0,width:1080,height:6,fill:'#C0392B' }),
+          // 🚨 Large emergency icon — scroll-stopper
+          t('e4',null,{ x:80,y:68,width:920,height:168,text:'🚨',fontFamily:'Inter',fontSize:138,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Red emergency badge — immediately signals urgency before reading
+          r('e5',null,{ x:160,y:256,width:760,height:60,fill:'#C0392B',cornerRadius:6 }),
+          t('e6',null,{ x:160,y:256,width:760,height:60,text:'⚠️  EMERGENCY SERVICE  ⚠️',fontFamily:'Inter',fontSize:22,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Giant stacked headline — pattern interrupt at every scroll speed
+          t('e7',null,{ x:80,y:336,width:920,height:196,text:'BURST',fontFamily:'Inter',fontSize:174,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e8',null,{ x:80,y:530,width:920,height:196,text:'PIPE?',fontFamily:'Inter',fontSize:174,fontStyle:'bold',fill:'#F4A722',align:'center',verticalAlign:'middle' }),
+          // Reassuring sub — emotional relief after the fear hook
+          t('e9',null,{ x:80,y:734,width:920,height:60,text:'We\'re on our way. Right now.',fontFamily:'Inter',fontSize:40,fill:'rgba(255,255,255,0.85)',align:'center',verticalAlign:'middle' }),
+          // Speed row — addresses the 3 key objections in one line
+          t('e10',null,{ x:80,y:806,width:920,height:46,text:'Same-day  ·  24/7  ·  No extra charge',fontFamily:'Inter',fontSize:26,fontStyle:'bold',fill:'#F4A722',align:'center',verticalAlign:'middle',opacity:0.80 }),
+          // Accent divider
+          r('e11',null,{ x:240,y:878,width:600,height:2,fill:'#F4A722',opacity:0.35 }),
+          // Full-width phone CTA button — the ONLY action that matters
+          r('e12',null,{ x:80,y:906,width:920,height:120,fill:'#F4A722',cornerRadius:16 }),
+          t('e13',null,{ x:80,y:906,width:920,height:120,text:'(555) 000-0000',fontFamily:'Inter',fontSize:74,fontStyle:'bold',fill:'#0B2545',align:'center',verticalAlign:'middle' }),
+          // CTA sub-label
+          t('e14',null,{ x:80,y:1044,width:920,height:46,text:'Call or text — we answer 24 hours',fontFamily:'Inter',fontSize:26,fill:'rgba(232,244,253,0.60)',align:'center',verticalAlign:'middle' }),
+          // Trust row — final objection removal
+          t('e15',null,{ x:80,y:1198,width:920,height:40,text:'Licensed  ·  Insured  ·  Background-checked',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.38)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e16',null,{ x:80,y:1292,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e17',null,{ x:200,y:1308,width:760,height:32,text:'Joe\'s Plumbing  ·  Austin, TX',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.30)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Plumbing — Meet the Plumber', industry: 'plumbing', category: 'team', sort_order: 211,
+        canvas_json: mkPage('#0D1F38', [
+          // ── Photo zone ──────────────────────────────────────────────────────
+          r('e1',null,{ x:0,y:0,width:1080,height:780,fill:'#071223' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:780,fill:'#000000',opacity:0.28 }),
+          t('e3',null,{ x:80,y:290,width:920,height:200,text:'📸  Add your photo here\n1080 × 780 px',fontFamily:'Inter',fontSize:30,fill:'rgba(255,255,255,0.12)',align:'center',verticalAlign:'middle',lineHeight:1.6 }),
+          // gradient fade
+          r('e4',null,{ x:0,y:580,width:1080,height:120,fill:'#0D1F38',opacity:0.55 }),
+          r('e5',null,{ x:0,y:700,width:1080,height:80,fill:'#0D1F38',opacity:0.90 }),
+          // ── Info panel ──────────────────────────────────────────────────────
+          r('e6',null,{ x:0,y:780,width:1080,height:570,fill:'#0D1F38' }),
+          // Name tag pill (orange — plumbing brand colour)
+          r('e7',null,{ x:80,y:720,width:560,height:62,fill:'#F4A722',cornerRadius:10 }),
+          t('e8',null,{ x:80,y:720,width:560,height:62,text:'Joe Martinez  ·  Master Plumber',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#0D1F38',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('e9',null,{ x:80,y:828,width:920,height:68,text:'The person fixing',fontFamily:'Inter',fontSize:54,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e10',null,{ x:80,y:894,width:920,height:68,text:'your plumbing. 🔧',fontFamily:'Inter',fontSize:54,fontStyle:'bold',fill:'#F4A722',align:'left',verticalAlign:'middle' }),
+          // Stats bar
+          r('e11',null,{ x:80,y:994,width:920,height:108,fill:'rgba(255,255,255,0.05)',cornerRadius:12 }),
+          t('e12',null,{ x:80,y:1008,width:280,height:54,text:'18+',fontFamily:'Inter',fontSize:44,fontStyle:'bold',fill:'#F4A722',align:'center',verticalAlign:'middle' }),
+          t('e13',null,{ x:80,y:1064,width:280,height:28,text:'Years',fontFamily:'Inter',fontSize:17,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          r('e14',null,{ x:372,y:1012,width:1,height:88,fill:'#ffffff',opacity:0.10 }),
+          t('e15',null,{ x:400,y:1008,width:280,height:54,text:'2,400+',fontFamily:'Inter',fontSize:44,fontStyle:'bold',fill:'#F4A722',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:400,y:1064,width:280,height:28,text:'Jobs Done',fontFamily:'Inter',fontSize:17,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          r('e17',null,{ x:694,y:1012,width:1,height:88,fill:'#ffffff',opacity:0.10 }),
+          t('e18',null,{ x:720,y:1008,width:280,height:54,text:'5.0 ⭐',fontFamily:'Inter',fontSize:44,fontStyle:'bold',fill:'#F4A722',align:'center',verticalAlign:'middle' }),
+          t('e19',null,{ x:720,y:1064,width:280,height:28,text:'Rating',fontFamily:'Inter',fontSize:17,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          // Bio
+          t('e20',null,{ x:80,y:1146,width:920,height:72,text:'Licensed master plumber for 18 years. From burst pipes at 2am to full bathroom remodels — I show up and I fix it right.',fontFamily:'Inter',fontSize:24,fill:'#F4A722',align:'left',verticalAlign:'top',lineHeight:1.5,opacity:0.85 }),
+          // Footer
+          r('e21',null,{ x:80,y:1238,width:920,height:1,fill:'#ffffff',opacity:0.10 }),
+          t('e22',null,{ x:80,y:1258,width:680,height:42,text:'Business Name  ·  Licensed & Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.40)',align:'left',verticalAlign:'middle' }),
+          t('e23',null,{ x:800,y:1258,width:200,height:42,text:'[City]',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.22)',align:'right',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Plumbing — Hard Water Warning Signs', industry: 'plumbing', category: 'educational', sort_order: 212,
+        canvas_json: mkPage('#13243A', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#13243A' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#2ECC71' }),
+          // Ghost "H2O" watermark
+          t('e3',null,{ x:-40,y:80,width:1160,height:400,text:'H₂O',fontFamily:'Inter',fontSize:340,fontStyle:'bold',fill:'rgba(46,204,113,0.04)',align:'left',verticalAlign:'middle' }),
+          // Headline stack
+          t('e4',null,{ x:80,y:144,width:920,height:108,text:'IS YOUR',fontFamily:'Inter',fontSize:92,fontStyle:'bold',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:250,width:920,height:108,text:'WATER HARD?',fontFamily:'Inter',fontSize:92,fontStyle:'bold',fill:'#2ECC71',align:'left',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:378,width:920,height:52,text:'4 signs every [City] homeowner should know',fontFamily:'Inter',fontSize:28,fill:'rgba(255,255,255,0.55)',align:'left',verticalAlign:'middle' }),
+          // Divider
+          r('e7',null,{ x:80,y:454,width:920,height:1,fill:'rgba(46,204,113,0.22)' }),
+          // Sign 1
+          r('e8',null,{ x:80,y:476,width:56,height:56,fill:'rgba(46,204,113,0.16)',cornerRadius:28 }),
+          t('e9',null,{ x:80,y:476,width:56,height:56,text:'1',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#2ECC71',align:'center',verticalAlign:'middle' }),
+          t('e10',null,{ x:152,y:476,width:848,height:56,text:'Chalky white residue on taps and showers',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Sign 2
+          r('e11',null,{ x:80,y:556,width:56,height:56,fill:'rgba(46,204,113,0.16)',cornerRadius:28 }),
+          t('e12',null,{ x:80,y:556,width:56,height:56,text:'2',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#2ECC71',align:'center',verticalAlign:'middle' }),
+          t('e13',null,{ x:152,y:556,width:848,height:56,text:'Water heater making popping or banging sounds',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Sign 3
+          r('e14',null,{ x:80,y:636,width:56,height:56,fill:'rgba(46,204,113,0.16)',cornerRadius:28 }),
+          t('e15',null,{ x:80,y:636,width:56,height:56,text:'3',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#2ECC71',align:'center',verticalAlign:'middle' }),
+          t('e16',null,{ x:152,y:636,width:848,height:56,text:'Dry skin and hair — even after a long shower',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Sign 4
+          r('e17',null,{ x:80,y:716,width:56,height:56,fill:'rgba(46,204,113,0.16)',cornerRadius:28 }),
+          t('e18',null,{ x:80,y:716,width:56,height:56,text:'4',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#2ECC71',align:'center',verticalAlign:'middle' }),
+          t('e19',null,{ x:152,y:716,width:848,height:56,text:'Pipes clogging faster than they should',fontFamily:'Inter',fontSize:26,fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+          // Divider
+          r('e20',null,{ x:80,y:800,width:920,height:1,fill:'rgba(46,204,113,0.16)' }),
+          // Offer banner
+          r('e21',null,{ x:80,y:834,width:920,height:110,fill:'rgba(46,204,113,0.10)',cornerRadius:14 }),
+          t('e22',null,{ x:80,y:846,width:920,height:48,text:'Free water quality test — [City] homes',fontFamily:'Inter',fontSize:28,fontStyle:'bold',fill:'#2ECC71',align:'center',verticalAlign:'middle' }),
+          t('e23',null,{ x:80,y:896,width:920,height:38,text:'We check hardness, pH, and mineral levels at no cost',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          // Phone CTA
+          r('e24',null,{ x:80,y:982,width:920,height:116,fill:'#2ECC71',cornerRadius:16 }),
+          t('e25',null,{ x:80,y:982,width:920,height:116,text:'(555) 000-0000',fontFamily:'Inter',fontSize:72,fontStyle:'bold',fill:'#13243A',align:'center',verticalAlign:'middle' }),
+          t('e26',null,{ x:80,y:1116,width:920,height:44,text:'Call to book your free water test',fontFamily:'Inter',fontSize:24,fill:'rgba(255,255,255,0.40)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e27',null,{ x:80,y:1270,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e28',null,{ x:80,y:1290,width:920,height:48,text:'Business Name  ·  [City]  ·  Licensed & Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.28)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Plumbing — 5 Signs of a Hidden Leak', industry: 'plumbing', category: 'educational', sort_order: 213,
+        canvas_json: mkPage('#1A0A0A', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#1A0A0A' }),
+          r('e2',null,{ x:0,y:0,width:1080,height:10,fill:'#E74C3C' }),
+          // Giant headline stacked
+          t('e3',null,{ x:80,y:108,width:920,height:148,text:'5 SIGNS',fontFamily:'Inter',fontSize:126,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e4',null,{ x:80,y:254,width:920,height:148,text:'OF A',fontFamily:'Inter',fontSize:126,fontStyle:'bold',fill:'rgba(255,255,255,0.70)',align:'center',verticalAlign:'middle' }),
+          t('e5',null,{ x:80,y:400,width:920,height:148,text:'HIDDEN',fontFamily:'Inter',fontSize:126,fontStyle:'bold',fill:'#E74C3C',align:'center',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:542,width:920,height:80,text:'WATER LEAK 💧',fontFamily:'Inter',fontSize:62,fontStyle:'bold',fill:'rgba(236,240,241,0.86)',align:'center',verticalAlign:'middle' }),
+          // Divider
+          r('e7',null,{ x:80,y:688,width:920,height:3,fill:'rgba(231,76,60,0.28)',cornerRadius:2 }),
+          // Signs list
+          t('e8',null,{ x:80,y:714,width:920,height:48,text:'💸  Your water bill jumped for no reason',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          t('e9',null,{ x:80,y:770,width:920,height:48,text:'🤢  Musty smell near walls or under floors',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          t('e10',null,{ x:80,y:826,width:920,height:48,text:'🎨  Staining, peeling, or bubbling on walls',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:882,width:920,height:48,text:'📉  Low water pressure that appeared suddenly',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          t('e12',null,{ x:80,y:938,width:920,height:48,text:'🌿  Wet patches or lush patches in your yard',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.50)',align:'center',verticalAlign:'middle' }),
+          // CTA button
+          r('e13',null,{ x:180,y:1048,width:720,height:68,fill:'#E74C3C',cornerRadius:34 }),
+          t('e14',null,{ x:180,y:1048,width:720,height:68,text:'Free leak detection — (555) 000-0000',fontFamily:'Inter',fontSize:24,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e15',null,{ x:80,y:1154,width:920,height:44,text:'Catch it early — before it becomes a $10,000 problem',fontFamily:'Inter',fontSize:22,fill:'rgba(231,76,60,0.65)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e16',null,{ x:80,y:1258,width:920,height:1,fill:'rgba(255,255,255,0.08)' }),
+          t('e17',null,{ x:80,y:1280,width:920,height:42,text:'Business Name  ·  [City]  ·  Licensed & Insured',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.26)',align:'center',verticalAlign:'middle' }),
+        ]) },
+
+      { name: 'Plumbing — Google Review Ask', industry: 'plumbing', category: 'social-proof', sort_order: 214,
+        canvas_json: mkPage('#0A1628', [
+          r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#0A1628' }),
+          // Radial glow (faint blue behind stars)
+          r('e2',null,{ x:190,y:280,width:700,height:700,fill:'#4285F4',opacity:0.05,cornerRadius:350 }),
+          // Decorative oversized "G" letterform
+          t('e3',null,{ x:180,y:40,width:720,height:800,text:'G',fontFamily:'Inter',fontSize:760,fontStyle:'bold',fill:'rgba(66,133,244,0.05)',align:'center',verticalAlign:'top' }),
+          // 5 gold stars
+          t('e4',null,{ x:80,y:200,width:920,height:100,text:'⭐⭐⭐⭐⭐',fontFamily:'Inter',fontSize:76,fill:'#FBBC04',align:'center',verticalAlign:'middle' }),
+          // Headline
+          t('e5',null,{ x:80,y:360,width:920,height:108,text:'Did we fix it',fontFamily:'Inter',fontSize:88,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          t('e6',null,{ x:80,y:466,width:920,height:108,text:'for you? 🔧',fontFamily:'Inter',fontSize:88,fontStyle:'bold',fill:'#FBBC04',align:'center',verticalAlign:'middle' }),
+          // Short gold accent divider
+          r('e7',null,{ x:440,y:618,width:200,height:2,fill:'#FBBC04',opacity:0.32 }),
+          // Body copy
+          t('e8',null,{ x:80,y:660,width:920,height:52,text:'Your review helps [City] homeowners',fontFamily:'Inter',fontSize:35,fill:'#FBBC04',align:'center',verticalAlign:'middle',opacity:0.90 }),
+          t('e9',null,{ x:80,y:714,width:920,height:52,text:'find a plumber they can actually trust.',fontFamily:'Inter',fontSize:35,fill:'#FBBC04',align:'center',verticalAlign:'middle',opacity:0.90 }),
+          t('e10',null,{ x:80,y:810,width:920,height:50,text:'It takes 60 seconds — and it means everything to us.',fontFamily:'Inter',fontSize:26,fill:'rgba(255,255,255,0.42)',align:'center',verticalAlign:'middle' }),
+          t('e11',null,{ x:80,y:878,width:920,height:44,text:'We recently completed: your plumbing repair.',fontFamily:'Inter',fontSize:23,fill:'rgba(255,255,255,0.28)',align:'center',verticalAlign:'middle' }),
+          // Google blue CTA button (rounded pill)
+          r('e12',null,{ x:80,y:966,width:920,height:120,fill:'#4285F4',cornerRadius:60 }),
+          t('e13',null,{ x:80,y:966,width:920,height:120,text:'Leave a Google Review →',fontFamily:'Inter',fontSize:38,fontStyle:'bold',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+          // Link note
+          t('e14',null,{ x:80,y:1126,width:920,height:44,text:'Link in bio  ·  Takes 60 seconds',fontFamily:'Inter',fontSize:24,fill:'rgba(255,255,255,0.28)',align:'center',verticalAlign:'middle' }),
+          // Footer
+          r('e15',null,{ x:80,y:1238,width:920,height:1,fill:'#ffffff',opacity:0.08 }),
+          t('e16',null,{ x:80,y:1260,width:920,height:52,text:'Business Name  ·  [City]  ·  Licensed & Insured',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.35)',align:'left',verticalAlign:'middle' }),
+        ]) },
+
       { name: 'Roofing — Google Review Ask', industry: 'roofing', category: 'social-proof', sort_order: 209,
         canvas_json: mkPage('#1B2838', [
           r('e1',null,{ x:0,y:0,width:1080,height:1350,fill:'#1B2838' }),
