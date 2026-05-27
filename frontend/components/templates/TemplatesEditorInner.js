@@ -6516,15 +6516,17 @@ export default function TemplatesEditorInner() {
                 <div style={{ padding: '4px 14px 6px', fontSize: 12, fontWeight: 600, color: t.textMuted }}>Suggested</div>
                 <div style={{ display: 'flex', gap: 8, padding: '0 14px 14px', overflowX: 'auto' }}>
                   {[
-                    { label: 'Instagram Story',     w: 1080, h: 1920, id: 'ig_story',   tw: 34, th: 60 },
-                    { label: 'Instagram Post (4:5)', w: 1080, h: 1350, id: 'ig_portrait', tw: 38, th: 48 },
-                    { label: 'Facebook Post',        w: 1200, h:  630, id: 'fb_post',    tw: 56, th: 30 },
+                    { label: 'Instagram Story',      w: 1080, h: 1920, id: 'ig_story',    tw: 34, th: 60, thumbGrad: 'linear-gradient(135deg,#ec4899,#8b5cf6)' },
+                    { label: 'Instagram Post (4:5)', w: 1080, h: 1350, id: 'ig_portrait', tw: 38, th: 48, thumbGrad: 'linear-gradient(135deg,#f97316,#ef4444)' },
+                    { label: 'Facebook Post',        w: 1200, h:  630, id: 'fb_post',     tw: 56, th: 30, thumbGrad: 'linear-gradient(135deg,#3b82f6,#06b6d4)' },
                   ].map(p => (
                     <button key={p.label} onMouseDown={() => { setCanvasSizeId(p.id); setShowCustomSizeForm(false); setShowResizeMenu(false); }}
                       style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: `1px solid ${canvasSizeId === p.id ? t.primary : t.border}`, borderRadius: 9, padding: '10px 8px', background: canvasSizeId === p.id ? t.primaryBg : 'transparent', cursor: 'pointer', flexShrink: 0 }}>
-                      <div style={{ width: p.tw, height: p.th, background: canvasSizeId === p.id ? t.primaryBg : t.input, borderRadius: 4, border: `2px solid ${canvasSizeId === p.id ? t.primary : t.borderStrong || t.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, overflow: 'hidden', flexShrink: 0 }}>
-                        <div style={{ width: '70%', height: 3, background: canvasSizeId === p.id ? t.primary : t.borderStrong || t.textMuted, borderRadius: 2, opacity: 0.6 }} />
-                        <div style={{ width: '50%', height: 2, background: canvasSizeId === p.id ? t.primary : t.borderStrong || t.textMuted, borderRadius: 2, opacity: 0.35 }} />
+                      <div style={{ width: p.tw, height: p.th, borderRadius: 4, overflow: 'hidden', flexShrink: 0, background: canvasSizeId === p.id ? t.primary : p.thumbGrad, boxShadow: canvasSizeId === p.id ? `0 0 0 2px ${t.primary}` : 'none' }}>
+                        <div style={{ width: '100%', height: '38%', background: 'rgba(255,255,255,0.15)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 2, paddingTop: 4 }}>
+                          <div style={{ width: '60%', height: 2, background: 'rgba(255,255,255,0.75)', borderRadius: 1 }} />
+                          <div style={{ width: '40%', height: 1.5, background: 'rgba(255,255,255,0.5)', borderRadius: 1 }} />
+                        </div>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 500, textAlign: 'center', maxWidth: 80, color: canvasSizeId === p.id ? t.primary : '#7C5CFC' }}>{p.label}</span>
                       <span style={{ fontSize: 10, color: t.textMuted }}>{p.w}×{p.h}px</span>
@@ -6575,11 +6577,20 @@ export default function TemplatesEditorInner() {
                     </button>
                   </div>
                 )}
-                {['Social media', 'Presentations', 'Videos', 'Website', 'Whiteboard'].map(c => (
-                  <button key={c} style={{ width: '100%', padding: '9px 16px', border: 'none', background: 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: t.text, fontSize: 13, cursor: 'pointer', transition: 'background 100ms' }}
+                {[
+                  { label: 'Custom size',   color: '#6366f1', emoji: '⊡' },
+                  { label: 'Social media',  color: '#ef4444', emoji: '♥' },
+                  { label: 'Presentations', color: '#f97316', emoji: '📊' },
+                  { label: 'Videos',        color: '#ef4444', emoji: '▶' },
+                  { label: 'Website',       color: '#3b82f6', emoji: '🌐' },
+                  { label: 'Whiteboard',    color: '#22c55e', emoji: '◻' },
+                ].map(c => (
+                  <button key={c.label} style={{ width: '100%', padding: '9px 16px', border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', gap: 10, color: t.text, fontSize: 13, cursor: 'pointer', transition: 'background 100ms' }}
                     onMouseEnter={e => e.currentTarget.style.background = t.input}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <span>{c}</span><span style={{ color: t.textMuted }}>›</span>
+                    <span style={{ color: c.color, fontSize: 14, flexShrink: 0, width: 18, textAlign: 'center' }}>{c.emoji}</span>
+                    <span style={{ flex: 1, textAlign: 'left' }}>{c.label}</span>
+                    <span style={{ color: t.textMuted }}>›</span>
                   </button>
                 ))}
               </div>
@@ -6598,11 +6609,11 @@ export default function TemplatesEditorInner() {
             {editModeOpen && (
               <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 340, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '6px 0', animation: 'dropdownIn 150ms ease forwards' }}>
                 {[
-                  { id: 'editing',    label: 'Editing',    sub: 'Full access to edit and design',
+                  { id: 'editing',    label: 'Editing',    sub: 'Make changes',
                     icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
-                  { id: 'commenting', label: 'Commenting', sub: 'Leave comments without editing',
+                  { id: 'commenting', label: 'Commenting', sub: 'Add feedback',
                     icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
-                  { id: 'viewing',    label: 'Viewing',    sub: 'Read-only — no changes allowed',
+                  { id: 'viewing',    label: 'Viewing',    sub: 'Read-only',
                     icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> },
                 ].map(m => (
                   <button key={m.id} onClick={() => { setEditMode(m.id); setEditModeOpen(false); }}
@@ -9255,7 +9266,6 @@ export default function TemplatesEditorInner() {
           <div style={{ flex: 1 }} />
           <div style={{ width: 40, height: 1, background: t.border, margin: '6px 0' }} />
           {[
-            { id: 'apps',  icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>, label: 'Apps'  },
             { id: 'magic', icon: <IpSparkle size={22} />, label: 'Magic Media' },
           ].map(tool => {
             const isActive = activeLeftTool === tool.id && panelOpen;
@@ -9832,7 +9842,7 @@ export default function TemplatesEditorInner() {
                       {[
                         { label: 'Add a heading',    family: 'Bebas Neue', size: 28, weight: 400, previewText: 'HEADING',    subLabel: 'Bebas Neue · 64px',    overrides: { fontSize: 64,  fontFamily: 'Bebas Neue',   fontStyle: 'normal', text: 'Service Announcement', letterSpacing: 2 } },
                         { label: 'Add a subheading', family: 'Montserrat', size: 17, weight: 700, previewText: 'Subheading', subLabel: 'Montserrat Bold · 36px', overrides: { fontSize: 36,  fontFamily: 'Montserrat',   fontStyle: 'bold',   text: 'Your Local Expert' } },
-                        { label: 'Add body text',    family: 'Inter',      size: 12, weight: 400, previewText: 'Body text — professional service you can trust', subLabel: 'Inter · 20px', overrides: { fontSize: 20, fontFamily: 'Inter', fontStyle: 'normal', text: 'Professional service you can trust' } },
+                        { label: 'Add a little bit of body text', family: 'Inter', size: 12, weight: 400, previewText: 'Body text — professional service you can trust', subLabel: 'Inter · 20px', overrides: { fontSize: 20, fontFamily: 'Inter', fontStyle: 'normal', text: 'Professional service you can trust' } },
                       ].map(s => (
                         <button key={s.label} onMouseDown={e => { e.preventDefault(); addText(s.overrides); }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.transform = 'scale(1.01)'; }}
@@ -10462,6 +10472,26 @@ export default function TemplatesEditorInner() {
                     { label:'2 Tall',     fn:()=>addGridLayout('2row_tall'), svg:<><rect x="8" y="8" width="21" height="38" rx="3" fill="#fff" opacity=".7"/><rect x="35" y="8" width="21" height="38" rx="3" fill="#fff" opacity=".7"/></> },
                   ],
                 },
+                { id:'animations', label:'Animations', grad:'linear-gradient(145deg,#22c55e,#4ade80)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><circle cx="32" cy="27" r="18" fill="rgba(255,255,255,0.25)"/><circle cx="32" cy="27" r="12" fill="rgba(255,255,255,0.35)"/><path d="M26 21 L26 33 L40 27Z" fill="#fff" opacity=".9"/><circle cx="18" cy="12" r="4" fill="#fff" opacity=".6"/><circle cx="46" cy="12" r="4" fill="#fff" opacity=".6"/></svg>,
+                  items:[{ label:'Play', fn:()=>{}, svg:<path d="M22 14 L22 40 L44 27Z" fill="#fff" opacity=".85"/> }],
+                },
+                { id:'audio', label:'Audio', grad:'linear-gradient(145deg,#ef4444,#f97316)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><path d="M28 12 L28 42 L18 36 L10 36 L10 20 L18 20Z" fill="#fff" opacity=".85"/><path d="M36 20 C44 22 44 34 36 36" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round"/><path d="M42 14 C54 18 54 38 42 42" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round"/></svg>,
+                  items:[{ label:'Coming soon', fn:()=>{}, svg:<text x="32" y="32" fill="#fff" fontSize="10" textAnchor="middle">🎵</text> }],
+                },
+                { id:'forms', label:'Forms', grad:'linear-gradient(145deg,#10b981,#059669)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="12" y="14" width="40" height="8" rx="4" fill="rgba(255,255,255,0.3)"/><rect x="12" y="26" width="40" height="8" rx="4" fill="rgba(255,255,255,0.3)"/><rect x="12" y="38" width="24" height="8" rx="4" fill="#fff" opacity=".85"/><circle cx="44" cy="18" r="3" fill="#fff" opacity=".9"/><circle cx="44" cy="30" r="3" fill="rgba(255,255,255,0.4)"/></svg>,
+                  items:[{ label:'Coming soon', fn:()=>{}, svg:<text x="32" y="32" fill="#fff" fontSize="10" textAnchor="middle">📋</text> }],
+                },
+                { id:'sheets', label:'Sheets', grad:'linear-gradient(145deg,#0ea5e9,#0284c7)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="8" y="10" width="48" height="36" rx="3" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/><line x1="8" y1="20" x2="56" y2="20" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/><line x1="8" y1="30" x2="56" y2="30" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/><line x1="8" y1="40" x2="56" y2="40" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/><line x1="24" y1="10" x2="24" y2="46" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/><line x1="40" y1="10" x2="40" y2="46" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/><text x="16" y="17" fill="#fff" fontSize="6" textAnchor="middle" opacity=".8">foo</text></svg>,
+                  items:[{ label:'Coming soon', fn:()=>{}, svg:<text x="32" y="32" fill="#fff" fontSize="10" textAnchor="middle">📊</text> }],
+                },
+                { id:'tables', label:'Tables', grad:'linear-gradient(145deg,#f59e0b,#d97706)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="8" y="10" width="48" height="36" rx="3" fill="rgba(255,255,255,0.15)" stroke="#fff" strokeWidth="1.5" opacity=".8"/><rect x="8" y="10" width="48" height="10" rx="3" fill="rgba(255,255,255,0.35)"/><line x1="8" y1="30" x2="56" y2="30" stroke="#fff" strokeWidth="1" opacity=".5"/><line x1="8" y1="40" x2="56" y2="40" stroke="#fff" strokeWidth="1" opacity=".5"/><line x1="26" y1="20" x2="26" y2="46" stroke="#fff" strokeWidth="1" opacity=".5"/><line x1="44" y1="20" x2="44" y2="46" stroke="#fff" strokeWidth="1" opacity=".5"/></svg>,
+                  items:[{ label:'Table', fn:()=>addTable(), svg:<><rect x="8" y="10" width="48" height="36" rx="3" fill="none" stroke="#fff" strokeWidth="2" opacity=".8"/><line x1="8" y1="22" x2="56" y2="22" stroke="#fff" strokeWidth="1.5" opacity=".6"/><line x1="28" y1="10" x2="28" y2="46" stroke="#fff" strokeWidth="1" opacity=".5"/></> }],
+                },
               ];
               const allItems = cats.flatMap(c => c.items.map(i => ({...i, catId:c.id})));
               const q = elemSearch.trim().toLowerCase();
@@ -10487,10 +10517,10 @@ export default function TemplatesEditorInner() {
                 <div style={{ display:'flex', alignItems:'center', gap:8, background:t.input, borderRadius:10, padding:'8px 12px', border:`1px solid ${elemSearch ? t.primaryBorder : t.border}`, transition:'border-color 150ms ease, box-shadow 150ms ease', boxShadow: elemSearch ? `0 0 0 3px ${t.primaryBg}` : 'none' }}>
                   <span style={{ color: elemSearch ? t.primary : t.textMuted, flexShrink:0, display:'flex' }}><IpSearch size={15}/></span>
                   <input value={elemSearch} onChange={e => { setElemSearch(e.target.value); setActiveElemCat(null); }}
-                    placeholder="Describe your element…" style={{ flex:1, background:'transparent', border:'none', outline:'none', color:t.text, fontSize:13 }} />
+                    placeholder="+ Describe your ideal element" style={{ flex:1, background:'transparent', border:'none', outline:'none', color:t.text, fontSize:13 }} />
                   {elemSearch
                     ? <button onClick={() => setElemSearch('')} style={{ background:'none', border:'none', color:t.textMuted, cursor:'pointer', padding:0, fontSize:18, lineHeight:1, display:'flex' }}>×</button>
-                    : <span title="AI search" style={{ color: t.textMuted, flexShrink:0, display:'flex' }}><IpSparkle size={13}/></span>
+                    : <span title="Voice search" style={{ color: t.textMuted, flexShrink:0, fontSize:15, lineHeight:1 }}>🎤</span>
                   }
                 </div>
                 {/* Generate (split-button) + Search (purple pill) — Canva-style */}
@@ -10660,6 +10690,15 @@ export default function TemplatesEditorInner() {
                   const hoverIn = e => { e.currentTarget.style.transform='scale(1.07) translateY(-2px)'; e.currentTarget.style.boxShadow='0 14px 30px rgba(0,0,0,0.32), inset 0 1.5px 0 rgba(255,255,255,0.25)'; };
                   const hoverOut = e => { e.currentTarget.style.transform='scale(1)'; e.currentTarget.style.boxShadow='0 6px 16px rgba(0,0,0,0.28), 0 2px 4px rgba(0,0,0,0.10), inset 0 1.5px 0 rgba(255,255,255,0.22)'; };
                   const tileBtn = { display:'flex', flexDirection:'column', alignItems:'center', gap:7, background:'none', border:'none', cursor:'pointer', padding:0 };
+                  const findCat = (id) => cats.find(c => c.id === id);
+                  const catTileButton = (cat) => !cat ? null : (
+                    <button key={cat.id} style={tileBtn} onClick={() => setActiveElemCat(cat.id)}>
+                      <div style={catTileStyle(cat.grad)} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>
+                        {cat.preview}
+                      </div>
+                      <span style={{ fontSize:11, color:t.text, fontWeight:500 }}>{cat.label}</span>
+                    </button>
+                  );
                   return (
                     <>
                       {/* ── Recommended for you ── */}
@@ -10692,7 +10731,11 @@ export default function TemplatesEditorInner() {
                       </div>
                       <div style={{ fontSize:12, fontWeight:600, color:t.text }}>Browse categories</div>
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
-                        {/* Photos */}
+                        {/* Row 1: Shapes · Graphics · Animations */}
+                        {catTileButton(findCat('shapes'))}
+                        {catTileButton(findCat('graphics'))}
+                        {catTileButton(findCat('animations'))}
+                        {/* Row 2: Photos · Videos · Audio */}
                         <button style={tileBtn} onClick={() => { setElemSubPanel('photos'); if(elemPhotos.length===0) loadElemPhotos(); }}>
                           <div style={catTileStyle('linear-gradient(145deg,#5b86e5,#36d1dc)')} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>
                             <svg viewBox="0 0 54 54" width="38" height="38">
@@ -10707,7 +10750,6 @@ export default function TemplatesEditorInner() {
                           </div>
                           <span style={{ fontSize:11, color:t.text, fontWeight:500 }}>Photos</span>
                         </button>
-                        {/* Videos */}
                         <button style={tileBtn} onClick={() => { setElemSubPanel('videos'); if(pexelsVideos.length===0) loadElemVideos(); }}>
                           <div style={catTileStyle('linear-gradient(145deg,#a855f7,#f43f5e)')} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>
                             <svg viewBox="0 0 54 54" width="38" height="38">
@@ -10723,15 +10765,17 @@ export default function TemplatesEditorInner() {
                           </div>
                           <span style={{ fontSize:11, color:t.text, fontWeight:500 }}>Videos</span>
                         </button>
-                        {/* Element categories */}
-                        {cats.map(cat => (
-                          <button key={cat.id} style={tileBtn} onClick={() => setActiveElemCat(cat.id)}>
-                            <div style={catTileStyle(cat.grad)} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>
-                              {cat.preview}
-                            </div>
-                            <span style={{ fontSize:11, color:t.text, fontWeight:500 }}>{cat.label}</span>
-                          </button>
-                        ))}
+                        {catTileButton(findCat('audio'))}
+                        {/* Row 3: Charts · Forms · Sheets */}
+                        {catTileButton(findCat('charts'))}
+                        {catTileButton(findCat('forms'))}
+                        {catTileButton(findCat('sheets'))}
+                        {/* Row 4: Tables · Frames · Grids */}
+                        {catTileButton(findCat('tables'))}
+                        {catTileButton(findCat('frames'))}
+                        {catTileButton(findCat('grids'))}
+                        {/* Extra ItsPosting categories not in Canva's 12 */}
+                        {cats.filter(c => !['shapes','graphics','animations','audio','charts','forms','sheets','tables','frames','grids'].includes(c.id)).map(cat => catTileButton(cat))}
                       </div>
                       <div style={{ fontSize:12, fontWeight:600, color:t.textMuted, marginTop:4 }}>Quick Add</div>
                       <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
