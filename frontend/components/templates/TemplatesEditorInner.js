@@ -10271,22 +10271,39 @@ export default function TemplatesEditorInner() {
               const cats = [
                 { id:'shapes', label:'Shapes', grad:'linear-gradient(135deg,#00C4CC,#0099A3)',
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="6" y="8" width="22" height="22" rx="2" fill="#fff" opacity=".8"/><circle cx="49" cy="19" r="11" fill="#fff" opacity=".7"/><polygon points="20,46 36,30 52,46" fill="#fff" opacity=".9"/></svg>,
-                  items:[
-                    { label:'Rectangle',  fn:()=>addRect(),                               svg:<rect x="10" y="16" width="44" height="24" rx="2" fill="#fff" opacity=".85"/> },
-                    { label:'Rounded',    fn:()=>addRect({cornerRadius:20}),              svg:<rect x="10" y="16" width="44" height="24" rx="12" fill="#fff" opacity=".85"/> },
-                    { label:'Circle',     fn:()=>addCircle(),                             svg:<circle cx="32" cy="28" r="18" fill="#fff" opacity=".85"/> },
-                    { label:'Triangle',   fn:()=>addTriangle(),                           svg:<polygon points="32,10 54,46 10,46" fill="#fff" opacity=".85"/> },
-                    { label:'Diamond',    fn:()=>addTriangle({sides:4,rotation:45}),      svg:<polygon points="32,10 50,28 32,46 14,28" fill="#fff" opacity=".85"/> },
-                    { label:'Star',       fn:()=>addStar(),                               svg:<polygon points="32,8 36,22 50,22 40,31 43,45 32,36 21,45 24,31 14,22 28,22" fill="#fff" opacity=".85"/> },
-                    { label:'Heart',      fn:()=>addSmartShape('heart'),                  svg:<path d="M32,44 C28,40 10,30 10,20 C10,14 15,10 22,13 C27,15 32,20 32,20 C32,20 37,15 42,13 C49,10 54,14 54,20 C54,30 36,40 32,44Z" fill="#fff" opacity=".85"/> },
-                    { label:'Pentagon',   fn:()=>addSmartShape('pentagon'),               svg:<polygon points="32,10 52,26 44,46 20,46 12,26" fill="#fff" opacity=".85"/> },
-                    { label:'Octagon',    fn:()=>addSmartShape('octagon'),                svg:<polygon points="22,8 42,8 54,20 54,36 42,48 22,48 10,36 10,20" fill="#fff" opacity=".85"/> },
-                    { label:'Cross',      fn:()=>addSmartShape('cross'),                  svg:<path d="M24,10h16v14h14v16H40v14H24V40H10V24h14Z" fill="#fff" opacity=".85"/> },
-                    { label:'Hexagon',    fn:()=>addSmartShape('hexagon'),               svg:<polygon points="32,10 50,20 50,36 32,46 14,36 14,20" fill="#fff" opacity=".85"/> },
-                    { label:'Cloud',      fn:()=>addSmartShape('cloud'),                 svg:<path d="M18,38 C12,38 8,34 8,29 C8,24 12,21 17,22 C17,16 22,12 28,12 C32,12 36,14 38,18 C40,16 43,15 46,16 C50,17 53,21 53,25 C53,30 49,34 44,34Z" fill="#fff" opacity=".85"/> },
-                    { label:'Parallelogram',fn:()=>addSmartShape('parallelogram'),       svg:<polygon points="22,12 54,12 42,44 10,44" fill="#fff" opacity=".85"/> },
-                    { label:'Banner',     fn:()=>addSmartShape('banner'),               svg:<polygon points="6,12 58,12 52,28 58,44 6,44 12,28" fill="#fff" opacity=".85"/> },
-                    { label:'Speech →',   fn:()=>addSmartShape('speechbubble_right'),   svg:<><rect x="8" y="8" width="44" height="30" rx="8" fill="#fff" opacity=".85"/><polygon points="36,38 50,50 52,38" fill="#fff" opacity=".85"/></> },
+                  sections:[
+                    { label:'Lines', items:[
+                      { label:'Line',     fn:()=>addLine(),               svg:<line x1="12" y1="27" x2="52" y2="27" stroke="#fff" strokeWidth="3" strokeLinecap="round"/> },
+                      { label:'Dashed',   fn:()=>addLine({dash:[14,8]}),  svg:<line x1="12" y1="27" x2="52" y2="27" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeDasharray="10 6"/> },
+                      { label:'Dotted',   fn:()=>addLine({dash:[4,6]}),   svg:<line x1="12" y1="27" x2="52" y2="27" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeDasharray="3 5"/> },
+                      { label:'Arrow →',  fn:()=>addArrow(),              svg:<><line x1="8" y1="27" x2="42" y2="27" stroke="#fff" strokeWidth="3"/><polygon points="38,20 52,27 38,34" fill="#fff"/></> },
+                      { label:'Thick',    fn:()=>addLine({strokeWidth:8}),svg:<line x1="12" y1="27" x2="52" y2="27" stroke="#fff" strokeWidth="8" strokeLinecap="round"/> },
+                      { label:'Divider',  fn:()=>addDivider(),            svg:<><line x1="8" y1="27" x2="56" y2="27" stroke="#fff" strokeWidth="2"/><circle cx="32" cy="27" r="5" fill="#fff"/></> },
+                    ]},
+                    { label:'Basic shapes', items:[
+                      { label:'Rect',     fn:()=>addRect(),                            svg:<rect x="12" y="18" width="40" height="24" rx="2" fill="#fff" opacity=".85"/> },
+                      { label:'Rounded',  fn:()=>addRect({cornerRadius:20}),          svg:<rect x="12" y="18" width="40" height="24" rx="12" fill="#fff" opacity=".85"/> },
+                      { label:'Circle',   fn:()=>addCircle(),                          svg:<circle cx="32" cy="27" r="18" fill="#fff" opacity=".85"/> },
+                      { label:'Triangle', fn:()=>addTriangle(),                        svg:<polygon points="32,10 52,44 12,44" fill="#fff" opacity=".85"/> },
+                      { label:'Diamond',  fn:()=>addTriangle({sides:4,rotation:45}),  svg:<polygon points="32,10 50,27 32,44 14,27" fill="#fff" opacity=".85"/> },
+                    ]},
+                    { label:'Polygons', items:[
+                      { label:'Pentagon',  fn:()=>addSmartShape('pentagon'),  svg:<polygon points="32,10 52,26 44,46 20,46 12,26" fill="#fff" opacity=".85"/> },
+                      { label:'Hexagon',   fn:()=>addSmartShape('hexagon'),   svg:<polygon points="32,10 48,19 48,37 32,46 16,37 16,19" fill="#fff" opacity=".85"/> },
+                      { label:'Octagon',   fn:()=>addSmartShape('octagon'),   svg:<polygon points="22,10 42,10 52,22 52,38 42,48 22,48 12,38 12,22" fill="#fff" opacity=".85"/> },
+                      { label:'Cross',     fn:()=>addSmartShape('cross'),     svg:<path d="M26 10h12v16h16v12H38v16H26V38H10V26h16Z" fill="#fff" opacity=".85"/> },
+                    ]},
+                    { label:'Stars', items:[
+                      { label:'Star',   fn:()=>addStar(),              svg:<polygon points="32,10 36,23 50,23 39,31 43,44 32,36 21,44 25,31 14,23 28,23" fill="#fff" opacity=".85"/> },
+                      { label:'Heart',  fn:()=>addSmartShape('heart'), svg:<path d="M32 42C32 42 12 30 12 18a10 10 0 0 1 20-2 10 10 0 0 1 20 2c0 12-20 24-20 24Z" fill="#fff" opacity=".85"/> },
+                      { label:'Cloud',  fn:()=>addSmartShape('cloud'), svg:<path d="M20 38Q12 38 12 30Q12 22 20 22Q22 14 30 14Q38 14 40 22Q48 22 48 30Q48 38 40 38Z" fill="#fff" opacity=".85"/> },
+                      { label:'Banner', fn:()=>addSmartShape('banner'),svg:<path d="M10 18h44v22l-22-6-22 6Z" fill="#fff" opacity=".85"/> },
+                    ]},
+                    { label:'Arrows', items:[
+                      { label:'Right →',   fn:()=>addArrow(),                           svg:<><line x1="8" y1="27" x2="42" y2="27" stroke="#fff" strokeWidth="3"/><polygon points="38,20 52,27 38,34" fill="#fff"/></> },
+                      { label:'← → Both', fn:()=>addArrow(),                           svg:<><polygon points="17,20 6,27 17,34" fill="#fff"/><line x1="8" y1="27" x2="56" y2="27" stroke="#fff" strokeWidth="3"/><polygon points="47,20 58,27 47,34" fill="#fff"/></> },
+                      { label:'Speech →',  fn:()=>addSmartShape('speechbubble_right'), svg:<><rect x="8" y="12" width="36" height="24" rx="6" fill="#fff" opacity=".85"/><polygon points="20,36 14,46 28,36" fill="#fff" opacity=".85"/></> },
+                    ]},
                   ],
                 },
                 { id:'lines', label:'Lines', grad:'linear-gradient(135deg,#7C5CFC,#5B3FE0)',
@@ -10305,29 +10322,46 @@ export default function TemplatesEditorInner() {
                 },
                 { id:'frames', label:'Frames', grad:'linear-gradient(135deg,#f59e0b,#d97706)',
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="10" y="8" width="44" height="40" rx="2" fill="none" stroke="#fff" strokeWidth="3" opacity=".9"/><rect x="16" y="14" width="32" height="28" rx="1" fill="#fff" opacity=".2"/></svg>,
-                  items:[
-                    { label:'Sq Frame',    fn:()=>addRect({fill:'transparent',stroke:'#ffffff',strokeWidth:4,width:200,height:200}), svg:<rect x="10" y="8" width="44" height="44" rx="2" fill="none" stroke="#fff" strokeWidth="3" opacity=".9"/> },
-                    { label:'Circle Frame',fn:()=>addCircle({fill:'transparent',stroke:'#ffffff',strokeWidth:4}),                   svg:<circle cx="32" cy="28" r="20" fill="none" stroke="#fff" strokeWidth="3" opacity=".9"/> },
-                    { label:'Polaroid',    fn:()=>addPolaroid(),                          svg:<><rect x="10" y="8" width="44" height="44" rx="2" fill="none" stroke="#fff" strokeWidth="2.5" opacity=".9"/><rect x="10" y="40" width="44" height="12" rx="0" fill="#fff" opacity=".25"/><rect x="14" y="12" width="36" height="26" rx="1" fill="#fff" opacity=".15"/></> },
-                    { label:'Before/After',fn:()=>addBeforeAfter(),                       svg:<><rect x="8" y="10" width="48" height="36" rx="3" fill="none" stroke="#fff" strokeWidth="2" opacity=".8"/><line x1="32" y1="10" x2="32" y2="46" stroke="#fff" strokeWidth="2" opacity=".7"/><text x="20" y="33" fill="#fff" fontSize="8" textAnchor="middle" opacity=".9">B</text><text x="44" y="33" fill="#fff" fontSize="8" textAnchor="middle" opacity=".9">A</text></> },
-                    { label:'Map Pin',     fn:()=>addMapPin(),                            svg:<><path d="M32,10 C22,10 14,18 14,26 C14,36 32,48 32,48 C32,48 50,36 50,26 C50,18 42,10 32,10Z" fill="#fff" opacity=".75"/><circle cx="32" cy="26" r="6" fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="2"/></> },
-                    { label:'QR Code',     fn:()=>addQrCode(),                            svg:<><rect x="8" y="8" width="48" height="48" rx="3" fill="none" stroke="#fff" strokeWidth="2" opacity=".9"/><rect x="12" y="12" width="16" height="16" rx="1" fill="#fff" opacity=".5"/><rect x="36" y="12" width="16" height="16" rx="1" fill="#fff" opacity=".5"/><rect x="12" y="36" width="16" height="16" rx="1" fill="#fff" opacity=".5"/><rect x="32" y="32" width="20" height="20" rx="1" fill="#fff" opacity=".25"/></> },
-                    { label:'Phone',       fn:()=>addRect({width:140,height:260,cornerRadius:22,fill:'rgba(255,255,255,0.08)',stroke:'#ffffff',strokeWidth:4}), svg:<><rect x="18" y="6" width="28" height="44" rx="6" fill="none" stroke="#fff" strokeWidth="3" opacity=".9"/><rect x="22" y="10" width="20" height="32" rx="3" fill="rgba(255,255,255,0.15)"/><circle cx="32" cy="46" r="2" fill="#fff" opacity=".6"/><line x1="26" y1="7" x2="38" y2="7" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity=".6"/></> },
-                    { label:'Film Strip',  fn:()=>addRect({width:300,height:160,fill:'rgba(0,0,0,0.7)',stroke:'#ffffff',strokeWidth:2}), svg:<><rect x="4" y="10" width="56" height="36" rx="2" fill="rgba(255,255,255,0.15)" stroke="#fff" strokeWidth="1.5"/><rect x="4" y="10" width="7" height="36" fill="rgba(0,0,0,0.5)"/><rect x="53" y="10" width="7" height="36" fill="rgba(0,0,0,0.5)"/>{[0,1,2,3,4].map(i=><rect key={i} x={5} y={12+i*7} width={5} height={4} rx={1} fill="#fff" opacity=".8"/>)}{[0,1,2,3,4].map(i=><rect key={i} x={54} y={12+i*7} width={5} height={4} rx={1} fill="#fff" opacity=".8"/>)}</> },
-                    { label:'Circle Crop', fn:()=>addCircle({fill:'rgba(255,255,255,0.12)',stroke:'#ffffff',strokeWidth:3,radius:100}), svg:<><circle cx="32" cy="28" r="20" fill="rgba(255,255,255,0.15)" stroke="#fff" strokeWidth="3" opacity=".9"/><circle cx="32" cy="28" r="13" fill="rgba(255,255,255,0.08)"/><text x="32" y="32" fill="#fff" fontSize="10" textAnchor="middle" opacity=".6">photo</text></> },
+                  sections:[
+                    { label:'Basic shapes', items:[
+                      { label:'Sq Frame',     fn:()=>addRect({fill:'transparent',stroke:'#ffffff',strokeWidth:4,width:200,height:200}), svg:<rect x="10" y="10" width="44" height="34" fill="none" stroke="#fff" strokeWidth="3"/> },
+                      { label:'Circle Frame', fn:()=>addCircle({fill:'transparent',stroke:'#ffffff',strokeWidth:4}),                    svg:<circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="3"/> },
+                      { label:'Polaroid',     fn:()=>addPolaroid(),   svg:<><rect x="10" y="10" width="44" height="40" rx="2" fill="#fff" opacity=".85"/><rect x="10" y="40" width="44" height="10" fill="rgba(255,255,255,0.5)"/></> },
+                      { label:'Circle Crop',  fn:()=>addCircle({fill:'rgba(255,255,255,0.12)',stroke:'#ffffff',strokeWidth:3,radius:100}), svg:<circle cx="32" cy="27" r="18" fill="rgba(255,255,255,0.18)" stroke="#fff" strokeWidth="3"/> },
+                    ]},
+                    { label:'Film and photo', items:[
+                      { label:'Film Strip',   fn:()=>addRect({width:300,height:160}), svg:<><rect x="6" y="16" width="52" height="24" rx="2" fill="none" stroke="#fff" strokeWidth="2"/>{[8,15,22,29,36,43].map(x=><><rect key={x+'t'} x={x} y="10" width="5" height="5" rx="1" fill="#fff" opacity=".6"/><rect key={x+'b'} x={x} y="41" width="5" height="5" rx="1" fill="#fff" opacity=".6"/></>)}</> },
+                      { label:'Before/After', fn:()=>addBeforeAfter(), svg:<><rect x="8" y="14" width="48" height="28" rx="3" fill="none" stroke="#fff" strokeWidth="2"/><line x1="32" y1="14" x2="32" y2="42" stroke="#fff" strokeWidth="2" strokeDasharray="3 2"/></> },
+                    ]},
+                    { label:'Devices', items:[
+                      { label:'Phone',   fn:()=>addRect({width:140,height:260,cornerRadius:22}), svg:<><rect x="18" y="8" width="28" height="42" rx="6" fill="none" stroke="#fff" strokeWidth="2.5"/><circle cx="32" cy="46" r="2.5" fill="#fff" opacity=".7"/><line x1="27" y1="11" x2="37" y2="11" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></> },
+                      { label:'Monitor', fn:()=>addRect({width:280,height:180}),                 svg:<><rect x="10" y="12" width="44" height="28" rx="3" fill="none" stroke="#fff" strokeWidth="2"/><line x1="32" y1="40" x2="32" y2="48" stroke="#fff" strokeWidth="2"/><line x1="22" y1="48" x2="42" y2="48" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></> },
+                      { label:'Tablet',  fn:()=>addRect({width:180,height:240}),                 svg:<><rect x="14" y="8" width="36" height="42" rx="4" fill="none" stroke="#fff" strokeWidth="2"/><circle cx="32" cy="46" r="2" fill="#fff" opacity=".7"/></> },
+                    ]},
+                    { label:'Paper', items:[
+                      { label:'Map Pin', fn:()=>addMapPin(),  svg:<><path d="M32 10a14 14 0 0 1 14 14c0 10-14 24-14 24S18 34 18 24a14 14 0 0 1 14-14Z" fill="none" stroke="#fff" strokeWidth="2.5"/><circle cx="32" cy="24" r="5" fill="#fff" opacity=".85"/></> },
+                      { label:'QR Code', fn:()=>addQrCode(), svg:<><rect x="8" y="8" width="20" height="20" rx="2" fill="none" stroke="#fff" strokeWidth="2"/><rect x="36" y="8" width="20" height="20" rx="2" fill="none" stroke="#fff" strokeWidth="2"/><rect x="8" y="36" width="20" height="20" rx="2" fill="none" stroke="#fff" strokeWidth="2"/><rect x="12" y="12" width="10" height="10" fill="#fff" opacity=".85"/><rect x="40" y="12" width="10" height="10" fill="#fff" opacity=".85"/><rect x="12" y="40" width="10" height="10" fill="#fff" opacity=".85"/><rect x="38" y="38" width="14" height="6" fill="#fff" opacity=".5"/></> },
+                    ]},
                   ],
                 },
                 { id:'charts', label:'Charts', grad:'linear-gradient(135deg,#ef4444,#dc2626)',
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="8" y="36" width="10" height="12" rx="1" fill="#fff" opacity=".6"/><rect x="22" y="26" width="10" height="22" rx="1" fill="#fff" opacity=".7"/><rect x="36" y="16" width="10" height="32" rx="1" fill="#fff" opacity=".8"/><rect x="50" y="30" width="10" height="18" rx="1" fill="#fff" opacity=".65"/></svg>,
-                  items:[
-                    { label:'Bar Chart',  fn:()=>addChart('bar'),                         svg:<><rect x="8" y="34" width="9" height="14" rx="1" fill="#fff" opacity=".7"/><rect x="22" y="24" width="9" height="24" rx="1" fill="#fff" opacity=".7"/><rect x="36" y="14" width="9" height="34" rx="1" fill="#fff" opacity=".7"/><rect x="50" y="28" width="9" height="20" rx="1" fill="#fff" opacity=".7"/></> },
-                    { label:'Pie Chart',  fn:()=>addChart('pie'),                         svg:<><circle cx="32" cy="28" r="20" fill="rgba(255,255,255,0.2)"/><path d="M32,28 L32,8 A20,20 0 0,1 52,28 Z" fill="#fff" opacity=".8"/><path d="M32,28 L52,28 A20,20 0 0,1 22,46 Z" fill="#fff" opacity=".55"/></> },
-                    { label:'Progress',   fn:()=>addProgressBar(),                        svg:<><rect x="8" y="22" width="48" height="12" rx="6" fill="rgba(255,255,255,0.25)"/><rect x="8" y="22" width="34" height="12" rx="6" fill="#fff" opacity=".9"/></> },
-                    { label:'Rating',     fn:()=>addRating(),                             svg:<text x="6" y="34" fill="#fff" fontSize="10" opacity=".9">★★★★☆</text> },
-                    { label:'Counter',    fn:()=>addCounter(),                            svg:<><rect x="12" y="12" width="40" height="32" rx="6" fill="rgba(255,255,255,0.2)"/><text x="32" y="33" fill="#fff" fontSize="14" textAnchor="middle" fontWeight="bold" opacity=".9">1.2K</text></> },
-                    { label:'Countdown',  fn:()=>addCountdown(),                          svg:<><rect x="8" y="14" width="20" height="24" rx="4" fill="rgba(255,255,255,0.2)"/><rect x="36" y="14" width="20" height="24" rx="4" fill="rgba(255,255,255,0.2)"/><text x="18" y="31" fill="#fff" fontSize="12" textAnchor="middle" fontWeight="bold" opacity=".9">12</text><text x="46" y="31" fill="#fff" fontSize="12" textAnchor="middle" fontWeight="bold" opacity=".9">34</text></> },
-                    { label:'Timeline',   fn:()=>addHTimeline(),                          svg:<><circle cx="14" cy="28" r="5" fill="#fff" opacity=".9"/><circle cx="32" cy="28" r="5" fill="#fff" opacity=".9"/><circle cx="50" cy="28" r="5" fill="#fff" opacity=".9"/><line x1="19" y1="28" x2="27" y2="28" stroke="#fff" strokeWidth="2" opacity=".6"/><line x1="37" y1="28" x2="45" y2="28" stroke="#fff" strokeWidth="2" opacity=".6"/></> },
-                    { label:'Table',      fn:()=>addTable(),                              svg:<><rect x="8" y="10" width="48" height="36" rx="3" fill="none" stroke="#fff" strokeWidth="2" opacity=".8"/><line x1="8" y1="22" x2="56" y2="22" stroke="#fff" strokeWidth="1.5" opacity=".6"/><line x1="8" y1="34" x2="56" y2="34" stroke="#fff" strokeWidth="1" opacity=".5"/><line x1="28" y1="10" x2="28" y2="46" stroke="#fff" strokeWidth="1" opacity=".5"/></> },
+                  startWithData: true,
+                  sections:[
+                    { label:'Bar charts', items:[
+                      { label:'Bar',     fn:()=>addChart('bar'), svg:<><rect x="12" y="38" width="10" height="12" fill="#fff" opacity=".9"/><rect x="26" y="28" width="10" height="22" fill="#fff" opacity=".7"/><rect x="40" y="18" width="10" height="32" fill="#fff" opacity=".85"/></> },
+                      { label:'Row',     fn:()=>addChart('bar'), svg:<><rect x="12" y="14" width="14" height="8" fill="#fff" opacity=".9"/><rect x="12" y="25" width="26" height="8" fill="#fff" opacity=".7"/><rect x="12" y="36" width="38" height="8" fill="#fff" opacity=".85"/></> },
+                      { label:'Grouped', fn:()=>addChart('bar'), svg:<><rect x="10" y="32" width="8" height="18" fill="#fff" opacity=".9"/><rect x="20" y="24" width="8" height="26" fill="#fff" opacity=".6"/><rect x="34" y="28" width="8" height="22" fill="#fff" opacity=".9"/><rect x="44" y="18" width="8" height="32" fill="#fff" opacity=".6"/></> },
+                    ]},
+                    { label:'Line charts', items:[
+                      { label:'Line',       fn:()=>addChart('bar'), svg:<><polyline points="10,40 22,28 34,32 46,16 56,20" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><circle cx="22" cy="28" r="3" fill="#fff"/><circle cx="34" cy="32" r="3" fill="#fff"/><circle cx="46" cy="16" r="3" fill="#fff"/></> },
+                      { label:'Multi-line', fn:()=>addChart('bar'), svg:<><polyline points="10,38 22,28 34,30 46,18" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><polyline points="10,44 22,36 34,40 46,30" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2.5" strokeLinecap="round"/></> },
+                    ]},
+                    { label:'Pie and donut charts', items:[
+                      { label:'Pie',      fn:()=>addChart('pie'),  svg:<><circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="18" strokeDasharray="70 30" opacity=".9"/><circle cx="32" cy="27" r="18" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="18" strokeDasharray="30 70" strokeDashoffset="-70"/></> },
+                      { label:'Donut',    fn:()=>addChart('pie'),  svg:<><circle cx="32" cy="27" r="16" fill="none" stroke="#fff" strokeWidth="8" strokeDasharray="65 35" opacity=".9"/><circle cx="32" cy="27" r="16" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="8" strokeDasharray="35 65" strokeDashoffset="-65"/></> },
+                      { label:'Progress', fn:()=>addProgressBar(), svg:<><rect x="10" y="22" width="44" height="10" rx="5" fill="rgba(255,255,255,0.25)"/><rect x="10" y="22" width="28" height="10" rx="5" fill="#fff" opacity=".9"/></> },
+                    ]},
                   ],
                 },
                 { id:'typography', label:'Typography', grad:'linear-gradient(135deg,#3b82f6,#1d4ed8)',
@@ -10372,38 +10406,34 @@ export default function TemplatesEditorInner() {
                 },
                 { id:'graphics', label:'Graphics', grad:'linear-gradient(135deg,#f97316,#ea580c)',
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><circle cx="16" cy="17" r="11" fill="rgba(255,255,255,0.25)"/><polyline points="11,17 14,21 21,12" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><circle cx="40" cy="17" r="11" fill="rgba(255,255,255,0.25)"/><path d="M40 7 C44 12 47 15 47 19 C47 23.4 43.9 26 40 26 C36.1 26 33 23.4 33 19 C33 15 36 12 40 7Z" fill="#fff" opacity=".85"/><circle cx="16" cy="39" r="11" fill="rgba(255,255,255,0.25)"/><path d="M12 33 L16 29 L20 33 L20 45 L12 45Z" fill="#fff" opacity=".8"/><circle cx="40" cy="39" r="11" fill="rgba(255,255,255,0.25)"/><line x1="34" y1="39" x2="46" y2="39" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/><polyline points="40,33 46,39 40,45" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-                  items:[
-                    { label:'Check',      fn:()=>addIconShape({iconKind:'check'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polyline points="21,28 28,35 43,20" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/></> },
-                    { label:'Cross',      fn:()=>addIconShape({iconKind:'x'}),         svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="22" y1="18" x2="42" y2="38" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><line x1="42" y1="18" x2="22" y2="38" stroke="#fff" strokeWidth="3" strokeLinecap="round"/></> },
-                    { label:'Plus',       fn:()=>addIconShape({iconKind:'plus'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="20" y1="28" x2="44" y2="28" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><line x1="32" y1="16" x2="32" y2="40" stroke="#fff" strokeWidth="3" strokeLinecap="round"/></> },
-                    { label:'Arrow →',    fn:()=>addIconShape({iconKind:'arrow'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="17" y1="28" x2="38" y2="28" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><polyline points="31,21 39,28 31,35" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/></> },
-                    { label:'Star',       fn:()=>addIconShape({iconKind:'star'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="32,12 35.5,22 46,22 38,29 41,39 32,33 23,39 26,29 18,22 28.5,22" fill="#fff" opacity=".9"/></> },
-                    { label:'Heart',      fn:()=>addIconShape({iconKind:'heart'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32,39 C28,35 14,27 14,21 C14,17 17,14 22,16 C27,18 32,22 32,22 C32,22 37,18 42,16 C47,14 50,17 50,21 C50,27 36,35 32,39Z" fill="#fff" opacity=".9"/></> },
-                    { label:'Warning',    fn:()=>addIconShape({iconKind:'warning'}),   svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="32,13 46,40 18,40" fill="#fff" opacity=".85"/><rect x="30.5" y="21" width="3" height="10" fill="rgba(255,255,255,0.3)"/><circle cx="32" cy="35.5" r="1.8" fill="rgba(255,255,255,0.3)"/></> },
-                    { label:'Shield',     fn:()=>addIconShape({iconKind:'shield'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32,13 L44,19 L44,27 C44,34 38,40 32,42 C26,40 20,34 20,27 L20,19Z" fill="#fff" opacity=".9"/></> },
-                    { label:'Info',       fn:()=>addIconShape({iconKind:'info'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><circle cx="32" cy="28" r="12" fill="#fff" opacity=".9"/><circle cx="32" cy="21" r="1.8" fill="rgba(255,255,255,0.25)"/><rect x="30.5" y="24" width="3" height="9" fill="rgba(255,255,255,0.25)"/></> },
-                    { label:'Bolt',       fn:()=>addIconShape({iconKind:'bolt'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="35,13 27,29 33,29 29,43 40,24 34,24" fill="#fff" opacity=".9"/></> },
-                    { label:'Wrench',     fn:()=>addIconShape({iconKind:'wrench'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="20" y1="40" x2="36" y2="20" stroke="#fff" strokeWidth="5" strokeLinecap="round"/><circle cx="38" cy="18" r="6" fill="#fff" opacity=".85"/><circle cx="38" cy="18" r="3" fill="rgba(255,255,255,0.2)"/></> },
-                    { label:'Hammer',     fn:()=>addIconShape({iconKind:'hammer'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><line x1="22" y1="38" x2="38" y2="22" stroke="#fff" strokeWidth="5" strokeLinecap="round"/><rect x="32" y="12" width="13" height="7" rx="2" fill="#fff" opacity=".9" transform="rotate(-45 38 15)"/></> },
-                    { label:'House',      fn:()=>addIconShape({iconKind:'house'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="32,14 46,24 18,24" fill="#fff" opacity=".9"/><rect x="20" y="24" width="24" height="14" fill="#fff" opacity=".8"/><rect x="29" y="29" width="6" height="9" fill="rgba(255,255,255,0.2)"/></> },
-                    { label:'Water Drop', fn:()=>addIconShape({iconKind:'drop'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32 13 C38 20 43 25 43 30 C43 37 38 42 32 42 C26 42 21 37 21 30 C21 25 26 20 32 13Z" fill="#fff" opacity=".9"/></> },
-                    { label:'Flame',      fn:()=>addIconShape({iconKind:'flame'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32 12 C36 18 40 22 39 27 C38 31 35 32 33 29 C36 24 32 19 32 19 C32 19 28 24 31 29 C29 32 26 31 25 27 C24 22 28 18 32 12Z" fill="#fff" opacity=".9"/><ellipse cx="32" cy="36" rx="3" ry="4" fill="#fff" opacity=".7"/></> },
-                    { label:'Leaf',       fn:()=>addIconShape({iconKind:'leaf'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32 41 C24 35 17 22 23 13 C29 4 40 10 40 20 C40 30 32 41 32 41Z" fill="#fff" opacity=".9"/><line x1="32" y1="13" x2="32" y2="41" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5"/></> },
-                    { label:'Phone',      fn:()=>addIconShape({iconKind:'phone'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="25" y="14" width="14" height="28" rx="4" fill="#fff" opacity=".9"/><rect x="27" y="17" width="10" height="18" fill="rgba(255,255,255,0.2)"/><circle cx="32" cy="38" r="2" fill="rgba(255,255,255,0.25)"/></> },
-                    { label:'Clock',      fn:()=>addIconShape({iconKind:'clock'}),     svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><circle cx="32" cy="28" r="13" fill="#fff" opacity=".9"/><circle cx="32" cy="28" r="10" fill="rgba(255,255,255,0.2)"/><line x1="32" y1="28" x2="32" y2="20" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><line x1="32" y1="28" x2="38" y2="32" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></> },
-                    { label:'Map Pin',    fn:()=>addIconShape({iconKind:'location'}),  svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M32 13 C25 13 20 18 20 24 C20 32 32 44 32 44 C32 44 44 32 44 24 C44 18 39 13 32 13Z" fill="#fff" opacity=".9"/><circle cx="32" cy="24" r="4" fill="rgba(255,255,255,0.25)"/></> },
-                    { label:'Envelope',   fn:()=>addIconShape({iconKind:'mail'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="17" y="20" width="30" height="19" rx="2" fill="#fff" opacity=".9"/><polyline points="17,20 32,30 47,20" stroke="rgba(255,255,255,0.3)" strokeWidth="2" fill="none"/></> },
-                    { label:'Dollar $',   fn:()=>addIconShape({iconKind:'dollar'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><text x="32" y="34" fill="#fff" fontSize="22" textAnchor="middle" fontWeight="bold" opacity=".9">$</text></> },
-                    { label:'Trophy',     fn:()=>addIconShape({iconKind:'trophy'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="23" y="15" width="18" height="16" rx="2" fill="#fff" opacity=".9"/><path d="M23 20 C19 20 17 23 17 25 C17 27 19 28 23 27" stroke="#fff" strokeWidth="2" fill="none"/><path d="M41 20 C45 20 47 23 47 25 C47 27 45 28 41 27" stroke="#fff" strokeWidth="2" fill="none"/><rect x="30" y="31" width="4" height="5" fill="#fff" opacity=".9"/><rect x="26" y="36" width="12" height="3" rx="1" fill="#fff" opacity=".9"/></> },
-                    { label:'Calendar',   fn:()=>addIconShape({iconKind:'calendar'}),  svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="17" y="18" width="30" height="23" rx="2" fill="#fff" opacity=".9"/><rect x="17" y="18" width="30" height="7" rx="2" fill="rgba(255,255,255,0.3)"/><line x1="24" y1="15" x2="24" y2="21" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><line x1="40" y1="15" x2="40" y2="21" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></> },
-                    { label:'Camera',     fn:()=>addIconShape({iconKind:'camera'}),    svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><rect x="16" y="22" width="32" height="18" rx="3" fill="#fff" opacity=".9"/><rect x="26" y="17" width="12" height="7" rx="2" fill="#fff" opacity=".8"/><circle cx="32" cy="31" r="6" fill="rgba(255,255,255,0.2)"/><circle cx="32" cy="31" r="3.5" fill="#fff" opacity=".8"/></> },
-                    { label:'Up Arrow',   fn:()=>addIconShape({iconKind:'arrowup'}),   svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="32,12 43,24 37,24 37,40 27,40 27,24 21,24" fill="#fff" opacity=".9"/></> },
-                    { label:'Left Arrow', fn:()=>addIconShape({iconKind:'arrowleft'}), svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><polygon points="12,28 24,21 24,25 44,25 44,31 24,31 24,35" fill="#fff" opacity=".9"/></> },
-                    { label:'Refresh',    fn:()=>addIconShape({iconKind:'refresh'}),   svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M20 28 C20 21 25.5 15.5 32 15.5 C36 15.5 39.5 17.5 42 21" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/><polygon points="41,15.5 46,22 37,22" fill="#fff"/><path d="M44 28 C44 35 38.5 40.5 32 40.5 C28 40.5 24.5 38.5 22 35" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/><polygon points="23,41.5 18,35 27,35" fill="#fff"/></> },
-                    { label:'WiFi',       fn:()=>addIconShape({iconKind:'wifi'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M18 26 C20 21 25.5 17 32 17 C38.5 17 44 21 46 26" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity=".9"/><path d="M22 30 C24 26.5 27.5 24 32 24 C36.5 24 40 26.5 42 30" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity=".9"/><path d="M26 34 C27.5 31.5 29.5 30 32 30 C34.5 30 36.5 31.5 38 34" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity=".9"/><circle cx="32" cy="38" r="2.5" fill="#fff" opacity=".9"/></> },
-                    { label:'Lock',       fn:()=>addIconShape({iconKind:'lock'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M22 24 C22 18 26.5 13 32 13 C37.5 13 42 18 42 24" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/><rect x="20" y="23" width="24" height="18" rx="3" fill="#fff" opacity=".9"/><circle cx="32" cy="32" r="3" fill="rgba(255,255,255,0.25)"/></> },
-                    { label:'Eye',        fn:()=>addIconShape({iconKind:'eye2'}),      svg:<><circle cx="32" cy="28" r="19" fill="rgba(255,255,255,0.2)"/><path d="M13 28 C18 20 24.5 17 32 17 C39.5 17 46 20 51 28 C46 36 39.5 39 32 39 C24.5 39 18 36 13 28Z" fill="#fff" opacity=".9"/><circle cx="32" cy="28" r="6" fill="rgba(255,255,255,0.25)"/><circle cx="32" cy="28" r="3" fill="#fff" opacity=".85"/></> },
+                  sections:[
+                    { label:'Magic recommendations', items:[
+                      { label:'Phone',    fn:()=>addIconShape({iconKind:'phone'}),    svg:<path d="M20 10h24v34H20zm4 30h16" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/> },
+                      { label:'Heart',    fn:()=>addIconShape({iconKind:'heart'}),    svg:<path d="M32 42C32 42 12 30 12 18a10 10 0 0 1 20-2 10 10 0 0 1 20 2c0 12-20 24-20 24Z" fill="#fff" opacity=".85"/> },
+                      { label:'Camera',   fn:()=>addIconShape({iconKind:'camera'}),   svg:<><rect x="10" y="18" width="44" height="28" rx="4" fill="none" stroke="#fff" strokeWidth="2.5"/><circle cx="32" cy="32" r="8" fill="none" stroke="#fff" strokeWidth="2"/><path d="M22 18l4-6h12l4 6" stroke="#fff" strokeWidth="2" fill="none"/></> },
+                      { label:'Mail',     fn:()=>addIconShape({iconKind:'mail'}),     svg:<><rect x="8" y="16" width="48" height="30" rx="4" fill="none" stroke="#fff" strokeWidth="2.5"/><path d="M8 16l24 18 24-18" stroke="#fff" strokeWidth="2.5" fill="none"/></> },
+                      { label:'Location', fn:()=>addIconShape({iconKind:'location'}), svg:<><path d="M32 10a14 14 0 0 1 14 14c0 10-14 24-14 24S18 34 18 24a14 14 0 0 1 14-14Z" fill="none" stroke="#fff" strokeWidth="2.5"/><circle cx="32" cy="24" r="4" fill="#fff" opacity=".85"/></> },
+                      { label:'Star',     fn:()=>addIconShape({iconKind:'star'}),     svg:<polygon points="32,10 36,23 50,23 39,31 43,44 32,36 21,44 25,31 14,23 28,23" fill="#fff" opacity=".85"/> },
+                    ]},
+                    { label:'Featured', items:[
+                      { label:'Shield',  fn:()=>addIconShape({iconKind:'shield'}),  svg:<path d="M32 10L14 18v10c0 11 8 20 18 24 10-4 18-13 18-24V18Z" fill="none" stroke="#fff" strokeWidth="2.5"/> },
+                      { label:'Trophy',  fn:()=>addIconShape({iconKind:'trophy'}),  svg:<><path d="M20 10h24v16a12 12 0 0 1-24 0V10Z" fill="none" stroke="#fff" strokeWidth="2.5"/><path d="M20 18H10m34 0h10M32 36v8M24 44h16" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/></> },
+                      { label:'Check',   fn:()=>addIconShape({iconKind:'check'}),   svg:<><circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="2.5"/><path d="M22 27l8 8 12-14" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"/></> },
+                      { label:'Info',    fn:()=>addIconShape({iconKind:'info'}),    svg:<><circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="2.5"/><circle cx="32" cy="20" r="2" fill="#fff"/><line x1="32" y1="26" x2="32" y2="37" stroke="#fff" strokeWidth="3" strokeLinecap="round"/></> },
+                      { label:'Warning', fn:()=>addIconShape({iconKind:'warning'}), svg:<><polygon points="32,10 52,44 12,44" fill="none" stroke="#fff" strokeWidth="2.5"/><circle cx="32" cy="39" r="2" fill="#fff"/><line x1="32" y1="22" x2="32" y2="34" stroke="#fff" strokeWidth="3" strokeLinecap="round"/></> },
+                      { label:'Bolt',    fn:()=>addIconShape({iconKind:'bolt'}),    svg:<polygon points="36,8 20,30 32,30 28,48 44,24 32,24" fill="#fff" opacity=".85"/> },
+                    ]},
+                    { label:'Icons', items:[
+                      { label:'House',    fn:()=>addIconShape({iconKind:'house'}),    svg:<><path d="M12 30L32 12l20 18" fill="none" stroke="#fff" strokeWidth="2.5"/><rect x="20" y="30" width="24" height="18" fill="none" stroke="#fff" strokeWidth="2.5"/></> },
+                      { label:'Wrench',   fn:()=>addIconShape({iconKind:'wrench'}),   svg:<path d="M40 12a10 10 0 0 0-12 14L14 40a4 4 0 0 0 6 6l14-14A10 10 0 0 0 40 12Z" fill="none" stroke="#fff" strokeWidth="2.5"/> },
+                      { label:'Leaf',     fn:()=>addIconShape({iconKind:'leaf'}),     svg:<path d="M16 42C16 26 28 12 48 10 48 30 36 44 16 42Z" fill="#fff" opacity=".85"/> },
+                      { label:'Clock',    fn:()=>addIconShape({iconKind:'clock'}),    svg:<><circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="2.5"/><path d="M32 17v10l7 7" stroke="#fff" strokeWidth="3" strokeLinecap="round"/></> },
+                      { label:'Dollar',   fn:()=>addIconShape({iconKind:'dollar'}),   svg:<><circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="2.5"/><path d="M32 14v26M26 20h9a5 5 0 0 1 0 10h-9m0 0h9a5 5 0 0 1 0 10h-9" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round"/></> },
+                      { label:'Calendar', fn:()=>addIconShape({iconKind:'calendar'}), svg:<><rect x="10" y="14" width="44" height="34" rx="4" fill="none" stroke="#fff" strokeWidth="2.5"/><path d="M10 24h44M22 10v8M42 10v8" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/></> },
+                    ]},
                   ],
+                  // keep flat items for search compatibility
+                  get items() { return this.sections.flatMap(s => s.items); },
                 },
                 { id:'backgrounds', label:'Backgrounds', grad:'linear-gradient(135deg,#1a1a2e,#16213e)',
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="6" y="6" width="52" height="42" rx="6" fill="#1a1a2e"/><rect x="10" y="10" width="20" height="14" rx="2" fill="rgba(255,255,255,0.2)"/><rect x="34" y="10" width="20" height="14" rx="2" fill="#7C5CFC" opacity=".6"/><rect x="10" y="28" width="44" height="14" rx="2" fill="rgba(124,92,252,0.3)"/></svg>,
@@ -10460,6 +10490,7 @@ export default function TemplatesEditorInner() {
                   ],
                 },
                 { id:'grids', label:'Grids', grad:'linear-gradient(135deg,#6366f1,#4f46e5)',
+                  noLabels: true,
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="6" y="8" width="24" height="38" rx="3" fill="rgba(255,255,255,0.3)"/><rect x="34" y="8" width="24" height="17" rx="3" fill="rgba(255,255,255,0.3)"/><rect x="34" y="29" width="24" height="17" rx="3" fill="rgba(255,255,255,0.3)"/></svg>,
                   items:[
                     { label:'2 Columns',  fn:()=>addGridLayout('2col'),    svg:<><rect x="8" y="12" width="21" height="32" rx="3" fill="#fff" opacity=".7"/><rect x="35" y="12" width="21" height="32" rx="3" fill="#fff" opacity=".7"/></> },
@@ -10474,34 +10505,194 @@ export default function TemplatesEditorInner() {
                 },
                 { id:'animations', label:'Animations', grad:'linear-gradient(145deg,#22c55e,#4ade80)',
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><circle cx="32" cy="27" r="18" fill="rgba(255,255,255,0.25)"/><circle cx="32" cy="27" r="12" fill="rgba(255,255,255,0.35)"/><path d="M26 21 L26 33 L40 27Z" fill="#fff" opacity=".9"/><circle cx="18" cy="12" r="4" fill="#fff" opacity=".6"/><circle cx="46" cy="12" r="4" fill="#fff" opacity=".6"/></svg>,
-                  items:[{ label:'Play', fn:()=>{}, svg:<path d="M22 14 L22 40 L44 27Z" fill="#fff" opacity=".85"/> }],
+                  sections:[
+                    { label:'Arrow animations', items:[
+                      { label:'Bounce →', fn:()=>{}, svg:<><line x1="8" y1="27" x2="42" y2="27" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><polygon points="38,20 52,27 38,34" fill="#fff" opacity=".85"/></> },
+                      { label:'Draw →',   fn:()=>{}, svg:<><line x1="8" y1="27" x2="42" y2="27" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeDasharray="4 2"/><polygon points="38,20 52,27 38,34" fill="#fff" opacity=".7"/></> },
+                      { label:'Spin',     fn:()=>{}, svg:<><path d="M32 14a14 14 0 1 1-10 4" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"/><polygon points="14,20 10,30 22,24" fill="#fff"/></> },
+                    ]},
+                    { label:'Word animations', items:[
+                      { label:'Typewriter', fn:()=>{}, svg:<text x="10" y="32" fill="#fff" fontSize="13" fontWeight="bold" opacity=".9">Aa|</text> },
+                      { label:'Fade in',    fn:()=>{}, svg:<text x="10" y="32" fill="#fff" fontSize="13" fontWeight="bold" opacity=".5">Text</text> },
+                      { label:'Pop up',     fn:()=>{}, svg:<text x="10" y="34" fill="#fff" fontSize="14" fontWeight="bold" opacity=".9">Pop!</text> },
+                    ]},
+                    { label:'Shape animations', items:[
+                      { label:'Pulse',  fn:()=>{}, svg:<><circle cx="32" cy="27" r="10" fill="#fff" opacity=".85"/><circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="2" opacity=".4"/></> },
+                      { label:'Spin',   fn:()=>{}, svg:<circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeDasharray="30 10"/> },
+                      { label:'Bounce', fn:()=>{}, svg:<><circle cx="32" cy="28" r="10" fill="#fff" opacity=".85"/><path d="M22 40 Q32 34 42 40" fill="none" stroke="#fff" strokeWidth="2" opacity=".4"/></> },
+                    ]},
+                    { label:'Food animations', items:[
+                      { label:'Pizza',  fn:()=>{}, svg:<text x="20" y="36" fontSize="22">🍕</text> },
+                      { label:'Coffee', fn:()=>{}, svg:<text x="20" y="36" fontSize="22">☕</text> },
+                      { label:'Burger', fn:()=>{}, svg:<text x="20" y="36" fontSize="22">🍔</text> },
+                    ]},
+                  ],
                 },
                 { id:'audio', label:'Audio', grad:'linear-gradient(145deg,#ef4444,#f97316)',
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><path d="M28 12 L28 42 L18 36 L10 36 L10 20 L18 20Z" fill="#fff" opacity=".85"/><path d="M36 20 C44 22 44 34 36 36" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round"/><path d="M42 14 C54 18 54 38 42 42" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round"/></svg>,
-                  items:[{ label:'Coming soon', fn:()=>{}, svg:<text x="32" y="32" fill="#fff" fontSize="10" textAnchor="middle">🎵</text> }],
+                  hasVoiceover: true,
+                  sections:[
+                    { label:'Magic recommendations', trackList:true, items:[
+                      { label:'Corporate Music',  artist:'AudioCoffee',    duration:'2:19', grad:'linear-gradient(135deg,#1e293b,#0f172a)' },
+                      { label:'Upbeat Promo',     artist:'SoundWave',      duration:'1:45', grad:'linear-gradient(135deg,#1e40af,#1e3a8a)' },
+                      { label:'Inspirational',    artist:'MoodMedia',      duration:'3:02', grad:'linear-gradient(135deg,#065f46,#047857)' },
+                    ]},
+                    { label:'Popular music', trackList:true, items:[
+                      { label:'Push The Pedal',   artist:'Jordan Olmos',   duration:'1:32', grad:'linear-gradient(135deg,#7c2d12,#9a3412)' },
+                      { label:'I Need You',       artist:'Def Manic',      duration:'3:21', grad:'linear-gradient(135deg,#4c1d95,#5b21b6)' },
+                      { label:'Summer Vibes',     artist:'CoastalSounds',  duration:'2:54', grad:'linear-gradient(135deg,#0c4a6e,#0369a1)' },
+                    ]},
+                  ],
                 },
                 { id:'forms', label:'Forms', grad:'linear-gradient(145deg,#10b981,#059669)',
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="12" y="14" width="40" height="8" rx="4" fill="rgba(255,255,255,0.3)"/><rect x="12" y="26" width="40" height="8" rx="4" fill="rgba(255,255,255,0.3)"/><rect x="12" y="38" width="24" height="8" rx="4" fill="#fff" opacity=".85"/><circle cx="44" cy="18" r="3" fill="#fff" opacity=".9"/><circle cx="44" cy="30" r="3" fill="rgba(255,255,255,0.4)"/></svg>,
-                  items:[{ label:'Coming soon', fn:()=>{}, svg:<text x="32" y="32" fill="#fff" fontSize="10" textAnchor="middle">📋</text> }],
+                  sections:[
+                    { label:'Business', formCards:true, items:[
+                      { label:'Subscribe form', bg:'#f0fdf4',
+                        preview:<><div style={{fontSize:9,fontWeight:700,color:'#166534',marginBottom:4}}>Subscribe to our newsletter</div><div style={{height:12,background:'#fff',borderRadius:3,border:'1px solid #d1fae5',marginBottom:3}}/><div style={{height:12,background:'#fff',borderRadius:3,border:'1px solid #d1fae5',marginBottom:4}}/><div style={{height:10,background:'#166534',borderRadius:3,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:7,color:'#fff',fontWeight:600}}>Join</span></div></> },
+                      { label:'Contact form', bg:'#052e16',
+                        preview:<><div style={{fontSize:9,fontWeight:700,color:'#fff',marginBottom:4}}>Contact Form</div><div style={{fontSize:7,color:'rgba(255,255,255,0.6)',marginBottom:2}}>Name</div><div style={{height:10,background:'rgba(255,255,255,0.1)',borderRadius:2,marginBottom:2}}/><div style={{fontSize:7,color:'rgba(255,255,255,0.6)',marginBottom:2}}>Email</div><div style={{height:10,background:'rgba(255,255,255,0.1)',borderRadius:2}}/></> },
+                    ]},
+                    { label:'Education', formCards:true, items:[
+                      { label:'True/False quiz', bg:'#f0fdf4',
+                        preview:<><div style={{fontSize:9,fontWeight:700,color:'#166534',marginBottom:4}}>Type your statement</div><div style={{height:10,background:'#fff',border:'1px solid #bbf7d0',borderRadius:3,marginBottom:2,display:'flex',alignItems:'center',paddingLeft:4}}><span style={{fontSize:7,color:'#166534'}}>True</span></div><div style={{height:10,background:'#fff',border:'1px solid #bbf7d0',borderRadius:3,display:'flex',alignItems:'center',paddingLeft:4}}><span style={{fontSize:7,color:'#166534'}}>False</span></div></> },
+                      { label:'Multiple choice', bg:'#581c87',
+                        preview:<><div style={{fontSize:8,fontWeight:700,color:'#fff',marginBottom:3}}>Which is NOT true?</div><div style={{height:8,background:'rgba(255,255,255,0.15)',borderRadius:2,marginBottom:2}}/><div style={{height:8,background:'rgba(255,255,255,0.15)',borderRadius:2}}/></> },
+                    ]},
+                    { label:'Events', formCards:true, items:[
+                      { label:'RSVP form', bg:'#fffbeb',
+                        preview:<><div style={{fontSize:9,fontWeight:700,color:'#92400e',marginBottom:2,border:'1px solid #fcd34d',padding:'1px 4px',display:'inline-block',borderRadius:2}}>RSVP</div><div style={{fontSize:7,color:'#78350f',marginBottom:2}}>Your name</div><div style={{height:8,background:'#fff',border:'1px solid #fde68a',borderRadius:2,marginBottom:3}}/><div style={{fontSize:7,color:'#78350f'}}>Are you coming?</div></> },
+                      { label:'Event feedback', bg:'#eff6ff',
+                        preview:<><div style={{fontSize:7,fontWeight:700,color:'#1e40af',marginBottom:3}}>HOW WOULD YOU RATE?</div><div style={{display:'flex',gap:2}}>{[1,2,3].map(n=><div key={n} style={{flex:1,height:12,background:'#dbeafe',borderRadius:2,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:6,color:'#1e40af'}}>{n}</span></div>)}</div></> },
+                    ]},
+                    { label:'Feedback', formCards:true, items:[
+                      { label:'Rating form', bg:'#fdf4ff',
+                        preview:<><div style={{fontSize:8,fontWeight:600,color:'#7c3aed',marginBottom:4}}>Rate your experience</div><div style={{display:'flex',gap:2}}>{'★★★★☆'.split('').map((s,i)=><span key={i} style={{fontSize:12,color:s==='★'?'#f59e0b':'#d1d5db'}}>{s}</span>)}</div></> },
+                      { label:'NPS form', bg:'#f0f9ff',
+                        preview:<><div style={{fontSize:7,fontWeight:600,color:'#0369a1',marginBottom:3}}>How likely to recommend?</div><div style={{display:'flex',gap:1}}>{[0,1,2,3,4,5].map(n=><div key={n} style={{flex:1,height:12,background:'#e0f2fe',borderRadius:2,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:6}}>{n}</span></div>)}</div></> },
+                    ]},
+                  ],
                 },
                 { id:'sheets', label:'Sheets', grad:'linear-gradient(145deg,#0ea5e9,#0284c7)',
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="8" y="10" width="48" height="36" rx="3" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/><line x1="8" y1="20" x2="56" y2="20" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/><line x1="8" y1="30" x2="56" y2="30" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/><line x1="8" y1="40" x2="56" y2="40" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/><line x1="24" y1="10" x2="24" y2="46" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/><line x1="40" y1="10" x2="40" y2="46" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/><text x="16" y="17" fill="#fff" fontSize="6" textAnchor="middle" opacity=".8">foo</text></svg>,
-                  items:[{ label:'Coming soon', fn:()=>{}, svg:<text x="32" y="32" fill="#fff" fontSize="10" textAnchor="middle">📊</text> }],
+                  sections:[
+                    { label:'Start', formCards:true, items:[
+                      { label:'Blank sheet', bg:'#f8fafc',
+                        preview:<><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:1,border:'1px solid #e2e8f0',borderRadius:3,overflow:'hidden'}}>{Array(9).fill(0).map((_,i)=><div key={i} style={{height:12,background:'#fff',border:'1px solid #f1f5f9'}}/>)}</div></> },
+                      { label:'Teal header', bg:'#f0fdfa',
+                        preview:<><div style={{height:12,background:'#0d9488',borderRadius:'3px 3px 0 0',marginBottom:1}}/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1}}>{Array(4).fill(0).map((_,i)=><div key={i} style={{height:10,background:'#f0fdfa',border:'1px solid #ccfbf1'}}/>)}</div></> },
+                    ]},
+                    { label:'Track', formCards:true, items:[
+                      { label:'Contact List', bg:'#faf5ff',
+                        preview:<><div style={{fontSize:7,fontWeight:700,color:'#7c3aed',background:'#a78bfa',padding:'2px 4px',borderRadius:2,marginBottom:2}}>Contact List</div><div style={{fontSize:6,color:'#6d28d9',marginBottom:1}}>Date • Surname</div><div style={{height:6,background:'rgba(167,139,250,0.3)',borderRadius:1,marginBottom:1}}/><div style={{height:6,background:'rgba(167,139,250,0.2)',borderRadius:1}}/></> },
+                      { label:'Inventory', bg:'#eff6ff',
+                        preview:<><div style={{fontSize:7,fontWeight:700,color:'#1e40af',marginBottom:2}}>Inventory Tracker</div><div style={{fontSize:6,color:'#1e40af',marginBottom:1}}>Item Name</div><div style={{height:6,background:'#dbeafe',borderRadius:1,marginBottom:1}}/><div style={{height:6,background:'#eff6ff',borderRadius:1}}/></> },
+                    ]},
+                    { label:'Calculate', formCards:true, items:[
+                      { label:'Budget', bg:'#0d9488',
+                        preview:<><div style={{fontSize:8,fontWeight:700,color:'#fff',marginBottom:2}}>Budget</div><div style={{fontSize:7,color:'rgba(255,255,255,0.8)',marginBottom:1}}>Monthly Income $2,100</div><div style={{height:1,background:'rgba(255,255,255,0.3)',marginBottom:2}}/><div style={{fontSize:6,color:'rgba(255,255,255,0.7)'}}>Salary $2,000</div></> },
+                      { label:'Expenses', bg:'#3b82f6',
+                        preview:<><div style={{fontSize:8,fontWeight:700,color:'#fff',marginBottom:2}}>Expense Sheet</div><div style={{fontSize:7,color:'rgba(255,255,255,0.8)',marginBottom:1}}>Date • Category</div><div style={{height:6,background:'rgba(255,255,255,0.15)',borderRadius:1,marginBottom:1}}/><div style={{height:6,background:'rgba(255,255,255,0.1)',borderRadius:1}}/></> },
+                    ]},
+                    { label:'Plan', formCards:true, items:[
+                      { label:'Project plan', bg:'#f0fdf4',
+                        preview:<><div style={{fontSize:7,fontWeight:700,color:'#166534',marginBottom:2}}>Project Plan</div><div style={{display:'flex',gap:1,marginBottom:1}}>{['Q1','Q2','Q3'].map(q=><div key={q} style={{flex:1,height:10,background:'#dcfce7',borderRadius:2,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontSize:5,color:'#166534'}}>{q}</span></div>)}</div></> },
+                      { label:'Weekly plan', bg:'#fefce8',
+                        preview:<><div style={{fontSize:7,fontWeight:700,color:'#854d0e',marginBottom:2}}>Weekly Planner</div>{['Mon','Tue','Wed'].map(d=><div key={d} style={{display:'flex',gap:2,marginBottom:1,alignItems:'center'}}><span style={{fontSize:6,color:'#92400e',width:16}}>{d}</span><div style={{flex:1,height:5,background:'#fef9c3',borderRadius:1}}/></div>)}</> },
+                    ]},
+                  ],
                 },
                 { id:'tables', label:'Tables', grad:'linear-gradient(145deg,#f59e0b,#d97706)',
                   preview:<svg viewBox="0 0 64 54" width="64" height="54"><rect x="8" y="10" width="48" height="36" rx="3" fill="rgba(255,255,255,0.15)" stroke="#fff" strokeWidth="1.5" opacity=".8"/><rect x="8" y="10" width="48" height="10" rx="3" fill="rgba(255,255,255,0.35)"/><line x1="8" y1="30" x2="56" y2="30" stroke="#fff" strokeWidth="1" opacity=".5"/><line x1="8" y1="40" x2="56" y2="40" stroke="#fff" strokeWidth="1" opacity=".5"/><line x1="26" y1="20" x2="26" y2="46" stroke="#fff" strokeWidth="1" opacity=".5"/><line x1="44" y1="20" x2="44" y2="46" stroke="#fff" strokeWidth="1" opacity=".5"/></svg>,
-                  items:[{ label:'Table', fn:()=>addTable(), svg:<><rect x="8" y="10" width="48" height="36" rx="3" fill="none" stroke="#fff" strokeWidth="2" opacity=".8"/><line x1="8" y1="22" x2="56" y2="22" stroke="#fff" strokeWidth="1.5" opacity=".6"/><line x1="28" y1="10" x2="28" y2="46" stroke="#fff" strokeWidth="1" opacity=".5"/></> }],
+                  tableStyles:[
+                    { label:'Gray',   color:'#9ca3af' }, { label:'Dark',   color:'#374151' }, { label:'Black',  color:'#111827' },
+                    { label:'Red',    color:'#ef4444' }, { label:'Salmon', color:'#f87171' }, { label:'Pink',   color:'#fca5a5' },
+                    { label:'Orange', color:'#f97316' }, { label:'Amber',  color:'#fbbf24' }, { label:'Yellow', color:'#fde68a' },
+                    { label:'Blue',   color:'#3b82f6' }, { label:'Indigo', color:'#6366f1' }, { label:'Violet', color:'#8b5cf6' },
+                    { label:'Purple', color:'#a855f7' }, { label:'Teal',   color:'#14b8a6' }, { label:'Green',  color:'#22c55e' },
+                  ],
+                },
+                { id:'mockups', label:'Mockups', grad:'linear-gradient(145deg,#f97316,#ea580c)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54">
+                    <rect x="18" y="10" width="28" height="34" rx="4" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
+                    <path d="M22 14h20v20H22Z" fill="rgba(255,255,255,0.3)"/>
+                    <path d="M26 36h12" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity=".7"/>
+                    <path d="M18 44 Q10 40 12 32" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" fill="none"/>
+                    <path d="M46 44 Q54 40 52 32" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" fill="none"/>
+                  </svg>,
+                  sections:[
+                    { label:'Video Mockups', items:[
+                      { label:'T-Shirt',   fn:()=>{}, svg:<path d="M20 10 L12 20 L20 18 L20 42 L44 42 L44 18 L52 20 L44 10 Q32 15 20 10Z" fill="#fff" opacity=".85"/> },
+                      { label:'Mug',       fn:()=>{}, svg:<><rect x="14" y="14" width="28" height="28" rx="4" fill="none" stroke="#fff" strokeWidth="2.5"/><path d="M42 20 Q52 22 52 30 Q52 38 42 38" fill="none" stroke="#fff" strokeWidth="2.5"/></> },
+                      { label:'Phone',     fn:()=>{}, svg:<><rect x="20" y="8" width="24" height="40" rx="5" fill="none" stroke="#fff" strokeWidth="2.5"/><line x1="28" y1="11" x2="36" y2="11" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></> },
+                    ]},
+                    { label:'Smartphones', items:[
+                      { label:'iPhone',    fn:()=>{}, svg:<><rect x="20" y="8" width="24" height="40" rx="5" fill="none" stroke="#fff" strokeWidth="2.5"/><line x1="28" y1="11" x2="36" y2="11" stroke="#fff" strokeWidth="2" strokeLinecap="round"/><circle cx="32" cy="44" r="2.5" fill="#fff" opacity=".7"/></> },
+                      { label:'Hand',      fn:()=>{}, svg:<><rect x="22" y="10" width="20" height="34" rx="4" fill="none" stroke="#fff" strokeWidth="2"/><path d="M18 30 Q10 28 12 40 Q18 46 26 44" fill="none" stroke="#fff" strokeWidth="2"/></> },
+                      { label:'Side view', fn:()=>{}, svg:<rect x="24" y="8" width="16" height="38" rx="4" fill="none" stroke="#fff" strokeWidth="2.5"/> },
+                    ]},
+                    { label:'Print', items:[
+                      { label:'Sticker',  fn:()=>{}, svg:<circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="2.5"/> },
+                      { label:'Label',    fn:()=>{}, svg:<><rect x="10" y="18" width="44" height="24" rx="4" fill="none" stroke="#fff" strokeWidth="2.5"/><path d="M10 24h44" stroke="#fff" strokeWidth="1.5" opacity=".5"/></> },
+                      { label:'Pin',      fn:()=>{}, svg:<><circle cx="32" cy="20" r="10" fill="none" stroke="#fff" strokeWidth="2.5"/><line x1="32" y1="30" x2="32" y2="46" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/></> },
+                    ]},
+                    { label:'Apparel', items:[
+                      { label:'T-Shirt',  fn:()=>{}, svg:<path d="M20 10 L12 20 L20 18 L20 42 L44 42 L44 18 L52 20 L44 10 Q32 15 20 10Z" fill="#fff" opacity=".85"/> },
+                      { label:'Hoodie',   fn:()=>{}, svg:<><path d="M18 10 L10 24 L18 22 L18 44 L46 44 L46 22 L54 24 L46 10 Q32 16 18 10Z" fill="none" stroke="#fff" strokeWidth="2"/><path d="M26 10 Q32 14 38 10" fill="none" stroke="#fff" strokeWidth="2"/></> },
+                      { label:'Bag',      fn:()=>{}, svg:<><rect x="14" y="18" width="36" height="28" rx="4" fill="none" stroke="#fff" strokeWidth="2.5"/><path d="M22 18 Q22 10 32 10 Q42 10 42 18" fill="none" stroke="#fff" strokeWidth="2.5"/></> },
+                    ]},
+                  ],
+                },
+                { id:'3d', label:'3D', grad:'linear-gradient(145deg,#8b5cf6,#6d28d9)',
+                  preview:<svg viewBox="0 0 64 54" width="64" height="54">
+                    <polygon points="32,10 52,22 52,38 32,48 12,38 12,22" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5"/>
+                    <polygon points="32,10 52,22 32,30 12,22" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/>
+                    <polygon points="32,30 52,22 52,38 32,48" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/>
+                  </svg>,
+                  sections:[
+                    { label:'Objects', items:[
+                      { label:'Cube',   fn:()=>{}, svg:<><polygon points="32,10 52,22 52,38 32,48 12,38 12,22" fill="none" stroke="#fff" strokeWidth="2"/><polygon points="32,10 52,22 32,30 12,22" fill="rgba(255,255,255,0.25)"/><line x1="32" y1="30" x2="32" y2="48" stroke="#fff" strokeWidth="1.5" opacity=".5"/></> },
+                      { label:'Sphere', fn:()=>{}, svg:<><circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="2"/><ellipse cx="32" cy="27" rx="18" ry="8" fill="none" stroke="#fff" strokeWidth="1.5" opacity=".5"/></> },
+                      { label:'Cone',   fn:()=>{}, svg:<><path d="M32 10 L50 42 L14 42Z" fill="none" stroke="#fff" strokeWidth="2"/><ellipse cx="32" cy="42" rx="18" ry="5" fill="none" stroke="#fff" strokeWidth="1.5" opacity=".6"/></> },
+                    ]},
+                    { label:'Scenes', items:[
+                      { label:'Room',   fn:()=>{}, svg:<><path d="M8 42 L8 14 L32 8 L56 14 L56 42Z" fill="none" stroke="#fff" strokeWidth="2"/><path d="M8 14 L32 20 L56 14M32 20 L32 42" stroke="#fff" strokeWidth="1.5" opacity=".6"/></> },
+                      { label:'Studio', fn:()=>{}, svg:<><rect x="8" y="20" width="48" height="28" rx="2" fill="none" stroke="#fff" strokeWidth="2"/><path d="M8 20 Q32 8 56 20" fill="rgba(255,255,255,0.15)" stroke="#fff" strokeWidth="1.5"/></> },
+                      { label:'Nature', fn:()=>{}, svg:<><path d="M8 42 Q20 24 32 28 Q44 32 56 14" fill="none" stroke="#fff" strokeWidth="2"/><circle cx="46" cy="16" r="6" fill="#fff" opacity=".5"/></> },
+                    ]},
+                  ],
                 },
               ];
-              const allItems = cats.flatMap(c => c.items.map(i => ({...i, catId:c.id})));
+              const allItems = cats.flatMap(c =>
+                (c.sections
+                  ? c.sections.flatMap(s => (s.trackList || s.formCards) ? [] : (s.items || []))
+                  : (c.items || []))
+                  .filter(i => i.fn && i.svg)
+                  .map(i => ({...i, catId:c.id}))
+              );
               const q = elemSearch.trim().toLowerCase();
               const filtered = q ? allItems.filter(i => i.label.toLowerCase().includes(q)) : null;
               const activeCat = cats.find(c => c.id === activeElemCat);
               const renderCard = (item) => {
                 const cat = cats.find(c => c.id === item.catId) || cats[0];
                 return (
-                  <button key={`${item.catId}-${item.label}`} onMouseDown={e => { e.preventDefault(); item.fn(); }}
+                  <button key={`${item.catId}-${item.label}`} onMouseDown={e => { e.preventDefault(); item.fn && item.fn(); }}
                     style={{ display:'flex', flexDirection:'column', border:`1px solid ${t.border}`, borderRadius:8, overflow:'hidden', background:t.input, cursor:'pointer', padding:0, transition:'transform 80ms, border-color 150ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor=t.primaryBorder; e.currentTarget.style.transform='scale(1.04)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor=t.border; e.currentTarget.style.transform='scale(1)'; }}>
+                    <div style={{ height:54, background:cat.grad, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <svg viewBox="0 0 64 54" width="100%" height="54">{item.svg}</svg>
+                    </div>
+                    <div style={{ padding:'5px 4px 6px', fontSize:10, color:t.textMuted, textAlign:'center', fontWeight:500, lineHeight:1.2 }}>{item.label}</div>
+                  </button>
+                );
+              };
+              const renderScrollCard = (item) => {
+                const cat = cats.find(c => c.id === item.catId) || cats[0];
+                return (
+                  <button key={`sc-${item.catId}-${item.label}`}
+                    onMouseDown={e => { e.preventDefault(); item.fn && item.fn(); }}
+                    style={{ flexShrink:0, width:72, display:'flex', flexDirection:'column', border:`1px solid ${t.border}`, borderRadius:8, overflow:'hidden', background:t.input, cursor:'pointer', padding:0, transition:'transform 80ms, border-color 150ms' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor=t.primaryBorder; e.currentTarget.style.transform='scale(1.04)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor=t.border; e.currentTarget.style.transform='scale(1)'; }}>
                     <div style={{ height:54, background:cat.grad, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -10557,21 +10748,115 @@ export default function TemplatesEditorInner() {
                       style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', color:t.text, fontSize:13, fontWeight:600, cursor:'pointer', padding:'4px 0 10px' }}>
                       ← {activeCat.label}
                     </button>
-                    {activeCat.sections ? (
-                      activeCat.sections.map(section => (
-                        <div key={section.label} style={{ marginBottom:16 }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                            <div style={{ fontSize:10, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em' }}>{section.label}</div>
-                            <button style={{ fontSize:11, color:t.primary, background:'none', border:'none', cursor:'pointer', padding:0, fontWeight:500 }}>See all</button>
+
+                    {/* "Start with data" CTA — Charts only */}
+                    {activeCat.startWithData && (
+                      <button onMouseDown={e => { e.preventDefault(); addTable(); }}
+                        style={{ width:'100%', padding:'11px 0', marginBottom:14, background:t.input, border:`1px solid ${t.border}`, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', gap:8, color:t.text, fontSize:13, fontWeight:500, cursor:'pointer', transition:'border-color 150ms', boxSizing:'border-box' }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor=t.primaryBorder}
+                        onMouseLeave={e => e.currentTarget.style.borderColor=t.border}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>
+                        </svg>
+                        Start with data
+                      </button>
+                    )}
+
+                    {/* Voiceovers CTA — Audio only */}
+                    {activeCat.hasVoiceover && (
+                      <div style={{ marginBottom:16 }}>
+                        <div style={{ fontSize:12, fontWeight:600, color:t.text, marginBottom:8 }}>Voiceovers</div>
+                        <button style={{ width:'100%', padding:'14px 16px', borderRadius:10, background:'linear-gradient(135deg,#8b5cf6,#6d28d9)', border:'none', display:'flex', alignItems:'center', gap:12, cursor:'pointer', boxSizing:'border-box' }}>
+                          <div style={{ width:44, height:44, borderRadius:10, background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
+                              <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+                              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                              <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                            </svg>
                           </div>
-                          <div style={{ display:'grid', gridTemplateColumns:`repeat(${activeCat.id==='stickers'?4:3},1fr)`, gap:activeCat.id==='stickers'?4:6 }}>
-                            {section.items.map(it => renderCard({...it, catId:activeCat.id}))}
-                          </div>
+                          <span style={{ color:'#fff', fontSize:14, fontWeight:600, textAlign:'left' }}>Generate AI voice</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* tableStyles grid — Tables only */}
+                    {activeCat.tableStyles && (
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
+                        {activeCat.tableStyles.map(ts => (
+                          <button key={ts.label} onMouseDown={e => { e.preventDefault(); addTable(); }}
+                            style={{ border:`1px solid ${t.border}`, borderRadius:8, overflow:'hidden', background:t.input, cursor:'pointer', padding:6, transition:'border-color 150ms' }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor=t.primaryBorder}
+                            onMouseLeave={e => e.currentTarget.style.borderColor=t.border}>
+                            <div style={{ borderRadius:4, overflow:'hidden', border:`1px solid ${ts.color}40` }}>
+                              <div style={{ background:ts.color, height:10 }}/>
+                              {[0,1,2].map(r => (
+                                <div key={r} style={{ display:'flex', borderTop:`1px solid ${ts.color}30` }}>
+                                  {[0,1,2].map(c => <div key={c} style={{ flex:1, height:9, borderLeft:c>0?`1px solid ${ts.color}25`:'none' }}/>)}
+                                </div>
+                              ))}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Sections — all cats using sections architecture */}
+                    {activeCat.sections && activeCat.sections.map(section => (
+                      <div key={section.label} style={{ marginBottom:16 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                          <div style={{ fontSize:12, fontWeight:600, color:t.text }}>{section.label}</div>
+                          <button style={{ fontSize:11, color:t.primary, background:'none', border:'none', cursor:'pointer', padding:0, fontWeight:500 }}>See all</button>
                         </div>
-                      ))
-                    ) : (
+                        {section.trackList ? (
+                          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                            {(section.items||[]).map(track => (
+                              <div key={track.label} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:8, background:t.input, border:`1px solid ${t.border}`, cursor:'pointer' }}>
+                                <div style={{ width:36, height:36, borderRadius:8, background:track.grad||'linear-gradient(135deg,#7C5CFC,#5E3ED9)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#fff"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                </div>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ fontSize:12, fontWeight:500, color:t.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{track.label}</div>
+                                  <div style={{ fontSize:11, color:t.textMuted }}>{track.artist} • {track.duration}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : section.formCards ? (
+                          <div style={{ display:'flex', gap:8, overflowX:'auto', scrollbarWidth:'none', paddingBottom:4 }}>
+                            {(section.items||[]).map(card => (
+                              <div key={card.label} style={{ flexShrink:0, width:130, borderRadius:8, border:`1px solid ${t.border}`, overflow:'hidden', background:t.card, cursor:'pointer' }}>
+                                <div style={{ padding:'10px 12px', minHeight:72, background:card.bg||t.input, display:'flex', flexDirection:'column', justifyContent:'center', gap:4 }}>
+                                  {card.preview}
+                                </div>
+                                <div style={{ padding:'5px 8px 7px', fontSize:10, color:t.textMuted, fontWeight:500 }}>{card.label}</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : activeCat.id === 'stickers' ? (
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:4 }}>
+                            {(section.items||[]).map(it => renderCard({...it, catId:activeCat.id}))}
+                          </div>
+                        ) : (
+                          <div style={{ display:'flex', gap:8, overflowX:'auto', scrollbarWidth:'none', paddingBottom:4 }}>
+                            {(section.items||[]).map(it => renderScrollCard({...it, catId:activeCat.id}))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Fallback: flat grid for cats without sections or tableStyles */}
+                    {!activeCat.sections && !activeCat.tableStyles && (
                       <div style={{ display:'grid', gridTemplateColumns:`repeat(${activeCat.id==='stickers'?4:3},1fr)`, gap:activeCat.id==='stickers'?4:7 }}>
-                        {activeCat.items.map(it => renderCard({...it, catId:activeCat.id}))}
+                        {(activeCat.items||[]).map(it => activeCat.noLabels ? (
+                          <button key={it.label} onMouseDown={e=>{e.preventDefault();it.fn&&it.fn();}}
+                            style={{ border:`1px solid ${t.border}`, borderRadius:8, overflow:'hidden', background:t.input, cursor:'pointer', padding:0, transition:'border-color 150ms' }}
+                            onMouseEnter={e=>e.currentTarget.style.borderColor=t.primaryBorder}
+                            onMouseLeave={e=>e.currentTarget.style.borderColor=t.border}>
+                            <div style={{ height:54, background:activeCat.grad, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              <svg viewBox="0 0 64 54" width="100%" height="54">{it.svg}</svg>
+                            </div>
+                          </button>
+                        ) : renderCard({...it, catId:activeCat.id}))}
                       </div>
                     )}
                   </div>
@@ -10593,18 +10878,39 @@ export default function TemplatesEditorInner() {
                         Search
                       </button>
                     </div>
+                    {/* Magic recommendations — shown only when no search active */}
+                    {elemPhotos.length === 0 && !elemPhotosLoading && !elemPhotosQuery && (
+                      <div>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                          <span style={{ fontSize:12, fontWeight:600, color:t.text }}>Magic recommendations</span>
+                          <button style={{ fontSize:11, color:t.primary, background:'none', border:'none', cursor:'pointer', padding:0, fontWeight:500 }}>See all</button>
+                        </div>
+                        <div style={{ display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none', paddingBottom:4 }}>
+                          {['linear-gradient(135deg,#d4b896,#c4956a)','linear-gradient(135deg,#c8d6e5,#b0bec5)','linear-gradient(135deg,#a8d8a0,#7bc47b)','linear-gradient(135deg,#f0b8a8,#e88a7a)'].map((g,i) => (
+                            <div key={i} style={{ flexShrink:0, width:90, height:60, borderRadius:8, background:g, border:`1px solid ${t.border}` }}/>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Trending label — shown when photos are loaded */}
+                    {elemPhotos.length > 0 && (
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <span style={{ fontSize:12, fontWeight:600, color:t.text }}>Trending</span>
+                        <button style={{ fontSize:11, color:t.primary, background:'none', border:'none', cursor:'pointer', padding:0, fontWeight:500 }}>See all</button>
+                      </div>
+                    )}
                     {elemPhotosLoading ? (
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:6 }}>
                         {Array.from({length:6}).map((_,i)=>(
                           <div key={i} style={{ borderRadius:8, background:t.input, aspectRatio:'1', animation:'shimmer 1.4s ease-in-out infinite' }} />
                         ))}
                       </div>
-                    ) : elemPhotos.length === 0 ? (
+                    ) : elemPhotos.length === 0 && elemPhotosQuery ? (
                       <div style={{ textAlign:'center', padding:'30px 0', color:t.textMuted, fontSize:12 }}>
                         <div style={{ fontSize:28, marginBottom:8 }}>📷</div>
-                        {elemPhotosQuery ? 'No photos found' : 'Search for stock photos'}
+                        No photos found
                       </div>
-                    ) : (
+                    ) : elemPhotos.length === 0 ? null : (
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:6 }}>
                         {elemPhotos.map(photo => (
                           <div key={photo.id}
@@ -10641,6 +10947,13 @@ export default function TemplatesEditorInner() {
                         Search
                       </button>
                     </div>
+                    {/* Trending label — shown when videos are loaded */}
+                    {pexelsVideos.length > 0 && (
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <span style={{ fontSize:12, fontWeight:600, color:t.text }}>Trending</span>
+                        <button style={{ fontSize:11, color:t.primary, background:'none', border:'none', cursor:'pointer', padding:0, fontWeight:500 }}>See all</button>
+                      </div>
+                    )}
                     {videoLoading ? (
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:6 }}>
                         {Array.from({length:4}).map((_,i)=>(
@@ -10774,8 +11087,11 @@ export default function TemplatesEditorInner() {
                         {catTileButton(findCat('tables'))}
                         {catTileButton(findCat('frames'))}
                         {catTileButton(findCat('grids'))}
-                        {/* Extra ItsPosting categories not in Canva's 12 */}
-                        {cats.filter(c => !['shapes','graphics','animations','audio','charts','forms','sheets','tables','frames','grids'].includes(c.id)).map(cat => catTileButton(cat))}
+                        {/* Row 5: Mockups · 3D */}
+                        {catTileButton(findCat('mockups'))}
+                        {catTileButton(findCat('3d'))}
+                        {/* Extra ItsPosting categories */}
+                        {cats.filter(c => !['shapes','graphics','animations','audio','charts','forms','sheets','tables','frames','grids','mockups','3d'].includes(c.id)).map(cat => catTileButton(cat))}
                       </div>
                       <div style={{ fontSize:12, fontWeight:600, color:t.textMuted, marginTop:4 }}>Quick Add</div>
                       <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
