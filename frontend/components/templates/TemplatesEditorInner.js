@@ -384,6 +384,12 @@ const EMOJI_SETS = [
 
 const DocColorsCtx = createContext([]);
 
+function applyListStyle(text, listStyle) {
+  if (!text || !listStyle || listStyle === 'none') return text;
+  if (listStyle === 'bullet') return text.split('\n').map(l => l.trim() ? '• ' + l : l).join('\n');
+  return text;
+}
+
 function applyTextTransform(text, transform) {
   if (!text || !transform || transform === 'none') return text;
   if (transform === 'uppercase') return text.toUpperCase();
@@ -897,7 +903,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
     }
     // Curved / arch text rendering
     if (el.textCurve) {
-      const rawText = applyTextTransform(el.text || '', el.textTransform) || '';
+      const rawText = applyTextTransform(applyListStyle(el.text || '', el.listStyle), el.textTransform) || '';
       const fontSize = el.fontSize || 36;
       const curveR = el.textCurve;
       const absR = Math.abs(curveR);
@@ -973,7 +979,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
     const textNode = (
       <Text
         {...common}
-        text={applyTextTransform(el.text, el.textTransform)}
+        text={applyTextTransform(applyListStyle(el.text, el.listStyle), el.textTransform)}
         fontSize={el.fontSize || 36}
         fontFamily={el.fontFamily || 'Inter'}
         fontStyle={el.fontStyle || 'normal'}
@@ -9050,14 +9056,14 @@ export default function TemplatesEditorInner() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 14 C4 8 20 8 20 14"/><line x1="12" y1="8" x2="12" y2="12"/><polyline points="10,10 12,8 14,10"/></svg>
                 </button>
                 {/* Spacing */}
-                <button style={{ ...btnSt(false), padding: '0 7px' }} title="Letter & line spacing">
+                <button onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowSpacingPanel(p => !p); setShowShadowPanel(false); setShowAnimatePanel(false); }} style={{ ...btnSt(showSpacingPanel), padding: '0 7px' }} title="Letter & line spacing">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><polyline points="8,9 4,6 8,3" strokeWidth="1.5"/><polyline points="8,15 4,12 8,9" strokeWidth="1.5"/></svg>
                 </button>
                 <div style={divSt} />
-                {/* Effects (stub) */}
-                <button style={{ ...btnSt(false), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Effects</button>
-                {/* Animate */}
-                <button style={{ ...btnSt(false), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Animate</button>
+                {/* Effects — opens shadow/effects panel */}
+                <button onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowShadowPanel(p => !p); setShowAnimatePanel(false); setShowSpacingPanel(false); }} style={{ ...btnSt(showShadowPanel), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Effects</button>
+                {/* Animate — opens animate panel */}
+                <button onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowSpacingPanel(false); }} style={{ ...btnSt(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none')), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Animate</button>
                 {/* Position */}
                 <button onClick={() => { setActiveLeftTool('position'); setPanelOpen(true); }} style={{ ...btnSt(activeLeftTool === 'position'), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Position</button>
                 <div style={divSt} />
@@ -9159,6 +9165,39 @@ export default function TemplatesEditorInner() {
           </div>
         );
       })()}
+
+      {/* ── Spacing panel portal (triggered from fixed contextual bar Spacing button) ── */}
+      {showSpacingPanel && panelAnchor && selectedEl?.type === 'text' && createPortal(
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowSpacingPanel(false)} />
+          <div style={{ position: 'fixed', top: panelAnchor.bottom + 6, left: panelAnchor.left, zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 16, width: 220, boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 12 }}>Spacing</div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 11, color: t.textMuted }}>Letter spacing</span>
+                <span style={{ fontSize: 11, color: t.text, minWidth: 28, textAlign: 'right' }}>{selectedEl.letterSpacing || 0}</span>
+              </div>
+              <input type="range" min="-10" max="40" step="0.5"
+                value={selectedEl.letterSpacing || 0}
+                onChange={e => updSel({ letterSpacing: parseFloat(e.target.value) })}
+                onMouseUp={() => pushHistory()}
+                style={{ width: '100%', accentColor: t.primary }} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 11, color: t.textMuted }}>Line height</span>
+                <span style={{ fontSize: 11, color: t.text, minWidth: 28, textAlign: 'right' }}>{((selectedEl.lineHeight || 1.2)).toFixed(1)}</span>
+              </div>
+              <input type="range" min="0.8" max="3" step="0.1"
+                value={selectedEl.lineHeight || 1.2}
+                onChange={e => updSel({ lineHeight: parseFloat(e.target.value) })}
+                onMouseUp={() => pushHistory()}
+                style={{ width: '100%', accentColor: t.primary }} />
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
 
       {/* ── Main layout ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -11977,8 +12016,8 @@ export default function TemplatesEditorInner() {
                         // Ask PostCore — branded gradient pill (like Canva's "Ask Canva")
                         { label: 'Ask PostCore', icon: <IpSparkle size={13} />, title: 'Ask PostCore AI', fn: () => { handleToolClick('magic'); }, branded: true },
                         { sep: true },
-                        // Edit / style (paintbrush wand icon)
-                        ...(!isMulti ? [{ icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>, title: 'Edit style', fn: () => {} }] : []),
+                        // Edit / copy style (paintbrush wand icon)
+                        ...(!isMulti ? [{ icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>, title: styleClipboard ? 'Style copied — click element to paste' : 'Copy style', fn: copyStyle }] : []),
                         // Link
                         ...(!isMulti ? [{ icon: <IcoChain size={14} />, title: 'Add link', fn: () => {} }] : []),
                         { sep: true },
@@ -12198,7 +12237,7 @@ export default function TemplatesEditorInner() {
                 Add page
               </button>
               <div style={{ width: 1, background: t.border, flexShrink: 0 }} />
-              <button style={{ width: 40, height: 42, background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Page layout options">
+              <button onClick={addPage} style={{ width: 40, height: 42, background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Add blank page">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15l-7-7h14z"/></svg>
               </button>
             </div>
