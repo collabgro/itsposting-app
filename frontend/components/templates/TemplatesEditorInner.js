@@ -6459,12 +6459,19 @@ export default function TemplatesEditorInner() {
                     { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>, label: 'New design', right: 'Ctrl+N', fn: () => { if (elements.length === 0 || confirm('Start a new blank design?')) { pushHistory(); setPages([emptyPage()]); setActivePage(0); clearSelection(); setTitleForSave(''); } } },
                     { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>, label: 'Upload files', fn: () => { uploadFileRef.current?.click(); } },
                     null,
-                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>, label: 'Save', right: saveStatus === 'saving' ? 'Saving…' : 'Ctrl+S', fn: () => handleSave() },
-                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>, label: 'Make a copy', fn: () => { const copy = JSON.parse(JSON.stringify(pages)); const now = Date.now(); copy.forEach((p,i) => { p.id = `page_${now+i}_copy`; }); pushHistory(); setPages(copy); } },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>, label: 'Settings', right: '›', fn: () => {} },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>, label: 'Accessibility', right: '›', fn: () => {} },
                     null,
-                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>, label: 'Download PNG',  right: 'PNG', fn: () => downloadCanvas('image/png',  'png',  1)    },
-                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>, label: 'Download JPEG', right: 'JPG', fn: () => downloadCanvas('image/jpeg', 'jpg',  0.92) },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>, label: 'Save', right: saveStatus === 'saving' ? 'Saving…' : 'All changes saved', rightMuted: true, fn: () => handleSave() },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>, label: 'Make available offline', fn: () => {} },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>, label: 'Move', fn: () => {} },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>, label: 'Make a copy', fn: () => { const copy = JSON.parse(JSON.stringify(pages)); const now = Date.now(); copy.forEach((p,i) => { p.id = `page_${now+i}_copy`; }); pushHistory(); setPages(copy); } },
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>, label: 'Download', fn: () => downloadCanvas('image/png', 'png', 1) },
                     { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>, label: 'Print', right: 'Ctrl+P', fn: () => window.print() },
+                    null,
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>, label: 'Version history', fn: () => {} },
+                    null,
+                    { icon: <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>, label: 'Move to Trash', fn: () => {}, danger: true },
                   ].map((item, i) => item === null
                     ? <div key={i} style={{ height: 1, background: t.border, margin: '3px 0' }} />
                     : (
@@ -6474,7 +6481,10 @@ export default function TemplatesEditorInner() {
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <span style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', color: t.textMuted }}>{item.icon}</span>
                         <span style={{ flex: 1 }}>{item.label}</span>
-                        {item.right && <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0, fontFamily: 'monospace', background: t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)', padding: '2px 5px', borderRadius: 4 }}>{item.right}</span>}
+                        {item.right && (item.rightMuted
+                          ? <span style={{ fontSize: 11, color: t.textMuted, flexShrink: 0 }}>{item.right}</span>
+                          : <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0, fontFamily: 'monospace', background: t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)', padding: '2px 5px', borderRadius: 4 }}>{item.right}</span>
+                        )}
                       </button>
                     )
                   )}
@@ -9215,8 +9225,9 @@ export default function TemplatesEditorInner() {
             { id: 'brand',     icon: <IpPalette size={22} />,    label: 'Brand'    },
             { id: 'uploads',   icon: <IpPublish size={22} />,    label: 'Uploads'   },
             { id: 'layers',    icon: <IcoLayers size={22} />,    label: 'Layers'    },
-            { id: 'tools',     icon: <IpEdit size={22} />,       label: 'Draw'      },
+            { id: 'tools',     icon: <IpEdit size={22} />,       label: 'Tools'     },
             { id: 'projects',  icon: <IpFolderOpen size={22} />, label: 'Projects'  },
+            { id: 'apps',      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v6M14.5 17h6"/></svg>, label: 'Apps'     },
           ].map(tool => {
             const isActive = activeLeftTool === tool.id && panelOpen;
             return (
@@ -9267,9 +9278,53 @@ export default function TemplatesEditorInner() {
           })}
         </div>
 
+        {/* Tools floating tile column — appears instead of flyout when Tools active */}
+        {activeLeftTool === 'tools' && panelOpen && (
+          <div style={{
+            position: 'fixed', left: 72, top: 56, zIndex: 120,
+            background: t.card, border: `1px solid ${t.border}`,
+            borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            padding: '8px 8px 10px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+            animation: 'panel-in 180ms cubic-bezier(0.16,1,0.3,1) forwards',
+          }}>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', marginBottom: 2 }}>
+              <button onMouseDown={() => setPanelOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 16, lineHeight: 1, padding: '0 2px' }}>×</button>
+            </div>
+            {[
+              { bg: '#f3f4f6', icon: '↖', dark: true,  title: 'Select', fn: () => setDrawMode(false) },
+              { bg: 'linear-gradient(135deg,#ef4444,#dc2626)', icon: '✎', title: 'Pen',    fn: () => { setDrawMode(true); clearSelection(); } },
+              { bg: '#374151', icon: '◉',  title: 'Eraser', fn: () => {} },
+              { bg: '#3b82f6', icon: '╱',  title: 'Line',   fn: () => {} },
+              { bg: '#f59e0b', icon: '▭',  title: 'Shape',  fn: () => {} },
+              { bg: '#7c5cfc', icon: 'T',  title: 'Text',   fn: () => {} },
+              { bg: '#0f172a', icon: '⊞',  title: 'Table',  fn: () => {} },
+            ].map(tile => {
+              const isActive = (tile.title === 'Pen' && drawMode) || (tile.title === 'Select' && !drawMode);
+              return (
+                <button key={tile.title} onMouseDown={tile.fn} title={tile.title}
+                  onMouseEnter={e => showTip(e, tile.title)}
+                  onMouseLeave={hideTip}
+                  style={{
+                    width: 42, height: 42, borderRadius: 10,
+                    border: isActive ? `2px solid ${t.primary}` : '2px solid transparent',
+                    background: tile.bg, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 18, color: tile.dark ? '#374151' : '#fff',
+                    transition: 'opacity 80ms', flexShrink: 0,
+                    boxShadow: isActive ? `0 0 0 3px ${t.primary}33` : '0 1px 3px rgba(0,0,0,0.15)',
+                  }}>
+                  {tile.icon}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* 300px collapsible flyout */}
         <div style={{
-          width: panelOpen ? 300 : 0,
+          width: (panelOpen && activeLeftTool !== 'tools') ? 300 : 0,
           overflow: 'hidden',
           transition: 'width 180ms cubic-bezier(0.16,1,0.3,1)',
           borderRight: panelOpen ? `1px solid ${t.border}` : 'none',
@@ -11296,53 +11351,8 @@ export default function TemplatesEditorInner() {
               );
             })()}
 
-            {/* TOOLS / DRAW */}
-            {activeLeftTool === 'tools' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Draw</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                  {[
-                    { icon: '↖', label: 'Select',     id: 'select'  },
-                    { icon: '✏', label: 'Pen',         id: 'pen'     },
-                    { icon: 'T', label: 'Text',         id: 'text'    },
-                    { icon: '─', label: 'Line',         id: 'line'    },
-                    { icon: '▭', label: 'Rectangle',    id: 'rect'    },
-                    { icon: '○', label: 'Circle',       id: 'circle'  },
-                  ].map(tool => {
-                    const isActive = tool.id === 'pen' ? drawMode : tool.id === 'select' ? !drawMode : false;
-                    return (
-                      <button key={tool.label} onClick={() => {
-                        if (tool.id === 'pen') { setDrawMode(true); clearSelection(); }
-                        else if (tool.id === 'select') { setDrawMode(false); }
-                      }}
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '12px 4px', border: `1.5px solid ${isActive ? t.primary : t.border}`, borderRadius: 10, background: isActive ? t.primaryBg : t.input, cursor: 'pointer', color: isActive ? t.primary : t.text, transition: 'all 80ms' }}>
-                        <span style={{ fontSize: 22 }}>{tool.icon}</span>
-                        <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{tool.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {drawMode && (
-                  <div style={{ background: t.input, borderRadius: 10, padding: '12px 12px 10px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>Pen settings</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36 }}>Color</span>
-                      <input type="color" value={drawColor} onChange={e => setDrawColor(e.target.value)}
-                        style={{ width: 36, height: 28, border: `1px solid ${t.border}`, borderRadius: 6, cursor: 'pointer', padding: 2 }} />
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36 }}>Width</span>
-                      <input type="range" min={1} max={40} step={1} value={drawWidth} onChange={e => setDrawWidth(+e.target.value)}
-                        style={{ flex: 1, accentColor: t.primary }} />
-                      <span style={{ fontSize: 11, color: t.textMuted, minWidth: 20 }}>{drawWidth}</span>
-                    </div>
-                    <button onClick={() => setDrawMode(false)} style={{ width: '100%', padding: '8px', borderRadius: 7, border: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
-                      ✓ Done drawing
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* TOOLS — content moved to floating tile column (rendered outside flyout); flyout stays 0-width */}
+            {activeLeftTool === 'tools' && null}
 
             {/* PROJECTS */}
             {activeLeftTool === 'projects' && (
@@ -12023,6 +12033,13 @@ export default function TemplatesEditorInner() {
                       };
 
                       const BTNS = [
+                        // Rotate — first item like Canva
+                        ...(!isMulti ? [{
+                          icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>,
+                          title: 'Rotate -15°',
+                          fn: () => { pushHistory(); patchElements(prev => prev.map(e => e.id === selectedId ? { ...e, rotation: (((e.rotation || 0) - 15) % 360 + 360) % 360 } : e)); },
+                        }] : []),
+                        { sep: true },
                         // Ask PostCore — branded gradient pill (like Canva's "Ask Canva")
                         { label: 'Ask PostCore', icon: <IpSparkle size={13} />, title: 'Ask PostCore AI', fn: () => { handleToolClick('magic'); }, branded: true },
                         { sep: true },
