@@ -4036,6 +4036,7 @@ export default function TemplatesEditorInner() {
   const [activePage, setActivePage] = useState(0);
   const [selectedId, setSelectedId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]); // multi-select
+  const [floatingBar, setFloatingBar] = useState(null); // floating element toolbar position
   const [selectionStart, setSelectionStart] = useState(null); // rubber-band drag
   const [selectionRect, setSelectionRect] = useState(null);   // rubber-band rect
   const [editingTextId, setEditingTextId] = useState(null);
@@ -4160,6 +4161,7 @@ export default function TemplatesEditorInner() {
   const [activeLeftTool, setActiveLeftTool] = useState('templates');
   const [panelOpen, setPanelOpen] = useState(true);
   const [positionTab, setPositionTab] = useState('arrange');
+  const [ratioLocked, setRatioLocked] = useState(false);
   const [elemSearch, setElemSearch] = useState('');
   const [activeElemCat, setActiveElemCat] = useState(null);
   const [elemSubPanel, setElemSubPanel] = useState(null); // null | 'photos' | 'videos'
@@ -4893,6 +4895,15 @@ export default function TemplatesEditorInner() {
       }
     };
   }, [editingTextId]);
+
+  // ── Floating bar — update on selection + scroll ────────────────────────────
+  useEffect(() => { updateFloatingBar(); }, [updateFloatingBar]);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', updateFloatingBar);
+    return () => el.removeEventListener('scroll', updateFloatingBar);
+  }, [updateFloatingBar]);
 
   // ── Preview capture ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -5703,6 +5714,7 @@ export default function TemplatesEditorInner() {
 
   function updateElement(updated) {
     patchElements(prev => prev.map(el => el.id === updated.id ? updated : el));
+    if (updated.id === selectedId) requestAnimationFrame(updateFloatingBar);
   }
 
   function handleElementChange(updated) {
@@ -5878,6 +5890,19 @@ export default function TemplatesEditorInner() {
     const nw = elW * scale; const nh = elH * scale;
     updateElement({ ...el, x: (canvasSize.w - nw) / 2, y: (canvasSize.h - nh) / 2, width: nw, height: nh });
   }
+
+  // ── Floating element toolbar position ─────────────────────────────────────
+  const updateFloatingBar = useCallback(() => {
+    if (!selectedId || !stageRef.current) { setFloatingBar(null); return; }
+    requestAnimationFrame(() => {
+      if (!stageRef.current) return;
+      const node = stageRef.current.findOne('#' + selectedId);
+      if (!node) { setFloatingBar(null); return; }
+      const rect = node.getClientRect({ relativeTo: stageRef.current });
+      const canvasRect = stageRef.current.container().getBoundingClientRect();
+      setFloatingBar({ left: canvasRect.left + rect.x, top: canvasRect.top + rect.y, width: rect.width, height: rect.height });
+    });
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Layer order ────────────────────────────────────────────────────────────
   function bringForward(id) {
@@ -10650,15 +10675,29 @@ export default function TemplatesEditorInner() {
                     <polygon points="32,30 52,22 52,38 32,48" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.5)" strokeWidth="1"/>
                   </svg>,
                   sections:[
-                    { label:'Objects', items:[
-                      { label:'Cube',   fn:()=>{}, svg:<><polygon points="32,10 52,22 52,38 32,48 12,38 12,22" fill="none" stroke="#fff" strokeWidth="2"/><polygon points="32,10 52,22 32,30 12,22" fill="rgba(255,255,255,0.25)"/><line x1="32" y1="30" x2="32" y2="48" stroke="#fff" strokeWidth="1.5" opacity=".5"/></> },
-                      { label:'Sphere', fn:()=>{}, svg:<><circle cx="32" cy="27" r="18" fill="none" stroke="#fff" strokeWidth="2"/><ellipse cx="32" cy="27" rx="18" ry="8" fill="none" stroke="#fff" strokeWidth="1.5" opacity=".5"/></> },
-                      { label:'Cone',   fn:()=>{}, svg:<><path d="M32 10 L50 42 L14 42Z" fill="none" stroke="#fff" strokeWidth="2"/><ellipse cx="32" cy="42" rx="18" ry="5" fill="none" stroke="#fff" strokeWidth="1.5" opacity=".6"/></> },
+                    { label:'Icons & Stickers', items:[
+                      { label:'Arrow',   fn:()=>{}, svg:<text x="20" y="36" fontSize="24" fill="#fff">↪</text> },
+                      { label:'Check',   fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">✅</text> },
+                      { label:'Zap',     fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">⚡</text> },
+                      { label:'Heart',   fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">💜</text> },
+                      { label:'Fire',    fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">🔥</text> },
+                      { label:'Crown',   fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">👑</text> },
                     ]},
-                    { label:'Scenes', items:[
-                      { label:'Room',   fn:()=>{}, svg:<><path d="M8 42 L8 14 L32 8 L56 14 L56 42Z" fill="none" stroke="#fff" strokeWidth="2"/><path d="M8 14 L32 20 L56 14M32 20 L32 42" stroke="#fff" strokeWidth="1.5" opacity=".6"/></> },
-                      { label:'Studio', fn:()=>{}, svg:<><rect x="8" y="20" width="48" height="28" rx="2" fill="none" stroke="#fff" strokeWidth="2"/><path d="M8 20 Q32 8 56 20" fill="rgba(255,255,255,0.15)" stroke="#fff" strokeWidth="1.5"/></> },
-                      { label:'Nature', fn:()=>{}, svg:<><path d="M8 42 Q20 24 32 28 Q44 32 56 14" fill="none" stroke="#fff" strokeWidth="2"/><circle cx="46" cy="16" r="6" fill="#fff" opacity=".5"/></> },
+                    { label:'Characters & Emojis', items:[
+                      { label:'Smile',   fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">😊</text> },
+                      { label:'Panda',   fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">🐼</text> },
+                      { label:'Cat',     fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">🐱</text> },
+                      { label:'Ghost',   fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">👻</text> },
+                      { label:'Robot',   fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">🤖</text> },
+                      { label:'Dragon',  fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">🐲</text> },
+                    ]},
+                    { label:'Food & Lifestyle', items:[
+                      { label:'Coffee',  fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">☕</text> },
+                      { label:'Pizza',   fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">🍕</text> },
+                      { label:'Burger',  fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">🍔</text> },
+                      { label:'Gem',     fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">💎</text> },
+                      { label:'Camera',  fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">📸</text> },
+                      { label:'Trophy',  fn:()=>{}, svg:<text x="17" y="37" fontSize="24" fill="#fff">🏆</text> },
                     ]},
                   ],
                 },
@@ -10695,8 +10734,11 @@ export default function TemplatesEditorInner() {
                     style={{ flexShrink:0, width:72, display:'flex', flexDirection:'column', border:`1px solid ${t.border}`, borderRadius:8, overflow:'hidden', background:t.input, cursor:'pointer', padding:0, transition:'transform 80ms, border-color 150ms' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor=t.primaryBorder; e.currentTarget.style.transform='scale(1.04)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor=t.border; e.currentTarget.style.transform='scale(1)'; }}>
-                    <div style={{ height:54, background:cat.grad, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <div style={{ height:54, background:cat.grad, display:'flex', alignItems:'center', justifyContent:'center', position:'relative' }}>
                       <svg viewBox="0 0 64 54" width="100%" height="54">{item.svg}</svg>
+                      {cat.id === '3d' && (
+                        <div style={{ position:'absolute', bottom:3, left:3, background:'rgba(0,0,0,0.52)', color:'#fff', fontSize:7, fontWeight:700, padding:'1px 4px', borderRadius:3, lineHeight:1.4, letterSpacing:0.4 }}>3D</div>
+                      )}
                     </div>
                     <div style={{ padding:'5px 4px 6px', fontSize:10, color:t.textMuted, textAlign:'center', fontWeight:500, lineHeight:1.2 }}>{item.label}</div>
                   </button>
@@ -11612,10 +11654,39 @@ export default function TemplatesEditorInner() {
                             <div><label style={poslbl}>Y</label>
                               <input type="number" value={Math.round(selectedEl.y)} onChange={e => updateElement({ ...selectedEl, y: +e.target.value || 0 })} onBlur={() => pushHistory()} style={posinp} /></div>
                             {hasSz && <>
-                              <div><label style={poslbl}>W</label>
-                                <input type="number" value={Math.round(selectedEl.width || 0)} onChange={e => updateElement({ ...selectedEl, width: +e.target.value || 1 })} onBlur={() => pushHistory()} style={posinp} /></div>
-                              <div><label style={poslbl}>H</label>
-                                <input type="number" value={Math.round(selectedEl.height || selectedEl.width || 0)} onChange={e => updateElement({ ...selectedEl, height: +e.target.value || 1 })} onBlur={() => pushHistory()} style={posinp} /></div>
+                              <div style={{ gridColumn:'1/-1', display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:4, alignItems:'flex-end' }}>
+                                <div><label style={poslbl}>W</label>
+                                  <input type="number" value={Math.round(selectedEl.width || 0)}
+                                    onChange={e => {
+                                      const w = +e.target.value || 1;
+                                      const h = ratioLocked && selectedEl.width
+                                        ? Math.round(w * ((selectedEl.height || selectedEl.width) / selectedEl.width))
+                                        : (selectedEl.height || selectedEl.width || 0);
+                                      updateElement({ ...selectedEl, width: w, height: h });
+                                    }}
+                                    onBlur={() => pushHistory()} style={posinp} /></div>
+                                <button
+                                  title={ratioLocked ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                                  onClick={() => setRatioLocked(r => !r)}
+                                  style={{ width:24, height:32, display:'flex', alignItems:'center', justifyContent:'center', background:ratioLocked ? t.primaryBg : t.input, border:`1px solid ${ratioLocked ? t.primaryBorder : t.border}`, borderRadius:6, cursor:'pointer', flexShrink:0, transition:'all 150ms' }}>
+                                  <svg width="11" height="13" viewBox="0 0 24 24" fill="none" stroke={ratioLocked ? t.primary : t.textMuted} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2"/>
+                                    {ratioLocked
+                                      ? <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                      : <path d="M7 11V6a5 5 0 0 1 9.9-1" opacity=".35"/>}
+                                  </svg>
+                                </button>
+                                <div><label style={poslbl}>H</label>
+                                  <input type="number" value={Math.round(selectedEl.height || selectedEl.width || 0)}
+                                    onChange={e => {
+                                      const h = +e.target.value || 1;
+                                      const w = ratioLocked && (selectedEl.height || selectedEl.width)
+                                        ? Math.round(h * (selectedEl.width / (selectedEl.height || selectedEl.width)))
+                                        : (selectedEl.width || 0);
+                                      updateElement({ ...selectedEl, height: h, width: w });
+                                    }}
+                                    onBlur={() => pushHistory()} style={posinp} /></div>
+                              </div>
                             </>}
                             <div style={{ gridColumn: '1/-1' }}>
                               <label style={poslbl}>Rotation °</label>
@@ -13538,6 +13609,88 @@ export default function TemplatesEditorInner() {
               </div>
             </div>
           </>
+        );
+      })()}
+
+      {/* ── Floating element toolbar ── */}
+      {floatingBar && selectedId && !ctxMenu && !editingTextId && (() => {
+        const el = elements.find(e => e.id === selectedId);
+        if (!el) return null;
+        const isLocked = lockedIds.has(selectedId);
+        const tbW = 264;
+        const left = Math.max(8, Math.min(window.innerWidth - tbW - 8, floatingBar.left + floatingBar.width / 2 - tbW / 2));
+        const top  = Math.max(8, floatingBar.top - 50);
+        return (
+          <div style={{
+            position: 'fixed', left, top, zIndex: 1002,
+            background: t.card, border: `1px solid ${t.border}`,
+            borderRadius: 10, boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+            display: 'flex', alignItems: 'center', gap: 0, padding: '3px 4px',
+            userSelect: 'none', pointerEvents: 'auto',
+          }}>
+            {/* Ask PostCore */}
+            <button
+              onMouseDown={e => { e.preventDefault(); handleToolClick && handleToolClick('magic'); }}
+              style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:7, background:'linear-gradient(135deg,#00C4CC,#7C5CFC)', border:'none', cursor:'pointer', height:30, flexShrink:0 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="#fff"><path d="M12 2l2.4 7.4L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>
+              <span style={{ fontSize:11, fontWeight:700, color:'#fff', whiteSpace:'nowrap' }}>Ask PostCore</span>
+            </button>
+            <div style={{ width:1, height:22, background:t.border, margin:'0 3px', flexShrink:0 }}/>
+            {/* Duplicate */}
+            <button title="Duplicate (Ctrl+D)"
+              onMouseDown={e => {
+                e.preventDefault();
+                const d = { ...JSON.parse(JSON.stringify(el)), id: `el_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, x: el.x + 20, y: el.y + 20 };
+                pushHistory(); patchElements(prev => [...prev, d]); setSelectedId(d.id);
+              }}
+              style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', borderRadius:6, cursor:'pointer', color:t.textMuted }}
+              onMouseEnter={e => { e.currentTarget.style.background=t.input; }}
+              onMouseLeave={e => { e.currentTarget.style.background='none'; }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+            {/* Lock */}
+            <button title={isLocked ? 'Unlock' : 'Lock'}
+              onMouseDown={e => { e.preventDefault(); toggleLocked(selectedId); }}
+              style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', borderRadius:6, cursor:'pointer', color: isLocked ? '#FFB800' : t.textMuted }}
+              onMouseEnter={e => { e.currentTarget.style.background=t.input; }}
+              onMouseLeave={e => { e.currentTarget.style.background='none'; }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                {isLocked
+                  ? <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  : <path d="M7 11V7a5 5 0 0 1 9.9-1" opacity=".4"/>}
+              </svg>
+            </button>
+            {/* Delete */}
+            <button title="Delete"
+              onMouseDown={e => {
+                e.preventDefault();
+                pushHistory(); patchElements(prev => prev.filter(e => e.id !== selectedId)); setSelectedId(null); setFloatingBar(null);
+              }}
+              style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', borderRadius:6, cursor:'pointer', color:'#ef4444' }}
+              onMouseEnter={e => { e.currentTarget.style.background='rgba(239,68,68,0.1)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background='none'; }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </button>
+            <div style={{ width:1, height:22, background:t.border, margin:'0 3px', flexShrink:0 }}/>
+            {/* More (opens context menu) */}
+            <button title="More options"
+              onMouseDown={e => {
+                e.preventDefault();
+                setCtxMenu({ x: left + tbW / 2, y: top + 50, elementId: selectedId });
+              }}
+              style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', borderRadius:6, cursor:'pointer', color:t.textMuted }}
+              onMouseEnter={e => { e.currentTarget.style.background=t.input; }}
+              onMouseLeave={e => { e.currentTarget.style.background='none'; }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+              </svg>
+            </button>
+          </div>
         );
       })()}
 
