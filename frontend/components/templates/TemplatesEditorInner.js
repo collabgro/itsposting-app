@@ -4076,6 +4076,7 @@ export default function TemplatesEditorInner() {
   const [stockQuery, setStockQuery] = useState('');
   const [stockInputValue, setStockInputValue] = useState('');
   const [bgRemoverDismissed, setBgRemoverDismissed] = useState(false);
+  const [activeBrandItem, setActiveBrandItem] = useState('All assets');
   const [bgRemoveLoading, setBgRemoveLoading] = useState(false);
   const [bgProgress, setBgProgress] = useState('');
   const [extractLoading, setExtractLoading] = useState(false);
@@ -9040,13 +9041,17 @@ export default function TemplatesEditorInner() {
                 {[['left',<IcoAlignLeft size={13}/>],['center',<IcoAlignCH size={13}/>],['right',<IcoAlignRight size={13}/>]].map(([a,ic])=>(
                   <button key={a} onClick={() => { pushHistory(); updSel({ align: a }); }} style={btnSt(selectedEl.align===a)}>{ic}</button>
                 ))}
-                <div style={divSt} />
-                {/* Copy style — format painter (Alt+C to copy, Alt+V to paste) */}
-                <button
-                  onClick={copyStyle}
-                  title={styleClipboard ? 'Style copied — click another element to paste (Alt+V)' : 'Copy style (Alt+C)'}
-                  style={{ ...btnSt(!!styleClipboard), padding: '0 8px', fontSize: 14 }}>
-                  🖌
+                {/* List */}
+                <button onClick={() => { pushHistory(); updSel({ listStyle: selectedEl.listStyle === 'bullet' ? 'none' : 'bullet' }); }} style={{ ...btnSt(selectedEl.listStyle === 'bullet'), padding: '0 7px' }} title="Bulleted list">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
+                </button>
+                {/* Curve */}
+                <button style={{ ...btnSt(false), padding: '0 7px' }} title="Curve text">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 14 C4 8 20 8 20 14"/><line x1="12" y1="8" x2="12" y2="12"/><polyline points="10,10 12,8 14,10"/></svg>
+                </button>
+                {/* Spacing */}
+                <button style={{ ...btnSt(false), padding: '0 7px' }} title="Letter & line spacing">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><polyline points="8,9 4,6 8,3" strokeWidth="1.5"/><polyline points="8,15 4,12 8,9" strokeWidth="1.5"/></svg>
                 </button>
                 <div style={divSt} />
                 {/* Effects (stub) */}
@@ -9055,6 +9060,9 @@ export default function TemplatesEditorInner() {
                 <button style={{ ...btnSt(false), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Animate</button>
                 {/* Position */}
                 <button onClick={() => { setActiveLeftTool('position'); setPanelOpen(true); }} style={{ ...btnSt(activeLeftTool === 'position'), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Position</button>
+                <div style={divSt} />
+                {/* Copy style — format painter (far right, Alt+C to copy, Alt+V to paste) */}
+                <button onClick={copyStyle} title={styleClipboard ? 'Style copied — Alt+V to paste' : 'Copy style (Alt+C)'} style={{ ...btnSt(!!styleClipboard), padding: '0 8px', fontSize: 14 }}>🖌</button>
               </>
             )}
             {isImage && (
@@ -10134,21 +10142,16 @@ export default function TemplatesEditorInner() {
                   )}
 
                   {/* ── BG Remover Promo Card ── */}
-                  {uploadMediaTab === 'Images' && (
-                    <div style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, marginTop: 4 }}>
-                      <div style={{ background: 'linear-gradient(135deg, #1a0a2e 0%, #2a1050 60%, #0a2040 100%)', padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                          <span style={{ fontSize: 18 }}>✂️</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Background Remover</span>
+                  {!bgRemoverDismissed && uploadMediaTab === 'Images' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: `1px solid ${t.border}`, background: t.card, marginTop: 4, flexShrink: 0 }}>
+                      <div style={{ width: 42, height: 42, borderRadius: 10, background: 'linear-gradient(135deg, #34C759 0%, #00C4CC 100%)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>✂️</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: t.text, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 10 }}>👑</span> Background Remover
                         </div>
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginBottom: 10, lineHeight: 1.4 }}>
-                          Place any image on the canvas, select it, then use "✂ Remove BG" in the toolbar.
-                        </div>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <span style={{ fontSize: 10, background: t.primaryBg, color: t.primary, padding: '2px 7px', borderRadius: 20, fontWeight: 600 }}>Already included</span>
-                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Instant AI removal</span>
-                        </div>
+                        <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2, lineHeight: 1.4 }}>Remove the background of your image</div>
                       </div>
+                      <button onClick={() => setBgRemoverDismissed(true)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 4px', flexShrink: 0 }}>×</button>
                     </div>
                   )}
                 </div>
@@ -10806,7 +10809,7 @@ export default function TemplatesEditorInner() {
                   {/* Sub-category navigation list */}
                   <div style={{ marginTop: 4 }}>
                     {[
-                      { label: 'All assets',       color: TEAL    },
+                      { label: 'All assets',       color: TEAL      },
                       { label: 'Guidelines',        color: '#5BA3F5' },
                       { label: 'Brand Templates',   color: '#5BA3F5' },
                       { label: 'Logos',             color: '#5BA3F5' },
@@ -10816,15 +10819,19 @@ export default function TemplatesEditorInner() {
                       { label: 'Photos',            color: '#A855F7' },
                       { label: 'Components',        color: '#5BA3F5' },
                       { label: 'Graphics',          color: '#5BA3F5' },
-                      { label: 'Icons',             color: '#5BA3F5' },
+                      { label: 'Icons',             color: '#F59E0B' },
                       { label: 'Charts',            color: '#5BA3F5' },
-                    ].map((item, i) => (
-                      <button key={item.label} style={{ width: '100%', height: 34, display: 'flex', alignItems: 'center', paddingLeft: 8, border: 'none', borderRadius: 6, background: i === 0 ? t.primaryBg : 'transparent', color: i === 0 ? t.primary : item.color, fontSize: 13, fontWeight: i === 0 ? 600 : 400, cursor: 'pointer', textAlign: 'left', transition: 'background 120ms' }}
-                        onMouseEnter={e => { if (i !== 0) e.currentTarget.style.background = t.cardHover; }}
-                        onMouseLeave={e => { if (i !== 0) e.currentTarget.style.background = 'transparent'; }}>
-                        {item.label}
-                      </button>
-                    ))}
+                    ].map((item) => {
+                      const isActive = activeBrandItem === item.label;
+                      return (
+                        <button key={item.label} onClick={() => setActiveBrandItem(item.label)}
+                          style={{ width: '100%', height: 34, display: 'flex', alignItems: 'center', paddingLeft: isActive ? 10 : 8, paddingRight: isActive ? 10 : 0, border: 'none', borderRadius: 20, background: isActive ? t.primaryBg : 'transparent', color: isActive ? t.primary : item.color, fontSize: 13, fontWeight: isActive ? 600 : 400, cursor: 'pointer', textAlign: 'left', transition: 'background 120ms' }}
+                          onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = t.cardHover; }}
+                          onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
+                          {item.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 {brandLoading && (
@@ -11488,7 +11495,7 @@ export default function TemplatesEditorInner() {
                     >
                       Page {pageIdx + 1}
                     </span>
-                    <span style={{ color: t.border, fontSize: 11, flexShrink: 0 }}>·</span>
+                    <span style={{ color: t.textMuted, fontSize: 11, flexShrink: 0 }}>-</span>
                     <input
                       value={page.title || ''}
                       onChange={e => setPages(prev => prev.map((p, i) => i === pageIdx ? { ...p, title: e.target.value } : p))}
@@ -12181,13 +12188,20 @@ export default function TemplatesEditorInner() {
               );
             })}
 
-            {/* Add page button */}
-            <button onClick={addPage}
-              style={{ marginTop: 4, padding: '10px 28px', borderRadius: 10, border: `1.5px dashed ${t.borderStrong}`, background: 'none', color: t.textMuted, fontSize: 13, fontWeight: 500, cursor: 'pointer', letterSpacing: '-0.01em', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
-              onMouseEnter={e => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.color = t.textMuted; }}>
-              + Add Page
-            </button>
+            {/* Add page button — full canvas width with ▼ dropdown chevron */}
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'stretch', width: stageDisplayW, borderRadius: 10, border: `1px solid ${t.border}`, overflow: 'hidden', background: 'transparent', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = 'transparent'; }}>
+              <button onClick={addPage}
+                style={{ flex: 1, height: 42, background: 'none', border: 'none', color: t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add page
+              </button>
+              <div style={{ width: 1, background: t.border, flexShrink: 0 }} />
+              <button style={{ width: 40, height: 42, background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Page layout options">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15l-7-7h14z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
 
