@@ -6505,8 +6505,11 @@ export default function TemplatesEditorInner() {
                   ].map(p => (
                     <button key={p.label} onMouseDown={() => { setCanvasSizeId(p.id); setShowCustomSizeForm(false); setShowResizeMenu(false); }}
                       style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: `1px solid ${canvasSizeId === p.id ? t.primary : t.border}`, borderRadius: 9, padding: '10px 8px', background: canvasSizeId === p.id ? t.primaryBg : 'transparent', cursor: 'pointer', flexShrink: 0 }}>
-                      <div style={{ width: p.tw, height: p.th, background: t.input, borderRadius: 4, border: `1px solid ${t.border}` }} />
-                      <span style={{ fontSize: 11, fontWeight: 500, textAlign: 'center', maxWidth: 80, color: t.text }}>{p.label}</span>
+                      <div style={{ width: p.tw, height: p.th, background: canvasSizeId === p.id ? t.primaryBg : t.input, borderRadius: 4, border: `2px solid ${canvasSizeId === p.id ? t.primary : t.borderStrong || t.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, overflow: 'hidden', flexShrink: 0 }}>
+                        <div style={{ width: '70%', height: 3, background: canvasSizeId === p.id ? t.primary : t.borderStrong || t.textMuted, borderRadius: 2, opacity: 0.6 }} />
+                        <div style={{ width: '50%', height: 2, background: canvasSizeId === p.id ? t.primary : t.borderStrong || t.textMuted, borderRadius: 2, opacity: 0.35 }} />
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 500, textAlign: 'center', maxWidth: 80, color: canvasSizeId === p.id ? t.primary : '#7C5CFC' }}>{p.label}</span>
                       <span style={{ fontSize: 10, color: t.textMuted }}>{p.w}×{p.h}px</span>
                     </button>
                   ))}
@@ -6576,21 +6579,25 @@ export default function TemplatesEditorInner() {
               ✏ Editing <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 1 }}>▾</span>
             </button>
             {editModeOpen && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 220, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '4px 0', animation: 'dropdownIn 150ms ease forwards' }}>
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 340, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '6px 0', animation: 'dropdownIn 150ms ease forwards' }}>
                 {[
-                  { id: 'editing',    label: 'Editing',    sub: 'Make changes'  },
-                  { id: 'commenting', label: 'Commenting', sub: 'Add feedback'  },
-                  { id: 'viewing',    label: 'Viewing',    sub: 'Read-only'     },
+                  { id: 'editing',    label: 'Editing',    sub: 'Full access to edit and design',
+                    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
+                  { id: 'commenting', label: 'Commenting', sub: 'Leave comments without editing',
+                    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
+                  { id: 'viewing',    label: 'Viewing',    sub: 'Read-only — no changes allowed',
+                    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> },
                 ].map(m => (
                   <button key={m.id} onClick={() => { setEditMode(m.id); setEditModeOpen(false); }}
-                    style={{ width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontSize: 13, color: t.text, textAlign: 'left', transition: 'background 100ms' }}
-                    onMouseEnter={e => e.currentTarget.style.background = t.input}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{m.label}</div>
-                      <div style={{ fontSize: 11, color: t.textMuted }}>{m.sub}</div>
+                    style={{ width: '100%', height: 62, padding: '0 16px', border: 'none', background: editMode === m.id ? t.primaryBg : 'transparent', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', fontSize: 13, color: t.text, textAlign: 'left', transition: 'background 100ms' }}
+                    onMouseEnter={e => { if (editMode !== m.id) e.currentTarget.style.background = t.input; }}
+                    onMouseLeave={e => { if (editMode !== m.id) e.currentTarget.style.background = 'transparent'; }}>
+                    <span style={{ color: editMode === m.id ? t.primary : t.textMuted, flexShrink: 0 }}>{m.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: editMode === m.id ? t.primary : t.text }}>{m.label}</div>
+                      <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>{m.sub}</div>
                     </div>
-                    {editMode === m.id && <span style={{ color: t.primary, fontSize: 14 }}>✓</span>}
+                    {editMode === m.id && <span style={{ color: t.primary, fontSize: 16, flexShrink: 0 }}>✓</span>}
                   </button>
                 ))}
               </div>
@@ -9022,29 +9029,76 @@ export default function TemplatesEditorInner() {
                   style={{ ...btnSt(fs.includes('italic')), fontStyle: 'italic' }}>I</button>
                 <button onClick={() => { pushHistory(); updSel({ textDecoration: selectedEl.textDecoration === 'underline' ? 'none' : 'underline' }); }}
                   style={{ ...btnSt(selectedEl.textDecoration === 'underline'), textDecoration: 'underline' }}>U</button>
+                <button onClick={() => { pushHistory(); updSel({ textDecoration: selectedEl.textDecoration === 'line-through' ? 'none' : 'line-through' }); }}
+                  style={{ ...btnSt(selectedEl.textDecoration === 'line-through'), textDecoration: 'line-through', fontWeight: 700 }}>S</button>
+                <button onClick={() => { const cycle = { none:'uppercase', uppercase:'lowercase', lowercase:'capitalize', capitalize:'none' }; const labels = { none:'Aa', uppercase:'AA', lowercase:'aa', capitalize:'Ab' }; const curr = selectedEl.textTransform||'none'; updSel({ textTransform: cycle[curr]||'none' }); }}
+                  style={{ ...btnSt(!!(selectedEl.textTransform && selectedEl.textTransform !== 'none')), fontSize: 11, letterSpacing: '0.02em', minWidth: 32, padding: '0 6px' }}>
+                  {({ none:'Aa', uppercase:'AA', lowercase:'aa', capitalize:'Ab' })[selectedEl.textTransform||'none']}
+                </button>
                 <div style={divSt} />
                 {/* Alignment */}
                 {[['left',<IcoAlignLeft size={13}/>],['center',<IcoAlignCH size={13}/>],['right',<IcoAlignRight size={13}/>]].map(([a,ic])=>(
                   <button key={a} onClick={() => { pushHistory(); updSel({ align: a }); }} style={btnSt(selectedEl.align===a)}>{ic}</button>
                 ))}
+                <div style={divSt} />
+                {/* Copy style — format painter (Alt+C to copy, Alt+V to paste) */}
+                <button
+                  onClick={copyStyle}
+                  title={styleClipboard ? 'Style copied — click another element to paste (Alt+V)' : 'Copy style (Alt+C)'}
+                  style={{ ...btnSt(!!styleClipboard), padding: '0 8px', fontSize: 14 }}>
+                  🖌
+                </button>
+                <div style={divSt} />
+                {/* Effects (stub) */}
+                <button style={{ ...btnSt(false), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Effects</button>
+                {/* Animate */}
+                <button style={{ ...btnSt(false), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Animate</button>
+                {/* Position */}
+                <button onClick={() => { setActiveLeftTool('position'); setPanelOpen(true); }} style={{ ...btnSt(activeLeftTool === 'position'), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Position</button>
               </>
             )}
             {isImage && (
               <>
-                {/* Flip H/V */}
-                <button onClick={() => { pushHistory(); updSel({ flipX: !selectedEl.flipX }); }} style={btnSt(selectedEl.flipX)}>
-                  <IcoFlipH size={13} />
+                {/* Edit */}
+                <button onClick={() => setShowCropPanel(p => !p)} style={{ ...btnSt(showCropPanel), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Edit</button>
+                <div style={divSt} />
+                {/* BG Remover (premium stub) */}
+                <button title="Background Remover (Pro)" style={{ ...btnSt(false), padding: '0 10px', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  BG Remover <span style={{ fontSize: 10 }}>👑</span>
                 </button>
-                <button onClick={() => { pushHistory(); updSel({ flipY: !selectedEl.flipY }); }} style={btnSt(selectedEl.flipY)}>
-                  <IcoFlipV size={13} />
+                {/* Eraser (premium stub) */}
+                <button title="Eraser (Pro)" style={{ ...btnSt(false), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Eraser</button>
+                <div style={divSt} />
+                {/* Color tint swatch */}
+                <label title="Color tint" style={{ position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+                  <input type="color" value={selectedEl.tintColor || '#7C5CFC'}
+                    onChange={e => updSel({ tintColor: e.target.value, tintOpacity: selectedEl.tintOpacity ?? 0.3 })}
+                    onBlur={() => pushHistory()}
+                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', border: `2px solid ${t.border}`, background: selectedEl.tintColor || '#7C5CFC', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', flexShrink: 0 }} />
+                </label>
+                {/* Border icon */}
+                <button title="Border" onClick={() => { pushHistory(); updSel({ stroke: selectedEl.stroke ? null : '#ffffff', strokeWidth: selectedEl.strokeWidth || 2 }); }} style={btnSt(!!selectedEl.stroke)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+                </button>
+                {/* Corner radius */}
+                <button title="Corner radius" onClick={() => { pushHistory(); updSel({ cornerRadius: selectedEl.cornerRadius ? 0 : 16 }); }} style={btnSt(!!selectedEl.cornerRadius)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M3 9V6a3 3 0 0 1 3-3h3"/><path d="M15 3h3a3 3 0 0 1 3 3v3"/></svg>
+                </button>
+                {/* Flip */}
+                <button onClick={() => { pushHistory(); updSel({ flipX: !selectedEl.flipX }); }} style={{ ...btnSt(selectedEl.flipX), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Flip</button>
+                {/* Checkerboard / transparency */}
+                <button title="Opacity" style={btnSt(false)}>
+                  <svg width="13" height="13" viewBox="0 0 16 16"><rect x="0" y="0" width="4" height="4" fill="currentColor" opacity="0.5"/><rect x="8" y="0" width="4" height="4" fill="currentColor" opacity="0.5"/><rect x="4" y="4" width="4" height="4" fill="currentColor" opacity="0.5"/><rect x="12" y="4" width="4" height="4" fill="currentColor" opacity="0.5"/><rect x="0" y="8" width="4" height="4" fill="currentColor" opacity="0.5"/><rect x="8" y="8" width="4" height="4" fill="currentColor" opacity="0.5"/><rect x="4" y="12" width="4" height="4" fill="currentColor" opacity="0.5"/><rect x="12" y="12" width="4" height="4" fill="currentColor" opacity="0.5"/></svg>
                 </button>
                 <div style={divSt} />
-                {/* Brightness */}
-                <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>Brightness</span>
-                <input type="range" min={-100} max={100} step={5} value={selectedEl.brightness ?? 0}
-                  onChange={e => updSel({ brightness: parseInt(e.target.value) })}
-                  onMouseUp={() => pushHistory()}
-                  style={{ width: 70, accentColor: t.primary, flexShrink: 0 }} />
+                {/* Animate */}
+                <button style={{ ...btnSt(false), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Animate</button>
+                {/* Position */}
+                <button onClick={() => { setActiveLeftTool('position'); setPanelOpen(true); }} style={{ ...btnSt(activeLeftTool === 'position'), padding: '0 10px', fontSize: 12, fontWeight: 500 }}>Position</button>
+                <div style={divSt} />
+                {/* Copy style */}
+                <button onClick={copyStyle} title={styleClipboard ? 'Style copied — Alt+V to paste' : 'Copy style (Alt+C)'} style={{ ...btnSt(!!styleClipboard), padding: '0 8px', fontSize: 14 }}>🖌</button>
               </>
             )}
             {isShape && (
@@ -9143,8 +9197,8 @@ export default function TemplatesEditorInner() {
           <div style={{ flex: 1 }} />
           <div style={{ width: 40, height: 1, background: t.border, margin: '6px 0' }} />
           {[
-            { id: 'apps',  icon: <IpPlus size={22} />,    label: 'Apps'  },
-            { id: 'magic', icon: <IpSparkle size={22} />, label: 'AI'    },
+            { id: 'apps',  icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>, label: 'Apps'  },
+            { id: 'magic', icon: <IpSparkle size={22} />, label: 'Magic Media' },
           ].map(tool => {
             const isActive = activeLeftTool === tool.id && panelOpen;
             return (
@@ -9694,6 +9748,34 @@ export default function TemplatesEditorInner() {
                     </div>
                   )}
 
+                  {/* Dynamic text */}
+                  {!fontSearch && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Dynamic text</div>
+                      <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, border: `1px solid ${t.border}`, borderRadius: 10, background: t.input, cursor: 'pointer', padding: '10px 12px', textAlign: 'left', transition: 'border-color 150ms' }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = t.primaryBorder}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = t.border}>
+                        <div style={{ width: 44, height: 40, borderRadius: 8, background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                          <div style={{ width: 26, height: 26, borderRadius: 4, border: '2px solid rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1 }}>1</span>
+                          </div>
+                          <span style={{ position: 'absolute', bottom: 3, right: 5, fontSize: 11, fontWeight: 800, color: '#fff' }}>2</span>
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: t.text }}>Page numbers</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Apps section */}
+                  {!fontSearch && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>Apps</div>
+                        <button style={{ fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>See all</button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* S6: Font Combinations */}
                   {!fontSearch && (
                     <div style={{ marginBottom: 14 }}>
@@ -9855,7 +9937,7 @@ export default function TemplatesEditorInner() {
                       <IpPublish size={15} color="#000" /> Upload files
                     </label>
                     <button title="More upload options"
-                      style={{ width: 36, height: 40, border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.textMuted, fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      style={{ width: 40, height: 40, border: 'none', borderRadius: 8, background: t.primary, color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, letterSpacing: 1, fontWeight: 700 }}>
                       ···
                     </button>
                   </div>
@@ -10699,6 +10781,52 @@ export default function TemplatesEditorInner() {
             {/* BRAND */}
             {activeLeftTool === 'brand' && (
               <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                {/* Brand panel top navigation — search + All Brand Templates + Brand Kit ▾ */}
+                <div style={{ padding: '0 0 8px', flexShrink: 0 }}>
+                  {/* Search */}
+                  <div style={{ position: 'relative', marginBottom: 8 }}>
+                    <IpSearch size={14} color={t.textMuted} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                    <input placeholder="Search" style={{ width: '100%', height: 36, paddingLeft: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  {/* All Brand Templates */}
+                  <button style={{ width: '100%', height: 36, display: 'flex', alignItems: 'center', paddingLeft: 4, border: 'none', background: 'transparent', color: TEAL, fontSize: 13, fontWeight: 600, cursor: 'pointer', borderRadius: 6, textAlign: 'left', transition: 'background 120ms' }}
+                    onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    All Brand Templates
+                  </button>
+                  <div style={{ width: '100%', height: 1, background: t.border, margin: '8px 0' }} />
+                  {/* Brand Kit ▾ dropdown */}
+                  <button style={{ width: '100%', height: 36, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'border-color 120ms', boxSizing: 'border-box' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = t.primaryBorder}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = t.border}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    <span style={{ flex: 1, textAlign: 'left' }}>Brand Kit</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  {/* Sub-category navigation list */}
+                  <div style={{ marginTop: 4 }}>
+                    {[
+                      { label: 'All assets',       color: TEAL    },
+                      { label: 'Guidelines',        color: '#5BA3F5' },
+                      { label: 'Brand Templates',   color: '#5BA3F5' },
+                      { label: 'Logos',             color: '#5BA3F5' },
+                      { label: 'Colors',            color: '#5BA3F5' },
+                      { label: 'Fonts',             color: '#F59E0B' },
+                      { label: 'Brand voice',       color: '#5BA3F5' },
+                      { label: 'Photos',            color: '#A855F7' },
+                      { label: 'Components',        color: '#5BA3F5' },
+                      { label: 'Graphics',          color: '#5BA3F5' },
+                      { label: 'Icons',             color: '#5BA3F5' },
+                      { label: 'Charts',            color: '#5BA3F5' },
+                    ].map((item, i) => (
+                      <button key={item.label} style={{ width: '100%', height: 34, display: 'flex', alignItems: 'center', paddingLeft: 8, border: 'none', borderRadius: 6, background: i === 0 ? t.primaryBg : 'transparent', color: i === 0 ? t.primary : item.color, fontSize: 13, fontWeight: i === 0 ? 600 : 400, cursor: 'pointer', textAlign: 'left', transition: 'background 120ms' }}
+                        onMouseEnter={e => { if (i !== 0) e.currentTarget.style.background = t.cardHover; }}
+                        onMouseLeave={e => { if (i !== 0) e.currentTarget.style.background = 'transparent'; }}>
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 {brandLoading && (
                   <div style={{ textAlign: 'center', color: t.textMuted, fontSize: 13, padding: '30px 0' }}>Loading your brand…</div>
                 )}
@@ -11168,7 +11296,12 @@ export default function TemplatesEditorInner() {
                   <input placeholder="Search your content" style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: t.text, fontSize: 13 }} />
                 </div>
                 <button style={{ background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, padding: '9px 12px', color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span>📁</span> Your projects</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 28, height: 28, borderRadius: '50%', background: '#34C759', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                      {(user?.business_name || user?.email || 'U').charAt(0).toUpperCase()}
+                    </span>
+                    Your projects
+                  </span>
                   <span style={{ color: t.textMuted }}>▾</span>
                 </button>
                 <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, gap: 4 }}>
@@ -11363,6 +11496,14 @@ export default function TemplatesEditorInner() {
                       onClick={() => { setActivePage(pageIdx); setSelectedId(null); }}
                       style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: isActive ? t.text : t.textMuted, fontSize: 11, minWidth: 0 }}
                     />
+                    {/* Ask PostCore branded action */}
+                    <button
+                      onClick={() => { setActivePage(pageIdx); handleToolClick('magic'); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', border: 'none', borderRadius: 10, background: 'linear-gradient(135deg, #00C4CC, #7C5CFC)', cursor: 'pointer', flexShrink: 0 }}
+                      title="Ask PostCore AI">
+                      <IpSparkle size={9} color="#fff" />
+                      <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>Ask PostCore</span>
+                    </button>
                     {/* Controls — show on hover of parent row */}
                     {[
                       { title: 'Move up',    icon: <IcoChevUpSm size={11} />,   action: () => movePageUp(pageIdx),   disabled: pageIdx === 0 },
@@ -11829,6 +11970,11 @@ export default function TemplatesEditorInner() {
                         // Ask PostCore — branded gradient pill (like Canva's "Ask Canva")
                         { label: 'Ask PostCore', icon: <IpSparkle size={13} />, title: 'Ask PostCore AI', fn: () => { handleToolClick('magic'); }, branded: true },
                         { sep: true },
+                        // Edit / style (paintbrush wand icon)
+                        ...(!isMulti ? [{ icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>, title: 'Edit style', fn: () => {} }] : []),
+                        // Link
+                        ...(!isMulti ? [{ icon: <IcoChain size={14} />, title: 'Add link', fn: () => {} }] : []),
+                        { sep: true },
                         // Group/Ungroup for multi-select
                         ...(isMulti
                           ? [{ label: 'Group', icon: <IpTeam size={13} />, title: 'Group (Ctrl+G)', fn: groupSelected }]
@@ -11854,6 +12000,7 @@ export default function TemplatesEditorInner() {
                       ];
 
                       return (
+                        <>
                         <div
                           key={isMulti ? selectedIds.join(',') : selectedId}
                           style={{
@@ -11894,6 +12041,77 @@ export default function TemplatesEditorInner() {
                             )
                           )}
                         </div>
+                        {/* Below-element handles: ↻ Rotate + ✚ Add (Canva style — centered below element) */}
+                        {!isMulti && (
+                          <>
+                            {/* Rotation handle — left circle, centered below element */}
+                            <div
+                              title="Rotate (drag · Shift = snap 45°)"
+                              style={{
+                                position: 'absolute',
+                                left: cx - 36,
+                                top: by2 * stageScale + 12,
+                                width: 30, height: 30, borderRadius: '50%',
+                                background: t.isDark ? 'rgba(28,28,36,0.92)' : 'rgba(255,255,255,0.95)',
+                                border: t.isDark ? '1px solid rgba(255,255,255,0.18)' : '1px solid #D1D1D6',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.16), 0 0 0 0.5px rgba(0,0,0,0.06)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'crosshair', zIndex: 201,
+                                color: t.isDark ? '#bbb' : '#4A4A4A',
+                                userSelect: 'none', backdropFilter: 'blur(10px)',
+                                transition: 'transform 150ms cubic-bezier(0.34,1.56,0.64,1)',
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.12)'}
+                              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                              onMouseDown={e => {
+                                e.stopPropagation();
+                                const elId = activeEls[0]?.id;
+                                if (!elId) return;
+                                const elCenterX = (bx1 + bw / 2) * stageScale;
+                                const elCenterY = (by1 + bh / 2) * stageScale;
+                                const onMove = ev => {
+                                  const wrapperRect = canvasWrapperRef.current?.getBoundingClientRect();
+                                  if (!wrapperRect) return;
+                                  const mx = ev.clientX - wrapperRect.left;
+                                  const my = ev.clientY - wrapperRect.top;
+                                  const raw = Math.atan2(my - elCenterY, mx - elCenterX) * (180 / Math.PI) + 90;
+                                  const snapped = ev.shiftKey ? Math.round(raw / 45) * 45 : Math.round(raw);
+                                  patchElements(prev => prev.map(el => el.id === elId ? { ...el, rotation: snapped } : el));
+                                };
+                                const onUp = () => {
+                                  pushHistory();
+                                  window.removeEventListener('mousemove', onMove);
+                                  window.removeEventListener('mouseup', onUp);
+                                };
+                                window.addEventListener('mousemove', onMove);
+                                window.addEventListener('mouseup', onUp);
+                              }}>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            </div>
+                            {/* Add/connect handle — right circle, centered below element */}
+                            <div
+                              title="Add connected element"
+                              style={{
+                                position: 'absolute',
+                                left: cx + 6,
+                                top: by2 * stageScale + 12,
+                                width: 30, height: 30, borderRadius: '50%',
+                                background: t.isDark ? 'rgba(28,28,36,0.92)' : 'rgba(255,255,255,0.95)',
+                                border: t.isDark ? '1px solid rgba(255,255,255,0.18)' : '1px solid #D1D1D6',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.16), 0 0 0 0.5px rgba(0,0,0,0.06)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer', zIndex: 201,
+                                color: t.isDark ? '#bbb' : '#4A4A4A',
+                                userSelect: 'none', backdropFilter: 'blur(10px)',
+                                transition: 'transform 150ms cubic-bezier(0.34,1.56,0.64,1)',
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.12)'}
+                              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            </div>
+                          </>
+                        )}
+                        </>
                       );
                     })()}
 
@@ -12644,6 +12862,13 @@ export default function TemplatesEditorInner() {
           onMouseLeave={e => { if (!showNotesPanel) e.currentTarget.style.background = 'transparent'; }}>
           📝 Notes{currentPage.notes ? ' •' : ''}
         </button>
+        {/* Timer button */}
+        <button
+          onMouseEnter={e => { showTip(e, 'Presentation timer'); e.currentTarget.style.background = t.input; e.currentTarget.style.color = t.text; }}
+          onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted; }}
+          style={{ height: 28, padding: '0 10px', border: 'none', borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, transition: 'all 100ms ease' }}>
+          ⏱ Timer
+        </button>
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
@@ -13165,22 +13390,28 @@ export default function TemplatesEditorInner() {
             </button>
             {/* Divider */}
             <div style={{ borderTop: `1px solid ${t.border}` }} />
-            {/* Action grid */}
+            {/* Action grid — 48px circles */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
               {[
-                { icon: '⬇', label: 'Download',      action: () => { downloadCanvas('image/png', 'png', 1); setShareOpen(false); } },
-                { icon: '▶', label: 'Present',        color: '#FF7A00', action: () => { setPreviewOpen(true); setShareOpen(false); } },
-                { icon: '🔗', label: 'Public',        action: () => {} },
-                { icon: '⊞', label: 'Template link', pro: true, action: () => {} },
+                { label: 'Download',      bg: '#F2F2F7', action: () => { downloadCanvas('image/png', 'png', 1); setShareOpen(false); },
+                  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> },
+                { label: 'Present',       bg: t.primary, action: () => { setPreviewOpen(true); setShareOpen(false); },
+                  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> },
+                { label: 'Public',        bg: '#F2F2F7', action: () => {},
+                  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> },
+                { label: 'Template link', bg: '#F2F2F7', pro: true, action: () => {},
+                  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> },
               ].map(o => (
-                <button key={o.label} onClick={o.action}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, border: `1px solid ${t.border}`, borderRadius: 8, padding: '10px 4px', background: 'transparent', cursor: 'pointer', position: 'relative' }}
-                  onMouseEnter={e => e.currentTarget.style.background = t.input}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <span style={{ fontSize: 22, color: o.color || t.text }}>{o.icon}</span>
-                  <span style={{ fontSize: 11, color: t.text }}>{o.label}</span>
-                  {o.pro && <span style={{ position: 'absolute', top: 4, right: 4, fontSize: 9 }}>👑</span>}
-                </button>
+                <div key={o.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, position: 'relative' }}>
+                  <button onClick={o.action}
+                    style={{ width: 48, height: 48, borderRadius: '50%', background: o.bg, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 150ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 150ms ease', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.1)'; }}>
+                    {o.icon}
+                    {o.pro && <span style={{ position: 'absolute', top: -2, right: -2, fontSize: 10 }}>👑</span>}
+                  </button>
+                  <span style={{ fontSize: 11, color: t.textMuted, textAlign: 'center', lineHeight: 1.2 }}>{o.label}</span>
+                </div>
               ))}
             </div>
             {/* Save button */}
