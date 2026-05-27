@@ -10183,7 +10183,11 @@ export default function TemplatesEditorInner() {
                   {/* ── BG Remover Promo Card ── */}
                   {!bgRemoverDismissed && uploadMediaTab === 'Images' && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: `1px solid ${t.border}`, background: t.card, marginTop: 4, flexShrink: 0 }}>
-                      <div style={{ width: 42, height: 42, borderRadius: 10, background: 'linear-gradient(135deg, #34C759 0%, #00C4CC 100%)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>✂️</div>
+                      <div style={{ width: 42, height: 42, borderRadius: 10, flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
+                        <div style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%', background: 'linear-gradient(180deg, #f97316 0%, #7c3aed 100%)' }} />
+                        <div style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', backgroundImage: 'linear-gradient(45deg,#c8c8c8 25%,transparent 25%),linear-gradient(-45deg,#c8c8c8 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#c8c8c8 75%),linear-gradient(-45deg,transparent 75%,#c8c8c8 75%)', backgroundSize: '7px 7px', backgroundPosition: '0 0,0 3.5px,3.5px -3.5px,-3.5px 0', backgroundColor: '#f0f0f0' }} />
+                        <div style={{ position: 'absolute', left: '50%', top: 5, bottom: 5, borderLeft: '1.5px dashed rgba(255,255,255,0.85)' }} />
+                      </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: t.text, display: 'flex', alignItems: 'center', gap: 4 }}>
                           <span style={{ fontSize: 10 }}>👑</span> Background Remover
@@ -10605,7 +10609,10 @@ export default function TemplatesEditorInner() {
                     <>
                       {/* ── Recommended for you ── */}
                       <div>
-                        <div style={{ fontSize:10, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>Recommended for you</div>
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                          <span style={{ fontSize:10, fontWeight:600, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em' }}>Recommended for you</span>
+                          <button style={{ background:'none', border:'none', color:t.primary, fontSize:11, fontWeight:500, cursor:'pointer', padding:0 }}>See all</button>
+                        </div>
                         <div style={{ display:'flex', gap:8, overflowX:'auto', paddingBottom:4, scrollbarWidth:'none' }}>
                           {[
                             { label:'Rectangle', fn:()=>addRect(),         grad:'linear-gradient(135deg,#00C4CC,#0099A3)', svg:<rect x="10" y="18" width="34" height="20" rx="2" fill="#fff" opacity=".85"/> },
@@ -10850,7 +10857,7 @@ export default function TemplatesEditorInner() {
                     {[
                       { label: 'All assets',       color: TEAL      },
                       { label: 'Guidelines',        color: '#5BA3F5' },
-                      { label: 'Brand Templates',   color: '#5BA3F5' },
+                      { label: 'Brand Templates',   color: '#5BA3F5', badge: 'New' },
                       { label: 'Logos',             color: '#5BA3F5' },
                       { label: 'Colors',            color: '#5BA3F5' },
                       { label: 'Fonts',             color: '#F59E0B' },
@@ -10864,10 +10871,13 @@ export default function TemplatesEditorInner() {
                       const isActive = activeBrandItem === item.label;
                       return (
                         <button key={item.label} onClick={() => setActiveBrandItem(item.label)}
-                          style={{ width: '100%', height: 34, display: 'flex', alignItems: 'center', paddingLeft: isActive ? 10 : 8, paddingRight: isActive ? 10 : 0, border: 'none', borderRadius: 20, background: isActive ? t.primaryBg : 'transparent', color: isActive ? t.primary : item.color, fontSize: 13, fontWeight: isActive ? 600 : 400, cursor: 'pointer', textAlign: 'left', transition: 'background 120ms' }}
+                          style={{ width: '100%', height: 34, display: 'flex', alignItems: 'center', paddingLeft: isActive ? 10 : 8, paddingRight: isActive ? 10 : 8, border: 'none', borderRadius: 20, background: isActive ? t.primaryBg : 'transparent', color: isActive ? t.primary : t.text, fontSize: 13, fontWeight: isActive ? 600 : 400, cursor: 'pointer', textAlign: 'left', transition: 'background 120ms' }}
                           onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = t.cardHover; }}
                           onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
                           {item.label}
+                          {item.badge && (
+                            <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, background: t.primary, color: '#fff', padding: '1px 6px', borderRadius: 10, lineHeight: 1.6, flexShrink: 0 }}>{item.badge}</span>
+                          )}
                         </button>
                       );
                     })}
