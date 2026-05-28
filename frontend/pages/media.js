@@ -469,20 +469,21 @@ export default function MediaLibrary() {
       <input ref={fileInputRef} type="file" multiple accept="image/*,video/*" onChange={handleFileSelect} style={{ display: 'none' }} />
 
       {/* ── TAB SWITCHER ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: t.input, borderRadius: 10, padding: 3, width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 36, background: t.input, borderRadius: 12, padding: 4, width: 'fit-content' }}>
         {[
-          { id: 'library', label: 'My Media',     Icon: IpMediaLibrary },
+          { id: 'library', label: 'My Media',   Icon: IpMediaLibrary },
           { id: 'templates', label: 'Templates', Icon: IpPhotoStudio },
         ].map(({ id, label, Icon }) => (
           <button key={id} onClick={() => handleTabSwitch(id)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: 7,
+              padding: '9px 20px', borderRadius: 9, fontSize: 13, fontWeight: 600,
               border: 'none', cursor: 'pointer',
               background: activeTab === id ? t.card : 'transparent',
               color: activeTab === id ? t.text : t.textMuted,
-              boxShadow: activeTab === id ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+              boxShadow: activeTab === id ? '0 1px 4px rgba(0,0,0,0.14)' : 'none',
               transition: 'all 150ms ease',
+              letterSpacing: '-0.01em',
             }}>
             <Icon size={14} /> {label}
           </button>
@@ -635,26 +636,33 @@ export default function MediaLibrary() {
         ];
 
         return (
-          <div style={{ maxWidth: 960, paddingBottom: 80 }}>
+          <div style={{ paddingBottom: 80 }}>
             {/* ── Action bar ── */}
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 36 }}>
-              <button
-                onClick={() => setShowSizePicker(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-              >
-                <IpPhotoStudio size={15} /> New Image Design
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
+              <div>
+                <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 10 }}>Start from scratch or pick a template below</div>
+                <button
+                  onClick={() => setShowSizePicker(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', background: t.primary, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(124,92,252,0.35)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', letterSpacing: '-0.01em' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(124,92,252,0.45)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(124,92,252,0.35)'; }}
+                >
+                  <IpPhotoStudio size={15} /> New Design
+                </button>
+              </div>
             </div>
 
             {/* ── ItsPosting Templates section ── */}
-            <div style={{ marginBottom: 48 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <h2 style={{ fontSize: 17, fontWeight: 700, color: t.text, margin: 0 }}>ItsPosting Templates</h2>
-                <span style={{ fontSize: 12, color: t.textMuted }}>Pick a template to start designing</span>
+            <div style={{ marginBottom: 64 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                  <h2 style={{ fontSize: 20, fontWeight: 700, color: t.text, margin: 0, letterSpacing: '-0.02em' }}>ItsPosting Templates</h2>
+                  <p style={{ fontSize: 13, color: t.textMuted, margin: '5px 0 0' }}>Ready-made designs for every industry — click to customise</p>
+                </div>
               </div>
 
               {/* Industry filter chips */}
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 24 }}>
                 {INDUSTRIES.map(ind => (
                   <button key={ind}
                     onClick={() => {
@@ -663,12 +671,14 @@ export default function MediaLibrary() {
                       loadCurated(ind);
                     }}
                     style={{
-                      padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                      padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
                       background: selectedIndustry === ind ? t.primary : t.input,
                       color: selectedIndustry === ind ? '#fff' : t.textMuted,
                       border: `1px solid ${selectedIndustry === ind ? t.primary : t.border}`,
-                      cursor: 'pointer', transition: 'all 120ms',
-                    }}>
+                      cursor: 'pointer', transition: 'all 120ms ease',
+                    }}
+                    onMouseEnter={e => { if (selectedIndustry !== ind) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.text; } }}
+                    onMouseLeave={e => { if (selectedIndustry !== ind) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; } }}>
                     {INDUSTRY_LABELS[ind]}
                   </button>
                 ))}
@@ -676,23 +686,23 @@ export default function MediaLibrary() {
 
               {/* Curated grid */}
               {curatedLoading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} style={{ borderRadius: 10, overflow: 'hidden', background: t.input, aspectRatio: '4/5', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} style={{ borderRadius: 14, overflow: 'hidden', background: t.input, aspectRatio: '4/5', animation: `shimmer 1.4s ${i * 0.07}s ease-in-out infinite` }} />
                   ))}
                 </div>
               ) : curatedTemplates.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: t.textMuted, border: `1px dashed ${t.border}`, borderRadius: 12 }}>
-                  <div style={{ fontSize: 36, marginBottom: 12 }}>🎨</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 6 }}>Templates coming soon</div>
-                  <div style={{ fontSize: 13 }}>ItsPosting is building industry-specific templates for your business. Check back soon!</div>
+                <div style={{ textAlign: 'center', padding: '60px 0', color: t.textMuted, border: `1px dashed ${t.border}`, borderRadius: 16 }}>
+                  <div style={{ fontSize: 40, marginBottom: 14 }}>🎨</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 8, letterSpacing: '-0.01em' }}>Templates coming soon</div>
+                  <div style={{ fontSize: 13, maxWidth: 320, margin: '0 auto', lineHeight: 1.6 }}>ItsPosting is building industry-specific templates for your business. Check back soon!</div>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
                   {curatedTemplates.map(tmpl => (
                     <div key={tmpl.id}
-                      style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', position: 'relative', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = t.shadowMd; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '1'; }}
+                      style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', position: 'relative', transition: 'all 180ms cubic-bezier(0.34,1.56,0.64,1)' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.transform = 'translateY(-4px) scale(1.01)'; e.currentTarget.style.boxShadow = t.shadowLg; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '1'; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.querySelector('.tmpl-hover').style.opacity = '0'; }}>
                       <div style={{ aspectRatio: '4/5', background: t.input, position: 'relative', overflow: 'hidden' }}>
                         {(() => {
@@ -701,29 +711,29 @@ export default function MediaLibrary() {
                           const thumbSrc = tmpl.thumbnail_url || templatePexelsThumbs[tmpl.id] || templateThumbs[tmpl.id];
                           return thumbSrc
                             ? <img src={thumbSrc} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                            : <div style={{ width: '100%', height: '100%', background: bgColor, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10 }}>
-                                <span style={{ fontSize: 24 }}>{CAT_ICONS[tmpl.category] || '✦'}</span>
-                                <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.85)', textAlign: 'center', fontWeight: 700, lineHeight: 1.3, letterSpacing: '0.02em' }}>{tmpl.name}</span>
+                            : <div style={{ width: '100%', height: '100%', background: bgColor, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16 }}>
+                                <span style={{ fontSize: 28 }}>{CAT_ICONS[tmpl.category] || '✦'}</span>
+                                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', textAlign: 'center', fontWeight: 700, lineHeight: 1.4, letterSpacing: '0.02em' }}>{tmpl.name}</span>
                               </div>;
                         })()}
-                        <div className="tmpl-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', gap: 8, flexDirection: 'column' }}>
+                        <div className="tmpl-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', gap: 10, flexDirection: 'column', backdropFilter: 'blur(2px)' }}>
                           <button
                             onClick={() => router.push(`/templates/editor?template=${tmpl.id}`)}
-                            style={{ padding: '7px 18px', background: '#7C5CFC', color: '#fff', border: 'none', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                            style={{ padding: '9px 22px', background: '#7C5CFC', color: '#fff', border: 'none', borderRadius: 22, fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(124,92,252,0.5)' }}>
                             Use Template
                           </button>
                           {isAdmin && (
                             <button
                               onClick={e => { e.stopPropagation(); router.push(`/templates/editor?template=${tmpl.id}`); }}
-                              style={{ padding: '5px 14px', background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.5)', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                              style={{ padding: '6px 16px', background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 22, fontSize: 11, fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
                               ✏ Edit Template
                             </button>
                           )}
                         </div>
                       </div>
-                      <div style={{ padding: '8px 10px' }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tmpl.name}</div>
-                        {tmpl.category && <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2, textTransform: 'capitalize' }}>{tmpl.category}</div>}
+                      <div style={{ padding: '12px 14px' }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>{tmpl.name}</div>
+                        {tmpl.category && <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3, textTransform: 'capitalize' }}>{tmpl.category.replace(/-/g, ' ')}</div>}
                       </div>
                     </div>
                   ))}
@@ -733,32 +743,34 @@ export default function MediaLibrary() {
 
             {/* ── My Designs section ── */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <h2 style={{ fontSize: 17, fontWeight: 700, color: t.text, margin: 0 }}>My Designs</h2>
-                {creations.length > 0 && <span style={{ fontSize: 12, color: t.textMuted }}>{creations.length} design{creations.length !== 1 ? 's' : ''}</span>}
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                  <h2 style={{ fontSize: 20, fontWeight: 700, color: t.text, margin: 0, letterSpacing: '-0.02em' }}>My Designs</h2>
+                  {creations.length > 0 && <p style={{ fontSize: 13, color: t.textMuted, margin: '5px 0 0' }}>{creations.length} design{creations.length !== 1 ? 's' : ''} saved</p>}
+                </div>
               </div>
               {creationsLoading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} style={{ borderRadius: 10, overflow: 'hidden', background: t.input, aspectRatio: '4/5' }} />
+                    <div key={i} style={{ borderRadius: 14, overflow: 'hidden', background: t.input, aspectRatio: '4/5', animation: `shimmer 1.4s ${i * 0.1}s ease-in-out infinite` }} />
                   ))}
                 </div>
               ) : creations.length === 0 ? (
-                <EmptyState icon={IpPhotoStudio} title="No designs yet" subtitle="Click 'New Image Design' above to create your first branded graphic" />
+                <EmptyState icon={IpPhotoStudio} title="No designs yet" subtitle="Click 'New Design' above to create your first branded graphic" />
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
                   {creations.map(c => (
                     <div key={c.id}
-                      style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', position: 'relative', transition: 'border-color 150ms' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.querySelector('.design-hover').style.opacity = '1'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.querySelector('.design-hover').style.opacity = '0'; }}>
+                      style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', position: 'relative', transition: 'all 180ms cubic-bezier(0.34,1.56,0.64,1)' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = t.shadowLg; e.currentTarget.querySelector('.design-hover').style.opacity = '1'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.querySelector('.design-hover').style.opacity = '0'; }}>
                       {c.creation_type === 'video' ? (
                         <div style={{ position: 'relative', aspectRatio: '9/16', background: '#000', overflow: 'hidden' }}>
                           {c.output_url
                             ? <video src={c.output_url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontSize: 11 }}>{c.render_status === 'rendering' ? 'Rendering…' : 'Processing'}</div>
                           }
-                          <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: '2px 6px', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.7)', borderRadius: 6, padding: '3px 8px', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
                             <IpVideo size={10} /> Video
                           </div>
                         </div>
@@ -770,16 +782,16 @@ export default function MediaLibrary() {
                           }
                         </div>
                       )}
-                      <div className="design-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', padding: 10, gap: 6 }}>
+                      <div className="design-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', padding: 12, gap: 6, backdropFilter: 'blur(2px)' }}>
                         <button
-                          onClick={() => router.push(c.creation_type === 'video' ? `/templates/video-editor?id=${c.id}` : `/templates/editor?id=${c.id}`)}
-                          style={{ flex: 1, padding: '6px 0', background: '#fff', color: '#111', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          onClick={() => router.push(c.creation_type === 'video' ? `/templates/editor?id=${c.id}&mode=video` : `/templates/editor?id=${c.id}`)}
+                          style={{ flex: 1, padding: '8px 0', background: '#fff', color: '#111', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                           Edit
                         </button>
                       </div>
-                      <div style={{ padding: '8px 10px' }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.overlay_title || 'Untitled'}</div>
-                        <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>{new Date(c.created_at).toLocaleDateString()}</div>
+                      <div style={{ padding: '12px 14px' }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>{c.overlay_title || 'Untitled'}</div>
+                        <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3 }}>{new Date(c.created_at).toLocaleDateString()}</div>
                       </div>
                     </div>
                   ))}

@@ -605,14 +605,14 @@ export default function Layout({ children, title, subtitle, action }) {
         {/* TOP BAR */}
         <header
           style={{
-            height: 52, background: t.isDark ? 'rgba(0,0,0,0.8)' : 'rgba(245,245,247,0.8)', backdropFilter: 'blur(20px) saturate(180%)', borderBottom: `1px solid ${t.border}`,
+            height: 64, background: t.isDark ? 'rgba(0,0,0,0.85)' : 'rgba(245,245,247,0.9)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: `1px solid ${t.border}`,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: isMobile ? '0 16px' : '0 28px', position: 'sticky', top: 0, zIndex: 40,
+            padding: isMobile ? '0 20px' : '0 36px', position: 'sticky', top: 0, zIndex: 40,
           }}
         >
-          <div>
-            {title && <h1 style={{ fontSize: 15, fontWeight: 600, color: t.text, letterSpacing: '-0.02em' }}>{title}</h1>}
-            {subtitle && <p style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>{subtitle}</p>}
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
+            {title && <h1 style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: '-0.03em', lineHeight: 1 }}>{title}</h1>}
+            {subtitle && <p style={{ fontSize: 12, color: t.textMuted, lineHeight: 1, margin: 0 }}>{subtitle}</p>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {isMobile && (
@@ -675,8 +675,8 @@ export default function Layout({ children, title, subtitle, action }) {
           key={router.pathname}
           className="page-fade-in"
           style={{
-            padding: isMobile ? 16 : 32,
-            paddingBottom: isMobile ? 'calc(68px + env(safe-area-inset-bottom))' : 32,
+            padding: isMobile ? '24px 16px' : '40px 44px',
+            paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom))' : 48,
             minHeight: 'calc(100vh - 64px)',
             width: '100%',
             maxWidth: '100vw',
