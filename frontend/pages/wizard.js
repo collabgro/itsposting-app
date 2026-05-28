@@ -735,28 +735,41 @@ export default function Wizard() {
         {/* ── Progress header ── */}
         {typeof step === 'number' && (
           <div style={{ marginBottom: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              {stepLabels.map((label, i) => (
-                <div key={i} style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: '50%', margin: '0 auto 6px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 700,
-                    background: step > i + 1 ? t.primary : step === i + 1 ? t.primary : t.card,
-                    border: `2px solid ${step >= i + 1 ? t.primary : t.border}`,
-                    color: step >= i + 1 ? '#fff' : t.textMuted,
-                    transition: 'all 250ms ease',
-                  }}>
-                    {step > i + 1 ? <IpCheck size={12} strokeWidth={3} /> : i + 1}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              {stepLabels.map((label, i) => {
+                const isDone = step > i + 1;
+                const isActive = step === i + 1;
+                return (
+                  <div key={i} style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{
+                      width: 30, height: 30, borderRadius: '50%', margin: '0 auto 6px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 800,
+                      background: isDone
+                        ? `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || t.primary})`
+                        : isActive
+                          ? `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || t.primary})`
+                          : t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+                      border: `2px solid ${step >= i + 1 ? 'transparent' : t.isDark ? 'rgba(255,255,255,0.1)' : t.border}`,
+                      color: step >= i + 1 ? '#fff' : t.textMuted,
+                      boxShadow: isActive
+                        ? `0 0 0 4px rgba(124,92,252,0.18), 0 4px 12px rgba(124,92,252,0.35)`
+                        : isDone
+                          ? `0 2px 8px rgba(124,92,252,0.25)`
+                          : 'none',
+                      transition: 'all 300ms cubic-bezier(0.34,1.56,0.64,1)',
+                    }}>
+                      {isDone ? <IpCheck size={12} strokeWidth={3} /> : i + 1}
+                    </div>
+                    <div style={{ fontSize: 10, color: isActive ? t.primary : t.textMuted, fontWeight: isActive ? 700 : 400, transition: 'color 200ms ease' }}>
+                      {label}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 11, color: step === i + 1 ? t.primary : t.textMuted, fontWeight: step === i + 1 ? 600 : 400 }}>
-                    {label}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-            <div style={{ height: 3, background: t.border, borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${t.primary}, ${t.primaryLight})`, borderRadius: 2, transition: 'width 400ms ease' }} />
+            <div style={{ height: 4, background: t.isDark ? 'rgba(255,255,255,0.06)' : t.border, borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, borderRadius: 4, transition: 'width 500ms cubic-bezier(0.4,0,0.2,1)', boxShadow: '0 0 8px rgba(124,92,252,0.5)' }} />
             </div>
           </div>
         )}
@@ -783,7 +796,7 @@ export default function Wizard() {
 
             {/* Video type sub-selection — shown only when Video is chosen */}
             {contentType === 'video' && (
-              <div style={{ marginBottom: 32, padding: '18px 20px', background: t.cardAlt || t.card, border: `1px solid ${t.border}`, borderRadius: 14 }}>
+              <div style={{ marginBottom: 32, padding: '18px 20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})` }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
                   What style of video?
                 </div>
@@ -943,7 +956,7 @@ export default function Wizard() {
               </div>
 
               {/* ── Platform filter pills ── */}
-              <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap', padding: 4, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, width: 'fit-content', boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.9'})` }}>
                 {FORMAT_TABS.map(tab => {
                   const TIcon = tabIconMap[tab];
                   const active = formatTab === tab;
@@ -951,12 +964,13 @@ export default function Wizard() {
                   return (
                     <button key={tab} onClick={() => setFormatTab(tab)} style={{
                       display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '5px 13px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                      padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600,
                       cursor: 'pointer',
-                      border: `1.5px solid ${active ? tColor : t.border}`,
-                      background: active ? `${tColor}12` : 'transparent',
+                      border: `1.5px solid ${active ? tColor : 'transparent'}`,
+                      background: active ? `${tColor}14` : 'transparent',
                       color: active ? tColor : t.textMuted,
-                      transition: 'all 150ms',
+                      transition: 'all 150ms ease',
+                      boxShadow: active ? `0 2px 8px ${tColor}20` : 'none',
                     }}>
                       {TIcon && <TIcon size={11} style={{ color: 'inherit' }} />}
                       {tab}
@@ -1044,27 +1058,41 @@ export default function Wizard() {
                     onClick={() => setTone(item.id)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 18, padding: '18px 20px',
-                      background: selected ? t.primaryBg : t.card,
-                      border: `2px solid ${selected ? t.primary : t.border}`,
-                      borderRadius: 12, cursor: 'pointer', transition: 'all 200ms ease', textAlign: 'left',
+                      background: selected
+                        ? t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.07)'
+                        : t.isDark ? 'rgba(15,15,24,0.68)' : t.card,
+                      backdropFilter: 'blur(16px) saturate(160%)',
+                      WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+                      border: `2px solid ${selected ? 'rgba(124,92,252,0.5)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+                      borderRadius: 14, cursor: 'pointer',
+                      transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+                      textAlign: 'left',
+                      boxShadow: selected
+                        ? `0 8px 28px rgba(124,92,252,0.22), 0 0 0 3px rgba(124,92,252,0.08), inset 0 1px 0 rgba(255,255,255,0.07)`
+                        : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.85'})`,
+                      transform: selected ? 'translateY(-2px)' : 'none',
                     }}
-                    onMouseEnter={(e) => { if (!selected) e.currentTarget.style.borderColor = t.primaryBorder; }}
-                    onMouseLeave={(e) => { if (!selected) e.currentTarget.style.borderColor = t.border; }}
+                    onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.3)'; e.currentTarget.style.background = t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 6px 20px rgba(124,92,252,0.14), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.05' : '0.9'})`; } }}
+                    onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.07)' : t.border; e.currentTarget.style.background = t.isDark ? 'rgba(15,15,24,0.68)' : t.card; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.85'})`; } }}
                   >
                     <div style={{
-                      width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+                      width: 52, height: 52, borderRadius: 14, flexShrink: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: selected ? t.primaryBg : t.input,
-                      border: `1px solid ${selected ? t.primaryBorder : t.border}`,
+                      background: selected
+                        ? t.isDark ? 'rgba(124,92,252,0.18)' : 'rgba(124,92,252,0.1)'
+                        : t.isDark ? 'rgba(255,255,255,0.04)' : t.input,
+                      border: `1px solid ${selected ? 'rgba(124,92,252,0.4)' : t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`,
+                      boxShadow: selected ? '0 2px 10px rgba(124,92,252,0.2)' : 'none',
+                      transition: 'all 200ms ease',
                     }}>
-                      <Icon name={item.icon} size={24} color={selected ? 'url(#brand-gradient)' : undefined} />
+                      <Icon name={item.icon} size={26} color={selected ? 'url(#brand-gradient)' : undefined} />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 3 }}>{item.label}</div>
-                      <div style={{ fontSize: 12, color: t.textMuted }}>{item.desc}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: selected ? t.primary : t.text, marginBottom: 4, transition: 'color 150ms' }}>{item.label}</div>
+                      <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5 }}>{item.desc}</div>
                     </div>
                     {selected && (
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(124,92,252,0.45)' }}>
                         <IpCheck size={12} color="#fff" strokeWidth={3} />
                       </div>
                     )}
@@ -1084,7 +1112,7 @@ export default function Wizard() {
             <StepHeading t={t} icon="edit" title="Add any details" sub="Optional — but the more context you give PostCore, the better the posts" />
 
             {/* Summary pills */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24, padding: '14px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24, padding: '14px 16px', background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.06)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid rgba(124,92,252,0.2)`, borderRadius: 12, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
               <SelectionPill t={t} icon={CONTENT_THEMES.find(x => x.id === theme)?.icon} label={CONTENT_THEMES.find(x => x.id === theme)?.label || ''} />
               <SelectionPill t={t} icon={TONES.find(x => x.id === tone)?.icon} label={TONES.find(x => x.id === tone)?.label || ''} />
             </div>
@@ -1113,7 +1141,7 @@ export default function Wizard() {
             </div>
 
             {/* Include CTA toggle */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, marginBottom: 32 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, marginBottom: 32, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})` }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Include phone number & call to action</div>
                 <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>Add a call-to-action pointing to your contact info</div>
@@ -1205,28 +1233,47 @@ export default function Wizard() {
             LOADING SCREEN
         ───────────────────────────────────────────────────────────────────── */}
         {step === 'loading' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400, gap: 32 }}>
-            <div style={{ position: 'relative' }}>
-              <div style={{ width: 80, height: 80, borderRadius: 20, background: `linear-gradient(135deg, ${t.primary}, ${t.primaryLight})`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'pulse 2s ease-in-out infinite' }}>
-                <IpSparkle size={36} color="#fff" />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 480, gap: 36, position: 'relative', overflow: 'hidden' }}>
+            {/* Ambient glow orbs */}
+            <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,92,252,0.12) 0%, transparent 70%)', top: '10%', left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none', animation: 'wiz-orb-1 4s ease-in-out infinite' }} />
+            <div style={{ position: 'absolute', width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(91,63,240,0.08) 0%, transparent 70%)', top: '20%', left: '30%', transform: 'translateX(-50%)', pointerEvents: 'none', animation: 'wiz-orb-2 5s ease-in-out 0.8s infinite' }} />
+
+            {/* Main spinner + icon */}
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              {/* Outer glow ring */}
+              <div style={{ position: 'absolute', inset: -16, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,92,252,0.15) 0%, transparent 70%)', animation: 'wiz-pulse 2s ease-in-out infinite' }} />
+              {/* Spinning arc */}
+              <div style={{ position: 'absolute', inset: -10, borderRadius: '50%', border: '2.5px solid transparent', borderTopColor: '#7C5CFC', borderRightColor: '#9B7BFF', animation: 'spin 1.1s linear infinite' }} />
+              {/* Inner spinning arc (opposite) */}
+              <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: '2px solid transparent', borderBottomColor: 'rgba(124,92,252,0.4)', animation: 'spin 1.8s linear reverse infinite' }} />
+              {/* Logo box */}
+              <div style={{ width: 88, height: 88, borderRadius: 24, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'wiz-pulse 2.4s ease-in-out 0.2s infinite', boxShadow: '0 8px 32px rgba(124,92,252,0.4), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)' }}>
+                <IpSparkle size={40} color="#fff" />
               </div>
-              <div style={{ position: 'absolute', inset: -8, borderRadius: 28, border: '3px solid transparent', borderTopColor: t.primary, borderRightColor: t.primaryLight, animation: 'spin 1.2s linear infinite' }} />
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: t.text, marginBottom: 10 }}>Crafting your posts...</div>
-              <div style={{ fontSize: 14, color: t.primary, minHeight: 22, transition: 'opacity 300ms' }}>
+
+            {/* Text */}
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: t.text, marginBottom: 10, letterSpacing: '-0.02em' }}>Crafting your posts...</div>
+              <div style={{ fontSize: 14, color: t.primary, minHeight: 24, fontWeight: 500, transition: 'opacity 400ms ease', animation: 'wiz-fade-in 400ms ease' }}>
                 {((LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry))[loadingMsgIdx] || ''}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+
+            {/* Animated dots */}
+            <div style={{ display: 'flex', gap: 10, position: 'relative', zIndex: 1 }}>
               {[0, 1, 2].map(i => (
-                <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: t.primary, opacity: 0.3 + (loadingMsgIdx % 3 === i ? 0.7 : 0), animation: `bounce 1.4s ease-in-out ${i * 0.16}s infinite`, transition: 'opacity 300ms' }} />
+                <div key={i} style={{ width: 9, height: 9, borderRadius: '50%', background: `linear-gradient(135deg, #7C5CFC, #9B7BFF)`, opacity: loadingMsgIdx % 3 === i ? 1 : 0.25, animation: `bounce 1.4s ease-in-out ${i * 0.18}s infinite`, boxShadow: loadingMsgIdx % 3 === i ? '0 0 8px rgba(124,92,252,0.6)' : 'none', transition: 'opacity 300ms, box-shadow 300ms' }} />
               ))}
             </div>
+
             <style>{`
-              @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
-              @keyframes spin  { to{transform:rotate(360deg)} }
-              @keyframes bounce{ 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-8px)} }
+              @keyframes wiz-pulse  { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.06);opacity:0.85} }
+              @keyframes spin       { to{transform:rotate(360deg)} }
+              @keyframes bounce     { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-10px)} }
+              @keyframes wiz-orb-1  { 0%,100%{transform:translateX(-50%) scale(1);opacity:1} 50%{transform:translateX(-50%) scale(1.15);opacity:0.7} }
+              @keyframes wiz-orb-2  { 0%,100%{transform:translateX(-50%) scale(1);opacity:0.8} 60%{transform:translateX(-40%) scale(1.2);opacity:0.4} }
+              @keyframes wiz-fade-in{ 0%{opacity:0;transform:translateY(4px)} 100%{opacity:1;transform:translateY(0)} }
             `}</style>
           </div>
         )}
@@ -1244,9 +1291,12 @@ export default function Wizard() {
               </div>
             )}
 
-            <div style={{ marginBottom: 24, textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: t.text, marginBottom: 4 }}>Your posts are ready</div>
-              <div style={{ fontSize: 13, color: t.textMuted }}>3 versions ready — pick whichever sounds most like you</div>
+            <div style={{ marginBottom: 28, textAlign: 'center', animation: 'fadeIn 400ms cubic-bezier(0.16,1,0.3,1)' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '6px 14px', borderRadius: 20, background: t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.08)', border: '1px solid rgba(124,92,252,0.25)', fontSize: 12, fontWeight: 700, color: t.primary, letterSpacing: '0.04em' }}>
+                <IpSparkle size={12} color={t.primary} /> PostCore generated 3 variations
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: t.text, marginBottom: 6, letterSpacing: '-0.03em' }}>Your posts are ready</div>
+              <div style={{ fontSize: 14, color: t.textMuted }}>Pick whichever sounds most like you — then post or schedule</div>
             </div>
 
             {/* Two-column layout */}
@@ -1277,7 +1327,7 @@ export default function Wizard() {
                 )}
 
                 {/* Media display */}
-                <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, aspectRatio: '4/5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, aspectRatio: '4/5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, boxShadow: `0 8px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
                   {results.mediaUrl && results.videoRendering !== true ? (
                     results.contentTypeSelection === 'video' ? (
                       <video src={results.mediaUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -1410,12 +1460,25 @@ export default function Wizard() {
                       <div
                         key={label}
                         onClick={() => { if (!isEditing) { setSelectedVariation(label); setIsEditing(false); } }}
-                        style={{ background: t.card, border: `2px solid ${isSelected ? color : t.border}`, borderRadius: 16, overflow: 'hidden', cursor: isEditing ? 'default' : 'pointer', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', boxShadow: isSelected ? `0 4px 16px ${color}25` : 'none' }}
-                        onMouseEnter={(e) => { if (!isSelected && !isEditing) { e.currentTarget.style.borderColor = `${color}60`; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 4px 16px ${color}18`; } }}
-                        onMouseLeave={(e) => { if (!isSelected && !isEditing) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; } }}
+                        style={{
+                          background: isSelected
+                            ? t.isDark ? 'rgba(15,15,24,0.82)' : t.card
+                            : t.isDark ? 'rgba(15,15,24,0.65)' : t.card,
+                          backdropFilter: 'blur(20px) saturate(180%)',
+                          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                          border: `2px solid ${isSelected ? color : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+                          borderRadius: 18, overflow: 'hidden',
+                          cursor: isEditing ? 'default' : 'pointer',
+                          transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+                          boxShadow: isSelected
+                            ? `0 8px 32px ${color}28, 0 0 0 3px ${color}12, inset 0 1px 0 rgba(255,255,255,0.07)`
+                            : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.85'})`,
+                        }}
+                        onMouseEnter={(e) => { if (!isSelected && !isEditing) { e.currentTarget.style.borderColor = `${color}50`; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${color}20, inset 0 1px 0 rgba(255,255,255,0.05)`; } }}
+                        onMouseLeave={(e) => { if (!isSelected && !isEditing) { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.07)' : t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.85'})`; } }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: isSelected ? `${color}10` : 'transparent', borderBottom: `1px solid ${t.border}` }}>
-                          <div style={{ width: 24, height: 24, borderRadius: 6, background: isSelected ? color : t.input, border: `2px solid ${isSelected ? color : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12, color: isSelected ? '#fff' : t.textMuted, flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', background: isSelected ? `${color}12` : t.isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderBottom: `1px solid ${isSelected ? `${color}20` : t.isDark ? 'rgba(255,255,255,0.05)' : t.border}` }}>
+                          <div style={{ width: 26, height: 26, borderRadius: 7, background: isSelected ? `linear-gradient(135deg, ${color}, ${color}cc)` : t.isDark ? 'rgba(255,255,255,0.06)' : t.input, border: `2px solid ${isSelected ? 'transparent' : t.isDark ? 'rgba(255,255,255,0.1)' : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12, color: isSelected ? '#fff' : t.textMuted, flexShrink: 0, boxShadow: isSelected ? `0 2px 8px ${color}50` : 'none', transition: 'all 200ms ease' }}>
                             {label}
                           </div>
                           <span style={{ fontSize: 13, fontWeight: 600, color: isSelected ? color : t.textSecondary }}>
@@ -1527,7 +1590,7 @@ export default function Wizard() {
                 )}
 
                 {/* Action bar */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 16, borderTop: `1px solid ${t.border}` }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 16, borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : t.border}` }}>
                   {isEditing ? (
                     <>
                       <button onClick={handleSaveEdit} disabled={actionLoading} style={{ flex: 1, padding: '10px 16px', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -1553,20 +1616,32 @@ export default function Wizard() {
                         const blocked = noneConnected || overLimit;
                         return (
                           <div style={{ flex: 1, minWidth: 100, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <button onClick={handlePostNow} disabled={actionLoading || !results.postId || blocked} style={{ width: '100%', padding: '10px 14px', background: blocked ? '#9CA3AF' : t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: (actionLoading || blocked) ? 'not-allowed' : 'pointer', opacity: (actionLoading || blocked) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                            <button onClick={handlePostNow} disabled={actionLoading || !results.postId || blocked} style={{ width: '100%', padding: '11px 14px', background: blocked ? '#9CA3AF' : `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, border: 'none', borderRadius: 11, color: '#fff', fontSize: 13, fontWeight: 700, cursor: (actionLoading || blocked) ? 'not-allowed' : 'pointer', opacity: (actionLoading || blocked) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: blocked ? 'none' : '0 4px 16px rgba(124,92,252,0.38)', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)' }}>
                               <Icon name="send" size={14} color="#fff" /> Post Now
                             </button>
                             {overLimit && <div style={{ fontSize: 10, color: '#ef4444', textAlign: 'center' }}>Caption too long for some platforms — edit to fix</div>}
                           </div>
                         );
                       })()}
-                      <button onClick={() => setShowScheduleModal(true)} disabled={actionLoading || !results.postId} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: actionLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button onClick={() => setShowScheduleModal(true)} disabled={actionLoading || !results.postId}
+                        style={{ padding: '11px 14px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: actionLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
+                      >
                         <Icon name="schedule" size={14} /> Schedule
                       </button>
-                      <button onClick={handleEditStart} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button onClick={handleEditStart}
+                        style={{ padding: '11px 14px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
+                      >
                         <Icon name="edit" size={14} /> Edit
                       </button>
-                      <button onClick={() => { showToast('success', 'Draft saved — find it in History'); setTimeout(handleReset, 1800); }} style={{ padding: '10px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button onClick={() => { showToast('success', 'Draft saved — find it in History'); setTimeout(handleReset, 1800); }}
+                        style={{ padding: '11px 14px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
+                      >
                         <IpArrowLeft size={14} /> Save for Later
                       </button>
                     </>
@@ -1577,8 +1652,8 @@ export default function Wizard() {
 
             {/* ── Inline schedule modal ── */}
             {showScheduleModal && (
-              <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowScheduleModal(false)}>
-                <div style={{ background: t.card, borderRadius: 14, padding: 24, width: '100%', maxWidth: 360, border: `1px solid ${t.border}` }} onClick={e => e.stopPropagation()}>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowScheduleModal(false)}>
+                <div style={{ background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(32px) saturate(200%)', WebkitBackdropFilter: 'blur(32px) saturate(200%)', borderRadius: 22, padding: 26, width: '100%', maxWidth: 380, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, boxShadow: t.isDark ? '0 24px 64px rgba(0,0,0,0.65), 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1)' }} onClick={e => e.stopPropagation()}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 16 }}>Schedule Post</div>
                   {wizardBestTimes.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
@@ -1662,20 +1737,27 @@ function ThemeCard({ selected, onClick, t, children }) {
     <button
       onClick={onClick}
       style={{
-        padding: '22px 16px', background: selected ? t.primaryBg : t.card,
-        border: `2px solid ${selected ? t.primary : t.border}`,
-        borderRadius: 16, cursor: 'pointer',
-        transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
+        padding: '22px 16px',
+        background: selected
+          ? t.isDark ? 'rgba(124,92,252,0.13)' : 'rgba(124,92,252,0.08)'
+          : t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+        backdropFilter: 'blur(16px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+        border: `2px solid ${selected ? 'rgba(124,92,252,0.55)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+        borderRadius: 18, cursor: 'pointer',
+        transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
         textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center',
         position: 'relative',
-        transform: selected ? 'translateY(-4px) scale(1.02)' : 'none',
-        boxShadow: selected ? `0 8px 32px rgba(124,92,252,0.25), 0 0 0 4px rgba(124,92,252,0.08)` : 'none',
+        transform: selected ? 'translateY(-5px) scale(1.02)' : 'none',
+        boxShadow: selected
+          ? `0 12px 36px rgba(124,92,252,0.3), 0 0 0 4px rgba(124,92,252,0.1), inset 0 1px 0 rgba(255,255,255,0.08)`
+          : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
       }}
-      onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.4)'; e.currentTarget.style.background = 'rgba(124,92,252,0.04)'; e.currentTarget.style.transform = 'translateY(-4px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(124,92,252,0.15)'; } }}
-      onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; } }}
+      onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.35)'; e.currentTarget.style.background = t.isDark ? 'rgba(124,92,252,0.07)' : 'rgba(124,92,252,0.04)'; e.currentTarget.style.transform = 'translateY(-4px) scale(1.01)'; e.currentTarget.style.boxShadow = `0 8px 28px rgba(124,92,252,0.18), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.06' : '0.9'})`; } }}
+      onMouseLeave={(e) => { if (!selected) { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.07)' : t.border; e.currentTarget.style.background = t.isDark ? 'rgba(15,15,24,0.72)' : t.card; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`; } }}
     >
       {selected && (
-        <div style={{ position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: '50%', background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: '50%', background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(124,92,252,0.5)' }}>
           <IpCheck size={10} color="#fff" strokeWidth={3} />
         </div>
       )}
@@ -1709,16 +1791,16 @@ function WizardNav({ t, onBack, onNext, canNext, nextLabel = 'Next →', nextSty
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <button onClick={onBack}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms' }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '11px 20px', background: t.isDark ? 'rgba(15,15,24,0.68)' : 'transparent', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms ease', boxShadow: t.isDark ? 'inset 0 1px 0 rgba(255,255,255,0.04)' : 'none' }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.06)' : t.cardHover; e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.15)' : t.borderStrong; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = t.isDark ? 'rgba(15,15,24,0.68)' : 'transparent'; e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; }}
       >
         <IpArrowLeft size={14} /> Back
       </button>
       <button onClick={onNext} disabled={!canNext}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 24px', background: canNext ? t.primary : t.textDisabled, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: canNext ? 'pointer' : 'not-allowed', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', opacity: canNext ? 1 : 0.5, ...nextStyle }}
-        onMouseEnter={(e) => { if (canNext) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.4)'; if (!nextStyle.background) e.currentTarget.style.background = t.primaryHover; } }}
-        onMouseLeave={(e) => { if (canNext) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; if (!nextStyle.background) e.currentTarget.style.background = t.primary; } }}
+        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '11px 26px', background: canNext ? `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})` : t.textDisabled, border: 'none', borderRadius: 11, color: '#fff', fontSize: 13, fontWeight: 700, cursor: canNext ? 'pointer' : 'not-allowed', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', opacity: canNext ? 1 : 0.5, boxShadow: canNext ? '0 4px 16px rgba(124,92,252,0.35)' : 'none', ...nextStyle }}
+        onMouseEnter={(e) => { if (canNext) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(124,92,252,0.5)'; } }}
+        onMouseLeave={(e) => { if (canNext) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.35)'; } }}
       >
         {nextLabel}
       </button>

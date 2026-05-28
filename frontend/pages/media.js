@@ -469,7 +469,7 @@ export default function MediaLibrary() {
       <input ref={fileInputRef} type="file" multiple accept="image/*,video/*" onChange={handleFileSelect} style={{ display: 'none' }} />
 
       {/* ── TAB SWITCHER ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 36, background: t.input, borderRadius: 12, padding: 4, width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 36, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.input, backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, padding: 4, width: 'fit-content', boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.9'})` }}>
         {[
           { id: 'library', label: 'My Media',   Icon: IpMediaLibrary },
           { id: 'templates', label: 'Templates', Icon: IpPhotoStudio },
@@ -477,15 +477,16 @@ export default function MediaLibrary() {
           <button key={id} onClick={() => handleTabSwitch(id)}
             style={{
               display: 'flex', alignItems: 'center', gap: 7,
-              padding: '9px 20px', borderRadius: 9, fontSize: 13, fontWeight: 600,
-              border: 'none', cursor: 'pointer',
-              background: activeTab === id ? t.card : 'transparent',
-              color: activeTab === id ? t.text : t.textMuted,
-              boxShadow: activeTab === id ? '0 1px 4px rgba(0,0,0,0.14)' : 'none',
+              padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+              border: activeTab === id ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
+              cursor: 'pointer',
+              background: activeTab === id ? t.primaryBg : 'transparent',
+              color: activeTab === id ? t.primary : t.textMuted,
+              boxShadow: activeTab === id ? `0 2px 10px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.08)` : 'none',
               transition: 'all 150ms ease',
               letterSpacing: '-0.01em',
             }}>
-            <Icon size={14} /> {label}
+            <Icon size={14} color={activeTab === id ? t.primary : t.textMuted} /> {label}
           </button>
         ))}
       </div>

@@ -170,13 +170,13 @@ export default function History() {
       >
         {/* ── Search bar ── */}
         <div style={{ position: 'relative', marginBottom: 12 }}>
-          <IpSearch size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted, pointerEvents: 'none' }} />
+          <IpSearch size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: t.textMuted, pointerEvents: 'none' }} />
           <input
             type="text"
             placeholder="Search your posts…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', paddingLeft: 36, paddingRight: 14, paddingTop: 10, paddingBottom: 10, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', transition: 'border-color 150ms' }}
+            style={{ width: '100%', paddingLeft: 38, paddingRight: 14, paddingTop: 11, paddingBottom: 11, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, borderRadius: 12, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', transition: 'border-color 150ms, box-shadow 150ms', boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.8'})` }}
           />
         </div>
 
@@ -224,7 +224,7 @@ export default function History() {
         </div>
 
         {/* ── Status filter pills ── */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 16, padding: 3, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, flexWrap: 'wrap', width: 'fit-content' }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 16, padding: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 12, flexWrap: 'wrap', width: 'fit-content', boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.9'})` }}>
           {FILTERS.map(f => (
             <button
               key={f.id}
@@ -318,8 +318,11 @@ export default function History() {
                     borderRadius: 14,
                     overflow: 'hidden',
                     cursor: 'pointer',
-                    transition: 'all 160ms ease',
-                    boxShadow: isHovered ? `0 0 0 1px ${t.primaryBorder}` : 'none',
+                    transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+                    transform: isHovered ? 'translateY(-3px)' : 'none',
+                    boxShadow: isHovered
+                      ? `0 8px 28px rgba(0,0,0,0.35), 0 0 0 1px ${t.primaryBorder}, inset 0 1px 0 rgba(255,255,255,0.05)`
+                      : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.8'})`,
                   }}
                 >
                   {/* Left accent bar */}

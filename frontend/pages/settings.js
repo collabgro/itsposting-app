@@ -1125,15 +1125,22 @@ export default function Settings() {
               const hasAny = connectedAccounts.length > 0;
               return (
                 <div key={platform} style={{
-                  padding: '16px 18px', background: t.input, borderRadius: 12,
-                  border: `1px solid ${hasAny ? config.color + '40' : t.border}`,
-                  transition: 'border-color 150ms ease',
+                  padding: '16px 18px',
+                  background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+                  backdropFilter: 'blur(16px) saturate(160%)',
+                  WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+                  borderRadius: 14,
+                  border: `1px solid ${hasAny ? config.color + '35' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+                  boxShadow: hasAny
+                    ? `0 4px 16px ${config.color}10, inset 0 1px 0 rgba(255,255,255,0.04)`
+                    : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.85'})`,
+                  transition: 'all 200ms ease',
                 }}>
                   {/* Platform header row */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 38, height: 38, borderRadius: 10, background: `${config.color}15`, border: `1px solid ${config.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <config.Icon size={20} style={{ color: config.color }} />
+                      <div style={{ width: 42, height: 42, borderRadius: 12, background: `${config.color}18`, border: `1px solid ${config.color}35`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: hasAny ? `0 2px 8px ${config.color}20` : 'none' }}>
+                        <config.Icon size={22} style={{ color: config.color }} />
                       </div>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{config.label}</div>

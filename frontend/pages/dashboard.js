@@ -597,7 +597,7 @@ function MetricCard({ t, label, main, sub, subColor, accent = 'primary' }) {
     >
       <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: col, opacity: 0.06, pointerEvents: 'none' }} />
       <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>{label}</div>
-      <div style={{ fontSize: 34, fontWeight: 800, color: t.text, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 7 }}>{main}</div>
+      <div style={{ fontSize: 34, fontWeight: 800, color: col, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 7 }}>{main}</div>
       {sub && <div style={{ fontSize: 11, color: subColor || col, fontWeight: 500 }}>{sub}</div>}
     </div>
   );

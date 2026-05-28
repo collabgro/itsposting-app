@@ -586,10 +586,10 @@ export default function QuickPost() {
 
         {/* ── Result card ────────────────────────────────────────────── */}
         {result && !generating && (
-          <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ background: dark ? 'rgba(15,15,24,0.82)' : t.card, backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', border: `1px solid ${dark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 20, overflow: 'hidden', boxShadow: `${t.shadowLg}, inset 0 1px 0 rgba(255,255,255,0.06)`, animation: 'fadeIn 300ms cubic-bezier(0.16,1,0.3,1)' }}>
 
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${t.border}`, background: t.primaryBg }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : t.border}`, background: dark ? 'rgba(124,92,252,0.13)' : 'rgba(124,92,252,0.07)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
                 <div style={{ width: 22, height: 22, borderRadius: '50%', background: t.success, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <IpCheck size={12} color="#fff" />

@@ -217,7 +217,7 @@ export default function Calendar() {
         {/* ── Filter bar ── */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Platform */}
-          <div style={{ display: 'flex', gap: 3, background: t.card, border: `1px solid ${t.border}`, borderRadius: 9, padding: 3 }}>
+          <div style={{ display: 'flex', gap: 3, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 10, padding: 3, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
             <button onClick={() => setPlatformFilter('all')}
               style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
                 background: platformFilter === 'all' ? t.primaryBg : 'transparent',
@@ -245,7 +245,7 @@ export default function Calendar() {
           <div style={{ width: 1, height: 20, background: t.border, flexShrink: 0 }} />
 
           {/* Status */}
-          <div style={{ display: 'flex', gap: 3, background: t.card, border: `1px solid ${t.border}`, borderRadius: 9, padding: 3 }}>
+          <div style={{ display: 'flex', gap: 3, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 10, padding: 3, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
             {[
               { id: 'all',       label: 'All'       },
               { id: 'scheduled', label: 'Scheduled' },
@@ -380,9 +380,14 @@ export default function Calendar() {
                             : !hasPosts && !isPast && isCurrentMonth
                             ? `1px dashed ${t.border}`
                             : `1px solid ${t.border}`,
-                          background: isSelected ? t.primaryBg : isToday ? 'rgba(124,92,252,0.05)' : isCurrentMonth ? t.card : t.input,
+                          background: isSelected ? t.primaryBg : isToday ? 'rgba(124,92,252,0.08)' : isCurrentMonth ? t.card : t.input,
                           opacity: !isCurrentMonth ? 0.35 : isPast ? 0.45 : 1,
-                          transition: 'border-color 120ms ease, background 120ms ease',
+                          boxShadow: isSelected
+                            ? `0 0 0 3px rgba(124,92,252,0.15), inset 0 1px 0 rgba(255,255,255,0.06)`
+                            : isToday
+                              ? `0 0 0 2px rgba(124,92,252,0.25)`
+                              : 'none',
+                          transition: 'border-color 120ms ease, background 120ms ease, box-shadow 120ms ease',
                         }}
                         onMouseEnter={e => {
                           if (!isSelected) {

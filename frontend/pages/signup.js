@@ -110,16 +110,16 @@ export default function Signup() {
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div style={{ display: 'inline-flex', position: 'relative', marginBottom: 20 }}>
               <div style={{
-                position: 'absolute', inset: -10, borderRadius: 24,
-                background: 'radial-gradient(circle, rgba(124,92,252,0.4) 0%, transparent 70%)',
-                filter: 'blur(14px)',
+                position: 'absolute', inset: -16, borderRadius: 28,
+                background: 'radial-gradient(circle, rgba(124,92,252,0.5) 0%, transparent 70%)',
+                filter: 'blur(20px)',
               }} />
               <img
-                src="/itsposting-logo.png" alt="ItsPosting" width={64} height={64}
-                style={{ borderRadius: 18, display: 'block', position: 'relative', zIndex: 1 }}
+                src="/itsposting-logo.png" alt="ItsPosting" width={76} height={76}
+                style={{ borderRadius: 22, display: 'block', position: 'relative', zIndex: 1, boxShadow: '0 8px 32px rgba(124,92,252,0.5), 0 3px 10px rgba(0,0,0,0.4)' }}
               />
             </div>
-            <div style={{ fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em', color: t.text }}>ItsPosting</div>
+            <div style={{ fontWeight: 800, fontSize: 32, letterSpacing: '-0.04em', color: t.text }}>ItsPosting</div>
             <div style={{ fontSize: 14, color: t.textMuted, marginTop: 6, letterSpacing: '-0.01em', transition: 'all 300ms ease' }}>
               {tagline}
             </div>
@@ -141,9 +141,14 @@ export default function Signup() {
 
           {/* Card */}
           <div style={{
-            background: t.card, border: `1px solid ${t.border}`,
-            borderRadius: 16, padding: '32px 28px',
-            boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 24px 64px rgba(0,0,0,0.4)',
+            background: theme === 'dark' ? 'rgba(15,15,24,0.88)' : 'rgba(255,255,255,0.92)',
+            backdropFilter: 'blur(32px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(32px) saturate(200%)',
+            border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'}`,
+            borderRadius: 20, padding: '36px 32px',
+            boxShadow: theme === 'dark'
+              ? '0 0 0 1px rgba(255,255,255,0.04), 0 32px 80px rgba(0,0,0,0.65), 0 8px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)'
+              : '0 0 0 1px rgba(0,0,0,0.04), 0 20px 60px rgba(0,0,0,0.13), inset 0 1px 0 rgba(255,255,255,1)',
           }}>
             {error && (
               <div style={{

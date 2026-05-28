@@ -587,6 +587,211 @@ async function seed() {
         t('e21',null,{ x:80,y:1202,width:920,height:55,text:'Business Name  •  [City] & Surrounding Areas',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.28)',align:'center',verticalAlign:'middle' }),
         t('e22',null,{ x:80,y:1280,width:920,height:48,text:'www.yourbusiness.com',fontFamily:'Inter',fontSize:20,fill:'rgba(255,255,255,0.15)',align:'center',verticalAlign:'middle' }),
       ]) },
+
+    // ── AD-STYLE VISUAL TEMPLATES (1080×1080) ────────────────────────────────
+    { name: 'Ad — Plumbing Professional Hero', industry: 'plumbing', category: 'promotional', sort_order: 200,
+      canvas_width: 1080, canvas_height: 1080,
+      canvas_json: mkPage('#1B3A6B', [
+        // Photo zone — right 65% of canvas
+        r('ph_bg',null,{ x:380,y:0,width:700,height:928,fill:'#243f6b' }),
+        t('ph_txt',null,{ x:380,y:320,width:700,height:280,content:'📸\nAdd technician photo\n(upload from media library)',fontFamily:'Inter',fontSize:22,fill:'rgba(255,255,255,0.15)',align:'center',verticalAlign:'middle',lineHeight:1.6 }),
+        // Gradient-fade overlays — blends photo into navy
+        r('fade1',null,{ x:0,y:0,width:420,height:928,fill:'#1B3A6B' }),
+        r('fade2',null,{ x:420,y:0,width:140,height:928,fill:'#1B3A6B',opacity:0.65 }),
+        // Logo circle
+        r('logo_bg',null,{ x:40,y:30,width:64,height:64,fill:'#F5C518',cornerRadius:32 }),
+        t('logo_em',null,{ x:40,y:30,width:64,height:64,content:'🔩',fontFamily:'Inter',fontSize:26,fill:'#1B3A6B',align:'center',verticalAlign:'middle' }),
+        t('brand_nm',null,{ x:118,y:38,width:340,height:34,content:'YOUR BUSINESS NAME',fontFamily:'Montserrat',fontSize:20,fontWeight:'900',fill:'#ffffff',align:'left',verticalAlign:'middle',letterSpacing:2 }),
+        t('brand_sb',null,{ x:118,y:76,width:340,height:24,content:'Plumbing Services',fontFamily:'Inter',fontSize:16,fill:'rgba(255,255,255,0.65)',align:'left',verticalAlign:'middle' }),
+        // Headline
+        t('eyebrow',null,{ x:40,y:196,width:500,height:36,content:'PROFESSIONAL',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'rgba(255,255,255,0.85)',align:'left',verticalAlign:'middle',letterSpacing:3 }),
+        t('h_gold',null,{ x:40,y:240,width:555,height:130,content:'PLUMBING',fontFamily:'Montserrat',fontSize:110,fontWeight:'900',fill:'#F5C518',align:'left',verticalAlign:'top',lineHeight:0.88 }),
+        t('h_white',null,{ x:40,y:368,width:555,height:115,content:'SERVICES',fontFamily:'Montserrat',fontSize:96,fontWeight:'900',fill:'#ffffff',align:'left',verticalAlign:'top',lineHeight:0.88 }),
+        // Service thumbnail circles
+        r('tb1_bg',null,{ x:40,y:568,width:148,height:148,fill:'#2a4a80',cornerRadius:74,stroke:'#F5C518',strokeWidth:4 }),
+        t('tb1_ic',null,{ x:40,y:568,width:148,height:148,content:'🚿',fontFamily:'Inter',fontSize:52,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        r('tb2_bg',null,{ x:206,y:568,width:148,height:148,fill:'#2a4a80',cornerRadius:74,stroke:'#F5C518',strokeWidth:4 }),
+        t('tb2_ic',null,{ x:206,y:568,width:148,height:148,content:'🔧',fontFamily:'Inter',fontSize:52,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        r('tb3_bg',null,{ x:372,y:568,width:148,height:148,fill:'#2a4a80',cornerRadius:74,stroke:'#F5C518',strokeWidth:4 }),
+        t('tb3_ic',null,{ x:372,y:568,width:148,height:148,content:'🛠',fontFamily:'Inter',fontSize:52,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        // White footer bar
+        r('ft_bg',null,{ x:0,y:928,width:1080,height:152,fill:'#ffffff' }),
+        t('ft_24',null,{ x:40,y:938,width:110,height:100,content:'24',fontFamily:'Montserrat',fontSize:70,fontWeight:'900',fill:'#1B3A6B',align:'left',verticalAlign:'middle' }),
+        t('ft_em',null,{ x:153,y:948,width:230,height:72,content:'EMERGENCY\nSERVICES',fontFamily:'Montserrat',fontSize:18,fontWeight:'700',fill:'#1B3A6B',align:'left',verticalAlign:'top',lineHeight:1.25 }),
+        r('ft_div',null,{ x:400,y:954,width:2,height:52,fill:'#dddddd' }),
+        r('ft_ph_bg',null,{ x:420,y:968,width:76,height:76,fill:'#F5C518',cornerRadius:38 }),
+        t('ft_ph_em',null,{ x:420,y:968,width:76,height:76,content:'📞',fontFamily:'Inter',fontSize:30,fill:'#1B3A6B',align:'center',verticalAlign:'middle' }),
+        t('ft_cl',null,{ x:514,y:942,width:526,height:36,content:'CALL NOW!',fontFamily:'Montserrat',fontSize:20,fontWeight:'800',fill:'#1B3A6B',align:'left',verticalAlign:'middle',letterSpacing:1 }),
+        t('ft_pn',null,{ x:514,y:982,width:526,height:46,content:'(555) 000-0000',fontFamily:'Montserrat',fontSize:32,fontWeight:'900',fill:'#1B3A6B',align:'left',verticalAlign:'middle' }),
+      ]) },
+
+    { name: 'Ad — HVAC Solutions Specialists', industry: 'hvac', category: 'promotional', sort_order: 201,
+      canvas_width: 1080, canvas_height: 1080,
+      canvas_json: mkPage('#ffffff', [
+        // Photo zone — top right
+        r('ph_bg',null,{ x:500,y:0,width:580,height:570,fill:'#e8f0ff' }),
+        t('ph_txt',null,{ x:500,y:200,width:580,height:200,content:'📸\nAdd technician / unit photo',fontFamily:'Inter',fontSize:22,fill:'rgba(0,0,0,0.2)',align:'center',verticalAlign:'middle',lineHeight:1.6 }),
+        // Logo pill (top right, overlapping photo)
+        r('pill_bg',null,{ x:820,y:22,width:236,height:58,fill:'#ffffff',cornerRadius:29 }),
+        t('pill_nm',null,{ x:826,y:28,width:224,height:46,content:'🏠  YOUR BRAND',fontFamily:'Montserrat',fontSize:18,fontWeight:'900',fill:'#111111',align:'center',verticalAlign:'middle',letterSpacing:2 }),
+        // Tri-colour left headline
+        t('h1',null,{ x:40,y:88,width:520,height:110,content:'HVAC',fontFamily:'Montserrat',fontSize:100,fontWeight:'900',fill:'#111111',align:'left',verticalAlign:'middle',lineHeight:0.88 }),
+        t('h2',null,{ x:40,y:200,width:520,height:110,content:'Solutions',fontFamily:'Montserrat',fontSize:96,fontWeight:'900',fill:'#0066CC',align:'left',verticalAlign:'middle',lineHeight:0.88 }),
+        t('h3',null,{ x:40,y:310,width:520,height:88,content:'Specialists',fontFamily:'Montserrat',fontSize:80,fontWeight:'900',fill:'#111111',align:'left',verticalAlign:'top',lineHeight:0.88 }),
+        // Dark service panel
+        r('svc_pan',null,{ x:0,y:560,width:1080,height:320,fill:'#1A1A2E' }),
+        // Column 1 service items
+        t('s1_ic',null,{ x:58,y:582,width:44,height:44,content:'🌡️',fontFamily:'Inter',fontSize:28,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('s1_lb',null,{ x:112,y:584,width:400,height:40,content:'AC Installation',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        t('s2_ic',null,{ x:58,y:638,width:44,height:44,content:'🔧',fontFamily:'Inter',fontSize:28,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('s2_lb',null,{ x:112,y:640,width:400,height:40,content:'Heating Repair',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        t('s3_ic',null,{ x:58,y:694,width:44,height:44,content:'⚙️',fontFamily:'Inter',fontSize:28,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('s3_lb',null,{ x:112,y:696,width:400,height:40,content:'AC Tune-Up',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        t('s4_ic',null,{ x:58,y:750,width:44,height:44,content:'🌬️',fontFamily:'Inter',fontSize:28,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('s4_lb',null,{ x:112,y:752,width:400,height:40,content:'Air Quality Check',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        // Column 2 service items
+        t('s5_ic',null,{ x:558,y:582,width:44,height:44,content:'🏠',fontFamily:'Inter',fontSize:28,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('s5_lb',null,{ x:612,y:584,width:400,height:40,content:'Duct Cleaning',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        t('s6_ic',null,{ x:558,y:638,width:44,height:44,content:'⚡',fontFamily:'Inter',fontSize:28,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('s6_lb',null,{ x:612,y:640,width:400,height:40,content:'Emergency Service',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        t('s7_ic',null,{ x:558,y:694,width:44,height:44,content:'🌡️',fontFamily:'Inter',fontSize:28,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('s7_lb',null,{ x:612,y:696,width:400,height:40,content:'Heat Pump Install',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        t('s8_ic',null,{ x:558,y:750,width:44,height:44,content:'🔩',fontFamily:'Inter',fontSize:28,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('s8_lb',null,{ x:612,y:752,width:400,height:40,content:'Maintenance Plans',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        // Orange CTA pill button
+        r('cta_bg',null,{ x:40,y:800,width:370,height:68,fill:'#E8571A',cornerRadius:34 }),
+        t('cta_tx',null,{ x:40,y:800,width:370,height:68,content:'CONTACT US  →',fontFamily:'Montserrat',fontSize:22,fontWeight:'800',fill:'#ffffff',align:'center',verticalAlign:'middle',letterSpacing:1 }),
+        // Discount badge
+        r('disc_bg',null,{ x:700,y:776,width:170,height:100,fill:'#E8571A',cornerRadius:12 }),
+        t('disc_pc',null,{ x:700,y:784,width:170,height:46,content:'20% OFF',fontFamily:'Montserrat',fontSize:26,fontWeight:'900',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('disc_fo',null,{ x:700,y:832,width:170,height:36,content:'NEW CUSTOMERS',fontFamily:'Montserrat',fontSize:14,fontWeight:'700',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        // Footer contact strip
+        r('ft_bg',null,{ x:0,y:880,width:1080,height:200,fill:'#f0f0f0' }),
+        t('ft_ph',null,{ x:40,y:916,width:320,height:36,content:'📱  (555) 000-0000',fontFamily:'Montserrat',fontSize:20,fontWeight:'500',fill:'#333333',align:'left',verticalAlign:'middle' }),
+        t('ft_ig',null,{ x:380,y:916,width:300,height:36,content:'📷  @yourbusiness',fontFamily:'Montserrat',fontSize:20,fontWeight:'500',fill:'#333333',align:'left',verticalAlign:'middle' }),
+        t('ft_wb',null,{ x:700,y:916,width:340,height:36,content:'🌐  www.yourbusiness.com',fontFamily:'Montserrat',fontSize:20,fontWeight:'500',fill:'#333333',align:'left',verticalAlign:'middle' }),
+        t('ft_ad',null,{ x:40,y:960,width:1000,height:30,content:'123 Main Street, Your City, ST 00000',fontFamily:'Montserrat',fontSize:18,fill:'#666666',align:'left',verticalAlign:'middle' }),
+      ]) },
+
+    { name: 'Ad — Salon Hair Experts', industry: 'general', category: 'promotional', sort_order: 202,
+      canvas_width: 1080, canvas_height: 1080,
+      canvas_json: mkPage('#FFF8F0', [
+        // Rose-gold header band
+        r('hdr_bg',null,{ x:0,y:0,width:1080,height:100,fill:'#C9784A' }),
+        t('hdr_em',null,{ x:28,y:10,width:60,height:80,content:'✂️',fontFamily:'Inter',fontSize:32,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('hdr_nm',null,{ x:102,y:16,width:500,height:40,content:'YOUR BUSINESS NAME',fontFamily:'Playfair Display',fontSize:26,fontWeight:'700',fill:'#ffffff',align:'left',verticalAlign:'middle',letterSpacing:1 }),
+        t('hdr_sb',null,{ x:102,y:60,width:500,height:28,content:'Hair & Beauty Studio',fontFamily:'Inter',fontSize:18,fill:'rgba(255,255,255,0.8)',align:'left',verticalAlign:'middle' }),
+        // Photo zone — right side
+        r('ph_bg',null,{ x:420,y:80,width:660,height:560,fill:'#f0c8a0' }),
+        t('ph_tx',null,{ x:420,y:270,width:660,height:180,content:'📸\nAdd stylist / salon photo',fontFamily:'Inter',fontSize:22,fill:'rgba(0,0,0,0.2)',align:'center',verticalAlign:'middle',lineHeight:1.6 }),
+        // Dark content panel
+        r('dark_pan',null,{ x:0,y:600,width:1080,height:300,fill:'#2B2332' }),
+        // White footer
+        r('ft_bg',null,{ x:0,y:900,width:1080,height:180,fill:'#ffffff' }),
+        // Left headline (Playfair Display serif)
+        t('h1',null,{ x:40,y:154,width:490,height:88,content:'YOUR GO-TO',fontFamily:'Playfair Display',fontSize:64,fontWeight:'700',fill:'#2B2B2B',align:'left',verticalAlign:'top',lineHeight:0.92 }),
+        t('h2',null,{ x:40,y:248,width:490,height:114,content:'HAIR',fontFamily:'Playfair Display',fontSize:108,fontWeight:'700',fill:'#C9784A',align:'left',verticalAlign:'top',lineHeight:0.88 }),
+        t('h3',null,{ x:40,y:360,width:490,height:96,content:'EXPERTS',fontFamily:'Playfair Display',fontSize:84,fontWeight:'700',fill:'#2B2B2B',align:'left',verticalAlign:'top',lineHeight:0.88 }),
+        t('body',null,{ x:40,y:476,width:380,height:108,content:'Expert stylists delivering salon results you\'ll love — every visit.',fontFamily:'Inter',fontSize:20,fill:'#555555',align:'left',verticalAlign:'top',lineHeight:1.5 }),
+        // Service icon circles (in dark panel)
+        r('sc1_bg',null,{ x:80,y:616,width:128,height:128,fill:'#C9784A',cornerRadius:64 }),
+        t('sc1_ic',null,{ x:80,y:616,width:128,height:128,content:'✂️',fontFamily:'Inter',fontSize:48,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('sc1_lb',null,{ x:40,y:756,width:208,height:36,content:'Hair Cutting',fontFamily:'Montserrat',fontSize:18,fontWeight:'600',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        r('sc2_bg',null,{ x:310,y:616,width:128,height:128,fill:'#C9784A',cornerRadius:64 }),
+        t('sc2_ic',null,{ x:310,y:616,width:128,height:128,content:'🎨',fontFamily:'Inter',fontSize:48,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('sc2_lb',null,{ x:270,y:756,width:208,height:36,content:'Colour Treatment',fontFamily:'Montserrat',fontSize:18,fontWeight:'600',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        r('sc3_bg',null,{ x:540,y:616,width:128,height:128,fill:'#C9784A',cornerRadius:64 }),
+        t('sc3_ic',null,{ x:540,y:616,width:128,height:128,content:'💅',fontFamily:'Inter',fontSize:48,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('sc3_lb',null,{ x:500,y:756,width:208,height:36,content:'Nails & Beauty',fontFamily:'Montserrat',fontSize:18,fontWeight:'600',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        r('sc4_bg',null,{ x:770,y:616,width:128,height:128,fill:'#C9784A',cornerRadius:64 }),
+        t('sc4_ic',null,{ x:770,y:616,width:128,height:128,content:'💇',fontFamily:'Inter',fontSize:48,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('sc4_lb',null,{ x:730,y:756,width:208,height:36,content:'Blowout & Style',fontFamily:'Montserrat',fontSize:18,fontWeight:'600',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        // Book Now button
+        r('btn_bg',null,{ x:40,y:832,width:320,height:58,fill:'#C9784A',cornerRadius:29 }),
+        t('btn_tx',null,{ x:40,y:832,width:320,height:58,content:'BOOK NOW  →',fontFamily:'Montserrat',fontSize:22,fontWeight:'800',fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        // Footer contacts
+        t('ft_ph',null,{ x:40,y:918,width:300,height:32,content:'📞  (555) 000-0000',fontFamily:'Inter',fontSize:20,fontWeight:'500',fill:'#333333',align:'left',verticalAlign:'middle' }),
+        t('ft_ig',null,{ x:40,y:958,width:300,height:32,content:'📷  @yoursalon',fontFamily:'Inter',fontSize:20,fontWeight:'500',fill:'#333333',align:'left',verticalAlign:'middle' }),
+        t('ft_wb',null,{ x:380,y:918,width:360,height:32,content:'🌐  www.yoursalon.com',fontFamily:'Inter',fontSize:20,fontWeight:'500',fill:'#333333',align:'left',verticalAlign:'middle' }),
+        t('ft_ad',null,{ x:380,y:958,width:660,height:32,content:'📍  123 Main St, Your City, ST 00000',fontFamily:'Inter',fontSize:20,fontWeight:'500',fill:'#333333',align:'left',verticalAlign:'middle' }),
+      ]) },
+
+    { name: 'Ad — Restaurant Authentic Cuisine', industry: 'general', category: 'promotional', sort_order: 203,
+      canvas_width: 1080, canvas_height: 1080,
+      canvas_json: mkPage('#FFF9F0', [
+        // Photo zone — top left
+        r('ph_bg',null,{ x:0,y:0,width:560,height:580,fill:'#e8c9a0' }),
+        t('ph_tx',null,{ x:0,y:200,width:560,height:180,content:'📸\nAdd chef / restaurant photo',fontFamily:'Inter',fontSize:22,fill:'rgba(0,0,0,0.2)',align:'center',verticalAlign:'middle',lineHeight:1.6 }),
+        // Logo + brand overlay on photo
+        r('logo_bx',null,{ x:20,y:20,width:50,height:50,fill:'rgba(255,255,255,0.9)',cornerRadius:8 }),
+        t('logo_em',null,{ x:20,y:20,width:50,height:50,content:'🍽️',fontFamily:'Inter',fontSize:24,fill:'#1C1C1C',align:'center',verticalAlign:'middle' }),
+        t('logo_nm',null,{ x:84,y:26,width:360,height:38,content:'YOUR RESTAURANT NAME',fontFamily:'Playfair Display',fontSize:24,fontWeight:'700',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        // Dark headline panel (left, below photo boundary)
+        r('hl_pan',null,{ x:0,y:308,width:670,height:280,fill:'#1C1C1C' }),
+        t('hl_ey',null,{ x:40,y:320,width:580,height:34,content:'WE ARE PROUD TO SERVE',fontFamily:'Montserrat',fontSize:18,fontWeight:'600',fill:'#D4A017',align:'left',verticalAlign:'middle',letterSpacing:3 }),
+        t('hl_mn',null,{ x:40,y:362,width:580,height:100,content:'AUTHENTIC',fontFamily:'Playfair Display',fontSize:90,fontWeight:'900',fill:'#ffffff',align:'left',verticalAlign:'top',lineHeight:0.9 }),
+        t('hl_ac',null,{ x:40,y:462,width:580,height:100,content:'CUISINE',fontFamily:'Playfair Display',fontSize:90,fontWeight:'900',fill:'#D4A017',align:'left',verticalAlign:'top',lineHeight:0.9 }),
+        // What We Offer — right side
+        t('off_ti',null,{ x:580,y:316,width:460,height:36,content:'WHAT WE OFFER',fontFamily:'Montserrat',fontSize:20,fontWeight:'800',fill:'#1C1C1C',align:'left',verticalAlign:'middle',letterSpacing:2 }),
+        t('off1',null,{ x:580,y:364,width:460,height:40,content:'✅  Dine-In & Takeaway',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#1C1C1C',align:'left',verticalAlign:'middle' }),
+        t('off2',null,{ x:580,y:410,width:460,height:40,content:'✅  Private Dining Events',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#1C1C1C',align:'left',verticalAlign:'middle' }),
+        t('off3',null,{ x:580,y:456,width:460,height:40,content:'✅  Catering Services',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#1C1C1C',align:'left',verticalAlign:'middle' }),
+        t('off4',null,{ x:580,y:502,width:460,height:40,content:'✅  Online Reservations',fontFamily:'Montserrat',fontSize:22,fontWeight:'600',fill:'#1C1C1C',align:'left',verticalAlign:'middle' }),
+        // Bottom dark panel
+        r('bot_dk',null,{ x:0,y:760,width:1080,height:180,fill:'#1C1C1C' }),
+        // Gold CTA box (bottom-left)
+        r('cta_bx',null,{ x:0,y:760,width:440,height:180,fill:'#D4A017' }),
+        t('cta_ic',null,{ x:24,y:778,width:40,height:50,content:'📞',fontFamily:'Inter',fontSize:28,fill:'#1C1C1C',align:'center',verticalAlign:'middle' }),
+        t('cta_lb',null,{ x:70,y:778,width:340,height:40,content:'RESERVE NOW',fontFamily:'Montserrat',fontSize:24,fontWeight:'800',fill:'#1C1C1C',align:'left',verticalAlign:'middle',letterSpacing:1 }),
+        t('cta_ph',null,{ x:24,y:826,width:400,height:50,content:'(555) 000-0000',fontFamily:'Montserrat',fontSize:36,fontWeight:'900',fill:'#1C1C1C',align:'left',verticalAlign:'middle' }),
+        t('cta_hr',null,{ x:24,y:884,width:400,height:36,content:'Open Mon–Sun  •  11am – 10pm',fontFamily:'Montserrat',fontSize:17,fill:'rgba(28,28,28,0.65)',align:'left',verticalAlign:'middle' }),
+        // Deep-red special offer box (bottom-right)
+        r('sp_bx',null,{ x:460,y:760,width:620,height:180,fill:'#8B1A1A' }),
+        t('sp_ti',null,{ x:480,y:784,width:580,height:50,content:'HAPPY HOUR 🍷',fontFamily:'Montserrat',fontSize:28,fontWeight:'900',fill:'#D4A017',align:'left',verticalAlign:'middle',letterSpacing:1 }),
+        t('sp_d1',null,{ x:480,y:836,width:580,height:40,content:'Mon–Fri  ·  4pm – 6pm',fontFamily:'Montserrat',fontSize:24,fontWeight:'600',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        t('sp_d2',null,{ x:480,y:880,width:580,height:34,content:'Selected drinks & starters 50% off',fontFamily:'Montserrat',fontSize:18,fill:'rgba(255,255,255,0.7)',align:'left',verticalAlign:'middle' }),
+        // White footer
+        r('ft_bg',null,{ x:0,y:940,width:1080,height:140,fill:'#ffffff' }),
+        t('ft_ad',null,{ x:40,y:958,width:1000,height:32,content:'📍  123 Main Street, Your City, ST 00000',fontFamily:'Montserrat',fontSize:20,fontWeight:'500',fill:'#444444',align:'center',verticalAlign:'middle' }),
+        t('ft_wb',null,{ x:40,y:998,width:1000,height:32,content:'🌐  www.yourrestaurant.com',fontFamily:'Montserrat',fontSize:20,fontWeight:'500',fill:'#444444',align:'center',verticalAlign:'middle' }),
+      ]) },
+
+    { name: 'Ad — Real Estate Dream Home', industry: 'general', category: 'promotional', sort_order: 204,
+      canvas_width: 1080, canvas_height: 1080,
+      canvas_json: mkPage('#F8F9FA', [
+        // Photo zone — right dominant
+        r('ph_bg',null,{ x:260,y:0,width:820,height:840,fill:'#c5d8ff' }),
+        t('ph_tx',null,{ x:260,y:310,width:820,height:220,content:'📸\nAdd agent or property photo',fontFamily:'Inter',fontSize:24,fill:'rgba(0,0,0,0.18)',align:'center',verticalAlign:'middle',lineHeight:1.6 }),
+        // Left gradient mask (light bg, fades photo edge)
+        r('lft1',null,{ x:0,y:0,width:360,height:840,fill:'#F8F9FA' }),
+        r('lft2',null,{ x:360,y:0,width:120,height:840,fill:'#F8F9FA',opacity:0.6 }),
+        // Navy footer panel
+        r('navy_ft',null,{ x:0,y:840,width:1080,height:240,fill:'#1B2A4A' }),
+        // Decorative gold bubble accents
+        r('bbl1',null,{ x:880,y:10,width:190,height:190,fill:'rgba(0,0,0,0)',cornerRadius:95,stroke:'#C9A84C',strokeWidth:3,opacity:0.25 }),
+        r('bbl2',null,{ x:30,y:155,width:90,height:90,fill:'rgba(0,0,0,0)',cornerRadius:45,stroke:'#C9A84C',strokeWidth:2,opacity:0.2 }),
+        r('bbl3',null,{ x:906,y:546,width:120,height:120,fill:'rgba(0,0,0,0)',cornerRadius:60,stroke:'#C9A84C',strokeWidth:2,opacity:0.15 }),
+        // Logo + brand name (top left)
+        r('logo_bx',null,{ x:40,y:32,width:60,height:60,fill:'#1B2A4A',cornerRadius:8 }),
+        t('logo_em',null,{ x:40,y:32,width:60,height:60,content:'🏠',fontFamily:'Inter',fontSize:24,fill:'#ffffff',align:'center',verticalAlign:'middle' }),
+        t('brand_nm',null,{ x:116,y:40,width:340,height:30,content:'YOUR REALTY NAME',fontFamily:'Montserrat',fontSize:20,fontWeight:'900',fill:'#1B2A4A',align:'left',verticalAlign:'middle',letterSpacing:2 }),
+        t('brand_sb',null,{ x:116,y:74,width:340,height:24,content:'Real Estate Services',fontFamily:'Inter',fontSize:16,fill:'#666666',align:'left',verticalAlign:'middle' }),
+        // Property circle accent (top right)
+        r('prop_c',null,{ x:862,y:66,width:168,height:168,fill:'#c5d8ff',cornerRadius:84,stroke:'#C9A84C',strokeWidth:4 }),
+        t('prop_em',null,{ x:862,y:66,width:168,height:168,content:'🏡',fontFamily:'Inter',fontSize:60,fill:'#1B2A4A',align:'center',verticalAlign:'middle' }),
+        // Stacked serif headline
+        t('h1',null,{ x:40,y:180,width:470,height:88,content:'FIND YOUR',fontFamily:'Playfair Display',fontSize:68,fontWeight:'900',fill:'#1B2A4A',align:'left',verticalAlign:'top',lineHeight:0.9 }),
+        t('h2_gd',null,{ x:40,y:272,width:470,height:156,content:'DREAM',fontFamily:'Playfair Display',fontSize:140,fontWeight:'900',fill:'#C9A84C',align:'left',verticalAlign:'top',lineHeight:0.84 }),
+        t('h3',null,{ x:40,y:428,width:470,height:104,content:'HOME.',fontFamily:'Playfair Display',fontSize:90,fontWeight:'900',fill:'#1B2A4A',align:'left',verticalAlign:'top',lineHeight:0.86 }),
+        t('body',null,{ x:40,y:556,width:410,height:120,content:'Expert guidance. Market knowledge. Results you can trust in your city.',fontFamily:'Inter',fontSize:22,fill:'#444444',align:'left',verticalAlign:'top',lineHeight:1.55 }),
+        // Navy footer: contacts + CTA button
+        t('ft_ph',null,{ x:40,y:864,width:380,height:34,content:'📱  (555) 000-0000',fontFamily:'Montserrat',fontSize:22,fontWeight:'500',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        t('ft_ig',null,{ x:40,y:906,width:380,height:34,content:'📷  @yourrealty',fontFamily:'Montserrat',fontSize:22,fontWeight:'500',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        t('ft_wb',null,{ x:40,y:948,width:380,height:34,content:'🌐  www.yourrealty.com',fontFamily:'Montserrat',fontSize:22,fontWeight:'500',fill:'#ffffff',align:'left',verticalAlign:'middle' }),
+        r('btn_bg',null,{ x:668,y:874,width:372,height:72,fill:'#C9A84C',cornerRadius:36 }),
+        t('btn_tx',null,{ x:668,y:874,width:372,height:72,content:'FREE CONSULT  →',fontFamily:'Montserrat',fontSize:22,fontWeight:'800',fill:'#1B2A4A',align:'center',verticalAlign:'middle',letterSpacing:1 }),
+        t('ft_cr',null,{ x:40,y:1000,width:1000,height:30,content:'Licensed Real Estate Agent  ·  Your City Area Specialist',fontFamily:'Inter',fontSize:16,fill:'rgba(255,255,255,0.4)',align:'center',verticalAlign:'middle' }),
+      ]) },
   ];
 
   console.log(`Seeding ${ALL_TEMPLATES.length} templates...`);
@@ -597,7 +802,7 @@ async function seed() {
       await pool.query(
         `INSERT INTO canvas_templates (name, industry, category, canvas_json, canvas_width, canvas_height, sort_order)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [tmpl.name, tmpl.industry, tmpl.category, JSON.stringify(tmpl.canvas_json), 1080, 1350, tmpl.sort_order]
+        [tmpl.name, tmpl.industry, tmpl.category, JSON.stringify(tmpl.canvas_json), tmpl.canvas_width || 1080, tmpl.canvas_height || 1350, tmpl.sort_order]
       );
       inserted++;
     }

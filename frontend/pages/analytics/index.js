@@ -277,21 +277,30 @@ export default function Analytics() {
         }
       >
         {/* ── TAB BAR ──────────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 24, padding: 4, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, width: 'fit-content' }}>
+        <div style={{
+          display: 'flex', gap: 4, marginBottom: 24, padding: 4,
+          background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card,
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+          borderRadius: 14, width: 'fit-content',
+          boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.05' : '0.9'})`,
+        }}>
           {TAB_DEFS.map(tab => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
               style={{
-                padding: '8px 20px',
+                padding: '9px 22px',
                 fontSize: 13,
                 fontWeight: activeTab === tab.id ? 700 : 500,
                 color: activeTab === tab.id ? t.primary : t.textSecondary,
                 background: activeTab === tab.id ? t.primaryBg : 'transparent',
                 border: activeTab === tab.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
-                borderRadius: 8,
+                borderRadius: 10,
                 cursor: 'pointer',
                 transition: 'all 150ms ease',
+                boxShadow: activeTab === tab.id ? `0 2px 10px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.08)` : 'none',
               }}
             >
               {tab.label}

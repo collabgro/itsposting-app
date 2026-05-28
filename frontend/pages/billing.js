@@ -371,11 +371,18 @@ export default function Billing() {
               <div
                 key={plan.id}
                 style={{
-                  background: t.card,
+                  background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card,
+                  backdropFilter: 'blur(20px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                   border: `2px solid ${isCurrent ? t.primary : plan.popular ? 'rgba(124,92,252,0.4)' : t.border}`,
                   borderRadius: 20, padding: 24, position: 'relative',
                   display: 'flex', flexDirection: 'column',
                   opacity: isDowngrade ? 0.6 : 1,
+                  boxShadow: isCurrent
+                    ? `0 0 0 1px rgba(124,92,252,0.25), 0 12px 40px rgba(124,92,252,0.18), inset 0 1px 0 rgba(255,255,255,0.06)`
+                    : plan.popular
+                      ? `0 8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.05)`
+                      : `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.03)`,
                   transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
                 }}
                 onMouseEnter={e => { if (!isDowngrade) { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = t.shadowXl; } }}
@@ -605,8 +612,8 @@ export default function Billing() {
       </div>
 
       {showCancelModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: t.card, borderRadius: 16, padding: 32, maxWidth: 420, width: '100%', border: `1px solid ${t.border}` }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(32px) saturate(200%)', WebkitBackdropFilter: 'blur(32px) saturate(200%)', borderRadius: 22, padding: 32, maxWidth: 420, width: '100%', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, boxShadow: t.isDark ? '0 24px 64px rgba(0,0,0,0.65), 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 16px 48px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1)' }}>
             <IpWarning size={28} style={{ color: t.error, display: 'block', margin: '0 auto 16px' }} />
             <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, textAlign: 'center', margin: '0 0 10px' }}>
               Cancel your subscription?
