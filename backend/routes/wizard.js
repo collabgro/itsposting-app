@@ -1521,5 +1521,204 @@ module.exports = (pool) => {
     }
   });
 
+  // POST /api/wizard/bulk-generate
+  // Generates N text-post captions (one per date) without saving to DB.
+  // Credits are only deducted on /bulk-confirm so a cancelled preview costs nothing.
+  router.post('/bulk-generate', authenticate, requireActiveAccount(pool), async (req, res) => {
+    try {
+      const { dates, tone = 'friendly', platform = 'all' } = req.body;
+
+      if (!Array.isArray(dates) || dates.length < 1 || dates.length > 7) {
+        return res.status(400).json({ error: 'dates must be an array of 1–7 ISO date strings' });
+      }
+
+      const validDates = dates.map(d => {
+        const dt = new Date(d);
+        return isNaN(dt) ? null : dt.toISOString();
+      }).filter(Boolean);
+
+      if (validDates.length === 0) {
+        return res.status(400).json({ error: 'No valid dates provided' });
+      }
+
+      // Check credits (1 per post — static/text)
+      const billingId = getBillingCustomerId(req);
+      const creditRow = await pool.query(
+        'SELECT credits_balance FROM customers WHERE id = $1',
+        [billingId]
+      );
+      const balance = creditRow.rows[0]?.credits_balance || 0;
+      if (balance < validDates.length) {
+        return res.status(402).json({
+          error: `Not enough credits. ${validDates.length} text posts cost ${validDates.length} credit${validDates.length !== 1 ? 's' : ''} but you only have ${balance}.`,
+        });
+      }
+
+      // Load customer profile for SystemPromptBuilder
+      const customerResult = await pool.query(
+        `SELECT id, business_name, industry, location, tone as default_tone,
+                timezone, brand_colors, past_post_examples, content_preferences
+         FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+      const customer = customerResult.rows[0];
+      if (!customer) return res.status(404).json({ error: 'Customer not found' });
+
+      const knowledgeRes = await pool.query(
+        `SELECT knowledge_type, title, content FROM business_knowledge WHERE customer_id = $1 LIMIT 5`,
+        [req.customerId]
+      ).catch(() => ({ rows: [] }));
+
+      // Content theme rotation: 70/20/10
+      const THEMES = ['finished_job', 'share_tip', 'seasonal', 'finished_job', 'share_tip', 'got_review', 'promotion'];
+      const themeLabels = {
+        finished_job: 'completed job showcase',
+        share_tip: 'educational tip',
+        seasonal: 'seasonal content',
+        got_review: 'customer testimonial',
+        promotion: 'promotion/offer',
+      };
+
+      const postsToGenerate = validDates.map((date, i) => ({
+        date,
+        theme: THEMES[i % THEMES.length],
+        label: themeLabels[THEMES[i % THEMES.length]] || THEMES[i % THEMES.length],
+      }));
+
+      // Single Claude call asking for one post per date
+      const builder = new SystemPromptBuilder(customer, {
+        platform,
+        contentType: 'static',
+        wizardTrigger: 'finished_job',
+        businessKnowledge: knowledgeRes.rows,
+        wizardTone: tone,
+      });
+      const { systemPrompt } = builder.build();
+
+      const dateList = postsToGenerate.map((p, i) =>
+        `Post ${i + 1} — ${new Date(p.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} — Theme: ${p.label}`
+      ).join('\n');
+
+      const userPrompt = `Generate exactly ${postsToGenerate.length} separate social media post captions for the dates below. Each must have a DIFFERENT theme and hook. Do NOT repeat the same angle.
+
+${dateList}
+
+Return ONLY a JSON array (no markdown, no explanation):
+[
+  { "caption": "...", "hashtags": ["tag1","tag2"] },
+  ...
+]
+One entry per post, in the same order as the dates listed.`;
+
+      const claudeTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('AI response timeout — please try again')), 60000)
+      );
+      const claudeResponse = await Promise.race([
+        anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 3000,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+        claudeTimeout,
+      ]);
+
+      let rawText = claudeResponse.content?.[0]?.text || '';
+      rawText = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const arrStart = rawText.indexOf('[');
+      const arrEnd   = rawText.lastIndexOf(']');
+      if (arrStart === -1 || arrEnd === -1) {
+        return res.status(502).json({ error: 'AI returned unexpected format. Please try again.' });
+      }
+      let generated;
+      try {
+        generated = JSON.parse(rawText.substring(arrStart, arrEnd + 1));
+      } catch {
+        return res.status(502).json({ error: 'AI returned unexpected format. Please try again.' });
+      }
+
+      const preview = postsToGenerate.map((p, i) => ({
+        date: p.date,
+        theme: p.label,
+        caption: generated[i]?.caption || '',
+        hashtags: generated[i]?.hashtags || [],
+      })).filter(p => p.caption);
+
+      res.json({ preview, platform, tone });
+    } catch (err) {
+      console.error('[Wizard] bulk-generate error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/wizard/bulk-confirm
+  // Saves pre-generated bulk posts to DB and deducts credits.
+  router.post('/bulk-confirm', authenticate, requireActiveAccount(pool), async (req, res) => {
+    try {
+      const { posts: bulkPosts, platform = 'all', tone = 'friendly' } = req.body;
+
+      if (!Array.isArray(bulkPosts) || bulkPosts.length < 1 || bulkPosts.length > 7) {
+        return res.status(400).json({ error: 'posts must be an array of 1–7 items' });
+      }
+
+      const billingId = getBillingCustomerId(req);
+      const creditCost = bulkPosts.length;
+
+      // Atomic credit check + deduction
+      const deductResult = await pool.query(
+        `UPDATE customers SET
+           credits_balance         = credits_balance - $1,
+           credits_used_this_month = credits_used_this_month + $1
+         WHERE id = $2 AND credits_balance >= $1
+         RETURNING credits_balance`,
+        [creditCost, billingId]
+      );
+      if (deductResult.rows.length === 0) {
+        return res.status(402).json({ error: `Insufficient credits (need ${creditCost}).` });
+      }
+      const creditsRemaining = deductResult.rows[0].credits_balance;
+
+      const savedIds = [];
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      for (const item of bulkPosts) {
+        if (!item.caption || !item.date) continue;
+        const scheduledDate = new Date(item.date);
+        if (isNaN(scheduledDate)) continue;
+        try {
+          const result = await pool.query(
+            `INSERT INTO posts (customer_id, content_type, caption, platform, platforms, status, generation_method, ai_model_used, scheduled_date, scheduled_timezone, created_at, updated_at)
+             VALUES ($1, 'static', $2, $3, $4, 'scheduled', 'wizard_bulk', 'claude-sonnet-4-6', $5, $6, NOW(), NOW())
+             RETURNING id`,
+            [
+              req.customerId,
+              item.caption.substring(0, 5000),
+              platform === 'all' ? 'facebook' : platform,
+              JSON.stringify(platform === 'all' ? ['facebook', 'instagram', 'google_business'] : [platform]),
+              scheduledDate,
+              tz,
+            ]
+          );
+          if (result.rows[0]) savedIds.push(result.rows[0].id);
+        } catch (insertErr) {
+          console.warn('[Wizard] bulk-confirm insert failed:', insertErr.message);
+        }
+      }
+
+      // Audit credit transaction
+      try {
+        await pool.query(
+          `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+           VALUES ($1, 'debit', $2, $3, $4)`,
+          [billingId, -creditCost, creditsRemaining, `Bulk scheduled ${savedIds.length} posts via wizard`]
+        );
+      } catch {}
+
+      res.json({ savedCount: savedIds.length, postIds: savedIds, creditsRemaining });
+    } catch (err) {
+      console.error('[Wizard] bulk-confirm error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };

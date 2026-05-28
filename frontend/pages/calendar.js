@@ -9,7 +9,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, Badge, Skeleton } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { postsAPI, socialAPI } from '../lib/api';
+import { postsAPI, socialAPI, wizardAPI } from '../lib/api';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks,
@@ -53,6 +53,15 @@ export default function Calendar() {
   const [hoverPos, setHoverPos]             = useState({ x: 0, y: 0 });
   const [draggingPost, setDraggingPost]     = useState(null);
   const [dragOverDay, setDragOverDay]       = useState(null);
+
+  // Bulk scheduling state
+  const [bulkMode, setBulkMode]           = useState(false);
+  const [bulkDays, setBulkDays]           = useState([]);
+  const [bulkTone, setBulkTone]           = useState('friendly');
+  const [bulkPlatform, setBulkPlatform]   = useState('all');
+  const [bulkLoading, setBulkLoading]     = useState(false);
+  const [bulkPreview, setBulkPreview]     = useState(null);
+  const [bulkConfirming, setBulkConfirming] = useState(false);
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -98,8 +107,54 @@ export default function Calendar() {
   const selectedDayPosts = selectedDay ? getPostsForDay(selectedDay) : [];
 
   const handleDayClick = (day) => {
+    if (bulkMode) {
+      const iso = day.toISOString().slice(0, 10);
+      setBulkDays(prev => {
+        const already = prev.includes(iso);
+        if (already) return prev.filter(d => d !== iso);
+        if (prev.length >= 7) return prev; // max 7
+        return [...prev, iso];
+      });
+      return;
+    }
     if (selectedDay && isSameDay(day, selectedDay)) { setSelectedDay(null); return; }
     setSelectedDay(day);
+  };
+
+  const handleBulkGenerate = async () => {
+    if (bulkDays.length === 0) return;
+    setBulkLoading(true);
+    try {
+      const dates = bulkDays.map(d => `${d}T09:00:00`);
+      const res = await wizardAPI.bulkGenerate({ dates, tone: bulkTone, platform: bulkPlatform });
+      setBulkPreview(res.data);
+    } catch (e) {
+      showCalToast(e.response?.data?.error || 'Generation failed', 'error');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkConfirm = async () => {
+    if (!bulkPreview?.preview) return;
+    setBulkConfirming(true);
+    try {
+      const postsPayload = bulkPreview.preview.map(p => ({
+        date: p.date,
+        caption: p.caption,
+      }));
+      const res = await wizardAPI.bulkConfirm({ posts: postsPayload, platform: bulkPlatform, tone: bulkTone });
+      showCalToast(`${res.data.savedCount} posts scheduled!`);
+      setBulkMode(false);
+      setBulkDays([]);
+      setBulkPreview(null);
+      window.dispatchEvent(new Event('creditRefresh'));
+      loadPosts();
+    } catch (e) {
+      showCalToast(e.response?.data?.error || 'Failed to save posts', 'error');
+    } finally {
+      setBulkConfirming(false);
+    }
   };
 
   const handleAddOnDay = () => {
@@ -293,6 +348,9 @@ export default function Calendar() {
         subtitle="Schedule and manage your posts"
         action={
           <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="secondary" onClick={() => { setBulkMode(m => !m); setBulkDays([]); setBulkPreview(null); }} style={{ background: bulkMode ? 'rgba(124,92,252,0.15)' : undefined, borderColor: bulkMode ? 'rgba(124,92,252,0.5)' : undefined }}>
+              <CalendarIcon size={13} /> Plan my week
+            </Button>
             <Button variant="secondary" onClick={() => router.push('/wizard')}><IpSparkle size={13} color="url(#brand-gradient)" /> Post Wizard</Button>
             <Button variant="primary"   onClick={() => router.push('/upload')}><IpPlus size={14} strokeWidth={2.5} /> Upload</Button>
           </div>
@@ -353,6 +411,90 @@ export default function Calendar() {
             </button>
           )}
         </div>
+
+        {/* ── Bulk scheduling banner ── */}
+        {bulkMode && (
+          <div style={{ background: 'rgba(124,92,252,0.08)', border: '1px solid rgba(124,92,252,0.25)', borderRadius: 14, padding: '16px 20px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 240 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 4 }}>
+                  Planning mode — select up to 7 days
+                </div>
+                <div style={{ fontSize: 12, color: t.textMuted }}>
+                  {bulkDays.length === 0
+                    ? 'Click any day on the calendar to add it to your plan.'
+                    : `${bulkDays.length} day${bulkDays.length > 1 ? 's' : ''} selected: ${bulkDays.map(d => new Date(d + 'T12:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })).join(', ')}`
+                  }
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <select value={bulkTone} onChange={e => setBulkTone(e.target.value)}
+                  style={{ padding: '6px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 12 }}>
+                  <option value="friendly">Friendly</option>
+                  <option value="professional">Professional</option>
+                  <option value="funny">Funny</option>
+                  <option value="educational">Educational</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+                <select value={bulkPlatform} onChange={e => setBulkPlatform(e.target.value)}
+                  style={{ padding: '6px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 12 }}>
+                  <option value="all">All platforms</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="google_business">Google Business</option>
+                </select>
+                <button
+                  onClick={handleBulkGenerate}
+                  disabled={bulkDays.length === 0 || bulkLoading}
+                  style={{ padding: '7px 16px', background: bulkDays.length > 0 && !bulkLoading ? '#7C5CFC' : 'rgba(124,92,252,0.3)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 700, cursor: bulkDays.length > 0 && !bulkLoading ? 'pointer' : 'not-allowed' }}>
+                  {bulkLoading ? 'Generating…' : `Generate ${bulkDays.length || ''} posts`}
+                </button>
+                <button onClick={() => { setBulkMode(false); setBulkDays([]); setBulkPreview(null); }}
+                  style={{ padding: '7px 12px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Bulk preview modal ── */}
+        {bulkPreview && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ background: t.isDark ? 'rgba(12,12,20,0.97)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(32px) saturate(200%)', WebkitBackdropFilter: 'blur(32px) saturate(200%)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 680, maxHeight: '85vh', overflowY: 'auto', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: t.text, marginBottom: 6 }}>Review your week</div>
+              <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>
+                PostCore generated {bulkPreview.preview.length} posts — 1 credit each = {bulkPreview.preview.length} credits total
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+                {bulkPreview.preview.map((item, i) => (
+                  <div key={i} style={{ background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px' }}>
+                        {new Date(item.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </div>
+                      <div style={{ fontSize: 11, color: t.textMuted }}>{item.theme}</div>
+                    </div>
+                    <div style={{ fontSize: 13, color: t.text, lineHeight: 1.5, maxHeight: 80, overflow: 'hidden', position: 'relative' }}>
+                      {item.caption.substring(0, 200)}{item.caption.length > 200 ? '…' : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={handleBulkConfirm}
+                  disabled={bulkConfirming}
+                  style={{ flex: 1, padding: '12px 20px', background: '#7C5CFC', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, cursor: bulkConfirming ? 'not-allowed' : 'pointer', opacity: bulkConfirming ? 0.6 : 1 }}>
+                  {bulkConfirming ? 'Scheduling…' : `Confirm & schedule ${bulkPreview.preview.length} posts`}
+                </button>
+                <button onClick={() => setBulkPreview(null)} style={{ padding: '12px 20px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                  Go back
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: (selectedDay && !isMobile) ? '1fr 320px' : '1fr', gap: 20, transition: 'all 300ms' }}>
 
@@ -533,6 +675,7 @@ export default function Calendar() {
                     const isSelected     = selectedDay && isSameDay(day, selectedDay);
                     const isPast         = day < new Date() && !isToday;
                     const hasPosts       = dayPosts.length > 0;
+                    const isBulkSelected = bulkMode && bulkDays.includes(day.toISOString().slice(0, 10));
 
                     const isDragOver = dragOverDay && isSameDay(dragOverDay, day) && draggingPost;
                     return (
@@ -549,14 +692,16 @@ export default function Calendar() {
                           cursor: 'pointer',
                           border: isDragOver
                             ? `2px dashed ${t.primary}`
-                            : isSelected
+                            : isBulkSelected
+                              ? `2px solid #7C5CFC`
+                              : isSelected
                               ? `1.5px solid ${t.primary}`
                               : isToday
                               ? `1.5px solid ${t.primary}`
                               : !hasPosts && !isPast && isCurrentMonth
                               ? `1px dashed ${t.border}`
                               : `1px solid ${t.border}`,
-                          background: isDragOver ? 'rgba(124,92,252,0.1)' : isSelected ? t.primaryBg : isToday ? 'rgba(124,92,252,0.08)' : isCurrentMonth ? t.card : t.input,
+                          background: isDragOver ? 'rgba(124,92,252,0.1)' : isBulkSelected ? 'rgba(124,92,252,0.12)' : isSelected ? t.primaryBg : isToday ? 'rgba(124,92,252,0.08)' : isCurrentMonth ? t.card : t.input,
                           opacity: !isCurrentMonth ? 0.35 : isPast ? 0.45 : 1,
                           boxShadow: isDragOver
                             ? `0 0 0 3px rgba(124,92,252,0.2)`

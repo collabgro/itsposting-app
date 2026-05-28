@@ -112,6 +112,8 @@ export const wizardAPI = {
   quick: (data) => api.post('/api/wizard/quick', data),
   refresh: (data) => api.post('/api/wizard/refresh', data),
   getSteps: (industry, contentType) => api.get(`/api/wizard/steps/${industry}/${contentType}`),
+  bulkGenerate: (data) => api.post('/api/wizard/bulk-generate', data),
+  bulkConfirm: (data) => api.post('/api/wizard/bulk-confirm', data),
 };
 
 export const uploadAPI = {
