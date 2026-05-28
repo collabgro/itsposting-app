@@ -4918,6 +4918,13 @@ export default function TemplatesEditorInner() {
     return () => el.removeEventListener('scroll', updateFloatingBar);
   }, [updateFloatingBar]);
 
+  // ── Rubber-band: cancel if mouse released outside canvas ─────────────────
+  useEffect(() => {
+    const cancel = () => { setSelectionStart(null); setSelectionRect(null); };
+    window.addEventListener('mouseup', cancel);
+    return () => window.removeEventListener('mouseup', cancel);
+  }, []);
+
   // ── Preview capture ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!previewOpen || !stageRef.current) return;
@@ -11879,9 +11886,11 @@ export default function TemplatesEditorInner() {
                           setIsDrawingNow(true);
                           return;
                         }
-                        // Start rubber-band on empty canvas OR background rect
+                        // Start rubber-band on empty canvas area or background rect only
                         if (e.target !== e.target.getStage() && e.target.name() !== 'canvas-bg') return;
-                        const pos = e.target.getRelativePointerPosition();
+                        e.evt && e.evt.preventDefault();
+                        const stage = e.target.getStage();
+                        const pos = stage.getRelativePointerPosition();
                         setSelectionStart(pos);
                         setSelectionRect({ x: pos.x, y: pos.y, w: 0, h: 0 });
                         clearSelection();
@@ -11895,7 +11904,10 @@ export default function TemplatesEditorInner() {
                           return;
                         }
                         if (!selectionStart) return;
-                        const pos = e.target.getStage().getRelativePointerPosition();
+                        const stage = e.target.getStage();
+                        if (!stage) return;
+                        const pos = stage.getRelativePointerPosition();
+                        if (!pos) return;
                         setSelectionRect({
                           x: Math.min(selectionStart.x, pos.x),
                           y: Math.min(selectionStart.y, pos.y),
@@ -11903,7 +11915,7 @@ export default function TemplatesEditorInner() {
                           h: Math.abs(pos.y - selectionStart.y),
                         });
                       }) : undefined}
-                      onMouseUp={isActive ? (() => {
+                      onMouseUp={isActive ? (e => {
                         if (drawMode && isDrawingNow && currentDrawRef.current) {
                           if ((currentDrawRef.current.points || []).length >= 4) {
                             pushHistory();
@@ -11914,16 +11926,19 @@ export default function TemplatesEditorInner() {
                           setIsDrawingNow(false);
                           return;
                         }
-                        if (selectionRect && (selectionRect.w > 4 || selectionRect.h > 4)) {
+                        if (selectionRect && (selectionRect.w > 5 || selectionRect.h > 5)) {
                           const sr = selectionRect;
+                          // Hit-test: find all elements whose bounding box overlaps the selection rect
                           const hit = pageElements.filter(el => {
                             if (pageLockedIds.has(el.id) || pageHiddenIds.has(el.id)) return false;
                             const ex = el.x || 0, ey = el.y || 0;
-                            const ew = el.width || 100, eh = el.height || 60;
+                            // Use width/height for rects/images, fall back to font-size-based estimate for text
+                            const ew = el.width  || (el.fontSize ? el.fontSize * (el.text || '').length * 0.6 : 100);
+                            const eh = el.height || (el.fontSize ? el.fontSize * 1.4 : 60);
                             return ex < sr.x + sr.w && ex + ew > sr.x && ey < sr.y + sr.h && ey + eh > sr.y;
                           });
                           if (hit.length > 0) {
-                            setSelectedIds(hit.map(e => e.id));
+                            setSelectedIds(hit.map(el => el.id));
                             setSelectedId(hit[hit.length - 1].id);
                           }
                         }
@@ -12131,15 +12146,15 @@ export default function TemplatesEditorInner() {
                       )}
 
                       {/* Layer 5: Rubber-band selection rect */}
-                      {isActive && selectionRect && selectionRect.w > 1 && (
+                      {isActive && selectionRect && selectionRect.w > 2 && selectionRect.h > 2 && (
                         <Layer listening={false}>
                           <Rect
                             x={selectionRect.x} y={selectionRect.y}
                             width={selectionRect.w} height={selectionRect.h}
-                            fill="rgba(124,92,252,0.07)"
+                            fill="rgba(124,92,252,0.10)"
                             stroke="#7C5CFC"
-                            strokeWidth={1.5 / stageScale}
-                            dash={[6 / stageScale, 3 / stageScale]}
+                            strokeWidth={1 / stageScale}
+                            dash={[5 / stageScale, 4 / stageScale]}
                           />
                         </Layer>
                       )}
