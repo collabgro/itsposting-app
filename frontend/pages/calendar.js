@@ -12,7 +12,7 @@ import { useTheme } from '../lib/theme';
 import { postsAPI, socialAPI } from '../lib/api';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
-  isSameDay, addMonths, subMonths, startOfWeek, endOfWeek,
+  isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks,
 } from 'date-fns';
 
 const TYPE_ICON  = { static: IpDrafts, photo: ImageIcon, carousel: IpCarousel, video: IpVideo };
@@ -47,6 +47,12 @@ export default function Calendar() {
   const [platformFilter, setPlatformFilter] = useState('all');
   const [statusFilter, setStatusFilter]     = useState('all');
   const [isMobile, setIsMobile]             = useState(false);
+  const [view, setView]                     = useState('month');
+  const [weekOffset, setWeekOffset]         = useState(0);
+  const [hoveredPost, setHoveredPost]       = useState(null);
+  const [hoverPos, setHoverPos]             = useState({ x: 0, y: 0 });
+  const [draggingPost, setDraggingPost]     = useState(null);
+  const [dragOverDay, setDragOverDay]       = useState(null);
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -185,6 +191,42 @@ export default function Calendar() {
     setSelectedDay(null);
   };
 
+  // Week view: 7 days centred on today + offset
+  const weekViewStart = startOfWeek(addWeeks(new Date(), weekOffset));
+  const weekViewEnd   = endOfWeek(weekViewStart);
+  const weekViewDays  = eachDayOfInterval({ start: weekViewStart, end: weekViewEnd });
+
+  const handleDropOnDay = async (day) => {
+    if (!draggingPost) return;
+    const post = posts.find(p => p.id === draggingPost);
+    if (!post) return;
+    let newDate;
+    if (post.scheduled_date) {
+      const orig = new Date(post.scheduled_date);
+      newDate = new Date(day);
+      newDate.setHours(orig.getHours(), orig.getMinutes(), 0, 0);
+    } else {
+      newDate = new Date(day);
+      newDate.setHours(9, 0, 0, 0);
+    }
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    try {
+      await postsAPI.update(draggingPost, { scheduledDate: newDate.toISOString(), timezone: tz });
+      setPosts(prev => prev.map(p => p.id === draggingPost ? { ...p, scheduled_date: newDate.toISOString() } : p));
+      showCalToast('Post rescheduled!');
+    } catch { showCalToast('Failed to reschedule', 'error'); }
+    setDraggingPost(null);
+    setDragOverDay(null);
+  };
+
+  const handlePostHover = (post, e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = Math.min(rect.right + 10, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 280);
+    const py = Math.min(rect.top, (typeof window !== 'undefined' ? window.innerHeight : 800) - 220);
+    setHoverPos({ x: px, y: py });
+    setHoveredPost(post);
+  };
+
   const selectStyle = {
     padding: '6px 10px', borderRadius: 8, background: t.input,
     border: `1px solid ${t.border}`, color: t.text, fontSize: 13,
@@ -302,7 +344,7 @@ export default function Calendar() {
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <button
-                  onClick={() => { setCurrentMonth(subMonths(currentMonth, 1)); setSelectedDay(null); }}
+                  onClick={() => view === 'week' ? setWeekOffset(w => w - 1) : (setCurrentMonth(subMonths(currentMonth, 1)), setSelectedDay(null))}
                   style={{ width: 32, height: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms' }}
                   onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
                   onMouseLeave={e => e.currentTarget.style.background = t.input}
@@ -310,7 +352,7 @@ export default function Calendar() {
                   <IpChevronLeft size={16} />
                 </button>
                 <button
-                  onClick={() => { setCurrentMonth(new Date()); setSelectedDay(null); }}
+                  onClick={() => view === 'week' ? setWeekOffset(0) : (setCurrentMonth(new Date()), setSelectedDay(null))}
                   style={{ padding: '6px 14px', borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 150ms' }}
                   onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
                   onMouseLeave={e => e.currentTarget.style.background = t.input}
@@ -318,13 +360,24 @@ export default function Calendar() {
                   Today
                 </button>
                 <button
-                  onClick={() => { setCurrentMonth(addMonths(currentMonth, 1)); setSelectedDay(null); }}
+                  onClick={() => view === 'week' ? setWeekOffset(w => w + 1) : (setCurrentMonth(addMonths(currentMonth, 1)), setSelectedDay(null))}
                   style={{ width: 32, height: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms' }}
                   onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
                   onMouseLeave={e => e.currentTarget.style.background = t.input}
                 >
                   <IpChevronRight size={16} />
                 </button>
+                {/* View toggle */}
+                <div style={{ display: 'flex', padding: 3, gap: 2, background: t.isDark ? 'rgba(255,255,255,0.04)' : t.input, border: `1px solid ${t.border}`, borderRadius: 10 }}>
+                  {['month', 'week'].map(v => (
+                    <button key={v} onClick={() => setView(v)}
+                      style={{ padding: '5px 12px', borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize', transition: 'all 150ms',
+                        background: view === v ? t.primaryBg : 'transparent',
+                        color: view === v ? t.primary : t.textMuted,
+                        border: view === v ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
+                      }}>{v}</button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -337,6 +390,81 @@ export default function Calendar() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: isMobile ? 2 : 4 }}>
                   {Array.from({ length: 35 }).map((_, i) => <Skeleton key={i} height={isMobile ? 56 : 88} borderRadius={8} />)}
+                </div>
+              </div>
+            ) : view === 'week' ? (
+              /* ── WEEK VIEW ── */
+              <div style={{ padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 12 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>
+                    {format(weekViewStart, 'MMM d')} – {format(weekViewEnd, 'MMM d, yyyy')}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 3 : 7}, 1fr)`, gap: 8 }}>
+                  {(isMobile ? weekViewDays.slice(1, 6) : weekViewDays).map(day => {
+                    const dayPosts = getPostsForDay(day);
+                    const isToday = isSameDay(day, new Date());
+                    const isDragOver = dragOverDay && isSameDay(dragOverDay, day) && draggingPost;
+                    return (
+                      <div key={day.toString()}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverDay(day); }}
+                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverDay(null); }}
+                        onDrop={(e) => { e.preventDefault(); handleDropOnDay(day); }}
+                        style={{
+                          borderRadius: 12, overflow: 'hidden', minHeight: 160,
+                          border: isDragOver ? `2px dashed ${t.primary}` : isToday ? `1.5px solid ${t.primary}` : `1px solid ${t.border}`,
+                          background: isDragOver ? 'rgba(124,92,252,0.08)' : isToday ? 'rgba(124,92,252,0.04)' : t.card,
+                          transition: 'border-color 120ms, background 120ms',
+                        }}
+                      >
+                        {/* Column header */}
+                        <div style={{ padding: '8px 10px', borderBottom: `1px solid ${t.border}`, background: isToday ? 'rgba(124,92,252,0.1)' : t.isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: isToday ? t.primary : t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{format(day, 'EEE')}</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: isToday ? t.primary : t.text, lineHeight: 1.2 }}>{format(day, 'd')}</div>
+                        </div>
+                        {/* Posts */}
+                        <div style={{ padding: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {dayPosts.map(post => {
+                            const tc = TYPE_COLOR[post.content_type] || t.primary;
+                            const TI = TYPE_ICON[post.content_type] || IpDrafts;
+                            return (
+                              <div key={post.id}
+                                draggable="true"
+                                onDragStart={(e) => { e.stopPropagation(); setDraggingPost(post.id); }}
+                                onDragEnd={() => { setDraggingPost(null); setDragOverDay(null); }}
+                                onMouseEnter={(e) => { e.stopPropagation(); handlePostHover(post, e); }}
+                                onMouseLeave={(e) => { e.stopPropagation(); setHoveredPost(null); }}
+                                onClick={(e) => { e.stopPropagation(); setSelectedDay(day); }}
+                                style={{ padding: '5px 7px', borderRadius: 8, background: `${tc}14`, borderLeft: `3px solid ${tc}`, cursor: 'grab', opacity: draggingPost === post.id ? 0.35 : 1, transition: 'opacity 150ms' }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                                  <TI size={10} style={{ color: tc, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 9, color: t.textMuted, flexShrink: 0 }}>
+                                    {post.scheduled_date ? format(new Date(post.scheduled_date), 'h:mma') : 'Draft'}
+                                  </span>
+                                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_DOT[post.status] || '#94A3B8', flexShrink: 0 }} />
+                                </div>
+                                {post.caption && (
+                                  <div style={{ fontSize: 10, color: t.text, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4 }}>
+                                    {post.caption.slice(0, 55)}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {dayPosts.length === 0 && (
+                            <button onClick={() => { setSelectedDay(day); }}
+                              style={{ padding: '7px 4px', borderRadius: 7, border: `1px dashed ${t.border}`, background: 'transparent', color: t.textMuted, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}
+                            >
+                              <IpPlus size={9} strokeWidth={2.5} /> Add
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
@@ -373,40 +501,48 @@ export default function Calendar() {
                     const isPast         = day < new Date() && !isToday;
                     const hasPosts       = dayPosts.length > 0;
 
+                    const isDragOver = dragOverDay && isSameDay(dragOverDay, day) && draggingPost;
                     return (
                       <div
                         key={day.toString()}
                         onClick={() => handleDayClick(day)}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverDay(day); }}
+                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverDay(null); }}
+                        onDrop={(e) => { e.preventDefault(); handleDropOnDay(day); }}
                         style={{
                           minHeight: isMobile ? 52 : 88,
                           padding: isMobile ? '3px 2px' : 6,
                           borderRadius: isMobile ? 7 : 10,
                           cursor: 'pointer',
-                          border: isSelected
-                            ? `1.5px solid ${t.primary}`
-                            : isToday
-                            ? `1.5px solid ${t.primary}`
-                            : !hasPosts && !isPast && isCurrentMonth
-                            ? `1px dashed ${t.border}`
-                            : `1px solid ${t.border}`,
-                          background: isSelected ? t.primaryBg : isToday ? 'rgba(124,92,252,0.08)' : isCurrentMonth ? t.card : t.input,
+                          border: isDragOver
+                            ? `2px dashed ${t.primary}`
+                            : isSelected
+                              ? `1.5px solid ${t.primary}`
+                              : isToday
+                              ? `1.5px solid ${t.primary}`
+                              : !hasPosts && !isPast && isCurrentMonth
+                              ? `1px dashed ${t.border}`
+                              : `1px solid ${t.border}`,
+                          background: isDragOver ? 'rgba(124,92,252,0.1)' : isSelected ? t.primaryBg : isToday ? 'rgba(124,92,252,0.08)' : isCurrentMonth ? t.card : t.input,
                           opacity: !isCurrentMonth ? 0.35 : isPast ? 0.45 : 1,
-                          boxShadow: isSelected
-                            ? `0 0 0 3px rgba(124,92,252,0.15), inset 0 1px 0 rgba(255,255,255,0.06)`
-                            : isToday
-                              ? `0 0 0 2px rgba(124,92,252,0.25)`
-                              : 'none',
+                          boxShadow: isDragOver
+                            ? `0 0 0 3px rgba(124,92,252,0.2)`
+                            : isSelected
+                              ? `0 0 0 3px rgba(124,92,252,0.15), inset 0 1px 0 rgba(255,255,255,0.06)`
+                              : isToday
+                                ? `0 0 0 2px rgba(124,92,252,0.25)`
+                                : 'none',
                           transition: 'border-color 120ms ease, background 120ms ease, box-shadow 120ms ease',
                         }}
                         onMouseEnter={e => {
-                          if (!isSelected) {
+                          if (!isSelected && !isDragOver) {
                             e.currentTarget.style.borderColor = t.primaryBorder;
                             e.currentTarget.style.borderStyle = 'solid';
                             e.currentTarget.style.background = isToday ? 'rgba(124,92,252,0.08)' : t.cardHover;
                           }
                         }}
                         onMouseLeave={e => {
-                          if (!isSelected) {
+                          if (!isSelected && !isDragOver) {
                             e.currentTarget.style.borderColor = isToday ? t.primary : t.border;
                             e.currentTarget.style.borderStyle = (!hasPosts && !isPast && isCurrentMonth) ? 'dashed' : 'solid';
                             e.currentTarget.style.background = isToday ? 'rgba(124,92,252,0.05)' : isCurrentMonth ? t.card : t.input;
@@ -441,6 +577,11 @@ export default function Calendar() {
                                 <div
                                   key={post.id}
                                   title={caption}
+                                  draggable="true"
+                                  onDragStart={(e) => { e.stopPropagation(); setDraggingPost(post.id); }}
+                                  onDragEnd={() => { setDraggingPost(null); setDragOverDay(null); }}
+                                  onMouseEnter={(e) => { e.stopPropagation(); handlePostHover(post, e); }}
+                                  onMouseLeave={(e) => { e.stopPropagation(); setHoveredPost(null); }}
                                   style={{
                                     fontSize: 10, padding: '3px 5px', borderRadius: 6,
                                     background: `${typeColor}18`,
@@ -448,6 +589,9 @@ export default function Calendar() {
                                     color: typeColor,
                                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                     display: 'flex', alignItems: 'center', gap: 3,
+                                    cursor: 'grab',
+                                    opacity: draggingPost === post.id ? 0.35 : 1,
+                                    transition: 'opacity 150ms',
                                   }}
                                 >
                                   <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_DOT[post.status] || '#94A3B8', flexShrink: 0 }} />
@@ -680,6 +824,55 @@ export default function Calendar() {
         </div>
       </Layout>
 
+      <style>{`@keyframes calPreviewIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }`}</style>
+
+      {/* ── Hover post preview popup ── */}
+      {hoveredPost && (
+        <div style={{
+          position: 'fixed', left: hoverPos.x, top: hoverPos.y, width: 252,
+          zIndex: 9999, pointerEvents: 'none',
+          background: t.isDark ? 'rgba(12,12,20,0.97)' : 'rgba(255,255,255,0.97)',
+          backdropFilter: 'blur(28px) saturate(200%)', WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+          border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+          borderRadius: 14, overflow: 'hidden',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.12)',
+          animation: 'calPreviewIn 120ms ease',
+        }}>
+          {hoveredPost.media_url && (
+            <img src={hoveredPost.media_url} alt="" style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }} />
+          )}
+          <div style={{ padding: '10px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: TYPE_COLOR[hoveredPost.content_type] || t.primary, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {TYPE_LABEL[hoveredPost.content_type] || hoveredPost.content_type}
+              </span>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[hoveredPost.status] || '#94A3B8' }} />
+              <span style={{ fontSize: 9, color: t.textMuted, textTransform: 'capitalize' }}>{hoveredPost.status}</span>
+            </div>
+            {hoveredPost.caption && (
+              <p style={{ fontSize: 11, color: t.textSecondary, lineHeight: 1.55, margin: '0 0 8px' }}>
+                {hoveredPost.caption.slice(0, 110)}{hoveredPost.caption.length > 110 ? '…' : ''}
+              </p>
+            )}
+            {hoveredPost.scheduled_date && (
+              <div style={{ fontSize: 10, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+                <IpSchedule size={10} />
+                {format(new Date(hoveredPost.scheduled_date), 'EEE, MMM d · h:mm a')}
+              </div>
+            )}
+            {parsePlatforms(hoveredPost.platforms).length > 0 && (
+              <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                {parsePlatforms(hoveredPost.platforms).map(pid => {
+                  const pm = PLATFORM_ICONS[pid];
+                  if (!pm) return null;
+                  const PI = pm.icon;
+                  return <PI key={pid} size={13} style={{ color: pm.color }} />;
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
