@@ -924,7 +924,7 @@ Every interactive element must have:
 - [x] 1.4 Wizard step progress pill strip + card pop animation + hover-to-edit pencil on caption ✅ shipped
 - [x] 1.5 Analytics engagement trend chart (30-day SVG AreaChart, gradient fill, trend indicator) ✅ shipped commit d92d681
 - [x] 1.6 Calendar week view toggle + drag-to-reschedule + hover preview popup ✅ shipped
-- [ ] 1.7 Post history grid view + bulk actions + search
+- [x] 1.7 Post history grid/list toggle + bulk select (circle overlays) + floating action bar ✅ shipped
 - [ ] 1.8 Media Library AI tagging + background removal shortcut
 - [ ] 1.9 Settings profile completeness + token expiry + notifications prefs
 - [ ] 1.10 Knowledge Base quality scores + PostCore usage indicators

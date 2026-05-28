@@ -59,6 +59,8 @@ export default function History() {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [dateRange, setDateRange] = useState('all');
   const [contentType, setContentType] = useState('all');
+  const [viewMode, setViewMode] = useState('list');   // 'list' | 'grid'
+  const [selectedIds, setSelectedIds] = useState([]);
 
   useEffect(() => {
     setMounted(true);
@@ -120,6 +122,44 @@ export default function History() {
   const openPreview = (postId, mode = 'view') => {
     setPreviewDefaultMode(mode);
     setPreviewPostId(postId);
+  };
+
+  const toggleSelect = (id, e) => {
+    if (e) e.stopPropagation();
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleBulkDelete = () => {
+    setConfirmModal({
+      title: `Delete ${selectedIds.length} post${selectedIds.length > 1 ? 's' : ''}`,
+      message: 'This will permanently delete the selected posts. This cannot be undone.',
+      confirmLabel: 'Delete All',
+      onConfirm: async () => {
+        try {
+          await Promise.all(selectedIds.map(id => postsAPI.delete(id)));
+          setPosts(prev => prev.filter(p => !selectedIds.includes(p.id)));
+          showToast(`${selectedIds.length} post${selectedIds.length > 1 ? 's' : ''} deleted`, 'success');
+          setSelectedIds([]);
+        } catch { showToast('Some posts failed to delete', 'error'); }
+      },
+    });
+  };
+
+  const handleBulkPublish = async () => {
+    try {
+      const toPublish = selectedIds.filter(id => {
+        const post = posts.find(p => p.id === id);
+        return post && (post.status === 'draft' || post.status === 'scheduled');
+      });
+      await Promise.allSettled(toPublish.map(id => {
+        const post = posts.find(p => p.id === id);
+        const platforms = parsePlatforms(post?.platforms);
+        return socialAPI.publish(id, platforms.length > 0 ? platforms : undefined);
+      }));
+      setPosts(prev => prev.map(p => toPublish.includes(p.id) ? { ...p, status: 'posted' } : p));
+      showToast(`Published ${toPublish.length} post${toPublish.length !== 1 ? 's' : ''}`, 'success');
+      setSelectedIds([]);
+    } catch { showToast('Some posts failed to publish', 'error'); }
   };
 
   const dateRangeCutoff = (() => {
@@ -245,7 +285,7 @@ export default function History() {
           ))}
         </div>
 
-        {/* ── Result count ── */}
+        {/* ── Result count + view controls ── */}
         {!loading && (
           <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span>
@@ -262,14 +302,46 @@ export default function History() {
                 Clear filters
               </button>
             )}
+            {/* View toggle + select */}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+              {selectedIds.length > 0 && (
+                <button onClick={() => setSelectedIds([])}
+                  style={{ fontSize: 11, fontWeight: 600, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 7, padding: '4px 10px', cursor: 'pointer' }}>
+                  {selectedIds.length} selected — clear
+                </button>
+              )}
+              {displayPosts.length > 0 && (
+                <button onClick={() => { selectedIds.length === displayPosts.length ? setSelectedIds([]) : setSelectedIds(displayPosts.map(p => p.id)); }}
+                  style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, background: t.input, border: `1px solid ${t.border}`, borderRadius: 7, padding: '4px 10px', cursor: 'pointer' }}>
+                  {selectedIds.length === displayPosts.length ? 'Deselect all' : 'Select all'}
+                </button>
+              )}
+              <div style={{ display: 'flex', padding: 3, gap: 2, background: t.isDark ? 'rgba(255,255,255,0.04)' : t.input, border: `1px solid ${t.border}`, borderRadius: 9 }}>
+                {[{ id: 'list', label: '≡ List' }, { id: 'grid', label: '⊞ Grid' }].map(v => (
+                  <button key={v.id} onClick={() => setViewMode(v.id)}
+                    style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                      background: viewMode === v.id ? t.primaryBg : 'transparent',
+                      color: viewMode === v.id ? t.primary : t.textMuted,
+                      border: viewMode === v.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
+                      transition: 'all 150ms',
+                    }}>{v.label}</button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* ── Post list ── */}
+        {/* ── Post list / grid ── */}
         {loading ? (
+          viewMode === 'grid' ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {Array.from({ length: 9 }).map((_, i) => <Skeleton key={i} height={180} borderRadius={12} />)}
+            </div>
+          ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height={118} borderRadius={14} />)}
           </div>
+          )
         ) : displayPosts.length === 0 ? (
           <div style={{ padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
             <EmptyState
@@ -292,7 +364,76 @@ export default function History() {
               }
             />
           </div>
+        ) : viewMode === 'grid' ? (
+          /* ── GRID VIEW ── */
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {displayPosts.map(post => {
+              const TypeIcon = TYPE_ICON[post.content_type] || IpDrafts;
+              const typeColor = TYPE_COLOR[post.content_type] || t.primary;
+              const isHovered = hoveredCard === post.id;
+              const isSelected = selectedIds.includes(post.id);
+              return (
+                <div key={post.id}
+                  onClick={() => selectedIds.length > 0 ? toggleSelect(post.id) : openPreview(post.id, 'view')}
+                  onMouseEnter={() => setHoveredCard(post.id)}
+                  onMouseLeave={() => setHoveredCard(null)}
+                  style={{ borderRadius: 12, overflow: 'hidden', cursor: 'pointer', position: 'relative',
+                    border: isSelected ? `2px solid ${t.primary}` : `1px solid ${isHovered ? 'rgba(124,92,252,0.4)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+                    transform: isHovered && !isSelected ? 'translateY(-2px)' : 'none',
+                    boxShadow: isHovered ? `0 8px 24px rgba(0,0,0,0.25)` : isSelected ? `0 0 0 3px rgba(124,92,252,0.15)` : t.shadowSm,
+                    background: isSelected ? 'rgba(124,92,252,0.08)' : t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+                    transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+                  }}
+                >
+                  {/* Image */}
+                  <div style={{ aspectRatio: '1', background: t.input, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {post.media_url
+                      ? <img src={post.media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} />
+                      : <TypeIcon size={32} style={{ color: typeColor, opacity: 0.4 }} />
+                    }
+                    {/* Selection circle */}
+                    <div onClick={(e) => toggleSelect(post.id, e)}
+                      style={{ position: 'absolute', top: 7, left: 7, width: 22, height: 22, borderRadius: '50%',
+                        background: isSelected ? '#7C5CFC' : 'rgba(0,0,0,0.45)',
+                        border: `2px solid ${isSelected ? '#7C5CFC' : 'rgba(255,255,255,0.7)'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: selectedIds.length > 0 || isHovered ? 1 : 0,
+                        transition: 'opacity 150ms, background 150ms',
+                      }}
+                    >
+                      {isSelected && <IpCheck size={10} color="#fff" strokeWidth={3} />}
+                    </div>
+                    {/* Status dot + type chip */}
+                    <div style={{ position: 'absolute', bottom: 6, left: 6, right: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: STATUS_DOT[post.status] || '#94A3B8', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.5)' }} />
+                      <span style={{ fontSize: 9, fontWeight: 800, background: 'rgba(0,0,0,0.65)', color: '#fff', padding: '2px 5px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{TYPE_LABEL[post.content_type] || 'POST'}</span>
+                    </div>
+                  </div>
+                  {/* Caption */}
+                  <div style={{ padding: '8px 10px 10px' }}>
+                    <p style={{ fontSize: 11, color: t.textSecondary, lineHeight: 1.5, margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {post.caption || <span style={{ color: t.textMuted, fontStyle: 'italic' }}>No caption</span>}
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                      {parsePlatforms(post.platforms).slice(0, 3).map(pid => {
+                        const pm = PLATFORM_ICONS[pid];
+                        if (!pm) return null;
+                        const PI = pm.icon;
+                        return <PI key={pid} size={11} style={{ color: pm.color }} />;
+                      })}
+                      {post.scheduled_date && (
+                        <span style={{ fontSize: 9, color: t.textMuted, marginLeft: 'auto' }}>
+                          {format(new Date(post.scheduled_date), 'MMM d')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
+          /* ── LIST VIEW ── */
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {displayPosts.map(post => {
               const TypeIcon = TYPE_ICON[post.content_type] || IpDrafts;
@@ -303,28 +444,33 @@ export default function History() {
               const isDraft = post.status === 'draft';
               const isScheduled = post.status === 'scheduled';
               const dotColor = STATUS_DOT[post.status] || '#94A3B8';
+              const isSelected = selectedIds.includes(post.id);
 
               return (
                 <div
                   key={post.id}
-                  onClick={() => openPreview(post.id, 'view')}
+                  onClick={() => selectedIds.length > 0 ? toggleSelect(post.id) : openPreview(post.id, 'view')}
                   onMouseEnter={() => setHoveredCard(post.id)}
                   onMouseLeave={() => setHoveredCard(null)}
                   style={{
                     display: 'flex',
                     gap: 0,
-                    background: t.isDark ? (isHovered ? 'rgba(20,20,32,0.88)' : 'rgba(15,15,24,0.72)') : t.card,
+                    background: isSelected
+                      ? t.isDark ? 'rgba(124,92,252,0.1)' : 'rgba(124,92,252,0.06)'
+                      : t.isDark ? (isHovered ? 'rgba(20,20,32,0.88)' : 'rgba(15,15,24,0.72)') : t.card,
                     backdropFilter: 'blur(16px) saturate(160%)',
                     WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-                    border: `1px solid ${isHovered ? 'rgba(124,92,252,0.4)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+                    border: `${isSelected ? 2 : 1}px solid ${isSelected ? t.primary : isHovered ? 'rgba(124,92,252,0.4)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
                     borderRadius: 14,
                     overflow: 'hidden',
                     cursor: 'pointer',
                     transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
-                    transform: isHovered ? 'translateY(-3px)' : 'none',
-                    boxShadow: isHovered
-                      ? `0 12px 36px rgba(0,0,0,0.3), 0 0 0 1px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.06)`
-                      : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+                    transform: isHovered && !isSelected ? 'translateY(-3px)' : 'none',
+                    boxShadow: isSelected
+                      ? `0 0 0 3px rgba(124,92,252,0.15)`
+                      : isHovered
+                        ? `0 12px 36px rgba(0,0,0,0.3), 0 0 0 1px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.06)`
+                        : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
                   }}
                 >
                   {/* Left accent bar */}
@@ -351,6 +497,19 @@ export default function History() {
                       textTransform: 'uppercase', letterSpacing: '0.05em',
                     }}>
                       {typeLabel}
+                    </div>
+                    {/* Selection circle */}
+                    <div onClick={(e) => toggleSelect(post.id, e)}
+                      style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: '50%',
+                        background: isSelected ? '#7C5CFC' : 'rgba(0,0,0,0.45)',
+                        border: `2px solid ${isSelected ? '#7C5CFC' : 'rgba(255,255,255,0.7)'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        opacity: selectedIds.length > 0 || isHovered ? 1 : 0,
+                        transition: 'opacity 150ms, background 150ms',
+                        zIndex: 1,
+                      }}
+                    >
+                      {isSelected && <IpCheck size={9} color="#fff" strokeWidth={3} />}
                     </div>
                   </div>
 
@@ -460,6 +619,28 @@ export default function History() {
             })}
           </div>
         )}
+
+        {/* ── Floating bulk action bar ── */}
+        {selectedIds.length > 0 && (
+          <div style={{ position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px', borderRadius: 20, background: t.isDark ? 'rgba(12,12,20,0.96)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(28px) saturate(200%)', WebkitBackdropFilter: 'blur(28px) saturate(200%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'}`, boxShadow: '0 12px 40px rgba(0,0,0,0.3)', whiteSpace: 'nowrap', animation: 'bulkBarIn 200ms cubic-bezier(0.34,1.56,0.64,1)' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{selectedIds.length} selected</span>
+            <div style={{ width: 1, height: 18, background: t.border }} />
+            <button onClick={handleBulkPublish}
+              style={{ padding: '6px 14px', borderRadius: 10, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22C55E', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <IpCheck size={12} strokeWidth={3} /> Publish All
+            </button>
+            <button onClick={handleBulkDelete}
+              style={{ padding: '6px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#EF4444', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <IpDelete size={12} /> Delete All
+            </button>
+            <button onClick={() => setSelectedIds([])}
+              style={{ width: 28, height: 28, borderRadius: '50%', background: t.input, border: `1px solid ${t.border}`, color: t.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <IpClose size={12} />
+            </button>
+          </div>
+        )}
+        <style>{`@keyframes bulkBarIn { from{opacity:0;transform:translateX(-50%) translateY(12px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }`}</style>
+
       </Layout>
 
       {confirmModal && <ConfirmModal {...confirmModal} onCancel={() => setConfirmModal(null)} />}
