@@ -310,13 +310,6 @@ Rich entry (> 200 chars): success badge "Great detail — PostCore will use this
 - Credits: circular progress ring (% used this month)
 - Posts this month: horizontal bar
 - "At this rate you'll run out in X days" if on track to exhaust
-
-**ROI calculator:**
-```
-"A social media manager costs $2,000–4,000/month
-ItsPosting costs $40/month
-You save $1,960–3,960/month
-That's $23,520–47,520/year"
 ```
 
 **Annual savings callout:**
@@ -849,10 +842,10 @@ Every interactive element must have:
 
 ### Phase 2: Core Product
 - [x] 2.1 PostCore daily micro-briefings ✅ shipped
-- [ ] 2.2 Caption A/B tracking + preferred style detection
-- [ ] 2.3 Scheduling conflict detection
-- [ ] 2.4 Bulk scheduling
-- [ ] 2.5 Post templates library
+- [x] 2.2 Caption A/B tracking + preferred style detection ✅ shipped
+- [x] 2.3 Scheduling conflict detection ✅ shipped
+- [x] 2.4 Bulk scheduling ✅ shipped
+- [x] 2.5 Post templates library ✅ shipped
 - [ ] 2.6 Hashtag sets
 - [ ] 2.7 SSE real-time video status
 - [ ] 2.8 Social account health dashboard

@@ -48,6 +48,8 @@ export const customerAPI = {
   uploadAsset: (formData) => api.post('/api/customers/upload-asset', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
+  getHashtagSets: () => api.get('/api/customers/hashtag-sets'),
+  updateHashtagSets: (sets) => api.patch('/api/customers/hashtag-sets', { sets }),
 };
 
 export const socialAPI = {

@@ -4,7 +4,7 @@ import {
   IpCredits, IpFacebook, IpInstagram, IpGoogle,
   IpArrowLeft, IpArrowRight, IpRefresh, IpCopy,
   IpCheck, IpEdit, IpSparkle, IpChevronRight, IpLinkedIn, IpTikTok,
-  IpVideo, IpUser,
+  IpVideo, IpUser, IpPlus,
 } from '../components/icons';
 import Icon from '../components/Icon';
 import Layout from '../components/Layout';
@@ -396,6 +396,10 @@ export default function Wizard() {
   const [templateName, setTemplateName] = useState('');
   const [editedCaption, setEditedCaption] = useState('');
   const [captionHovered, setCaptionHovered] = useState(null);
+  const [hashtagSets, setHashtagSets] = useState([]);
+  const [showApplySetDropdown, setShowApplySetDropdown] = useState(false);
+  const [showAddToSetDropdown, setShowAddToSetDropdown] = useState(false);
+  const [addToSetName, setAddToSetName] = useState('');
 
   const loadingInterval = useRef(null);
 
@@ -433,6 +437,7 @@ export default function Wizard() {
     }).catch(() => { setSocialAccountsList([]); setConnectedPlatforms([]); });
 
     templatesAPI.list().then(r => setTemplates(r.data || [])).catch(() => {});
+    customerAPI.getHashtagSets().then(r => setHashtagSets(r.data || [])).catch(() => {});
 
     // Handle navigation from dashboard suggestion banner
     const suggestionPost = sessionStorage.getItem('suggestionPost');
@@ -1584,7 +1589,7 @@ export default function Wizard() {
                     return (
                       <div
                         key={label}
-                        onClick={() => { if (!isEditing) { setSelectedVariation(label); setIsEditing(false); } }}
+                        onClick={() => { if (!isEditing) { setSelectedVariation(label); setIsEditing(false); setShowApplySetDropdown(false); setShowAddToSetDropdown(false); } }}
                         style={{
                           background: isSelected
                             ? t.isDark ? 'rgba(15,15,24,0.82)' : t.card
@@ -1683,12 +1688,96 @@ export default function Wizard() {
                             )}
 
                             {variation.hashtags && variation.hashtags.length > 0 && !isEditing && (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                {variation.hashtags.slice(0, 8).map((tag, i) => (
-                                  <span key={i} style={{ padding: '3px 8px', borderRadius: 5, background: t.primaryBg, color: t.primary, fontSize: 11, fontWeight: 500 }}>
-                                    {tag.startsWith('#') ? tag : `#${tag}`}
-                                  </span>
-                                ))}
+                              <div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                                  {variation.hashtags.slice(0, 8).map((tag, i) => (
+                                    <span key={i} style={{ padding: '3px 8px', borderRadius: 5, background: t.primaryBg, color: t.primary, fontSize: 11, fontWeight: 500 }}>
+                                      {tag.startsWith('#') ? tag : `#${tag}`}
+                                    </span>
+                                  ))}
+                                </div>
+                                {/* Hashtag set controls */}
+                                {hashtagSets.length > 0 && (
+                                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', position: 'relative' }}>
+                                    <div style={{ position: 'relative' }}>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setShowApplySetDropdown(v => !v); setShowAddToSetDropdown(false); }}
+                                        style={{ padding: '4px 10px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 6, color: t.textSecondary, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                      >
+                                        Apply saved set ▾
+                                      </button>
+                                      {showApplySetDropdown && (
+                                        <div
+                                          onClick={e => e.stopPropagation()}
+                                          style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: t.shadow, zIndex: 50, minWidth: 180, overflow: 'hidden' }}
+                                        >
+                                          {hashtagSets.map(set => (
+                                            <button
+                                              key={set.id}
+                                              onClick={() => {
+                                                const updatedVariations = {
+                                                  ...results.variations,
+                                                  [label]: { ...variation, hashtags: set.tags },
+                                                };
+                                                setResults(r => ({ ...r, variations: updatedVariations }));
+                                                customerAPI.updateHashtagSets(hashtagSets.map(s => s.id === set.id ? { ...s, usage_count: (s.usage_count || 0) + 1 } : s)).catch(() => {});
+                                                setHashtagSets(prev => prev.map(s => s.id === set.id ? { ...s, usage_count: (s.usage_count || 0) + 1 } : s));
+                                                setShowApplySetDropdown(false);
+                                              }}
+                                              style={{ width: '100%', padding: '9px 14px', background: 'none', border: 'none', borderBottom: `1px solid ${t.border}`, color: t.text, fontSize: 12, fontWeight: 500, textAlign: 'left', cursor: 'pointer' }}
+                                              onMouseEnter={e => e.currentTarget.style.background = t.input}
+                                              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                            >
+                                              <div style={{ fontWeight: 600, marginBottom: 2 }}>{set.name}</div>
+                                              <div style={{ fontSize: 11, color: t.textMuted }}>{(set.tags || []).slice(0, 4).map(x => `#${x}`).join(' ')}{set.tags?.length > 4 ? ` +${set.tags.length - 4}` : ''}</div>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div style={{ position: 'relative' }}>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setShowAddToSetDropdown(v => !v); setShowApplySetDropdown(false); setAddToSetName(''); }}
+                                        style={{ padding: '4px 10px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 6, color: t.textSecondary, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                      >
+                                        <IpPlus size={11} /> Add to set
+                                      </button>
+                                      {showAddToSetDropdown && (
+                                        <div
+                                          onClick={e => e.stopPropagation()}
+                                          style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: t.shadow, zIndex: 50, minWidth: 200, padding: 10 }}
+                                        >
+                                          <div style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>New set name</div>
+                                          <input
+                                            value={addToSetName}
+                                            onChange={e => setAddToSetName(e.target.value)}
+                                            placeholder="e.g. Seasonal, Roofing..."
+                                            maxLength={60}
+                                            style={{ width: '100%', padding: '7px 9px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 7, color: t.text, fontSize: 12, outline: 'none', boxSizing: 'border-box', marginBottom: 8 }}
+                                            onKeyDown={e => e.stopPropagation()}
+                                          />
+                                          <button
+                                            disabled={!addToSetName.trim()}
+                                            onClick={() => {
+                                              const name = addToSetName.trim();
+                                              if (!name || !variation.hashtags?.length) return;
+                                              const tags = variation.hashtags.map(h => h.replace(/^#+/, ''));
+                                              const newSet = { id: String(Date.now()), name, tags, usage_count: 0 };
+                                              const updated = [...hashtagSets, newSet];
+                                              customerAPI.updateHashtagSets(updated).catch(() => {});
+                                              setHashtagSets(updated);
+                                              setShowAddToSetDropdown(false);
+                                              setAddToSetName('');
+                                            }}
+                                            style={{ width: '100%', padding: '7px 12px', background: t.primary, border: 'none', borderRadius: 7, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: !addToSetName.trim() ? 0.5 : 1 }}
+                                          >
+                                            Save as set
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>

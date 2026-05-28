@@ -4,6 +4,7 @@ import {
   IpSave, IpCredits, IpPalette, IpGlobe, IpDelete, IpClose, IpWarning,
   IpBusiness, IpShare, IpCheck, IpFacebook, IpInstagram,
   IpGoogle, IpSparkle, IpSchedule, IpLinkedIn, IpTikTok, IpBell,
+  IpPlus, IpEdit,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Button, Input, Badge, SectionHeader, Spinner, ConfirmModal } from '../components/ui';
@@ -454,6 +455,16 @@ export default function Settings() {
   const [groupForm, setGroupForm] = useState({ name: '', accountIds: [] });
   const [groupSaving, setGroupSaving] = useState(false);
 
+  // Hashtag Sets
+  const [hashtagSets, setHashtagSets] = useState([]);
+  const [loadingHashtags, setLoadingHashtags] = useState(false);
+  const [newSetName, setNewSetName] = useState('');
+  const [newSetTags, setNewSetTags] = useState('');
+  const [hashtagsSaving, setHashtagsSaving] = useState(false);
+  const [editingHashtagSetId, setEditingHashtagSetId] = useState(null);
+  const [editHashtagName, setEditHashtagName] = useState('');
+  const [editHashtagTags, setEditHashtagTags] = useState('');
+
   const openCreateKeyModal = () => {
     setNewKeyForm({ name: '', expiry: 'never', scopes: [] });
     setCreateKeyStep(1);
@@ -634,6 +645,72 @@ export default function Settings() {
     }
     loadSocialAccounts();
     loadApiKeys();
+    loadHashtagSets();
+  };
+
+  const loadHashtagSets = async () => {
+    setLoadingHashtags(true);
+    try {
+      const res = await customerAPI.getHashtagSets();
+      setHashtagSets(res.data || []);
+    } catch {
+      // silently
+    } finally {
+      setLoadingHashtags(false);
+    }
+  };
+
+  const parseTags = (raw) =>
+    raw.split(/[\s,]+/).map(t => t.replace(/^#+/, '').replace(/[^a-zA-Z0-9_]/g, '').substring(0, 50)).filter(Boolean);
+
+  const handleCreateHashtagSet = async () => {
+    const name = newSetName.trim();
+    if (!name) return;
+    const tags = parseTags(newSetTags);
+    if (!tags.length) return;
+    const newSet = { id: String(Date.now()), name, tags, usage_count: 0 };
+    const updated = [...hashtagSets, newSet];
+    setHashtagsSaving(true);
+    try {
+      await customerAPI.updateHashtagSets(updated);
+      setHashtagSets(updated);
+      setNewSetName('');
+      setNewSetTags('');
+      showToast('Hashtag set saved');
+    } catch {
+      showToast('Failed to save', 'error');
+    } finally {
+      setHashtagsSaving(false);
+    }
+  };
+
+  const handleUpdateHashtagSet = async (id) => {
+    const name = editHashtagName.trim();
+    if (!name) return;
+    const tags = parseTags(editHashtagTags);
+    const updated = hashtagSets.map(s => s.id === id ? { ...s, name, tags } : s);
+    setHashtagsSaving(true);
+    try {
+      await customerAPI.updateHashtagSets(updated);
+      setHashtagSets(updated);
+      setEditingHashtagSetId(null);
+      showToast('Hashtag set updated');
+    } catch {
+      showToast('Failed to update', 'error');
+    } finally {
+      setHashtagsSaving(false);
+    }
+  };
+
+  const handleDeleteHashtagSet = async (id) => {
+    const updated = hashtagSets.filter(s => s.id !== id);
+    try {
+      await customerAPI.updateHashtagSets(updated);
+      setHashtagSets(updated);
+      showToast('Hashtag set deleted');
+    } catch {
+      showToast('Failed to delete', 'error');
+    }
   };
 
   const loadApiKeys = async () => {
@@ -1462,6 +1539,134 @@ export default function Settings() {
           <div style={{ marginTop: 14, padding: '10px 12px', background: t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)', border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.2)' : 'rgba(124,92,252,0.15)'}`, borderRadius: 8, fontSize: 11, color: t.textMuted }}>
             Changes save when you click <strong style={{ color: t.textSecondary }}>Save Changes</strong> above. Email notifications are also controlled by your email preferences.
           </div>
+        </div>
+
+        {/* Hashtag Sets */}
+        <div style={gc}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Hashtag Sets</span>
+                <span style={{ padding: '2px 8px', background: t.primaryBg, color: t.primary, fontSize: 11, fontWeight: 600, borderRadius: 5, border: `1px solid ${t.primaryBorder}` }}>
+                  {hashtagSets.length}/30
+                </span>
+              </div>
+              <div style={{ fontSize: 13, color: t.textMuted }}>Save groups of hashtags to apply in one click when creating posts.</div>
+            </div>
+          </div>
+
+          {/* Existing sets */}
+          {hashtagSets.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {hashtagSets.map(set => (
+                <div key={set.id} style={{ padding: '12px 14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}` }}>
+                  {editingHashtagSetId === set.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <input
+                        value={editHashtagName}
+                        onChange={e => setEditHashtagName(e.target.value)}
+                        placeholder="Set name"
+                        style={{ padding: '8px 10px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }}
+                      />
+                      <textarea
+                        value={editHashtagTags}
+                        onChange={e => setEditHashtagTags(e.target.value)}
+                        placeholder="Paste hashtags separated by spaces or commas"
+                        rows={2}
+                        style={{ padding: '8px 10px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 12, fontFamily: 'monospace', outline: 'none', resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => handleUpdateHashtagSet(set.id)}
+                          disabled={hashtagsSaving || !editHashtagName.trim()}
+                          style={{ padding: '7px 14px', background: t.primary, border: 'none', borderRadius: 7, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: hashtagsSaving ? 0.6 : 1 }}>
+                          {hashtagsSaving ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => setEditingHashtagSetId(null)}
+                          style={{ padding: '7px 14px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 7, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{set.name}</span>
+                          {set.usage_count > 0 && (
+                            <span style={{ fontSize: 11, color: t.textMuted }}>Used {set.usage_count}×</span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {(set.tags || []).slice(0, 15).map((tag, i) => (
+                            <span key={i} style={{ padding: '2px 7px', borderRadius: 4, background: t.primaryBg, color: t.primary, fontSize: 11, border: `1px solid ${t.primaryBorder}` }}>
+                              #{tag}
+                            </span>
+                          ))}
+                          {(set.tags || []).length > 15 && (
+                            <span style={{ fontSize: 11, color: t.textMuted, padding: '2px 4px' }}>+{set.tags.length - 15} more</span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <button
+                          onClick={() => { setEditingHashtagSetId(set.id); setEditHashtagName(set.name); setEditHashtagTags((set.tags || []).join(' ')); }}
+                          style={{ padding: '5px 8px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 6, color: t.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          <IpEdit size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteHashtagSet(set.id)}
+                          style={{ padding: '5px 8px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 6, color: t.error, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                          <IpDelete size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Create new set */}
+          {hashtagSets.length < 30 && (
+            <div style={{ padding: '14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}` }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>New Set</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  value={newSetName}
+                  onChange={e => setNewSetName(e.target.value)}
+                  placeholder="Set name (e.g. Roofing, Seasonal, Local)"
+                  maxLength={60}
+                  style={{ padding: '9px 11px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' }}
+                />
+                <textarea
+                  value={newSetTags}
+                  onChange={e => setNewSetTags(e.target.value)}
+                  placeholder="Paste hashtags here — separate by spaces or commas&#10;e.g. roofing homeimprovement localroofer storm damage"
+                  rows={3}
+                  style={{ padding: '9px 11px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 12, fontFamily: 'monospace', outline: 'none', resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 11, color: t.textMuted }}>
+                    {parseTags(newSetTags).length > 0 ? `${parseTags(newSetTags).length} tags detected` : 'Up to 30 tags per set'}
+                  </span>
+                  <button
+                    onClick={handleCreateHashtagSet}
+                    disabled={hashtagsSaving || !newSetName.trim() || !parseTags(newSetTags).length}
+                    style={{ padding: '8px 16px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: hashtagsSaving || !newSetName.trim() || !parseTags(newSetTags).length ? 0.5 : 1 }}>
+                    <IpPlus size={14} /> {hashtagsSaving ? 'Saving...' : 'Add Set'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {hashtagSets.length === 0 && !loadingHashtags && (
+            <div style={{ textAlign: 'center', padding: '20px 0 8px', color: t.textMuted, fontSize: 13 }}>
+              No hashtag sets yet. Create your first one above.
+            </div>
+          )}
         </div>
 
         {/* Developer API Keys */}

@@ -495,6 +495,8 @@ console.log('══════════════════════�
       updated_at   TIMESTAMP DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_post_templates_customer ON post_templates(customer_id)`,
+    // Saved hashtag sets per customer: [{id, name, tags[], usage_count}]
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS hashtag_sets JSONB DEFAULT '[]'::jsonb`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }

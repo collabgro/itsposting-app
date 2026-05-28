@@ -237,5 +237,47 @@ module.exports = (pool) => {
     }
   });
 
+  /**
+   * GET /api/customers/hashtag-sets
+   */
+  router.get('/hashtag-sets', authenticate, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT COALESCE(hashtag_sets, '[]'::jsonb) AS hashtag_sets FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+      res.json(result.rows[0]?.hashtag_sets || []);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * PATCH /api/customers/hashtag-sets
+   * Replaces the entire hashtag_sets array.
+   */
+  router.patch('/hashtag-sets', authenticate, async (req, res) => {
+    try {
+      const { sets } = req.body;
+      if (!Array.isArray(sets)) return res.status(400).json({ error: 'sets must be an array' });
+      if (sets.length > 30) return res.status(400).json({ error: 'Max 30 hashtag sets allowed' });
+
+      const sanitised = sets.map(s => ({
+        id: String(s.id || Date.now()),
+        name: String(s.name || '').substring(0, 60),
+        tags: Array.isArray(s.tags) ? s.tags.map(t => String(t).replace(/[^a-zA-Z0-9_]/g, '').substring(0, 50)).filter(Boolean).slice(0, 30) : [],
+        usage_count: parseInt(s.usage_count) || 0,
+      }));
+
+      await pool.query(
+        `UPDATE customers SET hashtag_sets = $1 WHERE id = $2`,
+        [JSON.stringify(sanitised), req.customerId]
+      );
+      res.json(sanitised);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };
