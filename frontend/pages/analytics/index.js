@@ -217,6 +217,7 @@ export default function Analytics() {
   const [hoverCell, setHoverCell]     = useState(null);
   const [streak, setStreak]           = useState(null);
   const [contentMix, setContentMix]   = useState(null);
+  const [varStats, setVarStats]       = useState(null);
 
   // Tab state
   const [activeTab, setActiveTab] = useState('overview');
@@ -266,13 +267,14 @@ export default function Analytics() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [o, p, ot, cp, str, cm] = await Promise.all([
+      const [o, p, ot, cp, str, cm, vs] = await Promise.all([
         analyticsAPI.getOverview({ period }),
         analyticsAPI.listPosts({ sort: 'recent' }),
         analyticsAPI.getOptimalTimes(),
         analyticsAPI.getContentPerformance(),
         analyticsAPI.getStreak().catch(() => ({ data: null })),
         analyticsAPI.getContentMix().catch(() => ({ data: null })),
+        analyticsAPI.getVariationStats().catch(() => ({ data: null })),
       ]);
       setOverview(o.data);
       setPosts(Array.isArray(p.data) ? p.data : []);
@@ -280,6 +282,7 @@ export default function Analytics() {
       setContentPerf(cp.data);
       if (str?.data) setStreak(str.data);
       if (cm?.data) setContentMix(cm.data);
+      if (vs?.data) setVarStats(vs.data);
     } catch (err) { console.error('Analytics load error:', err); }
     finally { setLoading(false); }
   };
@@ -548,6 +551,49 @@ export default function Analytics() {
                     <div style={{ padding: '10px 14px', background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 8, fontSize: 12, color: t.textSecondary, display: 'flex', gap: 8, alignItems: 'center' }}>
                       <IpCheck size={14} style={{ color: t.success, flexShrink: 0 }} />
                       <span>{contentMix.recommendation}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── POSTCORE STYLE INSIGHT ─────────────────────── */}
+              {varStats?.hasData && (
+                <div style={{ ...gc, marginBottom: 24, borderLeft: '4px solid #7C5CFC' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 10, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <IpSparkle size={18} color="url(#brand-gradient)" />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>PostCore Learns Your Style</div>
+                      <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>Based on {varStats.total} variation choice{varStats.total !== 1 ? 's' : ''}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                    {(['A', 'B', 'C']).map(label => {
+                      const choice = varStats.choices.find(c => c.label === label) || { label, count: 0, pct: 0 };
+                      const isTop = label === varStats.preferredLabel;
+                      return (
+                        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: 6, background: isTop ? 'rgba(124,92,252,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isTop ? 'rgba(124,92,252,0.4)' : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: isTop ? '#7C5CFC' : t.textMuted, flexShrink: 0 }}>
+                            {label}
+                          </div>
+                          <div style={{ flex: 1, height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${choice.pct}%`, background: isTop ? 'linear-gradient(90deg, #7C5CFC, #5B3FF0)' : 'rgba(255,255,255,0.15)', borderRadius: 4, transition: 'width 600ms ease' }} />
+                          </div>
+                          <div style={{ fontSize: 12, color: isTop ? t.text : t.textMuted, fontWeight: isTop ? 700 : 400, minWidth: 50, textAlign: 'right' }}>
+                            {choice.pct}% <span style={{ color: t.textMuted, fontWeight: 400 }}>({choice.count})</span>
+                          </div>
+                          {isTop && <div style={{ fontSize: 10, fontWeight: 700, color: '#7C5CFC', background: 'rgba(124,92,252,0.1)', border: '1px solid rgba(124,92,252,0.3)', borderRadius: 4, padding: '2px 6px', flexShrink: 0 }}>preferred</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {varStats.styleInsight && (
+                    <div style={{ padding: '10px 14px', background: 'rgba(124,92,252,0.07)', border: '1px solid rgba(124,92,252,0.2)', borderRadius: 8, fontSize: 12, color: t.textSecondary, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <IpSparkle size={13} color="#7C5CFC" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <span>{varStats.styleInsight}</span>
                     </div>
                   )}
                 </div>

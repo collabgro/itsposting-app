@@ -465,6 +465,24 @@ console.log('══════════════════════�
       created_at     TIMESTAMP DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_canvas_templates_industry ON canvas_templates(industry, is_active)`,
+    // A/B/C caption variations per generated post
+    `CREATE TABLE IF NOT EXISTS post_variations (
+      id               SERIAL PRIMARY KEY,
+      post_id          INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      variation_label  VARCHAR(1) NOT NULL CHECK (variation_label IN ('A','B','C')),
+      caption          TEXT NOT NULL,
+      hashtags         JSONB DEFAULT '[]'::jsonb,
+      image_prompt     TEXT,
+      engagement_question TEXT,
+      hook_formula_used TEXT,
+      engagement_score INTEGER DEFAULT 0,
+      platform         VARCHAR(50) DEFAULT 'all',
+      created_at       TIMESTAMP DEFAULT NOW(),
+      UNIQUE(post_id, variation_label)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_variations_post ON post_variations(post_id)`,
+    // Record which variation (A/B/C) the customer chose to publish
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS chosen_variation VARCHAR(1) CHECK (chosen_variation IN ('A','B','C'))`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }

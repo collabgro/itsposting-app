@@ -159,10 +159,13 @@ module.exports = (pool) => {
    */
   router.patch('/:id', authenticate, async (req, res) => {
     try {
-      const { caption, scheduledDate, timezone, platform, platforms, status } = req.body;
+      const { caption, scheduledDate, timezone, platform, platforms, status, chosenVariation } = req.body;
 
       if (caption !== undefined && caption.length > 5000) {
         return res.status(400).json({ error: 'Caption too long (max 5000 characters)' });
+      }
+      if (chosenVariation !== undefined && chosenVariation !== null && !['A', 'B', 'C'].includes(chosenVariation)) {
+        return res.status(400).json({ error: 'chosenVariation must be A, B, or C' });
       }
 
       let utcScheduledDate = null;
@@ -192,6 +195,7 @@ module.exports = (pool) => {
           platforms = COALESCE($5, platforms),
           status = COALESCE($6, status),
           posted_at = CASE WHEN $6 = 'posted' AND status != 'posted' THEN NOW() ELSE posted_at END,
+          chosen_variation = COALESCE($9, chosen_variation),
           updated_at = NOW()
         WHERE id = $7 AND customer_id = $8
         RETURNING *`,
@@ -204,6 +208,7 @@ module.exports = (pool) => {
           status,
           req.params.id,
           req.customerId,
+          chosenVariation || null,
         ]
       );
 

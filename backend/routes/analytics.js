@@ -415,5 +415,67 @@ module.exports = (pool) => {
     }
   });
 
+  // GET /api/analytics/variation-stats
+  // Returns A/B/C pick distribution + preferred caption style for the PostCore style insight card.
+  router.get('/variation-stats', async (req, res) => {
+    try {
+      // Count how many times each variation label was chosen
+      const countRes = await pool.query(
+        `SELECT chosen_variation, COUNT(*) AS count
+         FROM posts
+         WHERE customer_id = $1 AND chosen_variation IS NOT NULL
+         GROUP BY chosen_variation
+         ORDER BY count DESC`,
+        [req.customerId]
+      );
+
+      const total = countRes.rows.reduce((s, r) => s + parseInt(r.count), 0);
+      if (total < 3) {
+        return res.json({ hasData: false, total, choices: [] });
+      }
+
+      const choices = countRes.rows.map(r => ({
+        label: r.chosen_variation,
+        count: parseInt(r.count),
+        pct: Math.round((parseInt(r.count) / total) * 100),
+      }));
+
+      // Avg word count of chosen captions vs. all captions for those posts
+      let styleInsight = null;
+      try {
+        const styleRes = await pool.query(
+          `SELECT
+            AVG(array_length(regexp_split_to_array(trim(pv_chosen.caption), '\\s+'), 1)) AS chosen_avg,
+            AVG(array_length(regexp_split_to_array(trim(pv_all.caption),    '\\s+'), 1)) AS overall_avg
+           FROM posts p
+           JOIN post_variations pv_chosen ON pv_chosen.post_id = p.id AND pv_chosen.variation_label = p.chosen_variation
+           JOIN post_variations pv_all    ON pv_all.post_id    = p.id
+           WHERE p.customer_id = $1 AND p.chosen_variation IS NOT NULL`,
+          [req.customerId]
+        );
+        const chosenAvg  = parseFloat(styleRes.rows[0]?.chosen_avg)  || 0;
+        const overallAvg = parseFloat(styleRes.rows[0]?.overall_avg) || 0;
+        if (overallAvg > 0) {
+          const ratio = chosenAvg / overallAvg;
+          if (ratio >= 1.12) {
+            styleInsight = 'You tend to pick longer, more detailed captions. PostCore will generate those first.';
+          } else if (ratio <= 0.88) {
+            styleInsight = 'You tend to pick shorter, punchier captions. PostCore will lead with those.';
+          } else {
+            styleInsight = 'You pick evenly across all caption styles — PostCore keeps showing you variety.';
+          }
+        }
+      } catch (styleErr) {
+        // post_variations may be empty — safe to skip insight
+      }
+
+      const preferred = choices[0];
+      res.json({ hasData: true, total, choices, preferredLabel: preferred?.label, styleInsight });
+    } catch (err) {
+      console.error('[analytics] variation-stats error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };

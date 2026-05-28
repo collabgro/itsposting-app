@@ -649,6 +649,11 @@ export default function Wizard() {
         ? ['facebook', 'instagram', 'google_business']
         : rawPlatform ? [rawPlatform] : [];
 
+      // Record chosen variation before publishing
+      try {
+        await apiPatch(`/api/posts/${results.postId}`, { chosenVariation: selectedVariation });
+      } catch {}
+
       if (platforms.length > 0 || selectedWizardAccountIds.length > 0) {
         const pubRes = await api.post('/api/social/publish', {
           postId: results.postId,
@@ -679,7 +684,7 @@ export default function Wizard() {
     if (!results?.postId || !scheduleDate) return;
     setActionLoading(true);
     try {
-      await apiPatch(`/api/posts/${results.postId}`, { status: 'scheduled', scheduledDate: scheduleDate });
+      await apiPatch(`/api/posts/${results.postId}`, { status: 'scheduled', scheduledDate: scheduleDate, chosenVariation: selectedVariation });
       setShowScheduleModal(false);
       showToast('success', 'Post scheduled!');
     } catch (err) {
