@@ -10,7 +10,7 @@ import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { setMascotMood } from '../components/PostCoreMascot';
 import { useTheme } from '../lib/theme';
-import api, { customerAPI, socialAPI, analyticsAPI } from '../lib/api';
+import api, { customerAPI, socialAPI, analyticsAPI, postsAPI } from '../lib/api';
 import { CHAR_LIMITS } from '../components/PostMockups';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
@@ -388,6 +388,7 @@ export default function Wizard() {
   const [actionToast, setActionToast] = useState(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleConflicts, setScheduleConflicts] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editedCaption, setEditedCaption] = useState('');
   const [captionHovered, setCaptionHovered] = useState(null);
@@ -680,12 +681,29 @@ export default function Wizard() {
     }
   };
 
-  const handleScheduleSubmit = async () => {
+  const handleScheduleSubmit = async (force = false) => {
     if (!results?.postId || !scheduleDate) return;
+    // Check for scheduling conflicts before committing (skip if user already confirmed)
+    if (!force) {
+      try {
+        const rawPlatform = results.platform;
+        const platforms = rawPlatform === 'all'
+          ? ['facebook', 'instagram', 'google_business']
+          : rawPlatform ? [rawPlatform] : ['facebook'];
+        const conflictRes = await postsAPI.checkConflicts(scheduleDate, platforms, results.postId);
+        const conflicts = conflictRes.data?.conflicts || [];
+        if (conflicts.length > 0) {
+          setScheduleConflicts(conflicts);
+          return; // show conflict warning in modal — user can force-schedule
+        }
+      } catch {}
+      setScheduleConflicts([]);
+    }
     setActionLoading(true);
     try {
       await apiPatch(`/api/posts/${results.postId}`, { status: 'scheduled', scheduledDate: scheduleDate, chosenVariation: selectedVariation });
       setShowScheduleModal(false);
+      setScheduleConflicts([]);
       showToast('success', 'Post scheduled!');
     } catch (err) {
       showToast('error', err.message || 'Failed to schedule');
@@ -1755,15 +1773,42 @@ export default function Wizard() {
                       Scheduling in: {profileTimezone}
                     </div>
                   )}
+                  {/* ── Conflict warning ── */}
+                  {scheduleConflicts.length > 0 && (
+                    <div style={{ marginTop: 14, padding: '12px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#F59E0B', marginBottom: 6 }}>
+                        Scheduling conflict
+                      </div>
+                      {scheduleConflicts.map(c => (
+                        <div key={c.id} style={{ fontSize: 12, color: t.textSecondary, marginBottom: 4 }}>
+                          You already have a {c.platform} post at {new Date(c.scheduled_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                        <button
+                          onClick={() => handleScheduleSubmit(true)}
+                          style={{ flex: 1, padding: '8px 12px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 8, color: '#F59E0B', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          Schedule anyway
+                        </button>
+                        <button
+                          onClick={() => setScheduleConflicts([])}
+                          style={{ padding: '8px 12px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          Change time
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                     <button
-                      onClick={handleScheduleSubmit}
+                      onClick={() => handleScheduleSubmit(false)}
                       disabled={actionLoading || !scheduleDate || (scheduleDate && new Date(scheduleDate) < new Date())}
                       style={{ flex: 1, padding: '10px 16px', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: scheduleDate && !actionLoading && new Date(scheduleDate) > new Date() ? 'pointer' : 'not-allowed', opacity: scheduleDate && !actionLoading && new Date(scheduleDate) > new Date() ? 1 : 0.5 }}
                     >
                       {actionLoading ? 'Scheduling...' : 'Schedule'}
                     </button>
-                    <button onClick={() => setShowScheduleModal(false)} style={{ padding: '10px 16px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    <button onClick={() => { setShowScheduleModal(false); setScheduleConflicts([]); }} style={{ padding: '10px 16px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                       Cancel
                     </button>
                   </div>

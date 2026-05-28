@@ -110,9 +110,10 @@ export default function Calendar() {
   const [deletingPost, setDeletingPost]     = useState(null);
   const [publishingPost, setPublishingPost] = useState(null);
   const [calToast, setCalToast]             = useState(null);
-  const [reschedulingPost, setReschedulingPost] = useState(null);
-  const [rescheduleDate, setRescheduleDate]     = useState('');
-  const [rescheduleTime, setRescheduleTime]     = useState('');
+  const [reschedulingPost, setReschedulingPost]   = useState(null);
+  const [rescheduleDate, setRescheduleDate]       = useState('');
+  const [rescheduleTime, setRescheduleTime]       = useState('');
+  const [rescheduleConflict, setRescheduleConflict] = useState(null);
   const [editingCaption, setEditingCaption]     = useState(null);
   const [editCaptionText, setEditCaptionText]   = useState('');
   const handleDeletePost = async (postId) => {
@@ -152,14 +153,32 @@ export default function Calendar() {
     }
   };
 
-  const handleReschedule = async (post) => {
+  const handleReschedule = async (post, force = false) => {
     if (!rescheduleDate || !rescheduleTime) return;
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // Check for conflicts before saving (skip if user already confirmed)
+    if (!force) {
+      try {
+        const platforms = post.platforms
+          ? (Array.isArray(post.platforms) ? post.platforms : JSON.parse(post.platforms))
+          : [post.platform];
+        const conflictRes = await postsAPI.checkConflicts(`${rescheduleDate}T${rescheduleTime}`, platforms, post.id);
+        const conflicts = conflictRes.data?.conflicts || [];
+        if (conflicts.length > 0) {
+          const conflictPost = conflicts[0];
+          const conflictTime = new Date(conflictPost.scheduled_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          setRescheduleConflict({ post, conflictTime, conflictPlatform: conflictPost.platform });
+          return;
+        }
+      } catch {}
+      setRescheduleConflict(null);
+    }
     try {
       await postsAPI.update(post.id, { scheduledDate: `${rescheduleDate}T${rescheduleTime}`, timezone: tz });
       const newDate = new Date(`${rescheduleDate}T${rescheduleTime}`).toISOString();
       setPosts(prev => prev.map(p => p.id === post.id ? { ...p, scheduled_date: newDate } : p));
       setReschedulingPost(null);
+      setRescheduleConflict(null);
       showCalToast('Rescheduled!');
     } catch (e) {
       showCalToast(e.response?.data?.error || 'Failed to reschedule', 'error');
@@ -213,7 +232,21 @@ export default function Calendar() {
     try {
       await postsAPI.update(draggingPost, { scheduledDate: newDate.toISOString(), timezone: tz });
       setPosts(prev => prev.map(p => p.id === draggingPost ? { ...p, scheduled_date: newDate.toISOString() } : p));
-      showCalToast('Post rescheduled!');
+      // Non-blocking conflict check after drag — just warn, don't undo
+      try {
+        const dragPost = posts.find(p => p.id === draggingPost);
+        const platforms = dragPost?.platforms
+          ? (Array.isArray(dragPost.platforms) ? dragPost.platforms : JSON.parse(dragPost.platforms))
+          : [dragPost?.platform];
+        const conflictRes = await postsAPI.checkConflicts(newDate.toISOString(), platforms, draggingPost);
+        const conflicts = conflictRes.data?.conflicts || [];
+        if (conflicts.length > 0) {
+          const conflictTime = new Date(conflicts[0].scheduled_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          showCalToast(`Rescheduled — note: another post is already at ${conflictTime}`, 'warning');
+        } else {
+          showCalToast('Post rescheduled!');
+        }
+      } catch { showCalToast('Post rescheduled!'); }
     } catch { showCalToast('Failed to reschedule', 'error'); }
     setDraggingPost(null);
     setDragOverDay(null);
@@ -251,7 +284,7 @@ export default function Calendar() {
   return (
     <>
       {calToast && (
-        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, padding: '10px 20px', borderRadius: 10, background: calToast.type === 'error' ? '#EF4444' : '#22C55E', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.25)', whiteSpace: 'nowrap' }}>
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, padding: '10px 20px', borderRadius: 10, background: calToast.type === 'error' ? '#EF4444' : calToast.type === 'warning' ? '#F59E0B' : '#22C55E', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.25)', whiteSpace: 'nowrap', maxWidth: 380, textAlign: 'center' }}>
           {calToast.msg}
         </div>
       )}
@@ -788,11 +821,20 @@ export default function Calendar() {
                                   style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, color: t.primary, cursor: 'pointer' }}>
                                   Save
                                 </button>
-                                <button onClick={() => setReschedulingPost(null)}
+                                <button onClick={() => { setReschedulingPost(null); setRescheduleConflict(null); }}
                                   style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: t.input, border: `1px solid ${t.border}`, color: t.textSecondary, cursor: 'pointer' }}>
                                   Cancel
                                 </button>
                               </div>
+                              {rescheduleConflict?.post?.id === post.id && (
+                                <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, fontSize: 11 }}>
+                                  <div style={{ color: '#F59E0B', fontWeight: 700, marginBottom: 4 }}>Conflict — {rescheduleConflict.conflictPlatform} already scheduled at {rescheduleConflict.conflictTime}</div>
+                                  <button onClick={() => handleReschedule(post, true)}
+                                    style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', color: '#F59E0B', cursor: 'pointer' }}>
+                                    Schedule anyway
+                                  </button>
+                                </div>
+                              )}
                             ) : (
                               <button
                                 onClick={() => {

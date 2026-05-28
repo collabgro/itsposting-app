@@ -83,6 +83,8 @@ export const postsAPI = {
   update: (id, data) => api.patch(`/api/posts/${id}`, data),
   delete: (id) => api.delete(`/api/posts/${id}`),
   getAnalytics: () => api.get('/api/posts/analytics/summary'),
+  checkConflicts: (date, platforms, excludeId) =>
+    api.get('/api/posts/schedule-conflicts', { params: { date, platforms: Array.isArray(platforms) ? platforms.join(',') : platforms, excludeId } }),
 };
 
 export const contentAPI = {

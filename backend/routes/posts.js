@@ -92,6 +92,65 @@ module.exports = (pool) => {
   });
 
   /**
+   * GET /api/posts/schedule-conflicts
+   * Returns posts already scheduled within ±60 min of the requested datetime on overlapping platforms.
+   * Query params: date (ISO), platforms (comma-separated), excludeId (optional post to exclude)
+   */
+  router.get('/schedule-conflicts', authenticate, async (req, res) => {
+    try {
+      const { date, platforms, excludeId } = req.query;
+      if (!date || !platforms) {
+        return res.status(400).json({ error: 'date and platforms are required' });
+      }
+      const targetDate = new Date(date);
+      if (isNaN(targetDate)) {
+        return res.status(400).json({ error: 'invalid date' });
+      }
+      const platformList = platforms.split(',').map(p => p.trim()).filter(Boolean).slice(0, 10);
+      const windowMinutes = 60;
+
+      const params = [
+        req.customerId,
+        new Date(targetDate.getTime() - windowMinutes * 60000).toISOString(),
+        new Date(targetDate.getTime() + windowMinutes * 60000).toISOString(),
+      ];
+      let excludeClause = '';
+      if (excludeId) {
+        const safeExclude = parseInt(excludeId);
+        if (!isNaN(safeExclude)) {
+          params.push(safeExclude);
+          excludeClause = ` AND id != $${params.length}`;
+        }
+      }
+
+      const result = await pool.query(
+        `SELECT id, caption, platform, platforms, scheduled_date
+         FROM posts
+         WHERE customer_id = $1
+           AND status = 'scheduled'
+           AND scheduled_date BETWEEN $2 AND $3
+           ${excludeClause}
+         ORDER BY scheduled_date ASC
+         LIMIT 5`,
+        params
+      );
+
+      // Filter to overlapping platforms
+      const conflicts = result.rows.filter(post => {
+        const postPlatforms = post.platforms
+          ? (Array.isArray(post.platforms) ? post.platforms : JSON.parse(post.platforms))
+          : [post.platform];
+        return platformList.some(p => postPlatforms.includes(p));
+      });
+
+      res.json({ conflicts });
+    } catch (error) {
+      console.error('[posts] schedule-conflicts error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
    * GET /api/posts/analytics/summary
    */
   router.get('/analytics/summary', authenticate, async (req, res) => {
