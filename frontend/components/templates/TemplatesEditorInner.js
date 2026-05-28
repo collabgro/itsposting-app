@@ -4142,6 +4142,7 @@ export default function TemplatesEditorInner() {
   const [timelineZoom, setTimelineZoom] = useState(40); // px per second in video timeline
   const clipDragRef = useRef(null); // { idx, startX, startDur } — for clip trim dragging
   const timelineScrollRef = useRef(null);
+  const timelineTrackRef = useRef(null);
   const splitAtPlayheadRef = useRef(null); // assigned in video timeline render block, read by keydown handler
   const [isDraggingClip, setIsDraggingClip] = useState(false);
   const [pageFlash, setPageFlash] = useState(null); // 'fade'|'slide'|'zoom'|null — transition overlay
