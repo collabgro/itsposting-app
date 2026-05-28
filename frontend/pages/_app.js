@@ -1,8 +1,64 @@
 import '../styles/globals.css';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { ThemeProvider, useTheme } from '../lib/theme';
 import { ToastProvider } from '../components/ui';
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error('[ErrorBoundary]', error, info); }
+  render() {
+    if (!this.state.hasError) return this.props.children;
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: '#07070E', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        padding: 24,
+      }}>
+        <div style={{ maxWidth: 460, width: '100%', textAlign: 'center' }}>
+          <div style={{ display: 'inline-flex', position: 'relative', marginBottom: 28 }}>
+            <div style={{ position: 'absolute', inset: -16, borderRadius: 28, background: 'radial-gradient(circle, rgba(124,92,252,0.5) 0%, transparent 70%)', filter: 'blur(20px)' }} />
+            <img src="/itsposting-logo.png" alt="ItsPosting" width={68} height={68}
+              style={{ borderRadius: 20, display: 'block', position: 'relative', zIndex: 1, boxShadow: '0 8px 32px rgba(124,92,252,0.5)' }} />
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#F5F5F7', letterSpacing: '-0.03em', marginBottom: 10 }}>
+            Something went wrong
+          </div>
+          <div style={{ fontSize: 14, color: '#6E6E73', lineHeight: 1.6, marginBottom: 32 }}>
+            ItsPosting hit an unexpected error. Your posts and data are safe — this is just a display issue.
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
+              style={{
+                padding: '11px 22px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', border: 'none',
+                borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(124,92,252,0.4)',
+              }}
+            >
+              Refresh page
+            </button>
+            <button
+              onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = '/dashboard'; }}
+              style={{
+                padding: '11px 22px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 10, color: '#ABABAB', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Go to dashboard
+            </button>
+          </div>
+          {process.env.NODE_ENV !== 'production' && this.state.error && (
+            <pre style={{ marginTop: 28, padding: 16, background: 'rgba(255,69,58,0.08)', border: '1px solid rgba(255,69,58,0.2)', borderRadius: 10, fontSize: 11, color: '#FF453A', textAlign: 'left', overflowX: 'auto', lineHeight: 1.5 }}>
+              {this.state.error.toString()}
+            </pre>
+          )}
+        </div>
+      </div>
+    );
+  }
+}
 
 function ThemeBody({ children }) {
   const { theme } = useTheme();
@@ -155,7 +211,9 @@ export default function App({ Component, pageProps }) {
           </defs>
         </svg>
         <ToastProvider>
-          <Component {...pageProps} />
+          <ErrorBoundary>
+            <Component {...pageProps} />
+          </ErrorBoundary>
           <InstallBanner />
         </ToastProvider>
       </ThemeBody>

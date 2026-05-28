@@ -44,6 +44,138 @@ function buildScheduledDate(dow, hour) {
 }
 
 /* ─── MonthPicker ────────────────────────────────────────── */
+function EngagementTrendChart({ posts, t, gc }) {
+  const W = 600, H = 120, PAD = { top: 12, right: 20, bottom: 28, left: 36 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+
+  // Build daily buckets for last 30 days
+  const today = new Date();
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    days.push(d.toDateString());
+  }
+  const buckets = {};
+  days.forEach(d => { buckets[d] = 0; });
+  posts.forEach(p => {
+    const dateKey = new Date(p.posted_at || p.created_at).toDateString();
+    if (buckets[dateKey] !== undefined) {
+      buckets[dateKey] += (p.likes || 0) + (p.comments || 0) + (p.shares || 0) + 1;
+    }
+  });
+  const values = days.map(d => buckets[d]);
+  const maxV = Math.max(...values, 1);
+
+  // Build SVG path
+  const pts = values.map((v, i) => {
+    const x = PAD.left + (i / (values.length - 1)) * chartW;
+    const y = PAD.top + chartH - (v / maxV) * chartH;
+    return [x, y];
+  });
+
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  const areaPath = [
+    `M ${pts[0][0].toFixed(1)} ${(PAD.top + chartH).toFixed(1)}`,
+    ...pts.map(p => `L ${p[0].toFixed(1)} ${p[1].toFixed(1)}`),
+    `L ${pts[pts.length - 1][0].toFixed(1)} ${(PAD.top + chartH).toFixed(1)}`,
+    'Z',
+  ].join(' ');
+
+  // Trend: compare first half avg vs second half avg
+  const half = Math.floor(values.length / 2);
+  const firstAvg = values.slice(0, half).reduce((a, b) => a + b, 0) / half;
+  const secondAvg = values.slice(half).reduce((a, b) => a + b, 0) / (values.length - half);
+  const trending = secondAvg > firstAvg * 1.1 ? 'up' : secondAvg < firstAvg * 0.9 ? 'down' : 'flat';
+
+  const totalEng = values.reduce((a, b) => a + b, 0);
+
+  // X-axis labels: show first, middle, last
+  const xLabels = [
+    { i: 0, label: '30d ago' },
+    { i: 14, label: '15d ago' },
+    { i: 29, label: 'Today' },
+  ];
+
+  return (
+    <div style={{ ...gc, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>
+            Engagement trend <span style={{ fontSize: 12, fontWeight: 400, color: t.textMuted }}>— last 30 days</span>
+          </div>
+          <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>Likes + comments + shares per day across all posts</div>
+        </div>
+        <div style={{ display: 'flex', align: 'center', gap: 12 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.04em', color: t.text, lineHeight: 1 }}>{totalEng.toLocaleString()}</div>
+            <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>total interactions</div>
+          </div>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+            background: trending === 'up' ? 'rgba(34,197,94,0.12)' : trending === 'down' ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
+            color: trending === 'up' ? '#22C55E' : trending === 'down' ? '#EF4444' : t.textMuted,
+            border: `1px solid ${trending === 'up' ? 'rgba(34,197,94,0.3)' : trending === 'down' ? 'rgba(239,68,68,0.3)' : t.border}`,
+          }}>
+            {trending === 'up' ? '↑ Trending up' : trending === 'down' ? '↓ Trending down' : '→ Steady'}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ width: '100%', overflowX: 'auto' }}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block' }} preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="engAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#7C5CFC" stopOpacity={t.isDark ? '0.45' : '0.30'} />
+              <stop offset="100%" stopColor="#7C5CFC" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {/* Grid lines */}
+          {[0.25, 0.5, 0.75, 1].map(frac => {
+            const y = PAD.top + chartH - frac * chartH;
+            return (
+              <g key={frac}>
+                <line x1={PAD.left} y1={y} x2={PAD.left + chartW} y2={y}
+                  stroke={t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}
+                  strokeDasharray="3 4" strokeWidth="1" />
+                <text x={PAD.left - 4} y={y + 3.5} textAnchor="end" fill={t.isDark ? 'rgba(255,255,255,0.3)' : '#8E8E93'}
+                  fontSize="9" fontFamily="-apple-system,BlinkMacSystemFont,sans-serif">
+                  {Math.round(maxV * frac)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Area fill */}
+          <path d={areaPath} fill="url(#engAreaGrad)" />
+
+          {/* Line */}
+          <path d={linePath} fill="none" stroke="#7C5CFC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+
+          {/* Dots on non-zero days */}
+          {pts.map(([x, y], i) => values[i] > 0 && (
+            <circle key={i} cx={x} cy={y} r="3" fill="#7C5CFC" stroke={t.isDark ? '#05050A' : '#fff'} strokeWidth="1.5" />
+          ))}
+
+          {/* X axis labels */}
+          {xLabels.map(({ i, label }) => (
+            <text key={i}
+              x={PAD.left + (i / (values.length - 1)) * chartW}
+              y={H - 4}
+              textAnchor={i === 0 ? 'start' : i === 29 ? 'end' : 'middle'}
+              fill={t.isDark ? 'rgba(255,255,255,0.3)' : '#8E8E93'}
+              fontSize="9" fontFamily="-apple-system,BlinkMacSystemFont,sans-serif">
+              {label}
+            </text>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 function MonthPicker({ value, onChange }) {
   const { t } = useTheme();
   const now = new Date();
@@ -335,6 +467,9 @@ export default function Analytics() {
                 <StatCard label="Total comments"  value={parseInt(summary.total_comments) || 0} accent="success" />
                 <StatCard label="Total shares"    value={parseInt(summary.total_shares) || 0}   accent="warning" />
               </div>
+
+              {/* ── ENGAGEMENT TREND CHART ─────────────────────── */}
+              {posts.length > 1 && <EngagementTrendChart posts={posts} t={t} gc={gc} />}
 
               {/* ── STREAK CARD ────────────────────────────────── */}
               {streak !== null && streak.streak > 0 && (

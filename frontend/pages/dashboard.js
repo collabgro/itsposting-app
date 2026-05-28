@@ -6,7 +6,7 @@ import {
   IpDrafts, IpPhoto, IpCarousel, IpVideo,
   IpFacebook, IpInstagram, IpGlobe, IpLinkedIn, IpTikTok,
   IpArrowRight, IpFlame, IpTeam, IpAnalytics,
-  IpClose, IpInfo,
+  IpClose, IpInfo, IpCheck, IpCheckCircle, IpSettings,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Button, SectionHeader, EmptyState, Spinner, Skeleton } from '../components/ui';
@@ -226,6 +226,44 @@ export default function Dashboard() {
             </Button>
           </div>
         )}
+
+        {/* ── 0b. Quick Actions ── */}
+        {!loading && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, marginBottom: 20 }}>
+            {[
+              { icon: IpSparkle, label: 'Post for today',     sub: 'AI generates it',       color: '#7C5CFC', bg: 'rgba(124,92,252,0.12)', path: '/quick-post' },
+              { icon: IpCalendar, label: 'Schedule week',     sub: 'Plan ahead',             color: '#3B82F6', bg: 'rgba(59,130,246,0.10)',  path: '/calendar' },
+              { icon: IpAnalytics, label: 'My performance',   sub: 'See what\'s working',    color: '#10B981', bg: 'rgba(16,185,129,0.10)', path: '/analytics' },
+              { icon: IpSettings, label: 'Connect accounts',  sub: 'FB, IG, Google',         color: '#F59E0B', bg: 'rgba(245,158,11,0.10)',  path: '/settings' },
+            ].map(q => (
+              <div
+                key={q.label}
+                onClick={() => router.push(q.path)}
+                style={{
+                  background: q.bg,
+                  border: `1px solid ${q.color}30`,
+                  borderRadius: 14, padding: '14px 16px',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12,
+                  transition: 'all 180ms cubic-bezier(0.34,1.56,0.64,1)',
+                  position: 'relative', overflow: 'hidden',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${q.color}25`; e.currentTarget.style.borderColor = `${q.color}55`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = `${q.color}30`; }}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: `${q.color}20`, border: `1px solid ${q.color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <q.icon size={16} color={q.color} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>{q.label}</div>
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>{q.sub}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── 0c. Activation Checklist ── */}
+        {!loading && <ActivationChecklist allPosts={allPosts} upcoming={upcoming} geoScore={geoScore} t={t} router={router} />}
 
         {/* ── 1. PostCore Briefing Banner ── */}
         {showBrief && bd && (
@@ -593,7 +631,7 @@ export default function Dashboard() {
         />
       )}
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes checkpop{0%{transform:scale(0) rotate(-10deg);opacity:0}60%{transform:scale(1.2) rotate(4deg)}100%{transform:scale(1) rotate(0deg);opacity:1}}`}</style>
     </>
   );
 }
@@ -708,6 +746,169 @@ function ContentHealthBar({ data, t, router }) {
       {recommendation && (
         <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.55 }}>
           <span style={{ color: t.primary, fontWeight: 700 }}>PostCore: </span>{recommendation}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
+  const [dismissed, setDismissed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const postedCount = allPosts.filter(p => p.status === 'posted').length;
+
+  const STEPS = [
+    {
+      id: 'first_post',
+      label: 'Create your first post',
+      sub: 'Use the Post Wizard or Quick Post',
+      done: postedCount > 0,
+      action: () => router.push('/quick-post'),
+      cta: 'Create now',
+    },
+    {
+      id: 'connect_social',
+      label: 'Connect a social account',
+      sub: 'Facebook, Instagram, or Google Business',
+      done: typeof window !== 'undefined' && !!localStorage.getItem('ip_social_connected'),
+      action: () => router.push('/settings'),
+      cta: 'Connect',
+    },
+    {
+      id: 'schedule_post',
+      label: 'Schedule a post for this week',
+      sub: 'Plan ahead — consistency drives reach',
+      done: upcoming.length > 0,
+      action: () => router.push('/calendar'),
+      cta: 'Schedule',
+    },
+    {
+      id: 'knowledge_base',
+      label: 'Add 3 entries to your Knowledge Base',
+      sub: 'Services, FAQs, pricing — PostCore uses this',
+      done: typeof window !== 'undefined' && !!localStorage.getItem('ip_kb_done'),
+      action: () => router.push('/knowledge-base'),
+      cta: 'Add now',
+    },
+    {
+      id: 'geo_audit',
+      label: 'Run your free AI Visibility check',
+      sub: 'See how your business ranks in AI search',
+      done: !!(geoScore?.score > 0),
+      action: () => router.push('/geo-audit'),
+      cta: geoScore?.freeAuditUsed ? 'View results' : 'Free check',
+    },
+  ];
+
+  const completedCount = STEPS.filter(s => s.done).length;
+  const allDone = completedCount === STEPS.length;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const d = localStorage.getItem('ip_checklist_dismissed');
+    if (d) setDismissed(true);
+  }, []);
+
+  if (dismissed || allDone) return null;
+
+  const pct = Math.round((completedCount / STEPS.length) * 100);
+
+  return (
+    <div style={{
+      background: t.isDark ? 'rgba(15,15,24,0.75)' : t.card,
+      backdropFilter: 'blur(16px) saturate(160%)',
+      WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+      border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+      borderLeft: '3px solid #7C5CFC',
+      borderRadius: 16, marginBottom: 22,
+      boxShadow: `0 1px 3px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+      overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div
+        style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+        onClick={() => setCollapsed(c => !c)}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>
+              Get set up
+            </span>
+            <div style={{
+              fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+              background: 'rgba(124,92,252,0.15)', color: '#7C5CFC', border: '1px solid rgba(124,92,252,0.25)',
+            }}>
+              {completedCount}/{STEPS.length}
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div style={{ flex: 1, maxWidth: 160, height: 4, borderRadius: 2, background: t.isDark ? 'rgba(255,255,255,0.08)' : t.border, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg,#7C5CFC,#00C4CC)', borderRadius: 2, transition: 'width 600ms cubic-bezier(0.16,1,0.3,1)' }} />
+          </div>
+          <span style={{ fontSize: 11, color: t.textMuted }}>{pct}% complete</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); localStorage.setItem('ip_checklist_dismissed', '1'); setDismissed(true); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: t.textMuted, display: 'flex', alignItems: 'center' }}
+          >
+            <IpClose size={13} />
+          </button>
+        </div>
+      </div>
+
+      {/* Steps */}
+      {!collapsed && (
+        <div style={{ borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : t.border}` }}>
+          {STEPS.map((step, i) => (
+            <div key={step.id} style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: '11px 18px',
+              borderBottom: i < STEPS.length - 1 ? `1px solid ${t.isDark ? 'rgba(255,255,255,0.04)' : t.border}` : 'none',
+              opacity: step.done ? 0.6 : 1,
+            }}>
+              {/* Check circle */}
+              <div style={{
+                width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                background: step.done ? 'rgba(34,197,94,0.15)' : (t.isDark ? 'rgba(255,255,255,0.04)' : t.input),
+                border: `1px solid ${step.done ? 'rgba(34,197,94,0.4)' : (t.isDark ? 'rgba(255,255,255,0.1)' : t.border)}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                animation: step.done ? 'checkpop 300ms cubic-bezier(0.34,1.56,0.64,1)' : 'none',
+              }}>
+                {step.done && <IpCheck size={11} color="#22C55E" />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: step.done ? 500 : 600, color: step.done ? t.textMuted : t.text, letterSpacing: '-0.01em', textDecoration: step.done ? 'line-through' : 'none' }}>
+                  {step.label}
+                </div>
+                {!step.done && <div style={{ fontSize: 11, color: t.textMuted, marginTop: 1 }}>{step.sub}</div>}
+              </div>
+              {!step.done && (
+                <button
+                  onClick={step.action}
+                  style={{
+                    padding: '5px 12px', background: t.primaryBg,
+                    border: `1px solid ${t.primaryBorder}`, borderRadius: 7,
+                    color: t.primary, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    whiteSpace: 'nowrap', flexShrink: 0,
+                    transition: 'background 150ms',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(124,92,252,0.2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = t.primaryBg}
+                >
+                  {step.cta} →
+                </button>
+              )}
+            </div>
+          ))}
+
+          {/* Footer bonus callout */}
+          <div style={{ padding: '10px 18px', background: t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13 }}>🎁</span>
+            <span style={{ fontSize: 12, color: t.textMuted }}>
+              Complete all 5 steps and get <strong style={{ color: t.primary }}>10 bonus credits</strong> added automatically.
+            </span>
+          </div>
         </div>
       )}
     </div>

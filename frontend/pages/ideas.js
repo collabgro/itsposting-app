@@ -7,6 +7,7 @@ import {
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
 import { ideasAPI, customerAPI } from '../lib/api';
+import { setMascotMood } from '../components/PostCoreMascot';
 
 const CATEGORY_CONFIG = {
   educational:  { label: 'Educational',  color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)'  },
@@ -31,11 +32,17 @@ const PLATFORM_ICONS = {
 
 // Skeleton card for loading state
 function SkeletonCard({ t }) {
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 14,
+    padding: 20,
+    boxShadow: `0 1px 3px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
   return (
-    <div style={{
-      background: t.card, border: `1px solid ${t.border}`, borderRadius: 14,
-      padding: 20, display: 'flex', flexDirection: 'column', gap: 12,
-    }}>
+    <div style={{ ...gc, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {[60, 100, 40, 80, 120, 44].map((w, i) => (
         <div key={i} style={{
           height: i === 2 ? 14 : i === 5 ? 36 : 16,
@@ -67,17 +74,24 @@ function IdeaCard({ idea, onUse, onCopyHook, copied, t }) {
 
   return (
     <div style={{
-      background: t.card,
-      border: `1px solid ${idea.used ? t.border : cat.color + '35'}`,
+      background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+      backdropFilter: 'blur(16px) saturate(160%)',
+      WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+      border: `1px solid ${idea.used ? (t.isDark ? 'rgba(255,255,255,0.07)' : t.border) : cat.color + '35'}`,
+      borderLeft: idea.used ? undefined : `3px solid ${cat.color}`,
       borderRadius: 14,
       padding: 20,
       display: 'flex',
       flexDirection: 'column',
       gap: 12,
       position: 'relative',
-      opacity: idea.used ? 0.6 : 1,
-      transition: 'all 200ms',
-    }}>
+      opacity: idea.used ? 0.55 : 1,
+      boxShadow: `0 1px 3px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+      transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+    }}
+    onMouseEnter={e => { if (!idea.used) { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 8px 24px rgba(0,0,0,0.35), 0 0 16px ${cat.color}22`; }}}
+    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `0 1px 3px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`; }}
+    >
       {/* Used overlay badge */}
       {idea.used && (
         <div style={{
@@ -232,7 +246,9 @@ export default function PostIdeas() {
 
       const fn = isRefresh ? ideasAPI.refresh : ideasAPI.getToday;
       const res = await fn();
-      setIdeas(res.data.ideas || []);
+      const fetched = res.data.ideas || [];
+      setIdeas(fetched);
+      if (fetched.length > 0) setMascotMood('thinking', `${fetched.length} fresh ideas ready — pick one and let's create!`);
 
       if (res.data.refreshed_at) {
         const diffMin = Math.floor((Date.now() - new Date(res.data.refreshed_at)) / 60000);
@@ -267,6 +283,7 @@ export default function PostIdeas() {
   const handleRefresh = () => load(true);
 
   const handleUse = async (idea) => {
+    setMascotMood('excited', `Great choice! Opening the wizard for "${idea.title}"…`);
     try {
       await ideasAPI.markUsed(idea.id);
       setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, used: true } : i));
@@ -420,7 +437,7 @@ export default function PostIdeas() {
             </div>
 
             {/* Footer note */}
-            <div style={{ marginTop: 24, padding: '14px 18px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, fontSize: 12, color: t.textMuted, lineHeight: 1.6 }}>
+            <div style={{ marginTop: 24, padding: '14px 18px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 12, fontSize: 12, color: t.textMuted, lineHeight: 1.6, boxShadow: `0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
               <strong style={{ color: t.textSecondary }}>How PostCore picks these ideas:</strong> Each morning, PostCore analyses current seasonal trends, industry-specific customer pain points, and what's typically resonating in your niche for this time of year. Ideas refresh daily — you can also manually refresh once per hour.
             </div>
           </>
