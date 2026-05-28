@@ -211,17 +211,17 @@ export default function Layout({ children, title, subtitle, action }) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: t.bg, color: t.text }}>
       {mobileNavOpen && isMobile && (
-        <div onClick={() => setMobileNavOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 59 }} />
+        <div onClick={() => setMobileNavOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)', zIndex: 59 }} />
       )}
       {/* SIDEBAR */}
       <aside
+        className="sidebar-glass"
         style={{
-          position: isMobile ? 'fixed' : 'fixed',
+          position: 'fixed',
           top: 0,
           left: 0,
           bottom: 0,
           width: isMobile ? 280 : sidebarWidth,
-          background: t.sidebar, borderRight: `1px solid ${t.border}`,
           display: 'flex', flexDirection: 'column',
           transition: 'width 200ms ease, transform 200ms ease',
           transform: isMobile ? (mobileNavOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
@@ -231,16 +231,20 @@ export default function Layout({ children, title, subtitle, action }) {
         {/* LOGO */}
         <div
           style={{
-            height: 56, display: 'flex', alignItems: 'center',
+            height: 60, display: 'flex', alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 16px',
-            borderBottom: `1px solid ${t.border}`, flexShrink: 0,
+            padding: '0 18px',
+            borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.07)'}`,
+            flexShrink: 0,
           }}
         >
           {!isMobile && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <img src="/itsposting-logo.png" alt="ItsPosting" width={36} height={36} style={{ borderRadius: 10, flexShrink: 0, objectFit: 'cover' }} />
-              <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.03em', color: t.text, whiteSpace: 'nowrap' }}>ItsPosting</span>
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <img src="/itsposting-logo.png" alt="ItsPosting" width={34} height={34}
+                  style={{ borderRadius: 10, objectFit: 'cover', boxShadow: '0 4px 12px rgba(124,92,252,0.35), 0 1px 3px rgba(0,0,0,0.3)' }} />
+              </div>
+              <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.03em', color: t.text, whiteSpace: 'nowrap' }}>ItsPosting</span>
             </div>
           )}
           {isMobile && (
@@ -255,21 +259,21 @@ export default function Layout({ children, title, subtitle, action }) {
 
         {/* WORKSPACE SWITCHER */}
         {!isMobile && hasToken && !user && (
-          <div style={{ padding: '12px', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8, background: t.card, border: `1px solid ${t.border}` }}>
-              <div style={{ width: 32, height: 32, borderRadius: 6, background: t.border, flexShrink: 0 }} />
+          <div style={{ padding: '10px 12px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.07)'}`, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 10, background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
+              <div style={{ width: 30, height: 30, borderRadius: 6, background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <div style={{ height: 12, borderRadius: 4, background: t.border, width: '70%', marginBottom: 4 }} />
-                <div style={{ height: 10, borderRadius: 4, background: t.border, width: '50%' }} />
+                <div style={{ height: 11, borderRadius: 4, background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', width: '70%', marginBottom: 5 }} />
+                <div style={{ height: 9, borderRadius: 4, background: t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', width: '50%' }} />
               </div>
             </div>
           </div>
         )}
         {!isMobile && user && (
-          <div style={{ padding: '12px', borderBottom: `1px solid ${t.border}`, flexShrink: 0, position: 'relative' }}>
+          <div style={{ padding: '10px 12px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.07)'}`, flexShrink: 0, position: 'relative' }}>
             <div
               onClick={() => setWsDropdownOpen((v) => !v)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 8, borderRadius: 8, background: t.card, border: `1px solid ${wsDropdownOpen ? t.primaryBorder : t.border}`, cursor: 'pointer', transition: 'border-color 150ms' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 10, background: t.isDark ? (wsDropdownOpen ? 'rgba(124,92,252,0.1)' : 'rgba(255,255,255,0.035)') : (wsDropdownOpen ? 'rgba(124,92,252,0.07)' : 'rgba(0,0,0,0.03)'), border: `1px solid ${wsDropdownOpen ? t.primaryBorder : (t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)')}`, cursor: 'pointer', transition: 'all 180ms cubic-bezier(0.34,1.56,0.64,1)' }}
             >
               <div style={{ width: 32, height: 32, borderRadius: 6, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
                 {(user.favicon_url || user.logo_url)
@@ -389,7 +393,7 @@ export default function Layout({ children, title, subtitle, action }) {
 
         {/* CREATE NEW POST */}
         {!isMobile && (
-          <div style={{ padding: '12px 14px', flexShrink: 0 }}>
+          <div style={{ padding: '10px 12px', flexShrink: 0 }}>
             <button
               onClick={() => router.push('/wizard')}
               className="btn-shimmer"
@@ -426,9 +430,9 @@ export default function Layout({ children, title, subtitle, action }) {
           {visibleNavItems.map((item) => {
             if (item.isDivider) {
               return (
-                <div key={`divider-${item.label}`} style={{ padding: '18px 10px 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: t.textDisabled, textTransform: 'uppercase', letterSpacing: '0.10em' }}>{item.label}</span>
-                  <div style={{ flex: 1, height: 1, background: t.border, opacity: 0.5 }} />
+                <div key={`divider-${item.label}`} style={{ padding: '20px 8px 5px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: t.isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.28)', textTransform: 'uppercase', letterSpacing: '0.11em' }}>{item.label}</span>
+                  <div style={{ flex: 1, height: 1, background: t.isDark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.07)', opacity: 1 }} />
                 </div>
               );
             }
@@ -438,33 +442,29 @@ export default function Layout({ children, title, subtitle, action }) {
               <Link
                 key={item.href}
                 href={item.href}
+                className={active ? 'nav-active' : undefined}
                 style={{
                   display: 'flex', alignItems: 'center',
-                  gap: 10, padding: '8px 10px', marginBottom: 2,
+                  gap: 10, padding: '8px 11px', marginBottom: 1,
                   borderRadius: 10, fontSize: 13, fontWeight: active ? 600 : 500,
-                  color: active ? t.text : t.textSecondary,
-                  background: active
-                    ? t.isDark
-                      ? 'linear-gradient(135deg, rgba(124,92,252,0.18) 0%, rgba(124,92,252,0.08) 100%)'
-                      : 'linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(124,92,252,0.05) 100%)'
-                    : 'transparent',
+                  color: active ? t.text : t.textMuted,
+                  background: 'transparent',
                   borderLeft: active ? `2.5px solid ${t.primary}` : '2.5px solid transparent',
-                  boxShadow: active ? (t.isDark ? 'inset 0 1px 0 rgba(255,255,255,0.04)' : 'inset 0 1px 0 rgba(255,255,255,0.6)') : 'none',
                   transition: 'all 160ms cubic-bezier(0.34,1.56,0.64,1)', whiteSpace: 'nowrap',
                   textDecoration: 'none', position: 'relative',
                   letterSpacing: '-0.01em',
                 }}
                 onMouseEnter={(e) => {
                   if (!active) {
-                    e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.04)' : t.cardHover;
+                    e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
                     e.currentTarget.style.color = t.text;
-                    e.currentTarget.style.transform = 'translateX(3px)';
+                    e.currentTarget.style.transform = 'translateX(2px)';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!active) {
                     e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = t.textSecondary;
+                    e.currentTarget.style.color = t.textMuted;
                     e.currentTarget.style.transform = 'translateX(0)';
                   }
                 }}
@@ -477,7 +477,7 @@ export default function Layout({ children, title, subtitle, action }) {
                     color={active ? 'url(#brand-gradient)' : (item.isAdmin ? 'url(#brand-gradient)' : t.textMuted)}
                   />
                   {hasSuggDot && (
-                    <div style={{ position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: '#EF4444', border: `1.5px solid ${t.sidebar}`, boxShadow: '0 0 4px rgba(239,68,68,0.6)' }} />
+                    <div style={{ position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: '#EF4444', border: `1.5px solid ${t.isDark ? '#08080F' : '#fff'}`, boxShadow: '0 0 5px rgba(239,68,68,0.65)' }} />
                   )}
                 </div>
                 <span style={{ flex: 1 }}>{item.name}</span>
@@ -522,8 +522,8 @@ export default function Layout({ children, title, subtitle, action }) {
 
         {/* TRIAL CARD */}
         {!isMobile && user?.status === 'trial' && (
-          <div style={{ padding: '10px 14px', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
-            <div style={{ padding: '13px 14px', background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.05)', borderRadius: 12, border: `1px solid rgba(124,92,252,0.2)`, boxShadow: 'inset 0 1px 0 rgba(124,92,252,0.1)' }}>
+          <div style={{ padding: '10px 12px', borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.07)'}`, flexShrink: 0 }}>
+            <div style={{ padding: '13px 14px', background: t.isDark ? 'rgba(124,92,252,0.09)' : 'rgba(124,92,252,0.05)', borderRadius: 12, border: `1px solid rgba(124,92,252,0.22)`, boxShadow: '0 4px 16px rgba(124,92,252,0.1), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: t.text, letterSpacing: '-0.01em' }}>Free Trial</div>
                 <div style={{ fontSize: 10, fontWeight: 600, color: t.primary }}>{user.credits_balance ?? 0} credits left</div>
@@ -540,7 +540,7 @@ export default function Layout({ children, title, subtitle, action }) {
 
         {/* USER PROFILE — clickable, opens popup */}
         {!isMobile && user && (
-          <div style={{ padding: '12px', borderTop: `1px solid ${t.border}`, flexShrink: 0, position: 'relative' }}>
+          <div style={{ padding: '10px 12px', borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.07)'}`, flexShrink: 0, position: 'relative' }}>
             {/* Profile popup backdrop */}
             {showProfilePopup && (
               <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setShowProfilePopup(false)} />
@@ -624,15 +624,16 @@ export default function Layout({ children, title, subtitle, action }) {
       <main style={{ flex: 1, marginLeft: isMobile ? 0 : sidebarWidth, transition: 'margin-left 200ms ease', minWidth: 0 }}>
         {/* TOP BAR */}
         <header
+          className="topbar-glass"
           style={{
-            height: 64, background: t.isDark ? 'rgba(0,0,0,0.85)' : 'rgba(245,245,247,0.9)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: `1px solid ${t.border}`,
+            height: 64,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: isMobile ? '0 20px' : '0 36px', position: 'sticky', top: 0, zIndex: 40,
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
-            {title && <h1 style={{ fontSize: 17, fontWeight: 700, color: t.text, letterSpacing: '-0.03em', lineHeight: 1 }}>{title}</h1>}
-            {subtitle && <p style={{ fontSize: 12, color: t.textMuted, lineHeight: 1, margin: 0 }}>{subtitle}</p>}
+            {title && <h1 style={{ fontSize: 18, fontWeight: 700, color: t.text, letterSpacing: '-0.035em', lineHeight: 1 }}>{title}</h1>}
+            {subtitle && <p style={{ fontSize: 12, color: t.textMuted, lineHeight: 1, margin: 0, letterSpacing: '-0.01em' }}>{subtitle}</p>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {isMobile && (
@@ -651,9 +652,9 @@ export default function Layout({ children, title, subtitle, action }) {
               {theme === 'dark' ? <IpSun size={16} /> : <IpMoon size={16} />}
             </button>
             {user && !isMobile && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 13 }}>
-                <span style={{ color: t.textMuted }}>Credits:</span>
-                <span style={{ color: t.primary, fontWeight: 700, fontFamily: 'monospace' }}>{user.credits_balance ?? 0}</span>
+              <div className="credit-chip" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 9, fontSize: 12 }}>
+                <span style={{ color: t.textMuted, fontWeight: 500 }}>Credits</span>
+                <span style={{ color: t.primary, fontWeight: 800, fontFamily: 'monospace', fontSize: 13 }}>{user.credits_balance ?? 0}</span>
               </div>
             )}
             {!isMobile && action}
@@ -707,12 +708,10 @@ export default function Layout({ children, title, subtitle, action }) {
 
       {/* MOBILE BOTTOM NAV */}
       {isMobile && (
-        <nav style={{
+        <nav className="sidebar-glass" style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 70,
-          background: t.sidebar, borderTop: `1px solid ${t.border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-around',
           height: 60, paddingBottom: 'env(safe-area-inset-bottom)',
-          backdropFilter: 'blur(20px)',
         }}>
           {/* Home */}
           {[

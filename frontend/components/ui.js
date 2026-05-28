@@ -27,9 +27,16 @@ function ToastItem({ id, message, variant, onDismiss }) {
   const iconBg = TOAST_BG[variant] || TOAST_BG.info;
   return (
     <div style={{
-      background: t.card, border: `1px solid ${t.border}`, borderLeft: `3px solid ${border}`,
-      borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 10,
-      boxShadow: t.shadowMd, minWidth: 260, maxWidth: 380,
+      background: t.isDark ? 'rgba(15,15,24,0.92)' : 'rgba(255,255,255,0.94)',
+      backdropFilter: 'blur(24px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+      border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+      borderLeft: `3px solid ${border}`,
+      borderRadius: 14, padding: '13px 14px', display: 'flex', alignItems: 'flex-start', gap: 10,
+      boxShadow: t.isDark
+        ? `0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)`
+        : `0 8px 28px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,1)`,
+      minWidth: 270, maxWidth: 390,
       animation: 'toast-slide-in 220ms cubic-bezier(0.16,1,0.3,1)', pointerEvents: 'all',
     }}>
       <div style={{
@@ -130,8 +137,15 @@ export function ConfirmModal({ title, message, confirmLabel = 'Confirm', confirm
     >
       <div
         style={{
-          background: t.card, border: `1px solid ${t.border}`, borderRadius: 16,
-          padding: 28, maxWidth: 400, width: 'calc(100vw - 40px)', boxShadow: t.shadowLg,
+          background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)',
+          backdropFilter: 'blur(32px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(32px) saturate(200%)',
+          border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.08)'}`,
+          borderRadius: 20,
+          padding: 30, maxWidth: 400, width: 'calc(100vw - 40px)',
+          boxShadow: t.isDark
+            ? '0 20px 60px rgba(0,0,0,0.7), 0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)'
+            : '0 20px 60px rgba(0,0,0,0.15), 0 4px 16px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,1)',
           animation: 'ip-modal-content 200ms cubic-bezier(0.16,1,0.3,1)',
         }}
         onClick={e => e.stopPropagation()}
@@ -173,24 +187,29 @@ export function Card({ children, padding = 24, style = {}, hoverable = false, on
   const { t } = useTheme();
   const isClickable = hoverable || !!onClick;
   const baseBoxShadow = glass
-    ? (t.isDark ? '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 4px 20px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)')
-    : t.isDark ? `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)` : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.8)`;
+    ? (t.isDark
+        ? '0 8px 36px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)'
+        : '0 4px 20px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.95)')
+    : t.isDark
+        ? `0 2px 8px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)`
+        : `0 1px 4px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)`;
   const hoverBoxShadow = t.isDark
-    ? `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.06)`
-    : `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.9)`;
+    ? `0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07), 0 0 0 1px rgba(124,92,252,0.15)`
+    : `0 8px 28px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,1), 0 0 0 1px rgba(124,92,252,0.12)`;
   return (
     <div
       onClick={onClick}
       style={{
         background: glass
-          ? (t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.78)')
+          ? (t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.82)')
           : t.card,
         border: glass
-          ? `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.7)'}`
+          ? `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.75)'}`
           : `1px solid ${t.border}`,
-        backdropFilter: glass ? 'blur(24px) saturate(180%)' : undefined,
+        backdropFilter: glass ? 'blur(28px) saturate(200%)' : undefined,
+        WebkitBackdropFilter: glass ? 'blur(28px) saturate(200%)' : undefined,
         borderRadius: 18, padding,
-        transition: 'border-color 160ms ease, box-shadow 220ms cubic-bezier(0.34,1.56,0.64,1), transform 220ms cubic-bezier(0.34,1.56,0.64,1)',
+        transition: 'border-color 160ms ease, box-shadow 240ms cubic-bezier(0.34,1.56,0.64,1), transform 240ms cubic-bezier(0.34,1.56,0.64,1)',
         boxShadow: baseBoxShadow,
         cursor: isClickable ? 'pointer' : undefined,
         ...style,
@@ -201,7 +220,7 @@ export function Card({ children, padding = 24, style = {}, hoverable = false, on
         e.currentTarget.style.transform = 'translateY(-4px)';
       } : undefined}
       onMouseLeave={isClickable ? (e) => {
-        e.currentTarget.style.borderColor = glass ? (t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.7)') : t.border;
+        e.currentTarget.style.borderColor = glass ? (t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.75)') : t.border;
         e.currentTarget.style.boxShadow = baseBoxShadow;
         e.currentTarget.style.transform = 'translateY(0)';
       } : undefined}
@@ -435,6 +454,13 @@ export function StatCard({ label, value, hint, accent = 'primary', icon: Icon, t
   const trendPositive = trend && (typeof trend === 'string' ? trend.startsWith('+') : trend > 0);
   const trendColor = trendPositive ? t.success : t.error;
 
+  const baseShadow = t.isDark
+    ? `0 2px 8px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)`
+    : `0 1px 4px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)`;
+  const hoverShadow = t.isDark
+    ? `0 8px 30px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(124,92,252,0.12)`
+    : `0 6px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,1)`;
+
   return (
     <div
       onClick={onClick}
@@ -444,44 +470,40 @@ export function StatCard({ label, value, hint, accent = 'primary', icon: Icon, t
         borderLeft: `3px solid ${col}`,
         borderRadius: 18,
         padding: 22,
-        boxShadow: t.isDark
-          ? `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`
-          : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.8)`,
-        transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease, border-color 150ms ease',
+        boxShadow: baseShadow,
+        transition: 'transform 220ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 220ms ease, border-color 150ms ease',
         cursor: onClick ? 'pointer' : 'default',
         position: 'relative', overflow: 'hidden',
       }}
       onMouseEnter={onClick ? (e) => {
         e.currentTarget.style.transform = 'translateY(-3px)';
-        e.currentTarget.style.boxShadow = t.isDark
-          ? `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.06)`
-          : `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.9)`;
+        e.currentTarget.style.boxShadow = hoverShadow;
         e.currentTarget.style.borderLeftColor = col;
       } : undefined}
       onMouseLeave={onClick ? (e) => {
         e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = t.isDark
-          ? `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`
-          : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.8)`;
+        e.currentTarget.style.boxShadow = baseShadow;
       } : undefined}
       onMouseDown={onClick ? (e) => { e.currentTarget.style.transform = 'scale(0.99)'; } : undefined}
       onMouseUp={onClick ? (e) => { e.currentTarget.style.transform = 'translateY(-3px)'; } : undefined}
     >
-      {/* Subtle accent glow in corner */}
+      {/* Ambient accent glow — larger, softer, more premium */}
       <div style={{
-        position: 'absolute', top: -20, right: -20, width: 80, height: 80,
-        borderRadius: '50%', background: col, opacity: 0.06, pointerEvents: 'none',
+        position: 'absolute', top: -30, right: -30, width: 110, height: 110,
+        borderRadius: '50%', background: col, opacity: t.isDark ? 0.07 : 0.05, pointerEvents: 'none',
+        filter: 'blur(20px)',
       }} />
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, letterSpacing: '-0.01em', lineHeight: 1.4 }}>{label}</div>
         {Icon && (
           <div style={{
-            width: 32, height: 32, borderRadius: 9,
+            width: 36, height: 36, borderRadius: 11,
             background: accentBgs[accent] || t.primaryBg,
             border: `1px solid ${accentBorders[accent] || t.primaryBorder}`,
+            boxShadow: `0 4px 14px ${col}28, inset 0 1px 0 rgba(255,255,255,0.1)`,
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <Icon size={15} color={col} strokeWidth={2} />
+            <Icon size={16} color={col} strokeWidth={2} />
           </div>
         )}
       </div>
@@ -513,12 +535,14 @@ export function SectionHeader({ title, subtitle, icon: Icon, action }) {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
         {Icon && (
           <div style={{
-            width: 40, height: 40, borderRadius: 12,
+            width: 42, height: 42, borderRadius: 13,
             background: t.isDark
-              ? 'linear-gradient(135deg, rgba(124,92,252,0.2) 0%, rgba(124,92,252,0.1) 100%)'
-              : 'linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(124,92,252,0.06) 100%)',
+              ? 'linear-gradient(135deg, rgba(124,92,252,0.22) 0%, rgba(124,92,252,0.09) 100%)'
+              : 'linear-gradient(135deg, rgba(124,92,252,0.13) 0%, rgba(124,92,252,0.05) 100%)',
             border: `1px solid ${t.primaryBorder}`,
-            boxShadow: '0 4px 14px rgba(124,92,252,0.2)',
+            boxShadow: t.isDark
+              ? '0 6px 18px rgba(124,92,252,0.25), inset 0 1px 0 rgba(255,255,255,0.07)'
+              : '0 4px 14px rgba(124,92,252,0.16), inset 0 1px 0 rgba(255,255,255,0.9)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
             <Icon size={19} strokeWidth={2} color={t.primary} />
@@ -539,21 +563,23 @@ export function SectionHeader({ title, subtitle, icon: Icon, action }) {
 export function EmptyState({ icon: Icon = IpInbox, title, subtitle, action }) {
   const { t } = useTheme();
   return (
-    <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+    <div style={{ padding: '72px 24px', textAlign: 'center' }}>
       <div className="float" style={{
-        width: 68, height: 68, borderRadius: 20,
+        width: 72, height: 72, borderRadius: 22,
         background: t.isDark
-          ? 'linear-gradient(135deg, rgba(124,92,252,0.18) 0%, rgba(124,92,252,0.08) 100%)'
-          : 'linear-gradient(135deg, rgba(124,92,252,0.1) 0%, rgba(124,92,252,0.05) 100%)',
+          ? 'linear-gradient(135deg, rgba(124,92,252,0.2) 0%, rgba(124,92,252,0.09) 100%)'
+          : 'linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(124,92,252,0.05) 100%)',
         border: `1px solid ${t.primaryBorder}`,
-        boxShadow: '0 8px 24px rgba(124,92,252,0.18), 0 0 0 6px rgba(124,92,252,0.06)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 22px',
+        boxShadow: t.isDark
+          ? '0 10px 30px rgba(124,92,252,0.22), 0 0 0 8px rgba(124,92,252,0.06), inset 0 1px 0 rgba(255,255,255,0.08)'
+          : '0 8px 24px rgba(124,92,252,0.15), 0 0 0 8px rgba(124,92,252,0.05)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px',
       }}>
-        <Icon size={28} color={t.primary} />
+        <Icon size={30} color={t.primary} />
       </div>
-      <h3 style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 8, letterSpacing: '-0.025em' }}>{title}</h3>
+      <h3 style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 8, letterSpacing: '-0.028em' }}>{title}</h3>
       {subtitle && (
-        <p style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.65, maxWidth: 340, margin: '0 auto 28px' }}>
+        <p style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.7, maxWidth: 340, margin: '0 auto 28px' }}>
           {subtitle}
         </p>
       )}

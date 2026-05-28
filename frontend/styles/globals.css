@@ -17,14 +17,22 @@ html {
 html, body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   letter-spacing: -0.011em;
-  background: #000000;
+  background: #05050A;
+  background-image:
+    radial-gradient(ellipse at 85% 0%, rgba(124,92,252,0.09) 0%, transparent 55%),
+    radial-gradient(ellipse at 15% 100%, rgba(0,132,255,0.05) 0%, transparent 50%);
+  background-attachment: fixed;
   color: #F5F5F7;
   line-height: 1.5;
   font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
 }
 
 body[data-theme="light"] {
-  background: #F5F5F7;
+  background: #F0F0F7;
+  background-image:
+    radial-gradient(ellipse at 85% 0%, rgba(124,92,252,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 10% 100%, rgba(124,92,252,0.03) 0%, transparent 40%);
+  background-attachment: fixed;
   color: #1D1D1F;
 }
 
@@ -400,6 +408,87 @@ body[data-theme="light"] .glass-card {
 /* ── Bottom nav safe area ─────────────────────────────────────────────── */
 .has-bottom-nav {
   padding-bottom: calc(68px + env(safe-area-inset-bottom));
+}
+
+/* ── Glass sidebar (fixed, so backdrop-filter shows through) ──────────── */
+.sidebar-glass {
+  background: rgba(5,5,12,0.78) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border-right: 1px solid rgba(255,255,255,0.055) !important;
+}
+body[data-theme="light"] .sidebar-glass {
+  background: rgba(255,255,255,0.82) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border-right: 1px solid rgba(0,0,0,0.08) !important;
+}
+
+/* ── Topbar glass ─────────────────────────────────────────────────────── */
+.topbar-glass {
+  background: rgba(5,5,12,0.72) !important;
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.055) !important;
+}
+body[data-theme="light"] .topbar-glass {
+  background: rgba(240,240,247,0.85) !important;
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(0,0,0,0.07) !important;
+}
+
+/* ── Premium nav active item ──────────────────────────────────────────── */
+.nav-active {
+  background: linear-gradient(135deg, rgba(124,92,252,0.18) 0%, rgba(124,92,252,0.07) 100%) !important;
+  box-shadow: 0 0 20px rgba(124,92,252,0.1), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+body[data-theme="light"] .nav-active {
+  background: linear-gradient(135deg, rgba(124,92,252,0.13) 0%, rgba(124,92,252,0.05) 100%) !important;
+  box-shadow: 0 2px 8px rgba(124,92,252,0.12), inset 0 1px 0 rgba(255,255,255,0.8) !important;
+}
+
+/* ── Deep glass card (stronger than .glass-card) ──────────────────────── */
+.glass-deep {
+  background: rgba(255,255,255,0.025);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07);
+}
+body[data-theme="light"] .glass-deep {
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(255,255,255,0.75);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,1);
+}
+
+/* ── Stat card glow accent ────────────────────────────────────────────── */
+.stat-glow-primary { box-shadow: inset 4px 0 0 #7C5CFC, 0 4px 20px rgba(124,92,252,0.08); }
+.stat-glow-success  { box-shadow: inset 4px 0 0 #30D158, 0 4px 20px rgba(48,209,88,0.08); }
+.stat-glow-warning  { box-shadow: inset 4px 0 0 #FFD60A, 0 4px 20px rgba(255,214,10,0.08); }
+.stat-glow-info     { box-shadow: inset 4px 0 0 #0A84FF, 0 4px 20px rgba(10,132,255,0.08); }
+
+/* ── Gradient border card (Apple-style iridescent) ────────────────────── */
+.gradient-border-card {
+  position: relative;
+  z-index: 0;
+}
+.gradient-border-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(124,92,252,0.5) 0%, rgba(0,196,204,0.3) 40%, rgba(124,92,252,0.5) 100%);
+  background-size: 200% 200%;
+  z-index: -1;
+  animation: gradientBorder 4s ease infinite;
+}
+
+/* ── Credit chip premium ──────────────────────────────────────────────── */
+.credit-chip {
+  background: linear-gradient(135deg, rgba(124,92,252,0.15) 0%, rgba(124,92,252,0.08) 100%);
+  border: 1px solid rgba(124,92,252,0.25);
+  box-shadow: 0 0 12px rgba(124,92,252,0.15), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 /* ── Number count-up flash ────────────────────────────────────────────── */

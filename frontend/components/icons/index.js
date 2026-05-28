@@ -38,13 +38,21 @@ function Ico({ size, sw, color, style, className, children, depth }) {
 // ── Navigation ────────────────────────────────────────────────────────────────
 
 export function IpDashboard({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+  const fid = `dashDepth-${++_filterCounter}`;
   return (
-    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
-      <rect x="3" y="3" width="9" height="9" rx="2" />
-      <rect x="14" y="3" width="7" height="4.5" rx="1.5" />
-      <rect x="14" y="9.5" width="7" height="3.5" rx="1.5" />
-      <rect x="3" y="14" width="18" height="7" rx="2" />
-    </Ico>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
+      <defs>
+        <filter id={fid} x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="1" stdDeviation="0.8" floodColor="rgba(0,0,0,0.4)" floodOpacity="1" />
+        </filter>
+      </defs>
+      <g filter={`url(#${fid})`}>
+        <rect x="3" y="3" width="9" height="9" rx="2" fill={color} opacity="0.9" />
+        <rect x="14" y="3" width="7" height="4.5" rx="1.5" fill={color} opacity="0.65" />
+        <rect x="14" y="9.5" width="7" height="3.5" rx="1.5" fill={color} opacity="0.45" />
+        <rect x="3" y="14" width="18" height="7" rx="2" fill={color} opacity="0.55" />
+      </g>
+    </svg>
   );
 }
 
@@ -124,13 +132,21 @@ export function IpMediaLibrary({ size = 20, color = 'currentColor', strokeWidth 
 }
 
 export function IpAnalytics({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
+  const fid = `analyticsDepth-${++_filterCounter}`;
   return (
-    <Ico size={size} sw={strokeWidth} color={color} style={style} className={className}>
-      <rect x="5" y="11" width="4" height="9" rx="1.5" />
-      <rect x="11" y="4" width="4" height="16" rx="1.5" />
-      <rect x="17" y="7" width="4" height="13" rx="1.5" />
-      <line x1="3" y1="20" x2="21" y2="20" />
-    </Ico>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
+      <defs>
+        <filter id={fid} x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="0" dy="1" stdDeviation="0.7" floodColor="rgba(0,0,0,0.4)" floodOpacity="1" />
+        </filter>
+      </defs>
+      <g filter={`url(#${fid})`}>
+        <rect x="5" y="11" width="4" height="9" rx="1.5" fill={color} opacity="0.55" />
+        <rect x="11" y="4" width="4" height="16" rx="1.5" fill={color} opacity="0.9" />
+        <rect x="17" y="7" width="4" height="13" rx="1.5" fill={color} opacity="0.7" />
+      </g>
+      <line x1="3" y1="20" x2="21" y2="20" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" opacity="0.5" />
+    </svg>
   );
 }
 
@@ -757,7 +773,25 @@ export function IpCredits({ size = 20, color = 'currentColor', strokeWidth = 1.7
   );
 }
 
-export const IpZap = IpCredits;
+export function IpZap({ size = 20, style, className }) {
+  const gid = `zapGrad-${++_filterCounter}`;
+  const did = `zapDepth-${_filterCounter}`;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
+      <defs>
+        <linearGradient id={gid} x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFD60A" />
+          <stop offset="55%" stopColor="#FF9F0A" />
+          <stop offset="100%" stopColor="#FF6B00" />
+        </linearGradient>
+        <filter id={did} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" floodColor="rgba(255,159,10,0.6)" floodOpacity="1" />
+        </filter>
+      </defs>
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill={`url(#${gid})`} filter={`url(#${did})`} />
+    </svg>
+  );
+}
 
 export function IpCrown({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
   return (

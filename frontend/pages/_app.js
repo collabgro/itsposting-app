@@ -93,13 +93,65 @@ export default function App({ Component, pageProps }) {
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&family=EB+Garamond:wght@400;700&family=Inter:wght@400;600;700&family=Lato:wght@400;700&family=Lora:wght@400;700&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Nunito:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Oswald:wght@400;600;700&family=Pacifico&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600;700&family=Raleway:wght@400;600;700&family=Roboto:wght@400;700&family=Source+Sans+3:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
         </Head>
-        <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+        <svg width="0" height="0" style={{ position: 'absolute', overflow: 'hidden' }} aria-hidden="true">
           <defs>
+            {/* brand-gradient — teal → purple → lavender (nav active icons, logo) */}
             <linearGradient id="brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%"   stopColor="#00C4CC" />
               <stop offset="50%"  stopColor="#7C5CFC" />
               <stop offset="100%" stopColor="#9B7FFF" />
             </linearGradient>
+            {/* ip-grad-primary — indigo → violet (most UI actions) */}
+            <linearGradient id="ip-grad-primary" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"   stopColor="#9450E6" />
+              <stop offset="60%"  stopColor="#7C5CFC" />
+              <stop offset="100%" stopColor="#CD4B91" />
+            </linearGradient>
+            {/* ip-grad-success — mint → green */}
+            <linearGradient id="ip-grad-success" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"   stopColor="#34C759" />
+              <stop offset="100%" stopColor="#30D158" />
+            </linearGradient>
+            {/* ip-grad-warning — amber → orange */}
+            <linearGradient id="ip-grad-warning" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"   stopColor="#FFD60A" />
+              <stop offset="100%" stopColor="#FF9F0A" />
+            </linearGradient>
+            {/* ip-grad-error — coral → red */}
+            <linearGradient id="ip-grad-error" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"   stopColor="#FF6B62" />
+              <stop offset="100%" stopColor="#FF453A" />
+            </linearGradient>
+            {/* ip-grad-info — sky → blue */}
+            <linearGradient id="ip-grad-info" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"   stopColor="#34AADC" />
+              <stop offset="100%" stopColor="#0A84FF" />
+            </linearGradient>
+            {/* ip-grad-teal — cyan → cobalt */}
+            <linearGradient id="ip-grad-teal" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"   stopColor="#00C4CC" />
+              <stop offset="100%" stopColor="#0A84FF" />
+            </linearGradient>
+            {/* ip-grad-orange — gold → tangerine */}
+            <linearGradient id="ip-grad-orange" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"   stopColor="#FFAC30" />
+              <stop offset="100%" stopColor="#FF6B00" />
+            </linearGradient>
+            {/* ip-grad-pink — rose → magenta */}
+            <linearGradient id="ip-grad-pink" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"   stopColor="#FF6CAB" />
+              <stop offset="100%" stopColor="#CD4B91" />
+            </linearGradient>
+            {/* 3D depth filter for filled icons */}
+            <filter id="ip-depth-fill" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" floodColor="rgba(0,0,0,0.5)" floodOpacity="1" />
+              <feDropShadow dx="0" dy="0.5" stdDeviation="0.4" floodColor="rgba(0,0,0,0.3)" floodOpacity="1" />
+            </filter>
+            {/* Glow filter for active/hover states */}
+            <filter id="ip-glow-primary" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="rgba(124,92,252,0.7)" floodOpacity="1" />
+              <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="rgba(124,92,252,0.4)" floodOpacity="1" />
+            </filter>
           </defs>
         </svg>
         <ToastProvider>
