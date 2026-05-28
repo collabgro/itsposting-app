@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useLayoutEffect, createContext, useContext, useMemo } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, createContext, useContext, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/router';
 import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle, Line, Transformer, RegularPolygon, Star, Arrow, Shape } from 'react-konva';
