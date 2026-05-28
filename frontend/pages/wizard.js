@@ -390,6 +390,7 @@ export default function Wizard() {
   const [scheduleDate, setScheduleDate] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editedCaption, setEditedCaption] = useState('');
+  const [captionHovered, setCaptionHovered] = useState(null);
 
   const loadingInterval = useRef(null);
 
@@ -722,6 +723,11 @@ export default function Wizard() {
   return (
     <Layout title="Post Wizard" subtitle="Guided content creation — powered by PostCore">
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
+        <style>{`
+          @keyframes wizCardPop  { 0%{transform:translateY(-5px) scale(1.04)} 30%{transform:translateY(-7px) scale(1.06)} 100%{transform:translateY(-5px) scale(1.04)} }
+          @keyframes wizLabelIn  { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+          @keyframes wizPencilIn { from{opacity:0;transform:translateY(-3px)} to{opacity:1;transform:translateY(0)} }
+        `}</style>
 
         {/* ── Onboarding welcome banner ── */}
         {isOnboarding && step === 1 && (
@@ -736,45 +742,68 @@ export default function Wizard() {
           </div>
         )}
 
-        {/* ── Progress header ── */}
+        {/* ── Progress pill strip ── */}
         {typeof step === 'number' && (
           <div style={{ marginBottom: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-              {stepLabels.map((label, i) => {
-                const isDone = step > i + 1;
-                const isActive = step === i + 1;
-                return (
-                  <div key={i} style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{
-                      width: 30, height: 30, borderRadius: '50%', margin: '0 auto 6px',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 12, fontWeight: 800,
+            {isMobile ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, flexShrink: 0 }}>{step}/6</span>
+                <div style={{ flex: 1, height: 4, background: t.isDark ? 'rgba(255,255,255,0.06)' : t.border, borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, borderRadius: 4, transition: 'width 500ms cubic-bezier(0.4,0,0.2,1)', boxShadow: '0 0 8px rgba(124,92,252,0.4)' }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: t.primary, flexShrink: 0, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stepLabels[step - 1]}</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {stepLabels.flatMap((label, i) => {
+                  const isDone = step > i + 1;
+                  const isActive = step === i + 1;
+                  const pill = (
+                    <div key={`pill-${i}`} style={{
+                      display: 'flex', alignItems: 'center', gap: 7,
+                      padding: isActive ? '7px 15px 7px 8px' : '6px 10px',
+                      borderRadius: 20, flexShrink: 0,
                       background: isDone
-                        ? `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || t.primary})`
+                        ? 'rgba(34,197,94,0.1)'
                         : isActive
-                          ? `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || t.primary})`
-                          : t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
-                      border: `2px solid ${step >= i + 1 ? 'transparent' : t.isDark ? 'rgba(255,255,255,0.1)' : t.border}`,
-                      color: step >= i + 1 ? '#fff' : t.textMuted,
-                      boxShadow: isActive
-                        ? `0 0 0 4px rgba(124,92,252,0.18), 0 4px 12px rgba(124,92,252,0.35)`
-                        : isDone
-                          ? `0 2px 8px rgba(124,92,252,0.25)`
-                          : 'none',
-                      transition: 'all 300ms cubic-bezier(0.34,1.56,0.64,1)',
+                          ? `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`
+                          : t.isDark ? 'rgba(255,255,255,0.04)' : t.input,
+                      border: isDone
+                        ? '1.5px solid rgba(34,197,94,0.35)'
+                        : isActive
+                          ? 'none'
+                          : `1.5px solid ${t.isDark ? 'rgba(255,255,255,0.1)' : t.border}`,
+                      boxShadow: isActive ? `0 4px 16px rgba(124,92,252,0.42), inset 0 1px 0 rgba(255,255,255,0.2)` : 'none',
+                      transition: 'all 350ms cubic-bezier(0.34,1.56,0.64,1)',
                     }}>
-                      {isDone ? <IpCheck size={12} strokeWidth={3} /> : i + 1}
+                      <div style={{
+                        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: isDone
+                          ? 'rgba(34,197,94,0.18)'
+                          : isActive
+                            ? 'rgba(255,255,255,0.18)'
+                            : 'transparent',
+                        fontSize: 11, fontWeight: 800,
+                        color: isDone ? '#22C55E' : isActive ? '#fff' : t.textMuted,
+                        transition: 'all 300ms ease',
+                      }}>
+                        {isDone ? <IpCheck size={11} color="#22C55E" strokeWidth={3} /> : i + 1}
+                      </div>
+                      {isActive && (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', animation: 'wizLabelIn 280ms cubic-bezier(0.34,1.56,0.64,1)' }}>
+                          {label}
+                        </span>
+                      )}
                     </div>
-                    <div style={{ fontSize: 10, color: isActive ? t.primary : t.textMuted, fontWeight: isActive ? 700 : 400, transition: 'color 200ms ease' }}>
-                      {label}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ height: 4, background: t.isDark ? 'rgba(255,255,255,0.06)' : t.border, borderRadius: 4, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, borderRadius: 4, transition: 'width 500ms cubic-bezier(0.4,0,0.2,1)', boxShadow: '0 0 8px rgba(124,92,252,0.5)' }} />
-            </div>
+                  );
+                  const connector = i < stepLabels.length - 1 ? (
+                    <div key={`con-${i}`} style={{ flex: 1, height: 2, minWidth: 6, background: step > i + 1 ? 'rgba(34,197,94,0.28)' : t.isDark ? 'rgba(255,255,255,0.06)' : t.border, transition: 'background 400ms ease' }} />
+                  ) : null;
+                  return connector ? [pill, connector] : [pill];
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -1525,8 +1554,30 @@ export default function Wizard() {
                                 );
                               })()
                             ) : (
-                              <div style={{ fontSize: 13, color: t.text, lineHeight: 1.7, whiteSpace: 'pre-wrap', marginBottom: 10 }}>
-                                {variation.caption}
+                              <div
+                                onMouseEnter={() => setCaptionHovered(label)}
+                                onMouseLeave={() => setCaptionHovered(null)}
+                                style={{ position: 'relative', marginBottom: 10 }}
+                              >
+                                <div style={{ fontSize: 13, color: t.text, lineHeight: 1.7, whiteSpace: 'pre-wrap', paddingRight: captionHovered === label ? 60 : 0, transition: 'padding 150ms ease' }}>
+                                  {variation.caption}
+                                </div>
+                                {captionHovered === label && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleEditStart(); }}
+                                    style={{
+                                      position: 'absolute', top: 0, right: 0,
+                                      padding: '4px 9px', borderRadius: 7,
+                                      background: t.isDark ? 'rgba(124,92,252,0.18)' : 'rgba(124,92,252,0.09)',
+                                      border: `1px solid rgba(124,92,252,0.3)`,
+                                      color: t.primary, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                      display: 'flex', alignItems: 'center', gap: 4,
+                                      animation: 'wizPencilIn 150ms ease',
+                                    }}
+                                  >
+                                    <IpEdit size={11} /> Edit
+                                  </button>
+                                )}
                               </div>
                             )}
 
@@ -1749,12 +1800,13 @@ function ThemeCard({ selected, onClick, t, children }) {
         WebkitBackdropFilter: 'blur(16px) saturate(160%)',
         border: `2px solid ${selected ? 'rgba(124,92,252,0.55)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
         borderRadius: 18, cursor: 'pointer',
-        transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+        transition: 'border-color 180ms, background 180ms, box-shadow 200ms',
         textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center',
         position: 'relative',
-        transform: selected ? 'translateY(-5px) scale(1.02)' : 'none',
+        transform: selected ? 'translateY(-5px) scale(1.04)' : 'none',
+        animation: selected ? 'wizCardPop 320ms cubic-bezier(0.34,1.56,0.64,1) forwards' : 'none',
         boxShadow: selected
-          ? `0 12px 36px rgba(124,92,252,0.3), 0 0 0 4px rgba(124,92,252,0.1), inset 0 1px 0 rgba(255,255,255,0.08)`
+          ? `0 14px 40px rgba(124,92,252,0.32), 0 0 0 4px rgba(124,92,252,0.12), inset 0 1px 0 rgba(255,255,255,0.1)`
           : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
       }}
       onMouseEnter={(e) => { if (!selected) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.35)'; e.currentTarget.style.background = t.isDark ? 'rgba(124,92,252,0.07)' : 'rgba(124,92,252,0.04)'; e.currentTarget.style.transform = 'translateY(-4px) scale(1.01)'; e.currentTarget.style.boxShadow = `0 8px 28px rgba(124,92,252,0.18), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.06' : '0.9'})`; } }}
