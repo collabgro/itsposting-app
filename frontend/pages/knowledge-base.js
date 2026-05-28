@@ -16,6 +16,21 @@ import { knowledgeAPI, receptionistAPI } from '../lib/api';
 const TYPE_LABELS = { services: 'Services', reviews: 'Reviews', differentiators: 'About', team: 'Team' };
 const TYPE_COLORS = { services: '#3b82f6', reviews: '#22c55e', differentiators: '#8b5cf6', team: '#ec4899' };
 
+function countWords(content) {
+  if (!content) return 0;
+  let text;
+  try { text = JSON.stringify(JSON.parse(content)); } catch { text = String(content); }
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function getQualityInfo(content) {
+  const wc = countWords(content);
+  if (wc >= 50) return { label: 'Detailed',              color: '#22c55e', bg: 'rgba(34,197,94,0.1)',  border: 'rgba(34,197,94,0.25)',  wc, tier: 'detailed' };
+  if (wc >= 20) return { label: 'Good',                  color: '#3b82f6', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.25)', wc, tier: 'good' };
+  if (wc >= 8)  return { label: 'Brief',                 color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)', wc, tier: 'brief' };
+  return        { label: 'Thin — add more detail',       color: '#ef4444', bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.25)',  wc, tier: 'thin' };
+}
+
 // ── Root Page ────────────────────────────────────────────────────────────────
 
 export default function KnowledgeBase() {
@@ -105,7 +120,8 @@ export default function KnowledgeBase() {
 // ── All Tab ──────────────────────────────────────────────────────────────────
 
 function AllTab({ t, refreshKey, onSwitchTab }) {
-  const [counts, setCounts] = useState({ crawler: 0, faq: 0, richtext: 0, tables: 0, files: 0 });
+  const [counts,  setCounts]  = useState({ crawler: 0, faq: 0, richtext: 0, tables: 0, files: 0 });
+  const [quality, setQuality] = useState({ total: 0, thin: 0, brief: 0, good: 0, detailed: 0 });
 
   useEffect(() => {
     Promise.all([
@@ -121,6 +137,14 @@ function AllTab({ t, refreshKey, onSwitchTab }) {
         tables:   items.filter(e => e.knowledge_type === 'prices').length,
         files:    items.filter(e => e.knowledge_type === 'files').length,
       });
+      const nonFile = items.filter(e => e.knowledge_type !== 'files');
+      setQuality({
+        total:    nonFile.length,
+        thin:     nonFile.filter(e => getQualityInfo(e.content).tier === 'thin').length,
+        brief:    nonFile.filter(e => getQualityInfo(e.content).tier === 'brief').length,
+        good:     nonFile.filter(e => getQualityInfo(e.content).tier === 'good').length,
+        detailed: nonFile.filter(e => getQualityInfo(e.content).tier === 'detailed').length,
+      });
     });
   }, [refreshKey]);
 
@@ -133,6 +157,47 @@ function AllTab({ t, refreshKey, onSwitchTab }) {
   ];
 
   return (
+    <>
+    {quality.total > 0 && (
+      <div style={{ marginBottom: 20, padding: '16px 20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${quality.thin > 0 ? 'rgba(239,68,68,0.2)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <IpSparkle size={16} style={{ color: t.primary }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Knowledge Health</span>
+          </div>
+          <span style={{ fontSize: 12, color: t.textMuted }}>{quality.total} entries</span>
+        </div>
+        {/* Stacked quality bar */}
+        <div style={{ height: 6, borderRadius: 6, overflow: 'hidden', display: 'flex', marginBottom: 10 }}>
+          {[
+            { count: quality.thin,     color: '#ef4444' },
+            { count: quality.brief,    color: '#f59e0b' },
+            { count: quality.good,     color: '#3b82f6' },
+            { count: quality.detailed, color: '#22c55e' },
+          ].map((seg, i) => seg.count > 0 && (
+            <div key={i} style={{ flex: seg.count, background: seg.color, transition: 'flex 400ms ease' }} />
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {[
+            { count: quality.thin,     color: '#ef4444', label: 'Thin' },
+            { count: quality.brief,    color: '#f59e0b', label: 'Brief' },
+            { count: quality.good,     color: '#3b82f6', label: 'Good' },
+            { count: quality.detailed, color: '#22c55e', label: 'Detailed' },
+          ].map(seg => (
+            <span key={seg.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: t.textSecondary }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: seg.color, flexShrink: 0 }} />
+              <strong style={{ color: seg.count > 0 ? seg.color : t.textMuted }}>{seg.count}</strong> {seg.label}
+            </span>
+          ))}
+        </div>
+        {quality.thin > 0 && (
+          <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)', borderRadius: 8, fontSize: 11, color: t.textMuted }}>
+            <span style={{ color: '#ef4444', fontWeight: 700 }}>{quality.thin} {quality.thin === 1 ? 'entry is' : 'entries are'} too thin</span> — PostCore needs more detail to use them effectively. Click an entry to edit.
+          </div>
+        )}
+      </div>
+    )}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 16 }}>
       {cards.map(card => (
         <button
@@ -158,6 +223,7 @@ function AllTab({ t, refreshKey, onSwitchTab }) {
         </button>
       ))}
     </div>
+    </>
   );
 }
 
@@ -826,8 +892,11 @@ function FaqTab({ t, refreshKey }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {faqs.map(faq => (
-            <div key={faq.id} style={{ ...gc, padding: '14px 16px' }}>
+          {faqs.map(faq => {
+            const q = getQualityInfo(faq.content);
+            const isNew = faq.created_at && (Date.now() - new Date(faq.created_at)) < 7 * 86400000;
+            return (
+            <div key={faq.id} style={{ ...gc, padding: '14px 16px', border: q.tier === 'thin' ? `1px solid ${q.border}` : gc.border }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>
@@ -842,8 +911,20 @@ function FaqTab({ t, refreshKey }) {
                   <ActionBtn title="Delete" onClick={() => handleDelete(faq.id)} danger><IpDelete size={13} /></ActionBtn>
                 </div>
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 8, borderTop: `1px solid ${t.border}` }}>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: q.bg, color: q.color, border: `1px solid ${q.border}` }}>
+                  {q.label}
+                </span>
+                <span style={{ fontSize: 11, color: t.textMuted }}>{q.wc} word{q.wc !== 1 ? 's' : ''}</span>
+                {isNew && (
+                  <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 600, color: '#8b5cf6', padding: '2px 8px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 10 }}>
+                    New — generate a post to use this
+                  </span>
+                )}
+              </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </>
@@ -1071,10 +1152,13 @@ function RichTextTab({ t, refreshKey }) {
         </div>
       ) : (
         <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
-          {entries.map((entry, idx) => (
+          {entries.map((entry, idx) => {
+            const q = getQualityInfo(entry.content);
+            const isNew = entry.created_at && (Date.now() - new Date(entry.created_at)) < 7 * 86400000;
+            return (
             <div
               key={entry.id}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: idx < entries.length - 1 ? `1px solid ${t.border}` : 'none' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: idx < entries.length - 1 ? `1px solid ${t.border}` : 'none', background: q.tier === 'thin' ? (t.isDark ? 'rgba(239,68,68,0.04)' : 'rgba(239,68,68,0.02)') : 'transparent' }}
             >
               <div style={{ width: 32, height: 32, borderRadius: 6, background: `${TYPE_COLORS[entry.knowledge_type] || '#6b7280'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: TYPE_COLORS[entry.knowledge_type] || '#6b7280', flexShrink: 0 }}>
                 T
@@ -1086,12 +1170,21 @@ function RichTextTab({ t, refreshKey }) {
               <span style={{ padding: '2px 8px', borderRadius: 20, background: `${TYPE_COLORS[entry.knowledge_type] || '#6b7280'}18`, color: TYPE_COLORS[entry.knowledge_type] || '#6b7280', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
                 {TYPE_LABELS[entry.knowledge_type] || entry.knowledge_type}
               </span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: q.bg, color: q.color, border: `1px solid ${q.border}`, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {q.tier === 'thin' ? 'Thin' : q.tier === 'brief' ? 'Brief' : q.label}
+              </span>
+              {isNew && (
+                <span title="PostCore hasn't used this yet — generate a post to put it to work" style={{ fontSize: 10, fontWeight: 600, color: '#8b5cf6', padding: '2px 7px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 10, flexShrink: 0, whiteSpace: 'nowrap', cursor: 'help' }}>
+                  New
+                </span>
+              )}
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <ActionBtn title="Edit" onClick={() => setEditing(entry)}><IpEdit size={14} /></ActionBtn>
                 <ActionBtn title="Delete" onClick={() => handleDelete(entry.id)} danger><IpDelete size={13} /></ActionBtn>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </>
