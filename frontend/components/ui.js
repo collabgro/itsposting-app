@@ -169,32 +169,44 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 8, style 
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export function Card({ children, padding = 24, style = {}, hoverable = false, onClick, ...rest }) {
+export function Card({ children, padding = 24, style = {}, hoverable = false, onClick, glass = false, ...rest }) {
   const { t } = useTheme();
   const isClickable = hoverable || !!onClick;
+  const baseBoxShadow = glass
+    ? (t.isDark ? '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 4px 20px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)')
+    : t.isDark ? `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)` : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.8)`;
+  const hoverBoxShadow = t.isDark
+    ? `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.06)`
+    : `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.9)`;
   return (
     <div
       onClick={onClick}
       style={{
-        background: t.card, border: `1px solid ${t.border}`,
-        borderRadius: 16, padding,
-        transition: 'border-color 150ms ease, box-shadow 200ms cubic-bezier(0.34,1.56,0.64,1), transform 200ms cubic-bezier(0.34,1.56,0.64,1)',
-        boxShadow: t.shadowSm,
+        background: glass
+          ? (t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.78)')
+          : t.card,
+        border: glass
+          ? `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.7)'}`
+          : `1px solid ${t.border}`,
+        backdropFilter: glass ? 'blur(24px) saturate(180%)' : undefined,
+        borderRadius: 18, padding,
+        transition: 'border-color 160ms ease, box-shadow 220ms cubic-bezier(0.34,1.56,0.64,1), transform 220ms cubic-bezier(0.34,1.56,0.64,1)',
+        boxShadow: baseBoxShadow,
         cursor: isClickable ? 'pointer' : undefined,
         ...style,
       }}
       onMouseEnter={isClickable ? (e) => {
         e.currentTarget.style.borderColor = t.primaryBorder;
-        e.currentTarget.style.boxShadow = t.shadowMd;
-        e.currentTarget.style.transform = 'translateY(-3px)';
+        e.currentTarget.style.boxShadow = hoverBoxShadow;
+        e.currentTarget.style.transform = 'translateY(-4px)';
       } : undefined}
       onMouseLeave={isClickable ? (e) => {
-        e.currentTarget.style.borderColor = t.border;
-        e.currentTarget.style.boxShadow = t.shadowSm;
+        e.currentTarget.style.borderColor = glass ? (t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.7)') : t.border;
+        e.currentTarget.style.boxShadow = baseBoxShadow;
         e.currentTarget.style.transform = 'translateY(0)';
       } : undefined}
-      onMouseDown={isClickable ? (e) => { e.currentTarget.style.transform = 'translateY(-1px)'; } : undefined}
-      onMouseUp={isClickable ? (e) => { e.currentTarget.style.transform = 'translateY(-3px)'; } : undefined}
+      onMouseDown={isClickable ? (e) => { e.currentTarget.style.transform = 'translateY(-1px) scale(0.99)'; } : undefined}
+      onMouseUp={isClickable ? (e) => { e.currentTarget.style.transform = 'translateY(-4px) scale(1)'; } : undefined}
       {...rest}
     >
       {children}
@@ -205,70 +217,104 @@ export function Card({ children, padding = 24, style = {}, hoverable = false, on
 // ─── Button ───────────────────────────────────────────────────────────────────
 
 export function Button({
-  variant = 'primary', size = 'md', children, style = {}, disabled, loading, ...rest
+  variant = 'primary', size = 'md', children, style = {}, disabled, loading, shimmer, ...rest
 }) {
   const { t } = useTheme();
   const sizes = {
-    sm: { padding: '6px 12px', fontSize: 12 },
-    md: { padding: '8px 16px', fontSize: 13 },
-    lg: { padding: '12px 22px', fontSize: 14 },
+    sm: { padding: '6px 14px', fontSize: 12, gap: 5 },
+    md: { padding: '9px 18px', fontSize: 13, gap: 6 },
+    lg: { padding: '13px 24px', fontSize: 14, gap: 7 },
   };
-  const bg = {
-    primary:   disabled || loading ? t.textDisabled : t.primary,
-    secondary: t.card,
-    ghost:     'transparent',
-    danger:    t.error,
-  };
-  const color = {
-    primary:   '#fff',
-    secondary: t.text,
-    ghost:     t.textSecondary,
-    danger:    '#fff',
-  };
-  const border = {
-    primary:   '1px solid transparent',
-    secondary: `1px solid ${t.border}`,
-    ghost:     '1px solid transparent',
-    danger:    '1px solid transparent',
+  const isDisabled = disabled || loading;
+
+  const primaryBg = isDisabled
+    ? t.textDisabled
+    : 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%)';
+  const primaryShadow = isDisabled
+    ? 'none'
+    : `0 4px 15px rgba(124,92,252,0.4), inset 0 1px 0 rgba(255,255,255,0.15)`;
+
+  const variantStyles = {
+    primary: {
+      background: primaryBg,
+      color: '#fff',
+      border: '1px solid transparent',
+      boxShadow: primaryShadow,
+    },
+    secondary: {
+      background: t.card,
+      color: t.text,
+      border: `1px solid ${t.border}`,
+      boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05)`,
+    },
+    ghost: {
+      background: 'transparent',
+      color: t.textSecondary,
+      border: '1px solid transparent',
+      boxShadow: 'none',
+    },
+    danger: {
+      background: t.error,
+      color: '#fff',
+      border: '1px solid transparent',
+      boxShadow: `0 4px 12px rgba(239,68,68,0.3), inset 0 1px 0 rgba(255,255,255,0.1)`,
+    },
   };
 
-  const isDisabled = disabled || loading;
+  const vs = variantStyles[variant] || variantStyles.primary;
+  const s = sizes[size] || sizes.md;
 
   return (
     <button
       disabled={isDisabled}
+      className={shimmer && variant === 'primary' && !isDisabled ? 'btn-shimmer' : undefined}
       style={{
-        ...sizes[size], background: bg[variant], color: color[variant], border: border[variant],
-        borderRadius: 10, fontWeight: 600, letterSpacing: '-0.01em',
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        transition: 'background 150ms ease, border-color 150ms ease, box-shadow 150ms cubic-bezier(0.34,1.56,0.64,1), transform 150ms cubic-bezier(0.34,1.56,0.64,1)',
+        padding: s.padding, fontSize: s.fontSize,
+        background: vs.background, color: vs.color,
+        border: vs.border, boxShadow: vs.boxShadow,
+        borderRadius: 11, fontWeight: 600, letterSpacing: '-0.02em',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: s.gap,
+        transition: 'box-shadow 160ms ease, transform 160ms cubic-bezier(0.34,1.56,0.64,1), border-color 120ms ease',
         cursor: isDisabled ? 'not-allowed' : 'pointer',
-        opacity: isDisabled ? 0.55 : 1,
-        position: 'relative', userSelect: 'none',
-        boxShadow: variant === 'primary' && !isDisabled ? `inset 0 1px 0 rgba(255,255,255,0.08), ${t.shadowSm}` : 'none',
+        opacity: isDisabled ? 0.5 : 1,
+        position: 'relative', userSelect: 'none', overflow: 'hidden',
+        whiteSpace: 'nowrap',
         ...style,
       }}
       onMouseEnter={(e) => {
         if (isDisabled) return;
-        if (variant === 'primary') { e.currentTarget.style.background = t.primaryHover; e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 14px ${t.focusRing}`; e.currentTarget.style.transform = 'translateY(-1px)'; }
-        if (variant === 'secondary') { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.transform = 'translateY(-1px)'; }
-        if (variant === 'ghost') { e.currentTarget.style.background = t.cardHover; }
-        if (variant === 'danger') { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)'; }
+        if (variant === 'primary') {
+          e.currentTarget.style.boxShadow = `0 6px 22px rgba(124,92,252,0.55), inset 0 1px 0 rgba(255,255,255,0.2)`;
+          e.currentTarget.style.transform = 'translateY(-2px)';
+        }
+        if (variant === 'secondary') {
+          e.currentTarget.style.background = t.cardHover;
+          e.currentTarget.style.borderColor = t.borderStrong;
+          e.currentTarget.style.transform = 'translateY(-1px)';
+        }
+        if (variant === 'ghost') {
+          e.currentTarget.style.background = t.cardHover;
+          e.currentTarget.style.color = t.text;
+        }
+        if (variant === 'danger') {
+          e.currentTarget.style.boxShadow = `0 6px 18px rgba(239,68,68,0.45), inset 0 1px 0 rgba(255,255,255,0.15)`;
+          e.currentTarget.style.transform = 'translateY(-1px)';
+        }
       }}
       onMouseLeave={(e) => {
         if (isDisabled) return;
-        if (variant === 'primary') { e.currentTarget.style.background = t.primary; e.currentTarget.style.boxShadow = `inset 0 1px 0 rgba(255,255,255,0.08), ${t.shadowSm}`; e.currentTarget.style.transform = 'translateY(0)'; }
-        if (variant === 'secondary') { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = 'translateY(0)'; }
-        if (variant === 'ghost') { e.currentTarget.style.background = 'transparent'; }
-        if (variant === 'danger') { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)'; }
+        e.currentTarget.style.boxShadow = vs.boxShadow;
+        e.currentTarget.style.transform = 'translateY(0)';
+        if (variant === 'secondary') { e.currentTarget.style.background = t.card; e.currentTarget.style.borderColor = t.border; }
+        if (variant === 'ghost') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; }
       }}
-      onMouseDown={(e) => { if (!isDisabled) e.currentTarget.style.transform = 'translateY(0) scale(0.97)'; }}
-      onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-1px) scale(1)'; }}
+      onMouseDown={(e) => { if (!isDisabled) e.currentTarget.style.transform = 'scale(0.96)'; }}
+      onMouseUp={(e) => { if (!isDisabled) e.currentTarget.style.transform = 'translateY(-2px) scale(1)'; }}
       {...rest}
     >
       {loading && (
         <span style={{
-          width: 12, height: 12, borderRadius: '50%',
+          width: 13, height: 13, borderRadius: '50%',
           border: `2px solid ${variant === 'primary' || variant === 'danger' ? 'rgba(255,255,255,0.3)' : t.border}`,
           borderTopColor: variant === 'primary' || variant === 'danger' ? '#fff' : t.primary,
           animation: 'ip-spin 600ms linear infinite', flexShrink: 0,
@@ -362,15 +408,99 @@ export function Badge({ variant = 'default', children, style = {} }) {
 
 // ─── StatCard ─────────────────────────────────────────────────────────────────
 
-export function StatCard({ label, value, hint, accent = 'primary', onClick }) {
+export function StatCard({ label, value, hint, accent = 'primary', icon: Icon, trend, onClick }) {
   const { t } = useTheme();
-  const accents = { primary: t.primary, success: t.success, warning: t.warning, info: t.info };
+  const accentColors = {
+    primary: t.primary,
+    success: t.success,
+    warning: t.warning,
+    info: t.info,
+    error: t.error,
+  };
+  const accentBgs = {
+    primary: t.primaryBg,
+    success: t.successBg,
+    warning: t.warningBg,
+    info: t.infoBg,
+    error: t.errorBg,
+  };
+  const accentBorders = {
+    primary: t.primaryBorder,
+    success: t.successBorder,
+    warning: t.warningBorder,
+    info: t.infoBorder,
+    error: t.errorBorder,
+  };
+  const col = accentColors[accent] || t.primary;
+  const trendPositive = trend && (typeof trend === 'string' ? trend.startsWith('+') : trend > 0);
+  const trendColor = trendPositive ? t.success : t.error;
+
   return (
-    <Card onClick={onClick} hoverable={!!onClick}>
-      <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, letterSpacing: '-0.01em' }}>{label}</div>
-      <div style={{ fontSize: 36, fontWeight: 800, color: t.text, marginTop: 8, letterSpacing: '-0.04em', lineHeight: 1 }}>{value}</div>
-      {hint && <div style={{ fontSize: 12, color: accents[accent] || t.primary, marginTop: 6, fontWeight: 500 }}>{hint}</div>}
-    </Card>
+    <div
+      onClick={onClick}
+      style={{
+        background: t.card,
+        border: `1px solid ${t.border}`,
+        borderLeft: `3px solid ${col}`,
+        borderRadius: 18,
+        padding: 22,
+        boxShadow: t.isDark
+          ? `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`
+          : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.8)`,
+        transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease, border-color 150ms ease',
+        cursor: onClick ? 'pointer' : 'default',
+        position: 'relative', overflow: 'hidden',
+      }}
+      onMouseEnter={onClick ? (e) => {
+        e.currentTarget.style.transform = 'translateY(-3px)';
+        e.currentTarget.style.boxShadow = t.isDark
+          ? `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.06)`
+          : `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.9)`;
+        e.currentTarget.style.borderLeftColor = col;
+      } : undefined}
+      onMouseLeave={onClick ? (e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = t.isDark
+          ? `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`
+          : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.8)`;
+      } : undefined}
+      onMouseDown={onClick ? (e) => { e.currentTarget.style.transform = 'scale(0.99)'; } : undefined}
+      onMouseUp={onClick ? (e) => { e.currentTarget.style.transform = 'translateY(-3px)'; } : undefined}
+    >
+      {/* Subtle accent glow in corner */}
+      <div style={{
+        position: 'absolute', top: -20, right: -20, width: 80, height: 80,
+        borderRadius: '50%', background: col, opacity: 0.06, pointerEvents: 'none',
+      }} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, letterSpacing: '-0.01em', lineHeight: 1.4 }}>{label}</div>
+        {Icon && (
+          <div style={{
+            width: 32, height: 32, borderRadius: 9,
+            background: accentBgs[accent] || t.primaryBg,
+            border: `1px solid ${accentBorders[accent] || t.primaryBorder}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Icon size={15} color={col} strokeWidth={2} />
+          </div>
+        )}
+      </div>
+      <div style={{ fontSize: 34, fontWeight: 800, color: t.text, marginTop: 10, letterSpacing: '-0.04em', lineHeight: 1 }}>{value}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7 }}>
+        {hint && <div style={{ fontSize: 12, color: col, fontWeight: 500 }}>{hint}</div>}
+        {trend && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+            fontSize: 11, fontWeight: 600, color: trendColor,
+            background: trendPositive ? t.successBg : t.errorBg,
+            border: `1px solid ${trendPositive ? t.successBorder : t.errorBorder}`,
+            borderRadius: 6, padding: '2px 7px',
+          }}>
+            {trendPositive ? '▲' : '▼'} {trend}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -379,20 +509,24 @@ export function StatCard({ label, value, hint, accent = 'primary', onClick }) {
 export function SectionHeader({ title, subtitle, icon: Icon, action }) {
   const { t } = useTheme();
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
         {Icon && (
           <div style={{
-            width: 36, height: 36, borderRadius: 9, background: t.primaryBg,
-            border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', flexShrink: 0,
+            width: 40, height: 40, borderRadius: 12,
+            background: t.isDark
+              ? 'linear-gradient(135deg, rgba(124,92,252,0.2) 0%, rgba(124,92,252,0.1) 100%)'
+              : 'linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(124,92,252,0.06) 100%)',
+            border: `1px solid ${t.primaryBorder}`,
+            boxShadow: '0 4px 14px rgba(124,92,252,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <Icon size={18} strokeWidth={2} color="url(#brand-gradient)" />
+            <Icon size={19} strokeWidth={2} color={t.primary} />
           </div>
         )}
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: t.text, letterSpacing: '-0.025em', lineHeight: 1.2 }}>{title}</h2>
-          {subtitle && <p style={{ fontSize: 13, color: t.textMuted, marginTop: 3, lineHeight: 1.5 }}>{subtitle}</p>}
+        <div style={{ paddingTop: Icon ? 2 : 0 }}>
+          <h2 style={{ fontSize: 19, fontWeight: 700, color: t.text, letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0 }}>{title}</h2>
+          {subtitle && <p style={{ fontSize: 13, color: t.textMuted, marginTop: 4, lineHeight: 1.55, margin: '4px 0 0' }}>{subtitle}</p>}
         </div>
       </div>
       {action}
@@ -405,16 +539,24 @@ export function SectionHeader({ title, subtitle, icon: Icon, action }) {
 export function EmptyState({ icon: Icon = IpInbox, title, subtitle, action }) {
   const { t } = useTheme();
   return (
-    <div style={{ padding: '56px 24px', textAlign: 'center' }}>
-      <div style={{
-        width: 60, height: 60, borderRadius: 16, background: t.primaryBg,
-        border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center',
-        justifyContent: 'center', margin: '0 auto 18px',
+    <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+      <div className="float" style={{
+        width: 68, height: 68, borderRadius: 20,
+        background: t.isDark
+          ? 'linear-gradient(135deg, rgba(124,92,252,0.18) 0%, rgba(124,92,252,0.08) 100%)'
+          : 'linear-gradient(135deg, rgba(124,92,252,0.1) 0%, rgba(124,92,252,0.05) 100%)',
+        border: `1px solid ${t.primaryBorder}`,
+        boxShadow: '0 8px 24px rgba(124,92,252,0.18), 0 0 0 6px rgba(124,92,252,0.06)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 22px',
       }}>
-        <Icon size={24} color="url(#brand-gradient)" />
+        <Icon size={28} color={t.primary} />
       </div>
-      <h3 style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 6, letterSpacing: '-0.02em' }}>{title}</h3>
-      {subtitle && <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 24, lineHeight: 1.6, maxWidth: 320, margin: '0 auto 24px' }}>{subtitle}</p>}
+      <h3 style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 8, letterSpacing: '-0.025em' }}>{title}</h3>
+      {subtitle && (
+        <p style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.65, maxWidth: 340, margin: '0 auto 28px' }}>
+          {subtitle}
+        </p>
+      )}
       {action}
     </div>
   );

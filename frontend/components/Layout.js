@@ -389,42 +389,46 @@ export default function Layout({ children, title, subtitle, action }) {
 
         {/* CREATE NEW POST */}
         {!isMobile && (
-          <div style={{ padding: '12px', flexShrink: 0 }}>
+          <div style={{ padding: '12px 14px', flexShrink: 0 }}>
             <button
               onClick={() => router.push('/wizard')}
+              className="btn-shimmer"
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 8, padding: '11px 14px',
-                background: `linear-gradient(135deg, ${t.primary} 0%, ${t.primaryLight} 100%)`,
-                border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700,
-                transition: 'transform 150ms ease, box-shadow 150ms ease', cursor: 'pointer',
-                boxShadow: `0 2px 14px ${t.focusRing}`,
+                gap: 8, padding: '12px 14px',
+                background: `linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%)`,
+                backgroundSize: '200% 100%',
+                border: 'none', borderRadius: 12, color: '#fff', fontSize: 13, fontWeight: 700,
+                transition: 'transform 180ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 180ms ease', cursor: 'pointer',
+                boxShadow: '0 4px 20px rgba(124,92,252,0.45), 0 1px 3px rgba(124,92,252,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
+                letterSpacing: '-0.01em',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = `0 4px 20px ${t.focusRing}`;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 28px rgba(124,92,252,0.55), 0 2px 6px rgba(124,92,252,0.35), inset 0 1px 0 rgba(255,255,255,0.2)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = `0 2px 14px ${t.focusRing}`;
+                e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,92,252,0.45), 0 1px 3px rgba(124,92,252,0.3), inset 0 1px 0 rgba(255,255,255,0.15)';
               }}
-              onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(0.98)'; }}
-              onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-1px) scale(1)'; }}
+              onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(0.97)'; }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-2px) scale(1)'; }}
             >
-              <IpSparkle size={15} color="#fff" />
+              <IpSparkle size={16} />
               Create new post
             </button>
           </div>
         )}
 
         {/* NAVIGATION */}
-        <nav style={{ flex: 1, padding: '4px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <nav style={{ flex: 1, padding: '4px 10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ flex: 1 }}>
           {visibleNavItems.map((item) => {
             if (item.isDivider) {
               return (
-                <div key={`divider-${item.label}`} style={{ padding: '16px 10px 5px', fontSize: 10, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  {item.label}
+                <div key={`divider-${item.label}`} style={{ padding: '18px 10px 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: t.textDisabled, textTransform: 'uppercase', letterSpacing: '0.10em' }}>{item.label}</span>
+                  <div style={{ flex: 1, height: 1, background: t.border, opacity: 0.5 }} />
                 </div>
               );
             }
@@ -436,19 +440,25 @@ export default function Layout({ children, title, subtitle, action }) {
                 href={item.href}
                 style={{
                   display: 'flex', alignItems: 'center',
-                  gap: 10, padding: '8px 10px', marginBottom: 1,
+                  gap: 10, padding: '8px 10px', marginBottom: 2,
                   borderRadius: 10, fontSize: 13, fontWeight: active ? 600 : 500,
                   color: active ? t.text : t.textSecondary,
-                  background: active ? (item.isAdmin ? 'rgba(124,92,252,0.15)' : t.primaryBg) : 'transparent',
-                  borderLeft: active ? `3px solid ${item.isAdmin ? t.primary : t.primary}` : '3px solid transparent',
-                  transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', whiteSpace: 'nowrap',
+                  background: active
+                    ? t.isDark
+                      ? 'linear-gradient(135deg, rgba(124,92,252,0.18) 0%, rgba(124,92,252,0.08) 100%)'
+                      : 'linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(124,92,252,0.05) 100%)'
+                    : 'transparent',
+                  borderLeft: active ? `2.5px solid ${t.primary}` : '2.5px solid transparent',
+                  boxShadow: active ? (t.isDark ? 'inset 0 1px 0 rgba(255,255,255,0.04)' : 'inset 0 1px 0 rgba(255,255,255,0.6)') : 'none',
+                  transition: 'all 160ms cubic-bezier(0.34,1.56,0.64,1)', whiteSpace: 'nowrap',
                   textDecoration: 'none', position: 'relative',
+                  letterSpacing: '-0.01em',
                 }}
                 onMouseEnter={(e) => {
                   if (!active) {
-                    e.currentTarget.style.background = t.cardHover;
+                    e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.04)' : t.cardHover;
                     e.currentTarget.style.color = t.text;
-                    e.currentTarget.style.transform = 'translateX(2px)';
+                    e.currentTarget.style.transform = 'translateX(3px)';
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -459,10 +469,15 @@ export default function Layout({ children, title, subtitle, action }) {
                   }
                 }}
               >
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <item.icon size={16} strokeWidth={2} color={active ? 'url(#brand-gradient)' : (item.isAdmin ? 'url(#brand-gradient)' : t.textMuted)} />
+                <div style={{ position: 'relative', flexShrink: 0 }}
+                  className={active ? 'icon-3d-active' : 'icon-3d'}>
+                  <item.icon
+                    size={16}
+                    strokeWidth={active ? 2.2 : 1.85}
+                    color={active ? 'url(#brand-gradient)' : (item.isAdmin ? 'url(#brand-gradient)' : t.textMuted)}
+                  />
                   {hasSuggDot && (
-                    <div style={{ position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: '#EF4444', border: `1.5px solid ${t.sidebar}` }} />
+                    <div style={{ position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: '#EF4444', border: `1.5px solid ${t.sidebar}`, boxShadow: '0 0 4px rgba(239,68,68,0.6)' }} />
                   )}
                 </div>
                 <span style={{ flex: 1 }}>{item.name}</span>
@@ -472,17 +487,18 @@ export default function Layout({ children, title, subtitle, action }) {
                     color: '#fff', fontSize: 10, fontWeight: 700,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     padding: '0 4px', flexShrink: 0,
+                    boxShadow: '0 2px 6px rgba(239,68,68,0.45)',
                   }}>
                     {badges[item.badgeKey] > 99 ? '99+' : badges[item.badgeKey]}
                   </span>
                 )}
                 {item.isQuickPost && (
-                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 4, background: t.primaryBg, color: t.primary, border: `1px solid ${t.primaryBorder}` }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 5, background: 'rgba(124,92,252,0.15)', color: t.primary, border: `1px solid rgba(124,92,252,0.25)` }}>
                     30s
                   </span>
                 )}
                 {item.betaBadge && (
-                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 4, background: 'rgba(234,179,8,0.15)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.3)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 5, background: 'rgba(234,179,8,0.12)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.25)', flexShrink: 0 }}>
                     Beta
                   </span>
                 )}
@@ -506,14 +522,18 @@ export default function Layout({ children, title, subtitle, action }) {
 
         {/* TRIAL CARD */}
         {!isMobile && user?.status === 'trial' && (
-          <div style={{ padding: '12px', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
-            <div style={{ padding: '12px 14px', background: t.card, borderRadius: 10, border: `1px solid ${t.border}` }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 2 }}>Free trial version</div>
-              <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8 }}>{user.credits_balance ?? 0} {user.is_sub_account ? 'shared credits' : 'credits remaining'}</div>
-              <div style={{ height: 4, background: t.input, borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
-                <div style={{ height: '100%', width: `${Math.min(100, ((user.credits_balance ?? 0) / 10) * 100)}%`, background: t.primary, borderRadius: 2 }} />
+          <div style={{ padding: '10px 14px', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
+            <div style={{ padding: '13px 14px', background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.05)', borderRadius: 12, border: `1px solid rgba(124,92,252,0.2)`, boxShadow: 'inset 0 1px 0 rgba(124,92,252,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: t.text, letterSpacing: '-0.01em' }}>Free Trial</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: t.primary }}>{user.credits_balance ?? 0} credits left</div>
               </div>
-              <Link href="/billing" style={{ fontSize: 12, fontWeight: 600, color: t.primary, textDecoration: 'none' }}>Upgrade now →</Link>
+              <div style={{ height: 5, background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 99, overflow: 'hidden', marginBottom: 10 }}>
+                <div style={{ height: '100%', width: `${Math.min(100, ((user.credits_balance ?? 0) / 10) * 100)}%`, background: 'linear-gradient(90deg, #7C5CFC, #9B7FFF)', borderRadius: 99, boxShadow: '0 0 6px rgba(124,92,252,0.5)', transition: 'width 600ms ease' }} />
+              </div>
+              <Link href="/billing" className="btn-shimmer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px 0', background: 'linear-gradient(135deg, #7C5CFC, #9B7FFF)', borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 700, textDecoration: 'none', letterSpacing: '-0.01em', boxShadow: '0 2px 8px rgba(124,92,252,0.35)', position: 'relative', overflow: 'hidden' }}>
+                Upgrade to Pro →
+              </Link>
             </div>
           </div>
         )}

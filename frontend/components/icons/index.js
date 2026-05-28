@@ -2,7 +2,12 @@
 // NEVER import from lucide-react — use this file instead.
 // All icons: viewBox="0 0 24 24", strokeWidth 1.75, rounded caps/joins.
 
-function Ico({ size, sw, color, style, className, children }) {
+// Unique filter ID counter — prevents gradient/filter conflicts across multiple instances
+let _filterCounter = 0;
+
+function Ico({ size, sw, color, style, className, children, depth }) {
+  // depth: true → add subtle 3D drop-shadow filter inside the SVG
+  const filterId = depth ? `ip-depth-${++_filterCounter}` : null;
   return (
     <svg
       width={size}
@@ -15,7 +20,16 @@ function Ico({ size, sw, color, style, className, children }) {
       strokeLinejoin="round"
       style={style}
       className={className}
+      filter={filterId ? `url(#${filterId})` : undefined}
     >
+      {filterId && (
+        <defs>
+          <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" floodColor="rgba(0,0,0,0.5)" floodOpacity="1" />
+            <feDropShadow dx="0" dy="0.5" stdDeviation="0.4" floodColor="rgba(0,0,0,0.3)" floodOpacity="1" />
+          </filter>
+        </defs>
+      )}
       {children}
     </svg>
   );
@@ -35,17 +49,23 @@ export function IpDashboard({ size = 20, color = 'currentColor', strokeWidth = 1
 }
 
 export function IpSparkle({ size = 20, style, className }) {
+  // Each instance gets its own gradient ID to avoid SVG defs conflicts
+  const gid = `sparkGrad-${++_filterCounter}`;
+  const did = `sparkDepth-${_filterCounter}`;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
       <defs>
-        <linearGradient id="sparkGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+        <linearGradient id={gid} x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#9450E6" />
           <stop offset="100%" stopColor="#CD4B91" />
         </linearGradient>
+        <filter id={did} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodColor="rgba(148,80,230,0.6)" floodOpacity="1" />
+        </filter>
       </defs>
-      <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z" fill="url(#sparkGrad)" />
-      <circle cx="19" cy="16" r="1.2" fill="url(#sparkGrad)" />
-      <circle cx="4.5" cy="18" r="0.9" fill="url(#sparkGrad)" />
+      <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z" fill={`url(#${gid})`} filter={`url(#${did})`} />
+      <circle cx="19" cy="16" r="1.2" fill={`url(#${gid})`} />
+      <circle cx="4.5" cy="18" r="0.9" fill={`url(#${gid})`} />
     </svg>
   );
 }

@@ -183,12 +183,29 @@ export default function Dashboard() {
 
         {/* ── 0. First-time user welcome banner ── */}
         {!loading && allPosts.length === 0 && (
-          <div style={{ background: `linear-gradient(135deg, ${t.primary}18 0%, ${t.primaryHover}10 100%)`, border: `1px solid ${t.primaryBorder}`, borderRadius: 16, padding: '24px 28px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: t.text, marginBottom: 6 }}>Welcome — let's make your first post</div>
-              <div style={{ fontSize: 13, color: t.textMuted, maxWidth: 460 }}>You have 10 free credits. A photo post takes under 2 minutes — pick what happened today and we'll write the caption and create the image.</div>
+          <div style={{
+            position: 'relative', overflow: 'hidden',
+            background: t.isDark
+              ? 'linear-gradient(135deg, rgba(124,92,252,0.22) 0%, rgba(0,196,204,0.10) 60%, rgba(124,92,252,0.08) 100%)'
+              : 'linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(0,196,204,0.07) 60%, rgba(124,92,252,0.05) 100%)',
+            border: `1px solid ${t.primaryBorder}`,
+            borderRadius: 20, padding: '28px 32px', marginBottom: 28,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap',
+            boxShadow: '0 8px 32px rgba(124,92,252,0.12)',
+          }}>
+            {/* Corner glow orbs */}
+            <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'rgba(0,196,204,0.12)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: -30, left: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(124,92,252,0.15)', filter: 'blur(35px)', pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 11, background: 'linear-gradient(135deg,#7C5CFC,#00C4CC)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(124,92,252,0.45)' }}>
+                  <IpSparkle size={17} color="#fff" />
+                </div>
+                <div style={{ fontSize: 19, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>Welcome — let's make your first post</div>
+              </div>
+              <div style={{ fontSize: 13, color: t.textMuted, maxWidth: 480, lineHeight: 1.6 }}>You have 10 free credits. A photo post takes under 2 minutes — pick what happened today and PostCore will write the caption and create the image.</div>
             </div>
-            <Button variant="primary" onClick={() => router.push('/quick-post')} style={{ whiteSpace: 'nowrap', padding: '12px 24px', fontSize: 14, fontWeight: 700 }}>
+            <Button shimmer variant="primary" onClick={() => router.push('/quick-post')} style={{ position: 'relative', zIndex: 1, whiteSpace: 'nowrap', padding: '13px 26px', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
               <IpSparkle size={14} color="#fff" /> Make your first post
             </Button>
           </div>
@@ -196,47 +213,72 @@ export default function Dashboard() {
 
         {/* ── 1. PostCore Briefing Banner ── */}
         {showBrief && bd && (
-          <div style={{ background: t.card, border: `1px solid ${t.primaryBorder}`, borderLeft: `4px solid #00C4CC`, borderRadius: 14, padding: 20, marginBottom: 20, position: 'relative', boxShadow: t.shadowMd }}>
-            <button onClick={dismissBriefing} style={{ position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: 7, background: t.input, border: `1px solid ${t.border}`, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <IpClose size={13} />
+          <div style={{
+            position: 'relative', overflow: 'hidden',
+            background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.78)',
+            backdropFilter: 'blur(24px) saturate(180%)',
+            border: `1px solid ${t.isDark ? 'rgba(0,196,204,0.25)' : 'rgba(0,196,204,0.35)'}`,
+            borderLeft: '3.5px solid #00C4CC',
+            borderRadius: 18, padding: 22, marginBottom: 22,
+            boxShadow: t.isDark
+              ? '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)'
+              : '0 4px 20px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)',
+          }}>
+            {/* teal ambient glow */}
+            <div style={{ position: 'absolute', top: -30, right: 60, width: 120, height: 120, borderRadius: '50%', background: 'rgba(0,196,204,0.12)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+            <button
+              onClick={dismissBriefing}
+              style={{ position: 'absolute', top: 14, right: 14, width: 28, height: 28, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 120ms, border-color 120ms', zIndex: 2 }}
+              onMouseEnter={e => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.borderStrong; }}
+              onMouseLeave={e => { e.currentTarget.style.background = t.input; e.currentTarget.style.borderColor = t.border; }}
+            >
+              <IpClose size={12} />
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: `linear-gradient(135deg,${t.primary},${t.primaryHover})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <IpSparkle size={16} color="#fff" strokeWidth={2.5} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, position: 'relative', zIndex: 1 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#00C4CC,#7C5CFC)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 14px rgba(0,196,204,0.4)' }}>
+                <IpSparkle size={18} color="#fff" />
               </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{bd.greeting}</div>
-                <div style={{ fontSize: 12, color: t.textMuted }}>{bd.weekSummary}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: t.text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>{bd.greeting}</div>
+                <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2, lineHeight: 1.4 }}>{bd.weekSummary}</div>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(2, bd.sections?.length || 1)}, 1fr)`, gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(2, bd.sections?.length || 1)}, 1fr)`, gap: 10, position: 'relative', zIndex: 1 }}>
               {(bd.sections || []).slice(0, 2).map((s, i) => (
-                <div key={i} style={{ padding: '12px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: t.primary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{s.title}</div>
-                  <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.5, marginBottom: 8 }}>{s.observation}</div>
+                <div key={i} style={{
+                  padding: '13px 15px',
+                  background: t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                  border: `1px solid ${t.border}`, borderRadius: 12,
+                  transition: 'border-color 150ms',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = t.primaryBorder}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = t.border}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#00C4CC', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{s.title}</div>
+                  <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.55, marginBottom: s.action ? 8 : 0 }}>{s.observation}</div>
                   {s.action && (
-                    <button onClick={() => router.push('/wizard')} style={{ fontSize: 11, fontWeight: 700, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                      {s.actionLabel || 'Create a Post'} →
+                    <button onClick={() => router.push('/wizard')} style={{ fontSize: 11, fontWeight: 700, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 3 }}>
+                      {s.actionLabel || 'Create a Post'} <IpArrowRight size={10} />
                     </button>
                   )}
                 </div>
               ))}
             </div>
-            {bd.closingNote && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 12, fontStyle: 'italic' }}>{bd.closingNote}</div>}
+            {bd.closingNote && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 12, fontStyle: 'italic', position: 'relative', zIndex: 1 }}>{bd.closingNote}</div>}
           </div>
         )}
 
         {/* ── 2. Business Metrics Row ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 8 }}>
           {loading ? (
-            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} height={86} borderRadius={12} />)
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={104} borderRadius={18} />)
           ) : (<>
-            <MetricCard t={t}
+            <MetricCard t={t} accent="info"
               label="People Reached"
               main={fmt(metrics?.totalReach)}
               sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local people` : 'No data yet'}
             />
-            <MetricCard t={t}
+            <MetricCard t={t} accent={metrics?.isOutperforming ? 'success' : 'warning'}
               label="Engagement Rate"
               main={metrics ? `${metrics.engagementRate}%` : '—'}
               sub={metrics
@@ -244,40 +286,65 @@ export default function Dashboard() {
                     ? `Top ${100 - metrics.percentileRank}% in industry`
                     : `Industry avg ${metrics.industryAvgEngagement}%`)
                 : 'Post to see data'}
-              subColor={metrics?.isOutperforming ? t.success : t.warning}
             />
-            <div style={{ background: metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.07)' : t.card, border: `1px solid ${metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.28)' : t.border}`, borderRadius: 12, padding: '16px 18px' }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>Posting Streak</div>
-              <div style={{ fontSize: 32, fontWeight: 800, color: metrics?.postingStreak >= 3 ? '#EAB308' : t.text, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                {metrics?.postingStreak >= 3 && <IpFlame size={20} color="#EAB308" />}
-                {metrics?.postingStreak ? `${metrics.postingStreak} days` : '—'}
+            {/* Streak card */}
+            <div style={{
+              background: t.card,
+              border: `1px solid ${metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.35)' : t.border}`,
+              borderLeft: `3px solid ${metrics?.postingStreak >= 3 ? '#EAB308' : t.border}`,
+              borderRadius: 18, padding: 22,
+              boxShadow: metrics?.postingStreak >= 3
+                ? `${t.isDark ? t.shadowSm : t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`
+                : `${t.isDark ? t.shadowSm : t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`,
+              position: 'relative', overflow: 'hidden',
+              transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `${t.isDark ? t.shadowSm : t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`; }}
+            >
+              {metrics?.postingStreak >= 3 && (
+                <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: '#EAB308', opacity: 0.07, pointerEvents: 'none' }} />
+              )}
+              <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>Posting Streak</div>
+              <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: metrics?.postingStreak >= 3 ? '#EAB308' : t.text, display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
+                {metrics?.postingStreak >= 3 && <IpFlame size={22} color="#EAB308" />}
+                {metrics?.postingStreak ? `${metrics.postingStreak}d` : '—'}
               </div>
               <div style={{ fontSize: 11, color: t.textMuted }}>
-                {metrics?.postingStreak ? 'Keep posting to grow reach' : 'Post today to start'}
+                {metrics?.postingStreak ? 'Keep posting to grow reach' : 'Post today to start your streak'}
               </div>
             </div>
-            {/* GEO Score card */}
+            {/* GEO / AI Visibility card */}
             <div
               onClick={() => router.push('/geo-audit')}
-              style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '16px 18px', cursor: 'pointer', transition: 'background 150ms, transform 150ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 150ms ease' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = t.shadowMd; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = t.card; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+              style={{
+                background: t.card,
+                border: `1px solid ${t.border}`,
+                borderLeft: `3px solid ${geoScore?.score > 0 ? (geoScore.score >= 70 ? t.success : geoScore.score >= 40 ? t.warning : t.error) : t.primary}`,
+                borderRadius: 18, padding: 22,
+                boxShadow: `${t.isDark ? t.shadowSm : t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`,
+                cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `${t.isDark ? t.shadowSm : t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`; }}
             >
-              <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6 }}>Search Visibility</div>
+              <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: t.primary, opacity: 0.06, pointerEvents: 'none' }} />
+              <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>AI Visibility</div>
               {geoScore && geoScore.score > 0 ? (
                 <>
-                  <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 3, color: geoScore.score >= 70 ? t.success : geoScore.score >= 40 ? t.warning : t.error }}>
-                    {geoScore.score}<span style={{ fontSize: 14, color: t.textMuted, fontWeight: 500 }}>/100</span>
+                  <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 7, color: geoScore.score >= 70 ? t.success : geoScore.score >= 40 ? t.warning : t.error }}>
+                    {geoScore.score}<span style={{ fontSize: 14, color: t.textMuted, fontWeight: 500, letterSpacing: 0 }}>/100</span>
                   </div>
-                  <div style={{ fontSize: 11, color: t.primary, fontWeight: 600 }}>
-                    See how to improve →
+                  <div style={{ fontSize: 11, color: t.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                    See how to improve <IpArrowRight size={10} />
                   </div>
                 </>
               ) : (
                 <>
-                  <div style={{ fontSize: 26, fontWeight: 800, color: t.text, marginBottom: 3 }}>—</div>
-                  <div style={{ fontSize: 11, color: t.primary, fontWeight: 600 }}>
-                    {geoScore?.freeAuditUsed ? 'Check your score →' : 'Get your free score →'}
+                  <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: t.text, marginBottom: 7 }}>—</div>
+                  <div style={{ fontSize: 11, color: t.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                    {geoScore?.freeAuditUsed ? 'Check your score' : 'Get your free score'} <IpArrowRight size={10} />
                   </div>
                 </>
               )}
@@ -286,7 +353,7 @@ export default function Dashboard() {
         </div>
 
         {metrics && (
-          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 5 }}>
             <IpInfo size={11} /> {metrics.disclaimer}
           </div>
         )}
@@ -295,13 +362,19 @@ export default function Dashboard() {
         {contentMix && <ContentHealthBar data={contentMix} t={t} router={router} />}
 
         {/* ── 3b. Share a Review card ── */}
-        <Card style={{ marginTop: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(234,179,8,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>⭐</div>
+        <Card style={{ marginTop: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 12,
+                background: 'linear-gradient(135deg, rgba(234,179,8,0.2) 0%, rgba(234,179,8,0.08) 100%)',
+                border: '1px solid rgba(234,179,8,0.3)',
+                boxShadow: '0 4px 12px rgba(234,179,8,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+              }}>⭐</div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Share a Review</div>
-                <div style={{ fontSize: 12, color: t.textMuted }}>Turn 5-star reviews into posts with one click</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>Share a Review</div>
+                <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>Turn 5-star reviews into posts with one click</div>
               </div>
             </div>
             {reviews === null && (
@@ -342,7 +415,7 @@ export default function Dashboard() {
         </Card>
 
         {/* ── 4. Calendar + Upcoming ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20, marginTop: 4 }}>
           <Card>
             <SectionHeader
               icon={IpCalendar}
@@ -350,21 +423,39 @@ export default function Dashboard() {
               action={<Button variant="secondary" size="sm" onClick={() => router.push('/calendar')}>Full calendar</Button>}
             />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
-              {['S','M','T','W','T','F','S'].map((d, i) => <div key={i} style={{ fontSize: 10, color: t.textMuted, textAlign: 'center', padding: '4px 0', fontWeight: 600 }}>{d}</div>)}
+              {['Su','Mo','Tu','We','Th','Fr','Sa'].map((d, i) => (
+                <div key={i} style={{ fontSize: 9, color: t.textMuted, textAlign: 'center', padding: '0 0 8px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{d}</div>
+              ))}
               {calDays.map((day, idx) => {
                 if (!day) return <div key={idx} />;
                 const isToday = day === today.getDate();
                 const dp = getPostsForDay(day);
                 return (
                   <div key={idx} onClick={() => router.push('/calendar')}
-                    style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 6, cursor: 'pointer', background: isToday ? t.primaryBg : 'transparent', border: isToday ? `1px solid ${t.primaryBorder}` : '1px solid transparent', transition: 'background 120ms, border-color 120ms' }}
+                    style={{
+                      aspectRatio: '1', display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'center', gap: 3,
+                      borderRadius: 8, cursor: 'pointer',
+                      background: isToday
+                        ? `linear-gradient(135deg, rgba(124,92,252,0.22) 0%, rgba(124,92,252,0.12) 100%)`
+                        : 'transparent',
+                      border: isToday ? `1px solid ${t.primaryBorder}` : '1px solid transparent',
+                      boxShadow: isToday ? '0 0 0 3px rgba(124,92,252,0.1)' : 'none',
+                      transition: 'background 120ms, border-color 120ms, box-shadow 120ms',
+                    }}
                     onMouseEnter={(e) => { if (!isToday) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.borderStrong; } }}
                     onMouseLeave={(e) => { if (!isToday) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; } }}
                   >
-                    <span style={{ fontSize: 12, color: isToday ? t.primary : t.textSecondary, fontWeight: isToday ? 700 : 400 }}>{day}</span>
+                    <span style={{ fontSize: 11, color: isToday ? t.primary : t.textSecondary, fontWeight: isToday ? 800 : 400, lineHeight: 1 }}>{day}</span>
                     {dp.length > 0 && (
-                      <div style={{ display: 'flex', gap: 2 }}>
-                        {dp.slice(0, 3).map((p, i) => <div key={i} style={{ width: 4, height: 4, borderRadius: '50%', background: TYPE_COLOR[p.content_type] || t.primary }} />)}
+                      <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+                        {dp.slice(0, 3).map((p, i) => (
+                          <div key={i} style={{
+                            width: 4, height: 4, borderRadius: '50%',
+                            background: TYPE_COLOR[p.content_type] || t.primary,
+                            boxShadow: `0 0 3px ${TYPE_COLOR[p.content_type] || t.primary}`,
+                          }} />
+                        ))}
                       </div>
                     )}
                   </div>
@@ -374,22 +465,28 @@ export default function Dashboard() {
           </Card>
 
           <Card padding={0} style={{ overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px 12px', borderBottom: `1px solid ${t.border}` }}>
+            <div style={{ padding: '18px 22px 14px', borderBottom: `1px solid ${t.border}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <IpSchedule size={15} color="url(#brand-gradient)" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 11,
+                    background: 'linear-gradient(135deg, rgba(124,92,252,0.2) 0%, rgba(124,92,252,0.08) 100%)',
+                    border: `1px solid ${t.primaryBorder}`,
+                    boxShadow: '0 3px 10px rgba(124,92,252,0.18)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <IpSchedule size={16} color={t.primary} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Upcoming posts</div>
-                    <div style={{ fontSize: 12, color: t.textMuted }}>Next 30 days</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>Upcoming posts</div>
+                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 1 }}>Next 30 days</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <select
                     value={upcomingFilter}
                     onChange={e => setUpcomingFilter(e.target.value)}
-                    style={{ fontSize: 12, background: t.input, color: t.text, border: `1px solid ${t.border}`, borderRadius: 7, padding: '5px 8px', cursor: 'pointer', outline: 'none' }}
+                    style={{ fontSize: 12, background: t.input, color: t.text, border: `1px solid ${t.border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', outline: 'none' }}
                   >
                     <option value="all">All platforms</option>
                     <option value="facebook">Facebook</option>
@@ -399,8 +496,8 @@ export default function Dashboard() {
                     <option value="google_business">Google Business</option>
                   </select>
                   {upcoming.length > 0 && (
-                    <button onClick={() => router.push('/history?filter=scheduled')} style={{ fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
-                      View all <IpArrowRight size={12} />
+                    <button onClick={() => router.push('/history?filter=scheduled')} style={{ fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', fontWeight: 600 }}>
+                      View all <IpArrowRight size={11} />
                     </button>
                   )}
                 </div>
@@ -481,18 +578,27 @@ export default function Dashboard() {
   );
 }
 
-function MetricCard({ t, label, main, sub, subColor, disclaimer }) {
+function MetricCard({ t, label, main, sub, subColor, accent = 'primary' }) {
+  const accentColors = { primary: t.primary, info: t.info, success: t.success, warning: t.warning };
+  const col = accentColors[accent] || t.primary;
   return (
     <div
-      style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: '16px 18px', transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease, border-color 150ms ease' }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; e.currentTarget.style.borderColor = t.primaryBorder; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = t.border; }}>
-      <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-        {label}
-        {disclaimer && <IpInfo size={11} style={{ color: t.textDisabled }} title="Estimate based on industry averages" />}
-      </div>
-      <div style={{ fontSize: 32, fontWeight: 800, color: t.text, letterSpacing: '-0.03em', marginBottom: 3 }}>{main}</div>
-      {sub && <div style={{ fontSize: 11, color: subColor || t.textMuted }}>{sub}</div>}
+      style={{
+        background: t.card,
+        border: `1px solid ${t.border}`,
+        borderLeft: `3px solid ${col}`,
+        borderRadius: 18, padding: 22,
+        boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+        transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
+        position: 'relative', overflow: 'hidden',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`; }}
+    >
+      <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: col, opacity: 0.06, pointerEvents: 'none' }} />
+      <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>{label}</div>
+      <div style={{ fontSize: 34, fontWeight: 800, color: t.text, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 7 }}>{main}</div>
+      {sub && <div style={{ fontSize: 11, color: subColor || col, fontWeight: 500 }}>{sub}</div>}
     </div>
   );
 }
@@ -507,64 +613,78 @@ function ContentHealthBar({ data, t, router }) {
   if (!data) return null;
   const { mix, recommendation, gaps } = data;
   const total = Object.values(mix).reduce((s, v) => s + v, 0);
-
-  if (!total) {
-    return (
-      <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 8 }}>Content Balance</div>
-        <div style={{ height: 7, borderRadius: 4, overflow: 'hidden', display: 'flex', gap: 1, marginBottom: 8 }}>
-          {TARGET_MIX.map(s => <div key={s.key} style={{ width: `${s.target}%`, background: s.color, opacity: 0.35 }} />)}
-        </div>
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 8 }}>
-          {TARGET_MIX.map(s => (
-            <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, opacity: 0.5 }} />
-              <span style={{ fontSize: 11, color: t.textMuted }}>{s.label} {s.target}%</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic' }}>Post a few times and we'll show whether your content mix is on track</div>
-      </div>
-    );
-  }
-
   const allSegments = [
     { key: 'educational', label: 'How-to Tips',    color: '#3B82F6', target: 70 },
     { key: 'socialProof', label: 'Customer Wins',  color: '#22C55E', target: 20 },
     { key: 'promotional', label: 'Special Offers', color: '#EAB308', target: 10 },
   ];
+
+  if (!total) {
+    return (
+      <div style={{
+        background: t.card, border: `1px solid ${t.border}`, borderRadius: 18,
+        padding: '18px 22px', marginBottom: 22,
+        boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12, letterSpacing: '-0.02em' }}>Content Balance</div>
+        <div style={{ height: 8, borderRadius: 99, overflow: 'hidden', display: 'flex', gap: 2, marginBottom: 12 }}>
+          {allSegments.map(s => <div key={s.key} style={{ width: `${s.target}%`, background: s.color, opacity: 0.3, borderRadius: 99 }} />)}
+        </div>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 10 }}>
+          {allSegments.map(s => (
+            <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, opacity: 0.5 }} />
+              <span style={{ fontSize: 11, color: t.textMuted }}>{s.label} <span style={{ opacity: 0.7 }}>target {s.target}%</span></span>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic', lineHeight: 1.5 }}>Post a few times and PostCore will track whether your content mix is on target.</div>
+      </div>
+    );
+  }
+
   const segments = allSegments.filter(s => mix[s.key] > 0);
 
   return (
-    <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary }}>Content Balance — last 30 posts</div>
+    <div style={{
+      background: t.card, border: `1px solid ${t.border}`, borderRadius: 18,
+      padding: '18px 22px', marginBottom: 22,
+      boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>Content Balance <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 400, letterSpacing: 0 }}>— last 30 posts</span></div>
         {gaps.length > 0 && (
-          <button onClick={() => router.push('/wizard')} style={{ fontSize: 11, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-            Fix balance →
+          <button onClick={() => router.push('/wizard')} style={{ fontSize: 11, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+            Fix balance <IpArrowRight size={10} />
           </button>
         )}
       </div>
-      <div style={{ height: 7, borderRadius: 4, overflow: 'hidden', display: 'flex', gap: 1, marginBottom: 8 }}>
-        {segments.map(s => <div key={s.key} style={{ width: `${mix[s.key]}%`, background: s.color, transition: 'width 400ms ease' }} title={`${s.label}: ${mix[s.key]}%`} />)}
+      <div style={{ height: 8, borderRadius: 99, overflow: 'hidden', display: 'flex', gap: 2, marginBottom: 12 }}>
+        {segments.map(s => (
+          <div key={s.key} style={{
+            width: `${mix[s.key]}%`, background: s.color,
+            transition: 'width 600ms cubic-bezier(0.16,1,0.3,1)', borderRadius: 99,
+          }} title={`${s.label}: ${mix[s.key]}%`} />
+        ))}
       </div>
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: (gaps.length || recommendation) ? 8 : 0 }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: (gaps.length || recommendation) ? 12 : 0 }}>
         {allSegments.map(s => {
           const actual = mix[s.key] || 0;
           const off = actual < s.target - 10 || actual > s.target + 10;
           return (
-            <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, opacity: actual ? 1 : 0.3 }} />
-              <span style={{ fontSize: 11, color: off ? s.color : t.textMuted, fontWeight: off ? 600 : 400 }}>
-                {s.label} {actual}%<span style={{ opacity: 0.5 }}> / {s.target}%</span>
+            <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, opacity: actual ? 1 : 0.3 }} />
+              <span style={{ fontSize: 11, color: off ? s.color : t.textMuted, fontWeight: off ? 700 : 400 }}>
+                {s.label} <span style={{ fontWeight: 700 }}>{actual}%</span>
+                <span style={{ opacity: 0.45 }}> / {s.target}%</span>
               </span>
             </div>
           );
         })}
       </div>
       {recommendation && (
-        <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic' }}>
-          <span style={{ color: t.primary, fontWeight: 600 }}>Tip: </span>{recommendation}
+        <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.55 }}>
+          <span style={{ color: t.primary, fontWeight: 700 }}>PostCore: </span>{recommendation}
         </div>
       )}
     </div>
