@@ -7,7 +7,7 @@ import {
   IpSparkle, IpFacebook, IpInstagram, IpGoogle,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Input, Textarea, Spinner } from '../components/ui';
+import { Button, Input, Textarea, Spinner } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { knowledgeAPI, receptionistAPI } from '../lib/api';
 
@@ -299,6 +299,15 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
     }
   };
 
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   const filtered = jobs.filter(j => !search || j.url.toLowerCase().includes(search.toLowerCase()));
   const totalPages = Math.ceil(filtered.length / perPage);
   const visible = filtered.slice((page - 1) * perPage, page * perPage);
@@ -455,17 +464,17 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60 }}><Spinner size={20} /></div>
       ) : filtered.length === 0 ? (
-        <Card>
+        <div style={gc}>
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><IpGlobe size={40} color={t.textMuted} /></div>
             <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>No websites added yet</div>
             <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Add your website to train PostCore with your business content</div>
             <Button variant="primary" onClick={() => setShowModal(true)}><IpPlus size={14} /> Add Website</Button>
           </div>
-        </Card>
+        </div>
       ) : (
         <div style={{ overflowX: 'auto', borderRadius: 12 }}>
-        <Card style={{ padding: 0, overflow: 'hidden', minWidth: 560 }}>
+        <div style={{ ...gc, padding: 0, overflow: 'hidden', minWidth: 560 }}>
           {/* Table header */}
           <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 140px 180px 100px', gap: 0, padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.input }}>
             <div />
@@ -508,7 +517,7 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={pageBtnStyle(t, page === totalPages)}>Next</button>
             </div>
           )}
-        </Card>
+        </div>
         </div>
       )}
     </>
@@ -767,6 +776,15 @@ function FaqTab({ t, refreshKey }) {
     try { await knowledgeAPI.deleteEntry(id); await fetchFaqs(); } catch {}
   };
 
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   return (
     <>
       {(showModal || editing) && (
@@ -798,18 +816,18 @@ function FaqTab({ t, refreshKey }) {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60 }}><Spinner size={20} /></div>
       ) : faqs.length === 0 ? (
-        <Card>
+        <div style={gc}>
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><IpComment size={48} style={{ color: t.textMuted }} /></div>
             <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>No FAQs added yet</div>
             <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Add FAQs to help your agent answer common questions instantly.</div>
             <Button variant="primary" onClick={() => setShowModal(true)}><IpPlus size={14} /> Add FAQ</Button>
           </div>
-        </Card>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {faqs.map(faq => (
-            <Card key={faq.id} style={{ padding: '14px 16px' }}>
+            <div key={faq.id} style={{ ...gc, padding: '14px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>
@@ -824,7 +842,7 @@ function FaqTab({ t, refreshKey }) {
                   <ActionBtn title="Delete" onClick={() => handleDelete(faq.id)} danger><IpDelete size={13} /></ActionBtn>
                 </div>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}
@@ -892,6 +910,16 @@ function TablesTab({ t }) {
   const addRow    = () => setItems(i => [...i, { service: '', priceRange: '', notes: '' }]);
   const removeRow = (idx) => setItems(i => i.filter((_, n) => n !== idx));
 
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   const handleSave = async () => {
     const valid = items.filter(i => i.service.trim());
     if (!valid.length) return;
@@ -919,16 +947,16 @@ function TablesTab({ t }) {
       </div>
 
       {items.length === 0 ? (
-        <Card>
+        <div style={gc}>
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><IpDollar size={40} color={t.textMuted} /></div>
             <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>No tables added yet</div>
             <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Add your service pricing so PostCore can share price ranges with customers.</div>
             <Button variant="primary" onClick={addRow}><IpPlus size={14} /> Add Row</Button>
           </div>
-        </Card>
+        </div>
       ) : (
-        <Card>
+        <div style={gc}>
           <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 400 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 8, marginBottom: 8 }}>
@@ -953,7 +981,7 @@ function TablesTab({ t }) {
           </div>
           </div>
           </div>
-        </Card>
+        </div>
       )}
     </>
   );
@@ -980,6 +1008,15 @@ function RichTextTab({ t, refreshKey }) {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this entry?')) return;
     try { await knowledgeAPI.deleteEntry(id); await fetchEntries(); } catch {}
+  };
+
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
   };
 
   const previewContent = (content) => {
@@ -1024,16 +1061,16 @@ function RichTextTab({ t, refreshKey }) {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60 }}><Spinner size={20} /></div>
       ) : entries.length === 0 ? (
-        <Card>
+        <div style={gc}>
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>T</div>
             <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>No rich text added yet</div>
             <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Create rich text content to give your agent detailed instructions or context.</div>
             <Button variant="primary" onClick={() => setShowModal(true)}><IpPlus size={14} /> Add Rich Text</Button>
           </div>
-        </Card>
+        </div>
       ) : (
-        <Card style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
           {entries.map((entry, idx) => (
             <div
               key={entry.id}
@@ -1055,7 +1092,7 @@ function RichTextTab({ t, refreshKey }) {
               </div>
             </div>
           ))}
-        </Card>
+        </div>
       )}
     </>
   );
@@ -1160,6 +1197,15 @@ function FilesTab({ t, refreshKey, onRefresh }) {
     try { await knowledgeAPI.deleteEntry(id); await fetchEntries(); if (onRefresh) onRefresh(); } catch {}
   };
 
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   const previewContent = (content) => String(content || '').replace(/\s+/g, ' ').trim().substring(0, 100);
 
   return (
@@ -1182,7 +1228,7 @@ function FilesTab({ t, refreshKey, onRefresh }) {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60 }}><Spinner size={20} /></div>
       ) : entries.length === 0 ? (
-        <Card>
+        <div style={gc}>
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><IpFolderOpen size={40} color={t.textMuted} /></div>
             <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>No files uploaded yet</div>
@@ -1192,9 +1238,9 @@ function FilesTab({ t, refreshKey, onRefresh }) {
             </Button>
             <div style={{ marginTop: 10, fontSize: 11, color: t.textMuted }}>Supports PDF and TXT files up to 10MB</div>
           </div>
-        </Card>
+        </div>
       ) : (
-        <Card style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
           {entries.map((entry, idx) => (
             <div
               key={entry.id}
@@ -1213,7 +1259,7 @@ function FilesTab({ t, refreshKey, onRefresh }) {
               <ActionBtn title="Delete" onClick={() => handleDelete(entry.id)} danger><IpDelete size={13} /></ActionBtn>
             </div>
           ))}
-        </Card>
+        </div>
       )}
     </>
   );

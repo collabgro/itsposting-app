@@ -6,7 +6,7 @@ import {
   IpExternalLink, IpDollar, IpClose,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Spinner, EmptyState } from '../components/ui';
+import { Button, Spinner, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { billingAPI } from '../lib/api';
 
@@ -190,6 +190,15 @@ export default function Billing() {
   const isCancelled = current?.status === 'cancelled';
   const nonTrialPlans = plans.filter(p => p.id !== 'trial');
 
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   const displayPrice = (plan) => {
     if (cycle === 'yearly') return plan.yearlyPrice ?? Math.round(plan.price * 0.9);
     return plan.price;
@@ -276,7 +285,7 @@ export default function Billing() {
           </div>
 
           {/* Credit usage */}
-          <Card style={{ padding: 24 }}>
+          <div style={{ ...gc, padding: 24 }}>
             <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
               Credit usage this month
             </div>
@@ -311,7 +320,7 @@ export default function Billing() {
                 </div>
               )}
             </div>
-          </Card>
+          </div>
         </div>
 
         {/* ── BILLING CYCLE TOGGLE ──────────────────────────────────── */}
@@ -478,7 +487,7 @@ export default function Billing() {
         )}
 
         {/* ── BUY MORE CREDITS ───────────────────────────────────────── */}
-        <Card style={{ marginBottom: 24 }}>
+        <div style={{ ...gc, padding: 24, marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -545,10 +554,10 @@ export default function Billing() {
               <button onClick={() => setCreditMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={14} /></button>
             </div>
           )}
-        </Card>
+        </div>
 
         {/* ── CREDIT HISTORY ─────────────────────────────────────────── */}
-        <Card style={{ padding: 0 }}>
+        <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
             <IpTrendingUp size={16} color="url(#brand-gradient)" />
             <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Credit history</span>
@@ -606,7 +615,7 @@ export default function Billing() {
               })}
             </div>
           )}
-        </Card>
+        </div>
 
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>

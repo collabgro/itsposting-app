@@ -7,7 +7,7 @@ import {
   IpSchedule, IpSparkle, IpDelete, IpCheck,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Badge, Skeleton } from '../components/ui';
+import { Button, Badge, Skeleton } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI, socialAPI } from '../lib/api';
 import {
@@ -195,6 +195,15 @@ export default function Calendar() {
     backgroundPosition: 'calc(100% - 6px) 50%',
   };
 
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   if (!mounted) return null;
 
   return (
@@ -273,7 +282,7 @@ export default function Calendar() {
         <div style={{ display: 'grid', gridTemplateColumns: (selectedDay && !isMobile) ? '1fr 320px' : '1fr', gap: 20, transition: 'all 300ms' }}>
 
           {/* ── CALENDAR ─────────────────────────────────────── */}
-          <Card padding={0}>
+          <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: `1px solid ${t.border}`, flexWrap: 'wrap', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -469,11 +478,11 @@ export default function Calendar() {
                 </div>
               </div>
             )}
-          </Card>
+          </div>
 
           {/* ── DAY PANEL ────────────────────────────────────── */}
           {selectedDay && (
-            <Card padding={0} style={{ overflow: 'hidden', height: 'fit-content' }}>
+            <div style={{ ...gc, padding: 0, overflow: 'hidden', height: 'fit-content' }}>
               <div style={{ padding: '16px 18px 12px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>
@@ -666,7 +675,7 @@ export default function Calendar() {
                   </div>
                 </div>
               )}
-            </Card>
+            </div>
           )}
         </div>
       </Layout>

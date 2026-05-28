@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
-import { Card, Button, SectionHeader, EmptyState } from '../components/ui';
+import { Button, SectionHeader, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { workspacesAPI, authAPI } from '../lib/api';
 import {
@@ -655,6 +655,16 @@ export default function WorkspacesPage() {
 
   const nextPlan = NEXT_PLAN[mainAccount?.plan];
 
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 14,
+    padding: '16px 18px',
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   return (
     <Layout>
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 24px' }}>
@@ -875,7 +885,7 @@ export default function WorkspacesPage() {
               const daysLeft = Math.max(0, Math.ceil((new Date(invite.expires_at) - Date.now()) / (1000 * 60 * 60 * 24)));
               const isOptimistic = String(invite.id).startsWith('optimistic-');
               return (
-                <Card key={invite.id} style={{ marginBottom: 12, opacity: 0.75 }}>
+                <div key={invite.id} style={{ ...gc, marginBottom: 12, opacity: 0.75 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <div style={{ width: 40, height: 40, borderRadius: 10, background: t.input, border: `1px dashed ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: t.textMuted, flexShrink: 0 }}>?</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -895,20 +905,20 @@ export default function WorkspacesPage() {
                       </button>
                     )}
                   </div>
-                </Card>
+                </div>
               );
             })}
 
             {/* Active members */}
             {!membersLoading && members.length === 0 && pendingInvites.length === 0 && (
-              <Card>
+              <div style={gc}>
                 <EmptyState
                   icon={IpTeam}
                   title="No team members yet"
                   subtitle="Invite a colleague, employee, or VA to help manage your social media."
                   action={isOnMainAccount ? <Button onClick={() => setShowInvite(true)} icon={<IpPlus size={15} />}>Invite someone</Button> : null}
                 />
-              </Card>
+              </div>
             )}
 
             {members.map(member => {
@@ -916,7 +926,7 @@ export default function WorkspacesPage() {
               const count = enabledCount(member);
               const custom = isCustom(member.workspace_role, member.workspace_permissions);
               return (
-                <Card key={member.id} style={{ marginBottom: 12 }}>
+                <div key={member.id} style={{ ...gc, marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                       {(member.business_name || member.email || 'M').charAt(0).toUpperCase()}
@@ -944,7 +954,7 @@ export default function WorkspacesPage() {
                       </button>
                     )}
                   </div>
-                </Card>
+                </div>
               );
             })}
           </>

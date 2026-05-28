@@ -6,7 +6,7 @@ import {
   IpGoogle, IpSparkle, IpSchedule, IpLinkedIn, IpTikTok,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Input, Badge, SectionHeader, Spinner, ConfirmModal } from '../components/ui';
+import { Button, Input, Badge, SectionHeader, Spinner, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI } from '../lib/api';
 import IntegrationSetupWizard from '../components/IntegrationSetupWizard';
@@ -850,6 +850,16 @@ export default function Settings() {
 
   // platformConfig removed â€” setupModal replaced by socialWizardModal + IntegrationSetupWizard
 
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   return (
     <Layout
       title="Settings"
@@ -877,7 +887,7 @@ export default function Settings() {
       <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* Business Info */}
-        <Card>
+        <div style={gc}>
           <SectionHeader icon={IpBusiness} title="Business Information" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
             {[
@@ -964,10 +974,10 @@ export default function Settings() {
               </div>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Website Intelligence */}
-        <Card>
+        <div style={gc}>
           <SectionHeader icon={IpGlobe} title="Website Intelligence" action={<Badge variant="success">FREE</Badge>} />
           <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16, marginTop: -12 }}>
             Scrape your website to extract services and improve content accuracy.
@@ -1013,10 +1023,10 @@ export default function Settings() {
               )}
             </div>
           )}
-        </Card>
+        </div>
 
         {/* Branding */}
-        <Card>
+        <div style={gc}>
           <SectionHeader icon={IpPalette} title="Branding" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
@@ -1074,10 +1084,10 @@ export default function Settings() {
               </div>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Timezone & Scheduling */}
-        <Card>
+        <div style={gc}>
           <SectionHeader icon={IpSchedule} title="Timezone & Scheduling" />
           <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16, marginTop: -12 }}>
             Scheduled posts are converted to UTC using your timezone. All times display in local time.
@@ -1125,10 +1135,10 @@ export default function Settings() {
               </strong>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Connected Accounts */}
-        <Card>
+        <div style={gc}>
           <SectionHeader icon={IpShare} title="Connected Accounts" subtitle="Connect social media accounts to enable publishing" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {Object.entries(PLATFORM_CONFIG).map(([platform, config]) => {
@@ -1223,10 +1233,10 @@ export default function Settings() {
               );
             })}
           </div>
-        </Card>
+        </div>
 
         {/* Account Groups */}
-        <Card>
+        <div style={gc}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 3 }}>Account Groups</div>
@@ -1262,7 +1272,7 @@ export default function Settings() {
               })}
             </div>
           )}
-        </Card>
+        </div>
 
         {/* Group create/edit modal */}
         {showGroupModal && (
@@ -1341,7 +1351,7 @@ export default function Settings() {
           const isTrialUser = profile?.plan === 'trial';
 
           return (
-            <Card>
+            <div style={gc}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -1439,8 +1449,8 @@ export default function Settings() {
 
               {/* Create Key Modal */}
               {showCreateKeyModal && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                  <div style={{ background: t.card, borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                  <div style={{ background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(32px) saturate(200%)', WebkitBackdropFilter: 'blur(32px) saturate(200%)', borderRadius: 22, padding: 28, width: '100%', maxWidth: 480, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, boxShadow: t.isDark ? '0 24px 64px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1)' }}>
                     {createKeyStep === 1 && (
                       <>
                         <div style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 6 }}>Create API Key â€” Name & Expiry</div>
@@ -1554,7 +1564,7 @@ export default function Settings() {
                   </div>
                 </div>
               )}
-            </Card>
+            </div>
           );
         })()}
 

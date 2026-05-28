@@ -5,7 +5,7 @@ import {
   IpWarning, IpRefresh, IpInfo, IpTeam, IpArrowRight, IpSearch, IpExternalLink,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Button, Badge, SectionHeader, EmptyState, Spinner } from '../../components/ui';
+import { Button, Badge, SectionHeader, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { geoAPI } from '../../lib/api';
 
@@ -112,13 +112,13 @@ export default function GeoAuditReport() {
   if (audit.status === 'running') {
     return (
       <Layout title="AI Visibility Report" action={<Button variant="ghost" onClick={() => router.push('/geo-audit')}>← Back</Button>}>
-        <Card style={{ maxWidth: 480, margin: '40px auto', textAlign: 'center', padding: 40 }}>
+        <div style={{ ...gc, maxWidth: 480, margin: '40px auto', textAlign: 'center', marginBottom: 0 }}>
           <Spinner size={48} />
           <p style={{ margin: '20px 0 0', color: t.textMuted, fontSize: 14 }}>Audit is still running…</p>
           <Button variant="secondary" style={{ marginTop: 16 }} onClick={() => router.push('/geo-audit')}>
             ← Back to AI Visibility
           </Button>
-        </Card>
+        </div>
       </Layout>
     );
   }
@@ -143,6 +143,17 @@ export default function GeoAuditReport() {
     d: queryGrid.slice(13, 15).filter(q => q.chatgpt || q.claude || q.perplexity).length,
   } : null;
 
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   return (
     <Layout
       title="AI Visibility Report"
@@ -157,7 +168,7 @@ export default function GeoAuditReport() {
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
 
         {/* ── 1. SCORE CARD ── */}
-        <Card style={{ marginBottom: 20 }}>
+        <div style={gc}>
           <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <ScoreRing score={score} size={110} t={t} />
             <div style={{ flex: 1, minWidth: 200 }}>
@@ -205,11 +216,11 @@ export default function GeoAuditReport() {
               </div>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* ── 2. AI SEARCH OVERVIEW ── */}
         {queryGrid.length > 0 && (
-          <Card style={{ marginBottom: 20 }}>
+          <div style={gc}>
             <SectionHeader icon={IpSearch} title="AI Search Overview" subtitle={`${queryGrid.length} questions across ChatGPT, Claude & Perplexity`} />
 
             {/* Group cards — only for fresh audits with 15 questions */}
@@ -268,12 +279,12 @@ export default function GeoAuditReport() {
                 </table>
               </div>
             )}
-          </Card>
+          </div>
         )}
 
         {/* ── 3. COMPETITORS ── */}
         {competitors.length > 0 && (
-          <Card style={{ marginBottom: 20 }}>
+          <div style={gc}>
             <SectionHeader icon={IpTeam} title="Who's Being Recommended Instead" subtitle="Businesses most frequently cited by AI engines in your area" />
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {competitors.map((c, i) => (
@@ -297,12 +308,12 @@ export default function GeoAuditReport() {
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         )}
 
         {/* ── 4. TRUST SIGNAL ANALYSIS ── */}
         {trustSignals.length > 0 && (
-          <Card style={{ marginBottom: 20 }}>
+          <div style={gc}>
             <SectionHeader icon={IpCheckCircle} title="What the AI Expects to See" subtitle="Trust criteria that appeared across AI searches — these are the signals that get businesses recommended" />
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {trustSignals.map((ts, i) => {
@@ -340,12 +351,12 @@ export default function GeoAuditReport() {
                   : 'Create content that demonstrates your credentials — licensed, insured, and years of experience. These are what the AI looks for when recommending a business.'}
               </p>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* ── 5. PLATFORM INTELLIGENCE — mini-cards ── */}
         {platforms.length > 0 && (
-          <Card style={{ marginBottom: 20 }}>
+          <div style={gc}>
             <SectionHeader icon={IpInfo} title="Where Customers Are Looking" subtitle="Platforms the AI recommended when people asked where to find your type of business" />
             <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, marginBottom: 14 }}>
               {platforms.map((p, i) => {
@@ -379,12 +390,12 @@ export default function GeoAuditReport() {
             <p style={{ margin: 0, fontSize: 12, color: t.textSecondary, lineHeight: 1.6 }}>
               Each platform you're listed on increases the chance of appearing in AI recommendations.
             </p>
-          </Card>
+          </div>
         )}
 
         {/* ── 6. RECOMMENDATIONS ── */}
         {recommendations.length > 0 && (
-          <Card style={{ marginBottom: 20 }}>
+          <div style={gc}>
             <SectionHeader icon={IpSparkle} title="Your 5-Action Plan" subtitle="PostCore's recommendations based on exactly what was found in your audit" />
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {recommendations.map((rec, i) => (
@@ -416,11 +427,11 @@ export default function GeoAuditReport() {
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         )}
 
         {/* ── 7. TRACK PROGRESS ── */}
-        <Card>
+        <div style={gc}>
           <SectionHeader icon={IpTrendingUp} title="Track Your Progress" />
           <p style={{ margin: '12px 0 20px', fontSize: 13, color: t.textSecondary, lineHeight: 1.6 }}>
             Re-run this audit in 30 days after implementing the recommendations above.
@@ -434,7 +445,7 @@ export default function GeoAuditReport() {
               <IpSparkle size={14} style={{ marginRight: 6 }} /> Create Content Now
             </Button>
           </div>
-        </Card>
+        </div>
 
       </div>
     </Layout>

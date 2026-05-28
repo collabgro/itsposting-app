@@ -6,7 +6,7 @@ import {
   IpPhotoStudio, IpMediaLibrary,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Badge, EmptyState, Spinner, useToast, ConfirmModal } from '../components/ui';
+import { Button, Badge, EmptyState, Spinner, useToast, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { mediaAPI, studioAPI, customerAPI } from '../lib/api';
 

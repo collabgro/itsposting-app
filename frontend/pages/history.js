@@ -6,7 +6,7 @@ import {
   IpSparkle, IpSchedule, IpClose, IpCheck, IpLinkedIn, IpTikTok,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, Badge, EmptyState, Skeleton, useToast, ConfirmModal } from '../components/ui';
+import { Button, Badge, EmptyState, Skeleton, useToast, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI, socialAPI } from '../lib/api';
 import { format } from 'date-fns';

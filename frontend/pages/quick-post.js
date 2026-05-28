@@ -277,12 +277,14 @@ export default function QuickPost() {
                   onClick={() => { setContentType(ct.id); setResult(null); }}
                   style={{
                     padding: '20px 18px',
-                    background: sel ? t.primaryBg : (dark ? 'rgba(255,255,255,0.03)' : t.card),
-                    border: `2px solid ${sel ? t.primary : (dark ? 'rgba(255,255,255,0.07)' : t.border)}`,
+                    background: sel ? (dark ? 'rgba(124,92,252,0.13)' : 'rgba(124,92,252,0.07)') : (dark ? 'rgba(15,15,24,0.72)' : t.card),
+                    backdropFilter: 'blur(16px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+                    border: `2px solid ${sel ? 'rgba(124,92,252,0.5)' : (dark ? 'rgba(255,255,255,0.07)' : t.border)}`,
                     borderRadius: 16, cursor: 'pointer', textAlign: 'left',
-                    transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
-                    boxShadow: sel ? `0 4px 20px rgba(155,79,212,0.25), 0 0 0 3px rgba(155,79,212,0.08)` : 'none',
-                    transform: sel ? 'translateY(-2px)' : 'none',
+                    transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+                    boxShadow: sel ? `0 8px 28px rgba(124,92,252,0.25), 0 0 0 3px rgba(124,92,252,0.08), inset 0 1px 0 rgba(255,255,255,0.07)` : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${dark ? '0.04' : '0.8'})`,
+                    transform: sel ? 'translateY(-3px)' : 'none',
                     display: 'flex', flexDirection: 'column', gap: 12,
                   }}
                   onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 4px 16px rgba(155,79,212,0.12)`; } }}
@@ -342,14 +344,14 @@ export default function QuickPost() {
                   onClick={() => { setJobType(jt.id); setError(''); }}
                   style={{
                     padding: '14px 10px',
-                    background: sel
-                      ? `${jt.color}18`
-                      : dark ? 'rgba(255,255,255,0.03)' : t.card,
-                    border: `2px solid ${sel ? jt.color + '88' : dark ? 'rgba(255,255,255,0.07)' : t.border}`,
+                    background: sel ? `${jt.color}18` : dark ? 'rgba(15,15,24,0.68)' : t.card,
+                    backdropFilter: 'blur(14px) saturate(150%)',
+                    WebkitBackdropFilter: 'blur(14px) saturate(150%)',
+                    border: `2px solid ${sel ? jt.color + '80' : dark ? 'rgba(255,255,255,0.07)' : t.border}`,
                     borderRadius: 14, cursor: 'pointer', textAlign: 'center',
-                    transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
-                    boxShadow: sel ? `0 4px 16px ${jt.color}28` : 'none',
-                    transform: sel ? 'translateY(-2px) scale(1.02)' : 'none',
+                    transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+                    boxShadow: sel ? `0 6px 20px ${jt.color}30, inset 0 1px 0 rgba(255,255,255,0.07)` : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${dark ? '0.03' : '0.7'})`,
+                    transform: sel ? 'translateY(-3px) scale(1.02)' : 'none',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
                   }}
                   onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor = jt.color + '55'; e.currentTarget.style.background = `${jt.color}08`; e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'; e.currentTarget.style.boxShadow = `0 4px 16px ${jt.color}18`; } }}
@@ -422,15 +424,15 @@ export default function QuickPost() {
                   style={{
                     position: 'relative',
                     padding: '24px 10px 22px',
-                    background: allActive
-                      ? t.primaryBg
-                      : dark ? 'rgba(255,255,255,0.03)' : t.card,
-                    border: `2px solid ${allActive ? t.primary : (dark ? 'rgba(255,255,255,0.08)' : t.border)}`,
+                    background: allActive ? (dark ? 'rgba(124,92,252,0.13)' : 'rgba(124,92,252,0.07)') : dark ? 'rgba(15,15,24,0.68)' : t.card,
+                    backdropFilter: 'blur(14px) saturate(150%)',
+                    WebkitBackdropFilter: 'blur(14px) saturate(150%)',
+                    border: `2px solid ${allActive ? 'rgba(124,92,252,0.5)' : (dark ? 'rgba(255,255,255,0.07)' : t.border)}`,
                     borderRadius: 18, cursor: 'pointer',
                     display: 'flex', flexDirection: 'column',
                     alignItems: 'center', justifyContent: 'center', gap: 12,
-                    transition: 'all 160ms ease',
-                    boxShadow: allActive ? `0 0 0 3px ${t.focusRing}, 0 4px 18px rgba(124,92,252,0.18)` : 'none',
+                    transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+                    boxShadow: allActive ? `0 0 0 3px rgba(124,92,252,0.12), 0 6px 20px rgba(124,92,252,0.22), inset 0 1px 0 rgba(255,255,255,0.07)` : `${t.shadowSm}`,
                   }}
                 >
                   {allActive && (
@@ -471,10 +473,10 @@ export default function QuickPost() {
                   style={{
                     position: 'relative',
                     padding: '24px 10px 22px',
-                    background: active
-                      ? `${p.color}18`
-                      : dark ? 'rgba(255,255,255,0.03)' : t.card,
-                    border: `2px solid ${active ? p.color : (dark ? 'rgba(255,255,255,0.08)' : t.border)}`,
+                    background: active ? `${p.color}18` : dark ? 'rgba(15,15,24,0.68)' : t.card,
+                    backdropFilter: 'blur(14px) saturate(150%)',
+                    WebkitBackdropFilter: 'blur(14px) saturate(150%)',
+                    border: `2px solid ${active ? p.color + '80' : (dark ? 'rgba(255,255,255,0.07)' : t.border)}`,
                     borderRadius: 18, cursor: 'pointer',
                     display: 'flex', flexDirection: 'column',
                     alignItems: 'center', justifyContent: 'center', gap: 12,

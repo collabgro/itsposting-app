@@ -9,7 +9,7 @@ import {
   IpClose, IpInfo,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Card, Button, SectionHeader, EmptyState, Spinner, Skeleton } from '../components/ui';
+import { Button, SectionHeader, EmptyState, Spinner, Skeleton } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, socialAPI } from '../lib/api';
 import { format } from 'date-fns';

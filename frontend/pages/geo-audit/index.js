@@ -4,7 +4,7 @@ import {
   IpSearch, IpRefresh, IpArrowRight, IpTrendingUp, IpEdit, IpWarning, IpClose, IpPlus,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Button, SectionHeader, Spinner } from '../../components/ui';
+import { Button, SectionHeader, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { geoAPI, authAPI, scraperAPI } from '../../lib/api';
 
@@ -221,6 +221,16 @@ export default function GeoAuditPage() {
     ? `Scanned ${new Date(scrapedData.scrapedAt).toLocaleDateString()}`
     : '';
 
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   return (
     <Layout
       title="AI Visibility"
@@ -282,7 +292,7 @@ export default function GeoAuditPage() {
           )}
 
           {/* Config card */}
-          <Card style={{ marginBottom: 16 }}>
+          <div style={{ ...gc, marginBottom: 16 }}>
             <SectionHeader
               icon={IpEdit}
               title={hasCompleted ? 'Run Another Check' : 'Set Up Your Visibility Check'}
@@ -435,11 +445,11 @@ export default function GeoAuditPage() {
                 15 questions × 3 AI engines · takes about 60–90 seconds
               </div>
             </div>
-          </Card>
+          </div>
 
           {/* Past audits */}
           {history.length > 0 && (
-            <Card>
+            <div style={gc}>
               <SectionHeader icon={IpTrendingUp} title="Past Audits" />
               <div style={{ marginTop: 12 }}>
                 {history.slice(0, 6).map((h) => {
@@ -467,7 +477,7 @@ export default function GeoAuditPage() {
                   );
                 })}
               </div>
-            </Card>
+            </div>
           )}
 
         </div>

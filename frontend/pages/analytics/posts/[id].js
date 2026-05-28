@@ -6,7 +6,7 @@ import {
   IpCheckCircle, IpWarning, IpInfo,
 } from '../../../components/icons';
 import Layout from '../../../components/Layout';
-import { Card, Button, Badge, SectionHeader, EmptyState, Spinner } from '../../../components/ui';
+import { Button, Badge, SectionHeader, EmptyState, Spinner } from '../../../components/ui';
 import { useTheme } from '../../../lib/theme';
 import { analyticsAPI } from '../../../lib/api';
 
@@ -50,11 +50,11 @@ export default function PostPerformance() {
   if (!mounted || loading) {
     return (
       <Layout title="Post Performance">
-        <Card>
+        <div style={{ background: 'transparent', borderRadius: 16, padding: 24 }}>
           <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
             <Spinner size={36} />
           </div>
-        </Card>
+        </div>
       </Layout>
     );
   }
@@ -62,10 +62,22 @@ export default function PostPerformance() {
   if (!data) {
     return (
       <Layout title="Post Performance">
-        <Card><EmptyState icon={IpTrendingUp} title="Post not found" subtitle="This post may have been deleted" /></Card>
+        <div style={{ background: 'transparent', borderRadius: 16, padding: 24 }}>
+          <EmptyState icon={IpTrendingUp} title="Post not found" subtitle="This post may have been deleted" />
+        </div>
       </Layout>
     );
   }
+
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
 
   const { post, platformMetrics, comparison, insights, accountAverage } = data;
   const eng = post.engagement || {};
@@ -82,7 +94,7 @@ export default function PostPerformance() {
       {/* PREVIEW + COMPARISON */}
       <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20, marginBottom: 20 }}>
         {/* POST CARD */}
-        <Card>
+        <div style={gc}>
           {post.media_url ? (
             <img src={post.media_url} alt="" style={{ width: '100%', borderRadius: 8, marginBottom: 14, aspectRatio: '1/1', objectFit: 'cover' }} />
           ) : (
@@ -110,7 +122,7 @@ export default function PostPerformance() {
               })}
             </div>
           )}
-        </Card>
+        </div>
 
         {/* COMPARISON CARDS */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -142,7 +154,7 @@ export default function PostPerformance() {
           </div>
 
           {/* ACCOUNT AVERAGE CONTEXT */}
-          <Card>
+          <div style={gc}>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>Your account averages</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
               {[
@@ -157,12 +169,12 @@ export default function PostPerformance() {
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         </div>
       </div>
 
       {/* PER-PLATFORM BREAKDOWN */}
-      <Card style={{ marginBottom: 20 }}>
+      <div style={{ ...gc, marginBottom: 20 }}>
         <SectionHeader icon={IpTrendingUp} title="Performance by platform" />
         {platformMetrics.length === 0 ? (
           <EmptyState icon={IpGlobe} title="No platform data yet" subtitle="Connect your social accounts to see per-platform engagement" />
@@ -212,11 +224,11 @@ export default function PostPerformance() {
             })}
           </div>
         )}
-      </Card>
+      </div>
 
       {/* INSIGHTS */}
       {insights.length > 0 && (
-        <Card style={{ marginBottom: 20 }}>
+        <div style={{ ...gc, marginBottom: 20 }}>
           <SectionHeader icon={IpTip} title="Post insights" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
             {insights.map((insight) => {
@@ -235,12 +247,12 @@ export default function PostPerformance() {
               );
             })}
           </div>
-        </Card>
+        </div>
       )}
 
       {/* TIMELINE — only shown if we have snapshot data */}
       {data.timeline && data.timeline.length > 0 && (
-        <Card>
+        <div style={gc}>
           <SectionHeader icon={IpTrendingUp} title="Engagement timeline" />
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -265,7 +277,7 @@ export default function PostPerformance() {
               </tbody>
             </table>
           </div>
-        </Card>
+        </div>
       )}
     </Layout>
   );
