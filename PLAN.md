@@ -848,7 +848,7 @@ Every interactive element must have:
 - [x] 1.10 Knowledge Base quality scores + PostCore usage indicators ✅ shipped
 
 ### Phase 2: Core Product
-- [ ] 2.1 PostCore daily micro-briefings
+- [x] 2.1 PostCore daily micro-briefings ✅ shipped
 - [ ] 2.2 Caption A/B tracking + preferred style detection
 - [ ] 2.3 Scheduling conflict detection
 - [ ] 2.4 Bulk scheduling
@@ -862,8 +862,6 @@ Every interactive element must have:
 - [ ] 3.1 Referral program (link + dashboard + credit reward)
 - [ ] 3.2 Shareable posts + "Made with ItsPosting" watermark option
 - [ ] 3.3 Industry leaderboard in analytics
-- [ ] 3.4 Affiliate program + page
-- [ ] 3.5 SMS one-tap post (Twilio)
 - [ ] 3.6 White-label option for agencies
 
 ### Phase 4: New Features
@@ -885,9 +883,7 @@ Every interactive element must have:
 - [ ] 5.6 Per-endpoint rate limiting
 - [ ] 5.7 Webhook event log + reliability
 
-### Phase 6: Marketing
-- [ ] 6.1 itsposting.com integration (showcase, industry pages, landing page)
-- [ ] 6.2 SEO industry pages + blog infrastructure
+
 - [ ] 6.3 Email onboarding sequence (7 emails)
 - [ ] 6.4 In-app activation checklist
 

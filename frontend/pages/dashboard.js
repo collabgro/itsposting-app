@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpCalendar, IpSchedule, IpSparkle, IpPlus,
@@ -32,6 +32,46 @@ function parsePlatforms(raw) {
 
 function fmt(n) { return n?.toLocaleString() ?? '—'; }
 
+const MONTH_HINTS = {
+  1:  "January — frozen pipe calls are peaking. A winterization post this week converts well.",
+  2:  "February is slow for most trades. A behind-the-scenes post builds trust right now.",
+  3:  "Spring prep is starting. Show off your spring services before your competitors do.",
+  4:  "April storm season is here. Homeowners are searching — show your emergency availability.",
+  5:  "May is peak season. Before/after project photos perform best this time of year.",
+  6:  "June — post about your fastest turnaround. Homeowners are busy and want reliable.",
+  7:  "Summer heat is at its peak. Post an AC or cooling tip to stay top-of-mind.",
+  8:  "Back-to-school rush means quick wins. Show how you fit around a busy schedule.",
+  9:  "September is pre-winter prime time. Post about heating, insulation, or fall prep now.",
+  10: "October — urgency messaging works well. Homeowners are rushing to beat the cold.",
+  11: "November is your last call for year-end jobs. A limited-availability post converts.",
+  12: "December — year-end appreciation and holiday greetings build loyalty.",
+};
+
+function computeDailyHint(daysSinceLastPost, month, hour) {
+  if (daysSinceLastPost !== null && daysSinceLastPost >= 4) {
+    return {
+      text: `You haven't posted in ${daysSinceLastPost} days. Reach drops 40% after 5 days of silence.`,
+      cta: 'Post now →',
+      path: '/wizard',
+      color: '#f59e0b',
+    };
+  }
+  if (hour >= 9 && hour <= 11) {
+    return {
+      text: '9am–11am is your peak engagement window. Posts published now get significantly more reach.',
+      cta: 'Create a post →',
+      path: '/wizard',
+      color: '#22c55e',
+    };
+  }
+  return {
+    text: MONTH_HINTS[month] || 'PostCore is ready when you are.',
+    cta: 'Create a post →',
+    path: '/wizard',
+    color: '#7C5CFC',
+  };
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const { t }  = useTheme();
@@ -52,6 +92,8 @@ export default function Dashboard() {
   const [reviews,        setReviews]        = useState(null);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [generatingReviewId, setGeneratingReviewId] = useState(null);
+  const [showPerfToast,  setShowPerfToast]  = useState(false);
+  const [bestPostId,     setBestPostId]     = useState(null);
 
   const loadDashboard = () => {
     setLoadError(false);
@@ -105,6 +147,23 @@ export default function Dashboard() {
     if (!localStorage.getItem('tour_done')) { setTimeout(() => setShowTour(true), 800); }
     loadDashboard();
   }, []);
+
+  // Performance celebration toast — show once per day when outperforming
+  useEffect(() => {
+    if (!metrics?.isOutperforming || !metrics?.percentileRank) return;
+    if (metrics.percentileRank < 70) return; // top 30% threshold
+    const key = 'perf_toast_' + new Date().toDateString();
+    if (typeof window !== 'undefined' && localStorage.getItem(key)) return;
+    // Find best recent post for the "view post" link
+    const best = [...allPosts]
+      .filter(p => p.status === 'posted' && p.performance_score)
+      .sort((a, b) => (b.performance_score || 0) - (a.performance_score || 0))[0];
+    if (best) setBestPostId(best.id);
+    if (typeof window !== 'undefined') localStorage.setItem(key, '1');
+    setShowPerfToast(true);
+    const t = setTimeout(() => setShowPerfToast(false), 8000);
+    return () => clearTimeout(t);
+  }, [metrics, allPosts]);
 
   const loadReviews = () => {
     setReviewsLoading(true);
@@ -163,6 +222,13 @@ export default function Dashboard() {
 
   const isMonday  = today.getDay() === 1;
   const showBrief = briefingOpen && briefing?.briefing_data && (isMonday || !briefing.is_read);
+
+  // Daily hint for Tue-Sun (computed once loading is done)
+  const postedSorted = [...allPosts].filter(p => p.status === 'posted')
+    .sort((a, b) => new Date(b.scheduled_date || b.created_at) - new Date(a.scheduled_date || a.created_at));
+  const lastPostedAt = postedSorted[0]?.scheduled_date || postedSorted[0]?.created_at;
+  const daysSinceLastPost = lastPostedAt ? Math.floor((Date.now() - new Date(lastPostedAt)) / 86400000) : null;
+  const dailyHint = (!isMonday && !loading) ? computeDailyHint(daysSinceLastPost, today.getMonth() + 1, today.getHours()) : null;
 
   const postsThisMonth = allPosts.filter(p => {
     const dt = new Date(p.scheduled_date || p.created_at);
@@ -319,6 +385,34 @@ export default function Dashboard() {
               ))}
             </div>
             {bd.closingNote && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 12, fontStyle: 'italic', position: 'relative', zIndex: 1 }}>{bd.closingNote}</div>}
+          </div>
+        )}
+
+        {/* ── 1b. Daily PostCore Hint (Tue-Sun) ── */}
+        {dailyHint && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '11px 18px', marginBottom: 20, borderRadius: 14,
+            background: t.isDark ? 'rgba(255,255,255,0.03)' : t.card,
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            border: `1px solid ${dailyHint.color}22`,
+            borderLeft: `3px solid ${dailyHint.color}`,
+            boxShadow: `0 2px 16px ${dailyHint.color}12, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+          }}>
+            <IpSparkle size={15} color={dailyHint.color} style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: 13, color: t.text, lineHeight: 1.5 }}>
+              <span style={{ fontWeight: 700, color: dailyHint.color }}>PostCore: </span>
+              {dailyHint.text}
+            </div>
+            <button
+              onClick={() => router.push(dailyHint.path)}
+              style={{ fontSize: 12, fontWeight: 700, color: dailyHint.color, background: `${dailyHint.color}12`, border: `1px solid ${dailyHint.color}28`, borderRadius: 8, padding: '5px 12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'background 120ms' }}
+              onMouseEnter={e => e.currentTarget.style.background = `${dailyHint.color}22`}
+              onMouseLeave={e => e.currentTarget.style.background = `${dailyHint.color}12`}
+            >
+              {dailyHint.cta}
+            </button>
           </div>
         )}
 
@@ -631,7 +725,43 @@ export default function Dashboard() {
         />
       )}
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes checkpop{0%{transform:scale(0) rotate(-10deg);opacity:0}60%{transform:scale(1.2) rotate(4deg)}100%{transform:scale(1) rotate(0deg);opacity:1}}`}</style>
+      {/* Performance Celebration Toast */}
+      {showPerfToast && (
+        <div style={{
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 9997,
+          padding: '14px 20px',
+          background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)',
+          backdropFilter: 'blur(20px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(200%)',
+          border: `1px solid rgba(34,197,94,0.4)`,
+          borderLeft: '3px solid #22c55e',
+          borderRadius: 14,
+          boxShadow: '0 12px 36px rgba(0,0,0,0.28), 0 0 0 1px rgba(34,197,94,0.12)',
+          display: 'flex', alignItems: 'center', gap: 12,
+          fontSize: 13, color: t.text,
+          maxWidth: 440, whiteSpace: 'nowrap',
+          animation: 'perfToastIn 280ms cubic-bezier(0.34,1.56,0.64,1)',
+        }}>
+          <span style={{ fontSize: 20, flexShrink: 0 }}>🎉</span>
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <strong style={{ color: '#22c55e' }}>Your posts are outperforming!</strong>
+            {' '}You're in the top {100 - (metrics?.percentileRank || 0)}% for your industry.
+          </span>
+          {bestPostId && (
+            <button
+              onClick={() => { router.push(`/analytics/posts/${bestPostId}`); setShowPerfToast(false); }}
+              style={{ fontSize: 11, fontWeight: 700, color: '#22c55e', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}
+            >
+              View post
+            </button>
+          )}
+          <button onClick={() => setShowPerfToast(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: 2, flexShrink: 0 }}>
+            <IpClose size={13} />
+          </button>
+        </div>
+      )}
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes checkpop{0%{transform:scale(0) rotate(-10deg);opacity:0}60%{transform:scale(1.2) rotate(4deg)}100%{transform:scale(1) rotate(0deg);opacity:1}} @keyframes perfToastIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
     </>
   );
 }
