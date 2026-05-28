@@ -4896,6 +4896,19 @@ export default function TemplatesEditorInner() {
     };
   }, [editingTextId]);
 
+  // ── Floating element toolbar position ─────────────────────────────────────
+  const updateFloatingBar = useCallback(() => {
+    if (!selectedId || !stageRef.current) { setFloatingBar(null); return; }
+    requestAnimationFrame(() => {
+      if (!stageRef.current) return;
+      const node = stageRef.current.findOne('#' + selectedId);
+      if (!node) { setFloatingBar(null); return; }
+      const rect = node.getClientRect({ relativeTo: stageRef.current });
+      const canvasRect = stageRef.current.container().getBoundingClientRect();
+      setFloatingBar({ left: canvasRect.left + rect.x, top: canvasRect.top + rect.y, width: rect.width, height: rect.height });
+    });
+  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Floating bar — update on selection + scroll ────────────────────────────
   useEffect(() => { updateFloatingBar(); }, [updateFloatingBar]);
   useEffect(() => {
@@ -5890,19 +5903,6 @@ export default function TemplatesEditorInner() {
     const nw = elW * scale; const nh = elH * scale;
     updateElement({ ...el, x: (canvasSize.w - nw) / 2, y: (canvasSize.h - nh) / 2, width: nw, height: nh });
   }
-
-  // ── Floating element toolbar position ─────────────────────────────────────
-  const updateFloatingBar = useCallback(() => {
-    if (!selectedId || !stageRef.current) { setFloatingBar(null); return; }
-    requestAnimationFrame(() => {
-      if (!stageRef.current) return;
-      const node = stageRef.current.findOne('#' + selectedId);
-      if (!node) { setFloatingBar(null); return; }
-      const rect = node.getClientRect({ relativeTo: stageRef.current });
-      const canvasRect = stageRef.current.container().getBoundingClientRect();
-      setFloatingBar({ left: canvasRect.left + rect.x, top: canvasRect.top + rect.y, width: rect.width, height: rect.height });
-    });
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Layer order ────────────────────────────────────────────────────────────
   function bringForward(id) {
