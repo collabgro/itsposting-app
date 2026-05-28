@@ -90,6 +90,7 @@ module.exports = (pool) => {
         timezone,
         logoUrl,
         faviconUrl,
+        notificationPreferences,
       } = req.body;
 
       const MAX_LENGTHS = { businessName: 100, location: 200, phone: 30, website: 500, tone: 50, visualStyle: 100 };
@@ -119,8 +120,11 @@ module.exports = (pool) => {
           timezone = COALESCE($15, timezone),
           logo_url = CASE WHEN $16::text IS NOT NULL THEN $16::text ELSE logo_url END,
           favicon_url = CASE WHEN $17::text IS NOT NULL THEN $17::text ELSE favicon_url END,
+          content_preferences = CASE WHEN $18::text IS NOT NULL
+            THEN COALESCE(content_preferences, '{}'::jsonb) || jsonb_build_object('notifications', $18::jsonb)
+            ELSE content_preferences END,
           updated_at = NOW()
-        WHERE id = $18
+        WHERE id = $19
         RETURNING *`,
         [
           businessName, industry, location, phone, website,
@@ -131,6 +135,7 @@ module.exports = (pool) => {
           timezone,
           logoUrl !== undefined ? logoUrl : null,
           faviconUrl !== undefined ? faviconUrl : null,
+          notificationPreferences ? JSON.stringify(notificationPreferences) : null,
           req.customerId,
         ]
       );

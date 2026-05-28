@@ -1,9 +1,9 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpSave, IpCredits, IpPalette, IpGlobe, IpDelete, IpClose, IpWarning,
   IpBusiness, IpShare, IpCheck, IpFacebook, IpInstagram,
-  IpGoogle, IpSparkle, IpSchedule, IpLinkedIn, IpTikTok,
+  IpGoogle, IpSparkle, IpSchedule, IpLinkedIn, IpTikTok, IpBell,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Button, Input, Badge, SectionHeader, Spinner, ConfirmModal } from '../components/ui';
@@ -369,6 +369,39 @@ const SOCIAL_WIZARD_MAP = {
   tiktok:          { wizard: TIKTOK_SOCIAL_WIZARD,    fields: TIKTOK_SOCIAL_FIELDS },
 };
 
+const DEFAULT_NOTIF_PREFS = {
+  weekly_briefing: true,
+  seasonal_reminders: true,
+  low_credit_alerts: true,
+  token_expiry_warnings: true,
+  post_milestones: false,
+  new_dm_notifications: true,
+};
+
+const NOTIF_GROUPS = [
+  {
+    label: 'PostCore Insights',
+    items: [
+      { key: 'weekly_briefing', title: 'Weekly PostCore briefing', desc: 'Monday morning summary — performance, opportunities, suggested posts' },
+      { key: 'seasonal_reminders', title: 'Seasonal content reminders', desc: '"It\'s winter — frozen pipe season is here" before key months' },
+    ],
+  },
+  {
+    label: 'Account Alerts',
+    items: [
+      { key: 'low_credit_alerts', title: 'Low credit alerts', desc: 'Notify when you have fewer than 5 credits remaining' },
+      { key: 'token_expiry_warnings', title: 'Token expiry warnings', desc: '7 days before a connected social account needs to be reconnected' },
+    ],
+  },
+  {
+    label: 'Engagement',
+    items: [
+      { key: 'post_milestones', title: 'Post milestone alerts', desc: 'When a post hits 50, 100, or 500 likes or comments' },
+      { key: 'new_dm_notifications', title: 'New message alerts', desc: 'In-app notifications for DMs and inbox messages' },
+    ],
+  },
+];
+
 export default function Settings() {
   const router = useRouter();
   const { t, theme } = useTheme();
@@ -386,6 +419,9 @@ export default function Settings() {
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [timezone, setTimezone] = useState('UTC');
   const [loadError, setLoadError] = useState(false);
+
+  // Notification preferences
+  const [notifPrefs, setNotifPrefs] = useState(DEFAULT_NOTIF_PREFS);
 
   // Brand asset upload
   const [logoUploading, setLogoUploading] = useState(false);
@@ -581,6 +617,9 @@ export default function Settings() {
       ]);
       setProfile(profileRes.data);
       setTimezone(profileRes.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+      if (profileRes.data.content_preferences?.notifications) {
+        setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...profileRes.data.content_preferences.notifications });
+      }
       setProviders(providersRes.data);
       setDmsStats(dmsRes.data);
       if (scrapedRes.data.hasData) {
@@ -815,6 +854,7 @@ export default function Settings() {
         timezone,
         logoUrl: profile.logo_url ?? undefined,
         faviconUrl: profile.favicon_url ?? undefined,
+        notificationPreferences: notifPrefs,
       });
       showToast('Settings saved!');
     } catch {
@@ -823,6 +863,21 @@ export default function Settings() {
       setSaving(false);
     }
   };
+
+  const completeness = useMemo(() => {
+    const checks = [
+      { label: 'Business name', done: !!profile?.business_name?.trim(), weight: 15 },
+      { label: 'Industry', done: !!profile?.industry?.trim(), weight: 15 },
+      { label: 'Location', done: !!profile?.location?.trim(), weight: 15 },
+      { label: 'Website', done: !!profile?.website?.trim(), weight: 10 },
+      { label: 'Logo', done: !!profile?.logo_url, weight: 10 },
+      { label: 'Tone', done: !!profile?.tone, weight: 10 },
+      { label: 'Social account', done: socialAccounts.length > 0, weight: 25 },
+    ];
+    const percent = checks.reduce((sum, c) => sum + (c.done ? c.weight : 0), 0);
+    const missing = checks.filter(c => !c.done).map(c => c.label);
+    return { percent, missing };
+  }, [profile, socialAccounts]);
 
   if (loading || !profile) {
     return (
@@ -885,6 +940,54 @@ export default function Settings() {
       )}
 
       <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Profile Completeness Bar */}
+        <div style={{
+          ...gc,
+          background: completeness.percent === 100
+            ? (t.isDark ? 'rgba(34,197,94,0.08)' : 'rgba(34,197,94,0.05)')
+            : gc.background,
+          border: completeness.percent === 100
+            ? `1px solid rgba(34,197,94,0.25)`
+            : gc.border,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>
+                {completeness.percent === 100 ? 'Profile complete' : 'Profile setup'}
+              </span>
+              {completeness.percent === 100 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: t.success, padding: '2px 8px', background: `${t.success}18`, border: `1px solid ${t.success}30`, borderRadius: 20 }}>
+                  <IpCheck size={10} /> Complete
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: completeness.percent === 100 ? t.success : completeness.percent >= 70 ? t.warning : t.primary }}>
+              {completeness.percent}%
+            </span>
+          </div>
+          <div style={{ height: 6, borderRadius: 6, background: t.isDark ? 'rgba(255,255,255,0.07)' : t.border, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${completeness.percent}%`,
+              borderRadius: 6,
+              background: completeness.percent === 100
+                ? 'linear-gradient(90deg, #22c55e, #16a34a)'
+                : completeness.percent >= 70
+                  ? 'linear-gradient(90deg, #f59e0b, #d97706)'
+                  : 'linear-gradient(90deg, #7C5CFC, #9B7BFF)',
+              transition: 'width 600ms cubic-bezier(0.34,1.56,0.64,1)',
+            }} />
+          </div>
+          {completeness.missing.length > 0 && (
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: t.textMuted }}>Still needed:</span>
+              {completeness.missing.map(item => (
+                <span key={item} style={{ fontSize: 11, fontWeight: 600, color: t.textSecondary, padding: '2px 8px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 12 }}>{item}</span>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Business Info */}
         <div style={gc}>
@@ -1195,12 +1298,12 @@ export default function Settings() {
                         const daysLeft = acct.token_expires_at
                           ? Math.floor((new Date(acct.token_expires_at) - new Date()) / 86400000)
                           : null;
-                        const expiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
+                        const tokenExpired = daysLeft !== null && daysLeft < 0;
                         return (
-                          <div key={acct.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', minHeight: 64, background: t.isDark ? 'rgba(255,255,255,0.03)' : t.card, borderRadius: 10, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, flexWrap: 'wrap', boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.7'})` }}>
+                          <div key={acct.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', minHeight: 64, background: t.isDark ? 'rgba(255,255,255,0.03)' : t.card, borderRadius: 10, border: `1px solid ${tokenExpired ? 'rgba(239,68,68,0.3)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, flexWrap: 'wrap', boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.7'})` }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: t.success + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <IpCheck size={14} style={{ color: t.success }} />
+                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: tokenExpired ? 'rgba(239,68,68,0.1)' : t.success + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <IpCheck size={14} style={{ color: tokenExpired ? t.error : t.success }} />
                               </div>
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1210,7 +1313,18 @@ export default function Settings() {
                                   <div style={{ fontSize: 11, color: t.textMuted }}>@{acct.account_username}</div>
                                 )}
                               </div>
-                              {expiringSoon && <Badge variant="warning">Reconnect in {daysLeft}d</Badge>}
+                              {daysLeft !== null && daysLeft < 0 && (
+                                <Badge variant="error">Token expired</Badge>
+                              )}
+                              {daysLeft !== null && daysLeft >= 0 && daysLeft <= 7 && (
+                                <Badge variant="warning">Reconnect in {daysLeft}d</Badge>
+                              )}
+                              {daysLeft !== null && daysLeft > 7 && daysLeft <= 30 && (
+                                <span style={{ fontSize: 11, fontWeight: 600, color: t.warning, padding: '2px 8px', background: `${t.warning}15`, border: `1px solid ${t.warning}30`, borderRadius: 12, whiteSpace: 'nowrap' }}>Expires in {daysLeft}d</span>
+                              )}
+                              {daysLeft !== null && daysLeft > 30 && (
+                                <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Expires in {daysLeft}d</span>
+                              )}
                             </div>
                             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
                               {/* Apple-style toggle switch */}
@@ -1312,6 +1426,43 @@ export default function Settings() {
             </div>
           </div>
         )}
+
+        {/* Notification Preferences */}
+        <div style={gc}>
+          <SectionHeader icon={IpBell} title="Notification Preferences" subtitle="Choose which alerts and updates PostCore sends you" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {NOTIF_GROUPS.map(group => (
+              <div key={group.label}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{group.label}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {group.items.map(item => {
+                    const enabled = notifPrefs[item.key] !== false;
+                    return (
+                      <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '11px 14px', borderRadius: 10, background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.05)' : t.border}`, cursor: 'pointer', transition: 'background 120ms' }}
+                        onClick={() => setNotifPrefs(p => ({ ...p, [item.key]: !enabled }))}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: enabled ? t.text : t.textMuted, marginBottom: 2, transition: 'color 150ms' }}>{item.title}</div>
+                          <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>{item.desc}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); setNotifPrefs(p => ({ ...p, [item.key]: !enabled })); }}
+                          style={{ width: 44, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', padding: 3, background: enabled ? '#34C759' : (t.isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db'), transition: 'background 150ms ease', display: 'flex', alignItems: 'center', justifyContent: enabled ? 'flex-end' : 'flex-start', flexShrink: 0 }}
+                        >
+                          <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 14, padding: '10px 12px', background: t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)', border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.2)' : 'rgba(124,92,252,0.15)'}`, borderRadius: 8, fontSize: 11, color: t.textMuted }}>
+            Changes save when you click <strong style={{ color: t.textSecondary }}>Save Changes</strong> above. Email notifications are also controlled by your email preferences.
+          </div>
+        </div>
 
         {/* Developer API Keys */}
         {(() => {

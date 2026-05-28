@@ -353,16 +353,6 @@ When post beats their average by > 30%:
   Click → opens analytics/posts/[id]
 ```
 
-### 2.2 Caption A/B Tracking
-
-**Current:** 3 variations generated but no tracking of which performs best.
-
-**Implementation:**
-1. `posts.selected_variation VARCHAR(1)` — stores 'A', 'B', or 'C'
-2. When user taps "Use this" on variation A/B/C → saves selection
-3. After 30+ posts: analytics page shows:
-   "You consistently pick Variation A. Your Variation A posts average 3× higher engagement. PostCore will prioritize that style."
-4. Backend: auto-detect preferred style → feed into SystemPromptBuilder for that customer
 
 ### 2.3 Scheduling Conflict Detection
 
@@ -531,33 +521,8 @@ Users share to social → their followers see it → free acquisition.
 
 Data source: aggregated anonymized data from analytics. No PII exposed.
 
-### 3.4 Affiliate Program
 
-**Target audience:** Marketing agencies, social media consultants, business coaches.
 
-**`/affiliate` public page:**
-- Commission: 20% recurring for 12 months per referred customer
-- Application form: name, website, audience size, how they plan to promote
-- After approval: unique tracking link + affiliate dashboard
-
-**Backend:**
-- `affiliates` table: id, email, name, tracking_code, total_referred, total_earned
-- Track signups via `?aff=CODE` URL param
-- Monthly payout via wire transfer (Whop doesn't support this natively — manual for now)
-
-### 3.5 SMS "One Tap Post" Feature
-
-**Use case:** Plumber finishes a job at 4pm. Types "post" to a number. PostCore handles the rest.
-
-**Mechanic:**
-1. User connects phone number in Settings
-2. Texts "post" (or "done" or "finished") to ItsPosting number
-3. Backend detects: time is afternoon → "just finished a job" theme, current season
-4. PostCore generates a post using their full profile context
-5. Texts back: "Done! Scheduled for tomorrow 9am: [first 100 chars of caption] Reply YES to confirm, EDIT to change"
-6. Reply "YES" → scheduled. Reply "EDIT" → opens wizard in browser.
-
-**Integration:** Twilio (requires adding back carefully — was removed earlier due to SMS scope concerns, but this is outbound only — no WhatsApp, no complex flows)
 
 ### 3.6 White-Label Option (Agency Plan)
 
@@ -926,7 +891,7 @@ Every interactive element must have:
 - [x] 1.6 Calendar week view toggle + drag-to-reschedule + hover preview popup ✅ shipped
 - [x] 1.7 Post history grid/list toggle + bulk select (circle overlays) + floating action bar ✅ shipped
 - [ ] 1.8 Media Library AI tagging + background removal shortcut
-- [ ] 1.9 Settings profile completeness + token expiry + notifications prefs
+- [x] 1.9 Settings profile completeness + token expiry + notifications prefs ✅ shipped
 - [ ] 1.10 Knowledge Base quality scores + PostCore usage indicators
 
 ### Phase 2: Core Product
