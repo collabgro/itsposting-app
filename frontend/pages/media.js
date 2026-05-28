@@ -644,12 +644,6 @@ export default function MediaLibrary() {
               >
                 <IpPhotoStudio size={15} /> New Image Design
               </button>
-              <button
-                onClick={() => router.push('/templates/video-editor')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', background: 'transparent', color: t.primary, border: `2px solid ${t.primary}`, borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-              >
-                <IpVideo size={15} /> New Video Design
-              </button>
             </div>
 
             {/* ── ItsPosting Templates section ── */}
