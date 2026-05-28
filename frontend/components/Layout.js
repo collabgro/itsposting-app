@@ -11,6 +11,7 @@ import {
 import { useTheme } from '../lib/theme';
 import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
 import NotificationBell from './NotificationBell';
+import PostCoreMascot from './PostCoreMascot';
 import { ConfirmModal } from './ui';
 
 const ROLE_PERMISSIONS = {
@@ -519,6 +520,9 @@ export default function Layout({ children, title, subtitle, action }) {
             </div>
           )}
         </nav>
+
+        {/* POSTCORE MASCOT */}
+        {!isMobile && user && <PostCoreMascot user={user} />}
 
         {/* TRIAL CARD */}
         {!isMobile && user?.status === 'trial' && (

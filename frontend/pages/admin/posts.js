@@ -4,7 +4,7 @@ import {
   IpSearch, IpDelete, IpWarning, IpDrafts, IpArrowLeft, IpRefresh,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Badge, Button, EmptyState, Spinner, SectionHeader } from '../../components/ui';
+import { Badge, Button, EmptyState, Spinner, SectionHeader } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
@@ -34,6 +34,15 @@ const CONTENT_TYPES = [
 export default function AdminPostsPage() {
   const router = useRouter();
   const { t } = useTheme();
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
   const [mounted, setMounted] = useState(false);
   const [posts, setPosts] = useState([]);
   const [total, setTotal] = useState(0);
@@ -188,7 +197,7 @@ export default function AdminPostsPage() {
         <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={inputStyle} title="To date" />
       </div>
 
-      <Card style={{ padding: 0 }}>
+      <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <SectionHeader icon={IpDrafts} title="All Posts" subtitle={`${total} posts`} />
           <Button size="sm" variant="ghost" onClick={() => load(page)}>
@@ -327,7 +336,7 @@ export default function AdminPostsPage() {
             </div>
           </>
         )}
-      </Card>
+      </div>
     </Layout>
   );
 }

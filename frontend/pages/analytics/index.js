@@ -6,7 +6,7 @@ import {
   IpCalendar, IpInfo, IpCheck, IpRefresh,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Button, Badge, StatCard, SectionHeader, EmptyState, Spinner } from '../../components/ui';
+import { Button, Badge, StatCard, SectionHeader, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { analyticsAPI } from '../../lib/api';
 import { format, addDays } from 'date-fns';

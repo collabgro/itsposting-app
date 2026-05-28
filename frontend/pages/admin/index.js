@@ -5,13 +5,22 @@ import {
   IpAdmin, IpChevronRight, IpAnalytics, IpCheckCircle, IpCloseCircle, IpCheck, IpPhotoStudio,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Button, Badge, StatCard, SectionHeader, EmptyState, Spinner } from '../../components/ui';
+import { Button, Badge, StatCard, SectionHeader, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
 export default function AdminDashboard() {
   const router = useRouter();
   const { t } = useTheme();
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
   const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState(null);
   const [health, setHealth] = useState(null);
@@ -49,9 +58,9 @@ export default function AdminDashboard() {
   if (error) {
     return (
       <Layout title="Admin Portal">
-        <Card>
+        <div style={gc}>
           <EmptyState icon={IpAdmin} title="Access Denied" subtitle={error} />
-        </Card>
+        </div>
       </Layout>
     );
   }
@@ -59,11 +68,11 @@ export default function AdminDashboard() {
   if (loading || !stats) {
     return (
       <Layout title="Admin Portal">
-        <Card>
+        <div style={gc}>
           <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
             <Spinner size={36} />
           </div>
-        </Card>
+        </div>
       </Layout>
     );
   }
@@ -111,7 +120,7 @@ export default function AdminDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
         {/* REVENUE BREAKDOWN */}
-        <Card>
+        <div style={gc}>
           <SectionHeader icon={IpDollar} title="Revenue breakdown" />
           {stats.revenue.breakdown.length === 0 ? (
             <EmptyState icon={IpDollar} title="No paying customers yet" subtitle="Revenue will appear once customers upgrade" />
@@ -128,10 +137,10 @@ export default function AdminDashboard() {
               </div>
             ))
           )}
-        </Card>
+        </div>
 
         {/* RECENT SIGNUPS */}
-        <Card>
+        <div style={gc}>
           <SectionHeader
             icon={IpActivity}
             title="Recent signups"
@@ -157,31 +166,31 @@ export default function AdminDashboard() {
               </div>
             </div>
           ))}
-        </Card>
+        </div>
       </div>
 
       {/* QUICK STATS ROW */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
-        <Card style={{ textAlign: 'center', padding: 20 }}>
+        <div style={{ ...gc, textAlign: 'center', padding: 20 }}>
           <div style={{ fontSize: 32, fontWeight: 800, color: t.warning, fontFamily: 'monospace' }}>{stats.users.trial || 0}</div>
           <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4 }}>Trial accounts</div>
-        </Card>
-        <Card style={{ textAlign: 'center', padding: 20 }}>
+        </div>
+        <div style={{ ...gc, textAlign: 'center', padding: 20 }}>
           <div style={{ fontSize: 32, fontWeight: 800, color: t.error, fontFamily: 'monospace' }}>{stats.users.suspended || 0}</div>
           <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4 }}>Suspended</div>
-        </Card>
-        <Card style={{ textAlign: 'center', padding: 20 }}>
+        </div>
+        <div style={{ ...gc, textAlign: 'center', padding: 20 }}>
           <div style={{ fontSize: 32, fontWeight: 800, color: t.primary, fontFamily: 'monospace' }}>{stats.posts.posted || 0}</div>
           <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4 }}>Posts published</div>
-        </Card>
-        <Card style={{ textAlign: 'center', padding: 20 }}>
+        </div>
+        <div style={{ ...gc, textAlign: 'center', padding: 20 }}>
           <div style={{ fontSize: 32, fontWeight: 800, color: t.success, fontFamily: 'monospace' }}>{parseInt(stats.posts.credits_consumed || 0).toLocaleString()}</div>
           <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4 }}>Credits consumed</div>
-        </Card>
+        </div>
       </div>
 
       {stats.users.suspended > 0 && (
-        <Card style={{ borderColor: 'rgba(234,179,8,0.3)' }}>
+        <div style={{ ...gc, borderColor: 'rgba(234,179,8,0.3)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <IpWarning size={18} style={{ color: t.warning }} />
             <div style={{ flex: 1 }}>
@@ -190,15 +199,15 @@ export default function AdminDashboard() {
             </div>
             <Button variant="secondary" size="sm" onClick={() => router.push('/admin/customers?suspended=true')}>Review</Button>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* CONTENT LIBRARY */}
       <div style={{ marginTop: 20 }}>
         <SectionHeader title="Content Library" />
-        <Card
+        <div
           onClick={() => router.push('/admin/stock-photos')}
-          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', marginTop: 12 }}
+          style={{ ...gc, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', marginTop: 12 }}
           onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
           onMouseLeave={e => e.currentTarget.style.background = ''}
         >
@@ -210,7 +219,7 @@ export default function AdminDashboard() {
             <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>Upload and manage photos available to all customers in Photo Studio</div>
           </div>
           <IpChevronRight size={16} color={t.textMuted} />
-        </Card>
+        </div>
       </div>
     </Layout>
   );

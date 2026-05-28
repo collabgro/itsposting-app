@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { IpMail, IpTeam, IpArrowLeft, IpCheckCircle, IpWarning } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Button, Badge, SectionHeader, Spinner } from '../../components/ui';
+import { Button, Badge, SectionHeader, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
@@ -25,6 +25,15 @@ const MAX_MESSAGE = 500;
 export default function BroadcastPage() {
   const router = useRouter();
   const { t } = useTheme();
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
   const [mounted, setMounted] = useState(false);
 
   // Compose form
@@ -119,7 +128,7 @@ export default function BroadcastPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
 
         {/* ── LEFT: COMPOSE ── */}
-        <Card>
+        <div style={gc}>
           <p style={{ margin: '0 0 20px', fontSize: 13, fontWeight: 600, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Compose Broadcast
           </p>
@@ -247,11 +256,11 @@ export default function BroadcastPage() {
             <IpMail size={14} style={{ marginRight: 6 }} />
             {sending ? 'Sending…' : `Send to "${segObj.label}"`}
           </Button>
-        </Card>
+        </div>
 
         {/* ── RIGHT: HISTORY ── */}
         <div>
-          <Card>
+          <div style={gc}>
             <p style={{ margin: '0 0 16px', fontSize: 13, fontWeight: 600, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Broadcast History
             </p>
@@ -288,7 +297,7 @@ export default function BroadcastPage() {
                 ))}
               </div>
             )}
-          </Card>
+          </div>
         </div>
       </div>
 

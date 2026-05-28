@@ -13,6 +13,7 @@ import {
 } from '../components/icons';
 import { useToast } from '../components/ui';
 import { contentAPI, socialAPI } from '../lib/api';
+import { setMascotMood } from '../components/PostCoreMascot';
 
 function Spinner({ color = '#fff', size = 16 }) {
   return (
@@ -175,6 +176,7 @@ export default function QuickPost() {
     const assembled = `${jt.prompt}${detailSuffix}`;
 
     setError(''); setResult(null); setEditing(false); setActiveVar('a'); setGenerating(true);
+    setMascotMood('thinking', 'Crafting your post...');
     try {
       const { data } = await contentAPI.generate({
         contentType,
@@ -183,6 +185,7 @@ export default function QuickPost() {
       });
       setResult(data);
       setEditedCaption(data.variations?.a?.caption || data.caption || '');
+      setMascotMood('excited', 'Your post is ready — pick a variation!');
       showToast('Post ready — choose a version below', 'success');
       window.dispatchEvent(new Event('creditRefresh'));
     } catch (err) {
@@ -204,6 +207,7 @@ export default function QuickPost() {
       const { posted: postedTo = [], errors = [] } = pubRes.data;
       if (postedTo.length > 0) {
         setPosted(true);
+        setMascotMood('celebrating', `🎉 Live on ${postedTo.join(', ')}!`);
         showToast(`Published to ${postedTo.join(', ')}!`, 'success');
         window.dispatchEvent(new Event('creditRefresh'));
       } else {

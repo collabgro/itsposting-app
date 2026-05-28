@@ -4,7 +4,7 @@ import {
   IpAdmin, IpRefresh, IpArrowLeft, IpWarning, IpSearch,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Badge, SectionHeader, EmptyState, Spinner } from '../../components/ui';
+import { Badge, SectionHeader, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
@@ -47,6 +47,15 @@ function formatAction(action) {
 export default function AuditLog() {
   const router = useRouter();
   const { t } = useTheme();
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
   const [mounted, setMounted] = useState(false);
   const [entries, setEntries] = useState([]);
   const [total, setTotal] = useState(0);
@@ -172,7 +181,7 @@ export default function AuditLog() {
           )}
         </div>
 
-        <Card style={{ padding: 0 }}>
+        <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
           <div style={{ padding: '14px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <SectionHeader icon={IpAdmin} title="Audit Log" subtitle={`${total} total actions`} />
           </div>
@@ -265,7 +274,7 @@ export default function AuditLog() {
               </div>
             </>
           )}
-        </Card>
+        </div>
       </div>
     </Layout>
   );

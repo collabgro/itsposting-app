@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
-import { Card, Button, Badge, SectionHeader, EmptyState } from '../../components/ui';
+import { Button, Badge, SectionHeader, EmptyState } from '../../components/ui';
 import { IpPhotoStudio, IpClose, IpEdit, IpDelete, IpPlus, IpCheckCircle, IpWarning } from '../../components/icons';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
@@ -35,6 +35,15 @@ const categoryLabel = (v) => CATEGORIES.find(c => c.value === v)?.label || v;
 export default function AdminStockPhotos() {
   const router = useRouter();
   const { t, theme } = useTheme();
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
   const fileInputRef = useRef(null);
 
   const [mounted, setMounted] = useState(false);
@@ -211,7 +220,7 @@ export default function AdminStockPhotos() {
       <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 80 }}>
 
         {/* ── Upload Panel ──────────────────────────────────────────── */}
-        <Card style={{ padding: 28, marginBottom: 40 }}>
+        <div style={{ ...gc, padding: 28, marginBottom: 40 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
             <IpPhotoStudio size={20} color={t.primary} />
             <h2 style={{ fontSize: 17, fontWeight: 700, color: t.text, margin: 0 }}>Upload Stock Photos</h2>
@@ -302,7 +311,7 @@ export default function AdminStockPhotos() {
             <IpPlus size={15} style={{ marginRight: 6 }} />
             {uploading ? 'Uploading...' : `Upload ${uploadFiles.length > 0 ? uploadFiles.length + ' ' : ''}Photo${uploadFiles.length !== 1 ? 's' : ''}`}
           </Button>
-        </Card>
+        </div>
 
         {/* ── Photo Library ─────────────────────────────────────────── */}
         <SectionHeader title={`Photo Library${total ? ` (${total})` : ''}`} />

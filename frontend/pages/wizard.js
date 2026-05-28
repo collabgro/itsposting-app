@@ -8,6 +8,7 @@ import {
 } from '../components/icons';
 import Icon from '../components/Icon';
 import Layout from '../components/Layout';
+import { setMascotMood } from '../components/PostCoreMascot';
 import { useTheme } from '../lib/theme';
 import api, { customerAPI, socialAPI, analyticsAPI } from '../lib/api';
 import { CHAR_LIMITS } from '../components/PostMockups';
@@ -593,6 +594,7 @@ export default function Wizard() {
     setStep('loading');
     setLoadingMsgIdx(0);
     setError(null);
+    setMascotMood('thinking', 'On it! Crafting your content...');
     try {
       const startRes = await apiPost('/api/wizard/start', {});
       const wizardId = startRes.wizardId;
@@ -617,6 +619,7 @@ export default function Wizard() {
       setResults(genRes);
       setSelectedVariation('A');
       setStep('results');
+      setMascotMood('excited', 'Here are your 3 variations — pick the one you love!');
       window.dispatchEvent(new Event('creditRefresh'));
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
@@ -653,6 +656,7 @@ export default function Wizard() {
         });
         const { posted = [], errors = [] } = pubRes.data;
         if (posted.length > 0 && errors.length === 0) {
+          setMascotMood('celebrating', `🎉 Live on ${posted.join(', ')}!`);
           showToast('success', `Published to ${posted.join(', ')}!`);
         } else if (posted.length > 0) {
           showToast('success', `Published to ${posted.join(', ')}. Some platforms failed.`);

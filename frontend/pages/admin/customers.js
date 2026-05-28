@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { IpSearch, IpChevronRight, IpTeam, IpAdmin, IpSave, IpChevronUp, IpChevronDown } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Button, Badge, EmptyState, Spinner } from '../../components/ui';
+import { Button, Badge, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
@@ -22,6 +22,15 @@ const SORT_COLS = [
 export default function AdminCustomers() {
   const router = useRouter();
   const { t } = useTheme();
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState({ customers: [], total: 0 });
   const [search, setSearch] = useState('');
@@ -163,7 +172,7 @@ export default function AdminCustomers() {
         </select>
       </div>
 
-      <Card style={{ padding: 0 }}>
+      <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
         {loading ? (
           <div style={{ padding: 60, textAlign: 'center', color: t.textMuted }}>Loading customers...</div>
         ) : data.customers.length === 0 ? (
@@ -291,7 +300,7 @@ export default function AdminCustomers() {
             </div>
           </>
         )}
-      </Card>
+      </div>
     </Layout>
   );
 }

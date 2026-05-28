@@ -5,7 +5,7 @@ import {
   IpArrowLeft, IpSend, IpSearch,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Card, Button, Badge, SectionHeader, StatCard, EmptyState, Spinner, ConfirmModal } from '../../components/ui';
+import { Button, Badge, SectionHeader, StatCard, EmptyState, Spinner, ConfirmModal } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
@@ -27,6 +27,15 @@ const TEMPLATE_LABELS = {
 export default function EmailQueuePage() {
   const router = useRouter();
   const { t } = useTheme();
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState({ emails: [], stats: {}, total: 0 });
   const [filterStatus, setFilterStatus] = useState('');
@@ -173,7 +182,7 @@ export default function EmailQueuePage() {
       </div>
 
       {/* TABLE */}
-      <Card style={{ padding: 0 }}>
+      <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '14px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <SectionHeader icon={IpSend} title="Email log" style={{ flex: 1, margin: 0 }} />
 
@@ -300,7 +309,7 @@ export default function EmailQueuePage() {
             </div>
           </>
         )}
-      </Card>
+      </div>
       {confirmModal && <ConfirmModal {...confirmModal} onCancel={() => setConfirmModal(null)} />}
     </Layout>
   );

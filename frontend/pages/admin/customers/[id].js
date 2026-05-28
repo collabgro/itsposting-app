@@ -5,7 +5,7 @@ import {
   IpWarning, IpAdmin, IpEdit, IpClose, IpSave, IpTeam,
 } from '../../../components/icons';
 import Layout from '../../../components/Layout';
-import { Card, Button, Badge, SectionHeader, EmptyState, Spinner, ConfirmModal } from '../../../components/ui';
+import { Button, Badge, SectionHeader, EmptyState, Spinner, ConfirmModal } from '../../../components/ui';
 import { useTheme } from '../../../lib/theme';
 import { adminAPI } from '../../../lib/api';
 
@@ -13,6 +13,15 @@ export default function AdminCustomerDetail() {
   const router = useRouter();
   const { id } = router.query;
   const { t } = useTheme();
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState(null);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
@@ -172,11 +181,11 @@ export default function AdminCustomerDetail() {
   if (!mounted || !data) {
     return (
       <Layout title="Customer">
-        <Card>
+        <div style={gc}>
           <div style={{ padding: 60, display: 'flex', justifyContent: 'center' }}>
             <Spinner size={36} />
           </div>
-        </Card>
+        </div>
       </Layout>
     );
   }
@@ -201,7 +210,7 @@ export default function AdminCustomerDetail() {
       )}
 
       {/* STATUS + ACTIONS */}
-      <Card style={{ marginBottom: 20 }}>
+      <div style={{ ...gc, marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <Badge variant={c.suspended ? 'error' : c.status === 'active' ? 'success' : 'warning'}>
@@ -253,11 +262,11 @@ export default function AdminCustomerDetail() {
             <div style={{ fontSize: 13, color: t.text }}>{c.notes}</div>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* ACCOUNT FAMILY — Parent */}
       {data.parentAccount && (
-        <Card style={{ marginBottom: 20 }}>
+        <div style={{ ...gc, marginBottom: 20 }}>
           <SectionHeader icon={IpTeam} title="Parent Account" subtitle="This workspace is under:" />
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 14 }}>
             <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg,#FB923C,#F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
@@ -274,12 +283,12 @@ export default function AdminCustomerDetail() {
               View Parent
             </Button>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* ACCOUNT FAMILY — Sub-accounts */}
       {data.workspaces && data.workspaces.length > 0 && (
-        <Card style={{ marginBottom: 20 }}>
+        <div style={{ ...gc, marginBottom: 20 }}>
           <SectionHeader icon={IpTeam} title={`Sub-accounts (${data.workspaces.length})`} />
           <div style={{ marginTop: 12 }}>
             {data.workspaces.map((ws) => (
@@ -298,33 +307,33 @@ export default function AdminCustomerDetail() {
               </div>
             ))}
           </div>
-        </Card>
+        </div>
       )}
 
       {/* STATS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
-        <Card style={{ textAlign: 'center' }}>
+        <div style={{ ...gc, textAlign: 'center' }}>
           <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 500, marginBottom: 4 }}>Credits balance</div>
           <div style={{ fontSize: 30, fontWeight: 800, color: t.text, fontFamily: 'monospace' }}>{c.credits_balance || 0}</div>
-        </Card>
-        <Card style={{ textAlign: 'center' }}>
+        </div>
+        <div style={{ ...gc, textAlign: 'center' }}>
           <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 500, marginBottom: 4 }}>Industry</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: t.text }}>{c.industry || '—'}</div>
           <div style={{ fontSize: 11, color: t.textMuted }}>{c.location || 'No location'}</div>
-        </Card>
-        <Card style={{ textAlign: 'center' }}>
+        </div>
+        <div style={{ ...gc, textAlign: 'center' }}>
           <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 500, marginBottom: 4 }}>Last login</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: t.text }}>{c.last_login_at ? new Date(c.last_login_at).toLocaleDateString() : 'Never'}</div>
-        </Card>
-        <Card style={{ textAlign: 'center' }}>
+        </div>
+        <div style={{ ...gc, textAlign: 'center' }}>
           <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 500, marginBottom: 4 }}>Posts (recent)</div>
           <div style={{ fontSize: 30, fontWeight: 800, color: t.text }}>{data.recentPosts.length}+</div>
-        </Card>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {/* CREDIT HISTORY */}
-        <Card>
+        <div style={gc}>
           <SectionHeader icon={IpBilling} title="Credit history" />
           {data.creditHistory.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: t.textMuted, fontSize: 13 }}>No transactions yet</div>
@@ -341,10 +350,10 @@ export default function AdminCustomerDetail() {
               </div>
             ))
           )}
-        </Card>
+        </div>
 
         {/* ADMIN ACTIONS LOG */}
-        <Card>
+        <div style={gc}>
           <SectionHeader icon={IpHistory} title="Admin actions" />
           {data.adminActions.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: t.textMuted, fontSize: 13 }}>No admin actions yet</div>
@@ -356,12 +365,12 @@ export default function AdminCustomerDetail() {
               </div>
             ))
           )}
-        </Card>
+        </div>
       </div>
 
       {/* RECENT POSTS */}
       {data.recentPosts.length > 0 && (
-        <Card style={{ marginTop: 20 }}>
+        <div style={{ ...gc, marginTop: 20 }}>
           <SectionHeader icon={IpHistory} title="Recent posts" />
           {data.recentPosts.slice(0, 5).map((p) => (
             <div key={p.id} style={{ padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${t.border}` }}>
@@ -372,7 +381,7 @@ export default function AdminCustomerDetail() {
               <Badge variant={p.status === 'posted' ? 'success' : p.status === 'scheduled' ? 'warning' : 'default'}>{p.status}</Badge>
             </div>
           ))}
-        </Card>
+        </div>
       )}
 
       {showCreditsModal && <CreditsModal onClose={() => setShowCreditsModal(false)} onSubmit={handleAdjustCredits} t={t} />}
