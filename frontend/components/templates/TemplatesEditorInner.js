@@ -4138,6 +4138,12 @@ export default function TemplatesEditorInner() {
   const [isPlaying, setIsPlaying] = useState(false);
   const playIntervalRef = useRef(null);
   const [editingClipIdx, setEditingClipIdx] = useState(null); // page index being duration-edited
+  const [selectedClipIdx, setSelectedClipIdx] = useState(null); // selected clip in video timeline
+  const [timelineZoom, setTimelineZoom] = useState(40); // px per second in video timeline
+  const clipDragRef = useRef(null); // { idx, startX, startDur } — for clip trim dragging
+  const timelineScrollRef = useRef(null);
+  const [isDraggingClip, setIsDraggingClip] = useState(false);
+  const [pageFlash, setPageFlash] = useState(null); // 'fade'|'slide'|'zoom'|null — transition overlay
   const [rulerGuides, setRulerGuides] = useState({ h: [], v: [] });
   const [draggingGuide, setDraggingGuide] = useState(null); // { axis:'h'|'v', pos:number } canvas px
   const [liveBounds, setLiveBounds] = useState(null); // { x,y,w,h } shown while dragging/resizing
@@ -6437,6 +6443,9 @@ export default function TemplatesEditorInner() {
         @keyframes panelFadeIn { from { opacity:0; } to { opacity:1; } }
         @keyframes ctxbar-in { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
         @keyframes panel-in { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
+        @keyframes page-flash-fade { 0%{opacity:0.7} 100%{opacity:0} }
+        @keyframes page-flash-slide { 0%{opacity:0.5;transform:translateX(-30px)} 100%{opacity:0;transform:translateX(0)} }
+        @keyframes page-flash-zoom { 0%{opacity:0.5;transform:scale(1.04)} 100%{opacity:0;transform:scale(1)} }
       `}</style>
 
       {/* ── Top toolbar (Canva-style) ── */}
@@ -7279,13 +7288,49 @@ export default function TemplatesEditorInner() {
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; }}>
                 Effects
               </button>
-              {/* Animate — stub button (visual parity with Canva) */}
-              <button
-                style={{ height: 32, padding: '0 10px', border: 'none', borderRadius: 8, background: 'transparent', color: t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 120ms ease', whiteSpace: 'nowrap' }}
-                onMouseEnter={e => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; }}>
-                Animate
-              </button>
+              {/* Animate — opens element animation panel */}
+              <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                <button
+                  onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }}
+                  style={{ height: 32, padding: '0 10px', border: 'none', borderRadius: 8, background: (showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none')) ? t.primaryBg : 'transparent', color: (showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none')) ? t.primary : t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 120ms ease', whiteSpace: 'nowrap' }}
+                  onMouseEnter={e => { if (!showAnimatePanel) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+                  onMouseLeave={e => { if (!showAnimatePanel) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
+                  {selectedEl?.animateIn && selectedEl.animateIn !== 'none' ? `✦ ${ANIMATE_PRESETS.find(a => a.id === selectedEl.animateIn)?.label || 'Animate'}` : 'Animate'}
+                </button>
+                {showAnimatePanel && panelAnchor && createPortal(
+                  <>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowAnimatePanel(false)} />
+                    <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, left: panelAnchor.left, zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 14, width: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.25)', animation: 'dropdownIn 150ms ease forwards' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Entrance animation</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+                        {ANIMATE_PRESETS.map(a => {
+                          const isActive = (selectedEl?.animateIn || 'none') === a.id;
+                          return (
+                            <button key={a.id} title={a.desc}
+                              onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, animateIn: a.id }); }}
+                              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 8, border: `1.5px solid ${isActive ? t.primaryBorder : t.border}`, background: isActive ? t.primaryBg : t.input, cursor: 'pointer', color: isActive ? t.primary : t.textSecondary, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}>
+                              <span style={{ fontSize: 18 }}>{a.icon}</span>
+                              <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{a.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedEl?.animateIn && selectedEl.animateIn !== 'none' && (
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.border}` }}>
+                          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Duration</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input type="range" min={200} max={2000} step={100} value={selectedEl.animateDuration || 600}
+                              onChange={e => updateElement({ ...selectedEl, animateDuration: parseInt(e.target.value) })}
+                              onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
+                            <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36, textAlign: 'right' }}>{((selectedEl.animateDuration || 600) / 1000).toFixed(1)}s</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>,
+                  document.body
+                )}
+              </div>
               {/* Position — opens the Position left flyout panel */}
               <button
                 onClick={() => { setActiveLeftTool('position'); setPanelOpen(true); }}
@@ -12483,6 +12528,18 @@ export default function TemplatesEditorInner() {
                         })()}
                       </div>
                     )}
+                    {/* Page transition flash overlay — video mode only */}
+                    {isActive && isVideoMode && pageFlash && (
+                      <div
+                        key={pageFlash}
+                        style={{
+                          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 300,
+                          background: '#000',
+                          animation: `page-flash-${pageFlash} 320ms ease-out forwards`,
+                        }}
+                        onAnimationEnd={() => setPageFlash(null)}
+                      />
+                    )}
                   </div>
                   </div>{/* close ruler wrapper */}
                 </div>
@@ -12520,7 +12577,10 @@ export default function TemplatesEditorInner() {
                 return (
                   <div key={page.id} style={{ position: 'relative' }}>
                     {/* Page number label */}
-                    <div style={{ fontSize: 9, fontWeight: 600, color: isAct ? t.primary : t.textMuted, textAlign: 'center', marginBottom: 3 }}>{i + 1}</div>
+                    <div style={{ fontSize: 9, fontWeight: 600, color: isAct ? t.primary : t.textMuted, textAlign: 'center', marginBottom: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                      {i + 1}
+                      {isVideoMode && <span style={{ color: t.textMuted, fontWeight: 400 }}>· {page.duration || 5}s</span>}
+                    </div>
                     {/* Thumbnail tile */}
                     <div onClick={() => { setActivePage(i); setSelectedId(null); setSelectedIds([]); }}
                       style={{ width: '100%', aspectRatio: `${canvasSize.w} / ${canvasSize.h}`, borderRadius: 6, border: `2px solid ${isAct ? t.primary : t.border}`, background: page.bgType === 'gradient' && page.bgGradient ? `linear-gradient(${page.bgGradient.angle}deg, ${page.bgGradient.c1}, ${page.bgGradient.c2})` : (page.bgColor || '#1a1a22'), cursor: 'pointer', overflow: 'hidden', position: 'relative', boxSizing: 'border-box' }}>
@@ -13003,10 +13063,56 @@ export default function TemplatesEditorInner() {
       {(() => {
         const pageDurations = pages.map(p => p.duration || 5);
         const totalDur = pageDurations.reduce((a, b) => a + b, 0);
-        const TRACK_H = 36;
-        const RULER_H = 24;
-        const TIMELINE_W_PX = 600;
-        const pxPerSec = TIMELINE_W_PX / Math.max(totalDur, 1);
+        const TRACK_H = 38;
+        const RULER_H = 22;
+        const PPS = timelineZoom; // px per second
+
+        // Helper: given a clientX and the bounding rect of the timeline track area, return clamped time
+        const clientXToTime = (clientX, rect) => Math.max(0, Math.min(totalDur, (clientX - rect.left) / PPS));
+
+        // Jump playhead + auto-switch page for that time position
+        const scrubToTime = (time) => {
+          setVideoPlayhead(time);
+          let acc = 0;
+          for (let i = 0; i < pageDurations.length; i++) {
+            acc += pageDurations[i];
+            if (time < acc) {
+              setActivePage(prev => {
+                if (prev !== i) {
+                  const trans = pages[prev]?.transition || 'none';
+                  if (trans !== 'none') setPageFlash(trans);
+                }
+                return i;
+              });
+              break;
+            }
+          }
+        };
+
+        // Split the active clip at the current playhead position
+        const splitAtPlayhead = () => {
+          let acc = 0;
+          for (let i = 0; i < pages.length; i++) {
+            const dur = pages[i].duration || 5;
+            const start = acc;
+            const end = acc + dur;
+            if (videoPlayhead > start + 0.1 && videoPlayhead < end - 0.1) {
+              const firstDur = Math.round((videoPlayhead - start) * 10) / 10;
+              const secondDur = Math.round((end - videoPlayhead) * 10) / 10;
+              pushHistory();
+              setPages(prev => {
+                const copy = [...prev];
+                const orig = copy[i];
+                const second = { ...JSON.parse(JSON.stringify(orig)), id: `page_${Date.now()}_split`, duration: secondDur };
+                const first = { ...orig, duration: firstDur };
+                copy.splice(i, 1, first, second);
+                return copy;
+              });
+              break;
+            }
+            acc += dur;
+          }
+        };
 
         const togglePlay = () => {
           if (isPlaying) {
@@ -13016,127 +13122,291 @@ export default function TemplatesEditorInner() {
             setIsPlaying(true);
             playIntervalRef.current = setInterval(() => {
               setVideoPlayhead(p => {
-                if (p >= totalDur) { clearInterval(playIntervalRef.current); setIsPlaying(false); return 0; }
-                return p + 0.1;
+                const newP = p + 0.1;
+                if (newP >= totalDur) {
+                  clearInterval(playIntervalRef.current);
+                  setIsPlaying(false);
+                  return 0;
+                }
+                // Auto-switch page based on playhead position
+                let acc = 0;
+                for (let i = 0; i < pageDurations.length; i++) {
+                  acc += pageDurations[i];
+                  if (newP < acc) {
+                    setActivePage(prev => {
+                      if (prev !== i) {
+                        const trans = pages[prev]?.transition || 'none';
+                        if (trans !== 'none') setPageFlash(trans);
+                      }
+                      return i;
+                    });
+                    break;
+                  }
+                }
+                return Math.round(newP * 10) / 10;
               });
             }, 100);
           }
         };
 
         const fmtTime = (s) => {
-          const m = Math.floor(s / 60); const sec = (s % 60).toFixed(1);
+          const m = Math.floor(s / 60);
+          const sec = (s % 60).toFixed(1);
           return `${m}:${sec.padStart(4, '0')}`;
         };
 
+        const TRANSITION_CYCLE = { none: 'fade', fade: 'slide', slide: 'zoom', zoom: 'none' };
+        const TRANSITION_ICONS = { none: '·', fade: '◌', slide: '→', zoom: '⊕' };
+
         return (
-          <div style={{
-            height: isVideoMode ? 200 : 0, overflow: 'hidden',
-            transition: 'height 220ms ease',
-            background: t.card, borderTop: `1px solid ${t.border}`,
-            flexShrink: 0, display: 'flex', flexDirection: 'column',
-          }}>
-            {/* Playback controls row */}
-            <div style={{ height: 36, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
-              <button onClick={() => { setVideoPlayhead(0); setIsPlaying(false); clearInterval(playIntervalRef.current); }}
-                style={{ width: 28, height: 26, border: `1px solid ${t.border}`, borderRadius: 5, background: t.input, color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⏮</button>
+          <div
+            style={{ height: isVideoMode ? 230 : 0, overflow: 'hidden', transition: 'height 220ms ease', background: t.card, borderTop: `1px solid ${t.border}`, flexShrink: 0, display: 'flex', flexDirection: 'column', userSelect: 'none' }}
+            onMouseMove={e => {
+              if (!clipDragRef.current) return;
+              const { idx, edge, startX, startDur, startLeft } = clipDragRef.current;
+              const dx = e.clientX - startX;
+              if (edge === 'right') {
+                const newDur = Math.max(0.5, Math.min(120, startDur + dx / PPS));
+                setPages(prev => prev.map((pg, i) => i === idx ? { ...pg, duration: Math.round(newDur * 10) / 10 } : pg));
+              } else if (edge === 'left') {
+                const newDur = Math.max(0.5, Math.min(startDur + startLeft / PPS, startDur - dx / PPS));
+                const durDelta = startDur - newDur;
+                setPages(prev => prev.map((pg, i) => i === idx ? { ...pg, duration: Math.round(newDur * 10) / 10 } : pg));
+              }
+            }}
+            onMouseUp={() => { if (clipDragRef.current) { pushHistory(); clipDragRef.current = null; setIsDraggingClip(false); } }}
+            onMouseLeave={() => { if (clipDragRef.current) { pushHistory(); clipDragRef.current = null; setIsDraggingClip(false); } }}
+          >
+            {/* ── Controls row ── */}
+            <div style={{ height: 42, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
+              {/* Rewind */}
+              <button onClick={() => { clearInterval(playIntervalRef.current); setIsPlaying(false); setVideoPlayhead(0); setActivePage(0); }}
+                title="Rewind to start"
+                style={{ width: 28, height: 28, border: `1px solid ${t.border}`, borderRadius: 6, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>⏮</button>
+              {/* Play / Pause */}
               <button onClick={togglePlay}
-                style={{ width: 36, height: 30, border: 'none', borderRadius: 6, background: t.primary, color: '#fff', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+                title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+                style={{ width: 34, height: 30, border: 'none', borderRadius: 6, background: t.primary, color: '#fff', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
                 {isPlaying ? '⏸' : '▶'}
               </button>
-              <span style={{ fontSize: 12, color: t.textMuted, fontFamily: 'monospace', minWidth: 90 }}>
+              {/* Time */}
+              <span style={{ fontSize: 11, color: t.textMuted, fontFamily: 'monospace', minWidth: 88, flexShrink: 0 }}>
                 {fmtTime(videoPlayhead)} / {fmtTime(totalDur)}
               </span>
+
+              {/* Selected clip controls */}
+              {selectedClipIdx !== null && pages[selectedClipIdx] && (() => {
+                const sc = pages[selectedClipIdx];
+                return (
+                  <>
+                    <div style={{ width: 1, height: 18, background: t.border, flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>Clip {selectedClipIdx + 1}:</span>
+                    {/* Duration */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, color: t.textMuted }}>Duration</span>
+                      <input type="number" min={0.5} max={120} step={0.5}
+                        value={sc.duration || 5}
+                        onChange={e => { const v = Math.max(0.5, Math.min(120, parseFloat(e.target.value) || 5)); setPages(prev => prev.map((pg, i) => i === selectedClipIdx ? { ...pg, duration: v } : pg)); }}
+                        onBlur={() => pushHistory()}
+                        style={{ width: 46, height: 22, padding: '0 4px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 11, textAlign: 'center', outline: 'none' }} />
+                      <span style={{ fontSize: 10, color: t.textMuted }}>s</span>
+                    </div>
+                    {/* Speed */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, color: t.textMuted }}>Speed</span>
+                      <select value={sc.speed || 1}
+                        onChange={e => { pushHistory(); setPages(prev => prev.map((pg, i) => i === selectedClipIdx ? { ...pg, speed: parseFloat(e.target.value) } : pg)); }}
+                        style={{ height: 22, padding: '0 2px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 11, outline: 'none', cursor: 'pointer' }}>
+                        <option value={0.25}>0.25×</option>
+                        <option value={0.5}>0.5×</option>
+                        <option value={1}>1×</option>
+                        <option value={1.5}>1.5×</option>
+                        <option value={2}>2×</option>
+                      </select>
+                    </div>
+                    {/* Transition */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, color: t.textMuted }}>Transition</span>
+                      <select value={sc.transition || 'none'}
+                        onChange={e => { pushHistory(); setPages(prev => prev.map((pg, i) => i === selectedClipIdx ? { ...pg, transition: e.target.value } : pg)); }}
+                        style={{ height: 22, padding: '0 2px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 11, outline: 'none', cursor: 'pointer' }}>
+                        <option value="none">None</option>
+                        <option value="fade">Fade</option>
+                        <option value="slide">Slide</option>
+                        <option value="zoom">Zoom</option>
+                      </select>
+                    </div>
+                    {/* Split */}
+                    <button onClick={splitAtPlayhead} title="Split clip at playhead (S)"
+                      style={{ height: 22, padding: '0 8px', border: `1px solid ${t.border}`, borderRadius: 5, background: t.input, color: t.text, fontSize: 10, cursor: 'pointer', flexShrink: 0, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3 }}>
+                      ✂ Split
+                    </button>
+                  </>
+                );
+              })()}
+
               <div style={{ flex: 1 }} />
-              <span style={{ fontSize: 11, color: t.textMuted }}>{pages.length} page{pages.length !== 1 ? 's' : ''} · {totalDur}s</span>
-              <button
-                onClick={() => {
-                  showToast('Download pages as PNG using File → Download PNG. MP4 export coming soon.', 'info');
-                }}
-                style={{ height: 26, padding: '0 10px', border: `1px solid ${t.border}`, borderRadius: 5, background: t.input, color: t.text, fontSize: 11, cursor: 'pointer', flexShrink: 0, fontWeight: 500 }}>
+
+              {/* Timeline zoom */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                <span style={{ fontSize: 9, color: t.textMuted }}>Zoom</span>
+                <button onClick={() => setTimelineZoom(z => Math.max(10, z - 10))} title="Zoom out"
+                  style={{ width: 20, height: 20, border: `1px solid ${t.border}`, borderRadius: 4, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>−</button>
+                <span style={{ fontSize: 9, color: t.textMuted, minWidth: 28, textAlign: 'center' }}>{PPS}px</span>
+                <button onClick={() => setTimelineZoom(z => Math.min(200, z + 10))} title="Zoom in"
+                  style={{ width: 20, height: 20, border: `1px solid ${t.border}`, borderRadius: 4, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>+</button>
+              </div>
+
+              {/* Pages count */}
+              <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>{pages.length} clip{pages.length !== 1 ? 's' : ''}</span>
+
+              {/* Export */}
+              <button onClick={() => showToast('Use File → Download PNG per page. Full MP4 export coming soon.', 'info')}
+                style={{ height: 24, padding: '0 8px', border: `1px solid ${t.border}`, borderRadius: 5, background: t.input, color: t.text, fontSize: 10, cursor: 'pointer', flexShrink: 0, fontWeight: 500 }}>
                 ⬇ Export
               </button>
-              <button onClick={() => setIsVideoMode(false)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: 16 }}>×</button>
+
+              {/* Close */}
+              <button onClick={() => { setIsVideoMode(false); setIsPlaying(false); clearInterval(playIntervalRef.current); }}
+                style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: 16, padding: '0 2px', flexShrink: 0 }}>×</button>
             </div>
 
-            {/* Timeline tracks area */}
-            <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', display: 'flex' }}>
+            {/* ── Track area ── */}
+            <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', display: 'flex', minHeight: 0 }} ref={timelineScrollRef}>
               {/* Track labels */}
-              <div style={{ width: 80, borderRight: `1px solid ${t.border}`, flexShrink: 0, paddingTop: RULER_H }}>
-                {['Main', 'Text', 'Audio'].map(label => (
-                  <div key={label} style={{ height: TRACK_H, display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: 11, fontWeight: 600, color: t.textMuted, borderBottom: `1px solid ${t.border}` }}>{label}</div>
+              <div style={{ width: 72, borderRight: `1px solid ${t.border}`, flexShrink: 0, paddingTop: RULER_H, background: t.sidebar }}>
+                {[
+                  { label: 'Main',  dot: t.primary },
+                  { label: 'Upper', dot: '#f59e0b' },
+                  { label: 'Audio', dot: '#22c55e' },
+                ].map(({ label, dot }) => (
+                  <div key={label} style={{ height: TRACK_H, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 5, fontSize: 10, fontWeight: 600, color: t.textMuted, borderBottom: `1px solid ${t.border}` }}>
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: dot, flexShrink: 0 }} />
+                    {label}
+                  </div>
                 ))}
               </div>
 
-              {/* Timeline ruler + clip lanes */}
-              <div style={{ flex: 1, position: 'relative' }}>
-                {/* Time ruler */}
-                <div style={{ height: RULER_H, display: 'flex', alignItems: 'flex-end', borderBottom: `1px solid ${t.border}`, paddingBottom: 2, position: 'relative', background: t.card }}>
-                  {Array.from({ length: Math.ceil(totalDur) + 1 }).map((_, i) => (
-                    <div key={i} style={{ position: 'absolute', left: i * pxPerSec, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ width: 1, height: i % 5 === 0 ? 12 : 6, background: t.border }} />
-                      {i % 5 === 0 && <span style={{ fontSize: 9, color: t.textMuted, position: 'absolute', bottom: 14, left: 2 }}>{i}s</span>}
+              {/* Timeline content */}
+              <div
+                style={{ flex: 1, position: 'relative', minWidth: Math.max(totalDur * PPS + 80, 400) }}
+                ref={timelineTrackRef}
+              >
+                {/* ── Time ruler (click/drag to scrub) ── */}
+                <div
+                  style={{ height: RULER_H, position: 'relative', background: t.sidebar, borderBottom: `1px solid ${t.border}`, cursor: 'col-resize' }}
+                  onMouseDown={e => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const onMove = mv => { const time = clientXToTime(mv.clientX, rect); scrubToTime(time); };
+                    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                    scrubToTime(clientXToTime(e.clientX, rect));
+                  }}
+                >
+                  {Array.from({ length: Math.ceil(totalDur) + 2 }).map((_, i) => (
+                    <div key={i} style={{ position: 'absolute', left: i * PPS, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', pointerEvents: 'none' }}>
+                      <div style={{ height: 20, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                        <div style={{ width: 1, height: i % 5 === 0 ? 10 : 5, background: i % 5 === 0 ? t.borderStrong : t.border }} />
+                      </div>
+                      {i % Math.max(1, Math.round(40 / PPS)) === 0 && (
+                        <span style={{ fontSize: 8, color: t.textMuted, position: 'absolute', bottom: 12, left: 2, userSelect: 'none' }}>{i}s</span>
+                      )}
                     </div>
                   ))}
                 </div>
 
-                {/* Main track — pages as clips (double-click to edit duration) */}
-                <div style={{ height: TRACK_H, borderBottom: `1px solid ${t.border}`, position: 'relative', background: t.input }}>
+                {/* ── Main track: pages as clips ── */}
+                <div style={{ height: TRACK_H, borderBottom: `1px solid ${t.border}`, position: 'relative', background: t.bg }}>
                   {(() => {
                     let offset = 0;
                     return pages.map((page, i) => {
                       const dur = page.duration || 5;
-                      const left = offset * pxPerSec;
-                      const w = Math.max(dur * pxPerSec - 2, 30);
-                      const isActivePage = i === activePage;
-                      const isEditingThis = editingClipIdx === i;
+                      const left = offset * PPS;
+                      const w = Math.max(dur * PPS, 24);
+                      const isActPage = i === activePage;
+                      const isSel = selectedClipIdx === i;
+                      const trans = page.transition || 'none';
+                      const speed = page.speed || 1;
                       offset += dur;
                       return (
-                        <div key={page.id}
-                          onClick={() => { setActivePage(i); setSelectedId(null); }}
-                          onDoubleClick={e => { e.stopPropagation(); setEditingClipIdx(i); }}
-                          title={`Page ${i + 1} · ${dur}s — dbl-click to set duration`}
-                          style={{ position: 'absolute', left, top: 3, width: w, height: TRACK_H - 8, borderRadius: 4, background: isActivePage ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.3)', border: `1px solid ${isActivePage ? '#7C5CFC' : 'rgba(124,92,252,0.5)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden', gap: 4 }}>
-                          {isEditingThis ? (
-                            <input autoFocus type="number" min={1} max={60} defaultValue={dur}
-                              onBlur={e => { const v = Math.max(1, Math.min(60, parseFloat(e.target.value) || dur)); patchPage({ duration: v }); setEditingClipIdx(null); }}
-                              onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingClipIdx(null); }}
-                              onClick={e => e.stopPropagation()}
-                              style={{ width: 44, fontSize: 10, background: t.card, border: `1px solid #7C5CFC`, borderRadius: 3, color: t.text, padding: '1px 3px', outline: 'none' }} />
-                          ) : (
-                            <>
-                              <span style={{ fontSize: 10, fontWeight: 600, color: isActivePage ? '#7C5CFC' : t.text, whiteSpace: 'nowrap' }}>P{i + 1}</span>
-                              <span style={{ fontSize: 9, color: t.textMuted, whiteSpace: 'nowrap' }}>{dur}s</span>
-                            </>
+                        <div key={page.id} style={{ position: 'absolute', left, top: 2, height: TRACK_H - 4 }}>
+                          {/* Transition bubble (between clips) */}
+                          {i > 0 && (
+                            <div
+                              onClick={e => { e.stopPropagation(); const prev = pages[i - 1]; const next = TRANSITION_CYCLE[prev.transition || 'none']; pushHistory(); setPages(p => p.map((pg, pi) => pi === i - 1 ? { ...pg, transition: next } : pg)); }}
+                              title={`Transition: ${pages[i-1].transition || 'none'} — click to change`}
+                              style={{ position: 'absolute', left: -9, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, borderRadius: '50%', background: (pages[i-1].transition && pages[i-1].transition !== 'none') ? t.primary : t.border, border: `2px solid ${t.card}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: '#fff', cursor: 'pointer', zIndex: 5, transition: 'background 150ms', flexShrink: 0 }}>
+                              {TRANSITION_ICONS[pages[i-1].transition || 'none']}
+                            </div>
                           )}
+                          {/* Clip body */}
+                          <div
+                            onClick={e => { e.stopPropagation(); setSelectedClipIdx(isSel ? null : i); setActivePage(i); setSelectedId(null); setSelectedIds([]); }}
+                            style={{ width: w, height: '100%', borderRadius: 5, background: isActPage ? 'rgba(124,92,252,0.38)' : isSel ? 'rgba(124,92,252,0.22)' : 'rgba(124,92,252,0.15)', border: `1.5px solid ${isActPage || isSel ? '#7C5CFC' : 'rgba(124,92,252,0.38)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 6, paddingRight: 10, overflow: 'hidden', gap: 4, boxSizing: 'border-box', position: 'relative', transition: 'background 80ms, border-color 80ms' }}
+                            onMouseEnter={e => { if (!isActPage && !isSel) e.currentTarget.style.background = 'rgba(124,92,252,0.25)'; }}
+                            onMouseLeave={e => { if (!isActPage && !isSel) e.currentTarget.style.background = 'rgba(124,92,252,0.15)'; }}
+                          >
+                            <span style={{ fontSize: 10, fontWeight: 700, color: isActPage ? '#7C5CFC' : t.text, whiteSpace: 'nowrap', userSelect: 'none' }}>P{i + 1}</span>
+                            <span style={{ fontSize: 9, color: t.textMuted, whiteSpace: 'nowrap', userSelect: 'none' }}>{dur}s</span>
+                            {speed !== 1 && <span style={{ fontSize: 8, color: t.primary, fontWeight: 700, background: t.primaryBg, borderRadius: 3, padding: '0 3px', userSelect: 'none', flexShrink: 0 }}>{speed}×</span>}
+                            {trans !== 'none' && <span style={{ fontSize: 8, color: '#fff', background: t.primary, borderRadius: 3, padding: '0 3px', userSelect: 'none', flexShrink: 0, marginLeft: 'auto' }}>{trans[0].toUpperCase()}</span>}
+                          </div>
+                          {/* Left trim handle */}
+                          <div
+                            onMouseDown={e => { e.stopPropagation(); clipDragRef.current = { idx: i, edge: 'left', startX: e.clientX, startDur: dur, startLeft: left }; setIsDraggingClip(true); }}
+                            style={{ position: 'absolute', left: 0, top: 0, width: 7, height: '100%', cursor: 'ew-resize', zIndex: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: 2, height: 14, background: 'rgba(124,92,252,0.8)', borderRadius: 2 }} />
+                          </div>
+                          {/* Right trim handle */}
+                          <div
+                            onMouseDown={e => { e.stopPropagation(); clipDragRef.current = { idx: i, edge: 'right', startX: e.clientX, startDur: dur }; setIsDraggingClip(true); }}
+                            style={{ position: 'absolute', right: 0, top: 0, width: 7, height: '100%', cursor: 'ew-resize', zIndex: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: 2, height: 14, background: 'rgba(124,92,252,0.8)', borderRadius: 2 }} />
+                          </div>
                         </div>
                       );
                     });
                   })()}
                 </div>
 
-                {/* Text track — text elements as clips (click to select) */}
+                {/* ── Upper track: text & non-image elements ── */}
                 <div style={{ height: TRACK_H, borderBottom: `1px solid ${t.border}`, position: 'relative', background: t.bg }}>
-                  {elements.filter(e => e.type === 'text').map(el => {
+                  {elements.filter(el => el.type === 'text').map(el => {
                     const dur = el.videoDuration || 3;
                     const start = el.videoStart || 0;
-                    const isSelEl = selectedId === el.id;
+                    const isSel = selectedId === el.id;
                     return (
-                      <div key={el.id} onClick={() => { setSelectedId(el.id); setSelectedIds([el.id]); }}
-                        title={el.text || 'Text element'}
-                        style={{ position: 'absolute', left: start * pxPerSec, top: 3, width: Math.max(dur * pxPerSec - 2, 4), height: TRACK_H - 8, borderRadius: 4, background: isSelEl ? 'rgba(245,158,11,0.5)' : 'rgba(245,158,11,0.25)', border: `1px solid ${isSelEl ? '#f59e0b' : 'rgba(245,158,11,0.5)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden', gap: 3 }}>
-                        <span style={{ fontSize: 9, color: '#f59e0b' }}>T</span>
-                        <span style={{ fontSize: 9, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(el.text || '').slice(0, 12)}</span>
+                      <div key={el.id}
+                        onClick={() => { setSelectedId(el.id); setSelectedIds([el.id]); }}
+                        title={`"${(el.text || '').slice(0, 24)}" — click to select`}
+                        style={{ position: 'absolute', left: start * PPS, top: 3, width: Math.max(dur * PPS - 2, 6), height: TRACK_H - 8, borderRadius: 4, background: isSel ? 'rgba(245,158,11,0.55)' : 'rgba(245,158,11,0.25)', border: `1px solid ${isSel ? '#f59e0b' : 'rgba(245,158,11,0.45)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', paddingLeft: 4, overflow: 'hidden', gap: 3, transition: 'background 80ms' }}>
+                        <span style={{ fontSize: 9, color: '#f59e0b', flexShrink: 0, userSelect: 'none' }}>T</span>
+                        <span style={{ fontSize: 9, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', userSelect: 'none' }}>{(el.text || '').slice(0, 16)}</span>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Audio track (placeholder) */}
-                <div style={{ height: TRACK_H, position: 'relative', background: t.bg }} />
+                {/* ── Audio track ── */}
+                <div style={{ height: TRACK_H, position: 'relative', background: t.bg, display: 'flex', alignItems: 'center' }}>
+                  <button
+                    onClick={() => { setActiveLeftTool('elements'); setPanelOpen(true); setElemSubPanel('videos'); }}
+                    title="Add audio from Elements panel"
+                    style={{ marginLeft: 6, height: 22, padding: '0 10px', borderRadius: 5, border: `1.5px dashed ${t.borderStrong}`, background: 'transparent', color: t.textMuted, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, transition: 'all 120ms', flexShrink: 0 }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#22c55e'; e.currentTarget.style.color = '#22c55e'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.color = t.textMuted; }}>
+                    + Add audio
+                  </button>
+                </div>
 
-                {/* Playhead */}
-                <div style={{ position: 'absolute', top: 0, left: videoPlayhead * pxPerSec, width: 2, height: '100%', background: t.primary, pointerEvents: 'none', zIndex: 5 }}>
-                  <div style={{ width: 8, height: 8, background: t.primary, borderRadius: '50%', position: 'absolute', top: 0, left: -3 }} />
+                {/* ── Playhead ── */}
+                <div
+                  style={{ position: 'absolute', top: 0, left: videoPlayhead * PPS - 1, width: 2, height: '100%', background: t.primary, pointerEvents: 'none', zIndex: 10 }}
+                >
+                  {/* Diamond head */}
+                  <div style={{ width: 0, height: 0, position: 'absolute', top: -1, left: -5, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: `8px solid ${t.primary}` }} />
+                  {/* Thin line */}
                 </div>
               </div>
             </div>
