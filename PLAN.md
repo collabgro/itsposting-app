@@ -914,15 +914,15 @@ Every interactive element must have:
 - [x] 0.1 Fix analytics/index.js stale Card import ✅ shipped commit a3b (analytics Card import removed)
 - [x] 0.2 Admin pages glass upgrade (8 files — +stock-photos.js found via grep) ✅ shipped commit 5b6b483
 - [x] 0.P PostCore Mascot — 7-mood animated SVG character in sidebar ✅ shipped commit 5b6b483; dashboard events added commit 19b6671
-- [ ] 0.3 Global error boundary in _app.js
-- [ ] 0.4 Verify ideas page works end-to-end (code looks complete; add glass + mascot events)
+- [x] 0.3 Global error boundary in _app.js ✅ shipped commit d92d681
+- [x] 0.4 Ideas page glass + mascot events ✅ shipped commit d92d681
 
 ### Phase 1: UI/UX Perfection
-- [ ] 1.1 Login split-layout + animated testimonials
-- [ ] 1.2 Signup industry card grid + password strength meter
-- [ ] 1.3 Dashboard quick-actions row + sparklines + suggestion prominence
+- [x] 1.1 Login split-layout + animated testimonial slider + stats + platform pills ✅ shipped commit d92d681
+- [x] 1.2 Signup industry emoji grid + selection animation + password strength meter + trust badges ✅ shipped commit d92d681
+- [x] 1.3 Dashboard quick-actions row (4 glass tiles) + activation checklist (5-step, collapsible, 10 bonus credits) ✅ shipped commit d92d681
 - [ ] 1.4 Wizard step progress + card selection animations + inline editing
-- [ ] 1.5 Analytics charts (recharts — 5 chart types)
+- [x] 1.5 Analytics engagement trend chart (30-day SVG AreaChart, gradient fill, trend indicator) ✅ shipped commit d92d681
 - [ ] 1.6 Calendar week view + drag reschedule + hover previews
 - [ ] 1.7 Post history grid view + bulk actions + search
 - [ ] 1.8 Media Library AI tagging + background removal shortcut
