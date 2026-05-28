@@ -233,6 +233,16 @@ export default function Analytics() {
     { id: 'monthly',  label: 'Monthly Report' },
   ];
 
+  const gc = {
+    padding: '20px',
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   return (
     <>
       <Layout
@@ -328,7 +338,7 @@ export default function Analytics() {
 
               {/* ── STREAK CARD ────────────────────────────────── */}
               {streak !== null && streak.streak > 0 && (
-                <Card style={{ marginBottom: 24, borderLeft: `4px solid ${streak.isOnFire ? '#F59E0B' : streak.streak >= 3 ? '#22C55E' : t.primary}` }}>
+                <div style={{ ...gc, marginBottom: 24, borderLeft: `4px solid ${streak.isOnFire ? '#F59E0B' : streak.streak >= 3 ? '#22C55E' : t.primary}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <div style={{ width: 52, height: 52, borderRadius: 14, background: streak.isOnFire ? 'rgba(245,158,11,0.12)' : streak.streak >= 3 ? 'rgba(34,197,94,0.1)' : t.primaryBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>
                       {streak.isOnFire ? '🔥' : streak.streak >= 3 ? '⚡' : '📅'}
@@ -348,12 +358,12 @@ export default function Analytics() {
                       <div style={{ fontSize: 11, color: t.textMuted }}>day{streak.streak !== 1 ? 's' : ''}</div>
                     </div>
                   </div>
-                </Card>
+                </div>
               )}
 
               {/* ── CONTENT MIX ────────────────────────────────── */}
               {contentMix && contentMix.totalPosts > 0 && (
-                <Card style={{ marginBottom: 24 }}>
+                <div style={{ ...gc, marginBottom: 24 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Content Mix <span style={{ fontSize: 12, fontWeight: 400, color: t.textMuted }}>· last 30 days</span></div>
@@ -405,23 +415,23 @@ export default function Analytics() {
                       <span>{contentMix.recommendation}</span>
                     </div>
                   )}
-                </Card>
+                </div>
               )}
 
               {/* ── EMPTY STATE ────────────────────────────────── */}
               {!loading && parseInt(summary.posted) === 0 && (
-                <Card style={{ marginBottom: 24 }}>
+                <div style={{ ...gc, marginBottom: 24 }}>
                   <EmptyState
                     icon={IpTrendingUp}
                     title="No data for this period"
                     subtitle="Publish posts to start building your analytics."
                     action={<Button variant="primary" onClick={() => router.push('/wizard')}><IpSparkle size={13} /> Create a Post</Button>}
                   />
-                </Card>
+                </div>
               )}
 
               {/* ── SCHEDULING OPTIMIZER ───────────────────────── */}
-              <Card style={{ marginBottom: 24 }}>
+              <div style={{ ...gc, marginBottom: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ width: 38, height: 38, borderRadius: 10, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -447,7 +457,7 @@ export default function Analytics() {
                   {(optTimes?.recommendations || []).slice(0, 3).map((slot, idx) => (
                     <div
                       key={idx}
-                      style={{ padding: 16, border: `2px solid ${idx === 0 ? t.primary : t.border}`, borderRadius: 12, background: idx === 0 ? t.primaryBg : t.input, position: 'relative', overflow: 'hidden' }}
+                      style={{ padding: 16, border: `2px solid ${idx === 0 ? 'rgba(124,92,252,0.55)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, background: idx === 0 ? (t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.07)') : (t.isDark ? 'rgba(255,255,255,0.03)' : t.input), position: 'relative', overflow: 'hidden', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', boxShadow: idx === 0 ? '0 8px 28px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.07)' : `${t.shadowSm}` }}
                     >
                       {idx === 0 && (
                         <div style={{ position: 'absolute', top: 10, right: 10, background: t.primary, color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 20, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
@@ -566,11 +576,11 @@ export default function Analytics() {
                     </div>
                   </div>
                 )}
-              </Card>
+              </div>
 
               {/* ── CONTENT PERFORMANCE + DOW BARS ─────────────── */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
-                <Card>
+                <div style={gc}>
                   <SectionHeader icon={IpAnalytics} title="Content type performance" subtitle="Avg engagement by type" />
                   {!contentPerf?.byType?.length ? (
                     <EmptyState icon={IpAnalytics} title="No data yet" subtitle="Publish posts to see performance by type" />
@@ -603,9 +613,9 @@ export default function Analytics() {
                       })}
                     </div>
                   )}
-                </Card>
+                </div>
 
-                <Card>
+                <div style={gc}>
                   <SectionHeader icon={IpCalendar} title="Your posting days" subtitle="How you spread content across the week" />
                   {!contentPerf?.byDow?.length ? (
                     <EmptyState icon={IpCalendar} title="No data yet" subtitle="Create posts to see your posting patterns" />
@@ -646,7 +656,7 @@ export default function Analytics() {
                       })()}
                     </div>
                   )}
-                </Card>
+                </div>
               </div>
             </>
           )
@@ -659,7 +669,7 @@ export default function Analytics() {
           loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Spinner size={40} /></div>
           ) : (
-            <Card>
+            <div style={gc}>
               <SectionHeader
                 icon={IpAnalytics}
                 title="All posts"
@@ -728,7 +738,7 @@ export default function Analytics() {
                   })}
                 </div>
               )}
-            </Card>
+            </div>
           )
         )}
 
@@ -752,37 +762,23 @@ export default function Analytics() {
               <>
                 {/* 4 stat cards */}
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-                  <Card style={{ padding: '18px 20px' }}>
-                    <p style={{ margin: '0 0 6px', fontSize: 12, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Posts Published</p>
-                    <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color: t.primary, fontFamily: 'monospace' }}>{reportPosts.length}</p>
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textSecondary }}>in {monthLabel}</p>
-                  </Card>
-                  <Card style={{ padding: '18px 20px' }}>
-                    <p style={{ margin: '0 0 6px', fontSize: 12, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated Reach</p>
-                    <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color: t.info || '#3B82F6', fontFamily: 'monospace' }}>
-                      {totalReach > 999 ? `~${(totalReach/1000).toFixed(1)}k` : `~${totalReach}`}
-                    </p>
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textSecondary }}>estimated local people</p>
-                  </Card>
-                  <Card style={{ padding: '18px 20px' }}>
-                    <p style={{ margin: '0 0 6px', fontSize: 12, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Engagement</p>
-                    <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color: t.warning || '#F59E0B', fontFamily: 'monospace' }}>{totalEng}</p>
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textSecondary }}>likes + comments + shares</p>
-                  </Card>
-                  <Card style={{ padding: '18px 20px' }}>
-                    <p style={{ margin: '0 0 6px', fontSize: 12, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Best Day</p>
-                    <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color: t.success || '#22C55E', fontFamily: 'monospace' }}>
-                      {reportPosts.length > 0 ? DAYS_FULL[bestDowIdx].slice(0, 3) : '—'}
-                    </p>
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textSecondary }}>
-                      {reportPosts.length > 0 ? `${dowCounts[bestDowIdx]} post${dowCounts[bestDowIdx] !== 1 ? 's' : ''}` : 'no posts yet'}
-                    </p>
-                  </Card>
+                  {[
+                    { label: 'Posts Published', value: reportPosts.length, sub: `in ${monthLabel}`, color: t.primary },
+                    { label: 'Estimated Reach', value: totalReach > 999 ? `~${(totalReach/1000).toFixed(1)}k` : `~${totalReach}`, sub: 'estimated local people', color: '#3B82F6' },
+                    { label: 'Total Engagement', value: totalEng, sub: 'likes + comments + shares', color: '#F59E0B' },
+                    { label: 'Best Day', value: reportPosts.length > 0 ? DAYS_FULL[bestDowIdx].slice(0, 3) : '—', sub: reportPosts.length > 0 ? `${dowCounts[bestDowIdx]} post${dowCounts[bestDowIdx] !== 1 ? 's' : ''}` : 'no posts yet', color: '#22C55E' },
+                  ].map(({ label, value, sub, color }) => (
+                    <div key={label} style={{ ...gc, padding: '18px 20px' }}>
+                      <p style={{ margin: '0 0 6px', fontSize: 11, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{label}</p>
+                      <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color, fontFamily: 'monospace', textShadow: `0 0 20px ${color}40` }}>{value}</p>
+                      <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textSecondary }}>{sub}</p>
+                    </div>
+                  ))}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 24 }}>
                   {/* Top post */}
-                  <Card>
+                  <div style={gc}>
                     <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top Post This Month</p>
                     {!bestPost ? (
                       <EmptyState icon={IpSparkle} title="No posts yet" subtitle={`Publish posts in ${monthLabel} to see top performers.`} />
@@ -806,10 +802,10 @@ export default function Analytics() {
                         </div>
                       </div>
                     )}
-                  </Card>
+                  </div>
 
                   {/* Content mix */}
-                  <Card>
+                  <div style={gc}>
                     <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Content Mix</p>
                     {reportPosts.length === 0 ? (
                       <EmptyState icon={IpCalendar} title="No posts yet" subtitle="Publish posts this month to see your content breakdown." />
@@ -838,11 +834,11 @@ export default function Analytics() {
                         </div>
                       </div>
                     )}
-                  </Card>
+                  </div>
                 </div>
 
                 {/* All posts table */}
-                <Card>
+                <div style={gc}>
                   <p style={{ margin: '0 0 16px', fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>All Posts — {monthLabel}</p>
                   {reportPosts.length === 0 ? (
                     <EmptyState
@@ -905,7 +901,7 @@ export default function Analytics() {
                       </table>
                     </div>
                   )}
-                </Card>
+                </div>
               </>
             )}
           </>

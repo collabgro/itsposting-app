@@ -77,8 +77,8 @@ function isCustom(role, permissions) {
 function ConfirmModal({ title, message, onConfirm, onCancel, danger }) {
   const { t } = useTheme();
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 28, maxWidth: 400, width: '100%' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(32px) saturate(200%)', WebkitBackdropFilter: 'blur(32px) saturate(200%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, borderRadius: 22, padding: 28, maxWidth: 400, width: '100%', boxShadow: t.isDark ? '0 24px 64px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
           <IpWarning size={22} color={danger ? '#ef4444' : '#F59E0B'} style={{ marginTop: 2, flexShrink: 0 }} />
           <div>
@@ -124,8 +124,8 @@ function CreateWorkspaceModal({ onClose, onCreate }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 28, maxWidth: 440, width: '100%' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(32px) saturate(200%)', WebkitBackdropFilter: 'blur(32px) saturate(200%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, borderRadius: 22, padding: 28, maxWidth: 440, width: '100%', boxShadow: t.isDark ? '0 24px 64px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: t.text }}>Create New Workspace</p>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={18} /></button>
@@ -675,7 +675,7 @@ export default function WorkspacesPage() {
         </div>
 
         {/* Tab switcher */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 24, background: t.input, borderRadius: 10, padding: 4, width: 'fit-content' }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, padding: 4, width: 'fit-content', boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.9'})` }}>
           {[
             { key: 'workspaces', label: `Workspaces (${totalUsed})` },
             { key: 'team',       label: `Team Members (${members.length})${pendingInvites.length ? ` · ${pendingInvites.length} pending` : ''}` },
@@ -683,7 +683,7 @@ export default function WorkspacesPage() {
             const active = activeTab === key;
             return (
               <button key={key} onClick={() => setActiveTab(key)}
-                style={{ padding: '8px 18px', borderRadius: 7, border: `1px solid ${active ? t.primaryBorder : 'transparent'}`, background: active ? t.primaryBg : 'transparent', color: active ? t.primary : t.textSecondary, fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer', transition: 'all 160ms ease' }}>
+                style={{ padding: '9px 20px', borderRadius: 10, border: `1.5px solid ${active ? 'rgba(124,92,252,0.4)' : 'transparent'}`, background: active ? (t.isDark ? 'rgba(124,92,252,0.15)' : 'rgba(124,92,252,0.08)') : 'transparent', color: active ? t.primary : t.textSecondary, fontSize: 13, fontWeight: active ? 700 : 500, cursor: 'pointer', transition: 'all 160ms ease', boxShadow: active ? '0 2px 10px rgba(124,92,252,0.18), inset 0 1px 0 rgba(255,255,255,0.07)' : 'none', whiteSpace: 'nowrap' }}>
                 {label}
               </button>
             );
@@ -717,7 +717,7 @@ export default function WorkspacesPage() {
 
             {/* Main account card */}
             {mainAccount && (
-              <Card style={{ marginBottom: 14, borderColor: mainAccount.id === currentUserId ? t.primaryBorder : t.border, borderWidth: mainAccount.id === currentUserId ? 2 : 1 }}>
+              <div style={{ marginBottom: 14, padding: '18px 20px', background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', borderRadius: 16, border: `${mainAccount.id === currentUserId ? '2' : '1'}px solid ${mainAccount.id === currentUserId ? 'rgba(124,92,252,0.45)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, boxShadow: mainAccount.id === currentUserId ? `0 6px 24px rgba(124,92,252,0.15), inset 0 1px 0 rgba(255,255,255,0.07)` : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.9'})` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 10, background: 'linear-gradient(135deg, #FB923C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                     {(mainAccount.business_name || 'M').charAt(0).toUpperCase()}
@@ -742,22 +742,22 @@ export default function WorkspacesPage() {
                     </Button>
                   )}
                 </div>
-              </Card>
+              </div>
             )}
 
             {/* Workspace cards */}
             {workspaces.length === 0 && (
-              <Card style={{ marginBottom: 14 }}>
+              <div style={{ marginBottom: 14, padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 16, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.9'})` }}>
                 <EmptyState
                   icon={IpTeam}
                   title="No workspaces yet"
                   subtitle={canAddMore && isOnMainAccount ? 'Create a workspace to manage multiple businesses or locations under one account.' : !canAddMore ? `Upgrade to ${nextPlan || 'a higher plan'} to add workspaces.` : 'Workspaces can only be created from the main account.'}
                   action={canAddMore && isOnMainAccount ? <Button onClick={() => setShowCreate(true)} icon={<IpPlus size={15} />}>Create Workspace</Button> : null}
                 />
-              </Card>
+              </div>
             )}
             {workspaces.map((ws) => (
-              <Card key={ws.id} style={{ marginBottom: 14, borderColor: ws.id === currentUserId ? t.primaryBorder : t.border, borderWidth: ws.id === currentUserId ? 2 : 1 }}>
+              <div key={ws.id} style={{ marginBottom: 14, padding: '18px 20px', background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', borderRadius: 16, border: `${ws.id === currentUserId ? '2' : '1'}px solid ${ws.id === currentUserId ? 'rgba(124,92,252,0.45)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, boxShadow: ws.id === currentUserId ? `0 6px 24px rgba(124,92,252,0.15), inset 0 1px 0 rgba(255,255,255,0.07)` : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.9'})` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 10, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                     {(ws.workspace_display_name || ws.business_name || 'W').charAt(0).toUpperCase()}
@@ -802,7 +802,7 @@ export default function WorkspacesPage() {
                     )}
                   </div>
                 </div>
-              </Card>
+              </div>
             ))}
 
             {/* Shared with you — workspaces this user was invited to by other accounts */}
@@ -813,7 +813,7 @@ export default function WorkspacesPage() {
                   const rm = ROLE_META[m.role || 'editor'];
                   const wsName = m.workspace_display_name || m.business_name;
                   return (
-                    <Card key={m.membership_id} style={{ marginBottom: 14 }}>
+                    <div key={m.membership_id} style={{ marginBottom: 14, padding: '18px 20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 16, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.9'})` }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                         <div style={{ width: 42, height: 42, borderRadius: 10, background: 'linear-gradient(135deg, #0EA5E9, #0284C7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                           {(wsName || 'W').charAt(0).toUpperCase()}
@@ -832,7 +832,7 @@ export default function WorkspacesPage() {
                           {switching === m.workspace_id ? 'Switching…' : 'Switch'}
                         </Button>
                       </div>
-                    </Card>
+                    </div>
                   );
                 })}
               </>
@@ -840,7 +840,7 @@ export default function WorkspacesPage() {
 
             {/* Upgrade prompt when at limit */}
             {!canAddMore && nextPlan && isOnMainAccount && (
-              <Card style={{ background: t.primaryBg, borderColor: t.primaryBorder }}>
+              <div style={{ padding: '18px 20px', background: t.isDark ? 'rgba(124,92,252,0.1)' : 'rgba(124,92,252,0.06)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid rgba(124,92,252,0.25)`, borderRadius: 16, boxShadow: '0 4px 16px rgba(124,92,252,0.1), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                   <IpSparkle size={20} color={t.primary} />
                   <div style={{ flex: 1 }}>
@@ -849,7 +849,7 @@ export default function WorkspacesPage() {
                   </div>
                   <Button onClick={() => router.push('/billing')} icon={<IpBilling size={15} />}>Upgrade to {nextPlan}</Button>
                 </div>
-              </Card>
+              </div>
             )}
           </>
         )}

@@ -202,7 +202,7 @@ export default function History() {
           <div style={{ width: 1, height: 20, background: t.border, flexShrink: 0 }} />
 
           {/* Date range */}
-          <div style={{ display: 'flex', gap: 4, background: t.card, border: `1px solid ${t.border}`, borderRadius: 9, padding: 3, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 9, padding: 3, flexShrink: 0 }}>
             {[{ id: 'all', label: 'All time' }, { id: '7d', label: 'Last 7d' }, { id: '30d', label: 'Last 30d' }, { id: 'month', label: 'This month' }].map(opt => (
               <button key={opt.id} onClick={() => setDateRange(opt.id)}
                 style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, border: dateRange === opt.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent', background: dateRange === opt.id ? t.primaryBg : 'transparent', color: dateRange === opt.id ? t.primary : t.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -212,7 +212,7 @@ export default function History() {
           </div>
 
           {/* Content type */}
-          <div style={{ display: 'flex', gap: 4, background: t.card, border: `1px solid ${t.border}`, borderRadius: 9, padding: 3, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 9, padding: 3, flexShrink: 0 }}>
             {[{ id: 'all', label: 'All types' }, { id: 'photo', label: 'Photo', color: '#A78BFA' }, { id: 'video', label: 'Video', color: '#FB923C' }, { id: 'carousel', label: 'Carousel', color: '#F472B6' }, { id: 'static', label: 'Text', color: '#60A5FA' }].map(opt => (
               <button key={opt.id} onClick={() => setContentType(opt.id)}
                 style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, border: contentType === opt.id ? `1px solid ${(opt.color || t.primary) + '55'}` : '1px solid transparent', background: contentType === opt.id ? (opt.color ? opt.color + '18' : t.primaryBg) : 'transparent', color: contentType === opt.id ? (opt.color || t.primary) : t.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -271,7 +271,7 @@ export default function History() {
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height={118} borderRadius={14} />)}
           </div>
         ) : displayPosts.length === 0 ? (
-          <Card>
+          <div style={{ padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
             <EmptyState
               icon={IpDrafts}
               title={
@@ -291,7 +291,7 @@ export default function History() {
                 </div>
               }
             />
-          </Card>
+          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {displayPosts.map(post => {
@@ -313,16 +313,18 @@ export default function History() {
                   style={{
                     display: 'flex',
                     gap: 0,
-                    background: t.card,
-                    border: `1px solid ${isHovered ? t.primaryBorder : t.border}`,
+                    background: t.isDark ? (isHovered ? 'rgba(20,20,32,0.88)' : 'rgba(15,15,24,0.72)') : t.card,
+                    backdropFilter: 'blur(16px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+                    border: `1px solid ${isHovered ? 'rgba(124,92,252,0.4)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
                     borderRadius: 14,
                     overflow: 'hidden',
                     cursor: 'pointer',
                     transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
                     transform: isHovered ? 'translateY(-3px)' : 'none',
                     boxShadow: isHovered
-                      ? `0 8px 28px rgba(0,0,0,0.35), 0 0 0 1px ${t.primaryBorder}, inset 0 1px 0 rgba(255,255,255,0.05)`
-                      : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.8'})`,
+                      ? `0 12px 36px rgba(0,0,0,0.3), 0 0 0 1px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.06)`
+                      : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
                   }}
                 >
                   {/* Left accent bar */}

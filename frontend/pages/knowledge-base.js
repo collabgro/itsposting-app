@@ -59,23 +59,28 @@ export default function KnowledgeBase() {
   return (
     <Layout title="Knowledge Base" subtitle="Train your AI with your business information">
       {/* Tab bar — horizontal scroll on mobile */}
-      <div className="kb-tabs" style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: `1px solid ${t.border}`, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
-            style={{
-              padding: '10px 16px', fontSize: 13, fontWeight: activeTab === tab.id ? 600 : 500,
-              color: activeTab === tab.id ? '#1A56DB' : t.textSecondary,
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              borderBottom: `2px solid ${activeTab === tab.id ? '#1A56DB' : 'transparent'}`,
-              marginBottom: -1, transition: 'all 150ms',
-              whiteSpace: 'nowrap', flexShrink: 0,
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="kb-tabs" style={{ display: 'flex', gap: 4, marginBottom: 24, padding: 4, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, width: 'fit-content', boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.9'})` }}>
+        {tabs.map(tab => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              style={{
+                padding: '8px 16px', fontSize: 13, fontWeight: active ? 700 : 500,
+                color: active ? t.primary : t.textSecondary,
+                background: active ? (t.isDark ? 'rgba(124,92,252,0.15)' : 'rgba(124,92,252,0.08)') : 'transparent',
+                border: `1.5px solid ${active ? 'rgba(124,92,252,0.35)' : 'transparent'}`,
+                borderRadius: 10, cursor: 'pointer',
+                transition: 'all 150ms ease',
+                boxShadow: active ? '0 2px 10px rgba(124,92,252,0.18), inset 0 1px 0 rgba(255,255,255,0.07)' : 'none',
+                whiteSpace: 'nowrap', flexShrink: 0,
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab content */}
@@ -130,28 +135,27 @@ function AllTab({ t, refreshKey, onSwitchTab }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 16 }}>
       {cards.map(card => (
-        <Card
+        <button
           key={card.id}
           onClick={() => onSwitchTab(card.id)}
-          style={{ cursor: 'pointer', padding: 20, transition: 'box-shadow 150ms', ':hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.10)' } }}
+          style={{ cursor: 'pointer', padding: 22, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 18, textAlign: 'left', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', boxShadow: `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.9'})` }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 12px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.06' : '0.95'})`; e.currentTarget.style.borderColor = 'rgba(124,92,252,0.3)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.9'})`; e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.07)' : t.border; }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(26,86,219,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <card.Icon size={18} color="#1A56DB" />
+              <div style={{ width: 40, height: 40, borderRadius: 11, background: 'rgba(26,86,219,0.1)', border: '1px solid rgba(26,86,219,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(26,86,219,0.1)' }}>
+                <card.Icon size={20} color="#1A56DB" />
               </div>
-              <span style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{card.label}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>{card.label}</span>
             </div>
-            <button
-              onClick={e => { e.stopPropagation(); onSwitchTab(card.id); }}
-              style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${t.border}`, background: 'transparent', color: '#1A56DB', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, lineHeight: 1 }}
-            >
+            <div style={{ width: 28, height: 28, borderRadius: 8, border: `1px solid rgba(124,92,252,0.25)`, background: 'rgba(124,92,252,0.07)', color: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, lineHeight: 1 }}>
               +
-            </button>
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 2 }}>{card.sub}</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: t.text }}>{card.count}</div>
-        </Card>
+          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 3 }}>{card.sub}</div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: t.primary }}>{card.count}</div>
+        </button>
       ))}
     </div>
   );

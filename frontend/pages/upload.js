@@ -408,9 +408,9 @@ export default function Upload() {
         <button
           key={file.id} type="button"
           onClick={() => selectFromLibrary(file)}
-          style={{ background: t.input, border: `2px solid ${t.border}`, borderRadius: 10, overflow: 'hidden', cursor: 'pointer', padding: 0, position: 'relative', transition: 'border-color 150ms' }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = t.primary}
-          onMouseLeave={e => e.currentTarget.style.borderColor = t.border}
+          style={{ background: t.isDark ? 'rgba(255,255,255,0.04)' : t.input, border: `1.5px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', padding: 0, position: 'relative', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', backdropFilter: 'blur(8px)' }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.5)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.15)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.07)' : t.border; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
         >
           <div style={{ aspectRatio: '1/1', overflow: 'hidden', position: 'relative' }}>
             {file.file_type === 'video' ? (
@@ -436,6 +436,16 @@ export default function Upload() {
       ))}
     </div>
   );
+
+  const glassCard = {
+    padding: '20px',
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
 
   return (
     <Layout
@@ -465,7 +475,7 @@ export default function Upload() {
             <div style={{ flex: '0 0 46%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
               {/* Post to — account picker */}
-              <Card>
+              <div style={glassCard}>
                 <SectionHeader icon={IpFacebook} title="Post to" />
                 {socialAccounts.length === 0 ? (
                   <div>
@@ -578,10 +588,10 @@ export default function Upload() {
                 {selectedAccountIds.length === 0 && platforms.length === 0 && (
                   <div style={{ marginTop: 8, fontSize: 12, color: t.error }}>Select at least one account</div>
                 )}
-              </Card>
+              </div>
 
               {/* Caption + Hashtags */}
-              <Card>
+              <div style={glassCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Caption</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -635,11 +645,11 @@ export default function Upload() {
                 <div style={{ marginTop: 10 }}>
                   <Input value={hashtags} onChange={e => setHashtags(e.target.value)} placeholder="#social #marketing #yourcity" />
                 </div>
-              </Card>
+              </div>
 
               {/* Location Tagging */}
               {platforms.some(p => p === 'facebook' || p === 'instagram') && (
-                <Card>
+                <div style={glassCard}>
                   <SectionHeader icon={IpFacebook} title="Add Location" />
                   {selectedLocation ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8 }}>
@@ -670,50 +680,63 @@ export default function Upload() {
                       )}
                     </div>
                   )}
-                </Card>
+                </div>
               )}
 
               {/* Media */}
-              <Card>
+              <div style={glassCard}>
                 <SectionHeader icon={UploadIcon} title="Media" />
 
                 {/* Content type compact buttons */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-                  {CONTENT_TYPES.map(opt => (
-                    <button
-                      key={opt.id} type="button"
-                      onClick={() => { setContentType(opt.id); setFiles([]); setPreviews([]); }}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 7,
-                        padding: '7px 13px', borderRadius: 8, cursor: 'pointer',
-                        border: `1.5px solid ${contentType === opt.id ? t.primary : t.border}`,
-                        background: contentType === opt.id ? t.primaryBg : t.input,
-                        transition: 'all 150ms',
-                      }}
-                    >
-                      <opt.icon size={15} color={contentType === opt.id ? 'url(#brand-gradient)' : t.textMuted} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: contentType === opt.id ? t.text : t.textMuted }}>{opt.label}</span>
-                    </button>
-                  ))}
+                  {CONTENT_TYPES.map(opt => {
+                    const sel = contentType === opt.id;
+                    return (
+                      <button
+                        key={opt.id} type="button"
+                        onClick={() => { setContentType(opt.id); setFiles([]); setPreviews([]); }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '9px 16px', borderRadius: 10, cursor: 'pointer',
+                          border: `1.5px solid ${sel ? 'rgba(124,92,252,0.5)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+                          background: sel ? (t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.07)') : (t.isDark ? 'rgba(255,255,255,0.03)' : t.input),
+                          backdropFilter: 'blur(12px)',
+                          WebkitBackdropFilter: 'blur(12px)',
+                          boxShadow: sel ? '0 4px 16px rgba(124,92,252,0.18), inset 0 1px 0 rgba(255,255,255,0.07)' : 'none',
+                          transform: sel ? 'translateY(-1px)' : 'none',
+                          transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+                        }}
+                      >
+                        <opt.icon size={15} color={sel ? 'url(#brand-gradient)' : t.textMuted} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: sel ? t.text : t.textMuted }}>{opt.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Upload buttons */}
                 <div style={{ display: 'flex', gap: 10, marginBottom: previews.length > 0 ? 14 : 0, flexWrap: 'wrap' }}>
                   <button
                     type="button" onClick={() => fileInputRef.current?.click()}
-                    style={{ flex: '1 1 160px', padding: 14, background: t.input, border: `2px dashed ${t.borderStrong}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'border-color 150ms, background 150ms, color 150ms' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.primary; e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.color = t.primary; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.background = t.input; e.currentTarget.style.color = t.textSecondary; }}
+                    style={{ flex: '1 1 160px', padding: '18px 14px', background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `2px dashed ${t.isDark ? 'rgba(255,255,255,0.12)' : t.borderStrong}`, borderRadius: 12, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, transition: 'all 220ms cubic-bezier(0.34,1.56,0.64,1)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.5)'; e.currentTarget.style.background = 'rgba(124,92,252,0.06)'; e.currentTarget.style.color = t.primary; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.12)' : t.borderStrong; e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.02)' : t.input; e.currentTarget.style.color = t.textSecondary; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
                   >
-                    <UploadIcon size={15} /> Upload from device
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: t.isDark ? 'rgba(124,92,252,0.1)' : 'rgba(124,92,252,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid rgba(124,92,252,0.2)` }}>
+                      <UploadIcon size={18} color="url(#brand-gradient)" />
+                    </div>
+                    <span>Upload from device</span>
                   </button>
                   <button
                     type="button" onClick={openLibrary}
-                    style={{ flex: '1 1 160px', padding: 14, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background 150ms, box-shadow 150ms' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = `${t.primary}20`; e.currentTarget.style.boxShadow = `0 0 0 3px ${t.focusRing}`; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.boxShadow = 'none'; }}
+                    style={{ flex: '1 1 160px', padding: '18px 14px', background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.05)', border: `1px solid rgba(124,92,252,0.22)`, borderRadius: 12, color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, transition: 'all 220ms cubic-bezier(0.34,1.56,0.64,1)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(124,92,252,0.13)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,92,252,0.2), 0 0 0 3px rgba(124,92,252,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.05)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
                   >
-                    <IpFolderOpen size={15} /> Choose from library
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(124,92,252,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid rgba(124,92,252,0.25)` }}>
+                      <IpFolderOpen size={18} color="url(#brand-gradient)" />
+                    </div>
+                    <span>Choose from library</span>
                   </button>
                 </div>
                 <input
@@ -757,21 +780,20 @@ export default function Upload() {
                     {files.length < 2 && <span style={{ color: t.warning }}>— need at least 2</span>}
                   </div>
                 )}
-              </Card>
+              </div>
 
               {/* Schedule */}
-              <Card>
+              <div style={glassCard}>
                 <SectionHeader icon={CalendarIcon} title="When to Post" />
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: scheduleMode === 'later' ? 18 : 0 }}>
-                  <Button type="button" variant={scheduleMode === 'draft' ? 'primary' : 'secondary'} onClick={() => setScheduleMode('draft')}>
-                    Save as Draft
-                  </Button>
-                  <Button type="button" variant={scheduleMode === 'now' ? 'primary' : 'secondary'} onClick={() => setScheduleMode('now')}>
-                    Publish Now
-                  </Button>
-                  <Button type="button" variant={scheduleMode === 'later' ? 'primary' : 'secondary'} onClick={() => setScheduleMode('later')}>
-                    Schedule for Later
-                  </Button>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: scheduleMode === 'later' ? 18 : 0, padding: 4, background: t.isDark ? 'rgba(255,255,255,0.03)' : t.input, borderRadius: 12, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.05)' : t.border}`, width: 'fit-content' }}>
+                  {[{ id: 'draft', label: 'Save as Draft' }, { id: 'now', label: 'Publish Now' }, { id: 'later', label: 'Schedule for Later' }].map(({ id, label }) => {
+                    const sel = scheduleMode === id;
+                    return (
+                      <button key={id} type="button" onClick={() => setScheduleMode(id)} style={{ padding: '7px 15px', borderRadius: 9, border: sel ? '1px solid rgba(124,92,252,0.4)' : '1px solid transparent', background: sel ? 'linear-gradient(135deg,#7C5CFC,#5B3FF0)' : 'transparent', color: sel ? '#fff' : t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', boxShadow: sel ? '0 2px 10px rgba(124,92,252,0.3), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none' }}>
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {scheduleMode === 'later' && (
@@ -826,37 +848,47 @@ export default function Upload() {
                       />
                     </div>
                     {scheduledPreview && (
-                      <div style={{ padding: '10px 14px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, fontSize: 13, color: t.primary, fontWeight: 600 }}>
+                      <div style={{ padding: '10px 14px', background: 'rgba(124,92,252,0.08)', border: `1px solid rgba(124,92,252,0.22)`, borderRadius: 10, fontSize: 13, color: t.primary, fontWeight: 600, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
                         📅 Scheduled for {scheduledPreview}
                       </div>
                     )}
                   </div>
                 )}
-              </Card>
+              </div>
 
               {/* Actions */}
               <div style={{ display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', flexDirection: isMobile ? 'column-reverse' : 'row', gap: 10 }}>
                 <Button type="button" variant="secondary" onClick={() => router.push('/dashboard')} style={isMobile ? { justifyContent: 'center' } : {}}>Cancel</Button>
-                <Button
+                <button
                   type="submit"
-                  variant="primary"
-                  loading={uploading}
                   disabled={uploading || (selectedAccountIds.length === 0 && platforms.length === 0) || overLimitPlatforms.length > 0}
-                  style={isMobile ? { justifyContent: 'center' } : {}}
+                  style={{
+                    padding: '10px 24px', borderRadius: 10, border: 'none', cursor: uploading ? 'default' : 'pointer',
+                    background: (uploading || (selectedAccountIds.length === 0 && platforms.length === 0)) ? t.border : 'linear-gradient(135deg,#7C5CFC,#5B3FF0)',
+                    color: '#fff', fontSize: 14, fontWeight: 700,
+                    boxShadow: (uploading || (selectedAccountIds.length === 0 && platforms.length === 0)) ? 'none' : '0 4px 16px rgba(124,92,252,0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
+                    transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
+                    ...(isMobile ? { justifyContent: 'center', width: '100%' } : {}),
+                  }}
+                  onMouseEnter={e => { if (!uploading) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(124,92,252,0.45), inset 0 1px 0 rgba(255,255,255,0.15)'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.35), inset 0 1px 0 rgba(255,255,255,0.15)'; }}
                 >
                   {submitLabel}
-                </Button>
+                </button>
               </div>
             </div>
 
             {/* ══ RIGHT — Live Preview ════════════════════════════════════════ */}
             <div style={{ flex: 1, minWidth: 0, position: isMobile ? 'static' : 'sticky', top: 20 }}>
-              <Card>
-                <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>Post Preview</div>
+              <div style={{ ...glassCard, boxShadow: `0 8px 32px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.05' : '0.9'})` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'linear-gradient(135deg,#7C5CFC,#5B3FF0)', boxShadow: '0 0 6px rgba(124,92,252,0.6)' }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Live Preview</span>
+                </div>
 
                 {/* Platform tabs — only selected platforms */}
                 {platforms.length > 0 ? (
-                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16, padding: 3, background: t.isDark ? 'rgba(255,255,255,0.03)' : t.input, borderRadius: 10, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.05)' : t.border}`, width: 'fit-content' }}>
                     {platforms.filter(pid => MOCKUP_MAP[pid]).map(pid => (
                       <PlatformTab key={pid} pid={pid} isActive={previewPlatform === pid} onClick={setPreviewPlatform} t={t} />
                     ))}
@@ -866,13 +898,13 @@ export default function Upload() {
                 )}
 
                 {/* Mockup area */}
-                <div style={{ background: t.bg || '#0A0A0F', borderRadius: 10, padding: 20, minHeight: 280 }}>
+                <div style={{ background: t.isDark ? 'rgba(6,6,14,0.9)' : '#f8f8fb', borderRadius: 12, padding: 20, minHeight: 280, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.05)' : t.border}` }}>
                   {ActiveMockup && (caption || previews.length > 0) ? (
                     <ActiveMockup post={previewPost} caption={caption} />
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 240, gap: 12, textAlign: 'center' }}>
-                      <div style={{ width: 48, height: 48, borderRadius: '50%', background: t.input, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <IpSave size={20} color={t.textMuted} />
+                      <div style={{ width: 52, height: 52, borderRadius: 14, background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid rgba(124,92,252,0.15)` }}>
+                        <IpSave size={22} color="url(#brand-gradient)" />
                       </div>
                       <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>
                         Start typing your caption or<br />upload media to see a preview
@@ -887,7 +919,7 @@ export default function Upload() {
                     {PLATFORM_META[previewPlatform]?.label} · {charLimit.toLocaleString()} char limit
                   </div>
                 )}
-              </Card>
+              </div>
             </div>
 
           </div>
@@ -897,14 +929,14 @@ export default function Upload() {
       {/* ─── Media Library Modal ─── */}
       {showLibrary && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           onClick={() => setShowLibrary(false)}
         >
           <div
-            style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, width: '100%', maxWidth: 820, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+            style={{ background: t.isDark ? 'rgba(12,12,20,0.95)' : t.card, backdropFilter: 'blur(32px) saturate(180%)', WebkitBackdropFilter: 'blur(32px) saturate(180%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.1)' : t.border}`, borderRadius: 20, width: '100%', maxWidth: 820, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)' }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 12 }}>
+            <div style={{ padding: '18px 22px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 12 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Choose from Library</div>
                 <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
@@ -957,9 +989,9 @@ export default function Upload() {
                           <div
                             key={f.folder}
                             onClick={() => setLibraryFolder(f.folder)}
-                            style={{ background: t.input, border: `2px solid ${t.border}`, borderRadius: 10, cursor: 'pointer', padding: '18px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 90, transition: 'all 150ms' }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.input; }}
+                            style={{ background: t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)', border: `1.5px solid rgba(124,92,252,0.18)`, borderRadius: 12, cursor: 'pointer', padding: '18px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 90, transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', backdropFilter: 'blur(8px)' }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.4)'; e.currentTarget.style.background = 'rgba(124,92,252,0.1)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.15)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.18)'; e.currentTarget.style.background = t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
                           >
                             <IpFolderOpen size={28} color={t.primary} />
                             <div style={{ textAlign: 'center' }}>

@@ -28,10 +28,11 @@ const FOCUS_OPTIONS = [
 
 function ScoreRing({ score, size, t }) {
   const color = score >= 70 ? t.success : score >= 40 ? t.warning : t.error;
+  const glow = score >= 70 ? 'rgba(34,197,94,0.3)' : score >= 40 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)';
   const inner = Math.round(size * 0.73);
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: `conic-gradient(${color} ${score * 3.6}deg, ${t.border} 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: inner, height: inner, borderRadius: '50%', background: t.card, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: `conic-gradient(${color} ${score * 3.6}deg, ${t.isDark ? 'rgba(255,255,255,0.06)' : t.border} 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 0 0 3px ${glow}, 0 4px 16px ${glow}` }}>
+      <div style={{ width: inner, height: inner, borderRadius: '50%', background: t.isDark ? 'rgba(12,12,20,0.95)' : t.card, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ fontSize: Math.round(size * 0.27), fontWeight: 800, color, lineHeight: 1 }}>{score}</span>
         <span style={{ fontSize: Math.round(size * 0.14), color: t.textMuted, lineHeight: 1.2 }}>/100</span>
       </div>
@@ -200,11 +201,16 @@ export default function GeoAuditPage() {
     borderRadius: 8, color: t.text, outline: 'none', boxSizing: 'border-box',
   };
   const chipStyle = (active) => ({
-    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-    cursor: 'pointer', border: `1px solid ${active ? t.primary : t.border}`,
-    background: active ? t.primaryBg : 'transparent',
+    padding: '8px 16px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+    cursor: 'pointer',
+    border: `1.5px solid ${active ? 'rgba(124,92,252,0.5)' : t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`,
+    background: active ? (t.isDark ? 'rgba(124,92,252,0.14)' : 'rgba(124,92,252,0.08)') : t.isDark ? 'rgba(15,15,24,0.6)' : 'transparent',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
     color: active ? t.primary : t.textMuted,
-    transition: 'all 150ms',
+    transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
+    boxShadow: active ? '0 3px 10px rgba(124,92,252,0.18), inset 0 1px 0 rgba(255,255,255,0.06)' : 'none',
+    transform: active ? 'translateY(-1px)' : 'none',
   });
   const labelStyle = {
     display: 'block', fontSize: 11, fontWeight: 600, color: t.textMuted,
@@ -223,16 +229,27 @@ export default function GeoAuditPage() {
     >
       {running ? (
         /* ── LOADING STATE ── */
-        <Card style={{ maxWidth: 480, margin: '40px auto', textAlign: 'center' }}>
-          <div style={{ marginBottom: 24 }}><Spinner size={48} /></div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>Checking your AI visibility...</div>
-          <div style={{ fontSize: 13, color: t.textMuted, minHeight: 20, transition: 'opacity 300ms' }}>
+        <div style={{ maxWidth: 480, margin: '40px auto', textAlign: 'center', padding: '48px 32px', background: t.isDark ? 'rgba(15,15,24,0.82)' : t.card, backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)', borderRadius: 22, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, boxShadow: '0 24px 64px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden' }}>
+          {/* ambient glow */}
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 30%, rgba(124,92,252,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <div style={{ marginBottom: 24, position: 'relative' }}>
+            <div style={{ width: 64, height: 64, borderRadius: 18, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', boxShadow: '0 8px 28px rgba(124,92,252,0.4)', animation: 'geo-pulse 2s ease-in-out infinite' }}>
+              <IpSearch size={28} color="#fff" />
+            </div>
+            <div style={{ position: 'absolute', inset: -8, top: -8, left: '50%', transform: 'translateX(-50%)', width: 80, height: 80, borderRadius: '50%', border: '2px solid transparent', borderTopColor: '#7C5CFC', animation: 'spin 1.2s linear infinite' }} />
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: t.text, marginBottom: 10, letterSpacing: '-0.02em', position: 'relative' }}>Checking your AI visibility...</div>
+          <div style={{ fontSize: 13, color: t.primary, minHeight: 22, transition: 'opacity 400ms', fontWeight: 500, position: 'relative' }}>
             {LOADING_MESSAGES[loadingMsg]}
           </div>
-          <div style={{ marginTop: 20, fontSize: 12, color: t.textMuted }}>
-            Checking 15 questions across 3 AI engines — takes about 60–90 seconds
+          <div style={{ marginTop: 20, fontSize: 12, color: t.textMuted, position: 'relative' }}>
+            15 questions × 3 AI engines · 60–90 seconds
           </div>
-        </Card>
+          <style>{`
+            @keyframes geo-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+            @keyframes spin { to{transform:rotate(360deg)} }
+          `}</style>
+        </div>
       ) : (
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
 
@@ -246,22 +263,22 @@ export default function GeoAuditPage() {
 
           {/* Compact score banner (only when a completed audit exists) */}
           {hasCompleted && (
-            <Card style={{ marginBottom: 16, padding: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <ScoreRing score={score} size={56} t={t} />
+            <div style={{ marginBottom: 16, padding: '18px 20px', background: t.isDark ? 'rgba(15,15,24,0.82)' : t.card, backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', borderRadius: 18, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, boxShadow: `0 8px 28px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.05' : '0.9'})` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                <ScoreRing score={score} size={64} t={t} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: scoreColor }}>{score}/100 — {scoreLabel}</div>
-                  <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: scoreColor, marginBottom: 4 }}>{score}/100 — {scoreLabel}</div>
+                  <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>
                     {latestAudit.report_data?.summary
                       ? latestAudit.report_data.summary.substring(0, 90) + (latestAudit.report_data.summary.length > 90 ? '…' : '')
-                      : `${latestAudit.citations_found || 0} of ${latestAudit.total_queries || 45} AI searches`}
+                      : `${latestAudit.citations_found || 0} of ${latestAudit.total_queries || 45} AI searches found your business`}
                   </div>
                 </div>
                 <Button size="sm" onClick={() => router.push(`/geo-audit/${latestAudit.id}`)} style={{ flexShrink: 0 }}>
                   View Report <IpArrowRight size={13} style={{ marginLeft: 4 }} />
                 </Button>
               </div>
-            </Card>
+            </div>
           )}
 
           {/* Config card */}
@@ -431,11 +448,11 @@ export default function GeoAuditPage() {
                     <div
                       key={h.id}
                       onClick={() => router.push(`/geo-audit/${h.id}`)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: `1px solid ${t.border}`, cursor: 'pointer' }}
-                      onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 8px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.05)' : t.border}`, cursor: 'pointer', borderRadius: 8, transition: 'all 150ms ease' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.04)' : t.cardHover; e.currentTarget.style.paddingLeft = '12px'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.paddingLeft = '8px'; }}
                     >
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: `${hColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: hColor, flexShrink: 0 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: `${hColor}18`, border: `1px solid ${hColor}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: hColor, flexShrink: 0, boxShadow: `0 2px 8px ${hColor}15` }}>
                         {h.geo_score || 0}
                       </div>
                       <div style={{ flex: 1 }}>

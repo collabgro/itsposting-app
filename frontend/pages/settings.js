@@ -1041,24 +1041,36 @@ export default function Settings() {
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 10 }}>Visual Style</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
-                {VISUAL_STYLES.map((style) => (
-                  <button key={style.id} onClick={() => setProfile({ ...profile, visual_style: style.id })}
-                    style={{ padding: '10px 12px', border: `2px solid ${profile.visual_style === style.id ? t.primary : t.border}`, background: profile.visual_style === style.id ? t.primaryBg : t.input, borderRadius: 8, textAlign: 'left', cursor: 'pointer' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{style.name}</div>
-                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>{style.description}</div>
-                  </button>
-                ))}
+                {VISUAL_STYLES.map((style) => {
+                  const sel = profile.visual_style === style.id;
+                  return (
+                    <button key={style.id} onClick={() => setProfile({ ...profile, visual_style: style.id })}
+                      style={{ padding: '12px 14px', border: `2px solid ${sel ? 'rgba(124,92,252,0.55)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, background: sel ? (t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.07)') : t.isDark ? 'rgba(15,15,24,0.6)' : t.input, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: 12, textAlign: 'left', cursor: 'pointer', transition: 'all 180ms cubic-bezier(0.34,1.56,0.64,1)', transform: sel ? 'translateY(-2px)' : 'none', boxShadow: sel ? '0 6px 20px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.07)' : `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.85'})` }}
+                      onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.3)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                      onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.07)' : t.border; e.currentTarget.style.transform = 'none'; } }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 700, color: sel ? t.primary : t.text }}>{style.name}</div>
+                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3, lineHeight: 1.4 }}>{style.description}</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 10 }}>Tone</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
-                {TONES.map((tone) => (
-                  <button key={tone.id} onClick={() => setProfile({ ...profile, tone: tone.id })}
-                    style={{ padding: '10px 12px', border: `2px solid ${profile.tone === tone.id ? t.primary : t.border}`, background: profile.tone === tone.id ? t.primaryBg : t.input, borderRadius: 8, textAlign: 'center', cursor: 'pointer' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{tone.name}</div>
-                  </button>
-                ))}
+                {TONES.map((tone) => {
+                  const sel = profile.tone === tone.id;
+                  return (
+                    <button key={tone.id} onClick={() => setProfile({ ...profile, tone: tone.id })}
+                      style={{ padding: '11px 14px', border: `2px solid ${sel ? 'rgba(124,92,252,0.55)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, background: sel ? (t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.07)') : t.isDark ? 'rgba(15,15,24,0.6)' : t.input, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: 10, textAlign: 'center', cursor: 'pointer', transition: 'all 180ms cubic-bezier(0.34,1.56,0.64,1)', transform: sel ? 'translateY(-2px)' : 'none', boxShadow: sel ? '0 6px 20px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.07)' : `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.85'})` }}
+                      onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.3)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                      onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.07)' : t.border; e.currentTarget.style.transform = 'none'; } }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 700, color: sel ? t.primary : t.text }}>{tone.name}</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1175,7 +1187,7 @@ export default function Settings() {
                           : null;
                         const expiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
                         return (
-                          <div key={acct.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', minHeight: 64, background: t.card, borderRadius: 10, border: `1px solid ${t.border}`, flexWrap: 'wrap' }}>
+                          <div key={acct.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', minHeight: 64, background: t.isDark ? 'rgba(255,255,255,0.03)' : t.card, borderRadius: 10, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, flexWrap: 'wrap', boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.7'})` }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                               <div style={{ width: 32, height: 32, borderRadius: '50%', background: t.success + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                 <IpCheck size={14} style={{ color: t.success }} />
@@ -1254,8 +1266,8 @@ export default function Settings() {
 
         {/* Group create/edit modal */}
         {showGroupModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowGroupModal(false)}>
-            <div style={{ background: t.card, borderRadius: 14, padding: 24, width: '100%', maxWidth: 420, border: `1px solid ${t.border}` }} onClick={e => e.stopPropagation()}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowGroupModal(false)}>
+            <div style={{ background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(32px) saturate(200%)', WebkitBackdropFilter: 'blur(32px) saturate(200%)', borderRadius: 22, padding: 26, width: '100%', maxWidth: 420, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, boxShadow: t.isDark ? '0 24px 64px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 20px 60px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1)' }} onClick={e => e.stopPropagation()}>
               <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 16 }}>{editingGroup ? 'Edit Group' : 'New Group'}</div>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Group Name</label>

@@ -371,7 +371,7 @@ export default function MediaLibrary() {
   const renderFileGrid = (fileList, emptyTitle, emptySubtitle) => {
     if (fileList.length === 0) {
       return (
-        <Card>
+        <div style={{ padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
           <EmptyState
             icon={IpFolderOpen}
             title={emptyTitle}
@@ -382,7 +382,7 @@ export default function MediaLibrary() {
               </Button>
             }
           />
-        </Card>
+        </div>
       );
     }
     return (
@@ -393,9 +393,9 @@ export default function MediaLibrary() {
             <div
               key={file.id}
               onClick={() => setPreviewFile(file)}
-              style={{ background: t.card, border: `2px solid ${isSelected ? t.primary : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', position: 'relative' }}
-              onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = t.shadowMd; } }}
-              onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; } }}
+              style={{ background: isSelected ? (t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.07)') : (t.isDark ? 'rgba(15,15,24,0.72)' : t.card), backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `2px solid ${isSelected ? 'rgba(124,92,252,0.5)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', position: 'relative', boxShadow: isSelected ? '0 4px 16px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.07)' : `${t.shadowSm}` }}
+              onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.4)'; e.currentTarget.style.transform = 'translateY(-3px) scale(1.01)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.25), 0 0 0 1px rgba(124,92,252,0.15)'; } }}
+              onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.07)' : t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = t.shadowSm; } }}
             >
               <button
                 onClick={(e) => { e.stopPropagation(); toggleSelect(file.id); }}
@@ -504,7 +504,7 @@ export default function MediaLibrary() {
 
           {/* QUOTA BAR */}
           {quota && (
-            <Card style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 20, padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <IpHardDrive size={18} color="url(#brand-gradient)" />
@@ -522,7 +522,7 @@ export default function MediaLibrary() {
               <div style={{ height: 6, background: t.input, borderRadius: 3, overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${Math.min(100, parseFloat(quota.percentUsed))}%`, background: parseFloat(quota.percentUsed) > 90 ? t.error : parseFloat(quota.percentUsed) > 70 ? t.warning : t.primary, borderRadius: 3, transition: 'width 300ms ease' }} />
               </div>
-            </Card>
+            </div>
           )}
 
           {/* FILTERS */}
@@ -568,11 +568,9 @@ export default function MediaLibrary() {
 
           {/* MAIN CONTENT */}
           {loading ? (
-            <Card>
-              <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-                <Spinner size={48} />
-              </div>
-            </Card>
+            <div style={{ padding: '60px 20px', display: 'flex', justifyContent: 'center', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16 }}>
+              <Spinner size={48} />
+            </div>
           ) : filterFolder !== 'all' ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>

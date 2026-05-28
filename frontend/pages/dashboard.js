@@ -289,13 +289,15 @@ export default function Dashboard() {
             />
             {/* Streak card */}
             <div style={{
-              background: t.card,
-              border: `1px solid ${metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.35)' : t.border}`,
-              borderLeft: `3px solid ${metrics?.postingStreak >= 3 ? '#EAB308' : t.border}`,
+              background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+              backdropFilter: 'blur(16px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+              border: `1px solid ${metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.4)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+              borderLeft: `3px solid ${metrics?.postingStreak >= 3 ? '#EAB308' : t.isDark ? 'rgba(255,255,255,0.15)' : t.border}`,
               borderRadius: 18, padding: 22,
               boxShadow: metrics?.postingStreak >= 3
-                ? `${t.isDark ? t.shadowSm : t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`
-                : `${t.isDark ? t.shadowSm : t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`,
+                ? `${t.shadowSm}, 0 0 16px rgba(234,179,8,0.18), inset 0 1px 0 rgba(255,255,255,0.04)`
+                : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
               position: 'relative', overflow: 'hidden',
               transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
             }}
@@ -318,16 +320,18 @@ export default function Dashboard() {
             <div
               onClick={() => router.push('/geo-audit')}
               style={{
-                background: t.card,
-                border: `1px solid ${t.border}`,
-                borderLeft: `3px solid ${geoScore?.score > 0 ? (geoScore.score >= 70 ? t.success : geoScore.score >= 40 ? t.warning : t.error) : t.primary}`,
+                background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+                backdropFilter: 'blur(16px) saturate(160%)',
+                WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+                border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+                borderLeft: `3px solid ${geoScore?.score > 0 ? (geoScore.score >= 70 ? '#22C55E' : geoScore.score >= 40 ? '#F59E0B' : '#EF4444') : t.primary}`,
                 borderRadius: 18, padding: 22,
-                boxShadow: `${t.isDark ? t.shadowSm : t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`,
+                boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
                 cursor: 'pointer', position: 'relative', overflow: 'hidden',
                 transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
               }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `${t.isDark ? t.shadowSm : t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`; }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `${t.shadowMd}, 0 0 20px rgba(124,92,252,0.15)`; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`; }}
             >
               <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: t.primary, opacity: 0.06, pointerEvents: 'none' }} />
               <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>AI Visibility</div>
@@ -362,7 +366,7 @@ export default function Dashboard() {
         {contentMix && <ContentHealthBar data={contentMix} t={t} router={router} />}
 
         {/* ── 3b. Share a Review card ── */}
-        <Card style={{ marginTop: 0 }}>
+        <div style={{ marginTop: 0, padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
@@ -412,11 +416,11 @@ export default function Dashboard() {
               ))}
             </div>
           )}
-        </Card>
+        </div>
 
         {/* ── 4. Calendar + Upcoming ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20, marginTop: 4 }}>
-          <Card>
+          <div style={{ padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
             <SectionHeader
               icon={IpCalendar}
               title={`${today.toLocaleString('default', { month: 'long' })} ${year}`}
@@ -462,9 +466,9 @@ export default function Dashboard() {
                 );
               })}
             </div>
-          </Card>
+          </div>
 
-          <Card padding={0} style={{ overflow: 'hidden' }}>
+          <div style={{ background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`, overflow: 'hidden' }}>
             <div style={{ padding: '18px 22px 14px', borderBottom: `1px solid ${t.border}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -551,7 +555,7 @@ export default function Dashboard() {
                 })}
               </div>
             )}
-          </Card>
+          </div>
         </div>
       </Layout>
 
@@ -579,25 +583,27 @@ export default function Dashboard() {
 }
 
 function MetricCard({ t, label, main, sub, subColor, accent = 'primary' }) {
-  const accentColors = { primary: t.primary, info: t.info, success: t.success, warning: t.warning };
+  const accentColors = { primary: t.primary, info: t.info || '#3B82F6', success: t.success || '#22C55E', warning: t.warning || '#F59E0B' };
   const col = accentColors[accent] || t.primary;
   return (
     <div
       style={{
-        background: t.card,
-        border: `1px solid ${t.border}`,
+        background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+        backdropFilter: 'blur(16px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+        border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
         borderLeft: `3px solid ${col}`,
         borderRadius: 18, padding: 22,
-        boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+        boxShadow: `${t.shadowSm}, 0 0 12px ${col}18, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
         transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
         position: 'relative', overflow: 'hidden',
       }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`; }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `${t.shadowMd}, 0 0 20px ${col}25`; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `${t.shadowSm}, 0 0 12px ${col}18, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`; }}
     >
-      <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: col, opacity: 0.06, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: col, opacity: 0.07, filter: 'blur(20px)', pointerEvents: 'none' }} />
       <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>{label}</div>
-      <div style={{ fontSize: 34, fontWeight: 800, color: col, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 7 }}>{main}</div>
+      <div style={{ fontSize: 34, fontWeight: 800, color: col, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 7, textShadow: `0 0 20px ${col}40` }}>{main}</div>
       {sub && <div style={{ fontSize: 11, color: subColor || col, fontWeight: 500 }}>{sub}</div>}
     </div>
   );
@@ -619,13 +625,18 @@ function ContentHealthBar({ data, t, router }) {
     { key: 'promotional', label: 'Special Offers', color: '#EAB308', target: 10 },
   ];
 
+  const glassContentBar = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 18, padding: '18px 22px', marginBottom: 22,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
+
   if (!total) {
     return (
-      <div style={{
-        background: t.card, border: `1px solid ${t.border}`, borderRadius: 18,
-        padding: '18px 22px', marginBottom: 22,
-        boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
-      }}>
+      <div style={glassContentBar}>
         <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12, letterSpacing: '-0.02em' }}>Content Balance</div>
         <div style={{ height: 8, borderRadius: 99, overflow: 'hidden', display: 'flex', gap: 2, marginBottom: 12 }}>
           {allSegments.map(s => <div key={s.key} style={{ width: `${s.target}%`, background: s.color, opacity: 0.3, borderRadius: 99 }} />)}
@@ -646,11 +657,7 @@ function ContentHealthBar({ data, t, router }) {
   const segments = allSegments.filter(s => mix[s.key] > 0);
 
   return (
-    <div style={{
-      background: t.card, border: `1px solid ${t.border}`, borderRadius: 18,
-      padding: '18px 22px', marginBottom: 22,
-      boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
-    }}>
+    <div style={glassContentBar}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>Content Balance <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 400, letterSpacing: 0 }}>— last 30 posts</span></div>
         {gaps.length > 0 && (
