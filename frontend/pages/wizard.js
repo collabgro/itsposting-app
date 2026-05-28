@@ -10,7 +10,7 @@ import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { setMascotMood } from '../components/PostCoreMascot';
 import { useTheme } from '../lib/theme';
-import api, { customerAPI, socialAPI, analyticsAPI, postsAPI } from '../lib/api';
+import api, { customerAPI, socialAPI, analyticsAPI, postsAPI, templatesAPI } from '../lib/api';
 import { CHAR_LIMITS } from '../components/PostMockups';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
@@ -390,6 +390,10 @@ export default function Wizard() {
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleConflicts, setScheduleConflicts] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
   const [editedCaption, setEditedCaption] = useState('');
   const [captionHovered, setCaptionHovered] = useState(null);
 
@@ -427,6 +431,8 @@ export default function Wizard() {
       setConnectedPlatforms(accounts.map(a => a.platform));
       setWizardAccountGroups(groupsRes.data || []);
     }).catch(() => { setSocialAccountsList([]); setConnectedPlatforms([]); });
+
+    templatesAPI.list().then(r => setTemplates(r.data || [])).catch(() => {});
 
     // Handle navigation from dashboard suggestion banner
     const suggestionPost = sessionStorage.getItem('suggestionPost');
@@ -548,6 +554,35 @@ export default function Wizard() {
     if (step === 5) return true;
     if (step === 6) return selectedPlatforms.length > 0;
     return false;
+  };
+
+  const handleLoadTemplate = async (tmpl) => {
+    const s = tmpl.settings || {};
+    if (s.contentType) setContentType(s.contentType);
+    if (s.tone) setTone(s.tone);
+    if (Array.isArray(s.platforms) && s.platforms.length > 0) setSelectedPlatforms(s.platforms);
+    setShowTemplatePicker(false);
+    showToast('success', `Template "${tmpl.name}" applied`);
+    templatesAPI.use(tmpl.id).catch(() => {});
+    setTemplates(prev => prev.map(t => t.id === tmpl.id ? { ...t, usage_count: (t.usage_count || 0) + 1 } : t));
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim()) return;
+    try {
+      const settings = {
+        contentType,
+        tone,
+        platforms: selectedPlatforms,
+      };
+      const res = await templatesAPI.create({ name: templateName.trim(), settings });
+      setTemplates(prev => [res.data, ...prev]);
+      setShowSaveTemplate(false);
+      setTemplateName('');
+      showToast('success', 'Template saved!');
+    } catch (e) {
+      showToast('error', e.response?.data?.error || 'Failed to save template');
+    }
   };
 
   const handleNext = async () => {
@@ -836,6 +871,40 @@ export default function Wizard() {
         {step === 1 && (
           <div>
             <StepHeading t={t} icon="text_post" title="What type of post?" sub="Choose the format that works best for your content" />
+
+            {/* ── Load saved template ── */}
+            {templates.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <button
+                  onClick={() => setShowTemplatePicker(p => !p)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: showTemplatePicker ? t.primaryBg : 'rgba(255,255,255,0.04)', border: `1px solid ${showTemplatePicker ? t.primaryBorder : t.border}`, borderRadius: 20, fontSize: 12, fontWeight: 600, color: showTemplatePicker ? t.primary : t.textSecondary, cursor: 'pointer' }}
+                >
+                  <IpSparkle size={12} color={showTemplatePicker ? 'url(#brand-gradient)' : undefined} /> Load a saved template
+                </button>
+                {showTemplatePicker && (
+                  <div style={{ marginTop: 10, padding: '12px 14px', background: t.isDark ? 'rgba(12,12,20,0.92)' : t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: t.shadowMd }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+                      Your templates
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {templates.map(tmpl => (
+                        <button key={tmpl.id} onClick={() => handleLoadTemplate(tmpl)}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${t.border}`, borderRadius: 8, cursor: 'pointer', textAlign: 'left' }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{tmpl.name}</div>
+                            <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
+                              {tmpl.settings?.contentType || 'photo'} · {tmpl.settings?.tone || 'friendly'} · used {tmpl.usage_count || 0}×
+                            </div>
+                          </div>
+                          <IpArrowRight size={14} color={t.textMuted} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: contentType === 'video' ? 20 : 32 }}>
               {CONTENT_TYPES.map((item) => {
                 const selected = contentType === item.id;
@@ -1722,11 +1791,48 @@ export default function Wizard() {
                       >
                         <IpArrowLeft size={14} /> Save for Later
                       </button>
+                      <button onClick={() => setShowSaveTemplate(true)}
+                        style={{ padding: '11px 14px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
+                      >
+                        <IpSparkle size={13} /> Save as template
+                      </button>
                     </>
                   )}
                 </div>
               </div>
             </div>
+
+            {/* ── Save as template modal ── */}
+            {showSaveTemplate && (
+              <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowSaveTemplate(false)}>
+                <div style={{ background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(32px) saturate(200%)', WebkitBackdropFilter: 'blur(32px) saturate(200%)', borderRadius: 20, padding: 24, width: '100%', maxWidth: 360, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }} onClick={e => e.stopPropagation()}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 6 }}>Save as template</div>
+                  <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 16 }}>Saves content type, tone, and platforms so you can reuse this setup quickly.</div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 6 }}>Template name</label>
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={e => setTemplateName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSaveTemplate()}
+                    placeholder='e.g. "Before/After Photo" or "Friendly Instagram"'
+                    autoFocus
+                    maxLength={100}
+                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, boxSizing: 'border-box', marginBottom: 16 }}
+                  />
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={handleSaveTemplate} disabled={!templateName.trim()}
+                      style={{ flex: 1, padding: '10px 16px', background: templateName.trim() ? t.primary : 'rgba(124,92,252,0.3)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: templateName.trim() ? 'pointer' : 'not-allowed' }}>
+                      Save template
+                    </button>
+                    <button onClick={() => { setShowSaveTemplate(false); setTemplateName(''); }} style={{ padding: '10px 16px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* ── Inline schedule modal ── */}
             {showScheduleModal && (

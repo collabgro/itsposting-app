@@ -105,6 +105,14 @@ export const suggestionsAPI = {
   dismiss: (id) => api.post(`/api/suggestions/${id}/dismiss`),
 };
 
+export const templatesAPI = {
+  list: () => api.get('/api/templates'),
+  create: (data) => api.post('/api/templates', data),
+  rename: (id, name) => api.patch(`/api/templates/${id}`, { name }),
+  use: (id) => api.post(`/api/templates/${id}/use`),
+  delete: (id) => api.delete(`/api/templates/${id}`),
+};
+
 export const wizardAPI = {
   start: (data) => api.post('/api/wizard/start', data),
   step: (data) => api.post('/api/wizard/step', data),

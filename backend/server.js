@@ -33,6 +33,7 @@ const receptionistRoutes = require('./routes/receptionist');
 const apiKeysRoutes = require('./routes/apiKeys');
 const externalRoutes = require('./routes/external');
 const gmbMessagesRoutes = require('./routes/gmb-messages');
+const templateRoutes = require('./routes/templates');
 const ideasRoutes = require('./routes/ideas');
 
 const GeoAuditService = require('./services/GeoAuditService');
@@ -483,6 +484,17 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_variations_post ON post_variations(post_id)`,
     // Record which variation (A/B/C) the customer chose to publish
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS chosen_variation VARCHAR(1) CHECK (chosen_variation IN ('A','B','C'))`,
+    // User-saved post templates (content type, tone, platforms, notes)
+    `CREATE TABLE IF NOT EXISTS post_templates (
+      id           SERIAL PRIMARY KEY,
+      customer_id  INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      name         VARCHAR(100) NOT NULL,
+      settings     JSONB DEFAULT '{}'::jsonb,
+      usage_count  INTEGER DEFAULT 0,
+      created_at   TIMESTAMP DEFAULT NOW(),
+      updated_at   TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_post_templates_customer ON post_templates(customer_id)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -2442,6 +2454,7 @@ app.use('/api/intelligence', intelligenceRoutes(pool));
 app.use('/api/inbox', inboxRoutes(pool));
 app.use('/api/knowledge', knowledgeRoutes(pool));
 app.use('/api/workspaces', workspaceRoutes(pool));
+app.use('/api/templates', templateRoutes(pool));
 app.use('/api/geo', geoRoutes(pool));
 app.use('/api/studio', studioRoutes(pool));
 app.use('/api/receptionist', receptionistRoutes(pool));
