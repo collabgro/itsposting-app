@@ -14,6 +14,7 @@ import { useTheme } from '../lib/theme';
 import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, socialAPI } from '../lib/api';
 import { format } from 'date-fns';
 import PostPreviewModal from '../components/PostPreviewModal';
+import { setMascotMood } from '../components/PostCoreMascot';
 
 const TYPE_ICON  = { static: IpDrafts, photo: IpPhoto, carousel: IpCarousel, video: IpVideo };
 const TYPE_COLOR = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
@@ -72,6 +73,19 @@ export default function Dashboard() {
       setGeoScore(g?.data || null);
       setLoading(false);
 
+      // Mascot mood from dashboard state
+      const postedCount = posts.filter(p => p.status === 'posted').length;
+      const streak = m.data?.postingStreak || 0;
+      if (postedCount === 0) {
+        setMascotMood('excited', "Welcome! Let's create your very first post.");
+      } else if (streak >= 7) {
+        setMascotMood('celebrating', `${streak}-day streak — you're on fire!`);
+      } else if (streak >= 3) {
+        setMascotMood('happy', `${streak}-day streak! Keep it going.`);
+      } else if (m.data?.isOutperforming) {
+        setMascotMood('happy', "You're outperforming businesses your size — nice work!");
+      }
+
       // Background metrics sync: if we have posted content but zero reach, pull real data
       const totalPosts = posts.filter(p => p.status === 'posted').length;
       const totalReach = m.data?.totalReach || 0;
@@ -101,6 +115,7 @@ export default function Dashboard() {
 
   const handleTurnReviewIntoPost = async (review) => {
     setGeneratingReviewId(review.id);
+    setMascotMood('thinking', 'Turning that 5-star review into a post...');
     try {
       const res = await socialAPI.generateReviewPost({
         reviewText: review.text,
@@ -109,6 +124,7 @@ export default function Dashboard() {
       });
       const { caption, suggestedHashtags } = res.data;
       sessionStorage.setItem('uploadPrefill', JSON.stringify({ caption, hashtags: suggestedHashtags }));
+      setMascotMood('celebrating', 'Review turned into a caption — ready to post!');
       router.push('/upload');
     } catch { /* silently fail */ }
     finally { setGeneratingReviewId(null); }
