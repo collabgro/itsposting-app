@@ -124,6 +124,7 @@ export const wizardAPI = {
   getSteps: (industry, contentType) => api.get(`/api/wizard/steps/${industry}/${contentType}`),
   bulkGenerate: (data) => api.post('/api/wizard/bulk-generate', data),
   bulkConfirm: (data) => api.post('/api/wizard/bulk-confirm', data),
+  getStreamTicket: (postId) => api.post('/api/wizard/stream-ticket', { postId }),
 };
 
 export const uploadAPI = {

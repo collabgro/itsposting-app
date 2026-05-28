@@ -10,7 +10,7 @@ import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { setMascotMood } from '../components/PostCoreMascot';
 import { useTheme } from '../lib/theme';
-import api, { customerAPI, socialAPI, analyticsAPI, postsAPI, templatesAPI } from '../lib/api';
+import api, { customerAPI, socialAPI, analyticsAPI, postsAPI, templatesAPI, wizardAPI } from '../lib/api';
 import { CHAR_LIMITS } from '../components/PostMockups';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
@@ -400,6 +400,7 @@ export default function Wizard() {
   const [showApplySetDropdown, setShowApplySetDropdown] = useState(false);
   const [showAddToSetDropdown, setShowAddToSetDropdown] = useState(false);
   const [addToSetName, setAddToSetName] = useState('');
+  const [videoProgress, setVideoProgress] = useState(0);
 
   const loadingInterval = useRef(null);
 
@@ -511,34 +512,86 @@ export default function Wizard() {
     return () => clearInterval(loadingInterval.current);
   }, [step]); // contentType/industry/videoType don't change during loading — no stale closure issue
 
-  // Video polling — fires every 6s while videoRendering is true
-  // Uses /video-poll/:postId which looks up the HeyGen job ID from the post record
-  // Times out after 10 minutes (100 polls) — HeyGen videos take 2-5 min typically
+  // Video status — SSE stream while videoRendering is active
+  // Gets a one-time stream ticket, then opens an EventSource to /api/wizard/status/:postId
+  // Falls back to polling if EventSource fails to connect
   useEffect(() => {
     if (!results?.videoRendering || results.videoRendering === 'completed' || results.videoRendering === 'failed') return;
     if (!results?.postId) return;
+
+    setVideoProgress(0);
+    let es = null;
+    let pollInterval = null;
     let pollCount = 0;
-    const MAX_POLLS = 100; // 100 × 6s = 10 minutes — extra headroom for HeyGen backlog
-    const interval = setInterval(async () => {
-      pollCount++;
-      if (pollCount > MAX_POLLS) {
-        setResults(r => ({ ...r, videoRendering: 'failed', imageFailed: true }));
-        clearInterval(interval);
-        return;
-      }
-      try {
-        const { status, videoUrl } = await apiGet(`/api/wizard/video-poll/${results.postId}`);
-        if (status === 'completed' && videoUrl) {
-          setResults(r => ({ ...r, mediaUrl: videoUrl, videoRendering: 'completed' }));
-          clearInterval(interval);
-        } else if (status === 'failed') {
+    const MAX_POLLS = 100;
+    let cancelled = false;
+
+    const startPolling = () => {
+      pollInterval = setInterval(async () => {
+        if (cancelled) return;
+        pollCount++;
+        if (pollCount > MAX_POLLS) {
           setResults(r => ({ ...r, videoRendering: 'failed', imageFailed: true }));
-          clearInterval(interval);
+          clearInterval(pollInterval);
+          return;
         }
-        // 'processing' → keep polling
-      } catch { /* polling errors are silent — retry next tick */ }
-    }, 6000);
-    return () => clearInterval(interval);
+        try {
+          const { status, videoUrl } = await apiGet(`/api/wizard/video-poll/${results.postId}`);
+          setVideoProgress(Math.min(95, pollCount * 3));
+          if (status === 'completed' && videoUrl) {
+            setVideoProgress(100);
+            setResults(r => ({ ...r, mediaUrl: videoUrl, videoRendering: 'completed' }));
+            clearInterval(pollInterval);
+          } else if (status === 'failed') {
+            setResults(r => ({ ...r, videoRendering: 'failed', imageFailed: true }));
+            clearInterval(pollInterval);
+          }
+        } catch { /* silent — retry next tick */ }
+      }, 6000);
+    };
+
+    const startSSE = async () => {
+      try {
+        const ticketRes = await wizardAPI.getStreamTicket(results.postId);
+        if (cancelled) return;
+        const ticket = ticketRes.data?.ticket;
+        if (!ticket) { startPolling(); return; }
+
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        es = new EventSource(`${baseUrl}/api/wizard/status/${results.postId}?ticket=${ticket}`);
+
+        es.onmessage = (e) => {
+          if (cancelled) return;
+          try {
+            const { status, progress, videoUrl } = JSON.parse(e.data);
+            if (typeof progress === 'number') setVideoProgress(progress);
+            if (status === 'ready' && videoUrl) {
+              setVideoProgress(100);
+              setResults(r => ({ ...r, mediaUrl: videoUrl, videoRendering: 'completed' }));
+              es.close();
+            } else if (status === 'failed') {
+              setResults(r => ({ ...r, videoRendering: 'failed', imageFailed: true }));
+              es.close();
+            }
+          } catch {}
+        };
+
+        es.onerror = () => {
+          es.close();
+          if (!cancelled) startPolling();
+        };
+      } catch {
+        if (!cancelled) startPolling();
+      }
+    };
+
+    startSSE();
+
+    return () => {
+      cancelled = true;
+      if (es) es.close();
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }, [results?.videoRendering, results?.postId]);
 
   // Auto-select accounts that match the chosen platform when results load
@@ -1465,10 +1518,38 @@ export default function Wizard() {
                       <img src={results.mediaUrl} alt="Generated post" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     )
                   ) : (results.videoRendering === true || (results.videoRendering && results.videoRendering !== 'completed' && results.videoRendering !== 'failed')) ? (
-                    <div style={{ textAlign: 'center', padding: 24 }}>
-                      <img src="/icon-192.png" alt="" aria-hidden="true" style={{ width: 48, height: 48, borderRadius: 11, animation: 'logo-pulse 1.2s ease-in-out infinite', margin: '0 auto 12px', display: 'block' }} />
-                      <div style={{ fontSize: 13, color: t.textMuted }}>Video rendering...</div>
-                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Caption is ready to post now</div>
+                    <div style={{ textAlign: 'center', padding: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                      {/* Animated progress ring */}
+                      <div style={{ position: 'relative', width: 88, height: 88 }}>
+                        <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
+                          {/* Track */}
+                          <circle cx="44" cy="44" r="38" fill="none" stroke={t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'} strokeWidth="5" />
+                          {/* Progress arc */}
+                          <circle
+                            cx="44" cy="44" r="38" fill="none"
+                            stroke="url(#vp-grad)" strokeWidth="5"
+                            strokeLinecap="round"
+                            strokeDasharray={`${2 * Math.PI * 38}`}
+                            strokeDashoffset={`${2 * Math.PI * 38 * (1 - videoProgress / 100)}`}
+                            style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)' }}
+                          />
+                          <defs>
+                            <linearGradient id="vp-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                              <stop offset="0%" stopColor="#7C5CFC" />
+                              <stop offset="100%" stopColor="#A78BFA" />
+                            </linearGradient>
+                          </defs>
+                        </svg>
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: 16, fontWeight: 800, color: t.primary, letterSpacing: '-0.02em' }}>{videoProgress}%</span>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>
+                          {videoProgress < 30 ? 'Starting video generation...' : videoProgress < 70 ? 'Rendering your video...' : 'Almost done...'}
+                        </div>
+                        <div style={{ fontSize: 11, color: t.textMuted }}>Caption is ready — you can post text now</div>
+                      </div>
                     </div>
                   ) : (
                     <div style={{ textAlign: 'center', padding: 24, color: t.textMuted }}>

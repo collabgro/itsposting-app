@@ -1720,5 +1720,108 @@ One entry per post, in the same order as the dates listed.`;
     }
   });
 
+  // POST /api/wizard/stream-ticket
+  // Issues a one-time short-lived ticket (60s) that lets the frontend open an SSE stream
+  // without passing the JWT in the query string. The ticket maps to customerId + postId.
+  router.post('/stream-ticket', authenticate, async (req, res) => {
+    const { postId } = req.body;
+    if (!postId) return res.status(400).json({ error: 'postId required' });
+    const ticket = uuidv4();
+    if (!global.sseTickets) global.sseTickets = new Map();
+    global.sseTickets.set(ticket, { customerId: req.customerId, postId: String(postId), exp: Date.now() + 60_000 });
+    setTimeout(() => global.sseTickets?.delete(ticket), 60_000);
+    res.json({ ticket });
+  });
+
+  // GET /api/wizard/status/:postId?ticket=<one-time-ticket>
+  // SSE endpoint — streams video rendering progress. Polls DB every 3s.
+  router.get('/status/:postId', async (req, res) => {
+    const { postId } = req.params;
+    const { ticket } = req.query;
+
+    if (!global.sseTickets) global.sseTickets = new Map();
+    const claim = global.sseTickets.get(ticket);
+    if (!claim || claim.postId !== String(postId) || Date.now() > claim.exp) {
+      return res.status(401).json({ error: 'Invalid or expired stream ticket' });
+    }
+    global.sseTickets.delete(ticket);
+    const customerId = claim.customerId;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    const send = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+
+    // Track when job started for time-based progress estimate
+    const startMs = Date.now();
+    const EXPECTED_MS = 150_000; // 2.5 min estimate (HeyGen/Veo typical range)
+    const MAX_MS = 600_000; // 10 min hard timeout
+
+    let done = false;
+
+    const intervalId = setInterval(async () => {
+      if (done) return;
+      const elapsedMs = Date.now() - startMs;
+
+      if (elapsedMs > MAX_MS) {
+        done = true;
+        send({ status: 'failed', progress: 100, error: 'Video generation timed out.' });
+        res.end();
+        clearInterval(intervalId);
+        return;
+      }
+
+      try {
+        const result = await pool.query(
+          `SELECT media_url, status FROM posts WHERE id = $1 AND customer_id = $2`,
+          [postId, customerId]
+        );
+        if (!result.rows.length) {
+          done = true;
+          send({ status: 'failed', progress: 0, error: 'Post not found.' });
+          res.end();
+          clearInterval(intervalId);
+          return;
+        }
+
+        const post = result.rows[0];
+
+        if (post.media_url) {
+          done = true;
+          send({ status: 'ready', progress: 100, videoUrl: post.media_url });
+          res.end();
+          clearInterval(intervalId);
+          return;
+        }
+
+        if (post.status === 'video_failed' || post.status === 'insufficient_credits') {
+          done = true;
+          send({ status: 'failed', progress: 100, error: post.status === 'insufficient_credits' ? 'Insufficient credits.' : 'Video generation failed.' });
+          res.end();
+          clearInterval(intervalId);
+          return;
+        }
+
+        // Time-based progress estimate: 0% → 95% over expected duration (never reaches 100 until done)
+        const rawProgress = Math.min(95, Math.round((elapsedMs / EXPECTED_MS) * 95));
+        send({ status: 'rendering', progress: rawProgress });
+      } catch (pollErr) {
+        console.error('[Wizard] SSE poll error:', pollErr.message);
+        // Don't close on transient DB errors — retry next tick
+      }
+    }, 3000);
+
+    // Send initial 0% immediately
+    send({ status: 'rendering', progress: 0 });
+
+    req.on('close', () => {
+      done = true;
+      clearInterval(intervalId);
+    });
+  });
+
   return router;
 };
