@@ -4142,6 +4142,7 @@ export default function TemplatesEditorInner() {
   const [timelineZoom, setTimelineZoom] = useState(40); // px per second in video timeline
   const clipDragRef = useRef(null); // { idx, startX, startDur } — for clip trim dragging
   const timelineScrollRef = useRef(null);
+  const splitAtPlayheadRef = useRef(null); // assigned in video timeline render block, read by keydown handler
   const [isDraggingClip, setIsDraggingClip] = useState(false);
   const [pageFlash, setPageFlash] = useState(null); // 'fade'|'slide'|'zoom'|null — transition overlay
   const [rulerGuides, setRulerGuides] = useState({ h: [], v: [] });
@@ -4796,6 +4797,18 @@ export default function TemplatesEditorInner() {
         const tag = document.activeElement?.tagName;
         if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
           e.preventDefault(); setShowGrid(o => !o); return;
+        }
+      }
+
+      // Video split at playhead (S key)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 's' || e.key === 'S')) {
+        const tag = document.activeElement?.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+          if (isVideoMode && splitAtPlayheadRef.current) {
+            e.preventDefault();
+            splitAtPlayheadRef.current();
+            return;
+          }
         }
       }
 
@@ -13113,6 +13126,7 @@ export default function TemplatesEditorInner() {
             acc += dur;
           }
         };
+        splitAtPlayheadRef.current = splitAtPlayhead;
 
         const togglePlay = () => {
           if (isPlaying) {
@@ -13122,7 +13136,16 @@ export default function TemplatesEditorInner() {
             setIsPlaying(true);
             playIntervalRef.current = setInterval(() => {
               setVideoPlayhead(p => {
-                const newP = p + 0.1;
+                // Determine which page the playhead is in and get its speed
+                let curPageIdx = 0;
+                let curAcc = 0;
+                for (let i = 0; i < pageDurations.length; i++) {
+                  curAcc += pageDurations[i];
+                  if (p < curAcc) { curPageIdx = i; break; }
+                }
+                const speed = pages[curPageIdx]?.speed || 1;
+                const tick = 0.1 * speed;
+                const newP = p + tick;
                 if (newP >= totalDur) {
                   clearInterval(playIntervalRef.current);
                   setIsPlaying(false);
@@ -13143,7 +13166,7 @@ export default function TemplatesEditorInner() {
                     break;
                   }
                 }
-                return Math.round(newP * 10) / 10;
+                return Math.round(newP * 100) / 100;
               });
             }, 100);
           }
