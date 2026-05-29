@@ -111,10 +111,10 @@ Future recharts: content type BarChart, platform RadarChart, posting time heatma
 - Entry quality score badge (< 50 chars = "too short", > 200 chars = "great detail")
 - "PostCore hasn't used this yet" indicator on unused entries
 
-### 1.10 Billing — Conversion optimization
-[ ] Credits usage circular progress ring (% used this month)
-[ ] Annual savings callout ("Save $96/yr" badge on Pro plan)
-[ ] Credit packs quick-buy modal (grid: 25/50/75/100/150/200 credits, one-click -> Whop)
+### 1.10 Billing — Conversion optimization [DONE]
+[x] Credits usage circular progress ring (SVG stroke-dashoffset, animated, color-coded by usage %)
+[x] Annual savings callout ("Save $96/yr" badge on Pro plan, billing cycle toggle)
+[x] Credit packs quick-buy modal (grid: 25/50/75/100/125/150/200/250 credits, one-click -> Whop)
 
 ---
 
@@ -158,7 +158,7 @@ GET /api/social/health: per-account { id, platform, postsLast30d, avgReachLast5,
 Settings Connected Accounts: each account row now shows "X posts this month · ~Y avg reach".
 Expired tokens: inline "Reconnect" button appears without leaving the page.
 
-### 2.9 Smart Scheduling AI ("best time" auto-pick) [NEXT]
+### 2.9 Smart Scheduling AI ("best time" auto-pick) [DONE]
 After wizard generates content, offer:
   "When should I post this?"
   [PostCore picks best time] OR [I'll choose myself]
@@ -169,19 +169,22 @@ PostCore logic:
 3. Show: "Thursday 10am — your last 3 Thursday morning posts averaged 2.3x your normal reach"
 4. One-click accept -> schedules at that time with explanation on the post record
 
+Implemented: PostCore Smart Schedule banner in wizard results, one-click accept, dismiss option.
+
 ---
 
 ## PHASE 3: VIRAL GROWTH FEATURES (P2)
 
-### 3.1 Referral Program
+### 3.1 Referral Program [DONE]
 Mechanic: Share link -> friend upgrades -> you get 20 credits.
 Implementation:
-- customers.referral_code VARCHAR(12): BUSINESSNAME+4digits, generated on signup
-- Referral link: itsposting.com/signup?ref=MIKE1234
-- customers.referred_by VARCHAR(12)
-- On referral upgrade (Whop membership.activated): add 20 credits to referrer
+- customers.referral_code VARCHAR(20): BUSINESSPREFIX(6)+4hex chars
+- Referral link: itsposting.com/signup?refcode=MIKE1a2b (uses ?refcode= to avoid conflict with workspace ?ref=)
+- customers.referred_by VARCHAR(20)
+- On referral upgrade (Whop membership.activated): /api/referrals/award awards 20 credits to referrer
 - Email: "Someone you referred just upgraded! Here are your 20 bonus credits."
-Billing page Referral tab: link + one-click copy + stats + share buttons (Twitter, WhatsApp, email)
+Billing page Referral tab: link + one-click copy + stats (total referrals, upgraded, credits earned) + share buttons (X/Twitter, WhatsApp, email)
+Backend: backend/routes/referrals.js; frontend: billing.js Refer & Earn tab; auth.js captures referredBy on signup.
 
 ### 3.2 Shareable Posts + Viral Watermark
 Every downloaded image has optional "Made with ItsPosting" watermark.
@@ -190,13 +193,15 @@ Every downloaded image has optional "Made with ItsPosting" watermark.
 - Watermark: Sharp text layer, bottom-right, light/dark adapted
 - /showcase page: public gallery of top-performing posts (opt-in), filter by industry, "Made in 60s" badge
 
-### 3.3 Industry Leaderboard (Anonymous FOMO)
+### 3.3 Industry Leaderboard (Anonymous FOMO) [DONE]
 Analytics page addition:
   "How you stack up — HVAC businesses this month"
   🥇 A plumber in Chicago: 847 avg views/post
   🥉 Your ranking: Top 23%
   "Want to break into the top 10%? Here's what they're doing ->"
 Data: aggregated anonymized analytics. No PII exposed.
+Backend: GET /api/analytics/leaderboard (PERCENTILE_CONT, top performers anonymized to first 2 words of city).
+Frontend: analytics/index.js leaderboard widget with percentile badge, progress-to-next-tier bar, PostCore tips, CTA.
 
 ### 3.6 White-Label Option (Agency Plan)
 Target: Marketing agencies managing 10+ local businesses.
@@ -279,22 +284,25 @@ Approval history stored on post.
 Standard Skeleton component for all content areas while loading.
 Metric cards: height=104, post rows: height=72, chart areas: height=280.
 
-### 5.5 Database Performance — Add missing indexes
+### 5.5 Database Performance — Add missing indexes [DONE]
 CREATE INDEX IF NOT EXISTS idx_posts_customer_id ON posts(customer_id);
 CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status);
 CREATE INDEX IF NOT EXISTS idx_posts_scheduled_date ON posts(scheduled_date);
 CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_source ON posts(source);
 CREATE INDEX IF NOT EXISTS idx_engagement_snapshots_post_id ON post_engagement_snapshots(post_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_customer_id ON notifications(customer_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(customer_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_business_knowledge_customer_id ON business_knowledge(customer_id);
-CREATE INDEX IF NOT EXISTS idx_api_keys_customer_id ON api_keys(customer_id);
+CREATE INDEX IF NOT EXISTS idx_social_accounts_customer ON social_accounts(customer_id);
+CREATE INDEX IF NOT EXISTS idx_dm_conversations_customer ON dm_conversations(customer_id);
+All added to server.js migrations array.
 
-### 5.6 Rate Limiting — Per-endpoint granularity
-File: backend/middleware/rateLimits.js
-const AI_LIMIT = rateLimit({ windowMs: 60000, max: 10 });
-const UPLOAD_LIMIT = rateLimit({ windowMs: 60000, max: 20 });
-const AUTH_LIMIT = rateLimit({ windowMs: 60000, max: 5 });
-Apply: router.post('/wizard/generate', AI_LIMIT, auth, ...)
+### 5.6 Rate Limiting — Per-endpoint granularity [DONE]
+File: backend/middleware/rateLimits.js created.
+AI_LIMIT (10/min), UPLOAD_LIMIT (30/min), AUTH_LIMIT (5/min), RESET_LIMIT (3/15min),
+POST_LIMIT (30/hr), GEO_LIMIT (5/hr), BROADCAST_LIMIT (3/day), INVITE_LIMIT (10/hr).
+Applied in server.js: upload, geo/audit, customers/invite routes.
 
 ### 5.7 Webhook Reliability
 Webhook event log table: webhook_events (id, source, event_type, payload, processed_at, status)

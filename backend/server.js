@@ -36,6 +36,7 @@ const gmbMessagesRoutes = require('./routes/gmb-messages');
 const templateRoutes = require('./routes/templates');
 const ideasRoutes = require('./routes/ideas');
 const calendarPlansRoutes = require('./routes/calendarPlans');
+const referralsRoutes = require('./routes/referrals');
 
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
@@ -577,6 +578,28 @@ console.log('══════════════════════�
     // Profile: avatar + tagline
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS tagline VARCHAR(200)`,
+
+    // Phase 5.5 — Database performance indexes
+    `CREATE INDEX IF NOT EXISTS idx_posts_customer_id ON posts(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_posts_scheduled_date ON posts(scheduled_date)`,
+    `CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_posts_source ON posts(source)`,
+    `CREATE INDEX IF NOT EXISTS idx_engagement_snapshots_post_id ON post_engagement_snapshots(post_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_notifications_customer_id ON notifications(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(customer_id, is_read)`,
+    `CREATE INDEX IF NOT EXISTS idx_business_knowledge_customer_id ON business_knowledge(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_social_accounts_customer ON social_accounts(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_dm_conversations_customer ON dm_conversations(customer_id)`,
+
+    // Phase 3.1 — Referral program
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS referral_code VARCHAR(20) UNIQUE`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS referred_by VARCHAR(20)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS referral_credits_earned INTEGER DEFAULT 0`,
+
+    // Phase 2.9 — Smart scheduling (optimal times stored per customer)
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS optimal_posting_times JSONB DEFAULT NULL`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS optimal_times_updated_at TIMESTAMP`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -2465,6 +2488,9 @@ const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, message: 'To
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many authentication attempts. Try again in 15 minutes.', skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
 const passwordResetLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, message: 'Too many password reset attempts. Try again in 1 hour.', standardHeaders: true, legacyHeaders: false });
 const generationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 50, message: { error: 'Generation limit reached — wait an hour or upgrade your plan' }, standardHeaders: true, legacyHeaders: false });
+const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Too many uploads — please slow down.' }, standardHeaders: true, legacyHeaders: false });
+const geoLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many AI Visibility checks — wait an hour before running another.' }, standardHeaders: true, legacyHeaders: false });
+const inviteLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: { error: 'Too many invites sent — wait an hour.' }, standardHeaders: true, legacyHeaders: false });
 
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
@@ -2475,6 +2501,10 @@ app.use('/api/wizard/refresh', generationLimiter);
 app.use('/api/wizard/regenerate-image', generationLimiter);
 app.use('/api/content/generate', generationLimiter);
 app.use('/api/v1/generate', generationLimiter);
+app.use('/api/media/upload', uploadLimiter);
+app.use('/api/customers/upload-asset', uploadLimiter);
+app.use('/api/geo/audit', geoLimiter);
+app.use('/api/customers/invite', inviteLimiter);
 
 const corsMiddleware = cors({
   origin: (origin, cb) => {
@@ -2545,6 +2575,7 @@ app.use('/api/v1', externalRoutes(pool));
 app.use('/api/gmb', gmbMessagesRoutes(pool));
 app.use('/api/ideas', ideasRoutes(pool));
 app.use('/api/calendar-plans', calendarPlansRoutes(pool));
+app.use('/api/referrals', referralsRoutes(pool));
 
 
 app.get('/health', async (req, res) => {

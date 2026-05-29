@@ -218,6 +218,7 @@ export default function Analytics() {
   const [streak, setStreak]           = useState(null);
   const [contentMix, setContentMix]   = useState(null);
   const [varStats, setVarStats]       = useState(null);
+  const [leaderboard, setLeaderboard] = useState(null);
 
   // Tab state
   const [activeTab, setActiveTab] = useState('overview');
@@ -267,7 +268,7 @@ export default function Analytics() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [o, p, ot, cp, str, cm, vs] = await Promise.all([
+      const [o, p, ot, cp, str, cm, vs, lb] = await Promise.all([
         analyticsAPI.getOverview({ period }),
         analyticsAPI.listPosts({ sort: 'recent' }),
         analyticsAPI.getOptimalTimes(),
@@ -275,6 +276,7 @@ export default function Analytics() {
         analyticsAPI.getStreak().catch(() => ({ data: null })),
         analyticsAPI.getContentMix().catch(() => ({ data: null })),
         analyticsAPI.getVariationStats().catch(() => ({ data: null })),
+        analyticsAPI.getLeaderboard().catch(() => ({ data: null })),
       ]);
       setOverview(o.data);
       setPosts(Array.isArray(p.data) ? p.data : []);
@@ -283,6 +285,7 @@ export default function Analytics() {
       if (str?.data) setStreak(str.data);
       if (cm?.data) setContentMix(cm.data);
       if (vs?.data) setVarStats(vs.data);
+      if (lb?.data) setLeaderboard(lb.data);
     } catch (err) { console.error('Analytics load error:', err); }
     finally { setLoading(false); }
   };
@@ -839,6 +842,132 @@ export default function Analytics() {
                   )}
                 </div>
               </div>
+
+              {/* ── INDUSTRY LEADERBOARD ─────────────────────── */}
+              {leaderboard && (
+                <div style={gc}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <IpTrendingUp size={16} color="url(#brand-gradient)" />
+                      <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>How you stack up</span>
+                      <span style={{ fontSize: 13, color: t.textMuted }}>
+                        — {leaderboard.industry ? leaderboard.industry.replace(/_/g, ' ') : 'your industry'} businesses this month
+                      </span>
+                    </div>
+                    {leaderboard.hasData && leaderboard.percentileBucket && (() => {
+                      const bucketColors = {
+                        'Top 10%':     { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', text: '#10b981' },
+                        'Top 25%':     { bg: 'rgba(124,92,252,0.12)', border: 'rgba(124,92,252,0.3)', text: t.primary },
+                        'Top 50%':     { bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)', text: '#60A5FA' },
+                        'Bottom 25%':  { bg: 'rgba(251,146,60,0.12)', border: 'rgba(251,146,60,0.3)', text: '#fb923c' },
+                      };
+                      const c = bucketColors[leaderboard.percentileBucket] || bucketColors['Top 50%'];
+                      return (
+                        <div style={{ padding: '4px 12px', borderRadius: 20, background: c.bg, border: `1px solid ${c.border}`, fontSize: 12, fontWeight: 700, color: c.text }}>
+                          {leaderboard.percentileBucket}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {!leaderboard.hasData ? (
+                    <div style={{ padding: '20px 0', textAlign: 'center', color: t.textMuted, fontSize: 13 }}>
+                      Not enough data in your industry yet — check back after more businesses join.
+                    </div>
+                  ) : (
+                    <>
+                      {/* Top performers */}
+                      {leaderboard.topPerformers?.length > 0 && (
+                        <div style={{ marginBottom: 20 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Top performers</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {leaderboard.topPerformers.map((p, i) => {
+                              const medals = ['🥇', '🥈', '🥉'];
+                              const maxScore = leaderboard.topPerformers[0]?.avg_score || 1;
+                              const pct = Math.round((p.avg_score / maxScore) * 100);
+                              return (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <span style={{ fontSize: 16, flexShrink: 0 }}>{medals[i] || '·'}</span>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                                      <span style={{ fontSize: 12, fontWeight: 600, color: t.text }}>{p.city || 'Unknown area'}</span>
+                                      <span style={{ fontSize: 11, color: t.textMuted }}>{Math.round(p.avg_score)} avg score</span>
+                                    </div>
+                                    <div style={{ height: 5, borderRadius: 3, background: t.input, overflow: 'hidden' }}>
+                                      <div style={{ height: '100%', width: `${pct}%`, background: i === 0 ? 'linear-gradient(90deg,#f59e0b,#f97316)' : i === 1 ? 'linear-gradient(90deg,#94a3b8,#64748b)' : 'linear-gradient(90deg,#cd7c3a,#a26028)', borderRadius: 3, transition: 'width 700ms ease' }} />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Your ranking */}
+                      {leaderboard.myScore !== undefined && (
+                        <div style={{ padding: '12px 14px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, marginBottom: 16 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: t.primary, marginBottom: 8 }}>Your ranking</div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <span style={{ fontSize: 22, fontWeight: 800, color: t.text }}>{Math.round(leaderboard.myScore)}</span>
+                            <span style={{ fontSize: 12, color: t.textMuted }}>avg engagement score</span>
+                          </div>
+                          {/* Progress toward next tier */}
+                          {leaderboard.nextTierScore && (
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <span style={{ fontSize: 11, color: t.textMuted }}>Progress to {leaderboard.nextTier}</span>
+                                <span style={{ fontSize: 11, color: t.textMuted }}>{Math.round(leaderboard.nextTierScore)} needed</span>
+                              </div>
+                              <div style={{ height: 6, borderRadius: 3, background: t.input, overflow: 'hidden' }}>
+                                <div style={{
+                                  height: '100%',
+                                  width: `${Math.min(100, Math.round((leaderboard.myScore / leaderboard.nextTierScore) * 100))}%`,
+                                  background: `linear-gradient(90deg,${t.primary},#a855f7)`,
+                                  borderRadius: 3,
+                                  transition: 'width 700ms ease',
+                                }} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* PostCore tips */}
+                      {leaderboard.topTips?.length > 0 && (
+                        <div style={{ marginBottom: 16 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                            <IpSparkle size={10} style={{ marginRight: 4 }} />
+                            What top performers are doing
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {leaderboard.topTips.map((tip, i) => (
+                              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: t.textSecondary }}>
+                                <span style={{ color: t.primary, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>→</span>
+                                <span>{tip}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* CTA */}
+                      {leaderboard.percentileBucket !== 'Top 10%' && (
+                        <button
+                          onClick={() => router.push('/wizard')}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer', width: '100%', justifyContent: 'center', transition: 'opacity 150ms' }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                        >
+                          <IpSparkle size={13} />
+                          Want to break into the top 10%? Create a post now
+                          <IpChevronRight size={13} />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )
         )}

@@ -382,6 +382,7 @@ export default function Wizard() {
   const [wizardAccountGroups, setWizardAccountGroups] = useState([]);
   const [wizardBestTimes, setWizardBestTimes] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
+  const [smartScheduleDismissed, setSmartScheduleDismissed] = useState(false);
 
   // Result screen action state
   const [actionLoading, setActionLoading] = useState(false);
@@ -660,6 +661,7 @@ export default function Wizard() {
     setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null);
     setSelectedVariation('A'); setActionLoading(false); setActionToast(null);
     setShowScheduleModal(false); setScheduleDate(''); setIsEditing(false); setEditedCaption('');
+    setSmartScheduleDismissed(false);
   };
 
   const handleFormatSelect = (fmt) => {
@@ -1905,6 +1907,51 @@ export default function Wizard() {
                     </div>
                   </div>
                 )}
+
+                {/* PostCore Smart Schedule recommendation */}
+                {!smartScheduleDismissed && wizardBestTimes.length > 0 && results.postId && (() => {
+                  const bt = wizardBestTimes[0];
+                  const today = new Date();
+                  const todayDow = today.getDay();
+                  let daysAhead = (bt.dow - todayDow + 7) % 7;
+                  if (daysAhead === 0 && today.getHours() >= bt.hour) daysAhead = 7;
+                  const target = new Date(today);
+                  target.setDate(today.getDate() + daysAhead);
+                  const pad = n => String(n).padStart(2, '0');
+                  const iso = `${target.getFullYear()}-${pad(target.getMonth()+1)}-${pad(target.getDate())}T${pad(bt.hour)}:00`;
+                  const handleAcceptSmartSchedule = async () => {
+                    setScheduleDate(iso);
+                    setSmartScheduleDismissed(true);
+                    try {
+                      setActionLoading(true);
+                      await import('../lib/api').then(({ default: api }) =>
+                        api.patch(`/api/posts/${results.postId}`, { status: 'scheduled', scheduledDate: iso, chosenVariation: selectedVariation })
+                      );
+                      showToast('success', `Scheduled for ${bt.label} ✓`);
+                    } catch (err) {
+                      showToast('error', err.message || 'Failed to schedule');
+                    } finally { setActionLoading(false); }
+                  };
+                  return (
+                    <div style={{ margin: '0 0 12px 0', padding: '12px 14px', background: t.isDark ? 'rgba(124,92,252,0.1)' : 'rgba(124,92,252,0.07)', border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.3)' : 'rgba(124,92,252,0.2)'}`, borderRadius: 12, position: 'relative' }}>
+                      <button onClick={() => setSmartScheduleDismissed(true)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 14, lineHeight: 1, padding: 2 }}>×</button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                        <IpSparkle size={12} color={t.primary} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: t.primary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>PostCore recommends</span>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2 }}>{bt.label}</div>
+                      <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 10 }}>{bt.reason}</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button onClick={handleAcceptSmartSchedule} disabled={actionLoading} style={{ padding: '7px 14px', background: t.primary, border: 'none', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 700, cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.7 : 1 }}>
+                          {actionLoading ? 'Scheduling…' : `✓ Schedule for ${bt.label}`}
+                        </button>
+                        <button onClick={() => { setSmartScheduleDismissed(true); setShowScheduleModal(true); }} style={{ padding: '7px 12px', background: 'transparent', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.12)' : t.border}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          Choose different time
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Action bar */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 16, borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : t.border}` }}>

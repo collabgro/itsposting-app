@@ -254,6 +254,7 @@ export const analyticsAPI = {
   getMonthlyStats: () => api.get('/api/analytics/monthly-stats'),
   syncMetrics: (data = {}) => api.post('/api/analytics/sync-metrics', data),
   getVariationStats: () => api.get('/api/analytics/variation-stats'),
+  getLeaderboard: () => api.get('/api/analytics/leaderboard'),
 };
 
 export const dmsAPI = {
@@ -384,6 +385,10 @@ export const calendarPlansAPI = {
   remove:     (id)                  => api.delete(`/api/calendar-plans/${id}`),
   aiFill:     (opts)                => api.post('/api/calendar-plans/ai-fill', opts),
   getContext: (id)                  => api.post(`/api/calendar-plans/${id}/generate`),
+};
+
+export const referralsAPI = {
+  getMyCode: () => api.get('/api/referrals/my-code'),
 };
 
 export default api;

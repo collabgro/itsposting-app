@@ -60,11 +60,14 @@ export default function Signup() {
     setTimeout(() => setVisible(true), 80);
   }, []);
 
+  const [referredBy, setReferredBy] = useState('');
+
   useEffect(() => {
     if (!router.isReady) return;
     if (router.query.ref) setParentRef(router.query.ref);
+    if (router.query.refcode) setReferredBy(router.query.refcode.toUpperCase());
     if (router.query.email) setFormData(prev => ({ ...prev, email: router.query.email }));
-  }, [router.isReady, router.query.ref, router.query.email]);
+  }, [router.isReady, router.query.ref, router.query.email, router.query.refcode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -80,6 +83,7 @@ export default function Signup() {
       const industryValue = INDUSTRIES.find(i => i.label === formData.industry)?.value || 'general_contractor';
       const payload = { email: formData.email, password: formData.password, businessName: formData.businessName, industry: industryValue, location: formData.location };
       if (parentRef) payload.parentRef = parentRef;
+      if (referredBy) payload.referredBy = referredBy;
       const { data } = await authAPI.register(payload);
       localStorage.setItem('token', data.token);
       localStorage.setItem('ip_onboard_name', formData.businessName);

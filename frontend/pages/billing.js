@@ -8,7 +8,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, Spinner, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { billingAPI } from '../lib/api';
+import { billingAPI, referralsAPI } from '../lib/api';
 
 const PLAN_ICONS = { trial: IpGift, starter: IpCredits, professional: IpSparkle, premium: IpCrown };
 const PLAN_TAGLINES = {
@@ -65,6 +65,10 @@ export default function Billing() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [activeTab, setActiveTab] = useState('plans'); // 'plans' | 'referral'
+  const [referralData, setReferralData] = useState(null);
+  const [referralLoading, setReferralLoading] = useState(false);
+  const [referralCopied, setReferralCopied] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -284,44 +288,160 @@ export default function Billing() {
             )}
           </div>
 
-          {/* Credit usage */}
+          {/* Credit usage — circular ring */}
           <div style={{ ...gc, padding: 24 }}>
-            <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 18 }}>
               Credit usage this month
             </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-              <div>
-                <span style={{ fontSize: 32, fontWeight: 800, fontFamily: 'monospace', color: t.text }}>{usedThisMonth}</span>
-                <span style={{ fontSize: 14, color: t.textMuted }}> / {totalCredits} used</span>
-              </div>
-              <span style={{ fontSize: 13, color: usagePct >= 90 ? t.error : usagePct >= 70 ? t.warning : t.success, fontWeight: 700 }}>
-                {usagePct}%
-              </span>
-            </div>
-
-            <div style={{ height: 8, background: t.input, borderRadius: 4, overflow: 'hidden', marginBottom: 14 }}>
-              <div style={{
-                height: '100%', borderRadius: 4, transition: 'width 600ms ease',
-                width: `${usagePct}%`,
-                background: usagePct >= 90 ? t.error : usagePct >= 70 ? t.warning : t.primary,
-              }} />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
-              <div>
-                <span style={{ color: t.textMuted }}>Remaining: </span>
-                <span style={{ color: t.primary, fontWeight: 700, fontFamily: 'monospace' }}>{balance}</span>
-                <span style={{ color: t.textMuted }}> · plan includes {planCredits}/mo</span>
-              </div>
-              {usagePct >= 80 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: t.warning, fontSize: 12, fontWeight: 600 }}>
-                  <IpWarning size={12} /> Running low
+            <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+              {/* SVG Circular progress ring */}
+              {(() => {
+                const R = 42, C = 2 * Math.PI * R;
+                const ringColor = usagePct >= 90 ? t.error : usagePct >= 70 ? t.warning : t.primary;
+                const dashOffset = C * (1 - Math.min(usagePct, 100) / 100);
+                return (
+                  <div style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
+                    <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+                      <defs>
+                        <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor={ringColor} />
+                          <stop offset="100%" stopColor={usagePct >= 90 ? '#FF6B62' : usagePct >= 70 ? '#FFB347' : '#9B7FFF'} />
+                        </linearGradient>
+                      </defs>
+                      {/* Track */}
+                      <circle cx="50" cy="50" r={R} fill="none" stroke={t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'} strokeWidth="8" />
+                      {/* Progress */}
+                      <circle cx="50" cy="50" r={R} fill="none" stroke="url(#ring-grad)" strokeWidth="8"
+                        strokeLinecap="round" strokeDasharray={C} strokeDashoffset={dashOffset}
+                        style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.4,0,0.2,1)' }} />
+                    </svg>
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: t.text, fontFamily: 'monospace', lineHeight: 1 }}>{usagePct}</div>
+                      <div style={{ fontSize: 10, color: t.textMuted, fontWeight: 600 }}>%</div>
+                    </div>
+                  </div>
+                );
+              })()}
+              <div style={{ flex: 1 }}>
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 28, fontWeight: 800, fontFamily: 'monospace', color: t.text, letterSpacing: '-0.04em' }}>{usedThisMonth}</span>
+                  <span style={{ fontSize: 13, color: t.textMuted }}> / {totalCredits}</span>
                 </div>
-              )}
+                <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 6 }}>credits used this month</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: t.primary, fontFamily: 'monospace' }}>{balance}</span>
+                  <span style={{ fontSize: 12, color: t.textMuted }}>remaining</span>
+                </div>
+                {usagePct >= 80 && (
+                  <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4, color: t.warning, fontSize: 12, fontWeight: 700, padding: '4px 10px', background: `${t.warning}15`, borderRadius: 6 }}>
+                    <IpWarning size={12} /> {usagePct >= 95 ? 'Almost out!' : 'Running low'}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
+
+        {/* ── TAB NAV ──────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: t.input, border: `1px solid ${t.border}`, borderRadius: 12, padding: 4 }}>
+          {[
+            { id: 'plans',    label: 'Plans & Credits', icon: IpCredits },
+            { id: 'referral', label: 'Refer & Earn',    icon: IpGift },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => {
+              setActiveTab(tab.id);
+              if (tab.id === 'referral' && !referralData && !referralLoading) {
+                setReferralLoading(true);
+                referralsAPI.getMyCode().then(r => setReferralData(r.data)).catch(() => {}).finally(() => setReferralLoading(false));
+              }
+            }} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 150ms', background: activeTab === tab.id ? t.primary : 'transparent', color: activeTab === tab.id ? '#fff' : t.textMuted, boxShadow: activeTab === tab.id ? '0 2px 8px rgba(124,92,252,0.3)' : 'none' }}>
+              <tab.icon size={14} /> {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── REFERRAL TAB ─────────────────────────────────────────── */}
+        {activeTab === 'referral' && (
+          <div>
+            {referralLoading ? (
+              <div style={{ textAlign: 'center', padding: 60 }}><Spinner /></div>
+            ) : referralData ? (
+              <>
+                {/* Hero */}
+                <div style={{ background: `linear-gradient(135deg, ${t.primary} 0%, #9B7FFF 50%, #6D3FF2 100%)`, borderRadius: 20, padding: 32, marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                      <IpGift size={28} style={{ color: '#fff' }} />
+                      <div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>Refer & Earn Credits</div>
+                        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 }}>Earn 20 free credits for every business that upgrades</div>
+                      </div>
+                    </div>
+                    {/* Referral link */}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 200, background: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <IpExternalLink size={13} style={{ color: 'rgba(255,255,255,0.6)', flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{referralData.link}</span>
+                      </div>
+                      <button onClick={() => { navigator.clipboard.writeText(referralData.link); setReferralCopied(true); setTimeout(() => setReferralCopied(false), 2500); }} style={{ padding: '10px 20px', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {referralCopied ? <><IpCheck size={14} /> Copied!</> : 'Copy link'}
+                      </button>
+                    </div>
+                    {/* Share buttons */}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                      <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('I use ItsPosting to manage my business social media with AI. Try it free: ' + referralData.link)}`} target="_blank" rel="noopener noreferrer" style={{ padding: '7px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>Share on X</a>
+                      <a href={`https://wa.me/?text=${encodeURIComponent('Try ItsPosting — AI social media for local businesses. Free trial: ' + referralData.link)}`} target="_blank" rel="noopener noreferrer" style={{ padding: '7px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>WhatsApp</a>
+                      <a href={`mailto:?subject=Try ItsPosting&body=${encodeURIComponent('I use ItsPosting to automate my business social media with AI. Try it free: ' + referralData.link)}`} style={{ padding: '7px 14px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>Email</a>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+                  {[
+                    { label: 'Total referrals',    value: referralData.total_referrals,    icon: IpTrendingUp },
+                    { label: 'Upgraded to paid',   value: referralData.upgraded_referrals, icon: IpArrowUpRight },
+                    { label: 'Credits earned',     value: referralData.credits_earned,     icon: IpCredits },
+                  ].map(stat => (
+                    <div key={stat.label} style={{ background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, padding: 20, textAlign: 'center' }}>
+                      <stat.icon size={20} style={{ color: t.primary, margin: '0 auto 10px', display: 'block' }} />
+                      <div style={{ fontSize: 32, fontWeight: 800, color: t.text, fontFamily: 'monospace', letterSpacing: '-0.04em' }}>{stat.value}</div>
+                      <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 600, marginTop: 4 }}>{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* How it works */}
+                <div style={{ background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, padding: 24 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 16 }}>How it works</div>
+                  {[
+                    { step: '1', text: 'Share your referral link with another local business owner' },
+                    { step: '2', text: 'They sign up and try ItsPosting free for 7 days' },
+                    { step: '3', text: 'When they upgrade to a paid plan, you automatically earn 20 credits' },
+                    { step: '4', text: 'No limit — refer as many businesses as you like' },
+                  ].map(item => (
+                    <div key={item.step} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: t.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{item.step}</div>
+                      <span style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.5, paddingTop: 4 }}>{item.text}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 16, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, fontSize: 12, color: t.textSecondary }}>
+                    <strong style={{ color: t.primary }}>Your referral code: </strong>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.08em', color: t.text }}>{referralData.code}</span>
+                    <span style={{ color: t.textMuted }}> — Include this in your referral link automatically</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: 60, color: t.textMuted, fontSize: 14 }}>
+                Could not load referral data. <button onClick={() => { setReferralLoading(true); referralsAPI.getMyCode().then(r => setReferralData(r.data)).catch(() => {}).finally(() => setReferralLoading(false)); }} style={{ color: t.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Try again</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'plans' && <>
 
         {/* ── BILLING CYCLE TOGGLE ──────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -620,6 +740,9 @@ export default function Billing() {
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
 
+        </> }
+        {/* END plans tab */}
+
       {showCancelModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(32px) saturate(200%)', WebkitBackdropFilter: 'blur(32px) saturate(200%)', borderRadius: 22, padding: 32, maxWidth: 420, width: '100%', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, boxShadow: t.isDark ? '0 24px 64px rgba(0,0,0,0.65), 0 6px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)' : '0 16px 48px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,1)' }}>
@@ -657,6 +780,8 @@ export default function Billing() {
           </div>
         </div>
       )}
+
+      </div>
     </Layout>
   );
 }

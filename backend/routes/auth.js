@@ -13,7 +13,7 @@ module.exports = (pool) => {
    */
   router.post('/register', async (req, res) => {
     try {
-      const { email, password, businessName, industry, location, parentRef } = req.body;
+      const { email, password, businessName, industry, location, parentRef, referredBy } = req.body;
 
       if (!email || !password || !businessName) {
         return res.status(400).json({ error: 'Missing required fields' });
@@ -53,11 +53,18 @@ module.exports = (pool) => {
         if (parentCheck.rows.length) parentCustomerId = parentCheck.rows[0].id;
       }
 
+      // Validate referral code if provided
+      let validatedReferralCode = null;
+      if (referredBy) {
+        const refCheck = await pool.query('SELECT referral_code FROM customers WHERE referral_code = $1', [referredBy.toUpperCase()]);
+        if (refCheck.rows.length) validatedReferralCode = referredBy.toUpperCase();
+      }
+
       const result = await pool.query(
-        `INSERT INTO customers (email, password_hash, business_name, industry, location, parent_customer_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO customers (email, password_hash, business_name, industry, location, parent_customer_id, referred_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id, email, business_name, industry, location, plan, credits_balance, status`,
-        [email, passwordHash, businessName, industry || 'other', location || '', parentCustomerId]
+        [email, passwordHash, businessName, industry || 'other', location || '', parentCustomerId, validatedReferralCode]
       );
 
       const customer = result.rows[0];
