@@ -4,8 +4,9 @@ import { useRouter } from 'next/router';
 import { Stage, Layer, Rect, Image as KonvaImage, Text, Circle, Line, Transformer, RegularPolygon, Star, Arrow, Shape } from 'react-konva';
 import useImage from 'use-image';
 import Konva from 'konva';
+import QRCodeLib from 'qrcode';
 import { useTheme } from '../../lib/theme';
-import { studioAPI, customerAPI, mediaAPI } from '../../lib/api';
+import { studioAPI, customerAPI, mediaAPI, socialAPI } from '../../lib/api';
 import { useToast } from '../../components/ui';
 import {
   IpArrowLeft, IpDownload, IpEye,
@@ -260,6 +261,7 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
   const [open, setOpen] = useState(false);
   const [hex, setHex] = useState(value);
   const docColors = useContext(DocColorsCtx);
+  const brandColors = useContext(BrandColorsCtx);
   const btnRef = useRef(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
 
@@ -327,6 +329,21 @@ function ColorPickerButton({ value = '#ffffff', onChange, onCommit, recentColors
                 style={{ aspectRatio: '1', background: c, border: hex === c ? '2px solid #7C5CFC' : '1px solid rgba(255,255,255,0.08)', borderRadius: 3, cursor: 'pointer', padding: 0 }} />
             ))}
           </div>
+          {/* Brand colors — shown above document colors if brand kit is set */}
+          {brandColors.length > 0 && (
+            <>
+              <div style={{ fontSize: 10, color: '#A78BFA', marginBottom: 5, marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'linear-gradient(135deg, #7C5CFC, #A78BFA)' }} />
+                Brand
+              </div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+                {brandColors.map(({ key, hex: c }) => (
+                  <button key={key} onMouseDown={() => { apply(c); close(); }} title={`${key}: ${c}`}
+                    style={{ width: 22, height: 22, background: c, border: hex.toLowerCase() === c.toLowerCase() ? '2px solid #7C5CFC' : '1px solid rgba(255,255,255,0.18)', borderRadius: 4, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
+                ))}
+              </div>
+            </>
+          )}
           {/* Document colors */}
           {docColors.length > 0 && (
             <>
@@ -383,6 +400,7 @@ const EMOJI_SETS = [
 ];
 
 const DocColorsCtx = createContext([]);
+const BrandColorsCtx = createContext([]);
 
 function applyListStyle(text, listStyle) {
   if (!text || !listStyle || listStyle === 'none') return text;
@@ -397,6 +415,21 @@ function applyTextTransform(text, transform) {
   if (transform === 'capitalize') return text.replace(/\b\w/g, c => c.toUpperCase());
   return text;
 }
+
+// Resolves smart placeholder tokens from the brand profile
+function resolvePlaceholders(text, profile) {
+  if (!text || !profile) return text;
+  const city = (profile.location || '').split(',')[0].trim();
+  return text
+    .replace(/\[BUSINESS_NAME\]/gi, profile.business_name || '[BUSINESS_NAME]')
+    .replace(/\[PHONE\]/gi, profile.phone || '[PHONE]')
+    .replace(/\[CITY\]/gi, city || '[CITY]')
+    .replace(/\[WEBSITE\]/gi, profile.website || '[WEBSITE]')
+    .replace(/\[TAGLINE\]/gi, profile.tagline || '[TAGLINE]')
+    .replace(/\[INDUSTRY\]/gi, profile.industry || '[INDUSTRY]');
+}
+
+const BrandProfileCtx = createContext(null);
 
 function _hexToRgb(hex) {
   const h = hex.replace('#', '');
@@ -448,14 +481,28 @@ const ANIMATE_PRESETS = [
 ];
 
 const GRADIENT_PRESETS = [
-  { label: 'Midnight', c1: '#7C5CFC', c2: TEAL, angle: 135 },
-  { label: 'Sunset',   c1: '#f97316', c2: '#ec4899', angle: 135 },
-  { label: 'Ocean',    c1: '#0ea5e9', c2: '#10b981', angle: 135 },
-  { label: 'Fire',     c1: '#ef4444', c2: '#f97316', angle: 90  },
-  { label: 'Forest',   c1: '#22c55e', c2: '#0ea5e9', angle: 135 },
-  { label: 'Dusk',     c1: '#8b5cf6', c2: '#ec4899', angle: 135 },
-  { label: 'Gold',     c1: '#fbbf24', c2: '#ef4444', angle: 90  },
-  { label: 'Night',    c1: '#1e1b4b', c2: '#374151', angle: 180 },
+  // Linear
+  { label: 'Midnight',  c1: '#7C5CFC', c2: '#00C4CC', angle: 135, type: 'linear' },
+  { label: 'Sunset',    c1: '#f97316', c2: '#ec4899', angle: 135, type: 'linear' },
+  { label: 'Ocean',     c1: '#0ea5e9', c2: '#10b981', angle: 135, type: 'linear' },
+  { label: 'Fire',      c1: '#ef4444', c2: '#f97316', angle: 90,  type: 'linear' },
+  { label: 'Forest',    c1: '#22c55e', c2: '#0ea5e9', angle: 135, type: 'linear' },
+  { label: 'Dusk',      c1: '#8b5cf6', c2: '#ec4899', angle: 135, type: 'linear' },
+  { label: 'Gold',      c1: '#fbbf24', c2: '#ef4444', angle: 90,  type: 'linear' },
+  { label: 'Night',     c1: '#1e1b4b', c2: '#374151', angle: 180, type: 'linear' },
+  { label: 'Aurora',    c1: '#6ee7b7', c2: '#3b82f6', angle: 120, type: 'linear' },
+  { label: 'Rose',      c1: '#fda4af', c2: '#c026d3', angle: 135, type: 'linear' },
+  { label: 'Candle',    c1: '#fef3c7', c2: '#f59e0b', angle: 180, type: 'linear' },
+  { label: 'Storm',     c1: '#475569', c2: '#1e293b', angle: 135, type: 'linear' },
+  { label: 'Spring',    c1: '#bbf7d0', c2: '#86efac', angle: 135, type: 'linear' },
+  { label: 'Blueberry', c1: '#1d4ed8', c2: '#7c3aed', angle: 135, type: 'linear' },
+  { label: 'Cherry',    c1: '#be123c', c2: '#7f1d1d', angle: 90,  type: 'linear' },
+  { label: 'Citrus',    c1: '#fde047', c2: '#84cc16', angle: 135, type: 'linear' },
+  // Radial
+  { label: 'Nebula',    c1: '#7C5CFC', c2: '#0f0a1f', angle: 0,   type: 'radial' },
+  { label: 'Ember',     c1: '#f97316', c2: '#1a0a00', angle: 0,   type: 'radial' },
+  { label: 'Aqua Glow', c1: '#00C4CC', c2: '#051a24', angle: 0,   type: 'radial' },
+  { label: 'Limelight', c1: '#84cc16', c2: '#0f1a06', angle: 0,   type: 'radial' },
 ];
 
 function gradientPoints(angle, w, h) {
@@ -772,12 +819,133 @@ function ImageNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear
   );
 }
 
+// ─── QrNode ───────────────────────────────────────────────────────────────────
+
+function QrNode({ el, isSelected, onSelect, onChange, onDragMove, onSnapClear, locked, hidden }) {
+  const shapeRef  = useRef(null);
+  const [isDragging, setIsDragging]   = useState(false);
+  const [qrDataUrl, setQrDataUrl]     = useState(null);
+  const [qrImage]                     = useImage(qrDataUrl);
+
+  useEffect(() => {
+    let cancelled = false;
+    const urlToEncode = el.qrPhone
+      ? `tel:${el.qrPhone.replace(/\s/g, '')}`
+      : (el.qrUrl || 'https://itsposting.com');
+    QRCodeLib.toDataURL(urlToEncode, {
+      width: 512,
+      margin: 1,
+      color: { dark: el.fill || '#1a1a22', light: el.qrBg || '#ffffff' },
+      errorCorrectionLevel: 'M',
+    }).then(url => { if (!cancelled) setQrDataUrl(url); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [el.qrUrl, el.qrPhone, el.fill, el.qrBg]);
+
+  const w = el.width || 160, h = el.height || 160;
+  const showLabel = el.showQrLabel !== false;
+  const label = el.qrLabel || 'Scan me';
+  const fgC = el.fill || '#1a1a22';
+  const bgC = el.qrBg || '#ffffff';
+
+  const TEAL_QR = '#00C4CC';
+  const isActive = !locked && !hidden;
+
+  const common = {
+    x: el.x, y: el.y,
+    rotation: el.rotation || 0,
+    opacity: el.opacity ?? 1,
+    visible: !hidden,
+    draggable: isActive,
+    listening: isActive,
+    onMouseDown: isActive ? (e) => { e.cancelBubble = true; onSelect(el.id, e.evt?.shiftKey); } : undefined,
+    onTap:       isActive ? (e) => { e.cancelBubble = true; onSelect(el.id, false); } : undefined,
+    onDragStart: () => setIsDragging(true),
+    onDragMove: (e) => {
+      if (!onDragMove) return;
+      const { x: nx, y: ny } = onDragMove(el.id, e.target.x(), e.target.y(), w, h);
+      e.target.position({ x: nx, y: ny });
+    },
+    onDragEnd: (e) => {
+      setIsDragging(false);
+      if (onSnapClear) onSnapClear();
+      onChange({ ...el, x: e.target.x(), y: e.target.y() });
+    },
+    onTransformEnd: () => {
+      const node = shapeRef.current;
+      if (!node) return;
+      const sx = node.scaleX(), sy = node.scaleY();
+      const nw = Math.max(40, w * Math.abs(sx));
+      const nh = Math.max(40, h * Math.abs(sy));
+      onChange({ ...el, x: node.x(), y: node.y(), width: nw, height: nh, rotation: node.rotation() });
+      node.scaleX(1); node.scaleY(1);
+    },
+  };
+
+  return (
+    <Shape
+      ref={shapeRef}
+      id={el.id}
+      {...common}
+      width={w} height={h}
+      sceneFunc={(ctx, shape) => {
+        const sw = shape.width(), sh = shape.height();
+
+        // Background
+        ctx.fillStyle = bgC;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, sw, sh, 8);
+        ctx.fill();
+
+        // QR image (real QR code)
+        if (qrImage) {
+          const qrAreaHeight = showLabel ? sh * 0.88 : sh;
+          const qs = Math.min(sw, qrAreaHeight) * 0.92;
+          const qx = (sw - qs) / 2;
+          const qy = showLabel ? (qrAreaHeight - qs) / 2 : (sh - qs) / 2;
+          ctx.drawImage(qrImage, qx, qy, qs, qs);
+        } else {
+          // Loading placeholder
+          ctx.fillStyle = fgC === '#ffffff' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
+          const qs = Math.min(sw, showLabel ? sh * 0.88 : sh) * 0.92;
+          const qx = (sw - qs) / 2;
+          const qy = showLabel ? ((sh * 0.88) - qs) / 2 : (sh - qs) / 2;
+          ctx.fillRect(qx, qy, qs, qs);
+          // Loading text
+          ctx.fillStyle = fgC;
+          ctx.font = `${Math.max(9, Math.round(sw * 0.07))}px Inter, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Loading…', sw / 2, sh / 2);
+        }
+
+        // Label
+        if (showLabel) {
+          ctx.fillStyle = fgC;
+          ctx.font = `bold ${Math.max(9, Math.round(sw * 0.08))}px Inter, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(label, sw / 2, sh - 3);
+        }
+
+        // Selection ring
+        if (isSelected) {
+          ctx.strokeStyle = TEAL_QR;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(0, 0, sw, sh);
+        }
+      }}
+    />
+  );
+}
+
 // ─── ContentNode ──────────────────────────────────────────────────────────────
 
 function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, stageH, onDblClick, onDragMove, onSnapClear, locked, hidden, onHoverIn, onHoverOut }) {
   const shapeRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const [measuredH, setMeasuredH] = useState(() => (el.fontSize || 36) * 1.5);
+  const brandProfileCtx = useContext(BrandProfileCtx);
 
   useEffect(() => {
     if (el.type !== 'text' || !shapeRef.current) return;
@@ -903,7 +1071,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
     }
     // Curved / arch text rendering
     if (el.textCurve) {
-      const rawText = applyTextTransform(applyListStyle(el.text || '', el.listStyle), el.textTransform) || '';
+      const rawText = applyTextTransform(applyListStyle(resolvePlaceholders(el.text || '', brandProfileCtx), el.listStyle), el.textTransform) || '';
       const fontSize = el.fontSize || 36;
       const curveR = el.textCurve;
       const absR = Math.abs(curveR);
@@ -979,7 +1147,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
     const textNode = (
       <Text
         {...common}
-        text={applyTextTransform(applyListStyle(el.text, el.listStyle), el.textTransform)}
+        text={applyTextTransform(applyListStyle(resolvePlaceholders(el.text, brandProfileCtx), el.listStyle), el.textTransform)}
         fontSize={el.fontSize || 36}
         fontFamily={el.fontFamily || 'Inter'}
         fontStyle={el.fontStyle || 'normal'}
@@ -2823,93 +2991,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
     );
   }
 
-  if (el.type === 'qrcode') {
-    const qw = el.width || 160, qh = el.height || 160;
-    const fgC = el.fill || '#1a1a22';
-    const bgC = el.qrBg || '#ffffff';
-    const label = el.qrLabel || 'Scan me';
-    const showLabel = el.showQrLabel !== false;
-    const qrSize = showLabel ? Math.min(qw, qh * 0.82) : Math.min(qw, qh);
-    const pad = qrSize * 0.06;
-    const cell = (qrSize - pad * 2) / 21; // 21×21 QR grid
-    // Seeded pseudo-random data pattern based on element id
-    const seed = el.id ? el.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) : 42;
-    const prng = (x2, y2) => ((seed * 31 + x2 * 17 + y2 * 13) % 7) > 2;
-
-    // Finder pattern: 7×7 at corners
-    function drawFinder(ctx2, ox, oy, cs) {
-      ctx2.fillStyle = fgC;
-      ctx2.fillRect(ox, oy, cs * 7, cs * 7);
-      ctx2.fillStyle = bgC;
-      ctx2.fillRect(ox + cs, oy + cs, cs * 5, cs * 5);
-      ctx2.fillStyle = fgC;
-      ctx2.fillRect(ox + cs * 2, oy + cs * 2, cs * 3, cs * 3);
-    }
-
-    return (
-      <Shape {...common}
-        width={qw} height={qh}
-        opacity={el.opacity ?? 1}
-        globalCompositeOperation={el.blendMode || 'source-over'}
-        sceneFunc={(ctx, shape2) => {
-          const w = shape2.width(), h = shape2.height();
-          const qox = (w - qrSize) / 2;
-          const qoy = showLabel ? 0 : (h - qrSize) / 2;
-
-          // Background
-          ctx.fillStyle = bgC;
-          ctx.beginPath();
-          ctx.roundRect(qox, qoy, qrSize, qrSize, 6);
-          ctx.fill();
-
-          // Data dots
-          ctx.fillStyle = fgC;
-          for (let row = 0; row < 21; row++) {
-            for (let col = 0; col < 21; col++) {
-              const isFinder = (row < 8 && col < 8) || (row < 8 && col > 12) || (row > 12 && col < 8);
-              const isTimingH = row === 6 && col >= 8 && col <= 12;
-              const isTimingV = col === 6 && row >= 8 && row <= 12;
-              if (isFinder || isTimingH || isTimingV) continue;
-              if (prng(col, row)) {
-                const cx3 = qox + pad + col * cell + cell / 2;
-                const cy3 = qoy + pad + row * cell + cell / 2;
-                ctx.beginPath();
-                ctx.arc(cx3, cy3, cell * 0.42, 0, Math.PI * 2);
-                ctx.fill();
-              }
-            }
-          }
-
-          // Timing patterns
-          ctx.fillStyle = fgC;
-          for (let i = 8; i <= 12; i += 2) {
-            ctx.fillRect(qox + pad + i * cell, qoy + pad + 6 * cell, cell, cell);
-            ctx.fillRect(qox + pad + 6 * cell, qoy + pad + i * cell, cell, cell);
-          }
-
-          // Finder patterns (drawn on top)
-          drawFinder(ctx, qox + pad, qoy + pad, cell);                           // top-left
-          drawFinder(ctx, qox + pad + 14 * cell, qoy + pad, cell);               // top-right
-          drawFinder(ctx, qox + pad, qoy + pad + 14 * cell, cell);               // bottom-left
-
-          // Label
-          if (showLabel) {
-            ctx.fillStyle = fgC;
-            ctx.font = `bold ${Math.max(9, Math.round(qw * 0.1))}px Inter, sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText(label, w / 2, h - 2);
-          }
-
-          if (isSelected) {
-            ctx.strokeStyle = TEAL;
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(0, 0, w, h);
-          }
-        }}
-      />
-    );
-  }
+  // qrcode elements are routed to QrNode in the render loop (real QR via qrcode library)
 
   if (el.type === 'glasspane') {
     const gpw = el.width || 300, gph = el.height || 160;
@@ -4060,6 +4142,10 @@ export default function TemplatesEditorInner() {
   const [showEffectsPanel, setShowEffectsPanel] = useState(false);
   const [showMorePanel, setShowMorePanel] = useState(false);
   const [aiImproving, setAiImproving] = useState(false);
+  const [showAiMagic, setShowAiMagic] = useState(false);
+  const [aiMagicLoading, setAiMagicLoading] = useState(null); // null | 'caption' | 'improve' | 'color' | 'bg'
+  const [aiMagicResult, setAiMagicResult] = useState(null); // { type, content }
+  const [aiMagicAnchor, setAiMagicAnchor] = useState(null);
   const [showSafeZones, setShowSafeZones] = useState(false);
   const [safeZonePlatform, setSafeZonePlatform] = useState('instagram');
   const [showPositionPanel, setShowPositionPanel] = useState(false);
@@ -4196,6 +4282,10 @@ export default function TemplatesEditorInner() {
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState('');
   const [postSuccess, setPostSuccess] = useState(false);
+  const [postScheduleMode, setPostScheduleMode] = useState('now'); // 'now' | 'schedule' | 'draft'
+  const [postScheduleDate, setPostScheduleDate] = useState('');
+  const [connectedAccounts, setConnectedAccounts] = useState([]);
+  const [connectedAccountsLoaded, setConnectedAccountsLoaded] = useState(false);
   const [titleForSave, setTitleForSave] = useState('Untitled');
   // Template editing (admin)
   const [isAdmin, setIsAdmin] = useState(false);
@@ -4623,6 +4713,22 @@ export default function TemplatesEditorInner() {
     }, 2000);
     return () => clearTimeout(autosaveTimerRef.current);
   }, [pages]);
+
+  // ── Autosave to backend (30s — only when a creation exists) ──────────────
+  const backendAutosaveRef = useRef(null);
+  useEffect(() => {
+    clearTimeout(backendAutosaveRef.current);
+    if (!savedCreationId) return;
+    backendAutosaveRef.current = setTimeout(() => {
+      if (!stageRef.current || postModalOpen) return;
+      const snap = snapshot();
+      studioAPI.updateCreation(savedCreationId, {
+        canvasJson: snap,
+        title: titleForSave,
+      }).then(() => setSaveStatus('saved')).catch(() => {});
+    }, 30000);
+    return () => clearTimeout(backendAutosaveRef.current);
+  }, [pages, savedCreationId, titleForSave]);
 
   // ── Keyboard handler ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -5325,14 +5431,20 @@ export default function TemplatesEditorInner() {
     setSelectedId(el.id);
   }
 
-  function addQrCode() {
+  function addQrCode(type = 'url') {
     pushHistory();
+    const defaultUrl = brandProfile?.website || 'https://yourwebsite.com';
+    const defaultPhone = brandProfile?.phone || '';
     const el = {
       id: uid(), type: 'qrcode',
-      x: canvasSize.w / 2 - 80, y: canvasSize.h / 2 - 80,
-      width: 160, height: 160, opacity: 1,
+      x: canvasSize.w / 2 - 90, y: canvasSize.h / 2 - 90,
+      width: 180, height: 200, opacity: 1,
       fill: '#1a1a22', qrBg: '#ffffff',
-      qrLabel: 'Scan me', showQrLabel: true,
+      qrLabel: type === 'phone' ? 'Call us' : 'Visit our website',
+      showQrLabel: true,
+      qrType: type,
+      qrUrl: type === 'phone' ? '' : defaultUrl,
+      qrPhone: type === 'phone' ? defaultPhone : '',
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
@@ -6364,15 +6476,36 @@ export default function TemplatesEditorInner() {
     }
   }
 
+  // Load connected accounts once per editor session
+  useEffect(() => {
+    if (connectedAccountsLoaded) return;
+    socialAPI.getAccounts()
+      .then(r => {
+        setConnectedAccounts((r.data || []).filter(a => a.enabled));
+        setConnectedAccountsLoaded(true);
+      })
+      .catch(() => setConnectedAccountsLoaded(true));
+  }, [connectedAccountsLoaded]);
+
   async function handlePost() {
     if (!savedCreationId) return;
+    if (postScheduleMode === 'now' && postPlatforms.length === 0) return;
     setPosting(true);
     setPostError('');
     try {
-      await studioAPI.postCreation(savedCreationId, { caption: postCaption, platforms: postPlatforms, scheduleMode: 'now' });
-      setPostSuccess(true);
+      const result = await studioAPI.postCreation(savedCreationId, {
+        caption: postCaption,
+        platforms: postPlatforms,
+        scheduleMode: postScheduleMode,
+        scheduledDate: postScheduleMode === 'schedule' ? postScheduleDate : null,
+      });
+      if (result.data?.success === false && result.data?.errors?.length) {
+        setPostError(result.data.errors.map(e => `${e.platform}: ${e.message}`).join('; '));
+      } else {
+        setPostSuccess(true);
+      }
     } catch (err) {
-      setPostError(err.message || 'Failed to post');
+      setPostError(err.response?.data?.error || err.message || 'Failed to post');
     } finally {
       setPosting(false);
     }
@@ -6426,6 +6559,51 @@ export default function TemplatesEditorInner() {
     }
   }
 
+  // ── AI Magic Toolbar actions ───────────────────────────────────────────────
+  async function aiMagicAction(action) {
+    const el = elements.find(e => e.id === selectedId);
+    setAiMagicLoading(action);
+    setAiMagicResult(null);
+    try {
+      if (action === 'improve' && el?.type === 'text') {
+        const { data } = await studioAPI.rewriteText({ text: el.text, platform: postPlatforms[0] || 'instagram' });
+        if (data?.improved) {
+          pushHistory();
+          updateElement({ ...el, text: data.improved });
+          setAiMagicResult({ type: 'improve', content: '✓ Text improved!' });
+        }
+      } else if (action === 'caption') {
+        const textEls = elements.filter(e => e.type === 'text').map(e => e.text).join(' ').slice(0, 200);
+        const { data } = await studioAPI.rewriteText({ text: textEls || 'Write a social media post for this graphic', platform: postPlatforms[0] || 'instagram', mode: 'caption' });
+        if (data?.improved) {
+          setPostCaption(data.improved);
+          setAiMagicResult({ type: 'caption', content: data.improved.slice(0, 80) + (data.improved.length > 80 ? '…' : '') });
+        }
+      } else if (action === 'bg_remove' && el?.type === 'image') {
+        const { data } = await studioAPI.removeBackground(el.src);
+        if (data?.result) {
+          pushHistory();
+          updateElement({ ...el, src: data.result });
+          setAiMagicResult({ type: 'bg_remove', content: '✓ Background removed!' });
+        }
+      } else if (action === 'color') {
+        const { data } = await studioAPI.rewriteText({ text: `Suggest 3 complementary hex color codes for a ${brandProfile?.industry || 'local business'} brand with primary color ${brandProfile?.brand_colors?.primary || '#7C5CFC'}. Return JSON: {"colors":["#hex1","#hex2","#hex3"]}`, platform: 'general', mode: 'colors' });
+        if (data?.improved) {
+          try {
+            const parsed = JSON.parse(data.improved.replace(/```json|```/g, '').trim());
+            const colors = parsed.colors || [];
+            setAiMagicResult({ type: 'color', content: colors });
+          } catch { setAiMagicResult({ type: 'color', content: [] }); }
+        }
+      }
+    } catch (e) {
+      console.error('[AI Magic]', e);
+      setAiMagicResult({ type: 'error', content: 'Something went wrong. Try again.' });
+    } finally {
+      setAiMagicLoading(null);
+    }
+  }
+
   // ─── Document colors (extracted from all elements across all pages) ────────
   const docColors = useMemo(() => {
     const seen = new Set();
@@ -6443,8 +6621,18 @@ export default function TemplatesEditorInner() {
     return [...seen].slice(0, 20);
   }, [pages]);
 
+  // ─── Brand colors extracted from profile for ColorPickerButton ───────────
+  const brandColorsForPicker = useMemo(() => {
+    const bc = brandProfile?.brand_colors || {};
+    return Object.entries(bc)
+      .filter(([, v]) => v && /^#[0-9A-Fa-f]{6}$/.test(v))
+      .map(([key, hex]) => ({ key, hex }));
+  }, [brandProfile]);
+
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
+    <BrandProfileCtx.Provider value={brandProfile}>
+    <BrandColorsCtx.Provider value={brandColorsForPicker}>
     <DocColorsCtx.Provider value={docColors}>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: t.bg, position: 'fixed', inset: 0, zIndex: 1 }}>
       <style>{`
@@ -6460,6 +6648,7 @@ export default function TemplatesEditorInner() {
         @keyframes page-flash-fade { 0%{opacity:0.7} 100%{opacity:0} }
         @keyframes page-flash-slide { 0%{opacity:0.5;transform:translateX(-30px)} 100%{opacity:0;transform:translateX(0)} }
         @keyframes page-flash-zoom { 0%{opacity:0.5;transform:scale(1.04)} 100%{opacity:0;transform:scale(1)} }
+        @keyframes slideUpModal { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
       `}</style>
 
       {/* ── Top toolbar (Canva-style) ── */}
@@ -6833,11 +7022,12 @@ export default function TemplatesEditorInner() {
             </button>
           )}
 
-          {/* Post — primary CTA */}
-          <button onClick={() => setPostModalOpen(true)}
-            onMouseEnter={e => { showTip(e, 'Post to social media'); e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)'; }}
-            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: '#fff', color: '#7C5CFC', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.15)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', letterSpacing: '-0.01em' }}>
-            Post
+          {/* Post — primary CTA (saves first if needed, then opens modal) */}
+          <button onClick={() => savedCreationId ? setPostModalOpen(true) : handleSave()}
+            disabled={saving}
+            onMouseEnter={e => { showTip(e, 'Save & post to social media'); e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)'; }}
+            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: '#fff', color: '#7C5CFC', border: 'none', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.15)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', letterSpacing: '-0.01em', opacity: saving ? 0.7 : 1 }}>
+            {saving ? '⟳ Saving…' : 'Post'}
           </button>
 
           {/* Share */}
@@ -7279,21 +7469,115 @@ export default function TemplatesEditorInner() {
                   </button>
                 );
               })()}
-              {/* ✦ AI Improve */}
-              <button
-                onClick={aiImproveText}
-                disabled={aiImproving}
-                style={{
-                  height: 34, padding: '0 10px', border: 'none', borderRadius: 7,
-                  background: aiImproving ? 'rgba(124,92,252,0.1)' : 'transparent',
-                  color: aiImproving ? '#7C5CFC' : t.textMuted,
-                  fontSize: 12, cursor: aiImproving ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
-                  transition: 'background 80ms, color 80ms', whiteSpace: 'nowrap',
-                }}
-              >
-                {aiImproving ? '...' : '✦ Improve'}
-              </button>
+              {/* ✦ PostCore AI Magic Toolbar */}
+              <div style={{ position: 'relative', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                {showAiMagic && <div style={{ position: 'fixed', inset: 0, zIndex: 9997 }} onMouseDown={() => { setShowAiMagic(false); setAiMagicResult(null); }} />}
+                <button
+                  onClick={e => { setAiMagicAnchor(e.currentTarget.getBoundingClientRect()); setShowAiMagic(o => !o); setAiMagicResult(null); }}
+                  style={{
+                    height: 34, padding: '0 10px', border: showAiMagic ? `1px solid #7C5CFC` : '1px solid transparent', borderRadius: 7,
+                    background: showAiMagic ? 'rgba(124,92,252,0.12)' : 'transparent',
+                    color: showAiMagic ? '#7C5CFC' : t.textMuted,
+                    fontSize: 12, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+                    transition: 'all 100ms', whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={e => { if (!showAiMagic) { e.currentTarget.style.background = 'rgba(124,92,252,0.08)'; e.currentTarget.style.color = '#7C5CFC'; } }}
+                  onMouseLeave={e => { if (!showAiMagic) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted; } }}
+                >
+                  <IpSparkle size={13} /> PostCore
+                </button>
+                {showAiMagic && aiMagicAnchor && createPortal(
+                  <div style={{
+                    position: 'fixed',
+                    top: aiMagicAnchor.bottom + 6,
+                    left: Math.min(aiMagicAnchor.left, window.innerWidth - 260),
+                    width: 248, zIndex: 9998,
+                    background: t.card, border: `1px solid ${t.border}`,
+                    borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.28)',
+                    overflow: 'hidden',
+                    animation: 'dropdownIn 150ms ease forwards',
+                  }}>
+                    {/* Header */}
+                    <div style={{ padding: '12px 14px 8px', borderBottom: `1px solid ${t.border}`, background: 'linear-gradient(135deg, rgba(124,92,252,0.15) 0%, rgba(0,196,204,0.08) 100%)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <IpSparkle size={14} color="#7C5CFC" />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>PostCore AI</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>Your AI design assistant</div>
+                    </div>
+                    {/* Actions */}
+                    <div style={{ padding: '6px 0' }}>
+                      {[
+                        {
+                          id: 'caption', icon: '📝', label: 'Write Caption',
+                          desc: 'Generate a social post caption from this design',
+                          show: true,
+                        },
+                        {
+                          id: 'improve', icon: '✨', label: 'Improve Text',
+                          desc: 'Make the selected text more engaging',
+                          show: !!(selectedEl?.type === 'text'),
+                        },
+                        {
+                          id: 'bg_remove', icon: '🪄', label: 'Remove Background',
+                          desc: 'AI-remove the background from selected image',
+                          show: !!(selectedEl?.type === 'image'),
+                        },
+                        {
+                          id: 'color', icon: '🎨', label: 'Suggest Colors',
+                          desc: 'AI-suggest colors that match your brand',
+                          show: true,
+                        },
+                      ].filter(a => a.show).map(action => (
+                        <button key={action.id}
+                          onClick={() => aiMagicAction(action.id)}
+                          disabled={!!aiMagicLoading}
+                          style={{ width: '100%', padding: '9px 14px', border: 'none', background: 'transparent', cursor: aiMagicLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'flex-start', gap: 10, textAlign: 'left', transition: 'background 80ms', opacity: aiMagicLoading && aiMagicLoading !== action.id ? 0.4 : 1 }}
+                          onMouseEnter={e => { if (!aiMagicLoading) e.currentTarget.style.background = t.input; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                          <span style={{ fontSize: 16, lineHeight: '20px', flexShrink: 0 }}>
+                            {aiMagicLoading === action.id ? <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite', fontSize: 14 }}>⟳</span> : action.icon}
+                          </span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{action.label}</div>
+                            <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>{action.desc}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    {/* Result / feedback */}
+                    {aiMagicResult && (
+                      <div style={{ borderTop: `1px solid ${t.border}`, padding: '10px 14px' }}>
+                        {aiMagicResult.type === 'color' && Array.isArray(aiMagicResult.content) ? (
+                          <div>
+                            <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Click to apply</div>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              {aiMagicResult.content.map(hex => (
+                                <button key={hex} onMouseDown={() => { if (selectedEl) handleElementChange({ ...selectedEl, fill: hex }); }}
+                                  title={hex}
+                                  style={{ width: 32, height: 32, borderRadius: 8, background: hex, border: `1.5px solid ${t.border}`, cursor: 'pointer', transition: 'transform 100ms' }}
+                                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                                  onMouseLeave={e => e.currentTarget.style.transform = ''} />
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: aiMagicResult.type === 'error' ? '#ef4444' : '#22c55e', lineHeight: 1.5 }}>
+                            {aiMagicResult.type === 'caption' ? (
+                              <>
+                                <div style={{ color: '#22c55e', fontWeight: 600, marginBottom: 3 }}>✓ Caption written to sidebar</div>
+                                <div style={{ color: t.textMuted, fontStyle: 'italic' }}>{aiMagicResult.content}</div>
+                              </>
+                            ) : aiMagicResult.content}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>,
+                  document.body
+                )}
+              </div>
               <D />
               {/* Effects — stub button (visual parity with Canva) */}
               <button
@@ -8395,6 +8679,49 @@ export default function TemplatesEditorInner() {
               </>}
               {selectedEl.type === 'qrcode' && <>
                 <D />
+                {/* URL / Phone toggle */}
+                {[['URL','url'],['Phone','phone']].map(([lbl, qt]) => (
+                  <button key={qt} onClick={() => { pushHistory(); updateElement({...selectedEl, qrType: qt, qrUrl: qt==='url' ? (selectedEl.qrUrl||brandProfile?.website||'') : '', qrPhone: qt==='phone' ? (selectedEl.qrPhone||brandProfile?.phone||'') : ''}); }}
+                    style={{ height:28, padding:'0 8px', borderRadius:6, border:`1px solid ${(selectedEl.qrType||'url')===qt?TEAL:t.border}`, background:(selectedEl.qrType||'url')===qt?'rgba(0,196,204,0.1)':'transparent', color:(selectedEl.qrType||'url')===qt?TEAL:t.text, fontSize:11, cursor:'pointer', flexShrink:0 }}>
+                    {lbl}
+                  </button>
+                ))}
+                <D />
+                {/* URL / Phone input */}
+                {(selectedEl.qrType || 'url') === 'url' ? (
+                  <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
+                    <input
+                      value={selectedEl.qrUrl || ''}
+                      onChange={e => updateElement({...selectedEl, qrUrl: e.target.value})}
+                      onBlur={() => pushHistory()}
+                      placeholder="https://yoursite.com"
+                      style={{ height:28, width:180, padding:'0 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:11, outline:'none' }}
+                    />
+                    {brandProfile?.website && (
+                      <button onClick={() => { pushHistory(); updateElement({...selectedEl, qrUrl: brandProfile.website}); }}
+                        style={{ height:28, padding:'0 7px', borderRadius:6, border:`1px solid ${t.border}`, background:'rgba(124,92,252,0.12)', color:'#7C5CFC', fontSize:10, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', fontWeight:600 }}>
+                        Website
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
+                    <input
+                      value={selectedEl.qrPhone || ''}
+                      onChange={e => updateElement({...selectedEl, qrPhone: e.target.value})}
+                      onBlur={() => pushHistory()}
+                      placeholder="+1 (555) 000-0000"
+                      style={{ height:28, width:140, padding:'0 8px', borderRadius:6, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:11, outline:'none' }}
+                    />
+                    {brandProfile?.phone && (
+                      <button onClick={() => { pushHistory(); updateElement({...selectedEl, qrPhone: brandProfile.phone}); }}
+                        style={{ height:28, padding:'0 7px', borderRadius:6, border:`1px solid ${t.border}`, background:'rgba(124,92,252,0.12)', color:'#7C5CFC', fontSize:10, cursor:'pointer', flexShrink:0, whiteSpace:'nowrap', fontWeight:600 }}>
+                        My Phone
+                      </button>
+                    )}
+                  </div>
+                )}
+                <D />
                 <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Dots</span>
                 <ColorPickerButton
                   value={selectedEl.fill || '#1a1a22'}
@@ -9453,17 +9780,30 @@ export default function TemplatesEditorInner() {
                 {/* ── Gradient section ── */}
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Gradient</div>
-                  {/* Preset swatches */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
-                    {GRADIENT_PRESETS.map(g => {
-                      const isActive = bgType === 'gradient' && bgGradient?.c1 === g.c1 && bgGradient?.c2 === g.c2;
-                      return (
-                        <button key={g.label} title={g.label}
-                          onClick={() => { pushHistory(); patchPage({ bgType: 'gradient', bgGradient: { c1: g.c1, c2: g.c2, angle: g.angle } }); }}
-                          style={{ height: 36, borderRadius: 8, border: `2px solid ${isActive ? t.primary : t.border}`, background: `linear-gradient(${g.angle}deg, ${g.c1}, ${g.c2})`, cursor: 'pointer', padding: 0, transition:'border-color 120ms ease' }} />
-                      );
-                    })}
-                  </div>
+                  {/* Preset swatches — linear group then radial group */}
+                  {['linear', 'radial'].map(gType => {
+                    const group = GRADIENT_PRESETS.filter(g => (g.type || 'linear') === gType);
+                    return (
+                      <div key={gType} style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: t.textMuted, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{gType}</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
+                          {group.map(g => {
+                            const isActive = bgType === 'gradient' && bgGradient?.c1 === g.c1 && bgGradient?.c2 === g.c2;
+                            const bgCss = gType === 'radial'
+                              ? `radial-gradient(circle, ${g.c1}, ${g.c2})`
+                              : `linear-gradient(${g.angle}deg, ${g.c1}, ${g.c2})`;
+                            return (
+                              <button key={g.label} title={g.label}
+                                onClick={() => { pushHistory(); patchPage({ bgType: 'gradient', bgGradient: { c1: g.c1, c2: g.c2, angle: g.angle, type: g.type || 'linear' } }); }}
+                                style={{ height: 32, borderRadius: 7, border: `2px solid ${isActive ? t.primary : 'transparent'}`, background: bgCss, cursor: 'pointer', padding: 0, transition: 'border-color 120ms ease', position: 'relative', overflow: 'hidden' }}>
+                                {isActive && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 700 }}>✓</div>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                   {/* Custom gradient editor */}
                   {bgType === 'gradient' && bgGradient && (
                     <div style={{ background: t.input, borderRadius: 9, padding: '10px 10px 8px' }}>
@@ -9892,6 +10232,38 @@ export default function TemplatesEditorInner() {
                         onChange={e => updateElement({ ...selectedEl, opacity: parseFloat(e.target.value) })}
                         onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
                       <span style={{ fontSize: 11, color: t.textMuted, width: 28, textAlign: 'right' }}>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
+                    </div>
+                    {/* Smart Placeholders */}
+                    <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${t.border}` }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6 }}>Smart Placeholders</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {[
+                          { token: '[BUSINESS_NAME]', preview: brandProfile?.business_name },
+                          { token: '[PHONE]', preview: brandProfile?.phone },
+                          { token: '[CITY]', preview: (brandProfile?.location || '').split(',')[0].trim() },
+                          { token: '[WEBSITE]', preview: brandProfile?.website },
+                          { token: '[TAGLINE]', preview: brandProfile?.tagline },
+                        ].map(({ token, preview }) => (
+                          <button key={token}
+                            onMouseDown={e => {
+                              e.preventDefault();
+                              pushHistory();
+                              const cur = selectedEl.text || '';
+                              handleElementChange({ ...selectedEl, text: cur + (cur && !cur.endsWith(' ') && !cur.endsWith('\n') ? ' ' : '') + token });
+                            }}
+                            title={preview ? `Will show: ${preview}` : token}
+                            style={{ padding: '3px 7px', borderRadius: 5, border: `1px solid ${t.border}`, background: t.input, color: t.primary, fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: 'monospace', transition: 'background 80ms' }}
+                            onMouseEnter={e => e.currentTarget.style.background = t.primaryBg}
+                            onMouseLeave={e => e.currentTarget.style.background = t.input}>
+                            {token.replace(/[\[\]]/g, '')}
+                          </button>
+                        ))}
+                      </div>
+                      {!brandProfile && (
+                        <div style={{ fontSize: 10, color: t.textMuted, marginTop: 6 }}>
+                          Open <span style={{ color: t.primary, cursor: 'pointer' }} onClick={() => { /* load brand */ }}>Brand panel</span> to enable auto-fill
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -11200,18 +11572,27 @@ export default function TemplatesEditorInner() {
                 )}
                 {!brandLoading && (() => {
                   const bc = brandProfile?.brand_colors || {};
-                  const brandPrimary   = bc.primary   || '#00C4CC';
-                  const brandSecondary = bc.secondary || '#7C5CFC';
-                  const brandAccent    = bc.accent    || '#1a1a2e';
+                  const brandPrimary    = bc.primary    || '#00C4CC';
+                  const brandSecondary  = bc.secondary  || '#7C5CFC';
+                  const brandAccent     = bc.accent     || '#1a1a2e';
+                  const brandBackground = bc.background || '#FFFFFF';
+                  const brandText       = bc.text       || '#1A1A2E';
+                  const brandExtra      = bc.extra      || '#F59E0B';
                   const swatches = [
                     { label: 'Primary',   hex: brandPrimary   },
                     { label: 'Secondary', hex: brandSecondary },
                     { label: 'Accent',    hex: brandAccent    },
+                    { label: 'BG',        hex: brandBackground },
+                    { label: 'Text',      hex: brandText      },
+                    { label: 'Extra',     hex: brandExtra     },
                   ];
+                  const bf = brandProfile?.brand_fonts || {};
+                  const headlineFont = bf.headline || 'Bebas Neue';
+                  const bodyFont     = bf.body     || 'Inter';
                   const brandFonts = [
-                    { role: 'Heading',    fontFamily: 'Bebas Neue', previewSize: 22, overrides: { fontSize: 64, fontFamily: 'Bebas Neue', fontStyle: 'normal', text: 'Service Announcement', letterSpacing: 2, fill: brandPrimary } },
-                    { role: 'Subheading', fontFamily: 'Montserrat', previewSize: 14, overrides: { fontSize: 36, fontFamily: 'Montserrat', fontStyle: 'bold',   text: 'Your Local Expert', fill: brandPrimary } },
-                    { role: 'Body',       fontFamily: 'Inter',      previewSize: 11, overrides: { fontSize: 20, fontFamily: 'Inter',       fontStyle: 'normal', text: 'Professional service you can trust', fill: brandPrimary } },
+                    { role: 'Heading',    fontFamily: headlineFont, previewSize: 22, overrides: { fontSize: 64, fontFamily: headlineFont, fontStyle: 'normal', text: 'Service Announcement', letterSpacing: 2, fill: brandPrimary } },
+                    { role: 'Subheading', fontFamily: headlineFont, previewSize: 14, overrides: { fontSize: 36, fontFamily: headlineFont, fontStyle: 'bold',   text: 'Your Local Expert',      fill: brandPrimary } },
+                    { role: 'Body',       fontFamily: bodyFont,     previewSize: 11, overrides: { fontSize: 20, fontFamily: bodyFont,     fontStyle: 'normal', text: 'Professional service you can trust', fill: brandPrimary } },
                   ];
                   return (
                     <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -11242,26 +11623,26 @@ export default function TemplatesEditorInner() {
                           <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>Brand Colors</div>
                           <button onClick={() => router.push('/settings')} style={{ background: 'none', border: 'none', color: t.primary, fontSize: 11, cursor: 'pointer', padding: 0, fontWeight: 600 }}>Edit</button>
                         </div>
-                        {/* Large swatches row */}
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                        {/* 3×2 swatch grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
                           {swatches.map(s => (
-                            <div key={s.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}
+                            <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
                               onMouseDown={e => { e.preventDefault(); if (selectedEl) handleElementChange({ ...selectedEl, fill: s.hex }); }}>
                               <div
                                 onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = `0 0 0 2px ${t.primaryBorder}`; }}
                                 onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
                                 title={`Apply ${s.label} (${s.hex})`}
-                                style={{ width: '100%', height: 48, borderRadius: 8, background: s.hex, border: `1.5px solid ${t.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.18)', cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s' }} />
-                              <div style={{ textAlign: 'center', lineHeight: 1.4 }}>
+                                style={{ width: '100%', height: 36, borderRadius: 7, background: s.hex, border: `1.5px solid ${t.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.18)', cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s' }} />
+                              <div style={{ textAlign: 'center', lineHeight: 1.3 }}>
                                 <div style={{ fontSize: 9, fontWeight: 600, color: t.textMuted }}>{s.label}</div>
-                                <div style={{ fontSize: 9, color: t.textMuted, fontFamily: 'monospace', opacity: 0.7 }}>{s.hex}</div>
+                                <div style={{ fontSize: 8, color: t.textMuted, fontFamily: 'monospace', opacity: 0.6 }}>{s.hex}</div>
                               </div>
                             </div>
                           ))}
                         </div>
-                        {/* Quick color chips: all brand colors */}
+                        {/* Quick color chips: all brand + neutral colors */}
                         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                          {[brandPrimary, brandSecondary, brandAccent, '#ffffff', '#000000', '#f1f5f9', '#0f172a'].map(hex => (
+                          {[brandPrimary, brandSecondary, brandAccent, brandBackground, brandText, brandExtra, '#ffffff', '#000000'].map(hex => (
                             <button key={hex}
                               onMouseDown={e => { e.preventDefault(); if (selectedEl) handleElementChange({ ...selectedEl, fill: hex }); }}
                               title={hex}
@@ -12154,6 +12535,18 @@ export default function TemplatesEditorInner() {
                                 locked={pageLockedIds.has(el.id)}
                                 hidden={pageHiddenIds.has(el.id)}
                               />
+                          : el.type === 'qrcode'
+                            ? <QrNode
+                                key={el.id}
+                                el={el}
+                                isSelected={isActive && (selectedId === el.id || selectedIds.includes(el.id))}
+                                onSelect={isActive ? handleSelect : () => {}}
+                                onChange={isActive ? handleElementChange : () => {}}
+                                onDragMove={isActive ? computeSnap : null}
+                                onSnapClear={isActive ? clearSnapGuides : null}
+                                locked={pageLockedIds.has(el.id)}
+                                hidden={pageHiddenIds.has(el.id)}
+                              />
                             : <ContentNode
                                 key={el.id}
                                 el={el}
@@ -12889,6 +13282,71 @@ export default function TemplatesEditorInner() {
                             onChange={e => handleElementChange({ ...selectedEl, borderWidth: +e.target.value || 1 })} onBlur={() => pushHistory()}
                             style={{ ...inp, width: 44, flexShrink: 0 }} />
                         </div>
+                      </>)}
+
+                      {/* ── QR CODE ── */}
+                      {selectedEl.type === 'qrcode' && (<>
+                        <SH>QR Content</SH>
+                        <div style={{ display:'flex', gap:4, marginBottom:6 }}>
+                          {[['URL','url'],['Phone','phone']].map(([lbl2, qt]) => (
+                            <button key={qt} onClick={() => { pushHistory(); updateElement({...selectedEl, qrType: qt, qrUrl: qt==='url'?(selectedEl.qrUrl||brandProfile?.website||''):'', qrPhone: qt==='phone'?(selectedEl.qrPhone||brandProfile?.phone||''):''}); }}
+                              style={{ flex:1, height:27, border:`1px solid ${(selectedEl.qrType||'url')===qt?TEAL:t.border}`, borderRadius:7, background:(selectedEl.qrType||'url')===qt?'rgba(0,196,204,0.12)':t.input, color:(selectedEl.qrType||'url')===qt?TEAL:t.text, fontSize:11, cursor:'pointer', fontWeight:500 }}>
+                              {lbl2}
+                            </button>
+                          ))}
+                        </div>
+                        {(selectedEl.qrType||'url') === 'url' ? (<>
+                          <label style={lbl}>URL</label>
+                          <input value={selectedEl.qrUrl||''} onChange={e => updateElement({...selectedEl, qrUrl:e.target.value})} onBlur={() => pushHistory()}
+                            placeholder="https://yourwebsite.com"
+                            style={{ ...inp, marginBottom:4 }} />
+                          {brandProfile?.website && (
+                            <button onClick={() => { pushHistory(); updateElement({...selectedEl, qrUrl: brandProfile.website}); }}
+                              style={{ width:'100%', height:27, borderRadius:7, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', marginBottom:6 }}>
+                              Fill from my website
+                            </button>
+                          )}
+                        </>) : (<>
+                          <label style={lbl}>Phone Number</label>
+                          <input value={selectedEl.qrPhone||''} onChange={e => updateElement({...selectedEl, qrPhone:e.target.value})} onBlur={() => pushHistory()}
+                            placeholder="+1 (555) 000-0000"
+                            style={{ ...inp, marginBottom:4 }} />
+                          {brandProfile?.phone && (
+                            <button onClick={() => { pushHistory(); updateElement({...selectedEl, qrPhone: brandProfile.phone}); }}
+                              style={{ width:'100%', height:27, borderRadius:7, border:`1px solid ${t.border}`, background:t.input, color:t.text, fontSize:11, cursor:'pointer', marginBottom:6 }}>
+                              Fill from my phone
+                            </button>
+                          )}
+                        </>)}
+                        <SH>Label</SH>
+                        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
+                          <input type="checkbox" checked={selectedEl.showQrLabel !== false} onChange={e => { pushHistory(); updateElement({...selectedEl, showQrLabel: e.target.checked}); }} style={{ cursor:'pointer' }} />
+                          <label style={{ ...lbl, marginBottom:0 }}>Show label</label>
+                        </div>
+                        {selectedEl.showQrLabel !== false && (
+                          <input value={selectedEl.qrLabel||''} onChange={e => updateElement({...selectedEl, qrLabel:e.target.value})} onBlur={() => pushHistory()}
+                            placeholder="Scan me"
+                            style={{ ...inp, marginBottom:6 }} />
+                        )}
+                        <SH>Colors</SH>
+                        <div style={{ display:'flex', gap:6, marginBottom:6 }}>
+                          <div>
+                            <label style={lbl}>Dots</label>
+                            <input type="color" value={selectedEl.fill||'#1a1a22'} onChange={e => updateElement({...selectedEl, fill:e.target.value})} onBlur={() => pushHistory()}
+                              style={{ width:'100%', height:26, borderRadius:5, border:`1px solid ${t.border}`, cursor:'pointer', padding:1 }} />
+                          </div>
+                          <div>
+                            <label style={lbl}>Background</label>
+                            <input type="color" value={selectedEl.qrBg||'#ffffff'} onChange={e => updateElement({...selectedEl, qrBg:e.target.value})} onBlur={() => pushHistory()}
+                              style={{ width:'100%', height:26, borderRadius:5, border:`1px solid ${t.border}`, cursor:'pointer', padding:1 }} />
+                          </div>
+                        </div>
+                        {[['Dark on White','#1a1a22','#ffffff'],['White on Dark','#ffffff','#1a1a22'],['Teal on Dark',TEAL,'#1a1a22'],['Purple on White','#7C5CFC','#ffffff']].map(([lbl3,fg,bg]) => (
+                          <button key={lbl3} onClick={() => { pushHistory(); updateElement({...selectedEl, fill:fg, qrBg:bg}); }}
+                            style={{ display:'block', width:'100%', height:26, marginBottom:4, padding:'0 8px', borderRadius:5, border:`1px solid ${t.border}`, background:bg, color:fg, fontSize:10, cursor:'pointer', fontWeight:600, textAlign:'left' }}>
+                            {lbl3}
+                          </button>
+                        ))}
                       </>)}
 
                       {/* ── IMAGE: ADJUST / FRAME ── */}
@@ -13910,55 +14368,141 @@ export default function TemplatesEditorInner() {
 
       {/* ── Post modal ── */}
       {postModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: t.card, borderRadius: 16, padding: 28, width: '100%', maxWidth: 460, border: `1px solid ${t.border}` }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 0 0 0' }}
+          onClick={e => { if (e.target === e.currentTarget) { setPostModalOpen(false); setPostSuccess(false); setPostError(''); } }}>
+          <div style={{
+            background: t.card, borderRadius: '20px 20px 0 0', padding: '0 0 32px', width: '100%', maxWidth: 560,
+            border: `1px solid ${t.border}`, borderBottom: 'none',
+            animation: 'slideUpModal 240ms cubic-bezier(0.16,1,0.3,1) both',
+            maxHeight: '92vh', overflowY: 'auto',
+          }}>
+            {/* Drag handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: t.border }} />
+            </div>
+
             {postSuccess ? (
-              <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 8 }}>Posted!</div>
-                <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Your template has been posted.</div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => { setPostModalOpen(false); setPostSuccess(false); router.push('/media?tab=templates'); }}
-                    style={{ flex: 1, padding: '10px 0', borderRadius: 8, background: t.primary, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                    View Templates
+              <div style={{ textAlign: 'center', padding: '32px 28px 0' }}>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#22c55e,#16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 28 }}>✓</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: t.text, marginBottom: 8 }}>
+                  {postScheduleMode === 'schedule' ? 'Scheduled!' : postScheduleMode === 'draft' ? 'Saved as Draft' : 'Posted!'}
+                </div>
+                <div style={{ fontSize: 14, color: t.textMuted, marginBottom: 28 }}>
+                  {postScheduleMode === 'schedule'
+                    ? `Your post is queued for ${new Date(postScheduleDate).toLocaleString()}`
+                    : postScheduleMode === 'draft'
+                    ? 'Find it in History → Drafts when you\'re ready to publish'
+                    : 'Your graphic is live on the selected platforms'}
+                </div>
+                <div style={{ display: 'flex', gap: 10, padding: '0 28px' }}>
+                  <button onClick={() => { setPostModalOpen(false); setPostSuccess(false); router.push('/history'); }}
+                    style={{ flex: 1, padding: '11px 0', borderRadius: 10, background: t.primary, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                    View Post
                   </button>
-                  <button onClick={() => { setPostModalOpen(false); setPostSuccess(false); }}
-                    style={{ flex: 1, padding: '10px 0', borderRadius: 8, background: t.input, color: t.text, border: `1px solid ${t.border}`, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                  <button onClick={() => { setPostModalOpen(false); setPostSuccess(false); setSavedCreationId(null); setPostCaption(''); setPostPlatforms(['instagram']); setPostScheduleMode('now'); setPostError(''); }}
+                    style={{ flex: 1, padding: '11px 0', borderRadius: 10, background: t.input, color: t.text, border: `1px solid ${t.border}`, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                     Keep Editing
                   </button>
                 </div>
               </div>
             ) : (
-              <>
+              <div style={{ padding: '8px 28px 0' }}>
+                {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                  <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, margin: 0 }}>Post Your Graphic</h3>
-                  <button onClick={() => setPostModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 20 }}>×</button>
+                  <h3 style={{ fontSize: 17, fontWeight: 700, color: t.text, margin: 0 }}>Post Your Graphic</h3>
+                  <button onClick={() => { setPostModalOpen(false); setPostError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 22, lineHeight: 1, padding: '2px 4px' }}>×</button>
                 </div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: t.text, display: 'block', marginBottom: 6 }}>Caption (optional)</label>
-                <textarea value={postCaption} onChange={e => setPostCaption(e.target.value)} rows={3} placeholder="Add a caption..."
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', marginBottom: 16 }} />
-                <label style={{ fontSize: 13, fontWeight: 600, color: t.text, display: 'block', marginBottom: 8 }}>Platforms</label>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-                  {['facebook', 'instagram', 'google_business'].map(p => {
-                    const active = postPlatforms.includes(p);
-                    return (
-                      <button key={p} onClick={() => setPostPlatforms(prev => active ? prev.filter(x => x !== p) : [...prev, p])}
-                        style={{ padding: '6px 14px', fontSize: 13, borderRadius: 6, border: `1px solid ${active ? t.primary : t.border}`, background: active ? t.primaryBg : 'transparent', color: active ? t.primary : t.textMuted, cursor: 'pointer', fontWeight: 500, textTransform: 'capitalize' }}>
-                        {p.replace('_', ' ')}
-                      </button>
-                    );
-                  })}
+
+                {/* Caption */}
+                <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 6, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Caption</label>
+                <textarea value={postCaption} onChange={e => setPostCaption(e.target.value)} rows={3}
+                  placeholder="Write a caption for this post…"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', marginBottom: 4, lineHeight: 1.6, fontFamily: 'inherit' }} />
+                <div style={{ fontSize: 11, color: t.textMuted, textAlign: 'right', marginBottom: 18 }}>{postCaption.length}/2200</div>
+
+                {/* Platforms */}
+                <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 8, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Platforms</label>
+                {connectedAccounts.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
+                    {connectedAccounts.map(acct => {
+                      const active = postPlatforms.includes(acct.platform);
+                      const platformColors = { facebook: '#1877F2', instagram: '#E1306C', google_business: '#4285F4', linkedin: '#0A66C2', tiktok: '#000' };
+                      const color = platformColors[acct.platform] || t.primary;
+                      return (
+                        <button key={acct.id} onClick={() => setPostPlatforms(prev => active ? prev.filter(x => x !== acct.platform) : [...prev, acct.platform])}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${active ? color : t.border}`, background: active ? `${color}14` : t.input, cursor: 'pointer', textAlign: 'left', transition: 'all 120ms' }}>
+                          {acct.profile_image_url
+                            ? <img src={acct.profile_image_url} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} alt="" />
+                            : <div style={{ width: 32, height: 32, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: 13, fontWeight: 700 }}>
+                                {(acct.account_name || acct.platform)[0].toUpperCase()}
+                              </div>
+                          }
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {acct.account_name || acct.account_username}
+                            </div>
+                            <div style={{ fontSize: 11, color: t.textMuted, textTransform: 'capitalize' }}>{acct.platform.replace('_', ' ')}</div>
+                          </div>
+                          <div style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${active ? color : t.border}`, background: active ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {active && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, padding: '14px 16px', marginBottom: 20 }}>
+                    <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 8 }}>No social accounts connected yet.</div>
+                    <button onClick={() => router.push('/settings?tab=social')}
+                      style={{ fontSize: 13, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}>
+                      Connect accounts in Settings →
+                    </button>
+                  </div>
+                )}
+
+                {/* Publish mode */}
+                <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 8, letterSpacing: '0.04em', textTransform: 'uppercase' }}>When to publish</label>
+                <div style={{ display: 'flex', gap: 6, marginBottom: postScheduleMode === 'schedule' ? 10 : 20 }}>
+                  {[
+                    { id: 'now', label: 'Post Now' },
+                    { id: 'schedule', label: 'Schedule' },
+                    { id: 'draft', label: 'Save as Draft' },
+                  ].map(m => (
+                    <button key={m.id} onClick={() => setPostScheduleMode(m.id)}
+                      style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: `1.5px solid ${postScheduleMode === m.id ? t.primary : t.border}`, background: postScheduleMode === m.id ? t.primaryBg : 'transparent', color: postScheduleMode === m.id ? t.primary : t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 120ms' }}>
+                      {m.label}
+                    </button>
+                  ))}
                 </div>
-                {postError && <div style={{ background: t.errorBg, color: t.error, padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16 }}>{postError}</div>}
+                {postScheduleMode === 'schedule' && (
+                  <input type="datetime-local" value={postScheduleDate} onChange={e => setPostScheduleDate(e.target.value)}
+                    min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 20 }} />
+                )}
+
+                {postError && (
+                  <div style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>
+                    {postError}
+                  </div>
+                )}
+
+                {/* Actions */}
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setPostModalOpen(false)}
-                    style={{ flex: 1, padding: '10px 0', borderRadius: 8, background: t.input, color: t.text, border: `1px solid ${t.border}`, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                  <button onClick={handlePost} disabled={posting || postPlatforms.length === 0}
-                    style={{ flex: 2, padding: '10px 0', borderRadius: 8, background: postPlatforms.length === 0 ? t.textDisabled : t.primary, color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: posting || postPlatforms.length === 0 ? 'not-allowed' : 'pointer' }}>
-                    {posting ? 'Posting...' : 'Post Now'}
+                  <button onClick={() => { setPostModalOpen(false); setPostError(''); }}
+                    style={{ flex: 1, padding: '12px 0', borderRadius: 10, background: t.input, color: t.text, border: `1px solid ${t.border}`, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={handlePost}
+                    disabled={posting || (postScheduleMode !== 'draft' && postPlatforms.length === 0) || (postScheduleMode === 'schedule' && !postScheduleDate)}
+                    style={{
+                      flex: 2, padding: '12px 0', borderRadius: 10,
+                      background: (posting || (postScheduleMode !== 'draft' && postPlatforms.length === 0)) ? t.textDisabled : 'linear-gradient(135deg,#7C5CFC,#5B3FF0)',
+                      color: '#fff', border: 'none', fontSize: 14, fontWeight: 700,
+                      cursor: (posting || (postScheduleMode !== 'draft' && postPlatforms.length === 0)) ? 'not-allowed' : 'pointer',
+                      transition: 'opacity 120ms',
+                    }}>
+                    {posting ? '⟳ Publishing…' : postScheduleMode === 'schedule' ? 'Schedule Post' : postScheduleMode === 'draft' ? 'Save Draft' : 'Post Now'}
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -14223,5 +14767,7 @@ export default function TemplatesEditorInner() {
 
     </div>
     </DocColorsCtx.Provider>
+    </BrandColorsCtx.Provider>
+    </BrandProfileCtx.Provider>
   );
 }
