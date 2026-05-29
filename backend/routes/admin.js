@@ -637,7 +637,7 @@ module.exports = (pool) => {
         pool.query(
           `SELECT p.id, p.customer_id, c.business_name, c.email,
                   LEFT(p.caption, 120) AS caption, p.platform, p.status,
-                  p.content_type, p.created_at, p.image_url
+                  p.content_type, p.created_at, p.media_url
            FROM posts p
            JOIN customers c ON c.id = p.customer_id
            ${where}

@@ -74,11 +74,11 @@ module.exports = (pool) => {
       )).rows[0]?.id;
 
       const postsRes = await pool.query(
-        `SELECT id, caption, image_url, platforms, performance_score, created_at
+        `SELECT id, caption, media_url, platforms, performance_score, created_at
          FROM posts
          WHERE customer_id = $1
            AND status = 'posted'
-           AND image_url IS NOT NULL
+           AND media_url IS NOT NULL
            AND caption IS NOT NULL
          ORDER BY COALESCE(performance_score, 0) DESC, created_at DESC
          LIMIT 3`,

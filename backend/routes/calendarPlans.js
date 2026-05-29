@@ -47,7 +47,7 @@ module.exports = function calendarPlansRoutes(pool) {
         `SELECT cp.*,
           p.status AS post_status,
           p.scheduled_date,
-          p.image_url
+          p.media_url
          FROM content_calendar_plans cp
          LEFT JOIN posts p ON p.id = cp.post_id
          WHERE cp.customer_id = $1
