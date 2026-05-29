@@ -15,7 +15,7 @@ class TestimonialMachine {
       // Find customers with auto-testimonial on, not suspended, not sub-accounts,
       // and either no prior auto-testimonial or last one > 14 days ago.
       const { rows: customers } = await client.query(`
-        SELECT c.id, c.business_name, c.industry, c.city, c.timezone,
+        SELECT c.id, c.business_name, c.industry, c.location, c.timezone,
                c.content_preferences
         FROM customers c
         WHERE c.suspended IS NOT TRUE
@@ -133,7 +133,7 @@ class TestimonialMachine {
         max_tokens: 350,
         messages: [{
           role: 'user',
-          content: `You are writing a social media post for ${customer.business_name} in ${customer.city || 'our area'} (${customer.industry || 'local services'}).
+          content: `You are writing a social media post for ${customer.business_name} in ${customer.location || 'our area'} (${customer.industry || 'local services'}).
 
 A happy customer named ${review.name} left this ${review.stars}-star review:
 "${review.text.substring(0, 400)}"
