@@ -203,7 +203,7 @@ module.exports = (pool) => {
         await client.query('UPDATE customers SET credits_balance = $1, updated_at = NOW() WHERE id = $2', [newBalance, billingId]);
         await client.query(
           `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
-           VALUES ($1, 'deduction', 1, $2, 'API generate — text caption')`,
+           VALUES ($1, 'debit', 1, $2, 'API generate — text caption')`,
           [billingId, newBalance]
         );
 
