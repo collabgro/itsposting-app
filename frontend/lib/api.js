@@ -238,6 +238,10 @@ export const adminAPI = {
   updateLLMExperiment: (id, data) => api.patch(`/api/admin/llm/experiments/${id}`, data),
   getLLMCuratedExamples: (params) => api.get('/api/admin/llm/curated', { params }),
   addLLMCuratedExample: (data) => api.post('/api/admin/llm/curated', data),
+  // Referral management
+  listReferrals: (params) => api.get('/api/admin/referrals', { params }),
+  releaseReferral: (id) => api.post(`/api/admin/referrals/${id}/release`),
+  rejectReferral: (id, reason) => api.post(`/api/admin/referrals/${id}/reject`, { reason }),
 };
 
 export const analyticsAPI = {

@@ -596,6 +596,20 @@ console.log('══════════════════════�
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS referral_code VARCHAR(20) UNIQUE`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS referred_by VARCHAR(20)`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS referral_credits_earned INTEGER DEFAULT 0`,
+    `CREATE TABLE IF NOT EXISTS referral_awards (
+      id SERIAL PRIMARY KEY,
+      referrer_customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      referred_customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      referral_code VARCHAR(20) NOT NULL,
+      credits INTEGER NOT NULL DEFAULT 20,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      released_at TIMESTAMP,
+      released_by_admin_id INTEGER,
+      rejection_reason TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_referral_awards_referrer ON referral_awards(referrer_customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_referral_awards_status ON referral_awards(status)`,
 
     // Phase 2.9 — Smart scheduling (optimal times stored per customer)
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS optimal_posting_times JSONB DEFAULT NULL`,

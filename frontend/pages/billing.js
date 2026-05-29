@@ -398,19 +398,25 @@ export default function Billing() {
                 </div>
 
                 {/* Stats */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
                   {[
-                    { label: 'Total referrals',    value: referralData.total_referrals,    icon: IpTrendingUp },
-                    { label: 'Upgraded to paid',   value: referralData.upgraded_referrals, icon: IpArrowUpRight },
-                    { label: 'Credits earned',     value: referralData.credits_earned,     icon: IpCredits },
+                    { label: 'Total referrals',    value: referralData.total_referrals,    icon: IpTrendingUp,    color: t.primary },
+                    { label: 'Upgraded to paid',   value: referralData.upgraded_referrals, icon: IpArrowUpRight,  color: '#10b981' },
+                    { label: 'Credits released',   value: referralData.credits_earned,     icon: IpCredits,       color: '#10b981' },
+                    { label: 'Credits pending',    value: referralData.credits_pending || 0, icon: IpCredits,     color: '#f59e0b' },
                   ].map(stat => (
                     <div key={stat.label} style={{ background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, padding: 20, textAlign: 'center' }}>
-                      <stat.icon size={20} style={{ color: t.primary, margin: '0 auto 10px', display: 'block' }} />
+                      <stat.icon size={20} style={{ color: stat.color, margin: '0 auto 10px', display: 'block' }} />
                       <div style={{ fontSize: 32, fontWeight: 800, color: t.text, fontFamily: 'monospace', letterSpacing: '-0.04em' }}>{stat.value}</div>
                       <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 600, marginTop: 4 }}>{stat.label}</div>
                     </div>
                   ))}
                 </div>
+                {(referralData.credits_pending > 0) && (
+                  <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', fontSize: 12, color: '#f59e0b', marginBottom: 16 }}>
+                    <strong>{referralData.credits_pending} credits</strong> are pending admin review for {referralData.pending_count} referral{referralData.pending_count !== 1 ? 's' : ''}. Credits are released once an admin approves the award.
+                  </div>
+                )}
 
                 {/* How it works */}
                 <div style={{ background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, padding: 24 }}>

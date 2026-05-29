@@ -1272,5 +1272,193 @@ module.exports = (pool) => {
     }
   });
 
+  /* ─────────────────────────────────────────────────────────
+   * REFERRAL MANAGEMENT
+   * ───────────────────────────────────────────────────────── */
+
+  /**
+   * GET /api/admin/referrals
+   * List all referral awards with optional status filter.
+   */
+  router.get('/referrals', async (req, res) => {
+    try {
+      const { status, limit = 50, offset = 0 } = req.query;
+      const safeLimit  = Math.min(parseInt(limit) || 50, 200);
+      const safeOffset = Math.max(parseInt(offset) || 0, 0);
+
+      let where = 'WHERE 1=1';
+      const params = [];
+      let p = 0;
+
+      if (status && ['pending', 'released', 'rejected'].includes(status)) {
+        p++; where += ` AND ra.status = $${p}`; params.push(status);
+      }
+
+      params.push(safeLimit, safeOffset);
+
+      const rows = await pool.query(
+        `SELECT
+           ra.id, ra.status, ra.credits, ra.referral_code,
+           ra.created_at, ra.released_at, ra.rejection_reason,
+           -- referrer
+           c_ref.id   AS referrer_id,
+           c_ref.business_name AS referrer_name,
+           c_ref.email AS referrer_email,
+           c_ref.plan  AS referrer_plan,
+           -- referred
+           c_new.id   AS referred_id,
+           c_new.business_name AS referred_name,
+           c_new.email AS referred_email,
+           c_new.plan  AS referred_plan,
+           c_new.created_at AS referred_joined_at,
+           -- releasing admin
+           c_adm.email AS released_by_email
+         FROM referral_awards ra
+         JOIN customers c_ref ON c_ref.id = ra.referrer_customer_id
+         JOIN customers c_new ON c_new.id = ra.referred_customer_id
+         LEFT JOIN customers c_adm ON c_adm.id = ra.released_by_admin_id
+         ${where}
+         ORDER BY ra.created_at DESC
+         LIMIT $${p + 1} OFFSET $${p + 2}`,
+        params
+      );
+
+      const countRes = await pool.query(
+        `SELECT COUNT(*) AS total FROM referral_awards ra ${where}`,
+        params.slice(0, p)
+      );
+
+      // Summary counts
+      const summaryRes = await pool.query(
+        `SELECT status, COUNT(*) AS count, SUM(credits) AS credits
+         FROM referral_awards GROUP BY status`
+      );
+      const summary = {};
+      for (const r of summaryRes.rows) {
+        summary[r.status] = { count: parseInt(r.count), credits: parseInt(r.credits) };
+      }
+
+      res.json({
+        awards: rows.rows,
+        total: parseInt(countRes.rows[0].total),
+        summary,
+      });
+    } catch (err) {
+      console.error('[Admin referrals] list error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/admin/referrals/:id/release
+   * Release a pending award — adds 20 credits to the referrer's account.
+   */
+  router.post('/referrals/:id/release', async (req, res) => {
+    const awardId = parseInt(req.params.id);
+    if (!awardId) return res.status(400).json({ error: 'Invalid award ID' });
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const awardRes = await client.query(
+        'SELECT * FROM referral_awards WHERE id = $1 FOR UPDATE',
+        [awardId]
+      );
+      if (!awardRes.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Award not found' });
+      }
+      const award = awardRes.rows[0];
+      if (award.status !== 'pending') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: `Award is already ${award.status}` });
+      }
+
+      // Credit the referrer
+      const balRes = await client.query(
+        'SELECT credits_balance FROM customers WHERE id = $1 FOR UPDATE',
+        [award.referrer_customer_id]
+      );
+      if (!balRes.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Referrer not found' });
+      }
+      const newBalance = (parseInt(balRes.rows[0].credits_balance) || 0) + award.credits;
+
+      await client.query(
+        `UPDATE customers
+         SET credits_balance = $1,
+             referral_credits_earned = COALESCE(referral_credits_earned, 0) + $2
+         WHERE id = $3`,
+        [newBalance, award.credits, award.referrer_customer_id]
+      );
+      await client.query(
+        `INSERT INTO credit_transactions
+           (customer_id, transaction_type, amount, balance_after, description)
+         VALUES ($1, 'referral_reward', $2, $3, $4)`,
+        [award.referrer_customer_id, award.credits, newBalance,
+          `Referral reward released by admin — referred customer upgraded to paid plan`]
+      );
+      await client.query(
+        `UPDATE referral_awards
+         SET status='released', released_at=NOW(), released_by_admin_id=$1
+         WHERE id=$2`,
+        [req.customerId, awardId]
+      );
+
+      await client.query('COMMIT');
+
+      await audit.log(req, 'referral_release', 'referral_awards', awardId,
+        { referrer_id: award.referrer_customer_id, credits: award.credits });
+
+      res.json({ success: true, credits_awarded: award.credits });
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      console.error('[Admin referrals] release error:', err.message);
+      res.status(500).json({ error: err.message });
+    } finally {
+      client.release();
+    }
+  });
+
+  /**
+   * POST /api/admin/referrals/:id/reject
+   * Reject a pending award (e.g. fraudulent referral).
+   */
+  router.post('/referrals/:id/reject', async (req, res) => {
+    const awardId = parseInt(req.params.id);
+    if (!awardId) return res.status(400).json({ error: 'Invalid award ID' });
+
+    const { reason } = req.body;
+
+    try {
+      const awardRes = await pool.query(
+        'SELECT * FROM referral_awards WHERE id = $1',
+        [awardId]
+      );
+      if (!awardRes.rows.length) return res.status(404).json({ error: 'Award not found' });
+      if (awardRes.rows[0].status !== 'pending') {
+        return res.status(409).json({ error: `Award is already ${awardRes.rows[0].status}` });
+      }
+
+      await pool.query(
+        `UPDATE referral_awards
+         SET status='rejected', rejection_reason=$1, released_by_admin_id=$2
+         WHERE id=$3`,
+        [reason || null, req.customerId, awardId]
+      );
+
+      await audit.log(req, 'referral_reject', 'referral_awards', awardId,
+        { reason: reason || null });
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error('[Admin referrals] reject error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };
+

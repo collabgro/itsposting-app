@@ -139,23 +139,40 @@ module.exports = (pool) => {
             await client.query('COMMIT');
             console.log(`[Whop] Activated ${tier} for customer ${customerId}`);
 
-            // Award referral credits if this customer was referred (non-fatal, non-blocking)
-            pool.query('SELECT referred_by FROM customers WHERE id = $1', [customerId]).then(async refRow => {
-              const referralCode = refRow.rows[0]?.referred_by;
-              if (!referralCode) return;
-              // Call internal award endpoint
-              const http = require('http');
-              const backendPort = process.env.PORT || 3001;
-              const secret = process.env.ADMIN_SECRET || process.env.CRON_SECRET || '';
-              const body = JSON.stringify({ referralCode, newCustomerId: customerId });
-              const req = http.request({ hostname: 'localhost', port: backendPort, path: '/api/referrals/award', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body), 'x-internal-secret': secret } }, (res) => {
-                res.resume();
-                if (res.statusCode !== 200) console.warn('[Referral] Award returned', res.statusCode);
-              });
-              req.on('error', e => console.warn('[Referral] Award request failed:', e.message));
-              req.write(body);
-              req.end();
-            }).catch(e => console.warn('[Referral] Could not check referral code:', e.message));
+            // Queue a pending referral award if this customer was referred via a paid plan upgrade
+            if (tier !== 'trial') {
+              pool.query(
+                'SELECT referred_by FROM customers WHERE id = $1',
+                [customerId]
+              ).then(async refRow => {
+                const referralCode = refRow.rows[0]?.referred_by;
+                if (!referralCode) return;
+
+                // Look up referrer
+                const referrerRes = await pool.query(
+                  'SELECT id FROM customers WHERE referral_code = $1',
+                  [referralCode]
+                );
+                if (!referrerRes.rows.length) return;
+                const referrerId = referrerRes.rows[0].id;
+
+                // Prevent duplicate pending/released awards for the same referred customer
+                const dupeCheck = await pool.query(
+                  `SELECT id FROM referral_awards
+                   WHERE referred_customer_id = $1 AND status IN ('pending','released')`,
+                  [customerId]
+                );
+                if (dupeCheck.rows.length > 0) return;
+
+                await pool.query(
+                  `INSERT INTO referral_awards
+                     (referrer_customer_id, referred_customer_id, referral_code, credits, status)
+                   VALUES ($1, $2, $3, 20, 'pending')`,
+                  [referrerId, customerId, referralCode]
+                );
+                console.log(`[Referral] Pending award queued: referrer=${referrerId} referred=${customerId}`);
+              }).catch(e => console.warn('[Referral] Could not queue award:', e.message));
+            }
 
             // Send payment confirmation email (non-fatal)
             try {

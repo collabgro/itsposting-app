@@ -190,6 +190,7 @@ export default function Layout({ children, title, subtitle, action }) {
         { name: 'Admin Portal',    href: '/admin',             icon: IpAdmin,     isAdmin: true },
         { name: 'Customers',       href: '/admin/customers',   icon: IpTeam,      isAdmin: true },
         { name: 'Post Moderation', href: '/admin/posts',       icon: IpDrafts,    isAdmin: true },
+        { name: 'Referrals',       href: '/admin/referrals',   icon: IpAnalytics, isAdmin: true },
         { name: 'Broadcast',       href: '/admin/broadcast',   icon: IpMail,      isAdmin: true },
         { name: 'Email Queue',     href: '/admin/email-queue', icon: IpMail,      isAdmin: true },
         { name: 'Audit Log',       href: '/admin/audit',       icon: IpAdmin,     isAdmin: true },
