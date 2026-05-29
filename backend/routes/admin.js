@@ -963,5 +963,314 @@ module.exports = (pool) => {
     }
   });
 
+  // ─── Canvas Templates — Admin Management ────────────────────────────────────
+
+  // GET /api/admin/canvas-templates
+  router.get('/canvas-templates', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { industry, category, show_inactive, search, page = 1, limit = 60 } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      const conditions = [];
+      const params = [];
+      if (show_inactive !== 'true') conditions.push('ct.is_active = true');
+      if (industry && industry !== 'all') { conditions.push(`ct.industry = $${params.length + 1}`); params.push(industry); }
+      if (category && category !== 'all') { conditions.push(`ct.category = $${params.length + 1}`); params.push(category); }
+      if (search) { conditions.push(`ct.name ILIKE $${params.length + 1}`); params.push(`%${search.slice(0, 100)}%`); }
+      const whereSQL = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+      const countParams = [...params];
+      params.push(parseInt(limit));
+      params.push(offset);
+      const [dataRes, countRes] = await Promise.all([
+        pool.query(`SELECT ct.id, ct.name, ct.industry, ct.category, ct.thumbnail_url,
+            ct.canvas_width, ct.canvas_height, ct.sort_order, ct.is_active, ct.created_at,
+            COUNT(sc.id)::int AS usage_count
+          FROM canvas_templates ct
+          LEFT JOIN studio_creations sc ON sc.template_id = ct.id
+          ${whereSQL}
+          GROUP BY ct.id
+          ORDER BY ct.sort_order ASC, ct.created_at DESC
+          LIMIT $${params.length - 1} OFFSET $${params.length}`, params),
+        pool.query(`SELECT COUNT(*) FROM canvas_templates ct ${whereSQL}`, countParams),
+      ]);
+      res.json({ templates: dataRes.rows, total: parseInt(countRes.rows[0].count) });
+    } catch (err) {
+      console.error('[Admin] GET /canvas-templates:', err.message);
+      res.status(500).json({ error: 'Failed to load canvas templates' });
+    }
+  });
+
+  // POST /api/admin/canvas-templates/bulk — bulk operations
+  router.post('/canvas-templates/bulk', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { ids, action, industry } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids required' });
+      const safeIds = ids.map(Number).filter(n => Number.isInteger(n) && n > 0);
+      if (safeIds.length === 0) return res.status(400).json({ error: 'No valid ids' });
+      const placeholders = safeIds.map((_, i) => `$${i + 1}`).join(',');
+      let updated = 0;
+      if (action === 'activate') {
+        const { rowCount } = await pool.query(`UPDATE canvas_templates SET is_active = true WHERE id IN (${placeholders})`, safeIds);
+        updated = rowCount;
+      } else if (action === 'deactivate') {
+        const { rowCount } = await pool.query(`UPDATE canvas_templates SET is_active = false WHERE id IN (${placeholders})`, safeIds);
+        updated = rowCount;
+      } else if (action === 'set_industry') {
+        if (!industry) return res.status(400).json({ error: 'industry required' });
+        const { rowCount } = await pool.query(
+          `UPDATE canvas_templates SET industry = $${safeIds.length + 1} WHERE id IN (${placeholders})`,
+          [...safeIds, industry]
+        );
+        updated = rowCount;
+      } else {
+        return res.status(400).json({ error: 'Unknown action' });
+      }
+      await audit.log(req.admin.id, req.admin.email, 'canvas_template_bulk', 'canvas_templates', null, { action, ids: safeIds, industry }, req);
+      res.json({ success: true, updated });
+    } catch (err) {
+      console.error('[Admin] POST /canvas-templates/bulk:', err.message);
+      res.status(500).json({ error: 'Bulk operation failed' });
+    }
+  });
+
+  // POST /api/admin/canvas-templates
+  router.post('/canvas-templates', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { name, industry = 'general', category = 'general', canvas_json, canvas_width = 1080, canvas_height = 1350, sort_order = 0 } = req.body;
+      if (!name) return res.status(400).json({ error: 'name is required' });
+      const { rows: [tmpl] } = await pool.query(
+        `INSERT INTO canvas_templates (name, industry, category, canvas_json, canvas_width, canvas_height, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [name, industry, category, canvas_json ? JSON.stringify(canvas_json) : '{}', canvas_width, canvas_height, sort_order]
+      );
+      await audit.log(req.admin.id, req.admin.email, 'canvas_template_create', 'canvas_templates', tmpl.id, { name, industry }, req);
+      res.status(201).json({ template: tmpl });
+    } catch (err) {
+      console.error('[Admin] POST /canvas-templates:', err.message);
+      res.status(500).json({ error: 'Failed to create canvas template' });
+    }
+  });
+
+  // PATCH /api/admin/canvas-templates/:id
+  router.patch('/canvas-templates/:id', authenticate, adminOnly, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, industry, category, sort_order, is_active } = req.body;
+      const sets = [];
+      const params = [];
+      if (name !== undefined) { sets.push(`name = $${params.length + 1}`); params.push(name.slice(0, 255)); }
+      if (industry !== undefined) { sets.push(`industry = $${params.length + 1}`); params.push(industry); }
+      if (category !== undefined) { sets.push(`category = $${params.length + 1}`); params.push(category); }
+      if (sort_order !== undefined) { sets.push(`sort_order = $${params.length + 1}`); params.push(parseInt(sort_order)); }
+      if (is_active !== undefined) { sets.push(`is_active = $${params.length + 1}`); params.push(Boolean(is_active)); }
+      if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+      params.push(id);
+      const { rows: [tmpl] } = await pool.query(
+        `UPDATE canvas_templates SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+        params
+      );
+      if (!tmpl) return res.status(404).json({ error: 'Template not found' });
+      await audit.log(req.admin.id, req.admin.email, 'canvas_template_update', 'canvas_templates', id, req.body, req);
+      res.json({ template: tmpl });
+    } catch (err) {
+      console.error('[Admin] PATCH /canvas-templates/:id:', err.message);
+      res.status(500).json({ error: 'Failed to update canvas template' });
+    }
+  });
+
+  // DELETE /api/admin/canvas-templates/:id (soft-delete)
+  router.delete('/canvas-templates/:id', authenticate, adminOnly, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { rowCount } = await pool.query(
+        'UPDATE canvas_templates SET is_active = false WHERE id = $1', [id]
+      );
+      if (!rowCount) return res.status(404).json({ error: 'Template not found' });
+      await audit.log(req.admin.id, req.admin.email, 'canvas_template_delete', 'canvas_templates', id, {}, req);
+      res.json({ success: true });
+    } catch (err) {
+      console.error('[Admin] DELETE /canvas-templates/:id:', err.message);
+      res.status(500).json({ error: 'Failed to delete template' });
+    }
+  });
+
+  // POST /api/admin/canvas-templates/:id/duplicate
+  router.post('/canvas-templates/:id/duplicate', authenticate, adminOnly, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { rows: [orig] } = await pool.query('SELECT * FROM canvas_templates WHERE id = $1', [id]);
+      if (!orig) return res.status(404).json({ error: 'Template not found' });
+      const { rows: [copy] } = await pool.query(
+        `INSERT INTO canvas_templates (name, industry, category, canvas_json, canvas_width, canvas_height, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [`${orig.name} (copy)`, orig.industry, orig.category, orig.canvas_json, orig.canvas_width, orig.canvas_height, orig.sort_order]
+      );
+      await audit.log(req.admin.id, req.admin.email, 'canvas_template_duplicate', 'canvas_templates', copy.id, { source_id: id }, req);
+      res.status(201).json({ template: copy });
+    } catch (err) {
+      console.error('[Admin] POST /canvas-templates/:id/duplicate:', err.message);
+      res.status(500).json({ error: 'Failed to duplicate template' });
+    }
+  });
+
+  // ─── PostCore Brain — LLM Management ────────────────────────────────────────
+
+  // GET /api/admin/llm/overview
+  router.get('/llm/overview', authenticate, adminOnly, async (req, res) => {
+    try {
+      const [countRes, modelRes, expRes, recentRes] = await Promise.all([
+        pool.query(`SELECT COUNT(*) AS total,
+          COUNT(CASE WHEN variation_selected IS NOT NULL THEN 1 END) AS with_selection,
+          COUNT(CASE WHEN post_reach IS NOT NULL THEN 1 END) AS with_reach,
+          ROUND(AVG(quality_score), 1) AS avg_quality
+          FROM post_training_data`).catch(() => ({ rows: [{ total: 0, with_selection: 0, with_reach: 0, avg_quality: null }] })),
+        pool.query(`SELECT * FROM llm_model_versions ORDER BY created_at DESC`).catch(() => ({ rows: [] })),
+        pool.query(`SELECT * FROM llm_ab_experiments ORDER BY started_at DESC LIMIT 5`).catch(() => ({ rows: [] })),
+        pool.query(`SELECT industry, COUNT(*) AS count FROM post_training_data
+          WHERE input_payload->>'industry' IS NOT NULL
+          GROUP BY industry ORDER BY count DESC`).catch(() => ({ rows: [] })),
+      ]);
+      const stats = countRes.rows[0];
+      const total = parseInt(stats.total) || 0;
+      const threshold = 10000;
+      res.json({
+        trainingExamples: total,
+        withSelection: parseInt(stats.with_selection) || 0,
+        withReach: parseInt(stats.with_reach) || 0,
+        avgQuality: stats.avg_quality ? parseFloat(stats.avg_quality) : null,
+        threshold,
+        progressPct: Math.min(100, Math.round((total / threshold) * 100)),
+        byIndustry: recentRes.rows,
+        models: modelRes.rows,
+        experiments: expRes.rows,
+        activeModel: modelRes.rows.find(m => m.status === 'production') || null,
+        claudeTrafficPct: 100 - (modelRes.rows.filter(m => m.status === 'production').reduce((s, m) => s + m.traffic_pct, 0)),
+      });
+    } catch (err) {
+      console.error('[Admin LLM] overview error:', err.message);
+      res.status(500).json({ error: 'Failed to load LLM overview' });
+    }
+  });
+
+  // GET /api/admin/llm/training-data
+  router.get('/llm/training-data', authenticate, adminOnly, async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(50, parseInt(req.query.limit) || 20);
+      const offset = (page - 1) * limit;
+      const industry = req.query.industry;
+      const whereClause = industry ? `WHERE input_payload->>'industry' = $3` : '';
+      const params = industry ? [limit, offset, industry] : [limit, offset];
+      const [dataRes, countRes] = await Promise.all([
+        pool.query(`SELECT id, input_payload->>'industry' AS industry,
+          input_payload->>'content_type' AS content_type,
+          variation_selected, was_edited, post_reach, post_engagement, quality_score,
+          model_used, created_at
+          FROM post_training_data ${whereClause}
+          ORDER BY created_at DESC LIMIT $1 OFFSET $2`, params),
+        pool.query(`SELECT COUNT(*) FROM post_training_data ${whereClause}`,
+          industry ? [industry] : []),
+      ]);
+      res.json({ examples: dataRes.rows, total: parseInt(countRes.rows[0].count), page, limit });
+    } catch (err) {
+      console.error('[Admin LLM] training-data error:', err.message);
+      res.status(500).json({ error: 'Failed to load training data' });
+    }
+  });
+
+  // GET /api/admin/llm/models
+  router.get('/llm/models', authenticate, adminOnly, async (req, res) => {
+    try {
+      const result = await pool.query(`SELECT * FROM llm_model_versions ORDER BY created_at DESC`).catch(() => ({ rows: [] }));
+      res.json({ models: result.rows });
+    } catch (err) {
+      console.error('[Admin LLM] models error:', err.message);
+      res.status(500).json({ error: 'Failed to load models' });
+    }
+  });
+
+  // GET /api/admin/llm/experiments
+  router.get('/llm/experiments', authenticate, adminOnly, async (req, res) => {
+    try {
+      const result = await pool.query(`SELECT e.*, m.version_name FROM llm_ab_experiments e
+        LEFT JOIN llm_model_versions m ON e.model_version_id = m.id
+        ORDER BY e.started_at DESC LIMIT 20`).catch(() => ({ rows: [] }));
+      res.json({ experiments: result.rows });
+    } catch (err) {
+      console.error('[Admin LLM] experiments error:', err.message);
+      res.status(500).json({ error: 'Failed to load experiments' });
+    }
+  });
+
+  // POST /api/admin/llm/experiments
+  router.post('/llm/experiments', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { modelVersionId, trafficPct, notes } = req.body;
+      const { rows: [exp] } = await pool.query(
+        `INSERT INTO llm_ab_experiments (model_version_id, traffic_pct, notes)
+         VALUES ($1, $2, $3) RETURNING *`,
+        [modelVersionId, trafficPct || 10, notes || null]
+      );
+      await audit.log(req.admin.id, req.admin.email, 'llm_experiment_create', 'llm_ab_experiments', exp.id, { trafficPct }, req);
+      res.json({ experiment: exp });
+    } catch (err) {
+      console.error('[Admin LLM] create experiment error:', err.message);
+      res.status(500).json({ error: 'Failed to create experiment' });
+    }
+  });
+
+  // PATCH /api/admin/llm/experiments/:id
+  router.patch('/llm/experiments/:id', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { result, notes, trafficPct } = req.body;
+      const { rows: [exp] } = await pool.query(
+        `UPDATE llm_ab_experiments SET
+          result = COALESCE($1, result),
+          notes = COALESCE($2, notes),
+          traffic_pct = COALESCE($3, traffic_pct),
+          ended_at = CASE WHEN $1 IN ('promoted','rolled_back') THEN NOW() ELSE ended_at END
+         WHERE id = $4 RETURNING *`,
+        [result || null, notes || null, trafficPct || null, req.params.id]
+      );
+      if (!exp) return res.status(404).json({ error: 'Experiment not found' });
+      await audit.log(req.admin.id, req.admin.email, 'llm_experiment_update', 'llm_ab_experiments', exp.id, { result }, req);
+      res.json({ experiment: exp });
+    } catch (err) {
+      console.error('[Admin LLM] update experiment error:', err.message);
+      res.status(500).json({ error: 'Failed to update experiment' });
+    }
+  });
+
+  // GET /api/admin/llm/curated
+  router.get('/llm/curated', authenticate, adminOnly, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM llm_curated_examples ORDER BY quality_score DESC, created_at DESC LIMIT 100`
+      ).catch(() => ({ rows: [] }));
+      res.json({ examples: result.rows });
+    } catch (err) {
+      console.error('[Admin LLM] curated error:', err.message);
+      res.status(500).json({ error: 'Failed to load curated examples' });
+    }
+  });
+
+  // POST /api/admin/llm/curated
+  router.post('/llm/curated', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { industry, contentType, inputPayload, idealOutput, qualityScore } = req.body;
+      if (!industry || !contentType || !inputPayload || !idealOutput || !qualityScore) {
+        return res.status(400).json({ error: 'All fields required' });
+      }
+      const { rows: [ex] } = await pool.query(
+        `INSERT INTO llm_curated_examples (industry, content_type, input_payload, ideal_output, quality_score, annotated_by)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [industry, contentType, inputPayload, idealOutput, qualityScore, req.admin.email]
+      );
+      res.json({ example: ex });
+    } catch (err) {
+      console.error('[Admin LLM] add curated error:', err.message);
+      res.status(500).json({ error: 'Failed to add curated example' });
+    }
+  });
+
   return router;
 };

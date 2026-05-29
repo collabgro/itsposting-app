@@ -66,6 +66,57 @@ module.exports = (pool) => {
     });
   });
 
+  // GET /api/social/health — per-account health metrics for the Settings dashboard
+  router.get('/health', authenticate, async (req, res) => {
+    try {
+      const accountsResult = await pool.query(
+        `SELECT id, platform, account_name, account_username, connected_at, token_expires_at
+         FROM social_accounts WHERE customer_id = $1`,
+        [req.customerId]
+      );
+
+      const health = await Promise.all(accountsResult.rows.map(async (acct) => {
+        // Posts in last 30 days on this platform
+        const postsRes = await pool.query(
+          `SELECT COUNT(*) AS post_count FROM posts
+           WHERE customer_id = $1 AND status = 'posted' AND posted_at >= NOW() - INTERVAL '30 days'
+           AND (platform = $2 OR (platforms::jsonb) ? $2)`,
+          [req.customerId, acct.platform]
+        ).catch(() => ({ rows: [{ post_count: 0 }] }));
+
+        // Avg reach from last 5 posts on this platform
+        const reachRes = await pool.query(
+          `SELECT COALESCE(AVG(COALESCE(
+            (engagement_by_platform::jsonb -> $2 ->> 'reach')::numeric,
+            (engagement_by_platform::jsonb -> $2 ->> 'impressions')::numeric,
+            reach, 0
+          )), 0) AS avg_reach
+           FROM (
+             SELECT engagement_by_platform, reach FROM posts
+             WHERE customer_id = $1 AND status = 'posted'
+             AND (platform = $2 OR (platforms::jsonb) ? $2)
+             ORDER BY posted_at DESC LIMIT 5
+           ) sub`,
+          [req.customerId, acct.platform]
+        ).catch(() => ({ rows: [{ avg_reach: 0 }] }));
+
+        return {
+          id: acct.id,
+          platform: acct.platform,
+          connectedAt: acct.connected_at,
+          tokenExpiresAt: acct.token_expires_at,
+          postsLast30d: parseInt(postsRes.rows[0]?.post_count || 0),
+          avgReachLast5: Math.round(parseFloat(reachRes.rows[0]?.avg_reach || 0)),
+        };
+      }));
+
+      res.json(health);
+    } catch (err) {
+      console.error('[Social] health error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Returns the OAuth authorization URL as JSON so the frontend can initiate
   // OAuth via axios (with JWT header) then navigate with window.location.href.
   router.get('/connect-url/:platform', authenticate, (req, res) => {
