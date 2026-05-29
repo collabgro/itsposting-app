@@ -268,12 +268,19 @@ Return ONLY valid JSON (no markdown fences):
         return res.status(500).json({ error: 'PostCore returned an unexpected response. Please try again.' });
       }
 
-      // Deduct 1 credit
-      await pool.query('UPDATE customers SET credits_balance = credits_balance - 1 WHERE id = $1', [billingId]);
+      // Deduct 1 credit — atomic to prevent race condition going negative
+      const deductRes = await pool.query(
+        'UPDATE customers SET credits_balance = credits_balance - 1 WHERE id = $1 AND credits_balance >= 1 RETURNING credits_balance',
+        [billingId]
+      );
+      if (!deductRes.rows.length) {
+        return res.status(402).json({ error: 'Insufficient credits. Please purchase more credits.' });
+      }
+      const newBalance = deductRes.rows[0].credits_balance;
       await pool.query(
         `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
          VALUES ($1, 'usage', -1, $2, 'Photo Studio — PostCore text formatting')`,
-        [billingId, (billing.credits_balance || 0) - 1]
+        [billingId, newBalance]
       );
 
       res.json({
