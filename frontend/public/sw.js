@@ -79,15 +79,17 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// Listen for push notifications (future use)
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   const data = event.data.json();
   event.waitUntil(
     self.registration.showNotification(data.title || 'ItsPosting', {
-      body: data.body || "PostCore has a new suggestion for you.",
+      body: data.body || 'PostCore has a new suggestion for you.',
       icon: '/icon-192.png',
       badge: '/icon-192.png',
+      vibrate: [100, 50, 100],
+      tag: data.tag || 'itsposting',
+      renotify: true,
       data: { url: data.url || '/dashboard' },
     })
   );

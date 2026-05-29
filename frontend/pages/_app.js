@@ -5,6 +5,7 @@ import { ThemeProvider, useTheme } from '../lib/theme';
 import { ToastProvider } from '../components/ui';
 import AppLoader from '../components/AppLoader';
 import { ItsPostingLogo } from '../components/ItsPostingLogo';
+import { notificationsAPI } from '../lib/api';
 
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -178,6 +179,13 @@ function InstallBanner() {
   );
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
 export default function App({ Component, pageProps }) {
   // AppLoader: show on initial app load only (not on client-side navigations)
   const [appReady, setAppReady] = useState(false);
@@ -197,6 +205,36 @@ export default function App({ Component, pageProps }) {
       window.addEventListener('load', onLoad);
       return () => window.removeEventListener('load', onLoad);
     }
+  }, []);
+
+  // Web push subscription — runs once after mount, only if logged in
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!localStorage.getItem('token')) return;
+
+    async function setupPush() {
+      try {
+        const { data } = await notificationsAPI.getPushPublicKey();
+        if (!data.publicKey) return; // VAPID not configured on server
+
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(data.publicKey),
+          });
+        }
+        await notificationsAPI.savePushSubscription(sub.toJSON());
+      } catch { /* silent — push is optional */ }
+    }
+
+    // Delay slightly so page loads don't compete with the permission prompt
+    const timer = setTimeout(setupPush, 3000);
+    return () => clearTimeout(timer);
   }, []);
 
   // Inject Inter (UI font) after hydration — avoids render-blocking resource warning

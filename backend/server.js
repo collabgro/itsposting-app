@@ -730,6 +730,16 @@ console.log('══════════════════════�
       annotated_by   VARCHAR(100),
       created_at     TIMESTAMP DEFAULT NOW()
     )`,
+    // Web Push Notifications — PWA native alerts
+    `CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id          SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      subscription JSONB NOT NULL,
+      endpoint    TEXT UNIQUE NOT NULL,
+      created_at  TIMESTAMP DEFAULT NOW(),
+      updated_at  TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_push_subs_customer ON push_subscriptions(customer_id)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }

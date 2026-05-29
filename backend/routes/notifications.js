@@ -1,5 +1,6 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
+const WebPushService = require('../services/WebPushService');
 
 module.exports = (pool) => {
   const router = express.Router();
@@ -55,6 +56,42 @@ module.exports = (pool) => {
         [req.params.id, req.customerId]
       );
       res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ── WEB PUSH SUBSCRIPTION ──
+
+  // GET /api/notifications/push/public-key — returns VAPID public key (or null if not configured)
+  router.get('/push/public-key', (req, res) => {
+    res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || null });
+  });
+
+  // POST /api/notifications/push/subscribe — save push subscription
+  router.post('/push/subscribe', async (req, res) => {
+    try {
+      const { subscription } = req.body;
+      if (!subscription || !subscription.endpoint) return res.status(400).json({ error: 'Invalid subscription object' });
+      const sub = JSON.stringify(subscription);
+      await pool.query(
+        `INSERT INTO push_subscriptions (customer_id, subscription, endpoint)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (endpoint) DO UPDATE SET customer_id = $1, subscription = $2, updated_at = NOW()`,
+        [req.customerId, sub, subscription.endpoint]
+      );
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // DELETE /api/notifications/push/subscribe — remove push subscription
+  router.delete('/push/subscribe', async (req, res) => {
+    try {
+      const { endpoint } = req.body || {};
+      if (endpoint) {
+        await pool.query('DELETE FROM push_subscriptions WHERE customer_id = $1 AND endpoint = $2', [req.customerId, endpoint]);
+      } else {
+        await pool.query('DELETE FROM push_subscriptions WHERE customer_id = $1', [req.customerId]);
+      }
+      res.json({ ok: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 

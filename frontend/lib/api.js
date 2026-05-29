@@ -337,6 +337,9 @@ export const notificationsAPI = {
   markRead: (id) => api.patch(`/api/notifications/${id}/read`),
   markAllRead: () => api.patch('/api/notifications/read-all'),
   delete: (id) => api.delete(`/api/notifications/${id}`),
+  getPushPublicKey: () => api.get('/api/notifications/push/public-key'),
+  savePushSubscription: (sub) => api.post('/api/notifications/push/subscribe', { subscription: sub }),
+  removePushSubscription: (endpoint) => api.delete('/api/notifications/push/subscribe', { data: { endpoint } }),
 };
 
 export const knowledgeAPI = {

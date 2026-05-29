@@ -10,6 +10,9 @@ const TYPES = {
   SYSTEM: 'system',
 };
 
+let webPush;
+try { webPush = require('./WebPushService'); } catch { webPush = null; }
+
 class NotificationService {
   constructor(pool) {
     this.pool = pool;
@@ -21,6 +24,16 @@ class NotificationService {
         `INSERT INTO notifications (customer_id, type, title, message) VALUES ($1, $2, $3, $4)`,
         [customerId, type, title, message]
       );
+      // Also send web push if configured
+      if (webPush && webPush.configured()) {
+        setImmediate(() => {
+          webPush.sendToCustomer(this.pool, customerId, {
+            title,
+            body: message,
+            url: '/dashboard',
+          }).catch(() => {});
+        });
+      }
     } catch (err) {
       console.error('[NotificationService] Failed to create notification:', err.message);
     }
