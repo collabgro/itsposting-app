@@ -991,7 +991,7 @@ module.exports = (pool) => {
       if (!reviewText) return res.status(400).json({ error: 'reviewText required' });
 
       const customerRes = await pool.query(
-        'SELECT business_name, industry, city FROM customers WHERE id=$1',
+        'SELECT business_name, industry, location FROM customers WHERE id=$1',
         [req.customerId]
       );
       const customer = customerRes.rows[0] || {};
@@ -1003,7 +1003,7 @@ module.exports = (pool) => {
         max_tokens: 400,
         messages: [{
           role: 'user',
-          content: `Turn this ${starRating || 5}-star Google review into a short, genuine social media post for ${customer.business_name || 'our business'} in ${customer.city || 'our area'}.
+          content: `Turn this ${starRating || 5}-star Google review into a short, genuine social media post for ${customer.business_name || 'our business'} in ${customer.location || 'our area'}.
 Review from ${reviewerName}: "${reviewText}"
 
 Rules:
@@ -1020,7 +1020,7 @@ Reply with ONLY the caption text, nothing else.`,
       });
 
       const caption = msg.content[0]?.text?.trim() || '';
-      const suggestedHashtags = ['5starreview', 'happycustomer', customer.industry || 'localservice', customer.city?.toLowerCase().replace(/\s+/g, '') || 'local'].filter(Boolean);
+      const suggestedHashtags = ['5starreview', 'happycustomer', customer.industry || 'localservice', customer.location?.toLowerCase().replace(/\s+/g, '') || 'local'].filter(Boolean);
 
       res.json({ caption, suggestedHashtags, stars });
     } catch (err) {
@@ -1037,7 +1037,7 @@ Reply with ONLY the caption text, nothing else.`,
       if (!reviewText && !reviewerName) return res.status(400).json({ error: 'reviewText or reviewerName required' });
 
       const customerRes = await pool.query(
-        'SELECT business_name, industry, city FROM customers WHERE id=$1',
+        'SELECT business_name, industry, location FROM customers WHERE id=$1',
         [req.customerId]
       );
       const c = customerRes.rows[0] || {};
@@ -1051,7 +1051,7 @@ Reply with ONLY the caption text, nothing else.`,
         max_tokens: 600,
         messages: [{
           role: 'user',
-          content: `You are the owner of ${c.business_name || 'a local service business'} in ${c.city || 'our area'}.
+          content: `You are the owner of ${c.business_name || 'a local service business'} in ${c.location || 'our area'}.
 A customer named ${reviewerName || 'a customer'} left a ${stars}-star Google Business review:
 "${(reviewText || '').substring(0, 400)}"
 

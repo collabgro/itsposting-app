@@ -171,7 +171,7 @@ module.exports = function calendarPlansRoutes(pool) {
       const { month, year, startDate, endDate, postsPerWeek = 3 } = req.body;
 
       const customerResult = await pool.query(
-        'SELECT business_name, industry, city, state, tone FROM customers WHERE id = $1',
+        'SELECT business_name, industry, location, tone FROM customers WHERE id = $1',
         [req.customerId]
       );
       if (!customerResult.rows.length) return res.status(404).json({ error: 'Customer not found' });
@@ -209,7 +209,7 @@ module.exports = function calendarPlansRoutes(pool) {
 
 Customer: ${customer.business_name}
 Industry: ${customer.industry}
-Location: ${customer.city || ''}, ${customer.state || ''}
+Location: ${customer.location || ''}
 Planning period: ${startStr} to ${endStr} (${daysDiff} days)
 Seasonal focus: ${seasonal.urgencyTopic || 'general service promotion'}
 Seasonal tip: ${seasonal.tipTopic || 'maintenance tips'}

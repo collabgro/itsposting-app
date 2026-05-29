@@ -60,7 +60,7 @@ module.exports = (pool) => {
       if (!HANDLE_RE.test(handle)) return res.status(404).json({ error: 'Not found' });
 
       const profileRes = await pool.query(
-        `SELECT business_name, industry, city, state, avatar_url, website_url, tagline, public_handle
+        `SELECT business_name, industry, location, avatar_url, website_url, tagline, public_handle
          FROM customers
          WHERE public_handle = $1 AND suspended = FALSE`,
         [handle]

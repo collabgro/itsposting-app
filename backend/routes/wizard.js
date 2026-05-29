@@ -1071,7 +1071,7 @@ module.exports = (pool) => {
                   platform:      answers.platform,
                   details:       answers.details || '',
                   businessName:  session.customer.business_name,
-                  city:          session.customer.city,
+                  location:      session.customer.location,
                   month:         new Date().getMonth() + 1,
                   wizardAnswers: answers,
                 }),
