@@ -179,7 +179,8 @@ export default function AdminCustomers() {
           <EmptyState icon={IpTeam} title="No customers found" subtitle="Try adjusting your search or filters" />
         ) : (
           <>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${t.border}` }}>
                   {SORT_COLS.map(({ key, label }) => (
@@ -272,6 +273,7 @@ export default function AdminCustomers() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             {/* PAGINATION */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: `1px solid ${t.border}` }}>

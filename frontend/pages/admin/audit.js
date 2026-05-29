@@ -194,7 +194,8 @@ export default function AuditLog() {
             <EmptyState icon={IpAdmin} title="No audit entries" subtitle="Try adjusting your filters" />
           ) : (
             <>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${t.border}` }}>
                     {['When', 'Admin', 'Action', 'Target', 'IP', 'Details'].map(h => (
@@ -248,6 +249,7 @@ export default function AuditLog() {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               {/* PAGINATION */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: `1px solid ${t.border}` }}>

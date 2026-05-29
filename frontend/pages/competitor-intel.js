@@ -147,7 +147,7 @@ function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyz
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 14 }}>
             {/* Strengths */}
             {analysis.strengths?.length > 0 && (
               <CardSection title="Their strengths" icon="🎯" t={t}>
