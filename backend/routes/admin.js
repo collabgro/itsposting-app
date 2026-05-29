@@ -1125,9 +1125,10 @@ module.exports = (pool) => {
           FROM post_training_data`).catch(() => ({ rows: [{ total: 0, with_selection: 0, with_reach: 0, avg_quality: null }] })),
         pool.query(`SELECT * FROM llm_model_versions ORDER BY created_at DESC`).catch(() => ({ rows: [] })),
         pool.query(`SELECT * FROM llm_ab_experiments ORDER BY started_at DESC LIMIT 5`).catch(() => ({ rows: [] })),
-        pool.query(`SELECT industry, COUNT(*) AS count FROM post_training_data
+        pool.query(`SELECT input_payload->>'industry' AS industry, COUNT(*) AS count
+          FROM post_training_data
           WHERE input_payload->>'industry' IS NOT NULL
-          GROUP BY industry ORDER BY count DESC`).catch(() => ({ rows: [] })),
+          GROUP BY input_payload->>'industry' ORDER BY count DESC`).catch(() => ({ rows: [] })),
       ]);
       const stats = countRes.rows[0];
       const total = parseInt(stats.total) || 0;

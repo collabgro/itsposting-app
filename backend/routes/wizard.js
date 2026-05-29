@@ -1053,6 +1053,55 @@ module.exports = (pool) => {
         }
       }
 
+      // ── Collect training data (fire-and-forget — never blocks the response) ──
+      if (savedPostId) {
+        setImmediate(async () => {
+          try {
+            await pool.query(
+              `INSERT INTO post_training_data
+                 (post_id, input_payload, output_payload, model_used, created_at)
+               VALUES ($1, $2, $3, 'claude-sonnet-4-6', NOW())
+               ON CONFLICT DO NOTHING`,
+              [
+                savedPostId,
+                JSON.stringify({
+                  industry:      session.customer.industry,
+                  contentType:   answers.contentTypeSelection,
+                  tone:          answers.tone,
+                  platform:      answers.platform,
+                  details:       answers.details || '',
+                  businessName:  session.customer.business_name,
+                  city:          session.customer.city,
+                  month:         new Date().getMonth() + 1,
+                  wizardAnswers: answers,
+                }),
+                JSON.stringify({
+                  variation_a: {
+                    caption:            transformedVariations.A?.caption || '',
+                    engagementQuestion: transformedVariations.A?.engagementQuestion || '',
+                    hashtags:           parsed.variation_a?.hashtags || [],
+                    imagePrompt:        parsed.variation_a?.imagePrompt || '',
+                  },
+                  variation_b: {
+                    caption:            transformedVariations.B?.caption || '',
+                    engagementQuestion: transformedVariations.B?.engagementQuestion || '',
+                    hashtags:           parsed.variation_b?.hashtags || [],
+                  },
+                  variation_c: {
+                    caption:            transformedVariations.C?.caption || '',
+                    engagementQuestion: transformedVariations.C?.engagementQuestion || '',
+                    hashtags:           parsed.variation_c?.hashtags || [],
+                  },
+                  mediaUrl: mediaUrl || null,
+                }),
+              ]
+            );
+          } catch (tdErr) {
+            console.warn('[Wizard] Training data insert failed:', tdErr.message);
+          }
+        });
+      }
+
       let videoJobId = null;
       let videoError = null;
 

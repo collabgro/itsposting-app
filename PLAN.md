@@ -491,16 +491,16 @@ Primary CTA: linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%) + 0 
 - [x] 6.4 In-app activation checklist
 
 ### Phase 7: Brand
-- [ ] 7.1 New premium logo
+- [x] 7.1 New premium logo — 4-pointed spark mark (✦), deep purple gradient (#3B0D75→#6D28D9→#7C5CFC→#A78BFA), radial inner glow, top-edge gloss, gradient shimmer wordmark; 4 variants (full/icon/wordmark-only/monochrome)
 - [x] 7.2 Branded loading experience (LoadingScreen.js)
 - [x] 7.3 PostCore mascot extensions — viral mood (pc-pulse-zoom + gold glow), first_encouragement mood (new users), seasonal SVG accessories (Dec santa hat, Jan/Feb beanie, spring flowers, summer sunglasses, Oct witch hat), post-count milestone detection (10/25/50 posts/month)
 
 ### Phase 8: Own LLM
-- [ ] 8.1 Training data collection pipeline
-- [ ] 8.2 Fine-tuning infrastructure setup
-- [ ] 8.3 A/B test fine-tuned model vs Claude
-- [ ] 8.4 Progressive handoff (fine-tuned handles more, Claude handles edge cases)
-- [ ] 8.5 Admin LLM management panel (frontend/pages/admin/llm.js)
+- [x] 8.1 Training data collection pipeline — wizard.js inserts into post_training_data (non-blocking setImmediate) on every generation; byIndustry query fixed to use input_payload->>'industry'
+- [ ] 8.2 Fine-tuning infrastructure setup (RunPod A100, Llama 3.1 8B + LoRA — requires 10k examples first)
+- [ ] 8.3 A/B test fine-tuned model vs Claude (requires trained model from 8.2)
+- [ ] 8.4 Progressive handoff — traffic routing by llm_ab_experiments.traffic_pct (requires trained model)
+- [x] 8.5 Admin LLM management panel (frontend/pages/admin/llm.js) — 6 tabs: Overview, Training Data, Models, A/B Testing, Quality Monitor, Curated Examples
 
 ---
 
