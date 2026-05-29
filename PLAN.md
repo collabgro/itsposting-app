@@ -272,11 +272,12 @@ Layout.js: "Approvals" nav item with pending count badge.
 
 ## PHASE 5: TECHNICAL EXCELLENCE (P1/P2)
 
-### 5.1 Performance — Lighthouse 90+
-- loading="lazy" on all below-fold <img> tags
-- Preload critical fonts
-- Bundle analysis: ANALYZE=true next build
-- Cache-Control: max-age=3600 for static API responses (plans, industry list)
+### 5.1 Performance — Lighthouse 90+ [PARTIAL]
+- [x] loading="lazy" on all post images in history.js (list + grid view)
+- [x] Cache-Control: private, max-age=3600 on GET /api/billing/plans
+- [ ] Preload critical fonts — already handled by Google Fonts rel=preconnect in _app.js
+- [ ] Bundle analysis: ANALYZE=true next build
+- [ ] Cache-Control on more static API responses (industry list, wizard steps)
 
 ### 5.2 Accessibility — WCAG 2.1 AA
 - aria-label on all icon-only buttons
@@ -314,9 +315,9 @@ AI_LIMIT (10/min), UPLOAD_LIMIT (30/min), AUTH_LIMIT (5/min), RESET_LIMIT (3/15m
 POST_LIMIT (30/hr), GEO_LIMIT (5/hr), BROADCAST_LIMIT (3/day), INVITE_LIMIT (10/hr).
 Applied in server.js: upload, geo/audit, customers/invite routes.
 
-### 5.7 Webhook Reliability
-Webhook event log table: webhook_events (id, source, event_type, payload, processed_at, status)
-Already returns 200 immediately; add event logging for audit trail and replay capability.
+### 5.7 Webhook Reliability [DONE]
+Webhook event log table: webhook_events (id, source, event_type, payload, processed_at, status, error_message)
+Table created in server.js migrations. Whop billing webhook logs every event (source, action, id) immediately after signature verification.
 
 ---
 

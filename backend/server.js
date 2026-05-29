@@ -627,6 +627,17 @@ console.log('══════════════════════�
     // Testimonial Machine: metadata column on posts + source index
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS metadata JSONB`,
     `CREATE INDEX IF NOT EXISTS idx_posts_source_testimonial ON posts(customer_id, source) WHERE source='auto_testimonial'`,
+    // Webhook event log for audit trail + replay
+    `CREATE TABLE IF NOT EXISTS webhook_events (
+      id SERIAL PRIMARY KEY,
+      source VARCHAR(50) NOT NULL,
+      event_type VARCHAR(100),
+      payload JSONB,
+      processed_at TIMESTAMP DEFAULT NOW(),
+      status VARCHAR(20) DEFAULT 'received',
+      error_message TEXT
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_webhook_events_source ON webhook_events(source, processed_at DESC)`,
     // Team Post Approval Workflow
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS approval_status VARCHAR(30)`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS approval_history JSONB DEFAULT '[]'::jsonb`,

@@ -56,6 +56,12 @@ module.exports = (pool) => {
         const { action, data } = payload;
         console.log(`[Whop] Event: ${action}`, data?.id);
 
+        // Log webhook event for audit trail
+        pool.query(
+          `INSERT INTO webhook_events (source, event_type, payload, status) VALUES ('whop', $1, $2::jsonb, 'processing')`,
+          [action, JSON.stringify({ id: data?.id, plan: data?.plan_id })]
+        ).catch(() => {});
+
         if (action === 'membership.activated' || action === 'payment.succeeded') {
           const whopPlanId = data?.plan_id || data?.product?.plan_id;
 
@@ -301,6 +307,7 @@ module.exports = (pool) => {
 
   // ── Existing endpoints ───────────────────────────────────────────────────────
   router.get('/plans', authenticate, async (req, res) => {
+    res.set('Cache-Control', 'private, max-age=3600');
     res.json(Object.values(PLANS));
   });
 

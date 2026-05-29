@@ -397,7 +397,7 @@ export default function History() {
                   {/* Image */}
                   <div style={{ aspectRatio: '1', background: t.input, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {post.media_url
-                      ? <img src={post.media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} />
+                      ? <img src={post.media_url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} />
                       : <TypeIcon size={32} style={{ color: typeColor, opacity: 0.4 }} />
                     }
                     {/* Selection circle */}
@@ -495,7 +495,7 @@ export default function History() {
                     position: 'relative',
                   }}>
                     {post.media_url
-                      ? <img src={post.media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} />
+                      ? <img src={post.media_url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} />
                       : <TypeIcon size={30} style={{ color: typeColor, opacity: 0.45 }} />
                     }
                     <div style={{
