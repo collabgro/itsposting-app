@@ -222,6 +222,7 @@ export const mediaAPI = {
 export const publicAPI = {
   getProfile: (handle) => api.get(`/api/public/${handle}`),
   setHandle: (handle) => api.patch('/api/public/handle', { handle }),
+  getShowcase: (params) => api.get('/api/public/showcase', { params }),
 };
 
 export const adminAPI = {

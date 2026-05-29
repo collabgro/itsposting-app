@@ -194,7 +194,7 @@ Every downloaded image has optional "Made with ItsPosting" watermark.
 - Backend: POST /api/wizard/download-image; awards 5 credits once per post via credit_transactions check
 - SSRF protection: only Cloudinary/GCS/NanoBanana/HeyGen CDN hosts allowed
 - ImageResizer.addWatermark() exported utility function
-- [ ] /showcase page: public gallery (backlog)
+- [x] /showcase page: public gallery — industry filter chips, business cards with post count, avatar, tagline; GET /api/public/showcase (paginated, cached); load-more pagination
 
 ### 3.3 Industry Leaderboard (Anonymous FOMO) [DONE]
 Analytics page addition:
