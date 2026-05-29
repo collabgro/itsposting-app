@@ -1,6 +1,8 @@
 const OpenAI = require('openai');
 const Anthropic = require('@anthropic-ai/sdk');
 const industryKnowledge = require('../data/industryKnowledge');
+let NotificationService;
+try { NotificationService = require('./NotificationService'); } catch { NotificationService = null; }
 
 const SERVICE_NAMES = {
   plumbing:           'plumber',
@@ -449,6 +451,19 @@ Include exactly 5 recommendations. queryGrid must include all ${questions.length
       );
 
       console.log(`[GeoAudit] Audit ${auditId} complete — score ${geoScore}/100, ${citationsFound}/${citations.length} citations`);
+
+      // Notify the customer that their AI Visibility report is ready
+      if (NotificationService) {
+        try {
+          const ns = new NotificationService(this.pool);
+          ns.create(customer.id, 'system',
+            'Your AI Visibility report is ready',
+            `Your business scored ${geoScore}/100 on AI search engines. View the full report to see where to improve.`
+          );
+        } catch (notifErr) {
+          console.error('[GeoAudit] Notification failed:', notifErr.message);
+        }
+      }
     } catch (err) {
       console.error('[GeoAudit] runAudit failed:', err.message);
       await this.pool.query(

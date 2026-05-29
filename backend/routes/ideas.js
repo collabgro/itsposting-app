@@ -101,6 +101,39 @@ Return only the JSON array.`;
   }));
 }
 
+// Exported for server.js daily cron — generates ideas for all paid customers who don't have any yet today
+async function generateForAll(pool) {
+  const { rows: customers } = await pool.query(
+    `SELECT c.id, c.business_name, c.industry, c.location, c.tone
+     FROM customers c
+     WHERE c.suspended = false
+       AND c.plan != 'trial'
+       AND c.parent_customer_id IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM post_ideas pi
+         WHERE pi.customer_id = c.id AND pi.generated_date = CURRENT_DATE
+       )
+     LIMIT 200`
+  );
+  let generated = 0;
+  for (const customer of customers) {
+    try {
+      const ideas = await generateIdeasForCustomer(customer);
+      await pool.query(
+        `INSERT INTO post_ideas (customer_id, ideas, generated_date)
+         VALUES ($1, $2, CURRENT_DATE)
+         ON CONFLICT (customer_id, generated_date) DO NOTHING`,
+        [customer.id, JSON.stringify(ideas)]
+      );
+      generated++;
+    } catch (e) {
+      console.error(`[Ideas/cron] Failed for customer ${customer.id}:`, e.message);
+    }
+  }
+  console.log(`[Ideas/cron] Generated ideas for ${generated}/${customers.length} customers`);
+  return { generated, total: customers.length };
+}
+
 module.exports = (pool) => {
   const router = express.Router();
 
@@ -270,3 +303,5 @@ module.exports = (pool) => {
 
   return router;
 };
+
+module.exports.generateForAll = generateForAll;

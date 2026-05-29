@@ -2,6 +2,8 @@
 
 const Anthropic = require('@anthropic-ai/sdk');
 const EmailQueue = require('./EmailQueue');
+let NotificationService;
+try { NotificationService = require('./NotificationService'); } catch { NotificationService = null; }
 
 class PostCoreAdvisor {
   constructor(pool) {
@@ -146,6 +148,19 @@ Return this exact JSON structure:
     this.emailQueue.notifyPostCoreBriefing(customer, briefingData).catch(err =>
       console.error('[PostCoreAdvisor] Failed to queue briefing email:', err.message)
     );
+
+    // Fire push + in-app notification for the briefing (non-blocking)
+    if (NotificationService) {
+      try {
+        const ns = new NotificationService(this.pool);
+        ns.create(customerId, 'system',
+          'Your weekly PostCore briefing is ready',
+          briefingData.weekSummary || 'PostCore has insights from last week and a plan for this week.'
+        );
+      } catch (err) {
+        console.error('[PostCoreAdvisor] Notification dispatch failed:', err.message);
+      }
+    }
 
     return result.rows[0];
   }

@@ -1,5 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const axios = require('axios');
+let NotificationService;
+try { NotificationService = require('./NotificationService'); } catch { NotificationService = null; }
 
 class TestimonialMachine {
   constructor(pool) {
@@ -109,6 +111,19 @@ class TestimonialMachine {
     );
 
     console.log(`[TestimonialMachine] Created auto-testimonial draft for customer ${customer.id}`);
+
+    // Notify user that a testimonial post draft is ready to review
+    if (NotificationService) {
+      try {
+        const ns = new NotificationService(client);
+        ns.create(customer.id, 'system',
+          'PostCore created a testimonial post for you',
+          `We turned a ${review.stars}-star review from ${review.name} into a draft post. Tap to review and publish it.`
+        );
+      } catch (notifErr) {
+        console.error('[TestimonialMachine] Notification failed:', notifErr.message);
+      }
+    }
   }
 
   async generateCaption(customer, review) {

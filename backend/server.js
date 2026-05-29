@@ -35,6 +35,7 @@ const externalRoutes = require('./routes/external');
 const gmbMessagesRoutes = require('./routes/gmb-messages');
 const templateRoutes = require('./routes/templates');
 const ideasRoutes = require('./routes/ideas');
+const { generateForAll: generateIdeasForAll } = ideasRoutes;
 const calendarPlansRoutes = require('./routes/calendarPlans');
 const referralsRoutes = require('./routes/referrals');
 const competitorRoutes = require('./routes/competitor');
@@ -2989,6 +2990,14 @@ cron.schedule('0 9 * * *', async () => {
   catch (e) { console.error('[Onboarding] Daily sequence error:', e.message); }
 });
 console.log('📧 Onboarding email sequence cron scheduled (daily 9am UTC)');
+
+// Post Ideas — daily pre-generation at 7am UTC so users see ideas instantly (no wait)
+cron.schedule('0 7 * * *', async () => {
+  console.log('[IdeasCron] Pre-generating daily post ideas for paid customers...');
+  try { await generateIdeasForAll(pool); }
+  catch (e) { console.error('[IdeasCron] Error:', e.message); }
+});
+console.log('💡 IdeasCron scheduled (daily 7am UTC — pre-generates ideas before users wake up)');
 
 // Testimonial Machine — runs every Monday and Thursday at 10am UTC
 const TestimonialMachine = require('./services/TestimonialMachine');

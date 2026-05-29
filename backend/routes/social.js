@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { authenticate } = require('../middleware/auth');
 const SocialPublisher = require('../services/SocialPublisher');
 const Anthropic = require('@anthropic-ai/sdk');
+const NotificationService = require('../services/NotificationService');
 
 // OAuth state — HMAC-signed so attackers can't forge customerId in the state parameter.
 function createOAuthState(customerId) {
@@ -901,11 +902,16 @@ module.exports = (pool) => {
       const succeeded = Object.keys(platformPostIds);
       const allFailed = succeeded.length === 0 && errors.length > 0;
 
+      const notifier = new NotificationService(pool);
+
       if (allFailed) {
         await pool.query(
           `UPDATE posts SET status = 'failed', error_message = $1, updated_at = NOW() WHERE id = $2`,
           [errors.map(e => `${e.platform}: ${e.message}`).join('; '), postId]
         );
+        // Notify the user their post failed
+        const failedPlatforms = errors.map(e => e.platform).join(', ');
+        setImmediate(() => notifier.postFailed(req.customerId, postId, failedPlatforms, errors[0]?.message));
         return res.status(502).json({ success: false, errors });
       }
 
@@ -914,6 +920,10 @@ module.exports = (pool) => {
           platform_post_ids = $1, updated_at = NOW() WHERE id = $2`,
         [JSON.stringify(platformPostIds), postId]
       );
+
+      // Notify the user their post was published
+      const publishedPlatforms = succeeded.join(', ');
+      setImmediate(() => notifier.postPublished(req.customerId, postId, publishedPlatforms));
 
       res.json({ success: true, posted: succeeded, errors, platformPostIds });
     } catch (error) {

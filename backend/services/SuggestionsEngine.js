@@ -2,6 +2,8 @@
 
 const Anthropic = require('@anthropic-ai/sdk');
 const industryKnowledge = require('../data/industryKnowledge');
+let NotificationService;
+try { NotificationService = require('./NotificationService'); } catch { NotificationService = null; }
 
 const CLAUDE_MODEL = 'claude-sonnet-4-6';
 
@@ -138,6 +140,16 @@ class SuggestionsEngine {
     }
 
     console.log(`[SuggestionsEngine] ${toProcess.length} suggestion(s) upserted for customer ${customerId}`);
+
+    // Fire one in-app + push notification per customer so they open the app
+    if (toProcess.length > 0 && NotificationService) {
+      try {
+        const ns = new NotificationService(this.pool);
+        ns.newSuggestion(customerId);
+      } catch (err) {
+        console.error('[SuggestionsEngine] Notification dispatch failed:', err.message);
+      }
+    }
   }
 
   async generateForAllCustomers() {
