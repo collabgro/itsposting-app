@@ -269,6 +269,7 @@ export default function Layout({ children, title, subtitle, action }) {
           )}
           {isMobile && (
             <button
+              aria-label="Close navigation menu"
               onClick={() => setMobileNavOpen(false)}
               style={{ width: 32, height: 32, borderRadius: 8, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', cursor: 'pointer' }}
             >
@@ -445,7 +446,7 @@ export default function Layout({ children, title, subtitle, action }) {
         )}
 
         {/* NAVIGATION */}
-        <nav style={{ flex: 1, padding: '4px 10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <nav aria-label="Main navigation" style={{ flex: 1, padding: '4px 10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ flex: 1 }}>
           {visibleNavItems.map((item) => {
             if (item.isDivider) {
@@ -668,17 +669,21 @@ export default function Layout({ children, title, subtitle, action }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {isMobile && (
-              <button onClick={() => setMobileNavOpen(true)} style={{ width: 36, height: 36, borderRadius: 8, background: t.card, border: `1px solid ${t.border}`, color: t.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <button
+                aria-label="Open navigation menu"
+                onClick={() => setMobileNavOpen(true)}
+                style={{ width: 36, height: 36, borderRadius: 8, background: t.card, border: `1px solid ${t.border}`, color: t.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
                 <IpMenu size={16} />
               </button>
             )}
             <NotificationBell />
             <button
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
               onClick={toggleTheme}
               style={{ width: 36, height: 36, borderRadius: 8, background: t.card, border: `1px solid ${t.border}`, color: t.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms ease', cursor: 'pointer' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = t.cardHover)}
               onMouseLeave={(e) => (e.currentTarget.style.background = t.card)}
-              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             >
               {theme === 'dark' ? <IpSun size={16} /> : <IpMoon size={16} />}
             </button>

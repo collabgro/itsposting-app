@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, forwardRef } from 'react';
 import { IpInbox } from './icons';
 import { useTheme } from '../lib/theme';
 
@@ -49,6 +49,7 @@ function ToastItem({ id, message, variant, onDismiss }) {
       <span style={{ flex: 1, fontSize: 13, color: t.text, fontWeight: 500, lineHeight: 1.5 }}>{message}</span>
       <button
         onClick={() => onDismiss(id)}
+        aria-label="Dismiss notification"
         style={{
           background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer',
           padding: '0 2px', fontSize: 16, lineHeight: 1, flexShrink: 0, marginTop: 1,
@@ -66,10 +67,15 @@ function ToastItem({ id, message, variant, onDismiss }) {
 function ToastContainer({ toasts, onDismiss }) {
   if (toasts.length === 0) return null;
   return (
-    <div style={{
-      position: 'fixed', top: 20, right: 20, zIndex: 9999,
-      display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none',
-    }}>
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="false"
+      style={{
+        position: 'fixed', top: 20, right: 20, zIndex: 9999,
+        display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none',
+      }}
+    >
       {toasts.map(toast => <ToastItem key={toast.id} {...toast} onDismiss={onDismiss} />)}
     </div>
   );
@@ -120,13 +126,18 @@ export function useToast() {
 
 export function ConfirmModal({ title, message, confirmLabel = 'Confirm', confirmVariant = 'danger', onConfirm, onCancel }) {
   const { t } = useTheme();
+  const cancelRef = useRef(null);
+
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onCancel(); if (e.key === 'Enter') onConfirm(); };
+    cancelRef.current?.focus();
+    const handler = (e) => { if (e.key === 'Escape') onCancel(); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onConfirm, onCancel]);
+  }, [onCancel]);
+
   return (
     <div
+      role="presentation"
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
         zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -136,6 +147,10 @@ export function ConfirmModal({ title, message, confirmLabel = 'Confirm', confirm
       onClick={onCancel}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-modal-title"
+        aria-describedby="confirm-modal-desc"
         style={{
           background: t.isDark ? 'rgba(12,12,20,0.95)' : 'rgba(255,255,255,0.97)',
           backdropFilter: 'blur(32px) saturate(200%)',
@@ -150,10 +165,10 @@ export function ConfirmModal({ title, message, confirmLabel = 'Confirm', confirm
         }}
         onClick={e => e.stopPropagation()}
       >
-        <h3 style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 8, letterSpacing: '-0.02em' }}>{title}</h3>
-        <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 28, lineHeight: 1.65 }}>{message}</p>
+        <h3 id="confirm-modal-title" style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 8, letterSpacing: '-0.02em' }}>{title}</h3>
+        <p id="confirm-modal-desc" style={{ fontSize: 13, color: t.textMuted, marginBottom: 28, lineHeight: 1.65 }}>{message}</p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+          <Button ref={cancelRef} variant="ghost" onClick={onCancel}>Cancel</Button>
           <Button variant={confirmVariant} onClick={() => { onConfirm(); onCancel(); }}>{confirmLabel}</Button>
         </div>
       </div>
@@ -235,9 +250,9 @@ export function Card({ children, padding = 24, style = {}, hoverable = false, on
 
 // ─── Button ───────────────────────────────────────────────────────────────────
 
-export function Button({
+export const Button = forwardRef(function Button({
   variant = 'primary', size = 'md', children, style = {}, disabled, loading, shimmer, ...rest
-}) {
+}, ref) {
   const { t } = useTheme();
   const sizes = {
     sm: { padding: '6px 14px', fontSize: 12, gap: 5 },
@@ -285,6 +300,7 @@ export function Button({
 
   return (
     <button
+      ref={ref}
       disabled={isDisabled}
       className={shimmer && variant === 'primary' && !isDisabled ? 'btn-shimmer' : undefined}
       style={{
@@ -342,7 +358,7 @@ export function Button({
       {children}
     </button>
   );
-}
+});
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 
@@ -590,12 +606,14 @@ export function EmptyState({ icon: Icon = IpInbox, title, subtitle, action }) {
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
 
-export function Spinner({ size = 40 }) {
+export function Spinner({ size = 40, label = 'Loading' }) {
   return (
-    <img
-      src="/icon-192.png" alt="" aria-hidden="true"
-      style={{ width: size, height: size, borderRadius: size * 0.22, animation: 'logo-pulse 1.2s ease-in-out infinite' }}
-    />
+    <span role="status" aria-label={label}>
+      <img
+        src="/icon-192.png" alt=""  aria-hidden="true"
+        style={{ width: size, height: size, borderRadius: size * 0.22, animation: 'logo-pulse 1.2s ease-in-out infinite', display: 'block' }}
+      />
+    </span>
   );
 }
 

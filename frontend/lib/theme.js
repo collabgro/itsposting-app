@@ -14,7 +14,7 @@ export const tokens = {
     input:         '#0C0C16',
     text:          '#F5F5F7',
     textSecondary: '#ABABAB',
-    textMuted:     '#6E6E73',
+    textMuted:     '#7A7A80',
     textDisabled:  '#48484A',
     primary:       '#7C5CFC',
     primaryHover:  '#9B7FFF',
