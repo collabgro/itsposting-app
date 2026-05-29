@@ -6,7 +6,7 @@ import {
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon, IpLogout,
   IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpSearch,
-  IpPhotoStudio, IpWarning, IpSchedule,
+  IpPhotoStudio, IpWarning, IpSchedule, IpUser,
 } from './icons';
 import { useTheme } from '../lib/theme';
 import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
@@ -64,6 +64,7 @@ const NAV_ITEMS = [
   { name: 'Knowledge Base', href: '/knowledge-base', icon: IpBusiness },
   { name: 'Workspaces',    href: '/workspaces',     icon: IpTeam,         isWorkspaceNav: true },
   { name: 'Billing',       href: '/billing',        icon: IpBilling },
+  { name: 'Profile',       href: '/profile',        icon: IpUser },
   { name: 'Settings',      href: '/settings',       icon: IpSettings },
 ];
 

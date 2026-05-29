@@ -40,7 +40,7 @@ module.exports = (pool) => {
                 auto_post_frequency, posting_times, timezone,
                 is_admin, role, suspended, posting_streak,
                 last_posted_at, total_posts_this_month, parent_customer_id,
-                free_geo_audit_used
+                free_geo_audit_used, avatar_url, tagline, created_at
          FROM customers WHERE id = $1`,
         [req.customerId]
       );
@@ -91,9 +91,11 @@ module.exports = (pool) => {
         logoUrl,
         faviconUrl,
         notificationPreferences,
+        avatarUrl,
+        tagline,
       } = req.body;
 
-      const MAX_LENGTHS = { businessName: 100, location: 200, phone: 30, website: 500, tone: 50, visualStyle: 100 };
+      const MAX_LENGTHS = { businessName: 100, location: 200, phone: 30, website: 500, tone: 50, visualStyle: 100, tagline: 200 };
       for (const [field, max] of Object.entries(MAX_LENGTHS)) {
         const val = req.body[field];
         if (val && String(val).length > max) {
@@ -123,6 +125,8 @@ module.exports = (pool) => {
           content_preferences = CASE WHEN $18::text IS NOT NULL
             THEN COALESCE(content_preferences, '{}'::jsonb) || jsonb_build_object('notifications', $18::jsonb)
             ELSE content_preferences END,
+          avatar_url = CASE WHEN $20::text IS NOT NULL THEN $20::text ELSE avatar_url END,
+          tagline = COALESCE($21, tagline),
           updated_at = NOW()
         WHERE id = $19
         RETURNING *`,
@@ -137,6 +141,8 @@ module.exports = (pool) => {
           faviconUrl !== undefined ? faviconUrl : null,
           notificationPreferences ? JSON.stringify(notificationPreferences) : null,
           req.customerId,
+          avatarUrl !== undefined ? avatarUrl : null,
+          tagline,
         ]
       );
 
