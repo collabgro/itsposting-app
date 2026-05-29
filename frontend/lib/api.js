@@ -64,6 +64,8 @@ export const customerAPI = {
   getHashtagSets: () => api.get('/api/customers/hashtag-sets'),
   updateHashtagSets: (sets) => api.patch('/api/customers/hashtag-sets', { sets }),
   updatePreferences: (prefs) => api.patch('/api/customers/preferences', prefs),
+  getWhiteLabel: () => api.get('/api/customers/white-label'),
+  updateWhiteLabel: (config) => api.patch('/api/customers/white-label', config),
 };
 
 export const socialAPI = {

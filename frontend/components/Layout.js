@@ -184,6 +184,9 @@ export default function Layout({ children, title, subtitle, action }) {
 
   const sidebarWidth = 240;
 
+  const wlConfig = user?.white_label_config || {};
+  const wlPrimary = wlConfig.primaryColor || t.primary;
+
   // Hide Workspaces nav item when operating inside a workspace (not the main account)
   const isInWorkspace = wsData?.mainAccount && wsData.mainAccount.id !== user?.id;
   const baseNavItems = NAV_ITEMS.filter(item => !(item.isWorkspaceNav && isInWorkspace));
@@ -251,7 +254,18 @@ export default function Layout({ children, title, subtitle, action }) {
           }}
         >
           {!isMobile && (
-            <ItsPostingLogo size="sm" variant="full" theme={t.isDark ? 'dark' : 'light'} />
+            wlConfig.logo ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden', flex: 1 }}>
+                <img src={wlConfig.logo} alt={wlConfig.agencyName || 'Logo'} style={{ height: 30, maxWidth: 150, objectFit: 'contain' }} />
+                {wlConfig.agencyName && (
+                  <span style={{ fontSize: 14, fontWeight: 700, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {wlConfig.agencyName}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <ItsPostingLogo size="sm" variant="full" theme={t.isDark ? 'dark' : 'light'} />
+            )
           )}
           {isMobile && (
             <button
@@ -626,6 +640,14 @@ export default function Layout({ children, title, subtitle, action }) {
           </div>
         )}
 
+        {/* Powered by ItsPosting — shown in white-label mode unless hidden */}
+        {wlConfig.logo && !wlConfig.hidePoweredBy && (
+          <div style={{ padding: '8px 16px', flexShrink: 0, borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}` }}>
+            <div style={{ fontSize: 10, color: t.textMuted, textAlign: 'center', opacity: 0.6 }}>
+              Powered by <span style={{ fontWeight: 700, color: t.textMuted }}>ItsPosting</span>
+            </div>
+          </div>
+        )}
 
       </aside>
 

@@ -664,6 +664,8 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_media_library_customer ON media_library(customer_id, uploaded_at DESC)`,
     // Credit transactions
     `CREATE INDEX IF NOT EXISTS idx_credit_transactions_customer ON credit_transactions(customer_id, created_at DESC)`,
+    // Phase 3.6 — Agency White-Label config
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS white_label_config JSONB DEFAULT NULL`,
     // Phase 9.1 Brand Kit — fonts stored per customer for editor auto-apply
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS brand_fonts JSONB DEFAULT '{}'`,
     // Phase 9.1 Brand Kit — extended brand colors (up to 6 named hex values)

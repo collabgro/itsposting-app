@@ -459,8 +459,8 @@ Primary CTA: linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%) + 0 
 ### Phase 3: Viral Growth
 - [x] 3.1 Referral program
 - [x] 3.2 Shareable posts + watermark option
-- [ ] 3.3 Industry leaderboard in analytics
-- [ ] 3.6 White-label for agencies
+- [x] 3.3 Industry leaderboard in analytics — GET /api/analytics/leaderboard; percentile badge, top performers, progress-to-next-tier bar, PostCore tips, CTA in analytics/index.js
+- [x] 3.6 White-label for agencies — white_label_config JSONB on customers; GET/PATCH /api/customers/white-label (agency plan only); Layout.js applies custom logo/name; settings.js White-Label section (upgrade prompt for non-agency); billing.js Agency plan card ($200/mo, email CTA)
 
 ### Phase 4: New Features
 - [x] 4.1 One-click video wizard (dedicated /video-wizard page, Talking-Head + Cinematic modes, polling)

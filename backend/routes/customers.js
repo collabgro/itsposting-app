@@ -40,7 +40,7 @@ module.exports = (pool) => {
                 auto_post_frequency, posting_times, timezone,
                 is_admin, role, suspended, posting_streak,
                 last_posted_at, total_posts_this_month, parent_customer_id,
-                free_geo_audit_used, avatar_url, tagline, created_at
+                free_geo_audit_used, avatar_url, tagline, white_label_config, created_at
          FROM customers WHERE id = $1`,
         [req.customerId]
       );
@@ -284,6 +284,55 @@ module.exports = (pool) => {
       );
       res.json(sanitised);
     } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── GET /api/customers/white-label ───────────────────────────────────────
+  router.get('/white-label', authenticate, async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT white_label_config, plan FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+      if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+      const { white_label_config, plan } = result.rows[0];
+      res.json({ config: white_label_config || {}, plan });
+    } catch (err) {
+      console.error('[white-label GET]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── PATCH /api/customers/white-label ─────────────────────────────────────
+  router.patch('/white-label', authenticate, async (req, res) => {
+    try {
+      const planRes = await pool.query(`SELECT plan FROM customers WHERE id = $1`, [req.customerId]);
+      if (!planRes.rows.length) return res.status(404).json({ error: 'Not found' });
+      if (planRes.rows[0].plan !== 'agency') {
+        return res.status(403).json({ error: 'White-label branding requires the Agency plan.' });
+      }
+
+      const { agencyName, logo, primaryColor, hidePoweredBy, customDomain } = req.body;
+
+      const config = {};
+      if (agencyName !== undefined)   config.agencyName   = String(agencyName || '').substring(0, 80);
+      if (logo !== undefined)         config.logo         = String(logo || '').substring(0, 500);
+      if (primaryColor !== undefined) config.primaryColor = /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : null;
+      if (hidePoweredBy !== undefined) config.hidePoweredBy = Boolean(hidePoweredBy);
+      if (customDomain !== undefined) config.customDomain = String(customDomain || '').substring(0, 200).toLowerCase().replace(/[^a-z0-9.-]/g, '');
+
+      const result = await pool.query(
+        `UPDATE customers
+            SET white_label_config = COALESCE(white_label_config, '{}'::jsonb) || $1::jsonb,
+                updated_at = NOW()
+          WHERE id = $2
+          RETURNING white_label_config`,
+        [JSON.stringify(config), req.customerId]
+      );
+      res.json({ config: result.rows[0].white_label_config });
+    } catch (err) {
+      console.error('[white-label PATCH]', err.message);
       res.status(500).json({ error: err.message });
     }
   });

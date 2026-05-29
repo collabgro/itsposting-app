@@ -460,6 +460,12 @@ export default function Settings() {
   const [groupForm, setGroupForm] = useState({ name: '', accountIds: [] });
   const [groupSaving, setGroupSaving] = useState(false);
 
+  // White-label (Agency plan)
+  const [wlConfig, setWlConfig] = useState({});
+  const [wlForm, setWlForm] = useState({ agencyName: '', logo: '', primaryColor: '', hidePoweredBy: false, customDomain: '' });
+  const [wlSaving, setWlSaving] = useState(false);
+  const [wlMsg, setWlMsg] = useState('');
+
   // Workspace context (invited members)
   const [workspaceUser, setWorkspaceUser] = useState(null);
 
@@ -657,6 +663,24 @@ export default function Settings() {
     loadSocialAccounts();
     loadApiKeys();
     loadHashtagSets();
+    loadWhiteLabel();
+  };
+
+  const loadWhiteLabel = async () => {
+    try {
+      const res = await customerAPI.getWhiteLabel();
+      const cfg = res.data?.config || {};
+      setWlConfig(cfg);
+      setWlForm({
+        agencyName:    cfg.agencyName    || '',
+        logo:          cfg.logo          || '',
+        primaryColor:  cfg.primaryColor  || '',
+        hidePoweredBy: cfg.hidePoweredBy || false,
+        customDomain:  cfg.customDomain  || '',
+      });
+    } catch {
+      // not agency plan — silently ignore
+    }
   };
 
   const loadHashtagSets = async () => {
@@ -733,6 +757,21 @@ export default function Settings() {
       // silently â€” non-critical
     } finally {
       setLoadingKeys(false);
+    }
+  };
+
+  const handleSaveWhiteLabel = async () => {
+    setWlSaving(true);
+    setWlMsg('');
+    try {
+      const res = await customerAPI.updateWhiteLabel(wlForm);
+      setWlConfig(res.data.config || {});
+      setWlMsg('saved');
+      setTimeout(() => setWlMsg(''), 3000);
+    } catch (err) {
+      setWlMsg(err.response?.data?.error || 'Failed to save');
+    } finally {
+      setWlSaving(false);
     }
   };
 
@@ -2130,6 +2169,151 @@ export default function Settings() {
             </div>
           );
         })()}
+
+        {/* ── WHITE-LABEL (AGENCY PLAN) ────────────────────────────────────── */}
+        {profile?.plan === 'agency' ? (
+          <div style={gc}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <IpPalette size={16} color={t.primary} />
+                  <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>White-Label Branding</span>
+                  <span style={{ padding: '2px 8px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 5, letterSpacing: '0.04em' }}>AGENCY</span>
+                </div>
+                <div style={{ fontSize: 13, color: t.textMuted }}>Replace ItsPosting branding with your agency's logo, name, and colors.</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Agency Name */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Agency Name</label>
+                <input
+                  type="text"
+                  value={wlForm.agencyName}
+                  onChange={e => setWlForm(f => ({ ...f, agencyName: e.target.value }))}
+                  placeholder="e.g. Apex Digital Agency"
+                  maxLength={80}
+                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                />
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Shown in the sidebar instead of "ItsPosting".</div>
+              </div>
+
+              {/* Logo URL */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Logo URL</label>
+                <input
+                  type="url"
+                  value={wlForm.logo}
+                  onChange={e => setWlForm(f => ({ ...f, logo: e.target.value }))}
+                  placeholder="https://your-cdn.com/logo.png"
+                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                />
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>PNG or SVG. Displayed at 30px height in the sidebar. Hosted on a public CDN.</div>
+                {wlForm.logo && (
+                  <div style={{ marginTop: 10, padding: '10px 14px', background: t.input, borderRadius: 8, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <img src={wlForm.logo} alt="Preview" style={{ height: 30, maxWidth: 140, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+                    <span style={{ fontSize: 11, color: t.textMuted }}>Preview</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Primary Color */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Primary Color</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <input
+                    type="color"
+                    value={wlForm.primaryColor || '#7C5CFC'}
+                    onChange={e => setWlForm(f => ({ ...f, primaryColor: e.target.value }))}
+                    style={{ width: 44, height: 44, padding: 2, borderRadius: 8, border: `1px solid ${t.border}`, background: 'transparent', cursor: 'pointer' }}
+                  />
+                  <input
+                    type="text"
+                    value={wlForm.primaryColor}
+                    onChange={e => setWlForm(f => ({ ...f, primaryColor: e.target.value }))}
+                    placeholder="#7C5CFC"
+                    maxLength={7}
+                    style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontFamily: 'monospace', outline: 'none' }}
+                  />
+                </div>
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Used for sidebar active state and accent elements. Must be a valid hex color (#RRGGBB).</div>
+              </div>
+
+              {/* Custom Domain */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Custom Domain <span style={{ padding: '1px 6px', background: t.input, color: t.textMuted, fontSize: 10, borderRadius: 4, marginLeft: 4, fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>DNS setup required</span>
+                </label>
+                <input
+                  type="text"
+                  value={wlForm.customDomain}
+                  onChange={e => setWlForm(f => ({ ...f, customDomain: e.target.value }))}
+                  placeholder="app.youragency.com"
+                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                />
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Point a CNAME record to <code style={{ background: t.input, padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace' }}>app.itsposting.com</code> then enter your domain here. Contact support to activate.</div>
+              </div>
+
+              {/* Hide Powered By */}
+              <div
+                onClick={() => setWlForm(f => ({ ...f, hidePoweredBy: !f.hidePoweredBy }))}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '13px 14px', borderRadius: 10, background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `1px solid ${wlForm.hidePoweredBy ? t.primaryBorder : (t.isDark ? 'rgba(255,255,255,0.05)' : t.border)}`, cursor: 'pointer', transition: 'border-color 150ms' }}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 2 }}>Hide "Powered by ItsPosting"</div>
+                  <div style={{ fontSize: 11, color: t.textMuted }}>Remove the ItsPosting attribution from your client-facing sidebar.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setWlForm(f => ({ ...f, hidePoweredBy: !f.hidePoweredBy })); }}
+                  style={{ width: 44, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', padding: 3, background: wlForm.hidePoweredBy ? '#34C759' : (t.isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db'), transition: 'background 150ms', display: 'flex', alignItems: 'center', justifyContent: wlForm.hidePoweredBy ? 'flex-end' : 'flex-start', flexShrink: 0 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }} />
+                </button>
+              </div>
+
+              {/* Save button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  onClick={handleSaveWhiteLabel}
+                  disabled={wlSaving}
+                  style={{ padding: '10px 24px', background: `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: wlSaving ? 'not-allowed' : 'pointer', opacity: wlSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 7 }}
+                >
+                  <IpSave size={14} />
+                  {wlSaving ? 'Saving...' : 'Save White-Label Settings'}
+                </button>
+                {wlMsg === 'saved' && (
+                  <span style={{ fontSize: 12, color: t.success, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                    <IpCheck size={13} /> Saved
+                  </span>
+                )}
+                {wlMsg && wlMsg !== 'saved' && (
+                  <span style={{ fontSize: 12, color: t.error }}>{wlMsg}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ ...gc, padding: 24, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <IpPalette size={16} color={t.textMuted} />
+                <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>White-Label Branding</span>
+                <span style={{ padding: '2px 8px', background: t.input, color: t.textMuted, fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid ${t.border}` }}>AGENCY PLAN</span>
+              </div>
+              <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>
+                Replace ItsPosting branding with your own logo, name, and colors — perfect for agencies managing clients.
+                Available on the Agency plan ($200/month, unlimited sub-accounts).
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/billing')}
+              style={{ padding: '10px 20px', background: `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              View Agency Plan
+            </button>
+          </div>
+        )}
 
 
       </div>
