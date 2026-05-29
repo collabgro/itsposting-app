@@ -17,12 +17,12 @@ export function triggerMilestone(milestone) {
 // ─── Mood definitions ────────────────────────────────────────────────────────
 const MOODS = {
   idle: {
-    bodyAnim: 'pc2-idle', armL: 'pc2-arm-idle-l', armR: 'pc2-arm-idle-r',
-    eyeRy: 5.5, squint: false,
-    browsL: 'M 27 22 Q 32 19 37 22', browsR: 'M 43 22 Q 48 19 53 22',
-    mouth: 'M 29 40 Q 40 46 51 40',
-    blush: false, sparkle: false,
-    glow: 'rgba(79,47,214,0.30)',
+    bodyAnim: 'pc2-bounce-gentle', armL: 'pc2-arm-wave-l', armR: 'pc2-arm-wave-r',
+    eyeRy: 5.8, squint: false,
+    browsL: 'M 27 20 Q 32 17 37 20', browsR: 'M 43 20 Q 48 17 53 20',
+    mouth: 'M 27 39 Q 40 50 53 39',
+    blush: true, sparkle: false,
+    glow: 'rgba(124,92,252,0.38)',
     msg: "What are we posting today?",
   },
   happy: {

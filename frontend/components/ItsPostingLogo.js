@@ -9,74 +9,22 @@ const SIZES = {
   '3xl': { box: 124, font: 64, gap: 26 },
 };
 
-const CORNER = 26;
-
-// Lightning bolt centered in 100×100 viewBox
-const BOLT = 'M 60,8 L 34,54 L 53,54 L 40,92 L 66,46 L 48,46 Z';
-
-function IconMark({ size, gradId, noShadow = false }) {
+function IconMark({ size, noShadow = false }) {
   return (
-    <svg
+    <img
+      src="/fav-icon.png"
+      alt="ItsPosting"
       width={size}
       height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
       style={{
         flexShrink: 0,
         display: 'block',
+        borderRadius: Math.round(size * 0.26),
         filter: noShadow
           ? undefined
-          : [
-              'drop-shadow(0 6px 22px rgba(168,85,247,0.62))',
-              'drop-shadow(0 2px 8px rgba(236,72,153,0.38))',
-              'drop-shadow(0 1px 2px rgba(0,0,0,0.30))',
-            ].join(' '),
+          : 'drop-shadow(0 6px 22px rgba(168,85,247,0.55)) drop-shadow(0 2px 8px rgba(236,72,153,0.32)) drop-shadow(0 1px 2px rgba(0,0,0,0.28))',
       }}
-    >
-      <defs>
-        {/* Purple → pink gradient, 135° diagonal */}
-        <linearGradient id={`${gradId}_face`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%"   stopColor="#A855F7" />
-          <stop offset="50%"  stopColor="#C026D3" />
-          <stop offset="100%" stopColor="#EC4899" />
-        </linearGradient>
-
-        {/* Inner ambient highlight */}
-        <radialGradient id={`${gradId}_glow`} cx="35%" cy="28%" r="60%">
-          <stop offset="0%"   stopColor="rgba(255,255,255,0.22)" />
-          <stop offset="100%" stopColor="rgba(168,85,247,0)" />
-        </radialGradient>
-
-        {/* Top-edge gloss */}
-        <linearGradient id={`${gradId}_shine`} x1="50%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%"   stopColor="rgba(255,255,255,0.18)" />
-          <stop offset="40%"  stopColor="rgba(255,255,255,0.03)" />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-        </linearGradient>
-
-        <clipPath id={`${gradId}_clip`}>
-          <rect x="0" y="0" width="100" height="100" rx={CORNER} ry={CORNER} />
-        </clipPath>
-      </defs>
-
-      {/* Base */}
-      <rect x="0" y="0" width="100" height="100" rx={CORNER} ry={CORNER}
-        fill={`url(#${gradId}_face)`} />
-
-      {/* Ambient glow */}
-      <rect x="0" y="0" width="100" height="100" rx={CORNER} ry={CORNER}
-        fill={`url(#${gradId}_glow)`} />
-
-      {/* Gloss highlight */}
-      <rect x="0" y="0" width="100" height="100" rx={CORNER} ry={CORNER}
-        fill={`url(#${gradId}_shine)`} />
-
-      {/* Lightning bolt */}
-      <g clipPath={`url(#${gradId}_clip)`}>
-        <path d={BOLT} fill="white" opacity="0.95" />
-      </g>
-    </svg>
+    />
   );
 }
 
@@ -92,7 +40,6 @@ export function ItsPostingLogo({
 }) {
   const dims  = SIZES[size] || SIZES.md;
   const { box, font, gap } = dims;
-  const gradId = `ipLogo_${size}_${variant}`;
 
   const wordmarkStyle = {
     fontWeight: 800,
@@ -114,7 +61,7 @@ export function ItsPostingLogo({
       : { color: '#111827' }),
   };
 
-  const iconEl = <IconMark size={box} gradId={gradId} noShadow={noShadow} />;
+  const iconEl = <IconMark size={box} noShadow={noShadow} />;
 
   if (variant === 'icon') return iconEl;
 
@@ -122,35 +69,7 @@ export function ItsPostingLogo({
     return <span style={wordmarkStyle}>ItsPosting</span>;
   }
 
-  if (variant === 'monochrome') {
-    const mc   = theme === 'light' ? '#111827' : '#FFFFFF';
-    const bolt = theme === 'light' ? '#FFFFFF'  : '#000000';
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap }}>
-        <svg
-          width={box} height={box}
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          style={{ flexShrink: 0, display: 'block' }}
-        >
-          <rect x="0" y="0" width="100" height="100" rx={CORNER} ry={CORNER} fill={mc} />
-          <path d={BOLT} fill={bolt} opacity="0.95" />
-        </svg>
-        <span style={{
-          ...wordmarkStyle,
-          background: undefined,
-          WebkitBackgroundClip: undefined,
-          WebkitTextFillColor: undefined,
-          backgroundClip: undefined,
-          color: theme === 'light' ? '#111827' : '#FFFFFF',
-        }}>
-          ItsPosting
-        </span>
-      </div>
-    );
-  }
-
+  // monochrome falls through to full — PNG already looks correct on all backgrounds
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap }}>
       {iconEl}
