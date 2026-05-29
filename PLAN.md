@@ -1391,7 +1391,7 @@ A shareable public page for each business — their social proof from ItsPosting
 ### Phase 10: Profile & Account
 - [x] 10.1 Profile page /profile — identity card, stats, connected platforms, PostCore prefs
 - [x] 10.2 Avatar upload — AvatarUploader component + /api/customers/upload-asset + avatar_url column
-- [ ] 10.3 Public business profile /p/[handle] (P3 — ship after Phase 11)
+- [x] 10.3 Public business profile /p/[handle] — backend/routes/public.js + pages/p/[handle].js + settings handle input; DB migration adds public_handle VARCHAR(50) UNIQUE
 ```
 
 ---
@@ -1589,7 +1589,7 @@ The new Content Calendar shows **plans** (ideas and briefs before generation).
 ### Phase 10: Profile & Account
 - [x] 10.1 Profile page /profile — identity card, stats, connected platforms, PostCore prefs
 - [x] 10.2 Avatar upload — crop + Cloudinary + sidebar display
-- [ ] 10.3 Public business profile /p/[handle] (P3)
+- [x] 10.3 Public business profile /p/[handle] (P3)
 
 ### Phase 11: Content Calendar
 - [x] 11.1 DB migration — content_calendar_plans table + indexes

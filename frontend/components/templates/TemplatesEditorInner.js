@@ -4254,6 +4254,12 @@ export default function TemplatesEditorInner() {
   const [presentInterval, setPresentInterval] = useState(3);
   const [showShortcutsOverlay, setShowShortcutsOverlay] = useState(false);
 
+  // Mobile
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const [mobilePropsOpen, setMobilePropsOpen] = useState(false);
+  const pinchRef = useRef({ active: false, startDist: 0, startZoom: 1 });
+
   // UI
   const [activeLeftTool, setActiveLeftTool] = useState('templates');
   const [panelOpen, setPanelOpen] = useState(true);
@@ -4340,12 +4346,14 @@ export default function TemplatesEditorInner() {
     } else {
       setSelectedIds([id]);
       setSelectedId(id);
+      if (isMobile) setMobilePropsOpen(true);
     }
   }
 
   function clearSelection() {
     setSelectedId(null);
     setSelectedIds([]);
+    setMobilePropsOpen(false);
   }
 
   // ── Tooltip helpers ───────────────────────────────────────────────────────
@@ -4970,6 +4978,41 @@ export default function TemplatesEditorInner() {
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
+
+  // ── Mobile detection ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  // ── Pinch-to-zoom (mobile touch) ────────────────────────────────────────
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const dist = (t1, t2) => Math.sqrt((t1.clientX - t2.clientX) ** 2 + (t1.clientY - t2.clientY) ** 2);
+    const onStart = (e) => {
+      if (e.touches.length === 2) {
+        pinchRef.current = { active: true, startDist: dist(e.touches[0], e.touches[1]), startZoom: zoomFactor };
+      }
+    };
+    const onMove = (e) => {
+      if (!pinchRef.current.active || e.touches.length !== 2) return;
+      e.preventDefault();
+      const ratio = dist(e.touches[0], e.touches[1]) / pinchRef.current.startDist;
+      setZoomFactor(Math.max(0.25, Math.min(3, parseFloat((pinchRef.current.startZoom * ratio).toFixed(3)))));
+    };
+    const onEnd = () => { pinchRef.current.active = false; };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd);
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+    };
+  }, [zoomFactor]);
 
   // ── Spacebar pan ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -9492,9 +9535,9 @@ export default function TemplatesEditorInner() {
 
         {/* ── Left sidebar: 64px icon strip + 280px collapsible flyout ── */}
 
-        {/* 72px icon strip — always visible (Canva-style) */}
-        <div style={{ width: 72, borderRight: `1px solid ${t.border}`, background: t.sidebar,
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
+        {/* 72px icon strip — always visible (Canva-style), hidden on mobile */}
+        <div style={{ width: isMobile ? 0 : 72, borderRight: isMobile ? 'none' : `1px solid ${t.border}`, background: t.sidebar,
+          display: isMobile ? 'none' : 'flex', flexDirection: 'column', alignItems: 'center',
           padding: '10px 0 8px', flexShrink: 0, gap: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
           {[
             { id: 'templates', icon: <IcoTemplates size={22} />, label: 'Templates' },
@@ -12206,8 +12249,8 @@ export default function TemplatesEditorInner() {
           )}
         </div>
 
-        {/* Collapse handle — sibling of flyout, outside overflow:hidden */}
-        <div style={{ position: 'relative', width: 0, flexShrink: 0, overflow: 'visible', zIndex: 20 }}>
+        {/* Collapse handle — sibling of flyout, outside overflow:hidden — hidden on mobile */}
+        <div style={{ position: 'relative', width: 0, flexShrink: 0, overflow: 'visible', zIndex: 20, display: isMobile ? 'none' : undefined }}>
           <button
             onClick={() => setPanelOpen(o => !o)}
             title={panelOpen ? 'Collapse panel' : 'Expand panel'}
@@ -13087,8 +13130,8 @@ export default function TemplatesEditorInner() {
           </div>
         )}
 
-        {/* ── Right panel ── */}
-        <div style={{ width: 264, borderLeft: `1px solid ${t.border}`, background: t.sidebar, display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+        {/* ── Right panel — hidden on mobile (shown as bottom drawer instead) ── */}
+        <div style={{ width: isMobile ? 0 : 264, borderLeft: isMobile ? 'none' : `1px solid ${t.border}`, background: t.sidebar, display: isMobile ? 'none' : 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
           {/* Tabs */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, flexShrink: 0, height: 44 }}>
             {['properties', 'layers', 'caption'].map(tab => (
@@ -14942,6 +14985,230 @@ export default function TemplatesEditorInner() {
         </div>
       )}
 
+      {/* ── Mobile FAB — opens tool panel as bottom sheet ── */}
+      {isMobile && (
+        <button
+          onClick={() => { setMobilePanelOpen(o => !o); setMobilePropsOpen(false); }}
+          aria-label={mobilePanelOpen ? 'Close tools' : 'Open tools'}
+          style={{
+            position: 'fixed', right: 20, bottom: mobilePropsOpen ? 310 : 80,
+            width: 52, height: 52, borderRadius: '50%',
+            background: mobilePanelOpen ? '#5B3FF0' : 'linear-gradient(135deg, #00C4CC, #7C5CFC)',
+            border: 'none', cursor: 'pointer', color: '#fff', fontSize: 22,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 20px rgba(124,92,252,0.45)',
+            zIndex: 200, transition: 'bottom 250ms ease, background 150ms',
+          }}
+        >
+          {mobilePanelOpen ? '×' : '+'}
+        </button>
+      )}
+
+      {/* ── Mobile tool panel — bottom sheet triggered by FAB ── */}
+      {isMobile && mobilePanelOpen && (
+        <>
+          <div
+            onClick={() => setMobilePanelOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 190 }}
+          />
+          <div style={{
+            position: 'fixed', left: 0, right: 0, bottom: 0,
+            height: '55vh', background: t.sidebar, borderRadius: '20px 20px 0 0',
+            borderTop: `1px solid ${t.border}`, zIndex: 195,
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            animation: 'slideUpModal 250ms cubic-bezier(0.16,1,0.3,1) forwards',
+          }}>
+            {/* Drag handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px', flexShrink: 0 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: t.border }} />
+            </div>
+            {/* Tool icon row */}
+            <div style={{ display: 'flex', overflowX: 'auto', gap: 4, padding: '0 12px 12px', flexShrink: 0, scrollbarWidth: 'none' }}>
+              {[
+                { id: 'templates', icon: '⊞', label: 'Templates' },
+                { id: 'elements',  icon: '✦', label: 'Elements'  },
+                { id: 'text',      icon: 'T', label: 'Text'      },
+                { id: 'brand',     icon: '🎨', label: 'Brand'    },
+                { id: 'uploads',   icon: '↑', label: 'Uploads'   },
+                { id: 'background', icon: '🖼', label: 'BG'      },
+                { id: 'layers',    icon: '⊕', label: 'Layers'    },
+              ].map(tool => {
+                const isAct = activeLeftTool === tool.id;
+                return (
+                  <button key={tool.id}
+                    onClick={() => setActiveLeftTool(tool.id)}
+                    style={{
+                      flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                      padding: '8px 14px', borderRadius: 10, border: 'none',
+                      background: isAct ? t.primaryBg : t.input,
+                      color: isAct ? t.primary : t.textSecondary,
+                      fontSize: 11, fontWeight: isAct ? 600 : 400, cursor: 'pointer',
+                    }}>
+                    <span style={{ fontSize: 18 }}>{tool.icon}</span>
+                    {tool.label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Panel content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
+              {/* Reuse the flyout content inline for the active tool — show compact version */}
+              <div style={{ fontSize: 12, color: t.textMuted, textAlign: 'center', paddingTop: 20 }}>
+                {activeLeftTool === 'text' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Add Text</div>
+                    {[
+                      { label: 'Heading', fontSize: 48, fontWeight: 800 },
+                      { label: 'Subheading', fontSize: 32, fontWeight: 600 },
+                      { label: 'Body text', fontSize: 20, fontWeight: 400 },
+                      { label: 'Caption', fontSize: 14, fontWeight: 400 },
+                    ].map(({ label, fontSize, fontWeight }) => (
+                      <button key={label}
+                        onClick={() => {
+                          const id = `text_${Date.now()}`;
+                          pushHistory();
+                          patchElements(prev => [...prev, { id, type: 'text', text: label, x: canvasSize.w * 0.1, y: canvasSize.h * 0.4, fontSize, fontWeight, fill: '#ffffff', fontFamily: 'Inter', opacity: 1, rotation: 0 }]);
+                          setSelectedId(id);
+                          setMobilePanelOpen(false);
+                        }}
+                        style={{ width: '100%', padding: '12px 16px', border: `1px solid ${t.border}`, borderRadius: 10, background: t.input, color: t.text, fontSize, fontWeight, cursor: 'pointer', textAlign: 'left', fontFamily: 'Inter, sans-serif' }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: t.textMuted, fontSize: 13, marginTop: 12 }}>
+                    Open the full editor on desktop for all {activeLeftTool} options.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Mobile properties drawer — shows when element selected on mobile ── */}
+      {isMobile && mobilePropsOpen && selectedEl && (
+        <>
+          <div
+            onClick={() => setMobilePropsOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 190 }}
+          />
+          <div style={{
+            position: 'fixed', left: 0, right: 0, bottom: 0,
+            maxHeight: '60vh', background: t.sidebar, borderRadius: '20px 20px 0 0',
+            borderTop: `1px solid ${t.border}`, zIndex: 195,
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            animation: 'slideUpModal 250ms cubic-bezier(0.16,1,0.3,1) forwards',
+          }}>
+            {/* Drag handle + close */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 8px', flexShrink: 0 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: t.border, margin: '0 auto' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 10px', flexShrink: 0, borderBottom: `1px solid ${t.border}` }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
+                {selectedEl.type?.charAt(0).toUpperCase() + selectedEl.type?.slice(1)} Properties
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => { pushHistory(); patchElements(prev => prev.filter(e => e.id !== selectedEl.id)); clearSelection(); }}
+                  style={{ padding: '5px 10px', border: `1px solid ${t.error || '#ef4444'}`, borderRadius: 7, background: 'transparent', color: t.error || '#ef4444', fontSize: 12, cursor: 'pointer' }}>
+                  Delete
+                </button>
+                <button onClick={() => setMobilePropsOpen(false)}
+                  style={{ padding: '5px 10px', border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer' }}>
+                  Done
+                </button>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+              {/* Quick properties for common element types */}
+              {(selectedEl.type === 'text' || selectedEl.type === 'neontext' || selectedEl.type === 'gradtext') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Text</label>
+                    <textarea
+                      value={selectedEl.text || ''}
+                      onChange={e => handleElementChange({ ...selectedEl, text: e.target.value })}
+                      rows={3}
+                      style={{ width: '100%', padding: '8px 10px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 14, resize: 'none', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Size</label>
+                      <input type="number" value={selectedEl.fontSize || 24} min={8} max={200}
+                        onChange={e => handleElementChange({ ...selectedEl, fontSize: +e.target.value })}
+                        onBlur={() => pushHistory()}
+                        style={{ width: '100%', padding: '8px 10px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Color</label>
+                      <input type="color" value={selectedEl.fill || '#ffffff'}
+                        onChange={e => handleElementChange({ ...selectedEl, fill: e.target.value })}
+                        onBlur={() => pushHistory()}
+                        style={{ width: '100%', height: 38, padding: 2, border: `1px solid ${t.border}`, borderRadius: 8, cursor: 'pointer', background: 'none' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Opacity</label>
+                    <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
+                      onChange={e => handleElementChange({ ...selectedEl, opacity: +e.target.value })}
+                      onMouseUp={() => pushHistory()} onTouchEnd={() => pushHistory()}
+                      style={{ width: '100%', accentColor: t.primary }} />
+                  </div>
+                </div>
+              )}
+              {selectedEl.type === 'image' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Corner radius</label>
+                    <input type="range" min={0} max={150} step={1} value={selectedEl.cornerRadius ?? 0}
+                      onChange={e => handleElementChange({ ...selectedEl, cornerRadius: +e.target.value })}
+                      onTouchEnd={() => pushHistory()}
+                      style={{ width: '100%', accentColor: t.primary }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Opacity</label>
+                    <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
+                      onChange={e => handleElementChange({ ...selectedEl, opacity: +e.target.value })}
+                      onTouchEnd={() => pushHistory()}
+                      style={{ width: '100%', accentColor: t.primary }} />
+                  </div>
+                </div>
+              )}
+              {(selectedEl.type === 'rect' || selectedEl.type === 'circle' || selectedEl.type === 'triangle' || selectedEl.type === 'star' || selectedEl.type === 'shape') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Fill</label>
+                      <input type="color" value={selectedEl.fill || '#7C5CFC'}
+                        onChange={e => handleElementChange({ ...selectedEl, fill: e.target.value })}
+                        onBlur={() => pushHistory()}
+                        style={{ width: '100%', height: 38, padding: 2, border: `1px solid ${t.border}`, borderRadius: 8, cursor: 'pointer', background: 'none' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Opacity</label>
+                      <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}
+                        onChange={e => handleElementChange({ ...selectedEl, opacity: +e.target.value })}
+                        onTouchEnd={() => pushHistory()}
+                        style={{ width: '100%', marginTop: 8, accentColor: t.primary }} />
+                    </div>
+                  </div>
+                  {selectedEl.type === 'rect' && (
+                    <div>
+                      <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Corner radius</label>
+                      <input type="range" min={0} max={150} step={1} value={selectedEl.cornerRadius ?? 0}
+                        onChange={e => handleElementChange({ ...selectedEl, cornerRadius: +e.target.value })}
+                        onTouchEnd={() => pushHistory()}
+                        style={{ width: '100%', accentColor: t.primary }} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
     </div>
     </DocColorsCtx.Provider>
