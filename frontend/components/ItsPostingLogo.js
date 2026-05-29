@@ -1,7 +1,7 @@
 import React from 'react';
 
 const SIZES = {
-  sm:    { box: 28,  font: 15, gap: 8  },
+  sm:    { box: 38,  font: 17, gap: 10 },
   md:    { box: 36,  font: 20, gap: 10 },
   lg:    { box: 52,  font: 28, gap: 13 },
   xl:    { box: 72,  font: 38, gap: 16 },
