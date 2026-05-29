@@ -129,8 +129,83 @@ function CalendarCell({ day, dateStr, plans, isToday, isCurrent, onSelectPlan, o
   );
 }
 
+// ─── MobileAgendaView ─────────────────────────────────────────────────────
+function MobileAgendaView({ cells, viewYear, viewMonth, plans, onSelectPlan, onAddPlan, t }) {
+  const today = todayStr();
+  // Collect all current-month days that either have plans or are upcoming
+  const totalDays = daysInMonth(viewYear, viewMonth);
+  const rows = [];
+  for (let d = 1; d <= totalDays; d++) {
+    const dateStr = toStr(viewYear, viewMonth, d);
+    const dayPlans = plans.filter(p => p.plan_date === dateStr);
+    const isToday = dateStr === today;
+    const isPast  = dateStr < today;
+    rows.push({ d, dateStr, dayPlans, isToday, isPast });
+  }
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+      {rows.map(({ d, dateStr, dayPlans, isToday, isPast }) => (
+        <div key={dateStr} style={{ borderBottom:`1px solid rgba(255,255,255,0.05)`, opacity: isPast && !isToday ? 0.55 : 1 }}>
+          {/* Day row header */}
+          <div style={{
+            display:'flex', alignItems:'center', justifyContent:'space-between',
+            padding:'10px 14px 6px',
+            background: isToday ? 'rgba(124,92,252,0.07)' : 'transparent',
+          }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{
+                width:30, height:30, borderRadius:'50%', flexShrink:0,
+                display:'inline-flex', alignItems:'center', justifyContent:'center',
+                fontSize:13, fontWeight:isToday?800:600,
+                background: isToday ? '#7C5CFC' : 'transparent',
+                color: isToday ? '#fff' : t.text,
+              }}>{d}</span>
+              <span style={{ fontSize:12, color:t.textMuted, fontWeight:500 }}>
+                {dayNames[new Date(dateStr+'T00:00:00').getDay()]}
+              </span>
+            </div>
+            <button onClick={() => onAddPlan(dateStr)} style={{
+              width:26, height:26, borderRadius:'50%',
+              background:'rgba(124,92,252,0.18)', border:'none',
+              color:'#9B7FFF', fontSize:18, lineHeight:1, cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>+</button>
+          </div>
+          {/* Plans for this day */}
+          {dayPlans.length > 0 && (
+            <div style={{ padding:'0 14px 10px', display:'flex', flexDirection:'column', gap:5 }}>
+              {dayPlans.map(p => {
+                const tc = typeColor(p.content_type);
+                const sc = STATUS_CFG[p.status] || STATUS_CFG.planned;
+                return (
+                  <div key={p.id} onClick={() => onSelectPlan(p)} style={{
+                    borderLeft:`3px solid ${tc}`, borderRadius:7,
+                    background:sc.bg, border:`1px solid ${sc.border}`,
+                    borderLeftColor:tc, padding:'8px 11px',
+                    cursor:'pointer', minHeight:44,
+                  }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:t.text }}>{p.title||'Untitled'}</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:3 }}>
+                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, background:`${tc}22`, color:tc }}>
+                        {CONTENT_TYPES.find(c=>c.value===p.content_type)?.label||p.content_type}
+                      </span>
+                      <span style={{ fontSize:10, color:t.textMuted }}>{sc.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── PlanDrawer ───────────────────────────────────────────────────────────
-function PlanDrawer({ plan, defaultDate, onClose, onSave, onDelete, onGenerate, t, theme }) {
+function PlanDrawer({ plan, defaultDate, onClose, onSave, onDelete, onGenerate, t, theme, isMobile }) {
   const isNew = !plan?.id;
   const [form, setForm] = useState({
     title:        plan?.title        || '',
@@ -167,17 +242,38 @@ function PlanDrawer({ plan, defaultDate, onClose, onSave, onDelete, onGenerate, 
   };
   const lbl = { fontSize:11, fontWeight:700, color:t.textMuted, textTransform:'uppercase', letterSpacing:'0.07em', display:'block', marginBottom:6 };
 
+  const drawerStyle = isMobile ? {
+    position:'fixed', bottom:0, left:0, right:0, zIndex:1000,
+    maxHeight:'88vh', borderRadius:'20px 20px 0 0',
+    background: theme==='dark' ? '#0F0F18' : t.bg,
+    borderTop:'1px solid rgba(255,255,255,0.10)',
+    boxShadow:'0 -12px 48px rgba(0,0,0,0.6)',
+    display:'flex', flexDirection:'column',
+    animation:'slideUp 240ms cubic-bezier(0.16,1,0.3,1)',
+  } : {
+    position:'fixed', top:0, right:0, bottom:0, width:380, zIndex:1000,
+    background: theme==='dark' ? '#0F0F18' : t.bg,
+    borderLeft:'1px solid rgba(255,255,255,0.08)',
+    boxShadow:'-8px 0 40px rgba(0,0,0,0.5)',
+    display:'flex', flexDirection:'column',
+    animation:'slideInRight 220ms cubic-bezier(0.16,1,0.3,1)',
+  };
+
   return (
-    <div style={{
-      position:'fixed', top:0, right:0, bottom:0, width:380, zIndex:1000,
-      background: theme==='dark' ? '#0F0F18' : t.bg,
-      borderLeft:'1px solid rgba(255,255,255,0.08)',
-      boxShadow:'-8px 0 40px rgba(0,0,0,0.5)',
-      display:'flex', flexDirection:'column',
-      animation:'slideInRight 220ms cubic-bezier(0.16,1,0.3,1)',
-    }}>
+    <>
+      {/* Backdrop for mobile only */}
+      {isMobile && (
+        <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.55)', backdropFilter:'blur(3px)' }} />
+      )}
+    <div style={drawerStyle}>
+      {/* Drag handle — mobile only */}
+      {isMobile && (
+        <div style={{ display:'flex', justifyContent:'center', padding:'10px 0 4px' }}>
+          <div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)' }} />
+        </div>
+      )}
       {/* Header */}
-      <div style={{ padding:'18px 20px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+      <div style={{ padding: isMobile ? '12px 20px 12px' : '18px 20px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div>
           <div style={{ fontSize:15, fontWeight:700, color:t.text }}>{isNew ? 'New Content Plan' : 'Edit Plan'}</div>
           {form.plan_date && <div style={{ fontSize:12, color:t.textMuted, marginTop:2 }}>{fmtLong(form.plan_date)}</div>}
@@ -318,6 +414,7 @@ function PlanDrawer({ plan, defaultDate, onClose, onSave, onDelete, onGenerate, 
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -626,7 +723,15 @@ export default function ContentCalendarPage() {
   const [aiDateRange,     setAiDateRange]       = useState(null);
   const [addingBulk,      setAddingBulk]        = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const loadPlans = useCallback(async () => {
     setLoading(true);
@@ -734,50 +839,56 @@ export default function ContentCalendarPage() {
     <Layout title="Content Calendar" subtitle="Plan your strategy — then generate posts with PostCore">
       <style>{`
         @keyframes slideInRight { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+        @keyframes slideUp { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
         @keyframes spin { to { transform:rotate(360deg); } }
       `}</style>
 
       <div style={{ maxWidth:1200, margin:'0 auto' }}>
 
         {/* ── Toolbar ─────────────────────────────────────────────────── */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20, flexWrap:'wrap', gap:12 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16, flexWrap:'wrap', gap:10 }}>
 
           {/* Month nav */}
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <button onClick={prevMonth} style={{ padding:'7px 13px', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:t.text, cursor:'pointer', fontSize:17 }}>‹</button>
-            <div style={{ minWidth:168, textAlign:'center', fontSize:20, fontWeight:800, color:t.text, letterSpacing:'-0.03em' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <button onClick={prevMonth} style={{ padding:'7px 12px', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:t.text, cursor:'pointer', fontSize:17, minWidth:36, minHeight:36 }}>‹</button>
+            <div style={{ minWidth: isMobile ? 140 : 168, textAlign:'center', fontSize: isMobile ? 16 : 20, fontWeight:800, color:t.text, letterSpacing:'-0.03em' }}>
               {MONTH_NAMES[viewMonth]} {viewYear}
             </div>
-            <button onClick={nextMonth} style={{ padding:'7px 13px', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:t.text, cursor:'pointer', fontSize:17 }}>›</button>
-            <button onClick={()=>{setViewYear(today.getFullYear());setViewMonth(today.getMonth());}}
-              style={{ padding:'6px 12px', background:'transparent', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:t.textMuted, cursor:'pointer', fontSize:12, fontWeight:600 }}>Today</button>
+            <button onClick={nextMonth} style={{ padding:'7px 12px', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:t.text, cursor:'pointer', fontSize:17, minWidth:36, minHeight:36 }}>›</button>
+            {!isMobile && (
+              <button onClick={()=>{setViewYear(today.getFullYear());setViewMonth(today.getMonth());}}
+                style={{ padding:'6px 12px', background:'transparent', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, color:t.textMuted, cursor:'pointer', fontSize:12, fontWeight:600 }}>Today</button>
+            )}
           </div>
 
-          {/* Stats */}
-          <div style={{ display:'flex', gap:8 }}>
-            {[{l:'Planned',v:nPlanned,c:'#9CA3AF'},{l:'Scheduled',v:nScheduled,c:'#7C5CFC'},{l:'Published',v:nPublished,c:'#22C55E'}].map(s=>(
-              <div key={s.l} style={{ padding:'5px 13px', borderRadius:20, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', gap:6 }}>
-                <div style={{ width:7, height:7, borderRadius:'50%', background:s.c }} />
-                <span style={{ fontSize:11, color:t.textMuted }}>{s.l}</span>
-                <span style={{ fontSize:13, fontWeight:700, color:t.text }}>{s.v}</span>
-              </div>
-            ))}
-          </div>
+          {/* Stats — desktop only */}
+          {!isMobile && (
+            <div style={{ display:'flex', gap:8 }}>
+              {[{l:'Planned',v:nPlanned,c:'#9CA3AF'},{l:'Scheduled',v:nScheduled,c:'#7C5CFC'},{l:'Published',v:nPublished,c:'#22C55E'}].map(s=>(
+                <div key={s.l} style={{ padding:'5px 13px', borderRadius:20, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', gap:6 }}>
+                  <div style={{ width:7, height:7, borderRadius:'50%', background:s.c }} />
+                  <span style={{ fontSize:11, color:t.textMuted }}>{s.l}</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:t.text }}>{s.v}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* AI Fill button */}
           <button
             onClick={()=>setShowAiFillModal(true)}
             style={{
-              padding:'9px 18px',
+              padding: isMobile ? '9px 14px' : '9px 18px',
               background:'linear-gradient(135deg,#7C5CFC,#9B7FFF)',
               border:'none', borderRadius:10, color:'#fff',
               fontSize:13, fontWeight:700, cursor:'pointer',
               display:'flex', alignItems:'center', gap:7,
               boxShadow:'0 4px 16px rgba(124,92,252,0.35)',
+              minHeight:40,
             }}
           >
             <IpSparkle size={14} />
-            AI Plan
+            {isMobile ? 'AI Plan' : 'AI Plan Month'}
           </button>
         </div>
 
@@ -801,46 +912,63 @@ export default function ContentCalendarPage() {
           </div>
         )}
 
-        {/* ── Calendar grid ───────────────────────────────────────────── */}
-        <div style={{
-          background: theme==='dark' ? 'rgba(15,15,24,0.6)' : t.card,
-          border:'1px solid rgba(255,255,255,0.07)', borderRadius:14,
-          backdropFilter:'blur(16px)', overflow:'hidden',
-        }}>
-          {/* Day headers */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-            {DAY_LABELS.map(d=>(
-              <div key={d} style={{ padding:'9px 8px', fontSize:11, fontWeight:700, color:t.textMuted,
-                textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center',
-                borderRight:'1px solid rgba(255,255,255,0.04)' }}>{d}</div>
-            ))}
+        {/* ── Calendar — grid on desktop, agenda list on mobile ──────── */}
+        {isMobile ? (
+          <div style={{
+            background: theme==='dark' ? 'rgba(15,15,24,0.6)' : t.card,
+            border:'1px solid rgba(255,255,255,0.07)', borderRadius:14,
+            backdropFilter:'blur(16px)', overflow:'hidden',
+          }}>
+            <MobileAgendaView
+              cells={cells}
+              viewYear={viewYear}
+              viewMonth={viewMonth}
+              plans={plans}
+              onSelectPlan={openEditPlan}
+              onAddPlan={openNewPlan}
+              t={t}
+            />
           </div>
+        ) : (
+          <div style={{
+            background: theme==='dark' ? 'rgba(15,15,24,0.6)' : t.card,
+            border:'1px solid rgba(255,255,255,0.07)', borderRadius:14,
+            backdropFilter:'blur(16px)', overflow:'hidden',
+          }}>
+            {/* Day headers */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+              {DAY_LABELS.map(d=>(
+                <div key={d} style={{ padding:'9px 8px', fontSize:11, fontWeight:700, color:t.textMuted,
+                  textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center',
+                  borderRight:'1px solid rgba(255,255,255,0.04)' }}>{d}</div>
+              ))}
+            </div>
 
-          {/* Cells */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', padding:6, gap:4 }}>
-            {cells.map((cell, idx) => {
-              // Compute year/month for off-month cells
-              let cy = viewYear, cm = viewMonth;
-              if (!cell.cur && idx < 7) { cm = viewMonth===0 ? 11 : viewMonth-1; if (viewMonth===0) cy--; }
-              else if (!cell.cur)       { cm = viewMonth===11 ? 0 : viewMonth+1; if (viewMonth===11) cy++; }
-              const dateStr = toStr(cy, cm, cell.day);
-              const isToday = cell.cur && cell.day===today.getDate() && viewMonth===today.getMonth() && viewYear===today.getFullYear();
-              return (
-                <CalendarCell
-                  key={idx}
-                  day={cell.day}
-                  dateStr={dateStr}
-                  plans={cell.cur ? plans : []}
-                  isToday={isToday}
-                  isCurrent={cell.cur}
-                  onSelectPlan={openEditPlan}
-                  onAddPlan={openNewPlan}
-                  t={t}
-                />
-              );
-            })}
+            {/* Cells */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', padding:6, gap:4 }}>
+              {cells.map((cell, idx) => {
+                let cy = viewYear, cm = viewMonth;
+                if (!cell.cur && idx < 7) { cm = viewMonth===0 ? 11 : viewMonth-1; if (viewMonth===0) cy--; }
+                else if (!cell.cur)       { cm = viewMonth===11 ? 0 : viewMonth+1; if (viewMonth===11) cy++; }
+                const dateStr = toStr(cy, cm, cell.day);
+                const isToday = cell.cur && cell.day===today.getDate() && viewMonth===today.getMonth() && viewYear===today.getFullYear();
+                return (
+                  <CalendarCell
+                    key={idx}
+                    day={cell.day}
+                    dateStr={dateStr}
+                    plans={cell.cur ? plans : []}
+                    isToday={isToday}
+                    isCurrent={cell.cur}
+                    onSelectPlan={openEditPlan}
+                    onAddPlan={openNewPlan}
+                    t={t}
+                  />
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── Legend ──────────────────────────────────────────────────── */}
         <div style={{ marginTop:14, display:'flex', gap:16, flexWrap:'wrap' }}>
@@ -887,6 +1015,7 @@ export default function ContentCalendarPage() {
           onGenerate={generateFromPlan}
           t={t}
           theme={theme}
+          isMobile={isMobile}
         />
       )}
 
