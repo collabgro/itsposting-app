@@ -208,10 +208,10 @@ export default function PublicProfile() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
               {posts.map((post) => (
                 <div key={post.id} style={{ background: '#16161D', border: '1px solid #26262F', borderRadius: 12, overflow: 'hidden' }}>
-                  {post.image_url && (
+                  {post.media_url && (
                     <div style={{ aspectRatio: '4/5', overflow: 'hidden', background: '#0A0A0F' }}>
                       <img
-                        src={post.image_url}
+                        src={post.media_url}
                         alt=""
                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                         loading="lazy"
