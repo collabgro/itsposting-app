@@ -37,6 +37,7 @@ const templateRoutes = require('./routes/templates');
 const ideasRoutes = require('./routes/ideas');
 const calendarPlansRoutes = require('./routes/calendarPlans');
 const referralsRoutes = require('./routes/referrals');
+const competitorRoutes = require('./routes/competitor');
 
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
@@ -2706,6 +2707,7 @@ app.use('/api/gmb', gmbMessagesRoutes(pool));
 app.use('/api/ideas', ideasRoutes(pool));
 app.use('/api/calendar-plans', calendarPlansRoutes(pool));
 app.use('/api/referrals', referralsRoutes(pool));
+app.use('/api/competitor', competitorRoutes(pool));
 
 
 app.get('/health', async (req, res) => {

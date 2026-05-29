@@ -420,4 +420,12 @@ export const referralsAPI = {
   getMyCode: () => api.get('/api/referrals/my-code'),
 };
 
+export const competitorAPI = {
+  list:    ()         => api.get('/api/competitor'),
+  add:     (data)     => api.post('/api/competitor', data),
+  update:  (id, data) => api.patch(`/api/competitor/${id}`, data),
+  remove:  (id)       => api.delete(`/api/competitor/${id}`),
+  analyze: (id)       => api.post(`/api/competitor/${id}/analyze`, {}, { timeout: 90000 }),
+};
+
 export default api;

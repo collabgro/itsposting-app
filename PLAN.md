@@ -466,7 +466,7 @@ Primary CTA: linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%) + 0 
 - [x] 4.1 One-click video wizard (dedicated /video-wizard page, Talking-Head + Cinematic modes, polling)
 - [x] 4.2 Google review response AI
 - [x] 4.3 30-day content calendar generator
-- [ ] 4.4 Competitor intelligence
+- [x] 4.4 Competitor intelligence — competitor_profiles table; POST /api/competitor/:id/analyze (scrape + Claude strategic breakdown); 3-competitor max, 1 credit per analysis; /competitor-intel frontend with add/delete/analyze/use-opportunity flow; sidebar nav under Insights
 - [x] 4.5 Testimonial machine
 - [x] 4.6 Inbox approval queue mode (pending drafts, sentiment/urgency/intent badges, mobile swipe, role-gated approve)
 - [x] 4.7 PDF report export (3-page branded A4 PDF via pdf-lib, cover + posts + recommendations)

@@ -6,7 +6,7 @@ import {
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon, IpLogout,
   IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpSearch,
-  IpPhotoStudio, IpWarning, IpSchedule, IpUser, IpVideo, IpCheck,
+  IpPhotoStudio, IpWarning, IpSchedule, IpUser, IpVideo, IpCheck, IpTrendingUp,
 } from './icons';
 import { useTheme } from '../lib/theme';
 import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI, postsAPI } from '../lib/api';
@@ -54,8 +54,9 @@ const NAV_ITEMS = [
   { name: 'Media Library', href: '/media',          icon: IpMediaLibrary },
 
   { isDivider: true, label: 'Insights' },
-  { name: 'Analytics',     href: '/analytics',      icon: IpAnalytics },
-  { name: 'AI Visibility', href: '/geo-audit',      icon: IpSearch },
+  { name: 'Analytics',        href: '/analytics',         icon: IpAnalytics },
+  { name: 'AI Visibility',    href: '/geo-audit',         icon: IpSearch },
+  { name: 'Competitor Intel', href: '/competitor-intel',  icon: IpTrendingUp },
 
   { isDivider: true, label: 'Engage' },
   { name: 'Inbox',         href: '/inbox',          icon: IpInbox,        badgeKey: 'dmUnread' },
