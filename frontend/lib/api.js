@@ -149,6 +149,7 @@ export const wizardAPI = {
   getStreamTicket: (postId) => api.post('/api/wizard/stream-ticket', { postId }),
   planMonth: (data) => api.post('/api/wizard/plan-month', data),
   downloadImage: (data) => api.post('/api/wizard/download-image', data, { responseType: 'blob' }),
+  pollVideo: (postId) => api.get(`/api/wizard/video-poll/${postId}`),
 };
 
 export const uploadAPI = {
@@ -363,6 +364,7 @@ export const studioAPI = {
   getCreations: (params) => api.get('/api/studio/creations', { params }),
   getCreation: (id) => api.get(`/api/studio/creations/${id}`),
   save: (data) => api.post('/api/studio/save', data),
+  updateCreation: (id, data) => api.patch(`/api/studio/creations/${id}`, data),
   postCreation: (id, data) => api.post(`/api/studio/creations/${id}/post`, data),
   renderVideo: (data) => api.post('/api/studio/video-render', data),
   getRenderStatus: (jobId) => api.get(`/api/studio/video-render/${jobId}`),

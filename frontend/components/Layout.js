@@ -6,7 +6,7 @@ import {
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon, IpLogout,
   IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpSearch,
-  IpPhotoStudio, IpWarning, IpSchedule, IpUser,
+  IpPhotoStudio, IpWarning, IpSchedule, IpUser, IpVideo, IpCheck,
 } from './icons';
 import { useTheme } from '../lib/theme';
 import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI, postsAPI } from '../lib/api';
@@ -43,6 +43,7 @@ const NAV_ITEMS = [
   { isDivider: true, label: 'Create' },
   { name: 'Quick Post',    href: '/quick-post',     icon: IpZap,          isQuickPost: true },
   { name: 'Post Wizard',   href: '/wizard',         icon: IpWizard,       showSuggBadge: true },
+  { name: 'Video Wizard',  href: '/video-wizard',   icon: IpVideo },
   { name: 'Post Ideas',    href: '/ideas',          icon: IpSparkle },
   { name: 'Content Calendar', href: '/content-calendar', icon: IpSchedule },
   { name: 'Upload',        href: '/upload',         icon: IpCreatePost },
