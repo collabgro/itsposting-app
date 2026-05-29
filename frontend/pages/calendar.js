@@ -9,7 +9,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, Badge, Skeleton } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { postsAPI, socialAPI, wizardAPI } from '../lib/api';
+import { postsAPI, socialAPI, wizardAPI, calendarPlansAPI } from '../lib/api';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks,
@@ -71,6 +71,8 @@ export default function Calendar() {
   const [bulkPreview, setBulkPreview]     = useState(null);
   const [bulkConfirming, setBulkConfirming] = useState(false);
 
+  const [calPlans, setCalPlans] = useState([]);
+
   const now = new Date();
   const currentYear = now.getFullYear();
   const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 2 + i);
@@ -96,12 +98,15 @@ export default function Calendar() {
   const loadPosts = async () => {
     setLoading(true);
     try {
-      const res = await postsAPI.getAll({
-        from:  visibleFrom.toISOString(),
-        to:    visibleTo.toISOString(),
-        limit: 200,
-      });
-      setPosts(Array.isArray(res.data) ? res.data : []);
+      const pad = n => String(n).padStart(2,'0');
+      const fmtDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      const [postsRes] = await Promise.all([
+        postsAPI.getAll({ from: visibleFrom.toISOString(), to: visibleTo.toISOString(), limit: 200 }),
+        calendarPlansAPI.list(fmtDate(visibleFrom), fmtDate(visibleTo))
+          .then(r => setCalPlans(r.data?.plans || []))
+          .catch(() => {}),
+      ]);
+      setPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -111,6 +116,11 @@ export default function Calendar() {
     return true;
   });
   const getPostsForDay = (day) => filteredPosts.filter(p => p.scheduled_date && isSameDay(new Date(p.scheduled_date), day));
+  const getPlansForDay = (day) => {
+    const pad = n => String(n).padStart(2,'0');
+    const str = `${day.getFullYear()}-${pad(day.getMonth()+1)}-${pad(day.getDate())}`;
+    return calPlans.filter(p => p.plan_date === str && p.status !== 'published' && p.status !== 'skipped');
+  };
 
   const selectedDayPosts = selectedDay ? getPostsForDay(selectedDay) : [];
 
@@ -837,6 +847,25 @@ export default function Calendar() {
                             {dayPosts.length > 2 && (
                               <div style={{ fontSize: 10, color: t.textMuted, paddingLeft: 4 }}>+{dayPosts.length - 2} more</div>
                             )}
+                            {/* Content calendar plan indicator */}
+                            {isCurrentMonth && (() => {
+                              const dayCalPlans = getPlansForDay(day);
+                              if (!dayCalPlans.length) return null;
+                              return (
+                                <div
+                                  title={`${dayCalPlans.length} content plan${dayCalPlans.length > 1 ? 's' : ''} in Content Calendar`}
+                                  onClick={e => { e.stopPropagation(); router.push('/content-calendar'); }}
+                                  style={{
+                                    fontSize: 9, padding: '2px 5px', borderRadius: 4,
+                                    background: 'rgba(124,92,252,0.1)', border: '1px dashed rgba(124,92,252,0.35)',
+                                    color: '#9B7FFF', cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', gap: 3, width: 'fit-content',
+                                  }}
+                                >
+                                  ★ {dayCalPlans.length} planned
+                                </div>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>

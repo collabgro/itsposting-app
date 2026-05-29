@@ -1469,12 +1469,12 @@ The new Content Calendar shows **plans** (ideas and briefs before generation).
 
 ```
 ### Phase 11: Content Calendar
-- [ ] 11.1 DB migration — content_calendar_plans table + indexes
-- [ ] 11.2 Backend routes — calendarPlans.js (CRUD + ai-fill + generate)
-- [ ] 11.3 Frontend — content-calendar.js (month view + week view + side drawer)
-- [ ] 11.4 AI Fill Month — PostCore generates 4 weeks of content ideas (0 credits)
-- [ ] 11.5 Dashboard "This week" widget showing plan entries
-- [ ] 11.6 Calendar page cross-link (plan → scheduled post → published post)
+- [x] 11.1 DB migration — content_calendar_plans table + indexes
+- [x] 11.2 Backend routes — calendarPlans.js (CRUD + ai-fill + generate)
+- [x] 11.3 Frontend — content-calendar.js (month view + week view + side drawer)
+- [x] 11.4 AI Fill Month — PostCore generates 4 weeks of content ideas (0 credits)
+- [x] 11.5 Dashboard "This week" widget showing plan entries
+- [x] 11.6 Calendar page cross-link (plan → scheduled post → published post)
 ```
 
 ---
@@ -1487,12 +1487,12 @@ The new Content Calendar shows **plans** (ideas and briefs before generation).
 - [ ] 10.3 Public business profile /p/[handle] (P3)
 
 ### Phase 11: Content Calendar
-- [ ] 11.1 DB migration — content_calendar_plans table + indexes
-- [ ] 11.2 Backend routes — calendarPlans.js (CRUD + ai-fill + generate)
-- [ ] 11.3 Frontend — content-calendar.js (month view + week view + side drawer)
-- [ ] 11.4 AI Fill Month — PostCore generates 4 weeks of content ideas (0 credits)
-- [ ] 11.5 Dashboard "This week" widget showing plan entries
-- [ ] 11.6 Calendar page cross-link (plan → scheduled post → published post)
+- [x] 11.1 DB migration — content_calendar_plans table + indexes
+- [x] 11.2 Backend routes — calendarPlans.js (CRUD + ai-fill + generate)
+- [x] 11.3 Frontend — content-calendar.js (month view + week view + side drawer)
+- [x] 11.4 AI Fill Month — PostCore generates 4 weeks of content ideas (0 credits)
+- [x] 11.5 Dashboard "This week" widget showing plan entries
+- [x] 11.6 Calendar page cross-link (plan → scheduled post → published post)
 
 ---
 

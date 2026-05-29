@@ -11,7 +11,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, SectionHeader, EmptyState, Spinner, Skeleton, ErrorCard } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, socialAPI } from '../lib/api';
+import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, socialAPI, calendarPlansAPI } from '../lib/api';
 import { format } from 'date-fns';
 import PostPreviewModal from '../components/PostPreviewModal';
 import { setMascotMood } from '../components/PostCoreMascot';
@@ -100,10 +100,28 @@ export default function Dashboard() {
   const [replySuccess,   setReplySuccess]   = useState(null); // reviewId that just got replied
   const [showPerfToast,  setShowPerfToast]  = useState(false);
   const [bestPostId,     setBestPostId]     = useState(null);
+  const [weekPlans,      setWeekPlans]      = useState([]);
 
   const loadDashboard = () => {
     setLoadError(false);
     setLoading(true);
+
+    // Load this week's content calendar plans (non-blocking)
+    const loadWeekPlans = () => {
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0=Sun
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7)); // previous Monday
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      const pad = n => String(n).padStart(2, '0');
+      const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      calendarPlansAPI.list(fmt(monday), fmt(sunday))
+        .then(r => setWeekPlans(r.data?.plans || []))
+        .catch(() => {});
+    };
+    loadWeekPlans();
+
     Promise.all([
       postsAPI.getAll({ limit: 100 }),
       postsAPI.getUpcoming(),
@@ -606,6 +624,11 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* ── 3c. This Week's Content Plan ── */}
+        {weekPlans.length > 0 && (
+          <ThisWeekWidget plans={weekPlans} t={t} router={router} />
+        )}
+
         {/* ── 4. Calendar + Upcoming ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20, marginTop: 4 }}>
           <div style={{ padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
@@ -883,6 +906,98 @@ export default function Dashboard() {
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes checkpop{0%{transform:scale(0) rotate(-10deg);opacity:0}60%{transform:scale(1.2) rotate(4deg)}100%{transform:scale(1) rotate(0deg);opacity:1}} @keyframes perfToastIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
     </>
+  );
+}
+
+const TYPE_COLORS_PLAN = { photo_post:'#3B82F6', carousel:'#7C5CFC', video:'#EF4444', text_card:'#22C55E', story:'#F97316' };
+const DAY_ABBR = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+function ThisWeekWidget({ plans, t, router }) {
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  // Build Mon–Sun for current week
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const str = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return { str, dayNum: d.getDate(), abbr: DAY_ABBR[i] };
+  });
+
+  return (
+    <div style={{
+      marginBottom: 20,
+      padding: '18px 22px',
+      background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+      backdropFilter: 'blur(16px) saturate(160%)',
+      WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+      border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+      borderRadius: 16,
+      boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+    }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:'linear-gradient(135deg,rgba(124,92,252,0.2),rgba(124,92,252,0.08))', border:`1px solid ${t.primaryBorder}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <IpCalendar size={16} color={t.primary} />
+          </div>
+          <div>
+            <div style={{ fontSize:14, fontWeight:700, color:t.text, letterSpacing:'-0.02em', lineHeight:1.2 }}>Your plan this week</div>
+            <div style={{ fontSize:11, color:t.textMuted, marginTop:1 }}>{plans.length} idea{plans.length!==1?'s':''} planned</div>
+          </div>
+        </div>
+        <button onClick={()=>router.push('/content-calendar')} style={{ fontSize:12, fontWeight:600, color:t.primary, background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:4, padding:0 }}>
+          View full calendar <IpArrowRight size={11} />
+        </button>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6 }}>
+        {days.map(({ str, dayNum, abbr }) => {
+          const dayPlans = plans.filter(p => p.plan_date === str);
+          const isToday = str === todayStr;
+          const hasScheduled = dayPlans.some(p => p.status === 'scheduled' || p.status === 'published');
+          const hasAi = dayPlans.some(p => p.ai_suggested);
+          const topPlan = dayPlans[0];
+          return (
+            <div
+              key={str}
+              onClick={() => router.push('/content-calendar')}
+              style={{
+                borderRadius:10, padding:'8px 6px',
+                background: isToday ? 'rgba(124,92,252,0.1)' : dayPlans.length > 0 ? 'rgba(255,255,255,0.03)' : 'transparent',
+                border: isToday ? '1.5px solid rgba(124,92,252,0.3)' : `1px solid ${t.border}`,
+                cursor:'pointer', textAlign:'center', transition:'background 120ms',
+                minHeight:70, display:'flex', flexDirection:'column', alignItems:'center', gap:4,
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              onMouseLeave={e => e.currentTarget.style.background = isToday ? 'rgba(124,92,252,0.1)' : dayPlans.length > 0 ? 'rgba(255,255,255,0.03)' : 'transparent'}
+            >
+              <div style={{ fontSize:10, fontWeight:700, color:isToday ? t.primary : t.textMuted, textTransform:'uppercase', letterSpacing:'0.05em' }}>{abbr}</div>
+              <div style={{ fontSize:13, fontWeight: isToday ? 800 : 500, color: isToday ? t.primary : t.text, lineHeight:1 }}>{dayNum}</div>
+              {dayPlans.length > 0 ? (
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, width:'100%' }}>
+                  {hasAi && !hasScheduled && (
+                    <div style={{ fontSize:9, color:'#EAB308', fontWeight:700 }}>★ AI</div>
+                  )}
+                  {hasScheduled && (
+                    <div style={{ width:7, height:7, borderRadius:'50%', background:'#22C55E', boxShadow:'0 0 4px rgba(34,197,94,0.6)' }} />
+                  )}
+                  {topPlan && (
+                    <div style={{ width:22, height:3, borderRadius:2, background: TYPE_COLORS_PLAN[topPlan.content_type] || t.primary, opacity:0.8 }} />
+                  )}
+                  {dayPlans.length > 1 && (
+                    <div style={{ fontSize:9, color:t.textMuted, fontWeight:600 }}>+{dayPlans.length-1}</div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ width:20, height:2, borderRadius:1, background:'rgba(255,255,255,0.07)' }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

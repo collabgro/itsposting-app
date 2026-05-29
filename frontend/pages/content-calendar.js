@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
 import { calendarPlansAPI } from '../lib/api';
-import { IpSparkle, IpClose, IpDelete, IpCheck } from '../components/icons';
+import { IpSparkle, IpClose, IpDelete, IpCheck, IpArrowRight, IpAnalytics } from '../components/icons';
 
 // ─── config ────────────────────────────────────────────────────────────────
 const CONTENT_TYPES = [
@@ -269,6 +269,22 @@ function PlanDrawer({ plan, defaultDate, onClose, onSave, onDelete, onGenerate, 
 
       {/* Footer */}
       <div style={{ padding:'16px 20px', borderTop:'1px solid rgba(255,255,255,0.07)', display:'flex', flexDirection:'column', gap:10 }}>
+        {/* View performance — shown when plan has a linked published post */}
+        {!isNew && plan?.post_id && (plan?.status === 'published' || plan?.post_status === 'posted') && (
+          <a href={`/analytics/posts/${plan.post_id}`} style={{
+            display:'flex', alignItems:'center', justifyContent:'center', gap:7,
+            padding:'10px', borderRadius:10,
+            background:'rgba(34,197,94,0.1)', border:'1px solid rgba(34,197,94,0.25)',
+            color:'#22C55E', fontSize:13, fontWeight:700, textDecoration:'none',
+            transition:'background 120ms',
+          }}
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(34,197,94,0.18)'}
+            onMouseLeave={e=>e.currentTarget.style.background='rgba(34,197,94,0.1)'}
+          >
+            <IpAnalytics size={14} color="#22C55E" />
+            View post performance <IpArrowRight size={12} />
+          </a>
+        )}
         {!isNew && plan?.status !== 'published' && (
           <button onClick={handleGenerate} disabled={generating} style={{
             width:'100%', padding:'11px',
