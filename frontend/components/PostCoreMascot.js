@@ -9,7 +9,7 @@ export function setMascotMood(mood, message) {
   }
 }
 
-// Trigger a milestone celebration (e.g. 'first_post', 'streak_7', 'posts_10')
+// Trigger a milestone celebration (e.g. 'first_post', 'streak_7', 'posts_10', 'viral_post')
 export function triggerMilestone(milestone) {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('postcoreMood', { detail: { milestone } }));
@@ -101,6 +101,31 @@ const MOODS = {
     glow: 'rgba(124,92,252,0.48)',
     msg: "Let's make something amazing together!",
   },
+  // Phase 7.3 — new moods
+  viral: {
+    anim: 'pc-pulse-zoom',
+    eyeRy: 7.5,
+    squint: true,
+    browsL: 'M 14 13 Q 23 8 29 13',
+    browsR: 'M 35 13 Q 41 8 50 13',
+    mouth: 'M 13 35 Q 32 62 51 35',
+    blush: true, sparkle: true,
+    pupils: [0, 0],
+    glow: 'rgba(251,191,36,0.70)',
+    msg: "That post is on fire! Your community loves it! 🔥",
+  },
+  first_encouragement: {
+    anim: 'pc-bounce-gentle',
+    eyeRy: 6,
+    squint: false,
+    browsL: 'M 17 19 Q 23 16 29 19',
+    browsR: 'M 35 19 Q 41 16 47 19',
+    mouth: 'M 21 42 Q 32 50 43 42',
+    blush: true, sparkle: false,
+    pupils: [0, 0],
+    glow: 'rgba(124,92,252,0.40)',
+    msg: "Your first post is one tap away. Let's do it together!",
+  },
 };
 
 const ROUTE_MOODS = {
@@ -136,11 +161,83 @@ const MILESTONE_MSGS = {
   streak_3:      "3-day posting streak! Consistency is what beats the algorithm.",
   streak_7:      "7-day streak! That's one full week — your audience will notice.",
   streak_30:     "30-day streak! You're in the top 1% of consistent posters. Incredible!",
-  posts_10:      "10 posts created! Your local reach is growing every single week.",
+  posts_10:      "10 posts this month! Your local reach is growing every single week.",
   posts_25:      "25 posts! PostCore is proud of you. Your business is showing up.",
   posts_50:      "50 posts! You've built a real content presence. Local customers see you.",
   posts_100:     "100 posts! That's a full year of showing up. Your community knows you.",
+  viral_post:    "🔥 That post is on fire! Your community loves this content!",
 };
+
+// Phase 7.3 — seasonal accessories rendered as SVG overlays
+function SeasonalAccessory({ month }) {
+  switch (month) {
+    case 12:
+      // Santa hat — red cone + white fur brim + pompom
+      return (
+        <g>
+          <path d="M 16 12 Q 24 6 30 1 Q 31.5 -1 33 1 Q 39 6 48 12 Z" fill="#DC2626" />
+          <ellipse cx="32" cy="12" rx="16.5" ry="3.8" fill="white" />
+          <circle cx="31.5" cy="2" r="4" fill="white" />
+          <ellipse cx="29" cy="10" rx="11" ry="1.8" fill="rgba(255,255,255,0.30)" />
+        </g>
+      );
+    case 1:
+    case 2:
+      // Winter beanie — snug knitted cap with pompom
+      return (
+        <g>
+          <path d="M 17 13 Q 15 5 24 2 Q 32 0 40 2 Q 49 5 47 13 Z" fill="#3B82F6" />
+          <ellipse cx="32" cy="13" rx="15.5" ry="3.5" fill="#1D4ED8" />
+          <circle cx="32" cy="3" r="4.5" fill="#93C5FD" />
+          <path d="M 19 8 Q 32 5.5 45 8" stroke="rgba(255,255,255,0.22)" strokeWidth="2" fill="none" />
+          <path d="M 21 11 Q 32 8.5 43 11" stroke="rgba(255,255,255,0.14)" strokeWidth="1.5" fill="none" />
+        </g>
+      );
+    case 3:
+    case 4:
+    case 5:
+      // Spring flower sprig — small colourful flowers at top of head
+      return (
+        <g>
+          <circle cx="32" cy="7" r="3.2" fill="#FCD34D" />
+          <circle cx="25" cy="10" r="2.6" fill="#F472B6" />
+          <circle cx="39" cy="10" r="2.6" fill="#F472B6" />
+          <ellipse cx="22" cy="14" rx="3" ry="1.5" fill="#4ADE80" transform="rotate(-25 22 14)" />
+          <ellipse cx="42" cy="14" rx="3" ry="1.5" fill="#4ADE80" transform="rotate(25 42 14)" />
+          <circle cx="18" cy="13" r="2" fill="#FB923C" />
+          <circle cx="46" cy="13" r="2" fill="#FB923C" />
+        </g>
+      );
+    case 6:
+    case 7:
+    case 8:
+      // Sunglasses — dark lenses over the eye area
+      return (
+        <g>
+          <rect x="14.5" y="24.5" width="17" height="11" rx="5.5" fill="#0F172A" opacity="0.93" />
+          <rect x="32.5" y="24.5" width="17" height="11" rx="5.5" fill="#0F172A" opacity="0.93" />
+          <rect x="31.5" y="28.5" width="1" height="2" rx="0.5" fill="#374151" />
+          <path d="M 14.5 29.5 L 6 28" stroke="#0F172A" strokeWidth="2" strokeLinecap="round" />
+          <path d="M 49.5 29.5 L 58 28" stroke="#0F172A" strokeWidth="2" strokeLinecap="round" />
+          <ellipse cx="19.5" cy="27" rx="4" ry="2" fill="rgba(99,179,237,0.14)" />
+          <ellipse cx="37.5" cy="27" rx="4" ry="2" fill="rgba(99,179,237,0.14)" />
+        </g>
+      );
+    case 10:
+      // Witch hat — tiny spooky hat for October
+      return (
+        <g>
+          <ellipse cx="32" cy="14" rx="16" ry="3.5" fill="#1F2937" />
+          <path d="M 18 14 Q 23 8 28 3 Q 30 0 32 1 Q 34 0 36 3 Q 41 8 46 14 Z" fill="#111827" />
+          <rect x="18" y="12" width="28" height="3.5" rx="1.5" fill="#7C5CFC" opacity="0.9" />
+          <rect x="29" y="12" width="6" height="3.5" rx="1" fill="#D97706" />
+          <rect x="30.5" y="12.8" width="3" height="1.8" rx="0.5" fill="#1F2937" />
+        </g>
+      );
+    default:
+      return null;
+  }
+}
 
 const PC_CSS = `
 @keyframes pc-float {
@@ -176,6 +273,14 @@ const PC_CSS = `
   68%     { transform: rotate(4deg) translateX(2px); }
   84%     { transform: rotate(-2deg); }
 }
+@keyframes pc-pulse-zoom {
+  0%,100% { transform: scale(1) rotate(0deg); }
+  15%     { transform: scale(1.14) rotate(-4deg); }
+  35%     { transform: scale(1.09) rotate(3deg); }
+  55%     { transform: scale(1.16) rotate(-2deg); }
+  75%     { transform: scale(1.07) rotate(2deg); }
+  90%     { transform: scale(1.11) rotate(-1deg); }
+}
 @keyframes pc-star-a {
   0%,100% { transform: translate(0,0) scale(0.85) rotate(0deg); opacity: 0.75; }
   50%     { transform: translate(5px,-9px) scale(1.1) rotate(90deg); opacity: 1; }
@@ -198,6 +303,7 @@ const PC_CSS = `
 .pc-bounce-fast  { animation: pc-bounce-fast 0.72s ease-in-out infinite; }
 .pc-float-slow   { animation: pc-float-slow 4.2s ease-in-out infinite; }
 .pc-wiggle       { animation: pc-wiggle 0.55s ease-in-out infinite; }
+.pc-pulse-zoom   { animation: pc-pulse-zoom 0.60s ease-in-out infinite; }
 `;
 
 export default function PostCoreMascot({ user }) {
@@ -207,13 +313,14 @@ export default function PostCoreMascot({ user }) {
   const [visible, setVisible] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [customMsg, setCustomMsg] = useState('');
+  const month = new Date().getMonth() + 1;
 
   const applyMood = (m) => { if (MOODS[m]) setMood(m); };
 
   // Fade in after sidebar loads
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 900);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setVisible(true), 900);
+    return () => clearTimeout(timer);
   }, []);
 
   // Route-based mood
@@ -231,21 +338,37 @@ export default function PostCoreMascot({ user }) {
     else if (credits < 5) applyMood('worried');
   }, [user?.credits_balance]);
 
-  // Seasonal idle message — shown when on dashboard and no other override
+  // Seasonal idle message + first-time user encouragement (dashboard only)
   useEffect(() => {
     if (router.pathname !== '/dashboard') return;
-    const month = new Date().getMonth() + 1;
     const msg = SEASONAL_MSGS[month];
+
+    // First-ever user: no streak, no posts → warm encouragement
+    if (user && !(user.posting_streak) && !(user.total_posts_this_month)) {
+      const key = 'pc_first_encourage_shown';
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1');
+        const t1 = setTimeout(() => {
+          applyMood('first_encouragement');
+          setCustomMsg(MOODS.first_encouragement.msg);
+        }, 3200);
+        const t2 = setTimeout(() => {
+          applyMood('idle');
+          setCustomMsg(msg || '');
+        }, 10000);
+        return () => { clearTimeout(t1); clearTimeout(t2); };
+      }
+    }
+
     if (msg) setCustomMsg(msg);
     return () => setCustomMsg('');
-  }, [router.pathname]);
+  }, [router.pathname, user?.posting_streak, user?.total_posts_this_month]);
 
-  // Milestone detection from user profile (posting_streak, total posts)
+  // Streak milestone detection
   useEffect(() => {
     if (!user) return;
     const streak = user.posting_streak || 0;
     const totalPosts = user.total_posts_this_month || 0;
-    // Only show each milestone once per session (track in sessionStorage)
     const key = `milestone_shown_${streak}_${totalPosts}`;
     if (sessionStorage.getItem(key)) return;
     let milestoneMsg = null;
@@ -263,30 +386,65 @@ export default function PostCoreMascot({ user }) {
     }
   }, [user?.posting_streak]);
 
-  // Event-based mood (dispatched from wizard/quick-post/etc)
+  // Monthly post-count milestone detection
+  useEffect(() => {
+    if (!user) return;
+    const totalPosts = user.total_posts_this_month || 0;
+    if (totalPosts < 10) return;
+    const postKey = `milestone_posts_month_${totalPosts}`;
+    if (sessionStorage.getItem(postKey)) return;
+    let msg = null;
+    if (totalPosts >= 50) msg = MILESTONE_MSGS.posts_50;
+    else if (totalPosts >= 25) msg = MILESTONE_MSGS.posts_25;
+    else if (totalPosts >= 10) msg = MILESTONE_MSGS.posts_10;
+    if (msg) {
+      sessionStorage.setItem(postKey, '1');
+      setTimeout(() => {
+        applyMood('celebrating');
+        setCustomMsg(msg);
+        setTimeout(() => { applyMood('happy'); }, 3500);
+        setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 7500);
+      }, 1800);
+    }
+  }, [user?.total_posts_this_month]);
+
+  // Event-based mood (dispatched from wizard/quick-post/analytics/etc)
   useEffect(() => {
     const handler = (e) => {
       const { mood: m, message, milestone } = e.detail || {};
-      // Handle milestone events
       if (milestone && MILESTONE_MSGS[milestone]) {
         const msg = MILESTONE_MSGS[milestone];
+        // Viral post gets its own special mood
+        if (milestone === 'viral_post') {
+          applyMood('viral');
+          setCustomMsg(msg);
+          setTimeout(() => { applyMood('celebrating'); }, 5000);
+          setTimeout(() => { applyMood('happy'); }, 8500);
+          setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 12000);
+          return;
+        }
         applyMood('celebrating');
         setCustomMsg(msg);
-        const t1 = setTimeout(() => applyMood('happy'), 3500);
-        const t2 = setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 7500);
-        return () => { clearTimeout(t1); clearTimeout(t2); };
+        setTimeout(() => applyMood('happy'), 3500);
+        setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 7500);
+        return;
       }
       if (!m || !MOODS[m]) return;
       applyMood(m);
       if (message) setCustomMsg(message);
+      if (['viral'].includes(m)) {
+        setTimeout(() => { applyMood('celebrating'); }, 5000);
+        setTimeout(() => { applyMood('happy'); }, 8500);
+        setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 12000);
+        return;
+      }
       if (['celebrating', 'excited'].includes(m)) {
-        const t1 = setTimeout(() => applyMood('happy'), 3500);
-        const t2 = setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 7500);
-        return () => { clearTimeout(t1); clearTimeout(t2); };
+        setTimeout(() => applyMood('happy'), 3500);
+        setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 7500);
+        return;
       }
       if (m === 'happy') {
-        const t1 = setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 5500);
-        return () => clearTimeout(t1);
+        setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 5500);
       }
     };
     window.addEventListener('postcoreMood', handler);
@@ -296,8 +454,6 @@ export default function PostCoreMascot({ user }) {
   const m = MOODS[mood];
   const tooltipMsg = customMsg || m.msg;
 
-  // Squint clipPath: bottom-half rect at the eye center line y=30
-  // clips eye to a D-shape (flat top, round bottom) = happy squint
   const lClip = `pc-sq-l-${mood}`;
   const rClip = `pc-sq-r-${mood}`;
 
@@ -375,7 +531,6 @@ export default function PostCoreMascot({ user }) {
               <stop offset="50%"  stopColor="#7C5CFC" />
               <stop offset="100%" stopColor="#4A28D4" />
             </radialGradient>
-            {/* Squint clipPaths — clip eye to bottom half (flat top = squint) */}
             {m.squint && (
               <>
                 <clipPath id={lClip}>
@@ -446,6 +601,9 @@ export default function PostCoreMascot({ user }) {
 
           {/* Mouth */}
           <path d={m.mouth} stroke="rgba(255,255,255,0.95)" strokeWidth="2.5" strokeLinecap="round" />
+
+          {/* Seasonal accessory — rendered on top of face */}
+          <SeasonalAccessory month={month} />
         </svg>
       </div>
 

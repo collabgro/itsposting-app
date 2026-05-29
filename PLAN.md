@@ -363,12 +363,13 @@ File: frontend/components/LoadingScreen.js
 - Button loading: inline spinner, button stays same width (no layout shift)
 - PWA launch: splash screen matches brand colors
 
-### 7.3 PostCore Mascot Extensions
-Already built (Phase 0.P). Extend with:
-[ ] More mood states: celebration on viral post, encouragement on first-ever post
-[ ] Seasonal outfits: Santa hat December, hard hat for construction month
-[ ] Speech bubble with dynamic PostCore tips on hover
-[ ] Unlockable moods as user hits milestones (10 posts, 30-day streak, etc)
+### 7.3 PostCore Mascot Extensions [DONE]
+Already built (Phase 0.P). Extended with:
+[x] New mood `viral` — intense pc-pulse-zoom animation, gold glow, stays 12s; triggered via triggerMilestone('viral_post')
+[x] New mood `first_encouragement` — warm encouraging message for users with 0 posts on dashboard (sessionStorage gated)
+[x] Seasonal accessories rendered as SVG overlays: Santa hat (Dec), winter beanie (Jan/Feb), flower crown (Mar-May), sunglasses (Jun-Aug), witch hat (Oct)
+[x] Monthly post-count milestone detection (10/25/50 posts) wired to celebrating mood via useEffect on total_posts_this_month
+[x] Speech bubble tooltip already present (on hover); seasonal message shown on dashboard idle
 
 ---
 
@@ -492,7 +493,7 @@ Primary CTA: linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%) + 0 
 ### Phase 7: Brand
 - [ ] 7.1 New premium logo
 - [x] 7.2 Branded loading experience (LoadingScreen.js)
-- [x] 7.3 PostCore mascot seasonal/milestone moods — SEASONAL_MSGS by month (idle on dashboard), MILESTONE_MSGS (streak 3/7/30, posts 10/25/50/100); triggerMilestone() export; sessionStorage dedup
+- [x] 7.3 PostCore mascot extensions — viral mood (pc-pulse-zoom + gold glow), first_encouragement mood (new users), seasonal SVG accessories (Dec santa hat, Jan/Feb beanie, spring flowers, summer sunglasses, Oct witch hat), post-count milestone detection (10/25/50 posts/month)
 
 ### Phase 8: Own LLM
 - [ ] 8.1 Training data collection pipeline
