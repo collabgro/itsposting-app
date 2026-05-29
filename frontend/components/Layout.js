@@ -550,7 +550,7 @@ export default function Layout({ children, title, subtitle, action }) {
             <div style={{ padding: '13px 14px', background: t.isDark ? 'rgba(124,92,252,0.09)' : 'rgba(124,92,252,0.05)', borderRadius: 12, border: `1px solid rgba(124,92,252,0.22)`, boxShadow: '0 4px 16px rgba(124,92,252,0.1), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: t.text, letterSpacing: '-0.01em' }}>Free Trial</div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: t.primary }}>{user.credits_balance ?? 0} credits left</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: t.primary }}>{user.credits_balance ?? 0} {isSubAccount ? 'shared credits' : 'credits left'}</div>
               </div>
               <div style={{ height: 5, background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 99, overflow: 'hidden', marginBottom: 10 }}>
                 <div style={{ height: '100%', width: `${Math.min(100, ((user.credits_balance ?? 0) / 10) * 100)}%`, background: 'linear-gradient(90deg, #7C5CFC, #9B7FFF)', borderRadius: 99, boxShadow: '0 0 6px rgba(124,92,252,0.5)', transition: 'width 600ms ease' }} />
@@ -701,7 +701,7 @@ export default function Layout({ children, title, subtitle, action }) {
             )}
             {user && !isMobile && (
               <div className="credit-chip" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 9, fontSize: 12 }}>
-                <span style={{ color: t.textMuted, fontWeight: 500 }}>Credits</span>
+                <span style={{ color: t.textMuted, fontWeight: 500 }}>{isSubAccount ? 'Shared' : 'Credits'}</span>
                 <span style={{ color: t.primary, fontWeight: 800, fontFamily: 'monospace', fontSize: 13 }}>{user.credits_balance ?? 0}</span>
               </div>
             )}
@@ -714,7 +714,7 @@ export default function Layout({ children, title, subtitle, action }) {
           <div style={{ padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.bg, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', position: 'sticky', top: 64, zIndex: 39 }}>
             {user && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 12 }}>
-                <span style={{ color: t.textMuted }}>Credits:</span>
+                <span style={{ color: t.textMuted }}>{isSubAccount ? 'Shared:' : 'Credits:'}</span>
                 <span style={{ color: t.primary, fontWeight: 700, fontFamily: 'monospace' }}>{user.credits_balance ?? 0}</span>
               </div>
             )}
