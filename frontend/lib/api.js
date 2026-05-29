@@ -280,6 +280,7 @@ export const analyticsAPI = {
   syncMetrics: (data = {}) => api.post('/api/analytics/sync-metrics', data),
   getVariationStats: () => api.get('/api/analytics/variation-stats'),
   getLeaderboard: () => api.get('/api/analytics/leaderboard'),
+  exportPdf: (year, month) => api.get('/api/analytics/export-pdf', { params: { year, month }, responseType: 'blob' }),
 };
 
 export const dmsAPI = {

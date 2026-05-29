@@ -235,6 +235,9 @@ export default function Analytics() {
   const [syncMsg, setSyncMsg]   = useState('');
   const [isMobile, setIsMobile] = useState(false);
 
+  // PDF export state
+  const [exportingPdf, setExportingPdf] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
@@ -328,6 +331,26 @@ export default function Analytics() {
       setSyncMsg('Sync failed — check your social connections');
       setTimeout(() => setSyncMsg(''), 4000);
     } finally { setSyncing(false); }
+  };
+
+  const handleExportPdf = async () => {
+    if (exportingPdf) return;
+    setExportingPdf(true);
+    try {
+      const [selYear, selMonth] = reportMonth.split('-').map(Number);
+      const res = await analyticsAPI.exportPdf(selYear, selMonth);
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      a.href = url;
+      a.download = `ItsPosting-Report-${selYear}-${monthNames[selMonth]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF export failed:', err.message);
+    } finally { setExportingPdf(false); }
   };
 
   const handleUseTime = (slot) => {
@@ -1061,7 +1084,25 @@ export default function Analytics() {
                 <div style={{ fontSize: 18, fontWeight: 700, color: t.text }}>Monthly Report</div>
                 <div style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>Performance summary for {monthLabel}</div>
               </div>
-              <MonthPicker value={reportMonth} onChange={setReportMonth} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <MonthPicker value={reportMonth} onChange={setReportMonth} />
+                <button
+                  onClick={handleExportPdf}
+                  disabled={exportingPdf}
+                  title="Download this month's report as PDF"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '8px 14px', borderRadius: 8,
+                    background: exportingPdf ? t.border : t.primary,
+                    color: '#fff', border: 'none', fontSize: 12, fontWeight: 700,
+                    cursor: exportingPdf ? 'not-allowed' : 'pointer',
+                    whiteSpace: 'nowrap', flexShrink: 0,
+                    transition: 'background 120ms',
+                  }}
+                >
+                  {exportingPdf ? '⏳ Exporting...' : '⬇ Export PDF'}
+                </button>
+              </div>
             </div>
 
             {reportLoading ? (

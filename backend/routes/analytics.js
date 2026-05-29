@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const ContentMixTracker = require('../services/ContentMixTracker');
+const { PDFDocument, rgb, StandardFonts, PageSizes } = require('pdf-lib');
 
 module.exports = (pool) => {
   const router = express.Router();
@@ -610,6 +611,234 @@ module.exports = (pool) => {
     } catch (err) {
       console.error('[analytics] leaderboard error:', err.message);
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/analytics/export-pdf?year=2025&month=4
+  router.get('/export-pdf', async (req, res) => {
+    try {
+      const year  = parseInt(req.query.year)  || new Date().getFullYear();
+      const month = parseInt(req.query.month); // 0-indexed
+      const safeMonth = isNaN(month) ? new Date().getMonth() : Math.max(0, Math.min(11, month));
+      const startDate = new Date(year, safeMonth, 1);
+      const endDate   = new Date(year, safeMonth + 1, 0, 23, 59, 59);
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const monthLabel = `${monthNames[safeMonth]} ${year}`;
+
+      // Fetch data
+      const [profileRes, postsRes] = await Promise.all([
+        pool.query('SELECT business_name, industry, location, brand_colors FROM customers WHERE id=$1', [req.customerId]),
+        pool.query(
+          `SELECT id, content_type, caption, media_url, status, posted_at,
+                  COALESCE((engagement->>'likes')::int, 0) AS likes,
+                  COALESCE((engagement->>'comments')::int, 0) AS comments,
+                  COALESCE((engagement->>'shares')::int, 0) AS shares,
+                  performance_score
+           FROM posts
+           WHERE customer_id=$1 AND status='posted'
+             AND posted_at BETWEEN $2 AND $3
+           ORDER BY (COALESCE((engagement->>'likes')::int,0)+COALESCE((engagement->>'comments')::int,0)+COALESCE((engagement->>'shares')::int,0)) DESC`,
+          [req.customerId, startDate, endDate]
+        ),
+      ]);
+
+      const profile   = profileRes.rows[0] || {};
+      const posts     = postsRes.rows;
+      const bizName   = profile.business_name || 'Your Business';
+
+      const totalEng  = posts.reduce((s, p) => s + (p.likes || 0) + (p.comments || 0) + (p.shares || 0), 0);
+      const totalReach = posts.reduce((s) => s + 150, 0); // estimate
+      const topPosts  = posts.slice(0, 3);
+
+      const typeCounts = {};
+      posts.forEach(p => { typeCounts[p.content_type || 'photo'] = (typeCounts[p.content_type || 'photo'] || 0) + 1; });
+
+      // ── Build PDF ─────────────────────────────────────────────────────────
+      const pdfDoc = await PDFDocument.create();
+      const fontB  = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const fontR  = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      const W = 595, H = 842; // A4 portrait
+      const PURPLE = rgb(0.486, 0.361, 0.988); // #7C5CFC
+      const TEAL   = rgb(0,     0.769, 0.8);   // #00C4CC
+      const DARK   = rgb(0.102, 0.102, 0.133); // #1a1a22
+      const GREY   = rgb(0.502, 0.502, 0.600);
+      const WHITE  = rgb(1, 1, 1);
+      const LIGHT  = rgb(0.96, 0.96, 0.98);
+
+      // Helper: wrap text to max width
+      function wrapText(text, font, size, maxW) {
+        const words = String(text || '').split(' ');
+        const lines = [];
+        let cur = '';
+        for (const w of words) {
+          const test = cur ? `${cur} ${w}` : w;
+          if (font.widthOfTextAtSize(test, size) > maxW) {
+            if (cur) lines.push(cur);
+            cur = w;
+          } else {
+            cur = test;
+          }
+        }
+        if (cur) lines.push(cur);
+        return lines;
+      }
+
+      // ── PAGE 1: Cover ──────────────────────────────────────────────────────
+      const cover = pdfDoc.addPage([W, H]);
+
+      // Purple gradient header (approximated as solid)
+      cover.drawRectangle({ x: 0, y: H - 220, width: W, height: 220, color: PURPLE });
+
+      // Decorative circle
+      cover.drawCircle({ x: W - 60, y: H - 40, size: 110, color: rgb(1,1,1,0.05), borderColor: rgb(1,1,1,0.1), borderWidth: 1 });
+      cover.drawCircle({ x: 40, y: H - 180, size: 70, color: rgb(1,1,1,0.04), borderColor: rgb(1,1,1,0.08), borderWidth: 1 });
+
+      // ItsPosting wordmark
+      cover.drawText('ItsPosting', { x: 40, y: H - 60, size: 28, font: fontB, color: WHITE });
+      cover.drawText('AI Social Media Report', { x: 40, y: H - 85, size: 13, font: fontR, color: rgb(1,1,1,0.75) });
+
+      // Month label
+      cover.drawText(monthLabel, { x: 40, y: H - 140, size: 36, font: fontB, color: WHITE });
+      cover.drawText(bizName, { x: 40, y: H - 168, size: 14, font: fontR, color: rgb(1,1,1,0.8) });
+
+      // Teal accent line
+      cover.drawLine({ start: { x: 40, y: H - 220 }, end: { x: W - 40, y: H - 220 }, thickness: 2, color: TEAL, opacity: 0.6 });
+
+      // Stats strip on cover
+      const stats = [
+        { label: 'Posts Published', value: String(posts.length) },
+        { label: 'Total Engagement', value: String(totalEng) },
+        { label: 'Est. Total Reach', value: totalReach > 999 ? `~${(totalReach/1000).toFixed(1)}k` : `~${totalReach}` },
+        { label: 'Top Content Type', value: Object.entries(typeCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || '—' },
+      ];
+      const sw = (W - 80) / 4;
+      stats.forEach((s, i) => {
+        const sx = 40 + i * sw;
+        const sy = H - 310;
+        cover.drawRectangle({ x: sx, y: sy, width: sw - 10, height: 70, color: LIGHT, borderColor: rgb(0.9,0.9,0.95), borderWidth: 1 });
+        cover.drawText(s.value, { x: sx + 10, y: sy + 44, size: 22, font: fontB, color: PURPLE });
+        cover.drawText(s.label, { x: sx + 10, y: sy + 12, size: 9, font: fontR, color: GREY });
+      });
+
+      // "Generated by" footer
+      cover.drawLine({ start: { x: 40, y: 80 }, end: { x: W - 40, y: 80 }, thickness: 0.5, color: rgb(0.85,0.85,0.9) });
+      cover.drawText(`Generated by ItsPosting — ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, {
+        x: 40, y: 60, size: 9, font: fontR, color: GREY,
+      });
+      cover.drawText('app.itsposting.com', { x: W - 140, y: 60, size: 9, font: fontR, color: PURPLE });
+
+      // ── PAGE 2: Top Posts ─────────────────────────────────────────────────
+      const postsPage = pdfDoc.addPage([W, H]);
+      postsPage.drawRectangle({ x: 0, y: H - 60, width: W, height: 60, color: PURPLE });
+      postsPage.drawText(`${monthLabel} — Top Posts`, { x: 40, y: H - 38, size: 16, font: fontB, color: WHITE });
+      postsPage.drawText('ItsPosting', { x: W - 100, y: H - 38, size: 11, font: fontB, color: rgb(1,1,1,0.6) });
+
+      let py = H - 90;
+      if (topPosts.length === 0) {
+        postsPage.drawText('No posts published this month.', { x: 40, y: py, size: 13, font: fontR, color: GREY });
+      } else {
+        topPosts.forEach((p, i) => {
+          const cardH = 100;
+          postsPage.drawRectangle({ x: 40, y: py - cardH, width: W - 80, height: cardH, color: LIGHT, borderColor: rgb(0.9,0.9,0.95), borderWidth: 1 });
+          // Rank badge
+          postsPage.drawCircle({ x: 60, y: py - 30, size: 14, color: PURPLE });
+          postsPage.drawText(String(i + 1), { x: 55, y: py - 35, size: 10, font: fontB, color: WHITE });
+          // Caption preview
+          const captionLines = wrapText(p.caption || 'No caption', fontR, 9, W - 160);
+          captionLines.slice(0, 3).forEach((line, li) => {
+            postsPage.drawText(line, { x: 82, y: py - 18 - li * 12, size: 9, font: fontR, color: DARK });
+          });
+          // Date
+          const dateStr = p.posted_at ? new Date(p.posted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+          postsPage.drawText(dateStr, { x: 82, y: py - 62, size: 8, font: fontR, color: GREY });
+          // Engagement
+          const eng = (p.likes || 0) + (p.comments || 0) + (p.shares || 0);
+          postsPage.drawText(`${eng} engagements · ${p.likes || 0} likes · ${p.comments || 0} comments`, { x: 82, y: py - 74, size: 8, font: fontR, color: GREY });
+          // Score bar
+          const barW = 120;
+          const score = Math.min(1, (parseFloat(p.performance_score) || 0) / 100);
+          postsPage.drawRectangle({ x: W - 180, y: py - 40, width: barW, height: 8, color: rgb(0.88,0.88,0.93) });
+          if (score > 0) postsPage.drawRectangle({ x: W - 180, y: py - 40, width: Math.round(barW * score), height: 8, color: PURPLE });
+          postsPage.drawText(`Score: ${Math.round((parseFloat(p.performance_score) || 0))}`, { x: W - 180, y: py - 55, size: 8, font: fontR, color: GREY });
+          py -= (cardH + 14);
+        });
+      }
+
+      // Content mix section
+      py -= 20;
+      postsPage.drawText('Content Mix', { x: 40, y: py, size: 14, font: fontB, color: DARK });
+      postsPage.drawLine({ start: { x: 40, y: py - 4 }, end: { x: W - 40, y: py - 4 }, thickness: 0.5, color: rgb(0.85,0.85,0.9) });
+      py -= 24;
+      const typeLabels = { static: 'Text Card', photo: 'Photo Post', carousel: 'Carousel', video: 'Video' };
+      const maxCount = Math.max(...Object.values(typeCounts), 1);
+      Object.entries(typeCounts).forEach(([type, count]) => {
+        const barW = Math.round(((W - 220) * count) / maxCount);
+        postsPage.drawText((typeLabels[type] || type).padEnd(12), { x: 40, y: py, size: 10, font: fontR, color: DARK });
+        postsPage.drawRectangle({ x: 145, y: py - 4, width: W - 220, height: 12, color: rgb(0.9,0.9,0.95) });
+        if (barW > 0) postsPage.drawRectangle({ x: 145, y: py - 4, width: barW, height: 12, color: PURPLE });
+        postsPage.drawText(String(count), { x: W - 65, y: py, size: 10, font: fontB, color: PURPLE });
+        py -= 24;
+      });
+
+      // ── PAGE 3: Recommendations ───────────────────────────────────────────
+      const recPage = pdfDoc.addPage([W, H]);
+      recPage.drawRectangle({ x: 0, y: H - 60, width: W, height: 60, color: PURPLE });
+      recPage.drawText('PostCore Recommendations', { x: 40, y: H - 38, size: 16, font: fontB, color: WHITE });
+      recPage.drawText('ItsPosting', { x: W - 100, y: H - 38, size: 11, font: fontB, color: rgb(1,1,1,0.6) });
+
+      // Generate recommendations based on data
+      const recs = [];
+      if (posts.length < 8) recs.push({ title: 'Post more consistently', body: `You published ${posts.length} post${posts.length !== 1 ? 's' : ''} this month. Businesses that post 3+ times per week see 5× more engagement. Try using the Post Wizard daily.` });
+      else recs.push({ title: 'Great posting frequency!', body: `${posts.length} posts this month puts you ahead of most businesses. Keep the momentum going next month.` });
+
+      const hasVideo = (typeCounts.video || 0) > 0;
+      if (!hasVideo) recs.push({ title: 'Add video content', body: 'Video posts generate 2–3× more engagement than photos for local service businesses. Try the Video Wizard for a quick AI-generated video.' });
+
+      const hasCarousel = (typeCounts.carousel || 0) > 0;
+      if (!hasCarousel) recs.push({ title: 'Try carousel posts', body: 'Carousels get 109% more reach than single images on Instagram. Use the Post Wizard to create a tips carousel about your services.' });
+
+      if (totalEng === 0) recs.push({ title: 'Boost engagement by asking questions', body: 'Every post should end with a question to your audience. PostCore automatically adds engagement questions — make sure to respond to comments you receive.' });
+      else recs.push({ title: 'Respond to your comments', body: `You received ${totalEng} engagements this month. Responding to every comment can increase your reach by up to 42% — it signals activity to the algorithm.` });
+
+      recs.push({ title: 'Use seasonal content', body: 'PostCore automatically detects what month it is and generates industry-specific seasonal content for your area. Use the suggestion cards on your dashboard for instant ideas.' });
+
+      let ry = H - 90;
+      recs.forEach((rec, i) => {
+        const iconR = 14;
+        // Number circle
+        recPage.drawCircle({ x: 55, y: ry - 10, size: iconR, color: PURPLE });
+        recPage.drawText(String(i + 1), { x: i < 9 ? 51 : 48, y: ry - 14, size: 11, font: fontB, color: WHITE });
+        // Title
+        recPage.drawText(rec.title, { x: 80, y: ry, size: 12, font: fontB, color: DARK });
+        ry -= 18;
+        // Body — wrapped
+        const bodyLines = wrapText(rec.body, fontR, 10, W - 130);
+        bodyLines.forEach(line => {
+          recPage.drawText(line, { x: 80, y: ry, size: 10, font: fontR, color: GREY });
+          ry -= 14;
+        });
+        ry -= 16;
+        if (ry < 120) return; // Safety stop
+      });
+
+      // Footer on all pages
+      for (const page of pdfDoc.getPages()) {
+        page.drawLine({ start: { x: 40, y: 60 }, end: { x: W - 40, y: 60 }, thickness: 0.5, color: rgb(0.85,0.85,0.9) });
+        page.drawText(`${bizName} — ${monthLabel} Social Media Report`, { x: 40, y: 40, size: 8, font: fontR, color: GREY });
+        page.drawText('app.itsposting.com', { x: W - 130, y: 40, size: 8, font: fontR, color: PURPLE });
+      }
+
+      const pdfBytes = await pdfDoc.save();
+      const filename = `ItsPosting-Report-${year}-${String(safeMonth + 1).padStart(2,'0')}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBytes.length);
+      res.send(Buffer.from(pdfBytes));
+    } catch (err) {
+      console.error('[analytics] export-pdf error:', err.message);
+      res.status(500).json({ error: 'PDF generation failed: ' + err.message });
     }
   });
 
