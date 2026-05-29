@@ -111,14 +111,14 @@ export default function AdminDashboard() {
       )}
 
       {/* TOP STATS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 20 }}>
         <StatCard label="Total customers" value={stats.users.total} hint={`+${stats.users.new_this_week || 0} this week`} accent="primary" />
         <StatCard label="Active subscribers" value={stats.users.active || 0} hint={`${stats.users.active_this_week || 0} active this week`} accent="success" />
         <StatCard label="MRR" value={`$${(stats.revenue.mrr || 0).toLocaleString()}`} hint={`$${(stats.revenue.arr || 0).toLocaleString()} ARR`} accent="success" />
         <StatCard label="Total posts" value={stats.posts.total_posts || 0} hint={`${stats.posts.today || 0} today`} accent="primary" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 20 }}>
         {/* REVENUE BREAKDOWN */}
         <div style={gc}>
           <SectionHeader icon={IpDollar} title="Revenue breakdown" />
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* QUICK STATS ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 20 }}>
         <div style={{ ...gc, textAlign: 'center', padding: 20 }}>
           <div style={{ fontSize: 32, fontWeight: 800, color: t.warning, fontFamily: 'monospace' }}>{stats.users.trial || 0}</div>
           <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4 }}>Trial accounts</div>

@@ -174,7 +174,7 @@ export default function EmailQueuePage() {
       </div>
 
       {/* STATS ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 24 }}>
         <StatCard label="Pending" value={parseInt(stats.pending) || 0} accent="warning" />
         <StatCard label="Sent" value={parseInt(stats.sent) || 0} accent="success" />
         <StatCard label="Failed" value={parseInt(stats.failed) || 0} accent={parseInt(stats.failed) > 0 ? 'error' : 'default'} />

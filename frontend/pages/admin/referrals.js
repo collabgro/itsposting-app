@@ -140,7 +140,7 @@ export default function AdminReferrals() {
         </div>
 
         {/* Summary stat cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
           {[
             {
               icon: IpSchedule, label: 'Pending Awards', color: '#f59e0b',
@@ -204,9 +204,9 @@ export default function AdminReferrals() {
           ) : awards.length === 0 ? (
             <EmptyState icon={IpTrendingUp} title="No referral awards" subtitle="Pending awards will appear here when referred users upgrade to a paid plan." />
           ) : (
-            <div>
+            <div style={{ overflowX: 'auto' }}>
               {/* Column headers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px 100px 120px 160px', gap: 12, padding: '0 12px 10px', borderBottom: `1px solid ${t.border}`, fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px 100px 120px 160px', gap: 12, padding: '0 12px 10px', borderBottom: `1px solid ${t.border}`, fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 700 }}>
                 <span>Referrer</span>
                 <span>Referred (paid customer)</span>
                 <span>Credits</span>
@@ -224,7 +224,7 @@ export default function AdminReferrals() {
                     style={{
                       display: 'grid', gridTemplateColumns: '1fr 1fr 80px 100px 120px 160px',
                       gap: 12, padding: '14px 12px', borderBottom: `1px solid ${t.border}`,
-                      alignItems: 'center', transition: 'background 150ms',
+                      alignItems: 'center', transition: 'background 150ms', minWidth: 700,
                     }}
                     onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}

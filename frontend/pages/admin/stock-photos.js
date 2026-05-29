@@ -269,7 +269,7 @@ export default function AdminStockPhotos() {
           )}
 
           {/* Form fields */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 16 }}>
             <div>
               <label style={labelStyle}>Industry <span style={{ color: '#e53e3e' }}>*</span></label>
               <select value={uploadIndustry} onChange={e => setUploadIndustry(e.target.value)} style={selectStyle} className="sp-select">
@@ -285,7 +285,7 @@ export default function AdminStockPhotos() {
               </select>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 20 }}>
             <div>
               <label style={labelStyle}>Tags (comma-separated, optional)</label>
               <input value={uploadTags} onChange={e => setUploadTags(e.target.value)} placeholder="e.g. trees, trimming, summer" style={inputStyle} />
@@ -395,7 +395,7 @@ export default function AdminStockPhotos() {
             {/* Thumbnail */}
             <img src={editPhoto.thumbnail_url || editPhoto.url} alt="" style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 8, marginBottom: 20 }} />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 14 }}>
               <div>
                 <label style={labelStyle}>Industry</label>
                 <select value={editForm.industry} onChange={e => setEditForm(f => ({ ...f, industry: e.target.value }))} style={selectStyle} className="sp-select">

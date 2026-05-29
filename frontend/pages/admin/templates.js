@@ -530,7 +530,7 @@ export default function AdminTemplates() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 16 }}>
                 <div>
                   <label style={labelStyle}>Industry *</label>
                   <select value={uploadIndustry} onChange={e => setUploadIndustry(e.target.value)} style={selectStyle}>
@@ -772,7 +772,7 @@ export default function AdminTemplates() {
                 <button onClick={() => setEditPhoto(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><IpClose size={18} style={{ color: t.textMuted }} /></button>
               </div>
               {editPhoto.thumbnail_url && <img src={editPhoto.thumbnail_url} alt="" style={{ width: '100%', borderRadius: 10, marginBottom: 20, maxHeight: 200, objectFit: 'cover' }} />}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Industry</label>
                   <select value={editPhotoForm.industry} onChange={e => setEditPhotoForm(p => ({ ...p, industry: e.target.value }))} style={selectStyle}>
                     {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
@@ -809,7 +809,7 @@ export default function AdminTemplates() {
                 <button onClick={() => setEditCanvasTemplate(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><IpClose size={18} style={{ color: t.textMuted }} /></button>
               </div>
               <div style={{ marginBottom: 14 }}><label style={labelStyle}>Name</label><input value={editCanvasForm.name} onChange={e => setEditCanvasForm(p => ({ ...p, name: e.target.value }))} style={inputStyle} /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Industry</label>
                   <select value={editCanvasForm.industry} onChange={e => setEditCanvasForm(p => ({ ...p, industry: e.target.value }))} style={selectStyle}>
                     {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
@@ -821,7 +821,7 @@ export default function AdminTemplates() {
                   </select>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Sort Order</label><input type="number" value={editCanvasForm.sort_order} onChange={e => setEditCanvasForm(p => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))} style={inputStyle} /></div>
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer', fontSize: 13, color: t.text }}>
@@ -846,7 +846,7 @@ export default function AdminTemplates() {
                 <button onClick={() => setNewTemplateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><IpClose size={18} style={{ color: t.textMuted }} /></button>
               </div>
               <div style={{ marginBottom: 14 }}><label style={labelStyle}>Template Name *</label><input value={newTemplateForm.name} onChange={e => setNewTemplateForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Plumbing — Before & After Dark" style={inputStyle} /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 14 }}>
                 <div><label style={labelStyle}>Industry</label>
                   <select value={newTemplateForm.industry} onChange={e => setNewTemplateForm(p => ({ ...p, industry: e.target.value }))} style={selectStyle}>
                     {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}

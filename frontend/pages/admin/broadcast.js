@@ -181,7 +181,7 @@ export default function BroadcastPage() {
             <label style={{ display: 'block', fontSize: 13, color: t.textSecondary, marginBottom: 10 }}>
               Target Segment
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
               {SEGMENTS.map((s) => (
                 <button
                   key={s.key}

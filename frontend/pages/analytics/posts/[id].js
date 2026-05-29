@@ -92,7 +92,7 @@ export default function PostPerformance() {
       action={<Button variant="ghost" onClick={() => router.push('/analytics')}><IpArrowLeft size={14} /> Analytics</Button>}
     >
       {/* PREVIEW + COMPARISON */}
-      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20, marginBottom: 20 }}>
         {/* POST CARD */}
         <div style={gc}>
           {post.media_url ? (
@@ -126,7 +126,7 @@ export default function PostPerformance() {
 
         {/* COMPARISON CARDS */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
             {[
               { label: 'Likes', key: 'likes', icon: IpHeart, color: '#F43F5E' },
               { label: 'Comments', key: 'comments', icon: IpComment, color: 'url(#brand-gradient)' },
@@ -156,7 +156,7 @@ export default function PostPerformance() {
           {/* ACCOUNT AVERAGE CONTEXT */}
           <div style={gc}>
             <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 10 }}>Your account averages</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: 12 }}>
               {[
                 { label: 'Avg likes', value: accountAverage.likes },
                 { label: 'Avg comments', value: accountAverage.comments },
@@ -179,7 +179,7 @@ export default function PostPerformance() {
         {platformMetrics.length === 0 ? (
           <EmptyState icon={IpGlobe} title="No platform data yet" subtitle="Connect your social accounts to see per-platform engagement" />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, platformMetrics.length)}, 1fr)`, gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
             {platformMetrics.map((m) => {
               const meta = PLATFORM_META[m.platform] || { name: m.platform, icon: IpGlobe, color: t.primary };
               const Icon = meta.icon;

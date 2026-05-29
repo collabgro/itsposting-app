@@ -311,7 +311,7 @@ export default function AdminCustomerDetail() {
       )}
 
       {/* STATS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16, marginBottom: 20 }}>
         <div style={{ ...gc, textAlign: 'center' }}>
           <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 500, marginBottom: 4 }}>Credits balance</div>
           <div style={{ fontSize: 30, fontWeight: 800, color: t.text, fontFamily: 'monospace' }}>{c.credits_balance || 0}</div>
@@ -331,7 +331,7 @@ export default function AdminCustomerDetail() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
         {/* CREDIT HISTORY */}
         <div style={gc}>
           <SectionHeader icon={IpBilling} title="Credit history" />
@@ -455,7 +455,7 @@ function EditModal({ customer: c, onClose, onSubmit, t }) {
               style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13 }} />
           </div>
         ))}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 14 }}>
           <div>
             <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 6 }}>Plan</label>
             <select value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })}
@@ -515,7 +515,7 @@ function ChangePlanModal({ customer: c, onClose, onSubmit, t }) {
         </p>
 
         {/* Plan cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 16 }}>
           {PLANS.map((p) => (
             <div
               key={p.id}
