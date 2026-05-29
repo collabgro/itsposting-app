@@ -86,8 +86,8 @@ module.exports = (pool) => {
       );
 
       const socialRes = await pool.query(
-        `SELECT platform, profile_name, profile_url FROM social_accounts
-         WHERE customer_id = $1 AND is_active = TRUE`,
+        `SELECT platform, account_name AS profile_name, account_username FROM social_accounts
+         WHERE customer_id = $1 AND enabled = TRUE`,
         [customerId]
       );
 

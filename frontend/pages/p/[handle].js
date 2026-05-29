@@ -162,25 +162,18 @@ export default function PublicProfile() {
             {socialAccounts && socialAccounts.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
                 {socialAccounts.map((acc) => (
-                  acc.profile_url ? (
-                    <a
-                      key={acc.platform}
-                      href={acc.profile_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`Follow on ${PLATFORM_LABELS[acc.platform] || acc.platform}`}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        background: '#1C1C24', border: '1px solid #2E2E3A',
-                        borderRadius: 8, padding: '7px 14px',
-                        color: '#E2E2E8', textDecoration: 'none', fontSize: 13, fontWeight: 500,
-                        transition: 'border-color 0.15s',
-                      }}
-                    >
-                      <PlatformIcon platform={acc.platform} size={16} />
-                      {acc.profile_name || PLATFORM_LABELS[acc.platform]}
-                    </a>
-                  ) : null
+                  <div
+                    key={acc.platform}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: '#1C1C24', border: '1px solid #2E2E3A',
+                      borderRadius: 8, padding: '7px 14px',
+                      color: '#E2E2E8', fontSize: 13, fontWeight: 500,
+                    }}
+                  >
+                    <PlatformIcon platform={acc.platform} size={16} />
+                    {acc.profile_name || acc.account_username || PLATFORM_LABELS[acc.platform]}
+                  </div>
                 ))}
               </div>
             )}
