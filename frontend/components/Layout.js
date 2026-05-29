@@ -541,9 +541,6 @@ export default function Layout({ children, title, subtitle, action }) {
           )}
         </nav>
 
-        {/* POSTCORE MASCOT */}
-        {!isMobile && user && <PostCoreMascot user={user} />}
-
         {/* TRIAL CARD */}
         {!isMobile && user?.status === 'trial' && (
           <div style={{ padding: '10px 12px', borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.07)'}`, flexShrink: 0 }}>
@@ -677,6 +674,8 @@ export default function Layout({ children, title, subtitle, action }) {
                 <IpMenu size={16} />
               </button>
             )}
+            {/* PostCore mascot — compact topbar version */}
+            {!isMobile && user && <PostCoreMascot user={user} compact />}
             <NotificationBell />
             <button
               aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}

@@ -294,10 +294,10 @@ const PC_CSS = `
   65%     { transform:translateY(8px); opacity:0.3; }
 }
 
-/* Tooltip appear */
+/* Tooltip appear — slides in from left */
 @keyframes pc2-tooltip-in {
-  from { opacity:0; transform:translateX(-50%) translateY(8px) scale(0.91); }
-  to   { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+  from { opacity:0; transform:translateY(-50%) translateX(-8px) scale(0.93); }
+  to   { opacity:1; transform:translateY(-50%) translateX(0) scale(1); }
 }
 
 /* Cursor click ripple */
@@ -308,7 +308,8 @@ const PC_CSS = `
 `;
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function PostCoreMascot({ user }) {
+// compact=true renders at 44×55px for the topbar; false (default) = 72×90px sidebar size
+export default function PostCoreMascot({ user, compact = false }) {
   const { t } = useTheme();
   const router = useRouter();
   const mascotRef = useRef(null);
@@ -523,10 +524,15 @@ export default function PostCoreMascot({ user }) {
     'pc2-pulse-zoom': '0.58s',
   }[bodyAnim] || '3.2s';
 
+  const charW = compact ? 44 : 72;
+  const charH = compact ? 55 : 90;
+
   return (
     <div style={{
-      padding: '10px 0 6px',
-      borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'}`,
+      ...(compact ? {} : {
+        padding: '10px 0 6px',
+        borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'}`,
+      }),
       flexShrink: 0,
       display: 'flex',
       flexDirection: 'column',
@@ -537,13 +543,14 @@ export default function PostCoreMascot({ user }) {
     }}>
       <style dangerouslySetInnerHTML={{ __html: PC_CSS }} />
 
-      {/* ── Tooltip ──────────────────────────────────────────────────────── */}
+      {/* ── Tooltip — appears to the RIGHT, never overlaps nav ──────────── */}
       {hovered && (
         <div style={{
           position: 'absolute',
-          bottom: 'calc(100% + 8px)',
-          left: '50%',
-          width: 192,
+          left: 'calc(100% + 14px)',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          width: 196,
           background: t.isDark ? 'rgba(10,8,24,0.97)' : 'rgba(255,255,255,0.98)',
           border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.25)'}`,
           borderRadius: 13,
@@ -554,7 +561,7 @@ export default function PostCoreMascot({ user }) {
           lineHeight: 1.55,
           boxShadow: '0 12px 32px rgba(0,0,0,0.22)',
           zIndex: 400,
-          textAlign: 'center',
+          textAlign: 'left',
           animation: 'pc2-tooltip-in 200ms ease both',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
@@ -562,8 +569,9 @@ export default function PostCoreMascot({ user }) {
         }}>
           <span style={{ color: t.primary, fontWeight: 700, display: 'block', marginBottom: 3, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>PostCore</span>
           {tooltipMsg}
-          <div style={{ position: 'absolute', bottom: -6, left: '50%', transform: 'translateX(-50%)', width: 10, height: 6, overflow: 'hidden' }}>
-            <div style={{ width: 10, height: 10, background: t.isDark ? 'rgba(10,8,24,0.97)' : 'rgba(255,255,255,0.98)', border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.25)'}`, transform: 'rotate(45deg) translateY(-5px)' }} />
+          {/* Caret pointing left toward character */}
+          <div style={{ position: 'absolute', left: -6, top: '50%', transform: 'translateY(-50%)', width: 6, height: 10, overflow: 'hidden' }}>
+            <div style={{ width: 10, height: 10, background: t.isDark ? 'rgba(10,8,24,0.97)' : 'rgba(255,255,255,0.98)', border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.25)'}`, transform: 'rotate(45deg) translateX(-5px)' }} />
           </div>
         </div>
       )}
@@ -575,7 +583,7 @@ export default function PostCoreMascot({ user }) {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          width: 72, height: 90,
+          width: charW, height: charH,
           cursor: 'pointer',
           userSelect: 'none',
           WebkitUserSelect: 'none',
@@ -601,7 +609,7 @@ export default function PostCoreMascot({ user }) {
           viewBox="0 0 80 100"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          style={{ width: '100%', height: '100%', overflow: 'visible' }}
+          style={{ width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}
         >
           <defs>
             {/* Head + body gradient */}
@@ -736,18 +744,20 @@ export default function PostCoreMascot({ user }) {
         </svg>
       </div>
 
-      {/* Label */}
-      <div style={{
-        fontSize: 9,
-        fontWeight: 700,
-        letterSpacing: '0.08em',
-        color: t.isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)',
-        textTransform: 'uppercase',
-        marginTop: 1,
-        marginBottom: 5,
-      }}>
-        PostCore
-      </div>
+      {/* Label — sidebar only */}
+      {!compact && (
+        <div style={{
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          color: t.isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)',
+          textTransform: 'uppercase',
+          marginTop: 1,
+          marginBottom: 5,
+        }}>
+          PostCore
+        </div>
+      )}
     </div>
   );
 }
