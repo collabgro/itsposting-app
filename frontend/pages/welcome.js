@@ -96,7 +96,7 @@ export default function Welcome() {
           {/* Feature cards */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
             gap: 12,
             marginBottom: 36,
           }}>

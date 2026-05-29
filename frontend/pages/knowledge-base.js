@@ -1619,7 +1619,7 @@ function AiResponseTab({ t }) {
   return (
     <div style={{ maxWidth: 680 }}>
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 8 }}>
         {[
           { label: 'AI Handled Today', value: stats.aiHandledToday },
           { label: 'Escalated Open',   value: stats.escalatedOpen },

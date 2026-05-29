@@ -125,7 +125,7 @@ export default function BroadcastPage() {
         </Button>
       }
     >
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'start' }}>
 
         {/* ── LEFT: COMPOSE ── */}
         <div style={gc}>

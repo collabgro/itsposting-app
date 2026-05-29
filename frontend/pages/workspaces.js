@@ -402,7 +402,7 @@ function MemberPermissionModal({ member, onClose, onSave, onRemove }) {
           {/* Role selector */}
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Role</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
               {Object.entries(ROLE_META).map(([key, meta]) => {
                 const active = role === key;
                 return (
