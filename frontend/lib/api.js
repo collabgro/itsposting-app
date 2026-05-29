@@ -63,6 +63,7 @@ export const customerAPI = {
   }),
   getHashtagSets: () => api.get('/api/customers/hashtag-sets'),
   updateHashtagSets: (sets) => api.patch('/api/customers/hashtag-sets', { sets }),
+  updatePreferences: (prefs) => api.patch('/api/customers/preferences', prefs),
 };
 
 export const socialAPI = {

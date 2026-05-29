@@ -624,6 +624,9 @@ console.log('══════════════════════�
       UNIQUE (customer_id, day_number)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_onboarding_email_log_customer ON onboarding_email_log(customer_id)`,
+    // Testimonial Machine: metadata column on posts + source index
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS metadata JSONB`,
+    `CREATE INDEX IF NOT EXISTS idx_posts_source_testimonial ON posts(customer_id, source) WHERE source='auto_testimonial'`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -2864,6 +2867,16 @@ cron.schedule('0 9 * * *', async () => {
   catch (e) { console.error('[Onboarding] Daily sequence error:', e.message); }
 });
 console.log('📧 Onboarding email sequence cron scheduled (daily 9am UTC)');
+
+// Testimonial Machine — runs every Monday and Thursday at 10am UTC
+const TestimonialMachine = require('./services/TestimonialMachine');
+const testimonialMachine = new TestimonialMachine(pool);
+cron.schedule('0 10 * * 1,4', async () => {
+  console.log('[TestimonialMachine] Running biweekly testimonial generation...');
+  try { await testimonialMachine.runForAllEligible(); }
+  catch (e) { console.error('[TestimonialMachine] Error:', e.message); }
+});
+console.log('⭐ Testimonial Machine cron scheduled (Mon+Thu 10am UTC)');
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`

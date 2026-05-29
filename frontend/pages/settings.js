@@ -425,6 +425,10 @@ export default function Settings() {
   // Notification preferences
   const [notifPrefs, setNotifPrefs] = useState(DEFAULT_NOTIF_PREFS);
 
+  // Testimonial Machine
+  const [autoTestimonial, setAutoTestimonial] = useState(false);
+  const [testimonialSaving, setTestimonialSaving] = useState(false);
+
   // Brand asset upload
   const [logoUploading, setLogoUploading] = useState(false);
   const [faviconUploading, setFaviconUploading] = useState(false);
@@ -632,6 +636,7 @@ export default function Settings() {
       if (profileRes.data.content_preferences?.notifications) {
         setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...profileRes.data.content_preferences.notifications });
       }
+      setAutoTestimonial(profileRes.data.content_preferences?.auto_testimonial_enabled === 'true');
       setProviders(providersRes.data);
       setDmsStats(dmsRes.data);
       if (scrapedRes.data.hasData) {
@@ -916,6 +921,15 @@ export default function Settings() {
     } catch {
       showToast('Failed to update', 'error');
     }
+  };
+
+  const handleToggleAutoTestimonial = async (newVal) => {
+    setAutoTestimonial(newVal);
+    setTestimonialSaving(true);
+    try {
+      await customerAPI.updatePreferences({ auto_testimonial_enabled: newVal });
+    } catch { setAutoTestimonial(!newVal); }
+    finally { setTestimonialSaving(false); }
   };
 
   const handleSave = async () => {
@@ -1691,6 +1705,51 @@ export default function Settings() {
           {hashtagSets.length === 0 && !loadingHashtags && (
             <div style={{ textAlign: 'center', padding: '20px 0 8px', color: t.textMuted, fontSize: 13 }}>
               No hashtag sets yet. Create your first one above.
+            </div>
+          )}
+        </div>
+
+        {/* Testimonial Machine */}
+        <div style={gc}>
+          <SectionHeader icon={IpSparkle} title="Testimonial Machine" subtitle="PostCore automatically turns your best Google reviews into social media drafts every two weeks" />
+          <div
+            onClick={() => !testimonialSaving && handleToggleAutoTestimonial(!autoTestimonial)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+              padding: '14px 16px', borderRadius: 12,
+              background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input,
+              border: `1px solid ${autoTestimonial ? t.primaryBorder : (t.isDark ? 'rgba(255,255,255,0.05)' : t.border)}`,
+              cursor: testimonialSaving ? 'default' : 'pointer', transition: 'border-color 150ms, background 150ms',
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 3 }}>
+                Auto-generate testimonial posts
+              </div>
+              <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5 }}>
+                Every 2 weeks PostCore picks your best unposted Google review and creates a ready-to-approve draft. Requires a connected Google Business account.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); !testimonialSaving && handleToggleAutoTestimonial(!autoTestimonial); }}
+              style={{
+                width: 48, height: 28, borderRadius: 14, border: 'none', cursor: testimonialSaving ? 'default' : 'pointer',
+                padding: 3, background: autoTestimonial ? '#34C759' : (t.isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db'),
+                transition: 'background 200ms ease', display: 'flex', alignItems: 'center',
+                justifyContent: autoTestimonial ? 'flex-end' : 'flex-start', flexShrink: 0,
+                opacity: testimonialSaving ? 0.6 : 1,
+              }}
+            >
+              <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.3)', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)' }} />
+            </button>
+          </div>
+          {autoTestimonial && (
+            <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(52,199,89,0.08)', border: '1px solid rgba(52,199,89,0.2)', borderRadius: 10 }}>
+              <div style={{ fontSize: 12, color: t.success, fontWeight: 600 }}>✓ Active</div>
+              <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2, lineHeight: 1.5 }}>
+                Drafts appear in Post History with the status "Draft" and source "auto_testimonial". You approve or edit them before anything is published.
+              </div>
             </div>
           )}
         </div>

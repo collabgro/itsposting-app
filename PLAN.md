@@ -239,10 +239,12 @@ PostCore analyzes: content types, tones, engagement patterns.
 Report: "Your competitor posts Wed/Fri, mostly before/after. Their avg likes: 45. Yours: 12."
 "Generate a better version of their best post ->" CTA pre-fills wizard.
 
-### 4.5 Testimonial Machine
+### 4.5 Testimonial Machine [DONE]
 "Enable auto-testimonial posts" toggle in Settings.
-Every 2 weeks: PostCore picks best unposted review -> generates quote card (Sharp) + caption.
-Draft appears with "[Auto-Testimonial — pending approval]" badge.
+Every 2 weeks: PostCore picks best unposted review -> generates caption via Claude.
+Draft appears with "⭐ Auto-Testimonial" badge in history.js.
+Backend: TestimonialMachine.js service + Mon+Thu 10am UTC cron; posts to `posts` table as source='auto_testimonial' status='draft'.
+Frontend: Settings toggle (PATCH /api/customers/preferences); "⭐ Auto-Testimonial" badge in post history; Active status panel with explanation.
 
 ### 4.6 Inbox Approval Queue Mode
 New mode between full-auto and manual.

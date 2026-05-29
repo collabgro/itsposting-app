@@ -536,6 +536,9 @@ export default function History() {
                       {post.source === 'ai_generated' && (
                         <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 9, background: t.primaryBg, color: t.primary, border: `1px solid ${t.primaryBorder}`, fontWeight: 600 }}>AI</span>
                       )}
+                      {post.source === 'auto_testimonial' && (
+                        <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 9, background: 'rgba(234,179,8,0.12)', color: '#EAB308', border: '1px solid rgba(234,179,8,0.3)', fontWeight: 600 }}>⭐ Auto-Testimonial</span>
+                      )}
 
                       {/* Platform icons */}
                       {postPlatforms.length > 0 && (

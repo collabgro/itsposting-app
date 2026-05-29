@@ -285,5 +285,41 @@ module.exports = (pool) => {
     }
   });
 
+  // ── PATCH /api/customers/preferences ─────────────────────────────────────
+  // Merges arbitrary key-value pairs into content_preferences JSONB.
+  // Used for feature toggles like auto_testimonial_enabled.
+  router.patch('/preferences', authenticate, async (req, res) => {
+    try {
+      const updates = req.body;
+      if (!updates || typeof updates !== 'object') return res.status(400).json({ error: 'Invalid body' });
+
+      // Allowlist of safe preference keys
+      const ALLOWED = new Set([
+        'auto_testimonial_enabled',
+        'notifications',
+        'content_ratio_warning',
+        'suggestion_dismissed_types',
+      ]);
+      const filtered = Object.fromEntries(Object.entries(updates).filter(([k]) => ALLOWED.has(k)));
+      if (Object.keys(filtered).length === 0) return res.status(400).json({ error: 'No valid preferences provided' });
+
+      const jsonPatch = Object.entries(filtered)
+        .map(([k, v]) => `jsonb_build_object('${k}', ${typeof v === 'boolean' ? `'${v}'` : `'${String(v).substring(0, 200)}'`})`)
+        .join(' || ');
+
+      const result = await pool.query(
+        `UPDATE customers
+            SET content_preferences = COALESCE(content_preferences, '{}'::jsonb) || (${jsonPatch})
+          WHERE id=$1
+          RETURNING content_preferences`,
+        [req.customerId]
+      );
+      res.json({ content_preferences: result.rows[0]?.content_preferences });
+    } catch (err) {
+      console.error('[customers/preferences]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };
