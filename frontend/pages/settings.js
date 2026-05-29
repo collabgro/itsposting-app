@@ -9,7 +9,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, Input, Badge, SectionHeader, Spinner, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI, authAPI } from '../lib/api';
+import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI, authAPI, publicAPI } from '../lib/api';
 import IntegrationSetupWizard from '../components/IntegrationSetupWizard';
 
 const TIMEZONES = [
@@ -440,6 +440,11 @@ export default function Settings() {
   const [dmsStats, setDmsStats] = useState(null);
   const [syncing, setSyncing] = useState(false);
 
+  // Public profile handle
+  const [handleInput, setHandleInput] = useState('');
+  const [handleSaving, setHandleSaving] = useState(false);
+  const [handleError, setHandleError] = useState('');
+
   // Developer API Keys
   const [apiKeys, setApiKeys] = useState([]);
   const [loadingKeys, setLoadingKeys] = useState(false);
@@ -648,6 +653,7 @@ export default function Settings() {
         setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...profileRes.data.content_preferences.notifications });
       }
       setAutoTestimonial(profileRes.data.content_preferences?.auto_testimonial_enabled === 'true');
+      setHandleInput(profileRes.data.public_handle || '');
       setProviders(providersRes.data);
       setDmsStats(dmsRes.data);
       if (scrapedRes.data.hasData) {
@@ -1003,6 +1009,21 @@ export default function Settings() {
     }
   };
 
+  const saveHandle = async () => {
+    setHandleError('');
+    setHandleSaving(true);
+    try {
+      const res = await publicAPI.setHandle(handleInput.trim());
+      setHandleInput(res.data.handle || '');
+      setProfile(p => ({ ...p, public_handle: res.data.handle || null }));
+      showToast(res.data.handle ? 'Public handle saved!' : 'Handle cleared');
+    } catch (err) {
+      setHandleError(err.response?.data?.error || 'Failed to save handle');
+    } finally {
+      setHandleSaving(false);
+    }
+  };
+
   const completeness = useMemo(() => {
     const checks = [
       { label: 'Business name', done: !!profile?.business_name?.trim(), weight: 15 },
@@ -1233,6 +1254,51 @@ export default function Settings() {
                 </div>
                 <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6 }}>Square image, at least 64Ã—64px</div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Public Profile ───────────────────────────────────────────────── */}
+        <div style={gc}>
+          <SectionHeader icon={IpGlobe} title="Public Profile" subtitle="Share a public page showcasing your business and recent posts" />
+          <div style={{ marginTop: 8 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>
+              Your public URL
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, overflow: 'hidden' }}>
+              <span style={{ padding: '9px 12px', fontSize: 13, color: t.textMuted, background: t.surface, borderRight: `1px solid ${t.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                app.itsposting.com/p/
+              </span>
+              <input
+                type="text"
+                value={handleInput}
+                onChange={(e) => { setHandleInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')); setHandleError(''); }}
+                placeholder="your-handle"
+                maxLength={50}
+                style={{ flex: 1, padding: '9px 12px', background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: t.text, fontFamily: 'monospace' }}
+              />
+            </div>
+            {handleError && <div style={{ marginTop: 6, fontSize: 12, color: t.error || '#ef4444' }}>{handleError}</div>}
+            <div style={{ fontSize: 12, color: t.textMuted, marginTop: 6 }}>
+              3–50 characters. Letters, numbers, hyphens and underscores only.
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
+              <Button onClick={saveHandle} disabled={handleSaving} style={{ padding: '8px 18px' }}>
+                {handleSaving ? 'Saving…' : 'Save Handle'}
+              </Button>
+              {profile?.public_handle && (
+                <a
+                  href={`/p/${profile.public_handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 13, color: t.primary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >
+                  View public profile
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </a>
+              )}
             </div>
           </div>
         </div>

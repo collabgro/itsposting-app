@@ -219,6 +219,11 @@ export const mediaAPI = {
   moveToFolder: (id, folder) => api.patch(`/api/media/${id}`, { folder: folder || null }),
 };
 
+export const publicAPI = {
+  getProfile: (handle) => api.get(`/api/public/${handle}`),
+  setHandle: (handle) => api.patch('/api/public/handle', { handle }),
+};
+
 export const adminAPI = {
   getStats: () => api.get('/api/admin/stats'),
   listCustomers: (params) => api.get('/api/admin/customers', { params }),

@@ -40,7 +40,7 @@ module.exports = (pool) => {
                 auto_post_frequency, posting_times, timezone,
                 is_admin, role, suspended, posting_streak,
                 last_posted_at, total_posts_this_month, parent_customer_id,
-                free_geo_audit_used, avatar_url, tagline, white_label_config, created_at
+                free_geo_audit_used, avatar_url, tagline, white_label_config, public_handle, created_at
          FROM customers WHERE id = $1`,
         [req.customerId]
       );

@@ -38,6 +38,7 @@ const ideasRoutes = require('./routes/ideas');
 const calendarPlansRoutes = require('./routes/calendarPlans');
 const referralsRoutes = require('./routes/referrals');
 const competitorRoutes = require('./routes/competitor');
+const publicRoutes = require('./routes/public');
 
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
@@ -579,6 +580,9 @@ console.log('══════════════════════�
     // Profile: avatar + tagline
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS tagline VARCHAR(200)`,
+    // Phase 10.3 — Public business profile
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS public_handle VARCHAR(50)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_public_handle ON customers(public_handle) WHERE public_handle IS NOT NULL`,
 
     // Phase 5.5 — Database performance indexes
     `CREATE INDEX IF NOT EXISTS idx_posts_customer_id ON posts(customer_id)`,
@@ -2706,6 +2710,7 @@ app.use('/api/receptionist', receptionistRoutes(pool));
 app.use('/api/api-keys', apiKeysRoutes(pool));
 app.use('/api/v1', externalRoutes(pool));
 app.use('/api/gmb', gmbMessagesRoutes(pool));
+app.use('/api/public', publicRoutes(pool));
 app.use('/api/ideas', ideasRoutes(pool));
 app.use('/api/calendar-plans', calendarPlansRoutes(pool));
 app.use('/api/referrals', referralsRoutes(pool));
