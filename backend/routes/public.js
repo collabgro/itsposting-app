@@ -6,6 +6,53 @@ const HANDLE_RE = /^[a-z0-9_-]{3,50}$/;
 module.exports = (pool) => {
   const router = express.Router();
 
+  // GET /api/public/showcase — must be BEFORE /:handle to avoid being swallowed
+  router.get('/showcase', async (req, res) => {
+    try {
+      const page = Math.max(0, parseInt(req.query.page) || 0);
+      const limit = Math.min(24, parseInt(req.query.limit) || 12);
+      const offset = page * limit;
+      const industry = req.query.industry ? String(req.query.industry).substring(0, 50) : null;
+
+      const whereExtra = industry ? `AND c.industry = $3` : '';
+      const params = industry ? [limit, offset, industry] : [limit, offset];
+
+      const result = await pool.query(
+        `SELECT c.business_name, c.industry, c.location, c.avatar_url, c.tagline, c.public_handle,
+                COUNT(p.id)::int AS post_count,
+                MAX(p.created_at) AS last_posted_at
+         FROM customers c
+         LEFT JOIN posts p ON p.customer_id = c.id AND p.status = 'published'
+         WHERE c.public_handle IS NOT NULL
+           AND c.suspended = FALSE
+           ${whereExtra}
+         GROUP BY c.id
+         HAVING COUNT(p.id) > 0
+         ORDER BY COUNT(p.id) DESC, c.created_at DESC
+         LIMIT $1 OFFSET $2`,
+        params
+      );
+
+      const countRes = await pool.query(
+        `SELECT COUNT(*)::int AS total FROM customers
+         WHERE public_handle IS NOT NULL AND suspended = FALSE
+           ${industry ? `AND industry = $1` : ''}`,
+        industry ? [industry] : []
+      );
+
+      res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
+      res.json({
+        businesses: result.rows,
+        total: countRes.rows[0]?.total || 0,
+        page,
+        limit,
+      });
+    } catch (err) {
+      console.error('[Public] Showcase error:', err.message);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
   // GET /api/public/:handle — public profile, no auth required
   router.get('/:handle', async (req, res) => {
     try {
@@ -52,53 +99,6 @@ module.exports = (pool) => {
       });
     } catch (err) {
       console.error('[Public] Profile error:', err.message);
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
-
-  // GET /api/public/showcase — list businesses for public gallery (no auth, cached)
-  router.get('/showcase', async (req, res) => {
-    try {
-      const page = Math.max(0, parseInt(req.query.page) || 0);
-      const limit = Math.min(24, parseInt(req.query.limit) || 12);
-      const offset = page * limit;
-      const industry = req.query.industry ? String(req.query.industry).substring(0, 50) : null;
-
-      const whereExtra = industry ? `AND industry = $3` : '';
-      const params = industry ? [limit, offset, industry] : [limit, offset];
-
-      const result = await pool.query(
-        `SELECT c.business_name, c.industry, c.location, c.avatar_url, c.tagline, c.public_handle,
-                COUNT(p.id)::int AS post_count,
-                MAX(p.created_at) AS last_posted_at
-         FROM customers c
-         LEFT JOIN posts p ON p.customer_id = c.id AND p.status = 'published'
-         WHERE c.public_handle IS NOT NULL
-           AND c.suspended = FALSE
-           ${whereExtra}
-         GROUP BY c.id
-         HAVING COUNT(p.id) > 0
-         ORDER BY COUNT(p.id) DESC, c.created_at DESC
-         LIMIT $1 OFFSET $2`,
-        params
-      );
-
-      const countRes = await pool.query(
-        `SELECT COUNT(*)::int AS total FROM customers
-         WHERE public_handle IS NOT NULL AND suspended = FALSE
-           ${industry ? `AND industry = $1` : ''}`,
-        industry ? [industry] : []
-      );
-
-      res.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600');
-      res.json({
-        businesses: result.rows,
-        total: countRes.rows[0]?.total || 0,
-        page,
-        limit,
-      });
-    } catch (err) {
-      console.error('[Public] Showcase error:', err.message);
       res.status(500).json({ error: 'Server error' });
     }
   });
