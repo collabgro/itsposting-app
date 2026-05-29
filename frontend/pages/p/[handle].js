@@ -101,7 +101,7 @@ export default function PublicProfile() {
 
   const { profile, posts, socialAccounts } = data;
   const displayName = profile.business_name || handle;
-  const locationStr = [profile.city, profile.state].filter(Boolean).join(', ');
+  const locationStr = profile.location || '';
   const industryLabel = INDUSTRY_LABELS[profile.industry] || profile.industry || '';
 
   return (
