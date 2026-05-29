@@ -13,9 +13,19 @@
  */
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const Anthropic = require('@anthropic-ai/sdk');
 const { authenticate } = require('../middleware/auth');
 const industryKnowledge = require('../data/industryKnowledge');
+
+// Free AI-fill: 10 per hour per IP — prevents Claude cost abuse
+const aiFillLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'AI calendar fill limit reached — please wait an hour before generating again.' },
+});
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -156,7 +166,7 @@ module.exports = function calendarPlansRoutes(pool) {
   // Accepts: { startDate, endDate, postsPerWeek }
   //   OR legacy: { month, year }
   // ──────────────────────────────────────────────
-  router.post('/ai-fill', authenticate, async (req, res) => {
+  router.post('/ai-fill', aiFillLimiter, authenticate, async (req, res) => {
     try {
       const { month, year, startDate, endDate, postsPerWeek = 3 } = req.body;
 

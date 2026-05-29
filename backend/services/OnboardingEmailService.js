@@ -137,7 +137,7 @@ class OnboardingEmailService {
       FROM customers c
       WHERE c.is_admin = false
         AND c.parent_customer_id IS NULL
-        AND c.suspended = false
+        AND (c.suspended = false OR c.suspended IS NULL)
         AND c.created_at > NOW() - INTERVAL '35 days'
     `);
 

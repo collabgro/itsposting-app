@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const Anthropic = require('@anthropic-ai/sdk');
 const { authenticate, getBillingCustomerId } = require('../middleware/auth');
 const ScraperService = require('../services/ScraperService');
@@ -6,6 +7,15 @@ const industryKnowledge = require('../data/industryKnowledge');
 
 const MAX_COMPETITORS = 3;
 const ANALYZE_CREDIT_COST = 1;
+
+// 5 analyze calls per 15 minutes per IP
+const analyzeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many analysis requests. Please wait 15 minutes before analyzing again.' },
+});
 
 module.exports = (pool) => {
   const router = express.Router();
@@ -115,7 +125,7 @@ module.exports = (pool) => {
   });
 
   // POST /api/competitor/:id/analyze — scrape + AI analysis
-  router.post('/:id/analyze', authenticate, async (req, res) => {
+  router.post('/:id/analyze', analyzeLimiter, authenticate, async (req, res) => {
     const client = await pool.connect();
     try {
       const { id } = req.params;

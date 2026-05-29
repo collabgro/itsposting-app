@@ -106,7 +106,7 @@ async function generateForAll(pool) {
   const { rows: customers } = await pool.query(
     `SELECT c.id, c.business_name, c.industry, c.location, c.tone
      FROM customers c
-     WHERE c.suspended = false
+     WHERE (c.suspended = false OR c.suspended IS NULL)
        AND c.plan != 'trial'
        AND c.parent_customer_id IS NULL
        AND NOT EXISTS (
@@ -268,7 +268,7 @@ module.exports = (pool) => {
       const customers = await pool.query(
         `SELECT c.id, c.business_name, c.industry, c.location, c.tone
          FROM customers c
-         WHERE c.suspended = false
+         WHERE (c.suspended = false OR c.suspended IS NULL)
            AND c.plan != 'trial'
            AND NOT EXISTS (
              SELECT 1 FROM post_ideas pi
