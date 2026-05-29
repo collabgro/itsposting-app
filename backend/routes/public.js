@@ -123,7 +123,7 @@ module.exports = (pool) => {
       }
 
       // Check it's not a reserved path
-      const RESERVED = ['admin', 'api', 'login', 'signup', 'dashboard', 'wizard', 'billing', 'settings', 'profile', 'media', 'analytics', 'calendar', 'history', 'inbox', 'contacts'];
+      const RESERVED = ['admin', 'api', 'login', 'signup', 'dashboard', 'wizard', 'billing', 'settings', 'profile', 'media', 'analytics', 'calendar', 'history', 'inbox', 'contacts', 'showcase', 'handle'];
       if (RESERVED.includes(clean)) {
         return res.status(400).json({ error: 'That handle is reserved' });
       }
