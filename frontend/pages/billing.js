@@ -793,10 +793,11 @@ export default function Billing() {
         </div>
 
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
 
         </> }
         {/* END plans tab */}
+
+      </div>
 
       {showCancelModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>

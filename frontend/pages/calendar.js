@@ -1064,6 +1064,7 @@ export default function Calendar() {
                           {/* Reschedule */}
                           {(post.status === 'scheduled' || post.status === 'draft') && (
                             reschedulingPost === post.id ? (
+                              <>
                               <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                                 <input type="date" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)}
                                   style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text }} />
@@ -1087,6 +1088,7 @@ export default function Calendar() {
                                   </button>
                                 </div>
                               )}
+                              </>
                             ) : (
                               <button
                                 onClick={() => {
