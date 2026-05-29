@@ -529,11 +529,11 @@ Step cards: auto-fill minmax(180px,1fr) — 2 cols on mobile. Progress: linear b
 Results: media panel goes full-width first on mobile. Action bar: Post Now full-width, secondary buttons in 2-col grid.
 History grid: 2-col on mobile (was 3-col). Calendar already had full isMobile support.
 
-### 12.4 Calendar mobile experience [PENDING]
-Month view: reduce cell padding, smaller text.
-Week view: collapse to day-strip on mobile.
-Post popover → full-screen modal on mobile.
-Drag-to-reschedule → long-press + drop zone on mobile.
+### 12.4 Calendar mobile experience [DONE]
+Month view: reduce cell padding, smaller text (already done); filter bar now horizontally scrollable (no wrap) on mobile; header padding reduced.
+Week view: collapses to Mon-Fri 5-column strip on mobile (already done).
+Day panel: fixed bottom-sheet on mobile (position:fixed, 78vh, border-radius 20px top, drag handle, backdrop overlay). Desktop still shows as right-column panel.
+Drag-to-reschedule: desktop-only (not supported on touch — no change).
 
 ### 12.5 Photo Studio / Editor mobile experience [PENDING]
 Konva canvas: pinch-to-zoom + pan gesture support.

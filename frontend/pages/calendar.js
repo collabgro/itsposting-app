@@ -423,7 +423,7 @@ export default function Calendar() {
         }
       >
         {/* ── Filter bar ── */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0 }}>
           {/* Platform */}
           <div style={{ display: 'flex', gap: 3, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 10, padding: 3, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
             <button onClick={() => setPlatformFilter('all')}
@@ -562,12 +562,20 @@ export default function Calendar() {
           </div>
         )}
 
+        {/* Mobile bottom-sheet backdrop */}
+        {selectedDay && isMobile && (
+          <div
+            onClick={() => setSelectedDay(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', zIndex: 89 }}
+          />
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: (selectedDay && !isMobile) ? '1fr 320px' : '1fr', gap: 20, transition: 'all 300ms' }}>
 
           {/* ── CALENDAR ─────────────────────────────────────── */}
           <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: `1px solid ${t.border}`, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '12px 14px' : '18px 24px', borderBottom: `1px solid ${t.border}`, flexWrap: 'wrap', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <CalendarIcon size={18} color="url(#brand-gradient)" />
                 {/* Month selector */}
@@ -889,7 +897,21 @@ export default function Calendar() {
 
           {/* ── DAY PANEL ────────────────────────────────────── */}
           {selectedDay && (
-            <div style={{ ...gc, padding: 0, overflow: 'hidden', height: 'fit-content' }}>
+            <div style={isMobile ? {
+              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 90,
+              maxHeight: '78vh', overflowY: 'auto',
+              borderRadius: '20px 20px 0 0',
+              background: t.isDark ? 'rgba(10,10,18,0.99)' : t.card,
+              border: `1px solid ${t.border}`,
+              boxShadow: '0 -16px 48px rgba(0,0,0,0.45)',
+              paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)',
+            } : { ...gc, padding: 0, overflow: 'hidden', height: 'fit-content' }}>
+              {/* Mobile drag handle */}
+              {isMobile && (
+                <div style={{ padding: '10px 0 2px', display: 'flex', justifyContent: 'center', cursor: 'grab', flexShrink: 0 }}>
+                  <div style={{ width: 40, height: 4, borderRadius: 2, background: t.textMuted, opacity: 0.35 }} />
+                </div>
+              )}
               <div style={{ padding: '16px 18px 12px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>
