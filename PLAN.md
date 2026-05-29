@@ -1604,7 +1604,7 @@ The new Content Calendar shows **plans** (ideas and briefs before generation).
 - [x] 12.2 Inbox mobile experience (two-panel collapse + swipe approval queue)
 - [x] 12.3 Wizard mobile experience — action bar grid, media panel full-width, history 2-col grid
 - [x] 12.4 Calendar mobile experience — bottom-sheet day panel (fixed, 78vh, border-radius 20px, drag handle), filter bar horizontally scrollable, header padding reduced
-- [ ] 12.5 Photo Studio mobile (pinch-to-zoom canvas, bottom drawer panel)
+- [x] 12.5 Photo Studio mobile — isMobile detection, pinch-to-zoom (touchmove distance ratio), left/right panels hidden on mobile, FAB opens tool bottom sheet (55vh), element tap opens properties bottom drawer (60vh)
 
 ### Phase 13: Workspace Multi-User Audit
 - [x] 13.1 Workspace DM access bug fix — invited members (Type B) now use workspaceId for DM queries
