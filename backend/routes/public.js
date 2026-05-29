@@ -24,7 +24,7 @@ module.exports = (pool) => {
          FROM customers c
          LEFT JOIN posts p ON p.customer_id = c.id AND p.status = 'posted'
          WHERE c.public_handle IS NOT NULL
-           AND c.suspended = FALSE
+           AND (c.suspended = FALSE OR c.suspended IS NULL)
            ${whereExtra}
          GROUP BY c.id
          HAVING COUNT(p.id) > 0
@@ -35,7 +35,7 @@ module.exports = (pool) => {
 
       const countRes = await pool.query(
         `SELECT COUNT(*)::int AS total FROM customers
-         WHERE public_handle IS NOT NULL AND suspended = FALSE
+         WHERE public_handle IS NOT NULL AND (suspended = FALSE OR suspended IS NULL)
            ${industry ? `AND industry = $1` : ''}`,
         industry ? [industry] : []
       );
@@ -62,7 +62,7 @@ module.exports = (pool) => {
       const profileRes = await pool.query(
         `SELECT business_name, industry, location, avatar_url, website_url, tagline, public_handle
          FROM customers
-         WHERE public_handle = $1 AND suspended = FALSE`,
+         WHERE public_handle = $1 AND (suspended = FALSE OR suspended IS NULL)`,
         [handle]
       );
       if (profileRes.rows.length === 0) return res.status(404).json({ error: 'Profile not found' });
