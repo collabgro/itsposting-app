@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTheme } from '../lib/theme';
 import { authAPI } from '../lib/api';
+import { ItsPostingLogo } from '../components/ItsPostingLogo';
 
 export default function ForgotPassword() {
   const { t, theme } = useTheme();
@@ -70,16 +71,8 @@ export default function ForgotPassword() {
 
           {/* Logo block */}
           <div style={{ textAlign: 'center', marginBottom: 36 }}>
-            <div style={{ display: 'inline-flex', position: 'relative', marginBottom: 20 }}>
-              <div style={{
-                position: 'absolute', inset: -10, borderRadius: 24,
-                background: 'radial-gradient(circle, rgba(124,92,252,0.4) 0%, transparent 70%)',
-                filter: 'blur(14px)',
-              }} />
-              <img
-                src="/itsposting-logo.png" alt="ItsPosting" width={64} height={64}
-                style={{ borderRadius: 18, display: 'block', position: 'relative', zIndex: 1 }}
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 4 }}>
+              <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
             </div>
             <div style={{ fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em', color: t.text }}>ItsPosting</div>
             <div style={{ fontSize: 14, color: t.textMuted, marginTop: 6, letterSpacing: '-0.01em' }}>

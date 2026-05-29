@@ -70,6 +70,7 @@ export const socialAPI = {
   searchLocations: (q) => api.get('/api/social/locations/search', { params: { q } }),
   getReviews: () => api.get('/api/social/reviews'),
   generateReviewPost: (data) => api.post('/api/social/reviews/generate-post', data),
+  getHealth: () => api.get('/api/social/health'),
 };
 
 export const scraperAPI = {
@@ -217,7 +218,23 @@ export const adminAPI = {
   listStockPhotos: (params) => api.get('/api/admin/stock-photos', { params }),
   updateStockPhoto: (id, data) => api.patch(`/api/admin/stock-photos/${id}`, data),
   deleteStockPhoto: (id) => api.delete(`/api/admin/stock-photos/${id}`),
+  // Canvas templates (admin management)
+  listCanvasTemplates: (params) => api.get('/api/admin/canvas-templates', { params }),
+  createCanvasTemplate: (data) => api.post('/api/admin/canvas-templates', data),
+  updateCanvasTemplate: (id, data) => api.patch(`/api/admin/canvas-templates/${id}`, data),
+  deleteCanvasTemplate: (id) => api.delete(`/api/admin/canvas-templates/${id}`),
+  duplicateCanvasTemplate: (id) => api.post(`/api/admin/canvas-templates/${id}/duplicate`),
+  bulkCanvasTemplates: (data) => api.post('/api/admin/canvas-templates/bulk', data),
   changePlan: (id, data) => api.post(`/api/admin/customers/${id}/plan`, data),
+  // PostCore Brain — LLM management
+  getLLMOverview: () => api.get('/api/admin/llm/overview'),
+  getLLMTrainingData: (params) => api.get('/api/admin/llm/training-data', { params }),
+  getLLMModels: () => api.get('/api/admin/llm/models'),
+  getLLMExperiments: () => api.get('/api/admin/llm/experiments'),
+  createLLMExperiment: (data) => api.post('/api/admin/llm/experiments', data),
+  updateLLMExperiment: (id, data) => api.patch(`/api/admin/llm/experiments/${id}`, data),
+  getLLMCuratedExamples: (params) => api.get('/api/admin/llm/curated', { params }),
+  addLLMCuratedExample: (data) => api.post('/api/admin/llm/curated', data),
 };
 
 export const analyticsAPI = {
@@ -355,6 +372,15 @@ export const ideasAPI = {
   getToday:  ()   => api.get('/api/ideas/today'),
   refresh:   ()   => api.post('/api/ideas/refresh'),
   markUsed:  (id) => api.post(`/api/ideas/${id}/use`),
+};
+
+export const calendarPlansAPI = {
+  list:       (start, end)          => api.get('/api/calendar-plans', { params: { start, end } }),
+  create:     (data)                => api.post('/api/calendar-plans', data),
+  update:     (id, data)            => api.patch(`/api/calendar-plans/${id}`, data),
+  remove:     (id)                  => api.delete(`/api/calendar-plans/${id}`),
+  aiFill:     (opts)                => api.post('/api/calendar-plans/ai-fill', opts),
+  getContext: (id)                  => api.post(`/api/calendar-plans/${id}/generate`),
 };
 
 export default api;

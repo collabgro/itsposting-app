@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { IpSparkle } from '../components/icons';
 import { useTheme } from '../lib/theme';
+import { ItsPostingLogo } from '../components/ItsPostingLogo';
 import { authAPI } from '../lib/api';
 
 const INDUSTRIES = [
@@ -130,16 +131,8 @@ export default function Signup() {
 
           {/* Logo block */}
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <div style={{ display: 'inline-flex', position: 'relative', marginBottom: 18 }}>
-              <div style={{
-                position: 'absolute', inset: -16, borderRadius: 28,
-                background: 'radial-gradient(circle, rgba(124,92,252,0.5) 0%, transparent 70%)',
-                filter: 'blur(20px)',
-              }} />
-              <img
-                src="/itsposting-logo.png" alt="ItsPosting" width={72} height={72}
-                style={{ borderRadius: 20, display: 'block', position: 'relative', zIndex: 1, boxShadow: '0 8px 32px rgba(124,92,252,0.5), 0 3px 10px rgba(0,0,0,0.4)' }}
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 4 }}>
+              <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
             </div>
             <div style={{ fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em', color: t.text }}>ItsPosting</div>
             <div style={{ fontSize: 13, color: t.textMuted, marginTop: 5, letterSpacing: '-0.01em', transition: 'all 300ms ease' }}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useTheme } from '../lib/theme';
 import { IpSparkle, IpCalendar, IpAnalytics } from '../components/icons';
+import { ItsPostingLogo } from '../components/ItsPostingLogo';
 
 const FEATURES = [
   {
@@ -77,16 +78,8 @@ export default function Welcome() {
 
           {/* Logo + welcome text */}
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
-            <div style={{ display: 'inline-flex', position: 'relative', marginBottom: 24 }}>
-              <div style={{
-                position: 'absolute', inset: -10, borderRadius: 24,
-                background: 'radial-gradient(circle, rgba(124,92,252,0.4) 0%, transparent 70%)',
-                filter: 'blur(14px)',
-              }} />
-              <img
-                src="/itsposting-logo.png" alt="ItsPosting" width={72} height={72}
-                style={{ borderRadius: 20, display: 'block', position: 'relative', zIndex: 1 }}
-              />
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+              <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
             </div>
 
             <div style={{

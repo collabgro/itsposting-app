@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-40 -40 592 592" width="512" height="512">
+  <!-- ItsPosting Logo — standalone PNG export -->
+  <!-- Open in browser → right-click → Save as PNG  OR  drag into Figma/Canva -->
+  <defs>
+    <!-- Face gradient: vivid violet → purple → hot pink -->
+    <linearGradient id="face" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#9333EA"/>
+      <stop offset="55%"  stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#EC4899"/>
+    </linearGradient>
+    <!-- Drop shadow filter -->
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="rgba(147,51,234,0.55)" flood-opacity="1"/>
+      <feDropShadow dx="0" dy="4"  stdDeviation="6"  flood-color="rgba(236,72,153,0.35)"  flood-opacity="1"/>
+    </filter>
+    <clipPath id="face-clip">
+      <rect x="0" y="0" width="512" height="512" rx="143" ry="143"/>
+    </clipPath>
+  </defs>
+
+  <!-- Container with shadow -->
+  <g filter="url(#shadow)">
+    <rect x="0" y="0" width="512" height="512" rx="143" ry="143" fill="url(#face)"/>
+    <!-- Lightning bolt scaled 5.12x from 100x100 viewBox -->
+    <!-- BOLT = M 63,8 L 45,50 L 70,50 L 37,92 L 55,50 L 30,50 Z -->
+    <g clip-path="url(#face-clip)">
+      <polygon
+        points="322.6,41  230.4,256  358.4,256  189.4,471.0  281.6,256  153.6,256"
+        fill="white"
+      />
+    </g>
+  </g>
+</svg>

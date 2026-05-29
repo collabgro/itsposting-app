@@ -6,13 +6,14 @@ import {
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon, IpLogout,
   IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpSearch,
-  IpPhotoStudio, IpWarning,
+  IpPhotoStudio, IpWarning, IpSchedule,
 } from './icons';
 import { useTheme } from '../lib/theme';
 import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
 import NotificationBell from './NotificationBell';
 import PostCoreMascot from './PostCoreMascot';
 import { ConfirmModal } from './ui';
+import { ItsPostingLogo } from './ItsPostingLogo';
 
 const ROLE_PERMISSIONS = {
   manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:true, inbox:true, contacts:true, knowledge_base:true, settings:true },
@@ -43,6 +44,7 @@ const NAV_ITEMS = [
   { name: 'Quick Post',    href: '/quick-post',     icon: IpZap,          isQuickPost: true },
   { name: 'Post Wizard',   href: '/wizard',         icon: IpWizard,       showSuggBadge: true },
   { name: 'Post Ideas',    href: '/ideas',          icon: IpSparkle },
+  { name: 'Content Calendar', href: '/content-calendar', icon: IpSchedule },
   { name: 'Upload',        href: '/upload',         icon: IpCreatePost },
 
   { isDivider: true, label: 'Manage' },
@@ -190,7 +192,8 @@ export default function Layout({ children, title, subtitle, action }) {
         { name: 'Broadcast',       href: '/admin/broadcast',   icon: IpMail,      isAdmin: true },
         { name: 'Email Queue',     href: '/admin/email-queue', icon: IpMail,      isAdmin: true },
         { name: 'Audit Log',       href: '/admin/audit',       icon: IpAdmin,     isAdmin: true },
-        { name: 'Stock Photos',    href: '/admin/stock-photos', icon: IpPhotoStudio, isAdmin: true },
+        { name: 'Templates',       href: '/admin/templates',    icon: IpPhotoStudio, isAdmin: true },
+        { name: 'PostCore Brain',  href: '/admin/llm',          icon: IpSparkle,     isAdmin: true },
       ]
     : baseNavItems;
 
@@ -240,13 +243,7 @@ export default function Layout({ children, title, subtitle, action }) {
           }}
         >
           {!isMobile && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-                <img src="/itsposting-logo.png" alt="ItsPosting" width={34} height={34}
-                  style={{ borderRadius: 10, objectFit: 'cover', boxShadow: '0 4px 12px rgba(124,92,252,0.35), 0 1px 3px rgba(0,0,0,0.3)' }} />
-              </div>
-              <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.03em', color: t.text, whiteSpace: 'nowrap' }}>ItsPosting</span>
-            </div>
+            <ItsPostingLogo size="sm" variant="full" theme={t.isDark ? 'dark' : 'light'} />
           )}
           {isMobile && (
             <button

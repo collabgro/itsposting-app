@@ -410,6 +410,7 @@ export default function Settings() {
   const [providers, setProviders] = useState(null);
   const [socialAccounts, setSocialAccounts] = useState([]);
   const [socialStatus, setSocialStatus] = useState(null);
+  const [socialHealth, setSocialHealth] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(null);
@@ -727,14 +728,16 @@ export default function Settings() {
 
   const loadSocialAccounts = async () => {
     try {
-      const [accountsRes, statusRes, groupsRes] = await Promise.all([
+      const [accountsRes, statusRes, groupsRes, healthRes] = await Promise.all([
         socialAPI.getAccounts(),
         socialAPI.getStatus(),
         socialAPI.getGroups().catch(() => ({ data: [] })),
+        socialAPI.getHealth().catch(() => ({ data: [] })),
       ]);
       setSocialAccounts(accountsRes.data);
       setSocialStatus(statusRes.data);
       setAccountGroups(groupsRes.data || []);
+      setSocialHealth(healthRes.data || []);
     } catch {}
   };
 
@@ -1376,34 +1379,57 @@ export default function Settings() {
                           ? Math.floor((new Date(acct.token_expires_at) - new Date()) / 86400000)
                           : null;
                         const tokenExpired = daysLeft !== null && daysLeft < 0;
+                        const health = socialHealth.find(h => h.id === acct.id);
                         return (
                           <div key={acct.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px 14px', minHeight: 64, background: t.isDark ? 'rgba(255,255,255,0.03)' : t.card, borderRadius: 10, border: `1px solid ${tokenExpired ? 'rgba(239,68,68,0.3)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, flexWrap: 'wrap', boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.7'})` }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                               <div style={{ width: 32, height: 32, borderRadius: '50%', background: tokenExpired ? 'rgba(239,68,68,0.1)' : t.success + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                 <IpCheck size={14} style={{ color: tokenExpired ? t.error : t.success }} />
                               </div>
-                              <div style={{ minWidth: 0 }}>
+                              <div style={{ minWidth: 0, flex: 1 }}>
                                 <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {acct.account_name || 'Connected'}
                                 </div>
-                                {acct.account_username && (
-                                  <div style={{ fontSize: 11, color: t.textMuted }}>@{acct.account_username}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 2 }}>
+                                  {acct.account_username && (
+                                    <span style={{ fontSize: 11, color: t.textMuted }}>@{acct.account_username}</span>
+                                  )}
+                                  {health && (
+                                    <>
+                                      <span style={{ fontSize: 11, color: t.textMuted }}>·</span>
+                                      <span style={{ fontSize: 11, color: t.textMuted }}>{health.postsLast30d} posts this month</span>
+                                      {health.avgReachLast5 > 0 && (
+                                        <>
+                                          <span style={{ fontSize: 11, color: t.textMuted }}>·</span>
+                                          <span style={{ fontSize: 11, color: t.textMuted }}>~{health.avgReachLast5} avg reach</span>
+                                        </>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+                                {daysLeft !== null && daysLeft < 0 && (
+                                  <Badge variant="error">Token expired</Badge>
+                                )}
+                                {daysLeft !== null && daysLeft >= 0 && daysLeft <= 7 && (
+                                  <Badge variant="warning">Reconnect in {daysLeft}d</Badge>
+                                )}
+                                {daysLeft !== null && daysLeft > 7 && daysLeft <= 30 && (
+                                  <span style={{ fontSize: 11, fontWeight: 600, color: t.warning, padding: '2px 8px', background: `${t.warning}15`, border: `1px solid ${t.warning}30`, borderRadius: 12, whiteSpace: 'nowrap' }}>Expires in {daysLeft}d</span>
+                                )}
+                                {daysLeft !== null && daysLeft > 30 && (
+                                  <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Expires in {daysLeft}d</span>
                                 )}
                               </div>
-                              {daysLeft !== null && daysLeft < 0 && (
-                                <Badge variant="error">Token expired</Badge>
-                              )}
-                              {daysLeft !== null && daysLeft >= 0 && daysLeft <= 7 && (
-                                <Badge variant="warning">Reconnect in {daysLeft}d</Badge>
-                              )}
-                              {daysLeft !== null && daysLeft > 7 && daysLeft <= 30 && (
-                                <span style={{ fontSize: 11, fontWeight: 600, color: t.warning, padding: '2px 8px', background: `${t.warning}15`, border: `1px solid ${t.warning}30`, borderRadius: 12, whiteSpace: 'nowrap' }}>Expires in {daysLeft}d</span>
-                              )}
-                              {daysLeft !== null && daysLeft > 30 && (
-                                <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>Expires in {daysLeft}d</span>
-                              )}
                             </div>
                             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+                              {tokenExpired && (
+                                <button type="button" onClick={() => handleOAuthConnect(platform)}
+                                  style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: 'rgba(239,68,68,0.12)', color: t.error, border: '1px solid rgba(239,68,68,0.3)' }}>
+                                  Reconnect
+                                </button>
+                              )}
                               {/* Apple-style toggle switch */}
                               <button type="button" onClick={() => handleToggleAutoPost(acct)}
                                 title={acct.auto_post ? 'Auto-post on — click to disable' : 'Auto-post off — click to enable'}

@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useTheme } from '../lib/theme';
 import { authAPI } from '../lib/api';
+import { ItsPostingLogo } from '../components/ItsPostingLogo';
 
 const TESTIMONIALS = [
   {
@@ -220,15 +221,7 @@ export default function Login() {
 
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 44 }}>
-            <div style={{ position: 'relative', display: 'inline-flex' }}>
-              <div style={{ position: 'absolute', inset: -10, borderRadius: 22, background: 'radial-gradient(circle, rgba(124,92,252,0.55) 0%, transparent 70%)', filter: 'blur(14px)' }} />
-              <img src="/itsposting-logo.png" alt="ItsPosting" width={48} height={48}
-                style={{ borderRadius: 14, display: 'block', position: 'relative', zIndex: 1, boxShadow: '0 6px 24px rgba(124,92,252,0.5)' }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', letterSpacing: '-0.04em', lineHeight: 1 }}>ItsPosting</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2, letterSpacing: '0.02em' }}>AI Social Media Manager</div>
-            </div>
+            <ItsPostingLogo size="lg" variant="full" theme="dark" />
           </div>
 
           {/* Headline */}
@@ -292,12 +285,10 @@ export default function Login() {
           {/* Logo (mobile only — wide screens show it in left panel) */}
           {!isWide && (
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <div style={{ display: 'inline-flex', position: 'relative', marginBottom: 16 }}>
-                <div style={{ position: 'absolute', inset: -16, borderRadius: 28, background: 'radial-gradient(circle, rgba(124,92,252,0.5) 0%, transparent 70%)', filter: 'blur(20px)' }} />
-                <img src="/itsposting-logo.png" alt="ItsPosting" width={68} height={68}
-                  style={{ borderRadius: 20, display: 'block', position: 'relative', zIndex: 1, boxShadow: '0 8px 32px rgba(124,92,252,0.5)' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+                <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
+                <div style={{ fontWeight: 800, fontSize: 28, letterSpacing: '-0.04em', color: t.text }}>ItsPosting</div>
               </div>
-              <div style={{ fontWeight: 800, fontSize: 28, letterSpacing: '-0.04em', color: t.text }}>ItsPosting</div>
               <div style={{ fontSize: 13, color: t.textMuted, marginTop: 4 }}>Your business, posting on autopilot.</div>
             </div>
           )}

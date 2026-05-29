@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { ThemeProvider, useTheme } from '../lib/theme';
 import { ToastProvider } from '../components/ui';
+import AppLoader from '../components/AppLoader';
+import { ItsPostingLogo } from '../components/ItsPostingLogo';
 
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -17,10 +19,8 @@ class ErrorBoundary extends React.Component {
         padding: 24,
       }}>
         <div style={{ maxWidth: 460, width: '100%', textAlign: 'center' }}>
-          <div style={{ display: 'inline-flex', position: 'relative', marginBottom: 28 }}>
-            <div style={{ position: 'absolute', inset: -16, borderRadius: 28, background: 'radial-gradient(circle, rgba(124,92,252,0.5) 0%, transparent 70%)', filter: 'blur(20px)' }} />
-            <img src="/itsposting-logo.png" alt="ItsPosting" width={68} height={68}
-              style={{ borderRadius: 20, display: 'block', position: 'relative', zIndex: 1, boxShadow: '0 8px 32px rgba(124,92,252,0.5)' }} />
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
+            <ItsPostingLogo variant="icon" size="xl" theme="dark" />
           </div>
           <div style={{ fontSize: 22, fontWeight: 800, color: '#F5F5F7', letterSpacing: '-0.03em', marginBottom: 10 }}>
             Something went wrong
@@ -122,6 +122,9 @@ function InstallBanner() {
 }
 
 export default function App({ Component, pageProps }) {
+  // AppLoader: show on initial app load only (not on client-side navigations)
+  const [appReady, setAppReady] = useState(false);
+
   useEffect(() => {
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       navigator.serviceWorker
@@ -129,11 +132,20 @@ export default function App({ Component, pageProps }) {
         .then(() => {})
         .catch(err => console.warn('[SW] Registration failed:', err));
     }
+    // Signal readiness after fonts + critical resources are parsed
+    if (document.readyState === 'complete') {
+      setAppReady(true);
+    } else {
+      const onLoad = () => setAppReady(true);
+      window.addEventListener('load', onLoad);
+      return () => window.removeEventListener('load', onLoad);
+    }
   }, []);
 
   return (
     <ThemeProvider>
       <ThemeBody>
+        <AppLoader ready={appReady} />
         <Head>
           <meta name="description" content="AI social media automation for local businesses" />
           <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />

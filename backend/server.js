@@ -35,6 +35,7 @@ const externalRoutes = require('./routes/external');
 const gmbMessagesRoutes = require('./routes/gmb-messages');
 const templateRoutes = require('./routes/templates');
 const ideasRoutes = require('./routes/ideas');
+const calendarPlansRoutes = require('./routes/calendarPlans');
 
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
@@ -252,6 +253,7 @@ console.log('══════════════════════�
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS video_json JSONB`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS render_status VARCHAR(20) DEFAULT 'none'`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS duration_seconds NUMERIC(8,2)`,
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS template_id INTEGER REFERENCES canvas_templates(id) ON DELETE SET NULL`,
     // AI Receptionist — crawler job tracking
     `CREATE TABLE IF NOT EXISTS crawl_jobs (
       id SERIAL PRIMARY KEY,
@@ -497,6 +499,84 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_post_templates_customer ON post_templates(customer_id)`,
     // Saved hashtag sets per customer: [{id, name, tags[], usage_count}]
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS hashtag_sets JSONB DEFAULT '[]'::jsonb`,
+    // PostCore Brain — LLM training data collection
+    `CREATE TABLE IF NOT EXISTS post_training_data (
+      id                SERIAL PRIMARY KEY,
+      post_id           INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+      input_payload     JSONB NOT NULL,
+      output_payload    JSONB NOT NULL,
+      variation_selected CHAR(1),
+      was_edited        BOOLEAN DEFAULT FALSE,
+      edit_distance     INTEGER,
+      post_reach        INTEGER,
+      post_engagement   INTEGER,
+      quality_score     NUMERIC(3,1),
+      model_used        VARCHAR(50) DEFAULT 'claude-sonnet-4-6',
+      created_at        TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_training_data_model ON post_training_data(model_used, created_at DESC)`,
+    // PostCore Brain — model version registry
+    `CREATE TABLE IF NOT EXISTS llm_model_versions (
+      id                  SERIAL PRIMARY KEY,
+      version_name        VARCHAR(100) NOT NULL,
+      base_model          VARCHAR(100) NOT NULL,
+      lora_weights_url    TEXT,
+      replicate_model_id  TEXT,
+      training_examples   INTEGER DEFAULT 0,
+      eval_bleu           NUMERIC(4,3),
+      eval_human_score    NUMERIC(3,1),
+      status              VARCHAR(30) DEFAULT 'training',
+      traffic_pct         INTEGER DEFAULT 0,
+      trained_at          TIMESTAMP,
+      promoted_at         TIMESTAMP,
+      created_at          TIMESTAMP DEFAULT NOW()
+    )`,
+    // PostCore Brain — A/B experiment log
+    `CREATE TABLE IF NOT EXISTS llm_ab_experiments (
+      id                    SERIAL PRIMARY KEY,
+      model_version_id      INTEGER REFERENCES llm_model_versions(id),
+      started_at            TIMESTAMP DEFAULT NOW(),
+      ended_at              TIMESTAMP,
+      traffic_pct           INTEGER DEFAULT 0,
+      calls_total           INTEGER DEFAULT 0,
+      user_selection_rate   NUMERIC(4,3),
+      edit_rate             NUMERIC(4,3),
+      avg_reach             NUMERIC(10,2),
+      result                VARCHAR(20),
+      notes                 TEXT
+    )`,
+    // PostCore Brain — human-curated gold examples
+    `CREATE TABLE IF NOT EXISTS llm_curated_examples (
+      id             SERIAL PRIMARY KEY,
+      industry       VARCHAR(50) NOT NULL,
+      content_type   VARCHAR(50) NOT NULL,
+      input_payload  JSONB NOT NULL,
+      ideal_output   JSONB NOT NULL,
+      quality_score  NUMERIC(3,1) NOT NULL,
+      annotated_by   VARCHAR(100),
+      created_at     TIMESTAMP DEFAULT NOW()
+    )`,
+    // Content Calendar — strategic planning layer
+    `CREATE TABLE IF NOT EXISTS content_calendar_plans (
+      id              SERIAL PRIMARY KEY,
+      customer_id     INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      plan_date       DATE NOT NULL,
+      title           VARCHAR(200),
+      content_type    VARCHAR(50) DEFAULT 'photo_post',
+      platforms       TEXT[] DEFAULT '{}',
+      notes           TEXT,
+      status          VARCHAR(20) DEFAULT 'planned',
+      post_id         INTEGER REFERENCES posts(id) ON DELETE SET NULL,
+      ai_suggested    BOOLEAN DEFAULT false,
+      color           VARCHAR(20) DEFAULT 'purple',
+      created_at      TIMESTAMP DEFAULT NOW(),
+      updated_at      TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_calendar_plans_customer ON content_calendar_plans(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_calendar_plans_date ON content_calendar_plans(plan_date)`,
+    // Profile: avatar + tagline
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS tagline VARCHAR(200)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -2464,6 +2544,7 @@ app.use('/api/api-keys', apiKeysRoutes(pool));
 app.use('/api/v1', externalRoutes(pool));
 app.use('/api/gmb', gmbMessagesRoutes(pool));
 app.use('/api/ideas', ideasRoutes(pool));
+app.use('/api/calendar-plans', calendarPlansRoutes(pool));
 
 
 app.get('/health', async (req, res) => {
