@@ -1410,8 +1410,8 @@ module.exports = (pool) => {
 
       await client.query('COMMIT');
 
-      await audit.log(req, 'referral_release', 'referral_awards', awardId,
-        { referrer_id: award.referrer_customer_id, credits: award.credits });
+      await audit.log(req.admin.id, req.admin.email, 'referral_release', 'referral_awards', awardId,
+        { referrer_id: award.referrer_customer_id, credits: award.credits }, req);
 
       res.json({ success: true, credits_awarded: award.credits });
     } catch (err) {
@@ -1450,8 +1450,8 @@ module.exports = (pool) => {
         [reason || null, req.customerId, awardId]
       );
 
-      await audit.log(req, 'referral_reject', 'referral_awards', awardId,
-        { reason: reason || null });
+      await audit.log(req.admin.id, req.admin.email, 'referral_reject', 'referral_awards', awardId,
+        { reason: reason || null }, req);
 
       res.json({ success: true });
     } catch (err) {
