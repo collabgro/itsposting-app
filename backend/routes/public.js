@@ -22,7 +22,7 @@ module.exports = (pool) => {
                 COUNT(p.id)::int AS post_count,
                 MAX(p.created_at) AS last_posted_at
          FROM customers c
-         LEFT JOIN posts p ON p.customer_id = c.id AND p.status = 'published'
+         LEFT JOIN posts p ON p.customer_id = c.id AND p.status = 'posted'
          WHERE c.public_handle IS NOT NULL
            AND c.suspended = FALSE
            ${whereExtra}
@@ -77,7 +77,7 @@ module.exports = (pool) => {
         `SELECT id, caption, image_url, platforms, performance_score, created_at
          FROM posts
          WHERE customer_id = $1
-           AND status = 'published'
+           AND status = 'posted'
            AND image_url IS NOT NULL
            AND caption IS NOT NULL
          ORDER BY COALESCE(performance_score, 0) DESC, created_at DESC

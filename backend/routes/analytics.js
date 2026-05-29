@@ -492,7 +492,7 @@ module.exports = (pool) => {
                 COALESCE(AVG((p.engagement->>'likes')::numeric + (p.engagement->>'comments')::numeric * 2 + (p.engagement->>'shares')::numeric * 3), 0)::numeric(8,2) AS avg_engagement
          FROM customers c
          LEFT JOIN posts p ON p.customer_id = c.id
-           AND p.status = 'published'
+           AND p.status = 'posted'
            AND p.created_at > NOW() - INTERVAL '30 days'
          WHERE c.id = $1
          GROUP BY c.industry`,
@@ -520,7 +520,7 @@ module.exports = (pool) => {
                   COUNT(p.id) AS post_count,
                   COALESCE(AVG((p.engagement->>'likes')::numeric + (p.engagement->>'comments')::numeric * 2 + (p.engagement->>'shares')::numeric * 3), 0) AS avg_eng
            FROM posts p
-           WHERE p.status = 'published'
+           WHERE p.status = 'posted'
              AND p.created_at > NOW() - INTERVAL '30 days'
            GROUP BY p.customer_id
            HAVING COUNT(p.id) >= 1
@@ -553,7 +553,7 @@ module.exports = (pool) => {
            COUNT(p.id)::int AS post_count
          FROM customers c
          JOIN posts p ON p.customer_id = c.id
-           AND p.status = 'published'
+           AND p.status = 'posted'
            AND p.created_at > NOW() - INTERVAL '30 days'
          WHERE c.industry = $1 AND c.status = 'active' AND c.id != $2
          GROUP BY c.id, c.location
