@@ -10,7 +10,7 @@ import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { setMascotMood, triggerMilestone } from '../components/PostCoreMascot';
 import { useTheme } from '../lib/theme';
-import api, { customerAPI, socialAPI, analyticsAPI, postsAPI, templatesAPI, wizardAPI } from '../lib/api';
+import api, { customerAPI, socialAPI, analyticsAPI, postsAPI, templatesAPI, wizardAPI, calendarPlansAPI } from '../lib/api';
 import { CHAR_LIMITS } from '../components/PostMockups';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
@@ -406,6 +406,7 @@ export default function Wizard() {
   const [showAddToSetDropdown, setShowAddToSetDropdown] = useState(false);
   const [addToSetName, setAddToSetName] = useState('');
   const [videoProgress, setVideoProgress] = useState(0);
+  const [calendarPlanId, setCalendarPlanId] = useState(null);
 
   const loadingInterval = useRef(null);
 
@@ -504,6 +505,23 @@ export default function Wizard() {
     const ideaDetails = params.get('details');
     if (ideaTheme) setTheme(ideaTheme);
     if (ideaDetails) setDetails(ideaDetails);
+
+    // Handle navigation from Content Calendar — pre-fill wizard + track planId to link back
+    const prefillRaw = sessionStorage.getItem('wizard_prefill');
+    if (prefillRaw) {
+      try {
+        const prefill = JSON.parse(prefillRaw);
+        if (prefill.planId) setCalendarPlanId(prefill.planId);
+        if (prefill.contentType) {
+          // Map calendar plan content_type to wizard content type
+          const typeMap = { photo_post: 'photo', text_card: 'static', story: 'photo', carousel: 'carousel', video: 'video' };
+          setContentType(typeMap[prefill.contentType] || prefill.contentType);
+        }
+        if (prefill.notes) setDetails(prefill.notes);
+        if (prefill.title) setDetails(d => d || prefill.title); // use title as fallback details
+      } catch {}
+      sessionStorage.removeItem('wizard_prefill');
+    }
   }, []);
 
   useEffect(() => {
@@ -722,6 +740,11 @@ export default function Wizard() {
       setStep('results');
       setMascotMood('excited', 'Here are your 3 variations — pick the one you love!');
       window.dispatchEvent(new Event('creditRefresh'));
+
+      // Link this post back to the calendar plan that triggered the wizard
+      if (calendarPlanId && genRes.postId) {
+        calendarPlansAPI.update(calendarPlanId, { post_id: genRes.postId, status: 'briefed' }).catch(() => {});
+      }
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.');
       setStep(6); // stay on platform step so the error banner is visible
@@ -764,6 +787,7 @@ export default function Wizard() {
         if (posted.length > 0 && errors.length === 0) {
           setMascotMood('celebrating', `🎉 Live on ${posted.join(', ')}!`);
           showToast('success', `Published to ${posted.join(', ')}!`);
+          if (calendarPlanId) calendarPlansAPI.update(calendarPlanId, { status: 'published' }).catch(() => {});
           // Trigger first_post milestone if this is their first post
           if (!localStorage.getItem('has_posted')) {
             localStorage.setItem('has_posted', '1');
@@ -809,6 +833,7 @@ export default function Wizard() {
       setShowScheduleModal(false);
       setScheduleConflicts([]);
       showToast('success', 'Post scheduled!');
+      if (calendarPlanId) calendarPlansAPI.update(calendarPlanId, { status: 'scheduled' }).catch(() => {});
     } catch (err) {
       showToast('error', err.message || 'Failed to schedule');
     } finally {
