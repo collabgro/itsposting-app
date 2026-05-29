@@ -1363,7 +1363,7 @@ export default function Settings() {
             {/* Brand Fonts */}
             <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Fonts</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
                 {[
                   { key: 'headline', label: 'Headline Font', description: 'Used for titles and headings' },
                   { key: 'body',     label: 'Body Font',     description: 'Used for captions and paragraphs' },

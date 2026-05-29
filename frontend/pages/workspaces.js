@@ -259,7 +259,7 @@ function InviteModal({ onClose, onInvited, workspaces = [] }) {
               {/* Role selector */}
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Role</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
                   {Object.entries(ROLE_META).map(([key, meta]) => {
                     const active = role === key;
                     return (
@@ -285,7 +285,7 @@ function InviteModal({ onClose, onInvited, workspaces = [] }) {
 
                 {showCustom && (
                   <div style={{ background: t.input, borderRadius: 10, padding: '14px 16px', border: `1px solid ${t.border}` }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0 24px' }}>
                       {MODULES.map(({ group, items }) => (
                         <div key={group} style={{ marginBottom: 14 }}>
                           <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{group}</div>
@@ -426,7 +426,7 @@ function MemberPermissionModal({ member, onClose, onSave, onRemove }) {
               <span style={{ fontSize: 11, color: t.textMuted, marginLeft: 'auto' }}>{totalEnabled} / 14 enabled</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0 24px' }}>
               {MODULES.map(({ group, items }) => (
                 <div key={group} style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{group}</div>

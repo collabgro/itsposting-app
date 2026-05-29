@@ -138,7 +138,7 @@ function ContactModal({ contact, onSave, onClose, t }) {
 
 // ── Contact Detail Drawer ─────────────────────────────────────────────────────
 
-function ContactDrawer({ contact, onClose, onUpdate, onDelete, t }) {
+function ContactDrawer({ contact, onClose, onUpdate, onDelete, t, isMobile }) {
   const [conversations, setConversations] = useState([]);
   const [editing, setEditing] = useState(false);
 
@@ -152,10 +152,14 @@ function ContactDrawer({ contact, onClose, onUpdate, onDelete, t }) {
 
   if (!contact) return null;
 
+  const panelStyle = isMobile
+    ? { position: 'fixed', inset: 0, zIndex: 500, background: t.card, overflowY: 'auto', display: 'flex', flexDirection: 'column' }
+    : { width: 380, background: t.card, borderLeft: `1px solid ${t.border}`, overflowY: 'auto', display: 'flex', flexDirection: 'column' };
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex' }}>
-      <div onClick={onClose} style={{ flex: 1, background: 'rgba(0,0,0,0.5)' }} />
-      <div style={{ width: 380, background: t.card, borderLeft: `1px solid ${t.border}`, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      {!isMobile && <div onClick={onClose} style={{ flex: 1, background: 'rgba(0,0,0,0.5)' }} />}
+      <div style={panelStyle}>
         {/* Header */}
         <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${t.border}` }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -173,7 +177,9 @@ function ContactDrawer({ contact, onClose, onUpdate, onDelete, t }) {
                 </div>
               </div>
             </div>
-            <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={18} /></button>
+            <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', color: t.textMuted, display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600 }}>
+              {isMobile ? <><IpChevronLeft size={18} /> Back</> : <IpClose size={18} />}
+            </button>
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
@@ -274,6 +280,14 @@ export default function ContactsPage() {
   const [selectedContact, setSelectedContact] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [error, setError] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => { load(); }, [page, search, leadFilter]);
 
@@ -381,34 +395,68 @@ export default function ContactsPage() {
         </div>
       )}
 
-      {/* Table */}
-      <div style={{ overflowX: 'auto', borderRadius: 10 }}>
-      <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, overflow: 'hidden', minWidth: 620 }}>
-        {/* Table header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 110px 110px 90px 80px', gap: 0, padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.sidebar }}>
-          {['Contact', 'Platform', 'Phone', 'Job Type', 'Value', 'Status'].map(h => (
-            <div key={h} style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
-          ))}
-        </div>
-
-        {loading ? (
-          <div style={{ padding: 32, textAlign: 'center', color: t.textMuted, fontSize: 13 }}>Loading…</div>
-        ) : contacts.length === 0 ? (
-          <div style={{ padding: 48, textAlign: 'center' }}>
-            <IpTeam size={48} style={{ color: t.textMuted, margin: '0 auto 12px', display: 'block' }} />
-            <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 4 }}>No contacts yet</div>
-            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 16 }}>
-              Contacts are created automatically from DMs, or you can add them manually.
-            </div>
-            <button
-              onClick={() => setShowAdd(true)}
-              style={{ padding: '8px 18px', borderRadius: 8, background: t.primary, color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-            >
-              Add your first contact
-            </button>
+      {/* Contact list — table on desktop, cards on mobile */}
+      {loading ? (
+        <div style={{ padding: 32, textAlign: 'center', color: t.textMuted, fontSize: 13 }}>Loading…</div>
+      ) : contacts.length === 0 ? (
+        <div style={{ padding: 48, textAlign: 'center', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10 }}>
+          <IpTeam size={48} style={{ color: t.textMuted, margin: '0 auto 12px', display: 'block' }} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 4 }}>No contacts yet</div>
+          <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 16 }}>
+            Contacts are created automatically from DMs, or you can add them manually.
           </div>
-        ) : (
-          contacts.map((contact, i) => (
+          <button
+            onClick={() => setShowAdd(true)}
+            style={{ padding: '8px 18px', borderRadius: 8, background: t.primary, color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Add your first contact
+          </button>
+        </div>
+      ) : isMobile ? (
+        /* ── Mobile card list ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {contacts.map(contact => {
+            const status = LEAD_STATUSES.find(s => s.key === contact.lead_status) || LEAD_STATUSES[0];
+            return (
+              <div
+                key={contact.id}
+                onClick={() => setSelectedContact(contact)}
+                style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+              >
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, color: '#fff', flexShrink: 0 }}>
+                  {(contact.name || '?').charAt(0).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact.name}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: status.color, background: `${status.color}18`, padding: '2px 8px', borderRadius: 4, border: `1px solid ${status.color}33`, flexShrink: 0 }}>{status.label}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+                    {contact.phone && <span style={{ fontSize: 12, color: t.textMuted }}>{contact.phone}</span>}
+                    {contact.job_type && <span style={{ fontSize: 12, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {contact.job_type}</span>}
+                    {contact.estimated_job_value && <span style={{ fontSize: 12, fontWeight: 600, color: t.text, marginLeft: 'auto', flexShrink: 0 }}>${parseFloat(contact.estimated_job_value).toLocaleString()}</span>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                    {contact.facebook_psid && <IpFacebook size={12} style={{ color: '#1877F2' }} />}
+                    {contact.instagram_igsid && <IpInstagram size={12} style={{ color: '#E1306C' }} />}
+                    <span style={{ fontSize: 11, color: t.textMuted }}>{timeAgo(contact.last_contact_at)}</span>
+                  </div>
+                </div>
+                <IpChevronRight size={16} style={{ color: t.textMuted, flexShrink: 0 }} />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ── Desktop table ── */
+        <div style={{ overflowX: 'auto', borderRadius: 10 }}>
+        <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, overflow: 'hidden', minWidth: 620 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 110px 110px 90px 80px', gap: 0, padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.sidebar }}>
+            {['Contact', 'Platform', 'Phone', 'Job Type', 'Value', 'Status'].map(h => (
+              <div key={h} style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
+            ))}
+          </div>
+          {contacts.map((contact, i) => (
             <div
               key={contact.id}
               onClick={() => setSelectedContact(contact)}
@@ -425,53 +473,32 @@ export default function ContactsPage() {
               onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              {/* Contact name + meta */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                 <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, color: '#fff', flexShrink: 0 }}>
                   {(contact.name || '?').charAt(0).toUpperCase()}
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {contact.name}
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact.name}</div>
                   <div style={{ fontSize: 11, color: t.textMuted }}>
                     {contact.total_conversations > 0 ? `${contact.total_conversations} conv` : 'No conversations'} · {timeAgo(contact.last_contact_at)}
                   </div>
                 </div>
               </div>
-
-              {/* Platform */}
               <div style={{ display: 'flex', gap: 4 }}>
                 {contact.facebook_psid && <IpFacebook size={14} style={{ color: '#1877F2' }} />}
                 {contact.instagram_igsid && <IpInstagram size={14} style={{ color: '#E1306C' }} />}
-                {!contact.facebook_psid && !contact.instagram_igsid && (
-                  <span style={{ fontSize: 11, color: t.textMuted }}>Manual</span>
-                )}
+                {!contact.facebook_psid && !contact.instagram_igsid && <span style={{ fontSize: 11, color: t.textMuted }}>Manual</span>}
               </div>
-
-              {/* Phone */}
               <div style={{ fontSize: 12, color: t.text }}>{contact.phone || '—'}</div>
-
-              {/* Job Type */}
-              <div style={{ fontSize: 12, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {contact.job_type || '—'}
-              </div>
-
-              {/* Value */}
+              <div style={{ fontSize: 12, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contact.job_type || '—'}</div>
               <div style={{ fontSize: 12, color: t.text, fontWeight: contact.estimated_job_value ? 600 : 400 }}>
                 {contact.estimated_job_value ? `$${parseFloat(contact.estimated_job_value).toLocaleString()}` : '—'}
               </div>
-
-              {/* Status */}
               <div onClick={e => e.stopPropagation()}>
                 <select
                   value={contact.lead_status}
                   onChange={e => handleStatusChange(contact.id, e.target.value)}
-                  style={{
-                    padding: '3px 6px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                    background: 'transparent', border: 'none', cursor: 'pointer', color: LEAD_STATUSES.find(s => s.key === contact.lead_status)?.color || t.text,
-                    outline: 'none',
-                  }}
+                  style={{ padding: '3px 6px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: 'transparent', border: 'none', cursor: 'pointer', color: LEAD_STATUSES.find(s => s.key === contact.lead_status)?.color || t.text, outline: 'none' }}
                 >
                   {LEAD_STATUSES.map(s => (
                     <option key={s.key} value={s.key} style={{ color: t.text, background: t.card }}>{s.label}</option>
@@ -479,10 +506,10 @@ export default function ContactsPage() {
                 </select>
               </div>
             </div>
-          ))
-        )}
-      </div>
-      </div>
+          ))}
+        </div>
+        </div>
+      )}
 
       {/* Pagination */}
       {total > 25 && (
@@ -522,6 +549,7 @@ export default function ContactsPage() {
         <ContactDrawer
           contact={selectedContact}
           t={t}
+          isMobile={isMobile}
           onClose={() => setSelectedContact(null)}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
