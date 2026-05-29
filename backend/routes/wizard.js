@@ -2002,19 +2002,20 @@ Rules:
           try {
             const billingId = req.parentCustomerId || req.customerId;
             const existing = await pool.query(
-              `SELECT id FROM credit_transactions WHERE customer_id=$1 AND reference_id=$2 AND type='watermark_download'`,
-              [billingId, String(postId)]
+              `SELECT id FROM credit_transactions WHERE customer_id=$1 AND post_id=$2 AND transaction_type='watermark_download'`,
+              [billingId, postId]
             );
             if (existing.rows.length === 0) {
               await pool.query('BEGIN');
-              await pool.query(
-                `UPDATE customers SET credits_balance = credits_balance + 5 WHERE id=$1`,
+              const balRes = await pool.query(
+                `UPDATE customers SET credits_balance = credits_balance + 5 WHERE id=$1 RETURNING credits_balance`,
                 [billingId]
               );
+              const newBal = balRes.rows[0]?.credits_balance ?? 0;
               await pool.query(
-                `INSERT INTO credit_transactions (customer_id, amount, type, description, reference_id, created_at)
-                  VALUES ($1, 5, 'watermark_download', 'Watermark download bonus', $2, NOW())`,
-                [billingId, String(postId)]
+                `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description, created_at)
+                  VALUES ($1, $2, 'watermark_download', 5, $3, 'Watermark download bonus', NOW())`,
+                [billingId, postId, newBal]
               );
               await pool.query('COMMIT');
             }

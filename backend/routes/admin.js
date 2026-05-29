@@ -65,7 +65,7 @@ module.exports = (pool) => {
               ELSE 0
             END) AS mrr
           FROM customers
-          WHERE status = 'active' AND suspended = false AND is_admin = false
+          WHERE status = 'active' AND (suspended = false OR suspended IS NULL) AND is_admin = false
           GROUP BY plan
         `),
         pool.query(`
@@ -706,7 +706,7 @@ module.exports = (pool) => {
       if (!VALID_DELIVERY.includes(delivery_method)) return res.status(400).json({ error: 'Invalid delivery method' });
 
       // Build segment query
-      let segWhere = 'WHERE suspended = false';
+      let segWhere = 'WHERE (suspended = false OR suspended IS NULL)';
       if (target_segment === 'trial') segWhere += ` AND status = 'trial'`;
       else if (target_segment === 'starter') segWhere += ` AND plan = 'starter' AND status = 'active'`;
       else if (target_segment === 'professional') segWhere += ` AND plan = 'professional' AND status = 'active'`;

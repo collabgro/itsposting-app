@@ -158,8 +158,8 @@ module.exports = (pool) => {
         [ANALYZE_CREDIT_COST, billingId]
       );
       await client.query(
-        `INSERT INTO credit_transactions (customer_id, amount, type, description) VALUES ($1, $2, 'debit', $3)`,
-        [billingId, ANALYZE_CREDIT_COST, `Competitor analysis: ${comp.name || comp.website}`]
+        `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description) VALUES ($1, 'debit', $2, $3, $4)`,
+        [billingId, ANALYZE_CREDIT_COST, billing[0].credits_balance - ANALYZE_CREDIT_COST, `Competitor analysis: ${comp.name || comp.website}`]
       );
       await client.query('COMMIT');
 

@@ -47,7 +47,7 @@ module.exports = function gmbMessagesRoutes(pool) {
       const custResult = await pool.query(
         `SELECT c.id FROM customers c
          INNER JOIN social_accounts sa ON sa.customer_id = c.id AND sa.platform = 'google'
-         WHERE sa.external_id = $1 AND c.suspended = false
+         WHERE sa.external_id = $1 AND (c.suspended = false OR c.suspended IS NULL)
          LIMIT 1`,
         [googlePlaceId || '']
       );

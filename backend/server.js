@@ -2759,7 +2759,7 @@ async function runTrialExpiry() {
       UPDATE customers
       SET suspended = true, status = 'suspended', updated_at = NOW()
       WHERE plan = 'trial'
-        AND suspended = false
+        AND (suspended = false OR suspended IS NULL)
         AND trial_ends_at IS NOT NULL
         AND trial_ends_at < NOW()
       RETURNING id, email, business_name
