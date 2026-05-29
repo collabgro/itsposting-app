@@ -82,7 +82,7 @@ module.exports = (pool) => {
               const newBalance = (customerResult.rows[0].credits_balance || 0) + creditPack.amount;
               await pool.query(`UPDATE customers SET credits_balance=$1, updated_at=NOW() WHERE id=$2`, [newBalance, customerId]);
               await pool.query(
-                `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description) VALUES ($1,'purchase',$2,$3,$4)`,
+                `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description) VALUES ($1,'credit',$2,$3,$4)`,
                 [customerId, creditPack.amount, newBalance, `Credit pack purchase: ${creditPack.amount} credits ($${creditPack.price})`]
               );
               console.log(`[Whop] Credit pack ${creditPack.id} granted to customer ${customerId}`);

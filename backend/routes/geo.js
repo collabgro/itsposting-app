@@ -87,7 +87,7 @@ module.exports = (pool) => {
           );
           await client.query(
             `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
-             VALUES ($1, 'usage', -5, $2, 'GEO Audit — AI visibility check')`,
+             VALUES ($1, 'debit', -5, $2, 'GEO Audit — AI visibility check')`,
             [billingId, (billingLocked.credits_balance || 0) - 5]
           );
         }

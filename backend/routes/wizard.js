@@ -213,25 +213,19 @@ async function deleteSession(id) {
 async function _refundCredits(pool, billingId, postId, amount) {
   if (!billingId || !amount) return;
   try {
-    await pool.query(
-      'UPDATE customers SET credits_balance = credits_balance + $1 WHERE id = $2',
+    const refundRes = await pool.query(
+      'UPDATE customers SET credits_balance = credits_balance + $1 WHERE id = $2 RETURNING credits_balance',
       [amount, billingId]
     );
+    const newBalance = refundRes.rows[0]?.credits_balance ?? 0;
     await pool.query(
-      `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, description)
-       VALUES ($1, $2, 'refund', $3, 'Video generation failed - credits refunded')`,
-      [billingId, postId, amount]
+      `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description)
+       VALUES ($1, $2, 'refund', $3, $4, 'Video generation failed - credits refunded')`,
+      [billingId, postId, amount, newBalance]
     );
     console.log(`[Wizard] Refunded ${amount} credit(s) to customer ${billingId} for failed video post ${postId}`);
   } catch (refundErr) {
     console.error('[Wizard] Credit refund failed (manual review needed):', refundErr.message);
-    try {
-      await pool.query(
-        `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, description)
-         VALUES ($1, $2, 'refund_failed', $3, 'MANUAL REVIEW NEEDED: video generation failed but credit refund also failed')`,
-        [billingId, postId, amount]
-      );
-    } catch {}
   }
 }
 

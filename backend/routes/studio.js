@@ -279,7 +279,7 @@ Return ONLY valid JSON (no markdown fences):
       const newBalance = deductRes.rows[0].credits_balance;
       await pool.query(
         `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
-         VALUES ($1, 'usage', -1, $2, 'Photo Studio — PostCore text formatting')`,
+         VALUES ($1, 'debit', -1, $2, 'Photo Studio — PostCore text formatting')`,
         [billingId, newBalance]
       );
 
@@ -688,7 +688,7 @@ Return ONLY valid JSON (no markdown fences):
 
       await pool.query(
         `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
-         VALUES ($1, 'deduct', $2, $3, 'AI video clip generation')`,
+         VALUES ($1, 'debit', $2, $3, 'AI video clip generation')`,
         [billingId, COST, updated.credits_balance]
       );
 
