@@ -1879,7 +1879,7 @@ One entry per post, in the same order as the dates listed.`;
    * Returns 12-15 post slots with date, type, topic, tone, platform, and a caption preview.
    * Posts are NOT created — the frontend confirms before any drafts are saved.
    * ───────────────────────────────────────────────────────── */
-  router.post('/plan-month', authenticate, requireActiveAccount, async (req, res) => {
+  router.post('/plan-month', authenticate, requireActiveAccount(pool), async (req, res) => {
     try {
       const { month, year } = req.body;
       const now = new Date();
