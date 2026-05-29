@@ -837,7 +837,6 @@ export default function Billing() {
         </div>
       )}
 
-      </div>
     </Layout>
   );
 }
