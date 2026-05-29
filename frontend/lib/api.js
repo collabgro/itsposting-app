@@ -143,6 +143,7 @@ export const wizardAPI = {
   bulkConfirm: (data) => api.post('/api/wizard/bulk-confirm', data),
   getStreamTicket: (postId) => api.post('/api/wizard/stream-ticket', { postId }),
   planMonth: (data) => api.post('/api/wizard/plan-month', data),
+  downloadImage: (data) => api.post('/api/wizard/download-image', data, { responseType: 'blob' }),
 };
 
 export const uploadAPI = {

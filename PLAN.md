@@ -186,12 +186,15 @@ Implementation:
 Billing page Referral tab: link + one-click copy + stats (total referrals, upgraded, credits earned) + share buttons (X/Twitter, WhatsApp, email)
 Backend: backend/routes/referrals.js; frontend: billing.js Refer & Earn tab; auth.js captures referredBy on signup.
 
-### 3.2 Shareable Posts + Viral Watermark
+### 3.2 Shareable Posts + Viral Watermark [DONE]
 Every downloaded image has optional "Made with ItsPosting" watermark.
-- Wizard results: "Download image" button
+- Wizard results: "↓ Download Image" button
 - Modal: [Download with watermark (+5 free credits)] vs [Download clean]
-- Watermark: Sharp text layer, bottom-right, light/dark adapted
-- /showcase page: public gallery of top-performing posts (opt-in), filter by industry, "Made in 60s" badge
+- Watermark: Sharp SVG composite text layer, bottom-right, semi-transparent with drop shadow
+- Backend: POST /api/wizard/download-image; awards 5 credits once per post via credit_transactions check
+- SSRF protection: only Cloudinary/GCS/NanoBanana/HeyGen CDN hosts allowed
+- ImageResizer.addWatermark() exported utility function
+- [ ] /showcase page: public gallery (backlog)
 
 ### 3.3 Industry Leaderboard (Anonymous FOMO) [DONE]
 Analytics page addition:

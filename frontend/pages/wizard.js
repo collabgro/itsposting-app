@@ -384,6 +384,10 @@ export default function Wizard() {
   const [isMobile, setIsMobile] = useState(false);
   const [smartScheduleDismissed, setSmartScheduleDismissed] = useState(false);
 
+  // Download state
+  const [downloadModal, setDownloadModal] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
   // Result screen action state
   const [actionLoading, setActionLoading] = useState(false);
   const [actionToast, setActionToast] = useState(null);
@@ -832,6 +836,32 @@ export default function Wizard() {
     const variation = results?.variations?.[selectedVariation];
     setEditedCaption(variation?.caption || '');
     setIsEditing(true);
+  };
+
+  const handleDownload = async (withWatermark) => {
+    if (!results?.mediaUrl) return;
+    setDownloading(true);
+    try {
+      const res = await wizardAPI.downloadImage({
+        mediaUrl: results.mediaUrl,
+        postId: results.postId,
+        withWatermark,
+      });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `itsposting-post${withWatermark ? '-branded' : ''}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      if (withWatermark) showToast('success', '+5 credits added to your account!');
+      setDownloadModal(false);
+    } catch (err) {
+      showToast('error', 'Download failed. Try again.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const stepNum = typeof step === 'number' ? step : (step === 'results' ? 7 : 6.5);
@@ -1581,6 +1611,25 @@ export default function Wizard() {
                   </button>
                 )}
 
+                {/* Download image button */}
+                {results.mediaUrl && results.contentTypeSelection !== 'video' && results.videoRendering !== true && (
+                  <button
+                    onClick={() => setDownloadModal(true)}
+                    style={{
+                      width: '100%', marginBottom: 10,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '10px 16px', borderRadius: 10,
+                      background: 'transparent', border: `1.5px solid ${t.border}`,
+                      color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      transition: 'border-color 150ms, background 150ms',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.background = t.input; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    ↓ Download Image
+                  </button>
+                )}
+
                 {/* Edit in Video Editor CTA — only for completed video posts */}
                 {results.contentTypeSelection === 'video' && results.mediaUrl && results.videoRendering !== true && (
                   <button
@@ -2142,6 +2191,64 @@ export default function Wizard() {
         )}
 
       </div>
+
+      {/* ── Download Image Modal ── */}
+      {downloadModal && results?.mediaUrl && (
+        <div
+          onClick={() => !downloading && setDownloadModal(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: t.isDark ? 'rgba(12,12,20,0.97)' : t.card, border: `1px solid ${t.border}`,
+              borderRadius: 20, padding: '28px 24px', maxWidth: 420, width: '100%',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+              animation: 'scaleIn 200ms cubic-bezier(0.34,1.56,0.64,1)',
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 800, color: t.text, letterSpacing: '-0.02em', marginBottom: 6 }}>Download your image</div>
+            <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5, marginBottom: 22 }}>Choose how you'd like to download this post image.</div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Watermark option */}
+              <button
+                onClick={() => handleDownload(true)}
+                disabled={downloading}
+                style={{
+                  padding: '16px 18px', borderRadius: 14, border: `1.5px solid rgba(124,92,252,0.5)`,
+                  background: 'rgba(124,92,252,0.08)', cursor: 'pointer', textAlign: 'left',
+                  transition: 'all 150ms', opacity: downloading ? 0.6 : 1,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>With ItsPosting watermark</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#34C759', background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.25)', borderRadius: 6, padding: '2px 8px' }}>+5 free credits</span>
+                </div>
+                <div style={{ fontSize: 12, color: t.textMuted }}>Adds "Made with ItsPosting" in the corner. One-time bonus — share your work, earn credits.</div>
+              </button>
+
+              {/* Clean option */}
+              <button
+                onClick={() => handleDownload(false)}
+                disabled={downloading}
+                style={{
+                  padding: '16px 18px', borderRadius: 14, border: `1px solid ${t.border}`,
+                  background: 'transparent', cursor: 'pointer', textAlign: 'left',
+                  transition: 'all 150ms', opacity: downloading ? 0.6 : 1,
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 4 }}>Download clean</div>
+                <div style={{ fontSize: 12, color: t.textMuted }}>No watermark — post it anywhere as your own.</div>
+              </button>
+            </div>
+
+            {downloading && <div style={{ textAlign: 'center', marginTop: 14, fontSize: 13, color: t.textMuted }}>Downloading…</div>}
+            <button onClick={() => setDownloadModal(false)} disabled={downloading} style={{ marginTop: 16, width: '100%', padding: '9px', background: 'none', border: `1px solid ${t.border}`, borderRadius: 10, color: t.textMuted, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
     </Layout>
   );
 }

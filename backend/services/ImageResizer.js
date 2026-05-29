@@ -184,6 +184,34 @@ function getAllSafeZones() {
   return Object.keys(PLATFORM_SPECS).reduce((acc, p) => { acc[p] = getImageSafeZone(p); return acc; }, {});
 }
 
+// ── addWatermark ─────────────────────────────────────────────────────────────
+// Composites a subtle "Made with ItsPosting" text watermark onto an image buffer.
+// isDark: true = white watermark (for dark images), false = dark watermark.
+async function addWatermark(inputBuffer, { isDark = true } = {}) {
+  const meta = await sharp(inputBuffer).metadata();
+  const w = meta.width || 1080;
+  const h = meta.height || 1350;
+
+  const fontSize = Math.round(w * 0.022); // ~24px on 1080px wide
+  const padX = Math.round(w * 0.025);
+  const padY = Math.round(h * 0.018);
+
+  const fill = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
+  const shadow = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.5)';
+
+  const textSvg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+    <style>text { font-family: -apple-system, Helvetica, Arial, sans-serif; font-weight: 700; letter-spacing: 0.02em; }</style>
+    <text x="${w - padX}" y="${h - padY}"
+      text-anchor="end" font-size="${fontSize}" fill="${fill}"
+      filter="drop-shadow(0 1px 2px ${shadow})">Made with ItsPosting</text>
+  </svg>`);
+
+  return sharp(inputBuffer)
+    .composite([{ input: textSvg, blend: 'over' }])
+    .jpeg({ quality: 88 })
+    .toBuffer();
+}
+
 module.exports = {
   resizeForPlatform,
   resizeForAllPlatforms,
@@ -195,6 +223,7 @@ module.exports = {
   getPlatformSpecs,
   getAllSafeZones,
   uploadToCloudinary,
+  addWatermark,
   PLATFORM_SPECS,
   SAFE_ZONES,
   DEFAULT_PLATFORMS,

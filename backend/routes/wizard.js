@@ -1926,5 +1926,67 @@ Rules:
     }
   });
 
+  // ── POST /api/wizard/download-image ──────────────────────────────────────
+  // Download a post image with optional "Made with ItsPosting" watermark.
+  // withWatermark=true → also awards 5 free credits (once per post per customer).
+  router.post('/download-image', authenticate, async (req, res) => {
+    try {
+      const { mediaUrl, postId, withWatermark = false } = req.body;
+      if (!mediaUrl) return res.status(400).json({ error: 'mediaUrl required' });
+
+      // SSRF protection
+      const parsed = new URL(mediaUrl);
+      const ALLOWED_HOSTS = ['res.cloudinary.com', 'storage.googleapis.com', 'cdn.nanobanana.ai', 'cdn.heygen.com'];
+      if (!ALLOWED_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
+        return res.status(400).json({ error: 'Media URL not from an allowed host' });
+      }
+
+      const imgRes = await (require('axios').get(mediaUrl, { responseType: 'arraybuffer', timeout: 15000 }));
+      let buffer = Buffer.from(imgRes.data);
+
+      if (withWatermark) {
+        buffer = await ImageResizer.addWatermark(buffer, { isDark: true });
+
+        // Award 5 credits once per post per customer (idempotent via unique constraint)
+        if (postId) {
+          try {
+            const billingId = req.parentCustomerId || req.customerId;
+            const existing = await pool.query(
+              `SELECT id FROM credit_transactions WHERE customer_id=$1 AND reference_id=$2 AND type='watermark_download'`,
+              [billingId, String(postId)]
+            );
+            if (existing.rows.length === 0) {
+              await pool.query('BEGIN');
+              await pool.query(
+                `UPDATE customers SET credits_balance = credits_balance + 5 WHERE id=$1`,
+                [billingId]
+              );
+              await pool.query(
+                `INSERT INTO credit_transactions (customer_id, amount, type, description, reference_id, created_at)
+                  VALUES ($1, 5, 'watermark_download', 'Watermark download bonus', $2, NOW())`,
+                [billingId, String(postId)]
+              );
+              await pool.query('COMMIT');
+            }
+          } catch (creditErr) {
+            await pool.query('ROLLBACK').catch(() => {});
+            console.warn('[Wizard/download] Credit award failed (non-fatal):', creditErr.message);
+          }
+        }
+      }
+
+      res.set({
+        'Content-Type': 'image/jpeg',
+        'Content-Disposition': `attachment; filename="itsposting-post${withWatermark ? '-branded' : ''}.jpg"`,
+        'Content-Length': buffer.length,
+        'Cache-Control': 'no-store',
+      });
+      res.send(buffer);
+    } catch (err) {
+      console.error('[Wizard/download-image]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };
