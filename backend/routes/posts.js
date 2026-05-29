@@ -183,6 +183,29 @@ module.exports = (pool) => {
     }
   });
 
+  // ── GET /api/posts/pending-approval ─────────────────────────────────────────
+  // MUST be before /:id to avoid Express capturing it as an ID param.
+  router.get('/pending-approval', authenticate, async (req, res) => {
+    try {
+      const { rows } = await pool.query(
+        `SELECT p.id, p.customer_id, p.content_type, p.caption, p.media_url, p.platforms,
+                p.approval_status, p.approval_note, p.approval_history, p.created_at,
+                c.business_name, c.workspace_display_name
+           FROM posts p
+           JOIN customers c ON c.id = p.customer_id
+          WHERE (c.id = $1 OR c.parent_customer_id = $1)
+            AND p.approval_status = 'pending'
+          ORDER BY p.created_at ASC
+          LIMIT 50`,
+        [req.customerId]
+      );
+      res.json(rows);
+    } catch (err) {
+      console.error('[posts/pending-approval]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   /**
    * GET /api/posts/:id
    */
@@ -325,29 +348,6 @@ module.exports = (pool) => {
       res.json({ success: true, deletedId: parseInt(req.params.id) });
     } catch (error) {
       res.status(500).json({ error: error.message });
-    }
-  });
-
-  // ── GET /api/posts/pending-approval ─────────────────────────────────────────
-  // Returns posts submitted for approval (manager view — all sub-accounts in workspace).
-  router.get('/pending-approval', authenticate, async (req, res) => {
-    try {
-      const { rows } = await pool.query(
-        `SELECT p.id, p.customer_id, p.content_type, p.caption, p.media_url, p.platforms,
-                p.approval_status, p.approval_note, p.approval_history, p.created_at,
-                c.business_name, c.workspace_display_name
-           FROM posts p
-           JOIN customers c ON c.id = p.customer_id
-          WHERE (c.id = $1 OR c.parent_customer_id = $1)
-            AND p.approval_status = 'pending'
-          ORDER BY p.created_at ASC
-          LIMIT 50`,
-        [req.customerId]
-      );
-      res.json(rows);
-    } catch (err) {
-      console.error('[posts/pending-approval]', err.message);
-      res.status(500).json({ error: err.message });
     }
   });
 
