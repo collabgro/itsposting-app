@@ -67,6 +67,9 @@ export default function MediaLibrary() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [bgRemoving, setBgRemoving] = useState(false);
   const [bgRemovedUrl, setBgRemovedUrl] = useState(null);
+  // ── Drag-to-move state
+  const [dragFileId, setDragFileId] = useState(null);
+  const [dragOverFolder, setDragOverFolder] = useState(null);
 
   // ── Templates: creations + curated templates
   const [creations,        setCreations]        = useState([]);
@@ -91,6 +94,13 @@ export default function MediaLibrary() {
     loadAll();
     customerAPI.getProfile().then(r => setIsAdmin(!!r.data?.is_admin)).catch(() => {});
   }, []);
+
+  // Cancel drag on Escape
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape' && dragFileId) { setDragFileId(null); setDragOverFolder(null); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dragFileId]);
 
   // ── Read ?tab= query param
   useEffect(() => {
@@ -251,6 +261,20 @@ export default function MediaLibrary() {
     const next = new Set(selectedIds);
     if (next.has(id)) next.delete(id); else next.add(id);
     setSelectedIds(next);
+  };
+
+  const handleMoveToFolder = async (fileId, targetFolder) => {
+    if (!fileId) return;
+    try {
+      await mediaAPI.moveToFolder(fileId, targetFolder);
+      showToast(targetFolder ? `Moved to "${targetFolder}"` : 'Moved to root', 'success');
+      loadFiles();
+    } catch {
+      showToast('Failed to move file', 'error');
+    } finally {
+      setDragFileId(null);
+      setDragOverFolder(null);
+    }
   };
 
   // ─── Templates handlers ───────────────────────────────────────────────────
@@ -419,9 +443,12 @@ export default function MediaLibrary() {
           return (
             <div
               key={file.id}
+              draggable
+              onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', file.id); setDragFileId(file.id); }}
+              onDragEnd={() => { setDragFileId(null); setDragOverFolder(null); }}
               onClick={() => setPreviewFile(file)}
-              style={{ background: isSelected ? (t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.07)') : (t.isDark ? 'rgba(15,15,24,0.72)' : t.card), backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `2px solid ${isSelected ? 'rgba(124,92,252,0.5)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', position: 'relative', boxShadow: isSelected ? '0 4px 16px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.07)' : `${t.shadowSm}` }}
-              onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.4)'; e.currentTarget.style.transform = 'translateY(-3px) scale(1.01)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.25), 0 0 0 1px rgba(124,92,252,0.15)'; } }}
+              style={{ background: isSelected ? (t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.07)') : (t.isDark ? 'rgba(15,15,24,0.72)' : t.card), backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `2px solid ${isSelected ? 'rgba(124,92,252,0.5)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 12, overflow: 'hidden', cursor: dragFileId ? 'grabbing' : 'pointer', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', position: 'relative', boxShadow: isSelected ? '0 4px 16px rgba(124,92,252,0.2), inset 0 1px 0 rgba(255,255,255,0.07)' : `${t.shadowSm}`, opacity: dragFileId === file.id ? 0.5 : 1 }}
+              onMouseEnter={(e) => { if (!isSelected && !dragFileId) { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.4)'; e.currentTarget.style.transform = 'translateY(-3px) scale(1.01)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.25), 0 0 0 1px rgba(124,92,252,0.15)'; } }}
               onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.07)' : t.border; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = t.shadowSm; } }}
             >
               <button
@@ -619,23 +646,36 @@ export default function MediaLibrary() {
             </>
           ) : (
             <>
+              {dragFileId && (
+                <div style={{ marginBottom: 10, padding: '8px 14px', borderRadius: 10, background: t.primaryBg, border: `1px dashed ${t.primaryBorder}`, fontSize: 12, color: t.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <IpFolderOpen size={14} /> Drop onto a folder to move · <span style={{ fontWeight: 400, color: t.textMuted }}>Escape to cancel</span>
+                </div>
+              )}
               {allFolders.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, marginBottom: 8 }}>
-                  {allFolders.map((f) => (
-                    <div
-                      key={f.folder}
-                      onClick={() => setFilterFolder(f.folder)}
-                      style={{ background: t.card, border: `2px solid ${t.border}`, borderRadius: 12, cursor: 'pointer', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 110 }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
-                    >
-                      <IpFolderOpen size={34} color={t.primary} />
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{f.folder}</div>
-                        <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3 }}>{f.count} {f.count === 1 ? 'file' : 'files'}</div>
+                  {allFolders.map((f) => {
+                    const isDropTarget = dragOverFolder === f.folder;
+                    return (
+                      <div
+                        key={f.folder}
+                        onClick={() => !dragFileId && setFilterFolder(f.folder)}
+                        onDragOver={(e) => { if (dragFileId) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverFolder(f.folder); } }}
+                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverFolder(null); }}
+                        onDrop={(e) => { e.preventDefault(); handleMoveToFolder(dragFileId, f.folder); }}
+                        style={{ background: isDropTarget ? t.primaryBg : t.card, border: `2px solid ${isDropTarget ? t.primary : t.border}`, borderRadius: 12, cursor: dragFileId ? 'copy' : 'pointer', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', padding: '22px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 110, transform: isDropTarget ? 'scale(1.04)' : 'none', boxShadow: isDropTarget ? `0 0 0 2px ${t.primary}, ${t.shadowMd}` : 'none' }}
+                        onMouseEnter={(e) => { if (!dragFileId) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; } }}
+                        onMouseLeave={(e) => { if (!dragFileId) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = t.card; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; } }}
+                      >
+                        <IpFolderOpen size={34} color={isDropTarget ? t.primary : t.primary} />
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{f.folder}</div>
+                          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3 }}>
+                            {isDropTarget ? 'Drop to move here' : `${f.count} ${f.count === 1 ? 'file' : 'files'}`}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               {allFolders.length > 0 && (

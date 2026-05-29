@@ -244,6 +244,24 @@ module.exports = (pool) => {
     }
   });
 
+  // PATCH /api/media/:id — move file to a different folder (or no folder)
+  router.patch('/:id', authenticate, async (req, res) => {
+    try {
+      const { folder } = req.body;
+      if (folder === undefined) return res.status(400).json({ error: 'folder is required' });
+      const folderName = folder ? String(folder).substring(0, 100).trim() || null : null;
+      const result = await pool.query(
+        `UPDATE media_library SET folder = $1 WHERE id = $2 AND customer_id = $3 RETURNING id, folder`,
+        [folderName, req.params.id, req.customerId]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ error: 'File not found' });
+      res.json({ success: true, id: result.rows[0].id, folder: result.rows[0].folder });
+    } catch (error) {
+      console.error('[Media] Move error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return router;
 };
 

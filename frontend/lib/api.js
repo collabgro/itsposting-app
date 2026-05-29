@@ -216,6 +216,7 @@ export const mediaAPI = {
   },
   delete: (id) => api.delete(`/api/media/${id}`),
   markUsed: (id) => api.post(`/api/media/${id}/use`),
+  moveToFolder: (id, folder) => api.patch(`/api/media/${id}`, { folder: folder || null }),
 };
 
 export const adminAPI = {

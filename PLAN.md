@@ -99,7 +99,7 @@ Future recharts: content type BarChart, platform RadarChart, posting time heatma
 ### 1.7 Media Library — Professional
 [x] AI tag suggestions on upload (Claude extracts tags -> stored as ai_tags TEXT[])
 [x] Background removal shortcut -> studioAPI.removeBackground() with before/after preview
-[ ] Folder drag-to-move between folders
+[x] Folder drag-to-move between folders — HTML5 drag events on file cards + drop targets on folder cards; PATCH /api/media/:id backend; Escape cancels; drop hint banner; "Drop to move here" folder label
 
 ### 1.8 Settings — Completeness and clarity [DONE]
 - Profile completeness progress bar (clickable missing items)
@@ -1603,7 +1603,7 @@ The new Content Calendar shows **plans** (ideas and briefs before generation).
 - [x] 12.1 Global responsive layout audit — dashboard, wizard, history, billing, calendar
 - [x] 12.2 Inbox mobile experience (two-panel collapse + swipe approval queue)
 - [x] 12.3 Wizard mobile experience — action bar grid, media panel full-width, history 2-col grid
-- [ ] 12.4 Calendar mobile experience (day-strip, long-press reschedule) — calendar.js already has isMobile, needs day-strip week view
+- [x] 12.4 Calendar mobile experience — bottom-sheet day panel (fixed, 78vh, border-radius 20px, drag handle), filter bar horizontally scrollable, header padding reduced
 - [ ] 12.5 Photo Studio mobile (pinch-to-zoom canvas, bottom drawer panel)
 
 ### Phase 13: Workspace Multi-User Audit
