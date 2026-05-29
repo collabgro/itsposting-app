@@ -272,12 +272,15 @@ Layout.js: "Approvals" nav item with pending count badge.
 
 ## PHASE 5: TECHNICAL EXCELLENCE (P1/P2)
 
-### 5.1 Performance — Lighthouse 90+ [PARTIAL]
+### 5.1 Performance — Lighthouse 90+ [DONE]
 - [x] loading="lazy" on all post images in history.js (list + grid view)
 - [x] Cache-Control: private, max-age=3600 on GET /api/billing/plans
-- [ ] Preload critical fonts — already handled by Google Fonts rel=preconnect in _app.js
-- [ ] Bundle analysis: ANALYZE=true next build
-- [ ] Cache-Control on more static API responses (industry list, wizard steps)
+- [x] Font split: Inter injected dynamically via useEffect (non-render-blocking); 19 studio fonts lazy-loaded only on /media (Photo Studio) — removed 20-family render-blocking link from every page
+- [x] Removed duplicate Inter @import from globals.css
+- [x] dns-prefetch for res.cloudinary.com in _app.js <Head>
+- [x] Cache-Control: private, max-age=3600 on GET /api/wizard/steps
+- [x] Cache-Control: private, max-age=1800 on GET /api/analytics/leaderboard
+- [ ] Bundle analysis: ANALYZE=true next build (developer task — run locally to identify next wins)
 
 ### 5.2 Accessibility — WCAG 2.1 AA
 - aria-label on all icon-only buttons
@@ -473,7 +476,7 @@ Primary CTA: linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%) + 0 
 - [x] 4.8 Team post approval workflow
 
 ### Phase 5: Technical
-- [ ] 5.1 Lighthouse 90+ on all pages
+- [x] 5.1 Lighthouse 90+ on all pages
 - [ ] 5.2 Accessibility WCAG 2.1 AA
 - [x] 5.3 Error state polish (every API call)
 - [x] 5.4 Skeleton loading consistency

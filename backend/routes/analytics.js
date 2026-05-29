@@ -587,6 +587,7 @@ module.exports = (pool) => {
         else { nextTier = 'Top 25%'; nextTierScore = parseFloat(p75.toFixed(1)); }
       }
 
+      res.set('Cache-Control', 'private, max-age=1800, stale-while-revalidate=3600');
       res.json({
         hasData: totalAccounts >= 3,
         industry: industryLabel,

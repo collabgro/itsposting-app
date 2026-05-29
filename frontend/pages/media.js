@@ -30,6 +30,17 @@ export default function MediaLibrary() {
   const { t } = useTheme();
   const { showToast } = useToast();
 
+  // Lazy-load studio/branded fonts — only needed on this page for Photo Studio
+  useEffect(() => {
+    if (!document.getElementById('font-studio')) {
+      const link = document.createElement('link');
+      link.id = 'font-studio';
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Caveat:wght@400;700&family=Dancing+Script:wght@400;700&family=EB+Garamond:wght@400;700&family=Lato:wght@400;700&family=Lora:wght@400;700&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&family=Nunito:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Oswald:wght@400;600;700&family=Pacifico&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600;700&family=Raleway:wght@400;600;700&family=Roboto:wght@400;700&family=Source+Sans+3:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap';
+      document.head.appendChild(link);
+    }
+  }, []);
+
   // ── Media library refs
   const fileInputRef = useRef(null);
 

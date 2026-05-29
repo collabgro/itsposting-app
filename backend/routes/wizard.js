@@ -512,6 +512,7 @@ module.exports = (pool) => {
     try {
       const { industry, contentType } = req.params;
       const steps = getWizardSteps(industry, contentType);
+      res.set('Cache-Control', 'private, max-age=3600, stale-while-revalidate=86400');
       res.json({ steps, totalSteps: steps.length });
     } catch (err) {
       console.error('[Wizard] Error getting steps:', err);
