@@ -9,7 +9,7 @@ import {
   IpPhotoStudio, IpWarning, IpSchedule, IpUser,
 } from './icons';
 import { useTheme } from '../lib/theme';
-import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI } from '../lib/api';
+import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI, postsAPI } from '../lib/api';
 import NotificationBell from './NotificationBell';
 import PostCoreMascot from './PostCoreMascot';
 import { ConfirmModal } from './ui';
@@ -63,6 +63,7 @@ const NAV_ITEMS = [
   { isDivider: true, label: 'Account' },
   { name: 'Knowledge Base', href: '/knowledge-base', icon: IpBusiness },
   { name: 'Workspaces',    href: '/workspaces',     icon: IpTeam,         isWorkspaceNav: true },
+  { name: 'Approvals',     href: '/approvals',      icon: IpCheck,        isWorkspaceNav: true, badgeKey: 'pendingApprovals' },
   { name: 'Billing',       href: '/billing',        icon: IpBilling },
   { name: 'Profile',       href: '/profile',        icon: IpUser },
   { name: 'Settings',      href: '/settings',       icon: IpSettings },
@@ -76,6 +77,7 @@ export default function Layout({ children, title, subtitle, action }) {
   const [isMobile, setIsMobile] = useState(false);
   const [dmUnread, setDmUnread] = useState(0);
   const [unseenSugg, setUnseenSugg] = useState(0);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
   const [hasToken, setHasToken] = useState(false);
   const [wsData, setWsData] = useState(null);
   const [wsDropdownOpen, setWsDropdownOpen] = useState(false);
@@ -116,14 +118,16 @@ export default function Layout({ children, title, subtitle, action }) {
           result = await tryVerify();
           if (result === false) return;
         }
-        const [dmsResult, suggResult, wsResult] = await Promise.allSettled([
+        const [dmsResult, suggResult, wsResult, approvalResult] = await Promise.allSettled([
           dmsAPI.getStats(),
           suggestionsAPI.getCount(),
           workspacesAPI.list(),
+          postsAPI.getPendingApproval(),
         ]);
         if (dmsResult.status === 'fulfilled') setDmUnread(dmsResult.value.data?.unreadCount || 0);
         if (suggResult.status === 'fulfilled') setUnseenSugg(suggResult.value.data?.count || 0);
         if (wsResult.status === 'fulfilled' && wsResult.value.data) setWsData(wsResult.value.data);
+        if (approvalResult.status === 'fulfilled') setPendingApprovals(Array.isArray(approvalResult.value.data) ? approvalResult.value.data.length : 0);
       })();
     }
     const refreshCredits = async () => {
@@ -161,7 +165,7 @@ export default function Layout({ children, title, subtitle, action }) {
     }
   }
 
-  const badges = { dmUnread, unseenSugg };
+  const badges = { dmUnread, unseenSugg, pendingApprovals };
 
   const handleLogout = () => {
     localStorage.removeItem('token');

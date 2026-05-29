@@ -616,6 +616,28 @@ export default function History() {
                           </button>
                         )}
 
+                        {isDraft && (post.approval_status === null || post.approval_status === undefined || post.approval_status === 'changes_requested') && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await postsAPI.submitApproval(post.id);
+                                setPosts(prev => prev.map(p => p.id === post.id ? { ...p, approval_status: 'pending' } : p));
+                                showToast('Post submitted for approval', 'success');
+                              } catch { showToast('Failed to submit', 'error'); }
+                            }}
+                            style={{ padding: '5px 11px', background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 7, fontSize: 11, fontWeight: 600, color: '#F59E0B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                          >
+                            ↑ Submit
+                          </button>
+                        )}
+                        {isDraft && post.approval_status === 'pending' && (
+                          <span style={{ fontSize: 10, padding: '3px 8px', background: 'rgba(245,158,11,0.1)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, fontWeight: 600 }}>Pending review</span>
+                        )}
+                        {isDraft && post.approval_status === 'changes_requested' && post.approval_note && (
+                          <span title={post.approval_note} style={{ fontSize: 10, padding: '3px 8px', background: 'rgba(255,69,58,0.1)', color: '#FF453A', border: '1px solid rgba(255,69,58,0.25)', borderRadius: 6, fontWeight: 600, cursor: 'help' }}>Changes requested</span>
+                        )}
+
                         <button
                           onClick={() => handleDelete(post.id)}
                           disabled={deleting === post.id}

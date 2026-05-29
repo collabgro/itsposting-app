@@ -627,6 +627,12 @@ console.log('══════════════════════�
     // Testimonial Machine: metadata column on posts + source index
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS metadata JSONB`,
     `CREATE INDEX IF NOT EXISTS idx_posts_source_testimonial ON posts(customer_id, source) WHERE source='auto_testimonial'`,
+    // Team Post Approval Workflow
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS approval_status VARCHAR(30)`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS approval_history JSONB DEFAULT '[]'::jsonb`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS approval_note TEXT`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS require_post_approval BOOLEAN DEFAULT FALSE`,
+    `CREATE INDEX IF NOT EXISTS idx_posts_approval ON posts(customer_id, approval_status) WHERE approval_status IS NOT NULL`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }

@@ -104,6 +104,11 @@ export const postsAPI = {
   getAnalytics: () => api.get('/api/posts/analytics/summary'),
   checkConflicts: (date, platforms, excludeId) =>
     api.get('/api/posts/schedule-conflicts', { params: { date, platforms: Array.isArray(platforms) ? platforms.join(',') : platforms, excludeId } }),
+  getPendingApproval: () => api.get('/api/posts/pending-approval'),
+  submitApproval: (id) => api.post(`/api/posts/${id}/submit-approval`),
+  approve: (id) => api.post(`/api/posts/${id}/approve`),
+  requestChanges: (id, note) => api.post(`/api/posts/${id}/request-changes`, { note }),
+  rejectApproval: (id, note) => api.post(`/api/posts/${id}/reject-approval`, { note }),
 };
 
 export const contentAPI = {

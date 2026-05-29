@@ -260,11 +260,13 @@ Mobile: swipe right = send, swipe left = dismiss.
 Branded PDF: cover page, metrics summary, top posts, content mix chart, recommendations.
 Uses Sharp for chart rendering + pdf-lib for assembly.
 
-### 4.8 Team Post Approval Workflow
-Workspace settings: "Require approval" toggle.
-Post status = pending_approval when editor creates.
-Manager: [Approve | Request changes | Reject with note].
-Approval history stored on post.
+### 4.8 Team Post Approval Workflow [DONE]
+Workspace members submit drafts → manager reviews before publishing.
+DB: posts.approval_status (pending/approved/changes_requested/rejected), posts.approval_history JSONB, posts.approval_note.
+Backend: 4 new endpoints (submit-approval, approve, request-changes, reject-approval) in posts.js.
+Frontend: "↑ Submit" button in history.js; status badges (Pending review, Changes requested).
+New page: /approvals — manager view with Approve/Request Changes/Reject actions + optional note modal.
+Layout.js: "Approvals" nav item with pending count badge.
 
 ---
 

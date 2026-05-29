@@ -328,5 +328,153 @@ module.exports = (pool) => {
     }
   });
 
+  // ── GET /api/posts/pending-approval ─────────────────────────────────────────
+  // Returns posts submitted for approval (manager view — all sub-accounts in workspace).
+  router.get('/pending-approval', authenticate, async (req, res) => {
+    try {
+      const { rows } = await pool.query(
+        `SELECT p.id, p.customer_id, p.content_type, p.caption, p.media_url, p.platforms,
+                p.approval_status, p.approval_note, p.approval_history, p.created_at,
+                c.business_name, c.workspace_display_name
+           FROM posts p
+           JOIN customers c ON c.id = p.customer_id
+          WHERE (c.id = $1 OR c.parent_customer_id = $1)
+            AND p.approval_status = 'pending'
+          ORDER BY p.created_at ASC
+          LIMIT 50`,
+        [req.customerId]
+      );
+      res.json(rows);
+    } catch (err) {
+      console.error('[posts/pending-approval]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/posts/:id/submit-approval ──────────────────────────────────────
+  // Sub-account submits a draft post for manager approval.
+  router.post('/:id/submit-approval', authenticate, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+
+      // Verify ownership
+      const check = await pool.query(
+        `SELECT p.id, p.status, c.parent_customer_id
+           FROM posts p JOIN customers c ON c.id = p.customer_id
+          WHERE p.id=$1 AND p.customer_id=$2`,
+        [postId, req.customerId]
+      );
+      if (!check.rows[0]) return res.status(404).json({ error: 'Post not found' });
+      if (check.rows[0].status !== 'draft') return res.status(400).json({ error: 'Only drafts can be submitted for approval' });
+
+      const historyEntry = JSON.stringify({ action: 'submitted', by: req.customerId, at: new Date().toISOString() });
+      await pool.query(
+        `UPDATE posts
+            SET approval_status = 'pending',
+                approval_history = COALESCE(approval_history, '[]'::jsonb) || $1::jsonb
+          WHERE id=$2`,
+        [`[${historyEntry}]`, postId]
+      );
+      res.json({ success: true, approvalStatus: 'pending' });
+    } catch (err) {
+      console.error('[posts/submit-approval]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/posts/:id/approve ──────────────────────────────────────────────
+  // Manager approves a pending post — moves it back to draft (ready to schedule/publish).
+  router.post('/:id/approve', authenticate, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+
+      const check = await pool.query(
+        `SELECT p.id, p.approval_status, c.parent_customer_id, c.id AS post_owner
+           FROM posts p JOIN customers c ON c.id = p.customer_id
+          WHERE p.id=$1 AND (c.id=$2 OR c.parent_customer_id=$2)`,
+        [postId, req.customerId]
+      );
+      if (!check.rows[0]) return res.status(404).json({ error: 'Post not found' });
+      if (check.rows[0].approval_status !== 'pending') return res.status(400).json({ error: 'Post is not pending approval' });
+
+      const historyEntry = JSON.stringify({ action: 'approved', by: req.customerId, at: new Date().toISOString() });
+      await pool.query(
+        `UPDATE posts
+            SET approval_status = 'approved',
+                status = 'draft',
+                approval_history = COALESCE(approval_history, '[]'::jsonb) || $1::jsonb
+          WHERE id=$2`,
+        [`[${historyEntry}]`, postId]
+      );
+      res.json({ success: true, approvalStatus: 'approved' });
+    } catch (err) {
+      console.error('[posts/approve]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/posts/:id/request-changes ─────────────────────────────────────
+  // Manager requests changes — post stays as draft with a note.
+  router.post('/:id/request-changes', authenticate, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const { note = '' } = req.body;
+
+      const check = await pool.query(
+        `SELECT p.id, p.approval_status, c.parent_customer_id
+           FROM posts p JOIN customers c ON c.id = p.customer_id
+          WHERE p.id=$1 AND (c.id=$2 OR c.parent_customer_id=$2)`,
+        [postId, req.customerId]
+      );
+      if (!check.rows[0]) return res.status(404).json({ error: 'Post not found' });
+      if (check.rows[0].approval_status !== 'pending') return res.status(400).json({ error: 'Post is not pending approval' });
+
+      const historyEntry = JSON.stringify({ action: 'changes_requested', by: req.customerId, note: note.substring(0, 400), at: new Date().toISOString() });
+      await pool.query(
+        `UPDATE posts
+            SET approval_status = 'changes_requested',
+                approval_note = $1,
+                approval_history = COALESCE(approval_history, '[]'::jsonb) || $2::jsonb
+          WHERE id=$3`,
+        [note.substring(0, 400), `[${historyEntry}]`, postId]
+      );
+      res.json({ success: true, approvalStatus: 'changes_requested' });
+    } catch (err) {
+      console.error('[posts/request-changes]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/posts/:id/reject-approval ─────────────────────────────────────
+  router.post('/:id/reject-approval', authenticate, async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const { note = '' } = req.body;
+
+      const check = await pool.query(
+        `SELECT p.id, p.approval_status, c.parent_customer_id
+           FROM posts p JOIN customers c ON c.id = p.customer_id
+          WHERE p.id=$1 AND (c.id=$2 OR c.parent_customer_id=$2)`,
+        [postId, req.customerId]
+      );
+      if (!check.rows[0]) return res.status(404).json({ error: 'Post not found' });
+      if (check.rows[0].approval_status !== 'pending') return res.status(400).json({ error: 'Post is not pending approval' });
+
+      const historyEntry = JSON.stringify({ action: 'rejected', by: req.customerId, note: note.substring(0, 400), at: new Date().toISOString() });
+      await pool.query(
+        `UPDATE posts
+            SET approval_status = 'rejected',
+                approval_note = $1,
+                approval_history = COALESCE(approval_history, '[]'::jsonb) || $2::jsonb
+          WHERE id=$3`,
+        [note.substring(0, 400), `[${historyEntry}]`, postId]
+      );
+      res.json({ success: true, approvalStatus: 'rejected' });
+    } catch (err) {
+      console.error('[posts/reject-approval]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };
