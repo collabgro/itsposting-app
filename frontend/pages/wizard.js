@@ -8,7 +8,7 @@ import {
 } from '../components/icons';
 import Icon from '../components/Icon';
 import Layout from '../components/Layout';
-import { setMascotMood } from '../components/PostCoreMascot';
+import { setMascotMood, triggerMilestone } from '../components/PostCoreMascot';
 import { useTheme } from '../lib/theme';
 import api, { customerAPI, socialAPI, analyticsAPI, postsAPI, templatesAPI, wizardAPI } from '../lib/api';
 import { CHAR_LIMITS } from '../components/PostMockups';
@@ -764,6 +764,11 @@ export default function Wizard() {
         if (posted.length > 0 && errors.length === 0) {
           setMascotMood('celebrating', `🎉 Live on ${posted.join(', ')}!`);
           showToast('success', `Published to ${posted.join(', ')}!`);
+          // Trigger first_post milestone if this is their first post
+          if (!localStorage.getItem('has_posted')) {
+            localStorage.setItem('has_posted', '1');
+            setTimeout(() => triggerMilestone('first_post'), 4000);
+          }
         } else if (posted.length > 0) {
           showToast('success', `Published to ${posted.join(', ')}. Some platforms failed.`);
         } else {
@@ -2003,16 +2008,16 @@ export default function Wizard() {
                 })()}
 
                 {/* Action bar */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 16, borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : t.border}` }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 16, borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : t.border}` }}>
                   {isEditing ? (
-                    <>
+                    <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={handleSaveEdit} disabled={actionLoading} style={{ flex: 1, padding: '10px 16px', background: t.primary, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                         <Icon name="check" size={14} color="#fff" /> Save Caption
                       </button>
                       <button onClick={() => setIsEditing(false)} style={{ padding: '10px 16px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                         Cancel
                       </button>
-                    </>
+                    </div>
                   ) : (
                     <>
                       {(() => {
@@ -2028,42 +2033,44 @@ export default function Wizard() {
                         const overLimit = activePlatforms.some(p => CHAR_LIMITS[p] && activeCaption.length > CHAR_LIMITS[p]);
                         const blocked = noneConnected || overLimit;
                         return (
-                          <div style={{ flex: 1, minWidth: 100, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <button onClick={handlePostNow} disabled={actionLoading || !results.postId || blocked} style={{ width: '100%', padding: '11px 14px', background: blocked ? '#9CA3AF' : `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, border: 'none', borderRadius: 11, color: '#fff', fontSize: 13, fontWeight: 700, cursor: (actionLoading || blocked) ? 'not-allowed' : 'pointer', opacity: (actionLoading || blocked) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: blocked ? 'none' : '0 4px 16px rgba(124,92,252,0.38)', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <button onClick={handlePostNow} disabled={actionLoading || !results.postId || blocked} style={{ width: '100%', padding: '13px 14px', background: blocked ? '#9CA3AF' : `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, border: 'none', borderRadius: 11, color: '#fff', fontSize: 14, fontWeight: 700, cursor: (actionLoading || blocked) ? 'not-allowed' : 'pointer', opacity: (actionLoading || blocked) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: blocked ? 'none' : '0 4px 16px rgba(124,92,252,0.38)', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)' }}>
                               <Icon name="send" size={14} color="#fff" /> Post Now
                             </button>
                             {overLimit && <div style={{ fontSize: 10, color: '#ef4444', textAlign: 'center' }}>Caption too long for some platforms — edit to fix</div>}
                           </div>
                         );
                       })()}
-                      <button onClick={() => setShowScheduleModal(true)} disabled={actionLoading || !results.postId}
-                        style={{ padding: '11px 14px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: actionLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
-                      >
-                        <Icon name="schedule" size={14} /> Schedule
-                      </button>
-                      <button onClick={handleEditStart}
-                        style={{ padding: '11px 14px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
-                      >
-                        <Icon name="edit" size={14} /> Edit
-                      </button>
-                      <button onClick={() => { showToast('success', 'Draft saved — find it in History'); setTimeout(handleReset, 1800); }}
-                        style={{ padding: '11px 14px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
-                      >
-                        <IpArrowLeft size={14} /> Save for Later
-                      </button>
-                      <button onClick={() => setShowSaveTemplate(true)}
-                        style={{ padding: '11px 14px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
-                      >
-                        <IpSparkle size={13} /> Save as template
-                      </button>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 8 }}>
+                        <button onClick={() => setShowScheduleModal(true)} disabled={actionLoading || !results.postId}
+                          style={{ padding: '10px 12px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: actionLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
+                        >
+                          <Icon name="schedule" size={13} /> Schedule
+                        </button>
+                        <button onClick={handleEditStart}
+                          style={{ padding: '10px 12px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
+                        >
+                          <Icon name="edit" size={13} /> Edit
+                        </button>
+                        <button onClick={() => { showToast('success', 'Draft saved — find it in History'); setTimeout(handleReset, 1800); }}
+                          style={{ padding: '10px 12px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
+                        >
+                          <IpArrowLeft size={13} /> Save Draft
+                        </button>
+                        <button onClick={() => setShowSaveTemplate(true)}
+                          style={{ padding: '10px 12px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 11, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})`, transition: 'all 150ms ease' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.09)' : t.border; e.currentTarget.style.color = t.textSecondary; }}
+                        >
+                          <IpSparkle size={12} /> Template
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>

@@ -5,7 +5,7 @@ import {
   IpWarning, IpRefresh, IpInfo, IpTeam, IpArrowRight, IpSearch, IpExternalLink,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Button, Badge, SectionHeader, EmptyState, Spinner } from '../../components/ui';
+import { Button, Badge, SectionHeader, EmptyState, Spinner, SkeletonPage } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { geoAPI } from '../../lib/api';
 
@@ -94,9 +94,7 @@ export default function GeoAuditReport() {
   if (loading) {
     return (
       <Layout title="AI Visibility Report" action={<Button variant="ghost" onClick={() => router.push('/geo-audit')}>← Back</Button>}>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-          <Spinner size={40} />
-        </div>
+        <SkeletonPage rows={6} cards={3} />
       </Layout>
     );
   }

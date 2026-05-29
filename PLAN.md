@@ -97,9 +97,9 @@ Future recharts: content type BarChart, platform RadarChart, posting time heatma
 - Full-text search across caption + hashtags (client-side filter)
 
 ### 1.7 Media Library — Professional
-[ ] AI tag suggestions on upload (Claude extracts tags -> stored as ai_tags TEXT[])
-[ ] Background removal shortcut -> studioAPI.removeBackground() with before/after preview
-[ ] Folder creation + drag-to-move between folders
+[x] AI tag suggestions on upload (Claude extracts tags -> stored as ai_tags TEXT[])
+[x] Background removal shortcut -> studioAPI.removeBackground() with before/after preview
+[ ] Folder drag-to-move between folders
 
 ### 1.8 Settings — Completeness and clarity [DONE]
 - Profile completeness progress bar (clickable missing items)
@@ -441,7 +441,7 @@ Primary CTA: linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%) + 0 
 - [x] 1.5 Analytics engagement trend SVG AreaChart
 - [x] 1.6 Calendar week view toggle + drag-to-reschedule + hover preview
 - [x] 1.7 Post history grid/list toggle + bulk select + floating action bar
-- [ ] 1.8 Media Library AI tagging + background removal
+- [x] 1.8 Media Library AI tagging + background removal
 - [x] 1.9 Settings profile completeness + token expiry + notification preferences
 - [x] 1.10 Knowledge Base quality scores + PostCore usage indicators
 
@@ -454,41 +454,41 @@ Primary CTA: linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%) + 0 
 - [x] 2.6 Hashtag sets (Settings manager + wizard Apply/Add-to-set)
 - [x] 2.7 SSE real-time video status + animated SVG progress ring
 - [x] 2.8 Social account health (posts/month + avg reach per account in Settings)
-- [ ] 2.9 Smart scheduling AI ("best time" PostCore auto-pick)
+- [x] 2.9 Smart scheduling AI ("best time" PostCore auto-pick)
 
 ### Phase 3: Viral Growth
-- [ ] 3.1 Referral program
-- [ ] 3.2 Shareable posts + watermark option
+- [x] 3.1 Referral program
+- [x] 3.2 Shareable posts + watermark option
 - [ ] 3.3 Industry leaderboard in analytics
 - [ ] 3.6 White-label for agencies
 
 ### Phase 4: New Features
-- [ ] 4.1 One-click video wizard
-- [ ] 4.2 Google review response AI
-- [ ] 4.3 30-day content calendar generator
+- [x] 4.1 One-click video wizard (dedicated /video-wizard page, Talking-Head + Cinematic modes, polling)
+- [x] 4.2 Google review response AI
+- [x] 4.3 30-day content calendar generator
 - [ ] 4.4 Competitor intelligence
-- [ ] 4.5 Testimonial machine
-- [ ] 4.6 Inbox approval queue mode
-- [ ] 4.7 PDF report export
-- [ ] 4.8 Team post approval workflow
+- [x] 4.5 Testimonial machine
+- [x] 4.6 Inbox approval queue mode (pending drafts, sentiment/urgency/intent badges, mobile swipe, role-gated approve)
+- [x] 4.7 PDF report export (3-page branded A4 PDF via pdf-lib, cover + posts + recommendations)
+- [x] 4.8 Team post approval workflow
 
 ### Phase 5: Technical
 - [ ] 5.1 Lighthouse 90+ on all pages
 - [ ] 5.2 Accessibility WCAG 2.1 AA
-- [ ] 5.3 Error state polish (every API call)
-- [ ] 5.4 Skeleton loading consistency
-- [ ] 5.5 Database indexes
-- [ ] 5.6 Per-endpoint rate limiting
-- [ ] 5.7 Webhook event log
+- [x] 5.3 Error state polish (every API call)
+- [x] 5.4 Skeleton loading consistency
+- [x] 5.5 Database indexes
+- [x] 5.6 Per-endpoint rate limiting
+- [x] 5.7 Webhook event log
 
 ### Phase 6: Marketing
-- [ ] 6.3 Email onboarding sequence (7 emails)
+- [x] 6.3 Email onboarding sequence (7 emails)
 - [x] 6.4 In-app activation checklist
 
 ### Phase 7: Brand
 - [ ] 7.1 New premium logo
-- [ ] 7.2 Branded loading experience (LoadingScreen.js)
-- [ ] 7.3 PostCore mascot seasonal/milestone moods
+- [x] 7.2 Branded loading experience (LoadingScreen.js)
+- [x] 7.3 PostCore mascot seasonal/milestone moods — SEASONAL_MSGS by month (idle on dashboard), MILESTONE_MSGS (streak 3/7/30, posts 10/25/50/100); triggerMilestone() export; sessionStorage dedup
 
 ### Phase 8: Own LLM
 - [ ] 8.1 Training data collection pipeline
@@ -496,6 +496,93 @@ Primary CTA: linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%) + 0 
 - [ ] 8.3 A/B test fine-tuned model vs Claude
 - [ ] 8.4 Progressive handoff (fine-tuned handles more, Claude handles edge cases)
 - [ ] 8.5 Admin LLM management panel (frontend/pages/admin/llm.js)
+
+---
+
+## PHASE 12: FULL DEVICE RESPONSIVENESS (P1)
+
+Every page must work flawlessly on mobile (375px), tablet (768px), and desktop (1280px+).
+The primary use case is a trades owner checking ItsPosting at 7am on their phone.
+
+### 12.1 Global responsive layout audit [DONE — dashboard, wizard, history, billing, calendar all fixed]
+Priority pages (highest mobile traffic): dashboard, inbox, wizard, calendar, history, billing.
+Breakpoints:
+- Mobile: max-width 480px → single column, larger touch targets (min 44px), no horizontal overflow
+- Tablet: 481-1024px → 2-column where possible, collapsed sidebar
+- Desktop: 1025px+ → full layout
+
+Rules:
+- Sidebar: drawer on mobile (hamburger toggle), rail on tablet, full on desktop
+- All tables → card stacks on mobile (no horizontal scroll)
+- All modals → full-screen bottom sheet on mobile
+- Touch targets: minimum 44×44px (WCAG 2.1 success criterion 2.5.5)
+- Font size floor: 13px body, 11px labels (never smaller)
+- No `overflow-x: hidden` hacks — fix the root cause
+
+### 12.2 Inbox mobile experience [DONE — Phase 4.6]
+Two-panel inbox already collapses on mobile (showMobileThread state).
+Swipe-right/swipe-left for approval queue implemented.
+Pending: bottom-sheet style thread panel on mobile (slide up animation).
+
+### 12.3 Wizard mobile experience [DONE]
+Step cards: auto-fill minmax(180px,1fr) — 2 cols on mobile. Progress: linear bar on mobile.
+Results: media panel goes full-width first on mobile. Action bar: Post Now full-width, secondary buttons in 2-col grid.
+History grid: 2-col on mobile (was 3-col). Calendar already had full isMobile support.
+
+### 12.4 Calendar mobile experience [PENDING]
+Month view: reduce cell padding, smaller text.
+Week view: collapse to day-strip on mobile.
+Post popover → full-screen modal on mobile.
+Drag-to-reschedule → long-press + drop zone on mobile.
+
+### 12.5 Photo Studio / Editor mobile experience [PENDING]
+Konva canvas: pinch-to-zoom + pan gesture support.
+Toolbar: hide on mobile, show via FAB (floating action button).
+Properties panel: bottom drawer on mobile.
+Note: The editor is complex — Tier 2 priority after pages above are fixed.
+
+---
+
+## PHASE 13: WORKSPACE MULTI-USER DEEP AUDIT (P1)
+
+### 13.1 Audit findings [DONE — May 2026]
+
+Two workspace types exist and both are now fully fixed:
+
+**Type A** (auto-created sub-accounts):
+- JWT: customerId = workspace.id, parentCustomerId = main.id
+- Credit billing → parent via getBillingCustomerId()
+- DMs, posts, content → owned by workspace.id ✓ (always worked)
+
+**Type B** (invited members via workspace_invitations):
+- JWT: customerId = member.id, workspaceId = workspace.id, ownerId = owner.id
+- CRITICAL BUG FIXED (May 2026): dms.js was using req.customerId for DM queries
+  instead of req.workspaceId. Invited members saw empty inbox. Now uses getDmCustomerId(req).
+- Role-based access added to dms.js: viewer/editor/manager/owner
+  - viewer: read-only, no send/AI draft
+  - editor: can generate drafts, send replies, save pending drafts for manager review
+  - manager: can approve/dismiss pending drafts and send
+  - owner: full access (no workspace context = always owner)
+
+### 13.2 Post approval workflow for workspace members [DONE — Phase 4.8]
+Posts submitted for approval by team members (source: posts.approval_status).
+Manager reviews in /approvals page. Approve / Request Changes / Reject.
+Notification sent when status changes.
+
+### 13.3 Workspace member DM approval workflow [DONE — Phase 4.6]
+- Editor member generates AI draft → saved as pending_draft on dm_conversations
+- Manager sees "Draft pending" badge on conversation card + pending count in "Pending" filter tab
+- Manager reviews draft: sentiment color (green/yellow/red), urgency badge, intent label
+- Manager: Approve & Send / Edit then send / Regenerate / Dismiss
+- Mobile: swipe right to approve, swipe left to dismiss
+
+### 13.4 UI for workspace roles [PENDING]
+Currently roles are enforced at API level but the UI doesn't communicate them.
+Needed:
+- Role badge next to the user's name in the top bar when in workspace context ("Editor" / "Manager")
+- Disabled state + tooltip on approve button if current user is 'editor' (not manager)
+- workspaces.js: show role badge next to each member in the member list
+- Settings: show "Your role in this workspace: Editor" banner
 
 ---
 
@@ -1158,13 +1245,13 @@ As the element count grows, Konva performance degrades. These strategies must be
 - [ ] 9.3 Post Now from editor — bottom sheet → platforms → caption → publish/schedule
 - [ ] 9.4 Gradient backgrounds — linear/radial + 20 preset gradients
 - [ ] 9.5 QR code element — auto-fills from business website/phone
-- [ ] 9.6 Magic Resize — resize to all platform formats with smart proportional scale
+- [x] 9.6 Magic Resize — runMagicResize() adds new pages at target formats with proportionally scaled elements; toolbar ⊡ Resize button + modal format selector
 - [ ] 9.7 AI Magic Toolbar — caption writer, background remover, color palette suggester, text improver
 - [ ] 9.8 Shadow + stroke controls + cross-page copy/paste
 - [ ] 9.9 Auto-save every 30s + design naming in title bar
 - [ ] 9.10 Floating contextual toolbar on element selection
-- [ ] 9.11 Keyboard shortcuts overlay (? key)
-- [ ] 9.12 Carousel preview mode + ZIP export
+- [x] 9.11 Keyboard shortcuts overlay (? key) — showShortcutsOverlay state + modal + ? button in toolbar
+- [x] 9.12 Carousel preview mode — previewOpen state + full-screen modal + arrows + auto-play + P hotkey; download all pages as PNG
 ```
 
 ---
@@ -1172,18 +1259,18 @@ As the element count grows, Konva performance degrades. These strategies must be
 ## COMPLETION TRACKER (PHASE 9 ADDED)
 
 ### Phase 9: Editor 2.0
-- [ ] 9.1 Brand Kit — saved colors/fonts/logo in settings + editor reads on load
-- [ ] 9.2 Smart Placeholders — [BUSINESS_NAME] / [PHONE] / [CITY] auto-fill from profile
-- [ ] 9.3 Post Now from editor — bottom sheet → platforms → caption → publish/schedule
-- [ ] 9.4 Gradient backgrounds — linear/radial + 20 preset gradients
-- [ ] 9.5 QR code element — auto-fills from business website/phone
-- [ ] 9.6 Magic Resize — resize to all platform formats with smart proportional scale
-- [ ] 9.7 AI Magic Toolbar — PostCore caption writer, background remover, color palette suggester, text improver
-- [ ] 9.8 Shadow + stroke controls + cross-page copy/paste
-- [ ] 9.9 Auto-save every 30s + design naming in title bar
-- [ ] 9.10 Floating contextual toolbar on element selection
-- [ ] 9.11 Keyboard shortcuts overlay (? key)
-- [ ] 9.12 Carousel preview mode + ZIP export
+- [x] 9.1 Brand Kit — BrandColorsCtx in editor reads brand_colors/brand_fonts/brand_logo from profile
+- [x] 9.2 Smart Placeholders — resolvePlaceholders() auto-fills [BUSINESS_NAME]/[PHONE]/[CITY]/[TAGLINE]
+- [x] 9.3 Post Now from editor — toolbar Post Now button + modal: platforms + caption + Post/Schedule/Draft
+- [x] 9.4 Gradient backgrounds — linear/radial/gradient on canvas bg, shapes, and text elements
+- [x] 9.5 QR code element — type:'qrcode', QRCodeLib.toDataURL, auto-fills from business website/phone
+- [x] 9.6 Magic Resize — runMagicResize() adds new pages at target formats with proportionally scaled elements; toolbar ⊡ Resize button + modal format selector
+- [x] 9.7 AI Magic Toolbar — PostCore dropdown: Write Caption, Remove BG, Suggest Colors, PostCore Write
+- [x] 9.8 Shadow + stroke controls (shadowBlur slider + preset shadows; stroke width/color on shapes)
+- [x] 9.9 Auto-save every 30s + design naming in title bar (autosaveTimerRef + localStorage crash recovery)
+- [x] 9.10 Floating contextual toolbar — quick-action bar renders above selected element
+- [x] 9.11 Keyboard shortcuts overlay (? key) — showShortcutsOverlay state + modal + ? button in toolbar
+- [x] 9.12 Carousel preview mode — previewOpen state + full-screen modal + arrows + auto-play + P hotkey; download all pages as PNG
 
 ---
 
@@ -1298,8 +1385,8 @@ A shareable public page for each business — their social proof from ItsPosting
 
 ```
 ### Phase 10: Profile & Account
-- [ ] 10.1 Profile page /profile — identity card, stats, connected platforms, PostCore prefs
-- [ ] 10.2 Avatar upload — crop + Cloudinary + sidebar display
+- [x] 10.1 Profile page /profile — identity card, stats, connected platforms, PostCore prefs
+- [x] 10.2 Avatar upload — AvatarUploader component + /api/customers/upload-asset + avatar_url column
 - [ ] 10.3 Public business profile /p/[handle] (P3 — ship after Phase 11)
 ```
 
@@ -1479,11 +1566,25 @@ The new Content Calendar shows **plans** (ideas and briefs before generation).
 
 ---
 
-## COMPLETION TRACKER (PHASES 10-11 ADDED)
+## COMPLETION TRACKER (PHASES 9-13)
+
+### Phase 9: Editor 2.0
+- [x] 9.1 Brand Kit — BrandColorsCtx reads brand_colors/brand_fonts/brand_logo from profile
+- [x] 9.2 Smart Placeholders — resolvePlaceholders() for [BUSINESS_NAME]/[PHONE]/[CITY]/[TAGLINE]
+- [x] 9.3 Post Now from editor — toolbar button + modal: platforms + caption + Post/Schedule/Draft
+- [x] 9.4 Gradient backgrounds — linear/radial/gradient on canvas bg, shapes, and text
+- [x] 9.5 QR code element — type:'qrcode', QRCodeLib, auto-fills from business website/phone
+- [x] 9.6 Magic Resize — runMagicResize() adds new pages at target formats with proportionally scaled elements; toolbar ⊡ Resize button + modal format selector
+- [x] 9.7 AI Magic Toolbar — PostCore Write Caption / Remove BG / Suggest Colors / Improve Text
+- [x] 9.8 Shadow + stroke controls (shadowBlur slider + preset shadows + stroke on shapes)
+- [x] 9.9 Auto-save every 30s + design naming in title bar (autosaveTimerRef + localStorage)
+- [x] 9.10 Floating contextual toolbar above selected element
+- [x] 9.11 Keyboard shortcuts overlay (? key) — showShortcutsOverlay state + modal + ? button in toolbar
+- [x] 9.12 Carousel preview mode — previewOpen state + full-screen modal + arrows + auto-play + P hotkey; download all pages as PNG
 
 ### Phase 10: Profile & Account
-- [ ] 10.1 Profile page /profile — identity card, stats, connected platforms, PostCore prefs
-- [ ] 10.2 Avatar upload — crop + Cloudinary + sidebar display
+- [x] 10.1 Profile page /profile — identity card, stats, connected platforms, PostCore prefs
+- [x] 10.2 Avatar upload — crop + Cloudinary + sidebar display
 - [ ] 10.3 Public business profile /p/[handle] (P3)
 
 ### Phase 11: Content Calendar
@@ -1493,6 +1594,19 @@ The new Content Calendar shows **plans** (ideas and briefs before generation).
 - [x] 11.4 AI Fill Month — PostCore generates 4 weeks of content ideas (0 credits)
 - [x] 11.5 Dashboard "This week" widget showing plan entries
 - [x] 11.6 Calendar page cross-link (plan → scheduled post → published post)
+
+### Phase 12: Full Device Responsiveness
+- [x] 12.1 Global responsive layout audit — dashboard, wizard, history, billing, calendar
+- [x] 12.2 Inbox mobile experience (two-panel collapse + swipe approval queue)
+- [x] 12.3 Wizard mobile experience — action bar grid, media panel full-width, history 2-col grid
+- [ ] 12.4 Calendar mobile experience (day-strip, long-press reschedule) — calendar.js already has isMobile, needs day-strip week view
+- [ ] 12.5 Photo Studio mobile (pinch-to-zoom canvas, bottom drawer panel)
+
+### Phase 13: Workspace Multi-User Audit
+- [x] 13.1 Workspace DM access bug fix — invited members (Type B) now use workspaceId for DM queries
+- [x] 13.2 Post approval workflow for workspace members (Phase 4.8)
+- [x] 13.3 Workspace member DM approval queue (Phase 4.6) — editor generates pending, manager approves
+- [x] 13.4 UI: role badge in topbar (Layout.js) + disabled approve button (inbox.js) + workspace role banner in settings.js
 
 ---
 

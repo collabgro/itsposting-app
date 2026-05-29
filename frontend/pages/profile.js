@@ -8,7 +8,7 @@ import {
   IpSettings, IpUser, IpDelete,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, Input, Badge, SectionHeader, Spinner } from '../components/ui';
+import { Button, Input, Badge, SectionHeader, Spinner, SkeletonPage, ErrorCard } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { customerAPI, socialAPI, postsAPI } from '../lib/api';
 import ItsPostingLogo from '../components/ItsPostingLogo';
@@ -186,10 +186,18 @@ export default function ProfilePage() {
   const [postStats, setPostStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
 
   // Edit fields
   const [bizFields, setBizFields] = useState({ business_name: '', tagline: '', location: '', phone: '', website: '' });
   const [voiceFields, setVoiceFields] = useState({ tone: 'professional', visual_style: 'modern', timezone: 'UTC' });
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     Promise.allSettled([
@@ -250,16 +258,14 @@ export default function ProfilePage() {
   }
 
   if (loading) return (
-    <Layout>
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-        <Spinner size={36} color={t.primary} />
-      </div>
+    <Layout title="My Profile">
+      <SkeletonPage rows={5} cards={4} />
     </Layout>
   );
 
   if (!profile) return (
-    <Layout>
-      <div style={{ padding: 40, textAlign: 'center', color: t.textMuted }}>Could not load profile.</div>
+    <Layout title="My Profile">
+      <ErrorCard title="Could not load profile" message="Check your connection and try again." onRetry={() => { setLoading(true); window.location.reload(); }} />
     </Layout>
   );
 
@@ -324,7 +330,7 @@ export default function ProfilePage() {
             pointerEvents: 'none',
           }} />
 
-          <div style={{ padding: '32px 32px 28px', position: 'relative', display: 'flex', gap: 24, alignItems: 'flex-end' }}>
+          <div style={{ padding: isMobile ? '24px 20px 20px' : '32px 32px 28px', position: 'relative', display: 'flex', gap: isMobile ? 16 : 24, alignItems: isMobile ? 'flex-start' : 'flex-end', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
             <AvatarUploader
               profile={profile}
               t={t}
@@ -365,7 +371,7 @@ export default function ProfilePage() {
 
         {/* ── Stats strip ── */}
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24,
+          display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 24,
         }}>
           {stats.map(s => (
             <div key={s.label} style={{

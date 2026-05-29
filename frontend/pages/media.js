@@ -54,6 +54,8 @@ export default function MediaLibrary() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
+  const [bgRemoving, setBgRemoving] = useState(false);
+  const [bgRemovedUrl, setBgRemovedUrl] = useState(null);
 
   // ── Templates: creations + curated templates
   const [creations,        setCreations]        = useState([]);
@@ -179,6 +181,20 @@ export default function MediaLibrary() {
       setUploading(false);
       setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveBackground = async (file) => {
+    setBgRemoving(true);
+    setBgRemovedUrl(null);
+    try {
+      const res = await studioAPI.removeBackground(file.url);
+      setBgRemovedUrl(res.data?.outputUrl || res.data?.url);
+      showToast('Background removed!', 'success');
+    } catch {
+      showToast('Background removal failed', 'error');
+    } finally {
+      setBgRemoving(false);
     }
   };
 
@@ -429,6 +445,16 @@ export default function MediaLibrary() {
                 {file.folder && file.folder !== 'all' && (
                   <div style={{ fontSize: 10, color: t.primary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
                     <IpFolderOpen size={9} /> {file.folder}
+                  </div>
+                )}
+                {file.ai_tags?.length > 0 && (
+                  <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginTop: 5 }}>
+                    {file.ai_tags.slice(0, 3).map(tag => (
+                      <span key={tag} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 10, background: t.isDark ? 'rgba(124,92,252,0.15)' : 'rgba(124,92,252,0.08)', color: t.primary, fontWeight: 600, border: `1px solid rgba(124,92,252,0.2)`, cursor: 'pointer' }}
+                        onClick={e => { e.stopPropagation(); setSearch(tag); }}>
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
@@ -846,7 +872,7 @@ export default function MediaLibrary() {
 
       {/* ── PREVIEW MODAL (media library) ──────────────────────────────────── */}
       {previewFile && (
-        <div onClick={() => setPreviewFile(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <div onClick={() => { setPreviewFile(null); setBgRemovedUrl(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: t.card, borderRadius: 16, border: `1px solid ${t.border}`, maxWidth: 900, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '14px 20px', borderBottom: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
@@ -855,25 +881,67 @@ export default function MediaLibrary() {
                   {formatBytes(previewFile.file_size_bytes)}{previewFile.width && ` · ${previewFile.width}×${previewFile.height}`}{previewFile.duration_seconds && ` · ${Math.round(previewFile.duration_seconds)}s`}
                   {previewFile.folder && previewFile.folder !== 'all' && ` · 📁 ${previewFile.folder}`}
                 </div>
+                {previewFile.ai_tags?.length > 0 && (
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                    {previewFile.ai_tags.map(tag => (
+                      <span key={tag} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 12, background: t.isDark ? 'rgba(124,92,252,0.15)' : 'rgba(124,92,252,0.08)', color: t.primary, fontWeight: 600, border: `1px solid rgba(124,92,252,0.2)` }}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <button onClick={() => setPreviewFile(null)} style={{ width: 32, height: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <button onClick={() => { setPreviewFile(null); setBgRemovedUrl(null); }} style={{ width: 32, height: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <IpClose size={16} />
               </button>
             </div>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.bg, padding: 16, overflow: 'hidden' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.bg, padding: 16, overflow: 'hidden', position: 'relative' }}>
               {previewFile.file_type === 'video'
                 ? <video src={previewFile.url} controls style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: 8 }} />
-                : <img src={previewFile.url} alt={previewFile.file_name} style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: 8, objectFit: 'contain' }} />
+                : bgRemovedUrl
+                  ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                      <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Original</div>
+                          <img src={previewFile.url} alt="original" style={{ maxWidth: 280, maxHeight: '50vh', borderRadius: 8, objectFit: 'contain', opacity: 0.7 }} />
+                        </div>
+                        <div style={{ fontSize: 20, color: t.textMuted }}>→</div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: '#22C55E', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Background Removed</div>
+                          <img src={bgRemovedUrl} alt="no background" style={{ maxWidth: 280, maxHeight: '50vh', borderRadius: 8, objectFit: 'contain', background: 'repeating-conic-gradient(#444 0% 25%, #333 0% 50%) 0 0 / 16px 16px' }} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                  : <img src={previewFile.url} alt={previewFile.file_name} style={{ maxWidth: '100%', maxHeight: '60vh', borderRadius: 8, objectFit: 'contain' }} />
               }
             </div>
-            <div style={{ padding: '14px 20px', borderTop: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ padding: '14px 20px', borderTop: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
               <button
-                onClick={() => { handleDelete(previewFile.id); setPreviewFile(null); }}
+                onClick={() => { handleDelete(previewFile.id); setPreviewFile(null); setBgRemovedUrl(null); }}
                 style={{ padding: '8px 14px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, color: t.error, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
               >
                 <IpDelete size={14} /> Delete
               </button>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {previewFile.file_type === 'image' && !bgRemovedUrl && (
+                  <button
+                    onClick={() => handleRemoveBackground(previewFile)}
+                    disabled={bgRemoving}
+                    style={{ padding: '8px 14px', background: bgRemoving ? t.input : 'rgba(34,197,94,0.1)', border: `1px solid ${bgRemoving ? t.border : 'rgba(34,197,94,0.3)'}`, borderRadius: 8, color: bgRemoving ? t.textMuted : '#22C55E', fontSize: 13, fontWeight: 600, cursor: bgRemoving ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'all 150ms' }}
+                  >
+                    {bgRemoving ? '⏳ Removing...' : '✂ Remove Background'}
+                  </button>
+                )}
+                {bgRemovedUrl && (
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(bgRemovedUrl); showToast('URL copied!', 'success'); }}
+                    style={{ padding: '8px 14px', background: 'rgba(34,197,94,0.1)', border: `1px solid rgba(34,197,94,0.3)`, borderRadius: 8, color: '#22C55E', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    Copy Result URL
+                  </button>
+                )}
                 <button
                   onClick={() => { navigator.clipboard.writeText(previewFile.url); showToast('URL copied!', 'success'); }}
                   style={{ padding: '8px 14px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
@@ -881,7 +949,7 @@ export default function MediaLibrary() {
                   Copy URL
                 </button>
                 <button
-                  onClick={() => { sessionStorage.setItem('selectedMediaFile', JSON.stringify(previewFile)); router.push('/upload'); }}
+                  onClick={() => { sessionStorage.setItem('selectedMediaFile', JSON.stringify(bgRemovedUrl ? { ...previewFile, url: bgRemovedUrl } : previewFile)); router.push('/upload'); }}
                   style={{ padding: '8px 16px', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Use in Post →

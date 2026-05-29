@@ -614,6 +614,13 @@ console.log('══════════════════════�
     // Phase 2.9 — Smart scheduling (optimal times stored per customer)
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS optimal_posting_times JSONB DEFAULT NULL`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS optimal_times_updated_at TIMESTAMP`,
+    // Phase 4.6 — Inbox approval queue: pending AI drafts on conversations
+    `ALTER TABLE dm_conversations ADD COLUMN IF NOT EXISTS pending_draft TEXT`,
+    `ALTER TABLE dm_conversations ADD COLUMN IF NOT EXISTS pending_draft_intent VARCHAR(100)`,
+    `ALTER TABLE dm_conversations ADD COLUMN IF NOT EXISTS pending_draft_sentiment VARCHAR(20)`,
+    `ALTER TABLE dm_conversations ADD COLUMN IF NOT EXISTS pending_draft_urgency VARCHAR(20)`,
+    `ALTER TABLE dm_conversations ADD COLUMN IF NOT EXISTS pending_draft_created_at TIMESTAMP`,
+    `CREATE INDEX IF NOT EXISTS idx_dm_convs_pending ON dm_conversations(customer_id) WHERE pending_draft IS NOT NULL`,
 
     // Phase 6.3 — Email onboarding sequence
     `CREATE TABLE IF NOT EXISTS onboarding_email_log (
@@ -644,6 +651,78 @@ console.log('══════════════════════�
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS approval_note TEXT`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS require_post_approval BOOLEAN DEFAULT FALSE`,
     `CREATE INDEX IF NOT EXISTS idx_posts_approval ON posts(customer_id, approval_status) WHERE approval_status IS NOT NULL`,
+    // Media library AI tagging
+    `ALTER TABLE media_library ADD COLUMN IF NOT EXISTS ai_tags TEXT[] DEFAULT '{}'`,
+    `CREATE INDEX IF NOT EXISTS idx_media_ai_tags ON media_library USING gin(ai_tags)`,
+    // High-frequency customer lookups
+    `CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email)`,
+    `CREATE INDEX IF NOT EXISTS idx_customers_whop_membership ON customers(whop_membership_id) WHERE whop_membership_id IS NOT NULL`,
+    `CREATE INDEX IF NOT EXISTS idx_customers_referral_code ON customers(referral_code) WHERE referral_code IS NOT NULL`,
+    `CREATE INDEX IF NOT EXISTS idx_customers_status_plan ON customers(status, plan)`,
+    // Media library
+    `CREATE INDEX IF NOT EXISTS idx_media_library_customer ON media_library(customer_id, uploaded_at DESC)`,
+    // Credit transactions
+    `CREATE INDEX IF NOT EXISTS idx_credit_transactions_customer ON credit_transactions(customer_id, created_at DESC)`,
+    // Phase 9.1 Brand Kit — fonts stored per customer for editor auto-apply
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS brand_fonts JSONB DEFAULT '{}'`,
+    // Phase 9.1 Brand Kit — extended brand colors (up to 6 named hex values)
+    // brand_colors already exists; brand_fonts is new
+    // Phase 11 — LLM training tables (passive data collection)
+    `CREATE TABLE IF NOT EXISTS post_training_data (
+      id                 SERIAL PRIMARY KEY,
+      post_id            INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+      input_payload      JSONB NOT NULL,
+      output_payload     JSONB NOT NULL,
+      variation_selected CHAR(1),
+      was_edited         BOOLEAN DEFAULT FALSE,
+      edit_distance      INTEGER,
+      post_reach         INTEGER,
+      post_engagement    INTEGER,
+      quality_score      NUMERIC(3,1),
+      model_used         VARCHAR(50) DEFAULT 'claude-sonnet-4-6',
+      created_at         TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_post_training_data_post ON post_training_data(post_id)`,
+    `CREATE TABLE IF NOT EXISTS llm_model_versions (
+      id                 SERIAL PRIMARY KEY,
+      version_name       VARCHAR(100) NOT NULL,
+      modality           VARCHAR(20) NOT NULL DEFAULT 'text',
+      base_model         VARCHAR(100) NOT NULL,
+      weights_url        TEXT,
+      replicate_model_id TEXT,
+      training_examples  INTEGER,
+      eval_score         NUMERIC(6,3),
+      eval_human_score   NUMERIC(3,1),
+      status             VARCHAR(30) DEFAULT 'training',
+      traffic_pct        INTEGER DEFAULT 0,
+      trained_at         TIMESTAMP,
+      promoted_at        TIMESTAMP,
+      created_at         TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS llm_ab_experiments (
+      id                   SERIAL PRIMARY KEY,
+      model_version_id     INTEGER REFERENCES llm_model_versions(id),
+      modality             VARCHAR(20) NOT NULL DEFAULT 'text',
+      started_at           TIMESTAMP DEFAULT NOW(),
+      ended_at             TIMESTAMP,
+      traffic_pct          INTEGER,
+      calls_total          INTEGER DEFAULT 0,
+      keep_rate            NUMERIC(4,3),
+      edit_rate            NUMERIC(4,3),
+      avg_reach            NUMERIC(10,2),
+      result               VARCHAR(20),
+      notes                TEXT
+    )`,
+    `CREATE TABLE IF NOT EXISTS llm_curated_examples (
+      id             SERIAL PRIMARY KEY,
+      industry       VARCHAR(50) NOT NULL,
+      content_type   VARCHAR(50) NOT NULL,
+      input_payload  JSONB NOT NULL,
+      ideal_output   JSONB NOT NULL,
+      quality_score  NUMERIC(3,1) NOT NULL,
+      annotated_by   VARCHAR(100),
+      created_at     TIMESTAMP DEFAULT NOW()
+    )`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -2535,6 +2614,9 @@ const generationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 50, message
 const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Too many uploads — please slow down.' }, standardHeaders: true, legacyHeaders: false });
 const geoLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many AI Visibility checks — wait an hour before running another.' }, standardHeaders: true, legacyHeaders: false });
 const inviteLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: { error: 'Too many invites sent — wait an hour.' }, standardHeaders: true, legacyHeaders: false });
+const publishLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, message: { error: 'Too many publish attempts — please slow down.' }, standardHeaders: true, legacyHeaders: false });
+const studioLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 30, message: { error: 'Studio generation limit reached — wait an hour.' }, standardHeaders: true, legacyHeaders: false });
+const adminBroadcastLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Broadcast rate limit — max 5 per hour.' }, standardHeaders: true, legacyHeaders: false });
 
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
@@ -2549,6 +2631,10 @@ app.use('/api/media/upload', uploadLimiter);
 app.use('/api/customers/upload-asset', uploadLimiter);
 app.use('/api/geo/audit', geoLimiter);
 app.use('/api/customers/invite', inviteLimiter);
+app.use('/api/social/publish', publishLimiter);
+app.use('/api/studio/generate', studioLimiter);
+app.use('/api/studio/remove-background', studioLimiter);
+app.use('/api/admin/broadcast', adminBroadcastLimiter);
 
 const corsMiddleware = cors({
   origin: (origin, cb) => {

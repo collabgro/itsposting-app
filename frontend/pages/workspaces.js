@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
-import { Button, SectionHeader, EmptyState } from '../components/ui';
+import { Button, SectionHeader, EmptyState, SkeletonPage, ErrorCard } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { workspacesAPI, authAPI } from '../lib/api';
 import {
@@ -650,7 +650,7 @@ export default function WorkspacesPage() {
   }
 
   if (loading) {
-    return <Layout><div style={{ padding: 32, color: '#888', fontSize: 14 }}>Loading…</div></Layout>;
+    return <Layout title="Workspaces"><SkeletonPage rows={3} cards={3} /></Layout>;
   }
 
   const nextPlan = NEXT_PLAN[mainAccount?.plan];

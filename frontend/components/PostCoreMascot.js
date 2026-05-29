@@ -9,6 +9,13 @@ export function setMascotMood(mood, message) {
   }
 }
 
+// Trigger a milestone celebration (e.g. 'first_post', 'streak_7', 'posts_10')
+export function triggerMilestone(milestone) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('postcoreMood', { detail: { milestone } }));
+  }
+}
+
 const MOODS = {
   idle: {
     anim: 'pc-float',
@@ -107,6 +114,34 @@ const ROUTE_MOODS = {
   '/geo-audit':      'thinking',
 };
 
+// Seasonal messages by month (1-12)
+const SEASONAL_MSGS = {
+  1:  "January — frozen pipe season. Your customers need you right now.",
+  2:  "February is slower for most trades. A behind-the-scenes post builds trust.",
+  3:  "Spring prep is starting. Post your spring services before competitors do.",
+  4:  "April storm season. Homeowners are searching — show your availability.",
+  5:  "May is peak season. Before/after photos perform best right now.",
+  6:  "June — homeowners want fast, reliable. Show your turnaround times.",
+  7:  "Summer heat. An AC tip or cooling post will stop scrollers in their tracks.",
+  8:  "Back-to-school rush. Show how you fit around a busy schedule.",
+  9:  "September — pre-winter prime time. Post heating and fall prep content now.",
+  10: "October urgency works. Homeowners are rushing to beat the cold.",
+  11: "November — last call for year-end jobs. A limited-availability post converts.",
+  12: "December — year-end appreciation posts build loyalty for next year.",
+};
+
+// Milestone messages (triggered by milestone type)
+const MILESTONE_MSGS = {
+  first_post:    "Your first post! You're officially on the map. Keep it going! 🎉",
+  streak_3:      "3-day posting streak! Consistency is what beats the algorithm.",
+  streak_7:      "7-day streak! That's one full week — your audience will notice.",
+  streak_30:     "30-day streak! You're in the top 1% of consistent posters. Incredible!",
+  posts_10:      "10 posts created! Your local reach is growing every single week.",
+  posts_25:      "25 posts! PostCore is proud of you. Your business is showing up.",
+  posts_50:      "50 posts! You've built a real content presence. Local customers see you.",
+  posts_100:     "100 posts! That's a full year of showing up. Your community knows you.",
+};
+
 const PC_CSS = `
 @keyframes pc-float {
   0%,100% { transform: translateY(0) rotate(-1deg); }
@@ -196,10 +231,51 @@ export default function PostCoreMascot({ user }) {
     else if (credits < 5) applyMood('worried');
   }, [user?.credits_balance]);
 
+  // Seasonal idle message — shown when on dashboard and no other override
+  useEffect(() => {
+    if (router.pathname !== '/dashboard') return;
+    const month = new Date().getMonth() + 1;
+    const msg = SEASONAL_MSGS[month];
+    if (msg) setCustomMsg(msg);
+    return () => setCustomMsg('');
+  }, [router.pathname]);
+
+  // Milestone detection from user profile (posting_streak, total posts)
+  useEffect(() => {
+    if (!user) return;
+    const streak = user.posting_streak || 0;
+    const totalPosts = user.total_posts_this_month || 0;
+    // Only show each milestone once per session (track in sessionStorage)
+    const key = `milestone_shown_${streak}_${totalPosts}`;
+    if (sessionStorage.getItem(key)) return;
+    let milestoneMsg = null;
+    if (streak === 30) milestoneMsg = MILESTONE_MSGS.streak_30;
+    else if (streak === 7) milestoneMsg = MILESTONE_MSGS.streak_7;
+    else if (streak === 3) milestoneMsg = MILESTONE_MSGS.streak_3;
+    if (milestoneMsg) {
+      sessionStorage.setItem(key, '1');
+      setTimeout(() => {
+        applyMood('celebrating');
+        setCustomMsg(milestoneMsg);
+        setTimeout(() => { applyMood('happy'); }, 3500);
+        setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 7500);
+      }, 2000);
+    }
+  }, [user?.posting_streak]);
+
   // Event-based mood (dispatched from wizard/quick-post/etc)
   useEffect(() => {
     const handler = (e) => {
-      const { mood: m, message } = e.detail || {};
+      const { mood: m, message, milestone } = e.detail || {};
+      // Handle milestone events
+      if (milestone && MILESTONE_MSGS[milestone]) {
+        const msg = MILESTONE_MSGS[milestone];
+        applyMood('celebrating');
+        setCustomMsg(msg);
+        const t1 = setTimeout(() => applyMood('happy'), 3500);
+        const t2 = setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 7500);
+        return () => { clearTimeout(t1); clearTimeout(t2); };
+      }
       if (!m || !MOODS[m]) return;
       applyMood(m);
       if (message) setCustomMsg(message);

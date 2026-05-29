@@ -101,6 +101,7 @@ export default function Dashboard() {
   const [showPerfToast,  setShowPerfToast]  = useState(false);
   const [bestPostId,     setBestPostId]     = useState(null);
   const [weekPlans,      setWeekPlans]      = useState([]);
+  const [isMobile,       setIsMobile]       = useState(false);
 
   const loadDashboard = () => {
     setLoadError(false);
@@ -170,6 +171,10 @@ export default function Dashboard() {
     if (!token) { router.replace('/login'); return; }
     if (!localStorage.getItem('tour_done')) { setTimeout(() => setShowTour(true), 800); }
     loadDashboard();
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Performance celebration toast — show once per day when outperforming
@@ -323,7 +328,7 @@ export default function Dashboard() {
               ? 'linear-gradient(135deg, rgba(124,92,252,0.22) 0%, rgba(0,196,204,0.10) 60%, rgba(124,92,252,0.08) 100%)'
               : 'linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(0,196,204,0.07) 60%, rgba(124,92,252,0.05) 100%)',
             border: `1px solid ${t.primaryBorder}`,
-            borderRadius: 20, padding: '28px 32px', marginBottom: 28,
+            borderRadius: 20, padding: isMobile ? '20px 20px' : '28px 32px', marginBottom: 28,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap',
             boxShadow: '0 8px 32px rgba(124,92,252,0.12)',
           }}>
@@ -602,17 +607,17 @@ export default function Dashboard() {
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.boxShadow = t.shadowSm; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.boxShadow = 'none'; }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 6 }}>
+                  <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'flex-start', gap: isMobile ? 8 : 12, marginBottom: 6 }}>
                     <div>
                       <span style={{ fontWeight: 700, fontSize: 13, color: t.text }}>{review.reviewerName}</span>
                       <span style={{ marginLeft: 8, fontSize: 12, color: '#EAB308' }}>{'⭐'.repeat(review.starRating)}</span>
                       {replySuccess === review.id && <span style={{ marginLeft: 8, fontSize: 11, color: t.success, fontWeight: 600 }}>✓ Replied</span>}
                     </div>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      <Button variant="secondary" size="sm" onClick={() => handleDraftReply(review)} disabled={replyLoading === review.id || replySuccess === review.id} style={{ whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
+                      <Button variant="secondary" size="sm" onClick={() => handleDraftReply(review)} disabled={replyLoading === review.id || replySuccess === review.id} style={{ whiteSpace: 'nowrap', flex: isMobile ? 1 : 'none' }}>
                         {replyLoading === review.id ? 'Drafting…' : replySuccess === review.id ? '✓ Replied' : 'Draft Reply'}
                       </Button>
-                      <Button variant="primary" size="sm" onClick={() => handleTurnReviewIntoPost(review)} disabled={generatingReviewId === review.id} style={{ whiteSpace: 'nowrap' }}>
+                      <Button variant="primary" size="sm" onClick={() => handleTurnReviewIntoPost(review)} disabled={generatingReviewId === review.id} style={{ whiteSpace: 'nowrap', flex: isMobile ? 1 : 'none' }}>
                         {generatingReviewId === review.id ? 'Generating…' : 'Turn into Post →'}
                       </Button>
                     </div>
@@ -626,7 +631,7 @@ export default function Dashboard() {
 
         {/* ── 3c. This Week's Content Plan ── */}
         {weekPlans.length > 0 && (
-          <ThisWeekWidget plans={weekPlans} t={t} router={router} />
+          <ThisWeekWidget plans={weekPlans} t={t} router={router} isMobile={isMobile} />
         )}
 
         {/* ── 4. Calendar + Upcoming ── */}
@@ -698,18 +703,20 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <select
-                    value={upcomingFilter}
-                    onChange={e => setUpcomingFilter(e.target.value)}
-                    style={{ fontSize: 12, background: t.input, color: t.text, border: `1px solid ${t.border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', outline: 'none' }}
-                  >
-                    <option value="all">All platforms</option>
-                    <option value="facebook">Facebook</option>
-                    <option value="instagram">Instagram</option>
-                    <option value="tiktok">TikTok</option>
-                    <option value="linkedin">LinkedIn</option>
-                    <option value="google_business">Google Business</option>
-                  </select>
+                  {!isMobile && (
+                    <select
+                      value={upcomingFilter}
+                      onChange={e => setUpcomingFilter(e.target.value)}
+                      style={{ fontSize: 12, background: t.input, color: t.text, border: `1px solid ${t.border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', outline: 'none' }}
+                    >
+                      <option value="all">All platforms</option>
+                      <option value="facebook">Facebook</option>
+                      <option value="instagram">Instagram</option>
+                      <option value="tiktok">TikTok</option>
+                      <option value="linkedin">LinkedIn</option>
+                      <option value="google_business">Google Business</option>
+                    </select>
+                  )}
                   {upcoming.length > 0 && (
                     <button onClick={() => router.push('/history?filter=scheduled')} style={{ fontSize: 12, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', fontWeight: 600 }}>
                       View all <IpArrowRight size={11} />
@@ -912,7 +919,7 @@ export default function Dashboard() {
 const TYPE_COLORS_PLAN = { photo_post:'#3B82F6', carousel:'#7C5CFC', video:'#EF4444', text_card:'#22C55E', story:'#F97316' };
 const DAY_ABBR = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
-function ThisWeekWidget({ plans, t, router }) {
+function ThisWeekWidget({ plans, t, router, isMobile }) {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
 
@@ -952,8 +959,8 @@ function ThisWeekWidget({ plans, t, router }) {
         </button>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6 }}>
-        {days.map(({ str, dayNum, abbr }) => {
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(4,1fr)' : 'repeat(7,1fr)', gap: isMobile ? 8 : 6 }}>
+        {days.slice(0, isMobile ? 4 : 7).map(({ str, dayNum, abbr }) => {
           const dayPlans = plans.filter(p => p.plan_date === str);
           const isToday = str === todayStr;
           const hasScheduled = dayPlans.some(p => p.status === 'scheduled' || p.status === 'published');

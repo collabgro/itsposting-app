@@ -34,7 +34,7 @@ module.exports = (pool) => {
     try {
       const result = await pool.query(
         `SELECT id, email, business_name, industry, location, phone, website,
-                logo_url, favicon_url, brand_colors, visual_style, tone, avatar_id, voice_id,
+                logo_url, favicon_url, brand_colors, brand_fonts, visual_style, tone, avatar_id, voice_id,
                 preferred_image_provider, plan, status, credits_balance,
                 credits_used_this_month, trial_ends_at, auto_post_enabled,
                 auto_post_frequency, posting_times, timezone,
@@ -79,6 +79,7 @@ module.exports = (pool) => {
         phone,
         website,
         brandColors,
+        brandFonts,
         visualStyle,
         tone,
         avatarId,
@@ -111,6 +112,7 @@ module.exports = (pool) => {
           phone = COALESCE($4, phone),
           website = COALESCE($5, website),
           brand_colors = COALESCE($6, brand_colors),
+          brand_fonts = COALESCE($22, brand_fonts),
           visual_style = COALESCE($7, visual_style),
           tone = COALESCE($8, tone),
           avatar_id = COALESCE($9, avatar_id),
@@ -143,6 +145,7 @@ module.exports = (pool) => {
           req.customerId,
           avatarUrl !== undefined ? avatarUrl : null,
           tagline,
+          brandFonts ? JSON.stringify(brandFonts) : null,
         ]
       );
 

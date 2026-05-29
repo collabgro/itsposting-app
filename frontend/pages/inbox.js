@@ -68,7 +68,7 @@ export default function InboxPage() {
   const { t } = useTheme();
 
   const [conversations, setConversations] = useState([]);
-  const [stats, setStats] = useState({ unreadCount: 0, openCount: 0, facebookCount: 0, instagramCount: 0, linkedinCount: 0, tiktokCount: 0 });
+  const [stats, setStats] = useState({ unreadCount: 0, openCount: 0, facebookCount: 0, instagramCount: 0, linkedinCount: 0, tiktokCount: 0, pendingApprovalCount: 0 });
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
   const [filter, setFilter] = useState('all');
@@ -100,6 +100,11 @@ export default function InboxPage() {
   const [savedContact, setSavedContact] = useState(null);
   const [user, setUser] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [pendingEditText, setPendingEditText] = useState('');
+  const [pendingEditing, setPendingEditing] = useState(false);
+  const [approvingDraft, setApprovingDraft] = useState(false);
+  const [dismissingDraft, setDismissingDraft] = useState(false);
+  const [swipeState, setSwipeState] = useState({ id: null, dx: 0, startX: 0, startY: 0, swiping: false });
 
   const threadEndRef = useRef(null);
 
@@ -161,12 +166,68 @@ export default function InboxPage() {
       if (filter === 'tiktok') params.platform = 'tiktok';
       if (filter === 'unread') params.unread = 'true';
       if (filter === 'starred') params.starred = 'true';
+      if (filter === 'pending_approval') params.pending_approval = 'true';
       const res = await dmsAPI.list(params);
       setConversations(res.data.conversations || []);
     } catch (_) {
       setConversations([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function approvePendingDraft() {
+    if (!selected || approvingDraft) return;
+    setApprovingDraft(true);
+    setSendError(null);
+    try {
+      const text = pendingEditing ? pendingEditText : selected.pending_draft;
+      await dmsAPI.approveDraft(selected.id, text);
+      const sentMsg = { id: Date.now(), direction: 'outgoing', message_text: text, sent_at: new Date().toISOString(), reply_type: 'ai_draft', ai_handled: false };
+      setMessages(prev => [...prev, sentMsg]);
+      setSelected(prev => ({ ...prev, pending_draft: null, pending_draft_intent: null, pending_draft_sentiment: null, pending_draft_urgency: null }));
+      setConversations(prev => prev.map(c => c.id === selected.id
+        ? { ...c, pending_draft: null, last_message_preview: text.substring(0, 100), last_message_direction: 'outgoing', last_message_at: new Date().toISOString() }
+        : c
+      ));
+      setPendingEditing(false);
+    } catch (err) {
+      setSendError(err.response?.data?.detail || err.response?.data?.error || 'Failed to send draft');
+    } finally {
+      setApprovingDraft(false);
+    }
+  }
+
+  async function dismissPendingDraft() {
+    if (!selected || dismissingDraft) return;
+    setDismissingDraft(true);
+    try {
+      await dmsAPI.dismissDraft(selected.id);
+      setSelected(prev => ({ ...prev, pending_draft: null, pending_draft_intent: null, pending_draft_sentiment: null, pending_draft_urgency: null }));
+      setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, pending_draft: null } : c));
+      setPendingEditing(false);
+    } catch (_) {} finally {
+      setDismissingDraft(false);
+    }
+  }
+
+  async function generateAndSaveDraft() {
+    if (!selected || aiLoading) return;
+    setAiLoading(true);
+    try {
+      const res = await dmsAPI.aiReply(selected.id, 'friendly', true);
+      const draft = res.data.draft;
+      setSelected(prev => ({
+        ...prev,
+        pending_draft: draft,
+        pending_draft_intent: res.data.intent,
+        pending_draft_sentiment: res.data.sentiment,
+        pending_draft_urgency: res.data.urgency,
+      }));
+      setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, pending_draft: draft } : c));
+      setPendingEditText(draft);
+    } catch (_) {} finally {
+      setAiLoading(false);
     }
   }
 
@@ -177,6 +238,8 @@ export default function InboxPage() {
     setSendError(null);
     setSavedContact(null);
     setShowMobileThread(true);
+    setPendingEditing(false);
+    if (conv.pending_draft) setPendingEditText(conv.pending_draft);
     setMsgLoading(true);
     try {
       const res = await dmsAPI.getConversation(conv.id);
@@ -184,6 +247,7 @@ export default function InboxPage() {
       setSelected(res.data.conversation);
       setSavedContact(res.data.conversation.contact_id ? { id: res.data.conversation.contact_id } : null);
       setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, is_read: true } : c));
+      if (res.data.conversation.pending_draft) setPendingEditText(res.data.conversation.pending_draft);
     } catch (_) {} finally {
       setMsgLoading(false);
     }
@@ -367,6 +431,7 @@ export default function InboxPage() {
   const FILTERS = [
     { key: 'all', label: 'All', count: stats.openCount },
     { key: 'unread', label: 'Unread', count: stats.unreadCount },
+    { key: 'pending_approval', label: 'Pending', count: stats.pendingApprovalCount },
     { key: 'facebook', label: 'Facebook', count: stats.facebookCount },
     { key: 'instagram', label: 'Instagram', count: stats.instagramCount },
     { key: 'linkedin', label: 'LinkedIn', count: stats.linkedinCount },
@@ -376,6 +441,11 @@ export default function InboxPage() {
 
   const canReply = selected && selected.messaging_window_status !== 'closed';
   const windowClosed = selected && selected.messaging_window_status === 'closed';
+  // Workspace role checks — owner (no workspace context) + manager can approve; editor/viewer cannot
+  const userWorkspaceRole = user?.workspace_role;
+  const canApprove = !user?.is_member || userWorkspaceRole === 'manager';
+  const isEditorRole = user?.is_member && userWorkspaceRole === 'editor';
+  const isViewerRole = user?.is_member && userWorkspaceRole === 'viewer';
 
   return (
     <Layout title="Inbox" subtitle="Your Facebook, Instagram, LinkedIn & TikTok DMs in one place">
@@ -517,6 +587,13 @@ export default function InboxPage() {
             </div>
           </div>
 
+          {/* Swipe hint for pending approval on mobile */}
+          {filter === 'pending_approval' && isMobile && stats.pendingApprovalCount > 0 && (
+            <div style={{ padding: '7px 16px', background: 'rgba(124,92,252,0.07)', borderBottom: `1px solid ${t.primaryBorder}`, fontSize: 11, color: t.textMuted, textAlign: 'center' }}>
+              Swipe right to send · Swipe left to dismiss
+            </div>
+          )}
+
           {/* Conversation list */}
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {filter === 'tiktok' && user !== null && !user.is_admin ? (
@@ -546,63 +623,121 @@ export default function InboxPage() {
             ) : (
               conversations.map(conv => {
                 const isActive = selected?.id === conv.id;
+                const hasPending = !!conv.pending_draft;
+                const sentimentColor = conv.pending_draft_sentiment === 'positive' ? '#22c55e' : conv.pending_draft_sentiment === 'negative' ? '#ef4444' : '#eab308';
+                const isSwipingThis = swipeState.id === conv.id && swipeState.swiping;
+                const swipeDx = isSwipingThis ? swipeState.dx : 0;
+                const swipeAction = swipeDx > 50 ? 'approve' : swipeDx < -50 ? 'dismiss' : null;
                 return (
                   <div
                     key={conv.id}
-                    onClick={() => openConversation(conv)}
-                    style={{
-                      padding: '12px 16px', cursor: 'pointer', borderBottom: `1px solid ${t.border}`,
-                      background: isActive ? t.primaryBg : conv.is_read ? 'transparent' : `${t.primaryBg}44`,
-                      transition: 'background 100ms',
-                    }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = t.cardHover; }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = conv.is_read ? 'transparent' : `${t.primaryBg}44`; }}
+                    style={{ position: 'relative', overflow: 'hidden', borderBottom: `1px solid ${t.border}` }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      {/* Avatar */}
-                      <div style={{ width: 38, height: 38, borderRadius: '50%', background: `linear-gradient(135deg, ${t.primary}, ${t.primaryHover})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: '#fff', flexShrink: 0 }}>
-                        {(conv.sender_name || '?').charAt(0).toUpperCase()}
+                    {/* Swipe action backgrounds (mobile) */}
+                    {isSwipingThis && swipeAction === 'approve' && (
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(34,197,94,0.15)', display: 'flex', alignItems: 'center', paddingLeft: 20 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>✓ SEND</span>
                       </div>
-
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-                          <span style={{ fontSize: 13, fontWeight: conv.is_read ? 500 : 700, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
-                            {conv.sender_name || 'Unknown'}
-                          </span>
-                          <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>
-                            {timeAgo(conv.last_message_at)}
-                          </span>
+                    )}
+                    {isSwipingThis && swipeAction === 'dismiss' && (
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 20 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#dc2626' }}>✕ DISMISS</span>
+                      </div>
+                    )}
+                    <div
+                      onClick={() => openConversation(conv)}
+                      onTouchStart={e => {
+                        if (!hasPending) return;
+                        const t0 = e.touches[0];
+                        setSwipeState({ id: conv.id, dx: 0, startX: t0.clientX, startY: t0.clientY, swiping: false });
+                      }}
+                      onTouchMove={e => {
+                        if (swipeState.id !== conv.id) return;
+                        const dx = e.touches[0].clientX - swipeState.startX;
+                        const dy = e.touches[0].clientY - swipeState.startY;
+                        if (Math.abs(dx) > Math.abs(dy) + 10) {
+                          e.preventDefault();
+                          setSwipeState(s => ({ ...s, dx, swiping: true }));
+                        }
+                      }}
+                      onTouchEnd={() => {
+                        if (swipeState.id !== conv.id) return;
+                        if (swipeState.dx > 50) { setSelected(conv); approvePendingDraft(); }
+                        else if (swipeState.dx < -50) { setSelected(conv); dismissPendingDraft(); }
+                        setSwipeState({ id: null, dx: 0, startX: 0, startY: 0, swiping: false });
+                      }}
+                      style={{
+                        padding: '12px 16px', cursor: 'pointer',
+                        background: isActive ? t.primaryBg : hasPending ? 'rgba(124,92,252,0.04)' : conv.is_read ? 'transparent' : `${t.primaryBg}44`,
+                        transform: `translateX(${swipeDx * 0.4}px)`,
+                        transition: swipeState.swiping ? 'none' : 'background 100ms, transform 200ms',
+                      }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = t.cardHover; }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = hasPending ? 'rgba(124,92,252,0.04)' : conv.is_read ? 'transparent' : `${t.primaryBg}44`; }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                        {/* Avatar with sentiment dot */}
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <div style={{ width: 38, height: 38, borderRadius: '50%', background: `linear-gradient(135deg, ${t.primary}, ${t.primaryHover})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: '#fff' }}>
+                            {(conv.sender_name || '?').charAt(0).toUpperCase()}
+                          </div>
+                          {hasPending && (
+                            <div style={{ position: 'absolute', bottom: 0, right: 0, width: 11, height: 11, borderRadius: '50%', background: sentimentColor, border: `2px solid ${t.sidebar}` }} title={`Sentiment: ${conv.pending_draft_sentiment || 'neutral'}`} />
+                          )}
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                          <PlatformBadge platform={conv.platform} />
-                          {conv.urgency === 'urgent' && (
-                            <span style={{ fontSize: 10, color: t.error, fontWeight: 600 }}>URGENT</span>
-                          )}
-                          {conv.last_message_ai_handled && (
-                            <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: 'rgba(124,92,252,0.12)', color: t.primary }}>AI</span>
-                          )}
-                          {conv.status === 'escalated' && (
-                            <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: 'rgba(239,68,68,0.12)', color: t.error }}>ESC</span>
-                          )}
-                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                            <span style={{ fontSize: 13, fontWeight: conv.is_read ? 500 : 700, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+                              {conv.sender_name || 'Unknown'}
+                            </span>
+                            <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>
+                              {timeAgo(conv.last_message_at)}
+                            </span>
+                          </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: 12, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                            {conv.last_message_direction === 'outgoing' ? 'You: ' : ''}
-                            {conv.last_message_preview || 'No messages yet'}
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 6 }}>
-                            {!conv.is_read && (
-                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.primary }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4, flexWrap: 'wrap' }}>
+                            <PlatformBadge platform={conv.platform} />
+                            {hasPending && (
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: 'rgba(124,92,252,0.14)', color: t.primary, border: `1px solid rgba(124,92,252,0.25)`, whiteSpace: 'nowrap' }}>
+                                Draft pending
+                              </span>
                             )}
-                            <button
-                              onClick={e => toggleStar(conv.id, e)}
-                              style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: conv.is_starred ? t.warning : t.textMuted, fontSize: 14 }}
-                              title={conv.is_starred ? 'Unstar' : 'Star'}
-                            >
-                              <IpReview size={14} />
-                            </button>
+                            {(conv.pending_draft_urgency === 'urgent' || conv.urgency === 'urgent') && (
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: 'rgba(239,68,68,0.12)', color: t.error, border: '1px solid rgba(239,68,68,0.25)' }}>URGENT</span>
+                            )}
+                            {conv.last_message_ai_handled && (
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: 'rgba(124,92,252,0.12)', color: t.primary }}>AI</span>
+                            )}
+                            {conv.status === 'escalated' && (
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: 'rgba(239,68,68,0.12)', color: t.error }}>ESC</span>
+                            )}
+                          </div>
+
+                          {hasPending && conv.pending_draft_intent && (
+                            <div style={{ fontSize: 11, color: t.textSecondary, marginBottom: 3, fontStyle: 'italic' }}>
+                              Intent: {conv.pending_draft_intent}
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 12, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                              {hasPending ? `Draft: ${(conv.pending_draft || '').substring(0, 60)}…` : (
+                                <>{conv.last_message_direction === 'outgoing' ? 'You: ' : ''}{conv.last_message_preview || 'No messages yet'}</>
+                              )}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 6 }}>
+                              {!conv.is_read && (
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.primary }} />
+                              )}
+                              <button
+                                onClick={e => toggleStar(conv.id, e)}
+                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, color: conv.is_starred ? t.warning : t.textMuted, fontSize: 14 }}
+                                title={conv.is_starred ? 'Unstar' : 'Star'}
+                              >
+                                <IpReview size={14} />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -750,6 +885,106 @@ export default function InboxPage() {
                 <div ref={threadEndRef} />
               </div>
 
+              {/* Pending draft approval panel */}
+              {selected?.pending_draft && (
+                <div style={{ margin: '0 20px 12px', padding: '14px 16px', borderRadius: 12, background: 'rgba(124,92,252,0.06)', border: `1.5px solid ${t.primaryBorder}`, flexShrink: 0 }}>
+                  {/* Header row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <IpSparkle size={14} style={{ color: t.primary }} />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: t.primary }}>Draft — Pending Approval</span>
+                      {selected.pending_draft_urgency === 'urgent' && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: 'rgba(239,68,68,0.12)', color: t.error, border: '1px solid rgba(239,68,68,0.25)' }}>URGENT</span>
+                      )}
+                      {selected.pending_draft_sentiment && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+                          background: selected.pending_draft_sentiment === 'positive' ? 'rgba(34,197,94,0.12)' : selected.pending_draft_sentiment === 'negative' ? 'rgba(239,68,68,0.1)' : 'rgba(234,179,8,0.1)',
+                          color: selected.pending_draft_sentiment === 'positive' ? '#16a34a' : selected.pending_draft_sentiment === 'negative' ? t.error : '#92400e',
+                        }}>
+                          {selected.pending_draft_sentiment === 'positive' ? '😊 Positive' : selected.pending_draft_sentiment === 'negative' ? '😠 Negative' : '😐 Neutral'}
+                        </span>
+                      )}
+                      {selected.pending_draft_intent && (
+                        <span style={{ fontSize: 10, color: t.textMuted, fontStyle: 'italic' }}>{selected.pending_draft_intent}</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setPendingEditing(e => !e)}
+                      style={{ padding: '3px 8px', borderRadius: 5, background: pendingEditing ? t.primaryBg : t.input, border: `1px solid ${pendingEditing ? t.primaryBorder : t.border}`, color: pendingEditing ? t.primary : t.textMuted, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      <IpEdit size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />
+                      {pendingEditing ? 'Cancel edit' : 'Edit'}
+                    </button>
+                  </div>
+
+                  {/* Draft text — view or edit */}
+                  {pendingEditing ? (
+                    <textarea
+                      value={pendingEditText}
+                      onChange={e => setPendingEditText(e.target.value)}
+                      rows={3}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, background: t.input, border: `1px solid ${t.primaryBorder}`, color: t.text, fontSize: 12, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box', outline: 'none', marginBottom: 10 }}
+                      onFocus={e => (e.target.style.borderColor = t.primary)}
+                      onBlur={e => (e.target.style.borderColor = t.primaryBorder)}
+                    />
+                  ) : (
+                    <p style={{ fontSize: 12, color: t.text, lineHeight: 1.6, margin: '0 0 10px', padding: '8px 10px', background: t.input, borderRadius: 8, border: `1px solid ${t.border}` }}>
+                      {selected.pending_draft}
+                    </p>
+                  )}
+
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={canApprove ? approvePendingDraft : undefined}
+                      disabled={approvingDraft || !canReply || !canApprove}
+                      title={!canApprove ? `Only managers can approve drafts. Your role: ${userWorkspaceRole}` : canReply ? 'Approve and send this draft' : 'Messaging window closed'}
+                      style={{ flex: 1, padding: '8px 14px', borderRadius: 8, background: approvingDraft || !canReply || !canApprove ? t.border : '#16a34a', color: !canApprove ? t.textMuted : '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: approvingDraft || !canReply || !canApprove ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: (!canReply || !canApprove) ? 0.55 : 1 }}
+                    >
+                      <IpCheck size={13} />
+                      {approvingDraft ? 'Sending…' : !canApprove ? 'Manager approval required' : 'Approve & Send'}
+                    </button>
+                    <button
+                      onClick={generateAndSaveDraft}
+                      disabled={aiLoading}
+                      title="Regenerate draft"
+                      style={{ padding: '8px 12px', borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, color: t.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                    >
+                      <IpRefresh size={13} style={{ animation: aiLoading ? 'spin 1s linear infinite' : 'none' }} />
+                      {aiLoading ? '…' : 'Regenerate'}
+                    </button>
+                    <button
+                      onClick={dismissPendingDraft}
+                      disabled={dismissingDraft}
+                      style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: t.error, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                    >
+                      <IpClose size={13} />
+                      {dismissingDraft ? '…' : 'Dismiss'}
+                    </button>
+                  </div>
+                  {!canReply && (
+                    <p style={{ fontSize: 11, color: t.textMuted, marginTop: 8, margin: '8px 0 0' }}>
+                      Messaging window closed — cannot send.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Queue mode: generate draft button when no draft and no current AI draft */}
+              {!selected?.pending_draft && !aiDraft && canReply && (
+                <div style={{ padding: '0 20px 8px', flexShrink: 0 }}>
+                  <button
+                    onClick={generateAndSaveDraft}
+                    disabled={aiLoading}
+                    style={{ width: '100%', padding: '7px 14px', borderRadius: 8, background: 'transparent', border: `1px dashed ${t.primaryBorder}`, color: t.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  >
+                    <IpSparkle size={13} style={{ animation: aiLoading ? 'spin 1s linear infinite' : 'none' }} />
+                    {aiLoading ? 'Generating draft…' : 'Generate draft for approval'}
+                  </button>
+                </div>
+              )}
+
               {/* Reply box */}
               <div style={{ padding: '12px 20px 16px', borderTop: `1px solid ${t.border}`, flexShrink: 0 }}>
                 {sendError && (
@@ -777,7 +1012,11 @@ export default function InboxPage() {
                   </div>
                 )}
 
-                {windowClosed ? (
+                {isViewerRole ? (
+                  <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)', color: '#92400e', fontSize: 12, textAlign: 'center' }}>
+                    You have view-only access. Ask your workspace manager to reply.
+                  </div>
+                ) : windowClosed ? (
                   <div style={{ padding: '10px 14px', borderRadius: 8, background: t.card, border: `1px solid ${t.border}`, color: t.textMuted, fontSize: 12, textAlign: 'center' }}>
                     The 7-day messaging window has closed. The customer needs to message you first before you can reply.
                   </div>

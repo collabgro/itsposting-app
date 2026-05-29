@@ -9,7 +9,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, Input, Badge, SectionHeader, Spinner, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI } from '../lib/api';
+import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI, authAPI } from '../lib/api';
 import IntegrationSetupWizard from '../components/IntegrationSetupWizard';
 
 const TIMEZONES = [
@@ -460,6 +460,9 @@ export default function Settings() {
   const [groupForm, setGroupForm] = useState({ name: '', accountIds: [] });
   const [groupSaving, setGroupSaving] = useState(false);
 
+  // Workspace context (invited members)
+  const [workspaceUser, setWorkspaceUser] = useState(null);
+
   // Hashtag Sets
   const [hashtagSets, setHashtagSets] = useState([]);
   const [loadingHashtags, setLoadingHashtags] = useState(false);
@@ -625,13 +628,15 @@ export default function Settings() {
 
   const loadData = async () => {
     try {
-      const [profileRes, providersRes, scrapedRes, dmsRes] = await Promise.all([
+      const [profileRes, providersRes, scrapedRes, dmsRes, verifyRes] = await Promise.all([
         customerAPI.getProfile(),
         contentAPI.getProviders().catch(() => ({ data: {} })),
         scraperAPI.getData().catch(() => ({ data: { hasData: false } })),
         dmsAPI.getStats().catch(() => ({ data: null })),
+        authAPI.verify().catch(() => ({ data: null })),
       ]);
       setProfile(profileRes.data);
+      if (verifyRes?.data?.is_member) setWorkspaceUser(verifyRes.data);
       setTimezone(profileRes.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
       if (profileRes.data.content_preferences?.notifications) {
         setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...profileRes.data.content_preferences.notifications });
@@ -942,6 +947,7 @@ export default function Settings() {
         phone: profile.phone,
         website: profile.website,
         brandColors: profile.brand_colors,
+        brandFonts: profile.brand_fonts,
         visualStyle: profile.visual_style,
         tone: profile.tone,
         preferredImageProvider: profile.preferred_image_provider,
@@ -1034,6 +1040,25 @@ export default function Settings() {
       )}
 
       <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Workspace Role Banner — shown for invited members only */}
+        {workspaceUser?.is_member && workspaceUser.workspace_role && (() => {
+          const roleMeta = {
+            manager: { label: 'Manager', color: '#7C5CFC', bg: 'rgba(124,92,252,0.1)', border: 'rgba(124,92,252,0.25)', icon: '🏆', desc: 'You have full access to all modules except billing.' },
+            editor:  { label: 'Editor',  color: '#3B82F6', bg: 'rgba(59,130,246,0.1)',  border: 'rgba(59,130,246,0.25)',  icon: '✏', desc: 'You can create content, manage inbox and analytics. Some admin settings are view-only.' },
+            viewer:  { label: 'Viewer',  color: '#64748B', bg: 'rgba(100,116,139,0.1)', border: 'rgba(100,116,139,0.25)', icon: '👁', desc: 'You have read-only access to calendar, history and analytics.' },
+          };
+          const rm = roleMeta[workspaceUser.workspace_role] || roleMeta.viewer;
+          return (
+            <div style={{ padding: '14px 18px', borderRadius: 12, background: rm.bg, border: `1px solid ${rm.border}`, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 20 }}>{rm.icon}</span>
+              <div>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: rm.color }}>Your role in this workspace: {rm.label}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: t.textSecondary, lineHeight: 1.5 }}>{rm.desc}</p>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Profile Completeness Bar */}
         <div style={{
@@ -1168,6 +1193,103 @@ export default function Settings() {
                   </div>
                 </div>
                 <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6 }}>Square image, at least 64Ã—64px</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Brand Kit ─────────────────────────────────────────────────────── */}
+        <div style={gc}>
+          <SectionHeader icon={IpPalette} title="Brand Kit" subtitle="Your brand identity — colors and fonts auto-populate every new design in the Studio" />
+          <div style={{ marginTop: 16 }}>
+            {/* Brand Colors */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Colors</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+                {[
+                  { key: 'primary',    label: 'Primary',    placeholder: '#7C5CFC' },
+                  { key: 'secondary',  label: 'Secondary',  placeholder: '#00C4CC' },
+                  { key: 'accent',     label: 'Accent',     placeholder: '#FF7A00' },
+                  { key: 'background', label: 'Background', placeholder: '#FFFFFF' },
+                  { key: 'text',       label: 'Text',       placeholder: '#1A1A2E' },
+                  { key: 'extra',      label: 'Extra',      placeholder: '#F59E0B' },
+                ].map(({ key, label, placeholder }) => {
+                  const currentVal = (profile?.brand_colors || {})[key] || '';
+                  return (
+                    <div key={key}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: t.textMuted, marginBottom: 5 }}>{label}</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 6, background: currentVal || placeholder, border: `1.5px solid ${t.border}`, cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }} />
+                          <input
+                            type="color"
+                            value={currentVal || placeholder}
+                            onChange={(e) => setProfile(p => ({ ...p, brand_colors: { ...(p.brand_colors || {}), [key]: e.target.value } }))}
+                            style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none' }}
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={currentVal}
+                          onChange={(e) => setProfile(p => ({ ...p, brand_colors: { ...(p.brand_colors || {}), [key]: e.target.value } }))}
+                          placeholder={placeholder}
+                          maxLength={7}
+                          style={{ flex: 1, padding: '6px 8px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 7, fontSize: 12, color: t.text, fontFamily: 'monospace', outline: 'none', minWidth: 0 }}
+                          onFocus={e => (e.target.style.borderColor = t.primary)}
+                          onBlur={e => (e.target.style.borderColor = t.border)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Quick preview strip */}
+              {Object.values(profile?.brand_colors || {}).some(Boolean) && (
+                <div style={{ display: 'flex', gap: 4, marginTop: 12 }}>
+                  {['primary','secondary','accent','background','text','extra'].map(key => {
+                    const c = (profile?.brand_colors || {})[key];
+                    if (!c) return null;
+                    return <div key={key} title={`${key}: ${c}`} style={{ flex: 1, height: 6, borderRadius: 3, background: c, minWidth: 20 }} />;
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Brand Fonts */}
+            <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Fonts</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {[
+                  { key: 'headline', label: 'Headline Font', description: 'Used for titles and headings' },
+                  { key: 'body',     label: 'Body Font',     description: 'Used for captions and paragraphs' },
+                ].map(({ key, label, description }) => {
+                  const fonts = ['Inter','Roboto','Open Sans','Lato','Montserrat','Nunito','Poppins','Playfair Display','Merriweather','Oswald','Raleway','Bebas Neue','Anton','Dancing Script','Pacifico','Space Mono'];
+                  const currentFont = (profile?.brand_fonts || {})[key] || '';
+                  return (
+                    <div key={key}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: t.textMuted, marginBottom: 5 }}>{label}</label>
+                      <select
+                        value={currentFont}
+                        onChange={(e) => setProfile(p => ({ ...p, brand_fonts: { ...(p.brand_fonts || {}), [key]: e.target.value } }))}
+                        style={{ width: '100%', padding: '8px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 13, color: t.text, outline: 'none', cursor: 'pointer' }}
+                        onFocus={e => (e.target.style.borderColor = t.primary)}
+                        onBlur={e => (e.target.style.borderColor = t.border)}
+                      >
+                        <option value="">Not set</option>
+                        {fonts.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
+                      </select>
+                      {currentFont && (
+                        <div style={{ marginTop: 5, fontSize: 15, fontFamily: currentFont, color: t.text, letterSpacing: '0.01em' }}>
+                          {profile?.business_name || 'Your Business Name'}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3 }}>{description}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ marginTop: 10, fontSize: 11, color: t.textMuted, padding: '8px 12px', background: t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)', border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.2)' : 'rgba(124,92,252,0.15)'}`, borderRadius: 8 }}>
+                Brand fonts appear at the top of the font picker in the Studio editor — every new design starts with your fonts pre-selected.
               </div>
             </div>
           </div>

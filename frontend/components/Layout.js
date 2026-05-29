@@ -659,6 +659,18 @@ export default function Layout({ children, title, subtitle, action }) {
             >
               {theme === 'dark' ? <IpSun size={16} /> : <IpMoon size={16} />}
             </button>
+            {/* Workspace role badge — shown for invited members (Type B) */}
+            {user?.is_member && user.workspace_role && !isMobile && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 8,
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
+                background: user.workspace_role === 'manager' ? 'rgba(124,92,252,0.12)' : 'rgba(234,179,8,0.12)',
+                color: user.workspace_role === 'manager' ? t.primary : '#92400e',
+                border: `1px solid ${user.workspace_role === 'manager' ? t.primaryBorder : 'rgba(234,179,8,0.3)'}`,
+              }} title={`Your role in this workspace: ${user.workspace_role}`}>
+                {user.workspace_role === 'manager' ? '🏆 Manager' : user.workspace_role === 'editor' ? '✏ Editor' : '👁 Viewer'}
+              </div>
+            )}
             {user && !isMobile && (
               <div className="credit-chip" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 9, fontSize: 12 }}>
                 <span style={{ color: t.textMuted, fontWeight: 500 }}>Credits</span>

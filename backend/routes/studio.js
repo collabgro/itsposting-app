@@ -5,6 +5,7 @@ const { authenticate, getBillingCustomerId } = require('../middleware/auth');
 const { fetchImageAsBuffer, uploadToCloudinary } = require('../services/ImageResizer');
 const VideoComposer = require('../services/VideoComposer');
 const VideoService = require('../services/VideoService');
+const SocialPublisher = require('../services/SocialPublisher');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -473,6 +474,58 @@ Return ONLY valid JSON (no markdown fences):
     }
   });
 
+  // PATCH /api/studio/creations/:id  — silent autosave (updates canvas_json + thumbnail)
+  router.patch('/creations/:id', authenticate, async (req, res) => {
+    try {
+      const creationId = parseInt(req.params.id);
+      const { canvasJson, imageDataUrl, title, canvasWidth, canvasHeight } = req.body;
+
+      const { rows: [existing] } = await pool.query(
+        'SELECT id FROM studio_creations WHERE id = $1 AND customer_id = $2',
+        [creationId, req.customerId]
+      );
+      if (!existing) return res.status(404).json({ error: 'Creation not found' });
+
+      let outputUrl = null;
+      if (imageDataUrl) {
+        const base64 = imageDataUrl.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64, 'base64');
+        const { secure_url, public_id } = await uploadToCloudinary(buffer, {
+          folder: `itsposting/studio/${req.customerId}`,
+          resource_type: 'image',
+          quality: 'auto',
+          fetch_format: 'auto',
+        });
+        outputUrl = secure_url;
+        await pool.query(
+          `UPDATE studio_creations SET output_url = $1, cloudinary_public_id = $2 WHERE id = $3`,
+          [outputUrl, public_id, creationId]
+        );
+      }
+
+      if (canvasJson) {
+        await pool.query(
+          `UPDATE studio_creations SET canvas_json = $1 WHERE id = $2`,
+          [JSON.stringify(canvasJson), creationId]
+        );
+      }
+
+      if (title) {
+        await pool.query(
+          `UPDATE studio_creations SET overlay_title = $1 WHERE id = $2`,
+          [title.trim().substring(0, 120), creationId]
+        );
+      }
+
+      await pool.query(`UPDATE studio_creations SET updated_at = NOW() WHERE id = $1`, [creationId]);
+
+      res.json({ success: true, outputUrl });
+    } catch (err) {
+      console.error('[Studio] PATCH /creations/:id:', err.message);
+      res.status(500).json({ error: 'Autosave failed' });
+    }
+  });
+
   // POST /api/studio/creations/:id/post  (0 credits)
   router.post('/creations/:id/post', authenticate, async (req, res) => {
     try {
@@ -487,24 +540,51 @@ Return ONLY valid JSON (no markdown fences):
 
       const fullCaption = [caption, ...(Array.isArray(hashtags) ? hashtags.map(t => `#${t.replace(/^#/, '')}`) : [])].filter(Boolean).join('\n\n');
       const scheduledAt = scheduleMode === 'schedule' && scheduledDate ? new Date(scheduledDate) : null;
-      const postStatus = scheduleMode === 'now' ? 'published' : scheduleMode === 'schedule' ? 'scheduled' : 'draft';
+      const initialStatus = scheduleMode === 'now' ? 'posting' : scheduleMode === 'schedule' ? 'scheduled' : 'draft';
 
       const { rows: [post] } = await pool.query(
         `INSERT INTO posts (customer_id, content, media_url, status, source, platforms, scheduled_at, uploaded_by_user)
          VALUES ($1, $2, $3, $4, 'studio', $5, $6, false)
-         RETURNING id, status, created_at`,
-        [req.customerId, fullCaption, creation.output_url, postStatus, JSON.stringify(platforms), scheduledAt]
+         RETURNING *`,
+        [req.customerId, fullCaption, creation.output_url, initialStatus, JSON.stringify(platforms), scheduledAt]
       );
 
       await pool.query(
-        `UPDATE studio_creations SET post_id = $1, status = $2 WHERE id = $3`,
-        [post.id, postStatus === 'published' ? 'posted' : 'scheduled', creationId]
+        `UPDATE studio_creations SET post_id = $1 WHERE id = $2`,
+        [post.id, creationId]
       );
 
-      res.json({ post: { id: post.id, status: post.status, createdAt: post.created_at } });
+      // Publish immediately if scheduleMode === 'now'
+      if (scheduleMode === 'now' && platforms.length > 0) {
+        const publisher = new SocialPublisher(pool);
+        const postWithCustomer = { ...post, customer_id: req.customerId };
+        const { platformPostIds, errors } = await publisher.publishToPlatforms(postWithCustomer, platforms);
+        const succeeded = Object.keys(platformPostIds);
+
+        if (succeeded.length === 0 && errors.length > 0) {
+          await pool.query(
+            `UPDATE posts SET status = 'failed', error_message = $1 WHERE id = $2`,
+            [errors.map(e => `${e.platform}: ${e.message}`).join('; '), post.id]
+          );
+          await pool.query(`UPDATE studio_creations SET status = 'failed' WHERE id = $1`, [creationId]);
+          return res.status(502).json({ success: false, errors, post: { id: post.id } });
+        }
+
+        await pool.query(
+          `UPDATE posts SET status = 'posted', posted_at = NOW(), platform_post_ids = $1 WHERE id = $2`,
+          [JSON.stringify(platformPostIds), post.id]
+        );
+        await pool.query(`UPDATE studio_creations SET status = 'posted' WHERE id = $1`, [creationId]);
+        return res.json({ success: true, posted: succeeded, errors, post: { id: post.id, status: 'posted' } });
+      }
+
+      // Draft / scheduled path
+      const creationStatus = scheduleMode === 'schedule' ? 'scheduled' : 'draft';
+      await pool.query(`UPDATE studio_creations SET status = $1 WHERE id = $2`, [creationStatus, creationId]);
+      res.json({ success: true, post: { id: post.id, status: initialStatus } });
     } catch (err) {
       console.error('[Studio] POST /creations/:id/post:', err.message);
-      res.status(500).json({ error: 'Failed to create post from studio creation' });
+      res.status(500).json({ error: 'Failed to post from studio' });
     }
   });
 
@@ -1038,29 +1118,49 @@ Rules:
     }
   });
 
-  // POST /api/studio/rewrite-text — AI Improve for canvas text elements
+  // POST /api/studio/rewrite-text — AI Improve / Caption / Color suggest
   router.post('/rewrite-text', authenticate, async (req, res) => {
-    const { text, platform = 'instagram', tone = 'friendly' } = req.body;
+    const { text, platform = 'instagram', tone = 'friendly', mode = 'improve' } = req.body;
     if (!text || typeof text !== 'string' || text.trim().length < 3) {
       return res.status(400).json({ error: 'Text is required' });
     }
     const sanitized = text.replace(/[<>`]/g, '').trim().slice(0, 500);
     try {
       const { rows } = await pool.query(
-        'SELECT industry, business_name FROM customers WHERE id = $1',
+        'SELECT industry, business_name, location, brand_colors FROM customers WHERE id = $1',
         [req.customerId]
       );
       const customer = rows[0] || {};
       const industry = customer.industry || 'general_contractor';
-      const Anthropic = require('@anthropic-ai/sdk');
-      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const bizName = customer.business_name || 'the business';
+      const location = customer.location || '';
+      const bc = customer.brand_colors || {};
+
+      let prompt;
+      let maxTokens = 300;
+
+      if (mode === 'caption') {
+        maxTokens = 400;
+        const platformRules = {
+          instagram: 'Instagram: 100-150 words, 8-12 hashtags, 3-4 emojis, end with a question',
+          facebook: 'Facebook: 150-250 words, 2-3 hashtags, conversational, end with a question',
+          google_business: 'Google Business: 100-200 words, keyword-rich, no hashtags, hard CTA',
+        };
+        const rules = platformRules[platform] || platformRules.instagram;
+        prompt = `Write a ${platform} caption for ${bizName} (${industry} business in ${location || 'their area'}) based on this graphic content: "${sanitized}"\n\nRules: ${rules}\nReturn ONLY the caption text, nothing else.`;
+      } else if (mode === 'colors') {
+        maxTokens = 200;
+        const primaryColor = bc.primary || '#7C5CFC';
+        prompt = `${sanitized}\n\nReturn ONLY valid JSON like: {"colors":["#hex1","#hex2","#hex3"]}. All colors must be 6-digit hex codes that complement ${primaryColor} for a ${industry} brand. No explanation.`;
+      } else {
+        // mode === 'improve' (default)
+        prompt = `Rewrite this canvas text to be more engaging for a ${industry} business posting on ${platform} in a ${tone} tone. Keep it short (under 15 words if possible). Return ONLY the improved text, no quotes, no explanation.\n\nOriginal: ${sanitized}`;
+      }
+
       const msg = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 300,
-        messages: [{
-          role: 'user',
-          content: `Rewrite this canvas text to be more engaging for a ${industry} business posting on ${platform} in a ${tone} tone. Keep it short (under 15 words if possible). Return ONLY the improved text, no quotes, no explanation.\n\nOriginal: ${sanitized}`,
-        }],
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content: prompt }],
       });
       const improved = msg.content[0]?.text?.trim() || sanitized;
       res.json({ improved });

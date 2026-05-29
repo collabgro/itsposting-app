@@ -6,7 +6,7 @@ import {
   IpExternalLink, IpDollar, IpClose,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, Spinner, EmptyState } from '../components/ui';
+import { Button, Spinner, EmptyState, SkeletonPage, ErrorCard } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { billingAPI, referralsAPI } from '../lib/api';
 
@@ -173,9 +173,15 @@ export default function Billing() {
   if (loading) {
     return (
       <Layout title="Plans & Billing">
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-          <Spinner size={36} />
-        </div>
+        <SkeletonPage rows={4} cards={3} />
+      </Layout>
+    );
+  }
+
+  if (plansError && !plans.length) {
+    return (
+      <Layout title="Plans & Billing">
+        <ErrorCard title="Could not load billing" message="Check your connection and try again." onRetry={loadData} />
       </Layout>
     );
   }
@@ -398,7 +404,7 @@ export default function Billing() {
                 </div>
 
                 {/* Stats */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
                   {[
                     { label: 'Total referrals',    value: referralData.total_referrals,    icon: IpTrendingUp,    color: t.primary },
                     { label: 'Upgraded to paid',   value: referralData.upgraded_referrals, icon: IpArrowUpRight,  color: '#10b981' },

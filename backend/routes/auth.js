@@ -181,14 +181,21 @@ module.exports = (pool) => {
         }
       } else if (req.ownerId) {
         // Invited member (Type B) operating in workspace context — pull credits from workspace owner
-        const ownerRow = await pool.query(
-          `SELECT credits_balance, free_geo_audit_used FROM customers WHERE id = $1`,
-          [req.ownerId]
-        );
+        const [ownerRow, memberRoleRow] = await Promise.all([
+          pool.query(`SELECT credits_balance, free_geo_audit_used FROM customers WHERE id = $1`, [req.ownerId]),
+          req.workspaceId
+            ? pool.query(
+                `SELECT role FROM workspace_members WHERE member_id = $1 AND workspace_id = $2 AND revoked_at IS NULL LIMIT 1`,
+                [req.customerId, req.workspaceId]
+              )
+            : Promise.resolve({ rows: [] }),
+        ]);
         if (ownerRow.rows.length) {
           customer.credits_balance     = ownerRow.rows[0].credits_balance;
           customer.free_geo_audit_used = ownerRow.rows[0].free_geo_audit_used;
           customer.is_member           = true;
+          customer.workspace_id        = req.workspaceId || null;
+          customer.workspace_role      = memberRoleRow.rows[0]?.role || customer.workspace_role || 'editor';
         }
       }
 

@@ -5,7 +5,7 @@ import {
   IpFacebook, IpInstagram, IpGoogle, IpLinkedIn, IpTikTok,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, EmptyState, Spinner, useToast } from '../components/ui';
+import { Button, EmptyState, Spinner, SkeletonPage, useToast } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI } from '../lib/api';
 
@@ -90,7 +90,7 @@ export default function ApprovalsPage() {
   return (
     <Layout title="Approvals" subtitle="Review posts submitted by your workspace members">
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 80 }}><Spinner size={40} /></div>
+        <SkeletonPage rows={4} cards={3} />
       ) : posts.length === 0 ? (
         <EmptyState
           icon={IpCheck}

@@ -45,6 +45,7 @@ export default function History() {
   const { t } = useTheme();
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +68,10 @@ export default function History() {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
     loadPosts();
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {
@@ -343,8 +348,8 @@ export default function History() {
           />
         ) : loading ? (
           viewMode === 'grid' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {Array.from({ length: 9 }).map((_, i) => <Skeleton key={i} height={180} borderRadius={12} />)}
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : 3}, 1fr)`, gap: 8 }}>
+              {Array.from({ length: isMobile ? 6 : 9 }).map((_, i) => <Skeleton key={i} height={180} borderRadius={12} />)}
             </div>
           ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -375,7 +380,7 @@ export default function History() {
           </div>
         ) : viewMode === 'grid' ? (
           /* ── GRID VIEW ── */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : 3}, 1fr)`, gap: 8 }}>
             {displayPosts.map(post => {
               const TypeIcon = TYPE_ICON[post.content_type] || IpDrafts;
               const typeColor = TYPE_COLOR[post.content_type] || t.primary;

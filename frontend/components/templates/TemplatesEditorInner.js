@@ -4108,6 +4108,8 @@ export default function TemplatesEditorInner() {
   const [canvasCustomH, setCanvasCustomH] = useState(1080);
   const [showCustomSizeForm, setShowCustomSizeForm] = useState(false);
   const [scaleOnResize, setScaleOnResize] = useState(false);
+  const [showMagicResize, setShowMagicResize] = useState(false);
+  const [magicResizeSelected, setMagicResizeSelected] = useState({ fb_post: true, google_biz: true, ig_story: true, ig_square: false });
   const canvasSize = canvasSizeId === 'custom'
     ? { id: 'custom', label: `Custom ${canvasCustomW}×${canvasCustomH}`, w: canvasCustomW, h: canvasCustomH }
     : (CANVAS_SIZES.find(s => s.id === canvasSizeId) || CANVAS_SIZES[0]);
@@ -4250,6 +4252,7 @@ export default function TemplatesEditorInner() {
   const [previewUrl,  setPreviewUrl]    = useState(null);
   const [presentPlaying,  setPresentPlaying]  = useState(false);
   const [presentInterval, setPresentInterval] = useState(3);
+  const [showShortcutsOverlay, setShowShortcutsOverlay] = useState(false);
 
   // UI
   const [activeLeftTool, setActiveLeftTool] = useState('templates');
@@ -4851,6 +4854,7 @@ export default function TemplatesEditorInner() {
       }
 
       if (e.key === 'Escape') {
+        if (showShortcutsOverlay) { setShowShortcutsOverlay(false); return; }
         if (previewOpen) { setPreviewOpen(false); return; }
         if (drawMode) { setDrawMode(false); setIsDrawingNow(false); setCurrentDrawEl(null); currentDrawRef.current = null; return; }
         clearSelection();
@@ -4934,11 +4938,12 @@ export default function TemplatesEditorInner() {
         if (e.key === 'r' || e.key === 'R') { addRect(); return; }
         if (e.key === 'c' || e.key === 'C') { addCircle(); return; }
         if (e.key === 'p' || e.key === 'P') { setPreviewOpen(true); return; }
+        if (e.key === '?') { setShowShortcutsOverlay(p => !p); return; }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedId, selectedIds, editingTextId, history, historyIndex, elements, clipboard, zoomFactor, previewOpen]);
+  }, [selectedId, selectedIds, editingTextId, history, historyIndex, elements, clipboard, zoomFactor, previewOpen, showShortcutsOverlay]);
 
   // ── Canvas-only Ctrl+scroll zoom (passive:false so preventDefault works) ──
   useEffect(() => {
@@ -6360,6 +6365,45 @@ export default function TemplatesEditorInner() {
     setActivePage(idx + 1);
   }
 
+  // ── Magic Resize ───────────────────────────────────────────────────────────
+  function runMagicResize() {
+    const selected = CANVAS_SIZES.filter(s => magicResizeSelected[s.id] && s.id !== canvasSizeId);
+    if (!selected.length) { setShowMagicResize(false); return; }
+    pushHistory();
+    const sourceW = canvasSize.w;
+    const sourceH = canvasSize.h;
+    const sourcePage = pages[activePage];
+    const newPages = selected.map(target => {
+      const rW = target.w / sourceW;
+      const rH = target.h / sourceH;
+      const scaledEls = sourcePage.elements.map(el => ({
+        ...el,
+        id: uid(),
+        x: Math.round((el.x || 0) * rW),
+        y: Math.round((el.y || 0) * rH),
+        width:  el.width  != null ? Math.max(20, Math.round(el.width  * rW)) : el.width,
+        height: el.height != null ? Math.max(10, Math.round(el.height * rH)) : el.height,
+        fontSize:    el.fontSize    != null ? Math.max(8, Math.round(el.fontSize    * Math.min(rW, rH))) : el.fontSize,
+        strokeWidth: el.strokeWidth != null ? Math.max(1, Math.round(el.strokeWidth * Math.min(rW, rH))) : el.strokeWidth,
+      }));
+      return {
+        ...emptyPage(),
+        id: uid(),
+        label: target.label,
+        canvasSizeOverride: { w: target.w, h: target.h, id: target.id, label: target.label },
+        bg: sourcePage.bg,
+        bgGradient: sourcePage.bgGradient,
+        elements: scaledEls,
+      };
+    });
+    setPages(prev => {
+      const next = [...prev];
+      next.splice(activePage + 1, 0, ...newPages);
+      return next;
+    });
+    setShowMagicResize(false);
+  }
+
   // ── Save & Post ────────────────────────────────────────────────────────────
   async function downloadAllPages() {
     if (!stageRef.current) return;
@@ -6997,6 +7041,22 @@ export default function TemplatesEditorInner() {
               ✏ Admin
             </div>
           )}
+
+          {/* Keyboard shortcuts help */}
+          <button onClick={() => setShowShortcutsOverlay(true)}
+            title="Keyboard shortcuts (?)"
+            onMouseEnter={e => { showTip(e, 'Keyboard shortcuts', '?'); e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
+            style={{ width: 30, height: 30, border: '1px solid rgba(255,255,255,0.22)', borderRadius: '50%', background: 'transparent', color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 120ms ease' }}>
+            ?
+          </button>
+
+          {/* Magic Resize */}
+          <button onClick={() => setShowMagicResize(true)}
+            title="Magic Resize — copy design to other formats"
+            onMouseEnter={e => { showTip(e, 'Magic Resize'); e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; }}
+            style={{ height: 30, padding: '0 10px', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 8, background: 'transparent', color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}>
+            ⊡ Resize
+          </button>
 
           {/* Preview */}
           <button onClick={() => setPreviewOpen(true)}
@@ -14761,6 +14821,124 @@ export default function TemplatesEditorInner() {
               ›
             </button>
           )}
+        </div>
+      )}
+
+      {/* ── Magic Resize Modal ──────────────────────────────────────────────── */}
+      {showMagicResize && (
+        <div onClick={() => setShowMagicResize(false)} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(14,14,22,0.97)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '28px 32px', maxWidth: 440, width: '100%', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#E8E8F2', letterSpacing: '-0.03em' }}>⊡ Magic Resize</p>
+              <button onClick={() => setShowMagicResize(false)} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#9090A8', width: 30, height: 30, borderRadius: 7, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            </div>
+            <p style={{ margin: '0 0 20px', fontSize: 12, color: '#6B6B88', lineHeight: 1.5 }}>
+              Your current design (<strong style={{ color: '#A0A0C0' }}>{canvasSize.label}</strong>) will be proportionally scaled into new pages for each selected format. Adjust any elements that need fine-tuning after.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+              {CANVAS_SIZES.filter(s => s.id !== canvasSizeId).map(size => {
+                const checked = !!magicResizeSelected[size.id];
+                return (
+                  <label key={size.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${checked ? 'rgba(124,92,252,0.5)' : 'rgba(255,255,255,0.08)'}`, background: checked ? 'rgba(124,92,252,0.1)' : 'rgba(255,255,255,0.03)', cursor: 'pointer', transition: 'all 120ms ease', userSelect: 'none' }}>
+                    <input type="checkbox" checked={checked} onChange={() => setMagicResizeSelected(prev => ({ ...prev, [size.id]: !prev[size.id] }))}
+                      style={{ accentColor: '#7C5CFC', width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: checked ? '#C4B5FD' : '#E8E8F2' }}>{size.label}</p>
+                      <p style={{ margin: '1px 0 0', fontSize: 11, color: '#6B6B88' }}>{size.w} × {size.h} px</p>
+                    </div>
+                    <div style={{ width: 36, height: Math.round(36 * size.h / size.w), maxHeight: 28, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 3, flexShrink: 0 }} />
+                  </label>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowMagicResize(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 9, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: '#9090A8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={runMagicResize} disabled={!CANVAS_SIZES.filter(s => s.id !== canvasSizeId).some(s => magicResizeSelected[s.id])}
+                style={{ flex: 2, padding: '10px 0', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'opacity 120ms', opacity: CANVAS_SIZES.filter(s => s.id !== canvasSizeId).some(s => magicResizeSelected[s.id]) ? 1 : 0.4 }}>
+                ⊡ Create Resized Versions
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Keyboard Shortcuts Overlay (? key) ───────────────────────────────── */}
+      {showShortcutsOverlay && (
+        <div
+          onClick={() => setShowShortcutsOverlay(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 4000, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: 'rgba(14,14,22,0.97)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '28px 32px', maxWidth: 640, width: '100%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#E8E8F2', letterSpacing: '-0.03em' }}>Keyboard Shortcuts</p>
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: '#6B6B88' }}>Press <kbd style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11, fontFamily: 'monospace' }}>?</kbd> or <kbd style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11, fontFamily: 'monospace' }}>Esc</kbd> to close</p>
+              </div>
+              <button onClick={() => setShowShortcutsOverlay(false)} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#9090A8', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+            </div>
+            {[
+              { group: 'Selection & Canvas', items: [
+                { keys: ['Ctrl+A'], desc: 'Select all elements' },
+                { keys: ['Escape'], desc: 'Deselect / exit mode' },
+                { keys: ['Click+Drag'], desc: 'Rubber-band multi-select' },
+                { keys: ['Shift+Click'], desc: 'Add to selection' },
+                { keys: ['Ctrl+0'], desc: 'Fit canvas to screen' },
+                { keys: ['Ctrl++'], desc: 'Zoom in' },
+                { keys: ['Ctrl+−'], desc: 'Zoom out' },
+              ]},
+              { group: 'Editing', items: [
+                { keys: ['Ctrl+Z'], desc: 'Undo' },
+                { keys: ['Ctrl+Shift+Z', 'Ctrl+Y'], desc: 'Redo' },
+                { keys: ['Ctrl+D'], desc: 'Duplicate selected' },
+                { keys: ['Ctrl+C'], desc: 'Copy selected' },
+                { keys: ['Ctrl+V'], desc: 'Paste' },
+                { keys: ['Del', 'Backspace'], desc: 'Delete selected' },
+                { keys: ['↑ ↓ ← →'], desc: 'Nudge 1px (Shift = 10px)' },
+              ]},
+              { group: 'Layers', items: [
+                { keys: [']'], desc: 'Bring forward one layer' },
+                { keys: ['['], desc: 'Send back one layer' },
+                { keys: ['Ctrl+G'], desc: 'Group selection' },
+                { keys: ['Ctrl+Shift+G'], desc: 'Ungroup' },
+                { keys: ['Shift+H'], desc: 'Flip horizontal' },
+                { keys: ['Shift+V'], desc: 'Flip vertical' },
+              ]},
+              { group: 'Add Elements', items: [
+                { keys: ['T'], desc: 'Add text element' },
+                { keys: ['R'], desc: 'Add rectangle' },
+                { keys: ['C'], desc: 'Add circle' },
+                { keys: ['/'], desc: 'Open quick actions palette' },
+              ]},
+              { group: 'View & Export', items: [
+                { keys: ['P'], desc: 'Preview carousel / presentation' },
+                { keys: ['Ctrl+S'], desc: 'Save design' },
+                { keys: ['Ctrl+Shift+E'], desc: 'Export PNG' },
+                { keys: ['Ctrl+H'], desc: 'Find & replace text' },
+                { keys: ['G'], desc: 'Toggle grid overlay' },
+                { keys: ['?'], desc: 'Show this shortcuts overlay' },
+              ]},
+            ].map(section => (
+              <div key={section.group} style={{ marginBottom: 22 }}>
+                <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: '#7C5CFC', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{section.group}</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px' }}>
+                  {section.items.map(({ keys, desc }) => (
+                    <div key={desc} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ display: 'flex', gap: 4, flexShrink: 0, minWidth: 120 }}>
+                        {keys.map(k => (
+                          <kbd key={k} style={{ padding: '2px 7px', borderRadius: 5, background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11, fontFamily: 'monospace', color: '#D0D0E8', whiteSpace: 'nowrap' }}>{k}</kbd>
+                        ))}
+                      </div>
+                      <span style={{ fontSize: 12, color: '#9090A8' }}>{desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <p style={{ margin: '16px 0 0', fontSize: 11, color: '#5A5A78', textAlign: 'center' }}>Holding <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(255,255,255,0.07)', fontSize: 11 }}>Shift</kbd> with arrow keys moves 10× faster. <kbd style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(255,255,255,0.07)', fontSize: 11 }}>Alt</kbd>+drag temporarily disables snapping.</p>
+          </div>
         </div>
       )}
 

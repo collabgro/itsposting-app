@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
+const Anthropic = require('@anthropic-ai/sdk');
 const { authenticate } = require('../middleware/auth');
 
 const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024 * 1024; // 10 GB
@@ -79,13 +80,14 @@ module.exports = (pool) => {
   // GET /api/media
   router.get('/', authenticate, async (req, res) => {
     try {
-      const { type, folder, search, limit = 50, offset = 0 } = req.query;
+      const { type, folder, search, tag, limit = 50, offset = 0 } = req.query;
       let query = 'SELECT * FROM media_library WHERE customer_id = $1';
       const params = [req.customerId];
       let p = 1;
       if (type && type !== 'all') { p++; query += ` AND file_type = $${p}`; params.push(type); }
       if (folder && folder !== 'all') { p++; query += ` AND folder = $${p}`; params.push(folder); }
       if (search) { p++; query += ` AND file_name ILIKE $${p}`; params.push(`%${search}%`); }
+      if (tag) { p++; query += ` AND $${p} = ANY(ai_tags)`; params.push(tag.toLowerCase()); }
       query += ` ORDER BY uploaded_at DESC LIMIT $${p + 1} OFFSET $${p + 2}`;
       params.push(parseInt(limit), parseInt(offset));
       const result = await pool.query(query, params);
@@ -175,6 +177,15 @@ module.exports = (pool) => {
 
       console.log(`[Media] ${req.customerId} uploaded ${uploaded.length} file(s) (${formatBytes(totalUploaded)})`);
       res.json({ success: true, uploaded: uploaded.length, files: uploaded, totalSizeUploaded: formatBytes(totalUploaded) });
+
+      // Non-blocking AI tagging for image files only
+      if (process.env.ANTHROPIC_API_KEY) {
+        for (const file of uploaded) {
+          if (file.file_type === 'image' && file.url) {
+            generateAiTags(pool, file.id, file.url).catch(() => {});
+          }
+        }
+      }
     } catch (error) {
       await client.query('ROLLBACK');
       console.error('[Media] Upload error:', error.message);
@@ -235,6 +246,30 @@ module.exports = (pool) => {
 
   return router;
 };
+
+async function generateAiTags(pool, mediaId, imageUrl) {
+  try {
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 100,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'url', url: imageUrl } },
+          { type: 'text', text: 'Return 3 to 5 short descriptive tags for this image. Reply with only a JSON array of lowercase strings, no explanation. Example: ["plumber", "kitchen", "pipe repair"]' },
+        ],
+      }],
+    });
+    const raw = response.content[0]?.text?.replace(/```json|```/g, '').trim() || '[]';
+    const tags = JSON.parse(raw);
+    if (!Array.isArray(tags) || tags.length === 0) return;
+    await pool.query('UPDATE media_library SET ai_tags = $1 WHERE id = $2', [tags, mediaId]);
+    console.log(`[Media] AI tags for ${mediaId}:`, tags);
+  } catch (err) {
+    console.warn('[Media] AI tagging failed for', mediaId, ':', err.message);
+  }
+}
 
 function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
