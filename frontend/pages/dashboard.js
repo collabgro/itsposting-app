@@ -92,6 +92,12 @@ export default function Dashboard() {
   const [reviews,        setReviews]        = useState(null);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [generatingReviewId, setGeneratingReviewId] = useState(null);
+  const [replyModal,     setReplyModal]     = useState(null); // { review, replies, isBad }
+  const [replyLoading,   setReplyLoading]   = useState(null); // reviewId being drafted
+  const [replyPosting,   setReplyPosting]   = useState(false);
+  const [selectedReply,  setSelectedReply]  = useState(null); // 'empathetic' | 'professional' | 'brief'
+  const [customReply,    setCustomReply]    = useState('');
+  const [replySuccess,   setReplySuccess]   = useState(null); // reviewId that just got replied
   const [showPerfToast,  setShowPerfToast]  = useState(false);
   const [bestPostId,     setBestPostId]     = useState(null);
 
@@ -187,6 +193,34 @@ export default function Dashboard() {
       router.push('/upload');
     } catch { /* silently fail */ }
     finally { setGeneratingReviewId(null); }
+  };
+
+  const handleDraftReply = async (review) => {
+    setReplyLoading(review.id);
+    try {
+      const res = await socialAPI.draftReviewReply({
+        reviewText: review.text,
+        reviewerName: review.reviewerName,
+        starRating: review.starRating,
+      });
+      const { replies, isBad } = res.data;
+      setSelectedReply('empathetic');
+      setCustomReply(replies.empathetic || '');
+      setReplyModal({ review, replies, isBad });
+    } catch { /* silently fail */ }
+    finally { setReplyLoading(null); }
+  };
+
+  const handlePostReply = async () => {
+    if (!replyModal || !customReply.trim()) return;
+    setReplyPosting(true);
+    try {
+      await socialAPI.postReviewReply(replyModal.review.id, customReply.trim());
+      setReplySuccess(replyModal.review.id);
+      setReplyModal(null);
+    } catch (e) {
+      alert(e.response?.data?.error || 'Could not post reply. Please try again.');
+    } finally { setReplyPosting(false); }
   };
 
   const dismissBriefing = async () => {
@@ -554,10 +588,16 @@ export default function Dashboard() {
                     <div>
                       <span style={{ fontWeight: 700, fontSize: 13, color: t.text }}>{review.reviewerName}</span>
                       <span style={{ marginLeft: 8, fontSize: 12, color: '#EAB308' }}>{'⭐'.repeat(review.starRating)}</span>
+                      {replySuccess === review.id && <span style={{ marginLeft: 8, fontSize: 11, color: t.success, fontWeight: 600 }}>✓ Replied</span>}
                     </div>
-                    <Button variant="primary" size="sm" onClick={() => handleTurnReviewIntoPost(review)} disabled={generatingReviewId === review.id} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-                      {generatingReviewId === review.id ? 'Generating…' : 'Turn into Post →'}
-                    </Button>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <Button variant="secondary" size="sm" onClick={() => handleDraftReply(review)} disabled={replyLoading === review.id || replySuccess === review.id} style={{ whiteSpace: 'nowrap' }}>
+                        {replyLoading === review.id ? 'Drafting…' : replySuccess === review.id ? '✓ Replied' : 'Draft Reply'}
+                      </Button>
+                      <Button variant="primary" size="sm" onClick={() => handleTurnReviewIntoPost(review)} disabled={generatingReviewId === review.id} style={{ whiteSpace: 'nowrap' }}>
+                        {generatingReviewId === review.id ? 'Generating…' : 'Turn into Post →'}
+                      </Button>
+                    </div>
                   </div>
                   {review.text && <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.5, maxHeight: 56, overflow: 'hidden', WebkitLineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical' }}>{review.text}</div>}
                 </div>
@@ -723,6 +763,86 @@ export default function Dashboard() {
           onUpdate={updated => setUpcoming(prev => prev.map(p => p.id === updated.id ? updated : p))}
           onDelete={id => { setUpcoming(prev => prev.filter(p => p.id !== id)); setPreviewPostId(null); }}
         />
+      )}
+
+      {/* ── Review Reply Modal ── */}
+      {replyModal && (
+        <div
+          onClick={() => setReplyModal(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: t.isDark ? 'rgba(12,12,20,0.97)' : t.card,
+              border: `1px solid ${t.border}`, borderRadius: 20,
+              padding: '28px 28px 24px', maxWidth: 540, width: '100%',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+              animation: 'scaleIn 200ms cubic-bezier(0.34,1.56,0.64,1)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: t.text, letterSpacing: '-0.02em', marginBottom: 2 }}>Draft a Reply</div>
+                <div style={{ fontSize: 12, color: t.textMuted }}>
+                  {replyModal.review.reviewerName} · {'⭐'.repeat(replyModal.review.starRating)}
+                  {replyModal.isBad && <span style={{ marginLeft: 6, color: '#FF453A', fontWeight: 600 }}>Needs a careful response</span>}
+                </div>
+              </div>
+              <button onClick={() => setReplyModal(null)} style={{ background: 'none', border: 'none', color: t.textMuted, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Style selector */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {[
+                { key: 'empathetic', label: 'Empathetic', color: '#0A84FF' },
+                { key: 'professional', label: 'Professional', color: '#7C5CFC' },
+                { key: 'brief', label: 'Brief', color: '#10B981' },
+              ].map(s => (
+                <button
+                  key={s.key}
+                  onClick={() => { setSelectedReply(s.key); setCustomReply(replyModal.replies[s.key] || ''); }}
+                  style={{
+                    padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    background: selectedReply === s.key ? `${s.color}22` : t.input,
+                    border: `1px solid ${selectedReply === s.key ? s.color : t.border}`,
+                    color: selectedReply === s.key ? s.color : t.textMuted,
+                    transition: 'all 150ms',
+                  }}
+                >{s.label}</button>
+              ))}
+            </div>
+
+            {/* Editable reply text */}
+            <textarea
+              value={customReply}
+              onChange={e => setCustomReply(e.target.value)}
+              rows={5}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                background: t.input, border: `1px solid ${t.border}`, borderRadius: 10,
+                padding: '12px 14px', fontSize: 13, color: t.text, lineHeight: 1.6, resize: 'vertical',
+                outline: 'none', transition: 'border-color 150ms',
+              }}
+              onFocus={e => e.target.style.borderColor = t.primary}
+              onBlur={e => e.target.style.borderColor = t.border}
+              placeholder="Edit your reply..."
+            />
+            <div style={{ fontSize: 11, color: t.textMuted, textAlign: 'right', marginTop: 4 }}>{customReply.length}/4096</div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+              <Button variant="secondary" onClick={() => setReplyModal(null)}>Cancel</Button>
+              <Button
+                variant="primary"
+                onClick={handlePostReply}
+                disabled={replyPosting || !customReply.trim()}
+                style={{ minWidth: 140 }}
+              >
+                {replyPosting ? 'Posting…' : 'Post Reply to Google'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Performance Celebration Toast */}

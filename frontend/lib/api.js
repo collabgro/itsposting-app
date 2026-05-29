@@ -83,6 +83,8 @@ export const socialAPI = {
   searchLocations: (q) => api.get('/api/social/locations/search', { params: { q } }),
   getReviews: () => api.get('/api/social/reviews'),
   generateReviewPost: (data) => api.post('/api/social/reviews/generate-post', data),
+  draftReviewReply: (data) => api.post('/api/social/reviews/draft-reply', data),
+  postReviewReply: (reviewId, replyText) => api.post(`/api/social/reviews/${reviewId}/post-reply`, { replyText }),
   getHealth: () => api.get('/api/social/health'),
 };
 

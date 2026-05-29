@@ -220,12 +220,14 @@ Talking-head: PostCore writes 30s script -> HeyGen renders.
 Cinematic: PostCore writes scene -> NanoBanana -> Veo animation.
 Single "Generate" button, results in same view, no redirects.
 
-### 4.2 Google Review Response AI
+### 4.2 Google Review Response AI [DONE]
 For each review: [Turn into post] AND [Draft a response].
 Bad review: 3 response styles (Empathetic / Professional / Brief).
 One-click publish response via Google Business API.
+Backend: POST /api/social/reviews/draft-reply (Claude 3 styles) + POST /api/social/reviews/:id/post-reply (GMB PUT).
+Frontend: "Draft Reply" button per review in dashboard; modal with style selector + editable textarea + "Post Reply to Google".
 
-### 4.3 30-Day Content Calendar Generator
+### 4.3 30-Day Content Calendar Generator [DONE]
 "Auto-plan my month" on Calendar.
 PostCore returns 12-15 pre-filled slots (day, time, content type, topic).
 User reviews in drag-reorderable grid -> one-click confirm -> all created as drafts.
@@ -276,13 +278,14 @@ Approval history stored on post.
 - Focus trap + aria-modal on all modals
 - Color contrast audit on textMuted tokens
 
-### 5.3 Error State Polish
-- Every API call: visible error card with retry button
-- Session expiry: toast "Your session expired. Tap to sign in." (3s delay) then redirect
+### 5.3 Error State Polish [DONE]
+- ErrorCard component in ui.js; dashboard.js + history.js upgraded
+- Session expiry: GlobalToast in _app.js listens for itsposting:session-expired (amber, 2.5s redirect)
+- Server errors: itsposting:server-error event shows red dismissable toast
 
-### 5.4 Loading State Consistency
-Standard Skeleton component for all content areas while loading.
-Metric cards: height=104, post rows: height=72, chart areas: height=280.
+### 5.4 Loading State Consistency [DONE]
+SkeletonPage component in ui.js. analytics/index.js overview + posts tabs use it.
+history.js already had proper per-row Skeleton usage.
 
 ### 5.5 Database Performance — Add missing indexes [DONE]
 CREATE INDEX IF NOT EXISTS idx_posts_customer_id ON posts(customer_id);
@@ -312,7 +315,7 @@ Already returns 200 immediately; add event logging for audit trail and replay ca
 
 ## PHASE 6: MARKETING & GROWTH (P2)
 
-### 6.3 Email Onboarding Sequence (7 emails)
+### 6.3 Email Onboarding Sequence (7 emails) [DONE]
 Day 0:  Welcome + wizard link with their industry pre-selected
 Day 1:  "Your first post is ready — here's how to schedule it"
 Day 3:  PostCore seasonal tip for their industry + current month
@@ -320,7 +323,8 @@ Day 5:  IF no post yet — "Having trouble? 2-minute walkthrough" + Loom/GIF
 Day 7:  Trial expiry warning + upgrade CTA ("Upgrade to 100/month for $40")
 Day 14: Success story from same industry
 Day 30: Monthly ROI recap (X posts, Y people reached, $Z saved vs hiring)
-Emails UI must be world-class, branded, mobile-optimized.
+OnboardingEmailService.js built. Day 0 fires on signup. Daily 9am cron for days 1-30.
+onboarding_email_log table prevents duplicate sends. Premium dark-theme HTML emails.
 
 ### 6.4 In-App Activation Checklist [DONE]
 ActivationChecklist.js on dashboard — 5-step collapsible card.

@@ -1019,6 +1019,94 @@ Reply with ONLY the caption text, nothing else.`,
     }
   });
 
+  // ── POST /api/social/reviews/draft-reply ─────────────────────────────────
+  // AI generates 3 reply styles (Empathetic / Professional / Brief) for a review.
+  router.post('/reviews/draft-reply', authenticate, async (req, res) => {
+    try {
+      const { reviewText, reviewerName, starRating } = req.body;
+      if (!reviewText && !reviewerName) return res.status(400).json({ error: 'reviewText or reviewerName required' });
+
+      const customerRes = await pool.query(
+        'SELECT business_name, industry, city FROM customers WHERE id=$1',
+        [req.customerId]
+      );
+      const c = customerRes.rows[0] || {};
+      const stars = parseInt(starRating) || 5;
+      const isBad = stars <= 2;
+      const isNeutral = stars === 3;
+
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const msg = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 600,
+        messages: [{
+          role: 'user',
+          content: `You are the owner of ${c.business_name || 'a local service business'} in ${c.city || 'our area'}.
+A customer named ${reviewerName || 'a customer'} left a ${stars}-star Google Business review:
+"${(reviewText || '').substring(0, 400)}"
+
+Write 3 different reply styles. Keep each reply under 80 words. Sound human and genuine — not corporate.
+${isBad ? 'The review is negative so acknowledge the issue, apologise sincerely, and invite them to contact you directly to resolve it. Do NOT get defensive.' : ''}
+${isNeutral ? 'The review is mixed. Thank them, acknowledge any concern, and invite them back.' : ''}
+${!isBad && !isNeutral ? 'The review is positive. Thank them warmly and mention a specific detail from their review.' : ''}
+
+Return valid JSON only, no other text:
+{
+  "empathetic": "...",
+  "professional": "...",
+  "brief": "..."
+}`,
+        }],
+      });
+
+      const raw = msg.content[0]?.text?.replace(/```json|```/g, '').trim() || '{}';
+      let replies;
+      try { replies = JSON.parse(raw); }
+      catch { replies = { empathetic: raw, professional: raw, brief: raw }; }
+
+      res.json({ replies, isBad, stars });
+    } catch (err) {
+      console.error('[social/reviews/draft-reply]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/social/reviews/:reviewId/post-reply ─────────────────────────
+  // Publish a reply to a Google Business review via GMB API.
+  router.post('/reviews/:reviewId/post-reply', authenticate, async (req, res) => {
+    try {
+      const { reviewId } = req.params;
+      const { replyText } = req.body;
+      if (!replyText?.trim()) return res.status(400).json({ error: 'replyText required' });
+
+      const accountRes = await pool.query(
+        `SELECT access_token, refresh_token, account_id FROM social_accounts
+          WHERE customer_id=$1 AND platform='google_business' AND enabled=true LIMIT 1`,
+        [req.customerId]
+      );
+      if (!accountRes.rows[0]) {
+        return res.status(400).json({ error: 'Google Business account not connected' });
+      }
+      const { access_token, account_id } = accountRes.rows[0];
+
+      // GMB API v4: PUT /accounts/{account}/locations/{location}/reviews/{review}/reply
+      const replyRes = await axios.put(
+        `https://mybusiness.googleapis.com/v4/${account_id}/reviews/${reviewId}/reply`,
+        { comment: replyText.trim().substring(0, 4096) },
+        { headers: { Authorization: `Bearer ${access_token}`, 'Content-Type': 'application/json' }, timeout: 12000 }
+      );
+
+      // Invalidate cache so next load reflects the reply
+      reviewsCache.delete(req.customerId);
+
+      res.json({ success: true, reply: replyRes.data });
+    } catch (err) {
+      console.error('[social/reviews/post-reply]', err.message);
+      const gmb = err.response?.data?.error;
+      res.status(500).json({ error: gmb?.message || err.message });
+    }
+  });
+
   // ── GET /api/social/locations/search ─────────────────────────────────────
   // Location search for tagging posts (Facebook Places API)
   router.get('/locations/search', authenticate, async (req, res) => {
