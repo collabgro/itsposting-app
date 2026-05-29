@@ -6,7 +6,7 @@ import {
   IpSparkle, IpSchedule, IpClose, IpCheck, IpLinkedIn, IpTikTok,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, Badge, EmptyState, Skeleton, useToast, ConfirmModal } from '../components/ui';
+import { Button, Badge, EmptyState, Skeleton, ErrorCard, useToast, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI, socialAPI } from '../lib/api';
 import { format } from 'date-fns';
@@ -61,6 +61,7 @@ export default function History() {
   const [contentType, setContentType] = useState('all');
   const [viewMode, setViewMode] = useState('list');   // 'list' | 'grid'
   const [selectedIds, setSelectedIds] = useState([]);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -81,13 +82,14 @@ export default function History() {
 
   const loadPosts = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const params = { limit: 100, ...(filter !== 'all' && { status: filter }), ...(search.trim() && { search: search.trim() }) };
       const res = await postsAPI.getAll(params);
       const rows = Array.isArray(res.data) ? res.data : [];
       setPosts(rows);
       setTotal(rows.length);
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+    } catch (e) { console.error(e); setLoadError(true); } finally { setLoading(false); }
   };
 
   const handleDelete = (id) => {
@@ -332,7 +334,14 @@ export default function History() {
         )}
 
         {/* ── Post list / grid ── */}
-        {loading ? (
+        {loadError ? (
+          <ErrorCard
+            title="Could not load posts"
+            message="Check your connection and try again."
+            onRetry={loadPosts}
+            style={{ marginTop: 24 }}
+          />
+        ) : loading ? (
           viewMode === 'grid' ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               {Array.from({ length: 9 }).map((_, i) => <Skeleton key={i} height={180} borderRadius={12} />)}

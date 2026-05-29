@@ -6,7 +6,7 @@ import {
   IpCalendar, IpInfo, IpCheck, IpRefresh,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Button, Badge, StatCard, SectionHeader, EmptyState, Spinner } from '../../components/ui';
+import { Button, Badge, StatCard, SectionHeader, EmptyState, Spinner, SkeletonPage, ErrorCard } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { analyticsAPI } from '../../lib/api';
 import { format, addDays } from 'date-fns';
@@ -461,9 +461,7 @@ export default function Analytics() {
         {/* ══════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (
           loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-              <Spinner size={40} />
-            </div>
+            <SkeletonPage rows={4} cards={4} />
           ) : (
             <>
               {/* ── STAT CARDS ─────────────────────────────────── */}
@@ -977,7 +975,7 @@ export default function Analytics() {
         {/* ══════════════════════════════════════════════════ */}
         {activeTab === 'posts' && (
           loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Spinner size={40} /></div>
+            <SkeletonPage rows={6} cards={2} />
           ) : (
             <div style={gc}>
               <SectionHeader

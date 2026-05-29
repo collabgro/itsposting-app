@@ -598,3 +598,62 @@ export function Spinner({ size = 40 }) {
     />
   );
 }
+
+// ─── SkeletonPage ──────────────────────────────────────────────────────────────
+// Drop in anywhere while data loads — renders a shimmer layout matching most pages.
+export function SkeletonPage({ rows = 3, cards = 3 }) {
+  const { t } = useTheme();
+  const shimmer = { background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)', animation: 'skeleton-pulse 1.8s ease-in-out infinite' };
+  return (
+    <div style={{ padding: '24px 0' }}>
+      {/* header area */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div>
+          <div style={{ ...shimmer, width: 200, height: 26, borderRadius: 8, marginBottom: 10 }} />
+          <div style={{ ...shimmer, width: 140, height: 16, borderRadius: 6 }} />
+        </div>
+        <div style={{ ...shimmer, width: 120, height: 38, borderRadius: 10 }} />
+      </div>
+      {/* stat cards row */}
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cards}, 1fr)`, gap: 16, marginBottom: 32 }}>
+        {Array.from({ length: cards }).map((_, i) => (
+          <div key={i} style={{ ...shimmer, height: 90, borderRadius: 16 }} />
+        ))}
+      </div>
+      {/* content rows */}
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} style={{ ...shimmer, height: 68, borderRadius: 14, marginBottom: 12 }} />
+      ))}
+    </div>
+  );
+}
+
+// ─── ErrorCard ─────────────────────────────────────────────────────────────────
+// Standardised error state for any section or page-level failure.
+export function ErrorCard({ title = 'Could not load data', message, onRetry, style = {} }) {
+  const { t } = useTheme();
+  return (
+    <div style={{
+      background: t.isDark ? 'rgba(255,69,58,0.07)' : 'rgba(255,69,58,0.05)',
+      border: `1px solid ${t.isDark ? 'rgba(255,69,58,0.25)' : 'rgba(255,69,58,0.2)'}`,
+      borderRadius: 16, padding: '28px 24px', textAlign: 'center',
+      ...style,
+    }}>
+      <div style={{ fontSize: 28, marginBottom: 10 }}>⚠️</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 6 }}>{title}</div>
+      {message && <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5, marginBottom: 18 }}>{message}</div>}
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          style={{
+            padding: '9px 20px', background: 'rgba(255,69,58,0.12)',
+            border: '1px solid rgba(255,69,58,0.3)', borderRadius: 8,
+            color: '#FF453A', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          Try again
+        </button>
+      )}
+    </div>
+  );
+}

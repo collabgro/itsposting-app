@@ -54,6 +54,14 @@ export default function Calendar() {
   const [draggingPost, setDraggingPost]     = useState(null);
   const [dragOverDay, setDragOverDay]       = useState(null);
 
+  // Auto-plan my month state
+  const [planMonthModal, setPlanMonthModal]     = useState(false);
+  const [planMonthLoading, setPlanMonthLoading] = useState(false);
+  const [planMonthSlots, setPlanMonthSlots]     = useState([]);
+  const [planMonthName, setPlanMonthName]       = useState('');
+  const [planMonthSaving, setPlanMonthSaving]   = useState(false);
+  const [planMonthSaved, setPlanMonthSaved]     = useState(0);
+
   // Bulk scheduling state
   const [bulkMode, setBulkMode]           = useState(false);
   const [bulkDays, setBulkDays]           = useState([]);
@@ -160,6 +168,51 @@ export default function Calendar() {
   const handleAddOnDay = () => {
     const dateStr = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : '';
     router.push(dateStr ? `/upload?scheduleDate=${dateStr}` : '/upload');
+  };
+
+  const handlePlanMonth = async () => {
+    setPlanMonthLoading(true);
+    setPlanMonthSlots([]);
+    setPlanMonthSaved(0);
+    try {
+      const month = currentMonth.getMonth() + 1;
+      const year  = currentMonth.getFullYear();
+      const res = await wizardAPI.planMonth({ month, year });
+      setPlanMonthSlots(res.data.slots || []);
+      setPlanMonthName(res.data.monthName || '');
+      setPlanMonthModal(true);
+    } catch (err) {
+      showCalToast(err?.response?.data?.error || 'Failed to generate plan', 'error');
+    } finally {
+      setPlanMonthLoading(false);
+    }
+  };
+
+  const handleConfirmPlan = async () => {
+    if (!planMonthSlots.length) return;
+    setPlanMonthSaving(true);
+    let saved = 0;
+    for (const slot of planMonthSlots) {
+      try {
+        const platforms = slot.platform === 'all' ? ['facebook','instagram','google_business'] : [slot.platform];
+        await postsAPI.create({
+          caption: slot.captionPreview,
+          content_type: slot.contentType,
+          status: 'draft',
+          scheduled_date: `${slot.date}T09:00:00`,
+          platforms,
+          source: 'ai_generated',
+          notes: slot.topic,
+        });
+        saved++;
+        setPlanMonthSaved(saved);
+      } catch { /* skip failed drafts */ }
+    }
+    await loadPosts();
+    setPlanMonthModal(false);
+    setPlanMonthSlots([]);
+    showCalToast(`${saved} draft posts added to your calendar!`, 'success');
+    setPlanMonthSaving(false);
   };
 
   const [deletingPost, setDeletingPost]     = useState(null);
@@ -348,10 +401,13 @@ export default function Calendar() {
         subtitle="Schedule and manage your posts"
         action={
           <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="secondary" onClick={handlePlanMonth} disabled={planMonthLoading} style={{ background: 'rgba(124,92,252,0.08)', borderColor: 'rgba(124,92,252,0.3)' }}>
+              <IpSparkle size={13} color="url(#brand-gradient)" /> {planMonthLoading ? 'Planning...' : 'Auto-plan month'}
+            </Button>
             <Button variant="secondary" onClick={() => { setBulkMode(m => !m); setBulkDays([]); setBulkPreview(null); }} style={{ background: bulkMode ? 'rgba(124,92,252,0.15)' : undefined, borderColor: bulkMode ? 'rgba(124,92,252,0.5)' : undefined }}>
               <CalendarIcon size={13} /> Plan my week
             </Button>
-            <Button variant="secondary" onClick={() => router.push('/wizard')}><IpSparkle size={13} color="url(#brand-gradient)" /> Post Wizard</Button>
+            <Button variant="secondary" onClick={() => router.push('/wizard')}><IpSparkle size={13} /> Post Wizard</Button>
             <Button variant="primary"   onClick={() => router.push('/upload')}><IpPlus size={14} strokeWidth={2.5} /> Upload</Button>
           </div>
         }
@@ -1057,6 +1113,100 @@ export default function Calendar() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Auto-plan my month modal ── */}
+      {planMonthModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={e => { if (e.target === e.currentTarget && !planMonthSaving) setPlanMonthModal(false); }}
+        >
+          <div style={{ background: t.isDark ? 'rgba(15,15,24,0.98)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 18, width: '100%', maxWidth: 720, maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 80px rgba(0,0,0,0.5)' }}>
+            {/* Modal header */}
+            <div style={{ padding: '20px 24px 16px', borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                    <IpSparkle size={18} color="url(#brand-gradient)" />
+                    <span style={{ fontSize: 17, fontWeight: 800, color: t.text }}>PostCore planned {planMonthName} for you</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 13, color: t.textMuted }}>{planMonthSlots.length} posts · 70% educational, 20% social proof, 10% promotional</p>
+                </div>
+                {!planMonthSaving && (
+                  <button onClick={() => setPlanMonthModal(false)} style={{ padding: 8, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, cursor: 'pointer', color: t.textMuted }}>
+                    <IpClose size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Slot list */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 24px' }}>
+              {planMonthSlots.map((slot, i) => {
+                const CATEGORY_COLORS = { educational: '#60A5FA', social_proof: '#A78BFA', promotional: '#FB923C' };
+                const TYPE_COLORS = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6' };
+                const catColor = CATEGORY_COLORS[slot.category] || t.primary;
+                return (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '72px 1fr', gap: 14, padding: '12px 0', borderBottom: `1px solid ${t.border}`, alignItems: 'flex-start' }}>
+                    {/* Date */}
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        {new Date(slot.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: t.text, lineHeight: 1.1 }}>
+                        {new Date(slot.date + 'T12:00:00').getDate()}
+                      </div>
+                      <div style={{ fontSize: 10, color: t.textMuted }}>
+                        {new Date(slot.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short' })}
+                      </div>
+                    </div>
+                    {/* Content */}
+                    <div>
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: `${catColor}18`, color: catColor }}>
+                          {slot.category === 'social_proof' ? 'Social proof' : slot.category.charAt(0).toUpperCase() + slot.category.slice(1)}
+                        </span>
+                        <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: `${TYPE_COLORS[slot.contentType] || t.primary}15`, color: TYPE_COLORS[slot.contentType] || t.primary }}>
+                          {slot.contentType === 'static' ? 'Text card' : slot.contentType.charAt(0).toUpperCase() + slot.contentType.slice(1)}
+                        </span>
+                        <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 600, background: t.input, color: t.textMuted }}>
+                          {slot.platform === 'all' ? 'All platforms' : slot.platform.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{slot.topic}</div>
+                      <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.6 }}>{slot.captionPreview}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer actions */}
+            <div style={{ padding: '16px 24px', borderTop: `1px solid ${t.border}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <p style={{ margin: 0, fontSize: 12, color: t.textMuted }}>
+                {planMonthSaving
+                  ? `Saving drafts… ${planMonthSaved}/${planMonthSlots.length}`
+                  : 'All posts will be saved as drafts. You can edit any post before publishing.'
+                }
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {!planMonthSaving && (
+                  <button onClick={() => setPlanMonthModal(false)} style={{ padding: '10px 20px', borderRadius: 9, background: t.input, border: `1px solid ${t.border}`, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={handleConfirmPlan}
+                  disabled={planMonthSaving}
+                  style={{ padding: '10px 24px', borderRadius: 9, background: 'linear-gradient(135deg,#7C5CFC,#5B3FF0)', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, cursor: planMonthSaving ? 'default' : 'pointer', opacity: planMonthSaving ? 0.75 : 1, display: 'flex', alignItems: 'center', gap: 7 }}
+                >
+                  <IpCheck size={14} />
+                  {planMonthSaving ? `Saving ${planMonthSaved}/${planMonthSlots.length}…` : `Add ${planMonthSlots.length} drafts to calendar`}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

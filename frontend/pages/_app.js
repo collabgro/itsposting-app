@@ -66,6 +66,63 @@ function ThemeBody({ children }) {
   return children;
 }
 
+function GlobalToast() {
+  const { t } = useTheme();
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    const onExpired = () => {
+      setToast({ msg: 'Your session expired. Signing you back in…', type: 'warning' });
+    };
+    const onError = (e) => {
+      setToast({ msg: e.detail?.message || 'Something went wrong. Please try again.', type: 'error' });
+      setTimeout(() => setToast(null), 5000);
+    };
+    window.addEventListener('itsposting:session-expired', onExpired);
+    window.addEventListener('itsposting:server-error', onError);
+    return () => {
+      window.removeEventListener('itsposting:session-expired', onExpired);
+      window.removeEventListener('itsposting:server-error', onError);
+    };
+  }, []);
+
+  if (!toast) return null;
+
+  const colors = {
+    warning: { bg: 'rgba(255,159,10,0.12)', border: 'rgba(255,159,10,0.35)', icon: '#FF9F0A', dot: '#FF9F0A' },
+    error:   { bg: 'rgba(255,69,58,0.12)',  border: 'rgba(255,69,58,0.35)',  icon: '#FF453A', dot: '#FF453A' },
+  };
+  const c = colors[toast.type] || colors.error;
+
+  return (
+    <div style={{
+      position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 99999, maxWidth: 440, width: 'calc(100vw - 32px)',
+      background: c.bg, border: `1px solid ${c.border}`,
+      backdropFilter: 'blur(20px) saturate(160%)',
+      borderRadius: 12, padding: '13px 16px',
+      display: 'flex', alignItems: 'center', gap: 12,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      animation: 'slideDownIn 250ms cubic-bezier(0.16,1,0.3,1)',
+    }}>
+      <div style={{
+        width: 8, height: 8, borderRadius: '50%',
+        background: c.dot, flexShrink: 0,
+        boxShadow: `0 0 8px ${c.dot}`,
+      }} />
+      <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: t.text, lineHeight: 1.4 }}>
+        {toast.msg}
+      </div>
+      {toast.type !== 'warning' && (
+        <button
+          onClick={() => setToast(null)}
+          style={{ background: 'none', border: 'none', color: t.textMuted, fontSize: 16, cursor: 'pointer', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
+        >×</button>
+      )}
+    </div>
+  );
+}
+
 function InstallBanner() {
   const { t }  = useTheme();
   const [prompt,  setPrompt]  = useState(null);
@@ -223,6 +280,7 @@ export default function App({ Component, pageProps }) {
           </defs>
         </svg>
         <ToastProvider>
+          <GlobalToast />
           <ErrorBoundary>
             <Component {...pageProps} />
           </ErrorBoundary>

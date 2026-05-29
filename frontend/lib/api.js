@@ -17,16 +17,26 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      if (window.location.pathname !== '/login') window.location.href = '/login';
-    }
-    if (error.response?.status === 429) {
-      // Attach a readable message so page-level error states show something useful
-      const retryAfter = error.response.headers?.['retry-after'];
-      error.message = retryAfter
-        ? `Too many requests — please wait ${retryAfter} seconds and try again.`
-        : 'Too many requests — please wait a moment and try again.';
+    if (typeof window !== 'undefined') {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        if (window.location.pathname !== '/login') {
+          // Dispatch a custom event so _app.js can show a session-expired toast before redirecting
+          window.dispatchEvent(new CustomEvent('itsposting:session-expired'));
+          setTimeout(() => { window.location.href = '/login'; }, 2500);
+        }
+      }
+      if (error.response?.status === 429) {
+        const retryAfter = error.response.headers?.['retry-after'];
+        error.message = retryAfter
+          ? `Too many requests — please wait ${retryAfter} seconds and try again.`
+          : 'Too many requests — please wait a moment and try again.';
+      }
+      if (error.response?.status >= 500) {
+        window.dispatchEvent(new CustomEvent('itsposting:server-error', {
+          detail: { message: error.response?.data?.error || 'Something went wrong on our end. Please try again.' },
+        }));
+      }
     }
     return Promise.reject(error);
   }
@@ -129,6 +139,7 @@ export const wizardAPI = {
   bulkGenerate: (data) => api.post('/api/wizard/bulk-generate', data),
   bulkConfirm: (data) => api.post('/api/wizard/bulk-confirm', data),
   getStreamTicket: (postId) => api.post('/api/wizard/stream-ticket', { postId }),
+  planMonth: (data) => api.post('/api/wizard/plan-month', data),
 };
 
 export const uploadAPI = {

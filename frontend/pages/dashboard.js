@@ -9,7 +9,7 @@ import {
   IpClose, IpInfo, IpCheck, IpCheckCircle, IpSettings,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, SectionHeader, EmptyState, Spinner, Skeleton } from '../components/ui';
+import { Button, SectionHeader, EmptyState, Spinner, Skeleton, ErrorCard } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, socialAPI } from '../lib/api';
 import { format } from 'date-fns';
@@ -200,13 +200,13 @@ export default function Dashboard() {
 
   if (loadError) {
     return (
-      <Layout>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 16, padding: 40 }}>
-          <div style={{ fontSize: 15, color: t.error }}>Failed to load dashboard data.</div>
-          <button onClick={loadDashboard} style={{ padding: '8px 20px', borderRadius: 10, border: 'none', background: t.primary, color: '#fff', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
-            Retry
-          </button>
-        </div>
+      <Layout title="Dashboard">
+        <ErrorCard
+          title="Could not load your dashboard"
+          message="Check your connection and try again. Your posts and data are safe."
+          onRetry={loadDashboard}
+          style={{ marginTop: 40, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}
+        />
       </Layout>
     );
   }

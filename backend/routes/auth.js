@@ -3,10 +3,12 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { generateToken, authenticate, invalidatePwCache } = require('../middleware/auth');
 const EmailQueue = require('../services/EmailQueue');
+const OnboardingEmailService = require('../services/OnboardingEmailService');
 
 module.exports = (pool) => {
   const router = express.Router();
   const emailQueue = new EmailQueue(pool);
+  const onboardingEmail = new OnboardingEmailService(pool);
 
   /**
    * POST /api/auth/register
@@ -84,8 +86,8 @@ module.exports = (pool) => {
         [clientIp, customer.id]
       ).catch(err => console.warn('[Auth] Could not record trial IP:', err.message));
 
-      // Queue welcome email (non-blocking)
-      emailQueue.notifyWelcome({ email: customer.email, business_name: customer.business_name, credits_balance: 10 });
+      // Send Day 0 onboarding email (non-blocking) — replaces generic welcome
+      onboardingEmail.sendDay0({ id: customer.id, email: customer.email, business_name: customer.business_name, industry: industry || 'general_contractor', credits_balance: 10 }).catch(() => {});
 
       res.json({ customer, token });
     } catch (error) {

@@ -614,6 +614,16 @@ console.log('══════════════════════�
     // Phase 2.9 — Smart scheduling (optimal times stored per customer)
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS optimal_posting_times JSONB DEFAULT NULL`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS optimal_times_updated_at TIMESTAMP`,
+
+    // Phase 6.3 — Email onboarding sequence
+    `CREATE TABLE IF NOT EXISTS onboarding_email_log (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      day_number INTEGER NOT NULL,
+      sent_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE (customer_id, day_number)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_onboarding_email_log_customer ON onboarding_email_log(customer_id)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -2844,6 +2854,16 @@ async function purgeExpiredResetTokens() {
 }
 purgeExpiredResetTokens();
 cron.schedule('0 3 * * *', purgeExpiredResetTokens);
+
+// Onboarding email sequence — runs daily at 9am UTC
+const OnboardingEmailService = require('./services/OnboardingEmailService');
+const onboardingEmailService = new OnboardingEmailService(pool);
+cron.schedule('0 9 * * *', async () => {
+  console.log('[Onboarding] Daily email sequence run starting...');
+  try { await onboardingEmailService.runDailySequence(); }
+  catch (e) { console.error('[Onboarding] Daily sequence error:', e.message); }
+});
+console.log('📧 Onboarding email sequence cron scheduled (daily 9am UTC)');
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`

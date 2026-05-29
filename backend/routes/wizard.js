@@ -1823,5 +1823,108 @@ One entry per post, in the same order as the dates listed.`;
     });
   });
 
+  /* ─────────────────────────────────────────────────────────
+   * POST /api/wizard/plan-month
+   * Generate a 30-day content plan for the current (or specified) month.
+   * Returns 12-15 post slots with date, type, topic, tone, platform, and a caption preview.
+   * Posts are NOT created — the frontend confirms before any drafts are saved.
+   * ───────────────────────────────────────────────────────── */
+  router.post('/plan-month', authenticate, requireActiveAccount, async (req, res) => {
+    try {
+      const { month, year } = req.body;
+      const now = new Date();
+      const targetMonth = (parseInt(month) || (now.getMonth() + 1));
+      const targetYear  = (parseInt(year)  || now.getFullYear());
+
+      const customerRes = await pool.query(
+        `SELECT id, business_name, industry, location, tone, credits_balance,
+                past_post_examples, content_preferences
+         FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+      if (!customerRes.rows.length) return res.status(404).json({ error: 'Customer not found' });
+      const customer = customerRes.rows[0];
+
+      const industryKnowledge = require('../data/industryKnowledge');
+      const knowledge = industryKnowledge[customer.industry] || industryKnowledge.general_contractor;
+      const seasonal  = knowledge.seasonalContent[targetMonth] || {};
+      const MONTH_NAMES = ['January','February','March','April','May','June',
+        'July','August','September','October','November','December'];
+
+      const systemPrompt = `You are PostCore, ItsPosting's AI content strategist for local service businesses.
+Generate a 30-day content calendar for ${customer.business_name || 'this business'}, a ${customer.industry || 'general contractor'} business in ${customer.location || 'their area'}.
+
+Month: ${MONTH_NAMES[targetMonth - 1]} ${targetYear}
+Seasonal urgency topic: ${seasonal.urgencyTopic || 'Seasonal service reminder'}
+Seasonal tip topic: ${seasonal.tipTopic || 'Practical tips for homeowners'}
+Seasonal promotion angle: ${seasonal.promotionAngle || 'Monthly service special'}
+
+CONTENT MIX RULE (non-negotiable 70/20/10):
+- 70% educational / value-giving (tips, how-tos, FAQs, explainers)
+- 20% social proof (before/after, testimonials, job showcases)
+- 10% promotional (offers, specials, CTAs)
+
+POSTING FREQUENCY: 3 posts per week = 12-13 posts for the month.
+Space them out: roughly Mon, Wed, Fri pattern. Mix up the platforms.
+
+Return a JSON array of exactly 13 post slots. Each slot:
+{
+  "dayOfMonth": <number 1-28>,
+  "contentType": "static" | "photo" | "carousel",
+  "category": "educational" | "social_proof" | "promotional",
+  "topic": "<specific topic in plain English — 6-10 words>",
+  "tone": "friendly" | "professional" | "educational" | "urgent",
+  "platform": "facebook" | "instagram" | "google_business" | "all",
+  "captionPreview": "<first 2 sentences of the caption — engaging, specific to their industry and location>"
+}
+
+Rules:
+- captionPreview must feel like it was written by a real tradesperson, not a marketer
+- Topics must be specific to ${customer.industry} in ${MONTH_NAMES[targetMonth - 1]}
+- At least 2 slots should reference the seasonal urgency topic
+- No two consecutive posts should be the same contentType
+- Distribute across platforms (not all Facebook)
+- Return ONLY the JSON array, no markdown fences, no extra text`;
+
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const message = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: 'Generate the 30-day content calendar as specified.' }],
+        system: systemPrompt,
+      });
+
+      let rawText = message.content[0]?.text || '[]';
+      rawText = rawText.replace(/```json|```/g, '').trim();
+
+      let slots;
+      try {
+        slots = JSON.parse(rawText);
+        if (!Array.isArray(slots)) throw new Error('Not an array');
+      } catch {
+        return res.status(500).json({ error: 'Failed to parse content plan from AI' });
+      }
+
+      // Attach full dates and sanitise
+      const result = slots.map(slot => {
+        const d = new Date(targetYear, targetMonth - 1, Math.min(parseInt(slot.dayOfMonth) || 1, 28));
+        return {
+          date: d.toISOString().slice(0, 10),
+          contentType: ['static','photo','carousel'].includes(slot.contentType) ? slot.contentType : 'static',
+          category: ['educational','social_proof','promotional'].includes(slot.category) ? slot.category : 'educational',
+          topic: String(slot.topic || '').substring(0, 80),
+          tone: ['friendly','professional','educational','urgent'].includes(slot.tone) ? slot.tone : 'friendly',
+          platform: ['facebook','instagram','google_business','all'].includes(slot.platform) ? slot.platform : 'all',
+          captionPreview: String(slot.captionPreview || '').substring(0, 300),
+        };
+      }).sort((a, b) => a.date.localeCompare(b.date));
+
+      res.json({ slots: result, month: targetMonth, year: targetYear, monthName: MONTH_NAMES[targetMonth - 1] });
+    } catch (err) {
+      console.error('[Wizard] plan-month error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };
