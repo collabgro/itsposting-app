@@ -9,14 +9,10 @@ const SIZES = {
   '3xl': { box: 124, font: 64, gap: 26 },
 };
 
-// iOS-style corner radius — ~26% of 100×100 viewBox
 const CORNER = 26;
 
-// 4-pointed spark star (✦) centered at (50,50)
-// Outer tips at cardinal points (r=43), inner bends at diagonals (r=11)
-// Outer: top(50,7) right(93,50) bottom(50,93) left(7,50)
-// Inner: TR(58,42) BR(58,58) BL(42,58) TL(42,42)
-const SPARK = 'M 50,7 L 58,42 L 93,50 L 58,58 L 50,93 L 42,58 L 7,50 L 42,42 Z';
+// Lightning bolt centered in 100×100 viewBox
+const BOLT = 'M 60,8 L 34,54 L 53,54 L 40,92 L 66,46 L 48,46 Z';
 
 function IconMark({ size, gradId, noShadow = false }) {
   return (
@@ -32,65 +28,53 @@ function IconMark({ size, gradId, noShadow = false }) {
         filter: noShadow
           ? undefined
           : [
-              'drop-shadow(0 6px 22px rgba(109,40,217,0.62))',
-              'drop-shadow(0 2px 8px rgba(124,92,252,0.42))',
+              'drop-shadow(0 6px 22px rgba(168,85,247,0.62))',
+              'drop-shadow(0 2px 8px rgba(236,72,153,0.38))',
               'drop-shadow(0 1px 2px rgba(0,0,0,0.30))',
             ].join(' '),
       }}
     >
       <defs>
-        {/* Main face: deep violet → brand purple → light lavender — 135° diagonal */}
-        <linearGradient id={`${gradId}_face`} x1="100%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%"   stopColor="#3B0D75" />
-          <stop offset="28%"  stopColor="#6D28D9" />
-          <stop offset="64%"  stopColor="#7C5CFC" />
-          <stop offset="100%" stopColor="#A78BFA" />
+        {/* Purple → pink gradient, 135° diagonal */}
+        <linearGradient id={`${gradId}_face`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stopColor="#A855F7" />
+          <stop offset="50%"  stopColor="#C026D3" />
+          <stop offset="100%" stopColor="#EC4899" />
         </linearGradient>
 
-        {/* Inner ambient glow — subtle radial highlight from center */}
-        <radialGradient id={`${gradId}_glow`} cx="40%" cy="30%" r="65%">
-          <stop offset="0%"   stopColor="rgba(196,181,253,0.30)" />
-          <stop offset="100%" stopColor="rgba(109,40,217,0)" />
+        {/* Inner ambient highlight */}
+        <radialGradient id={`${gradId}_glow`} cx="35%" cy="28%" r="60%">
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.22)" />
+          <stop offset="100%" stopColor="rgba(168,85,247,0)" />
         </radialGradient>
 
-        {/* Top-edge gloss shimmer */}
+        {/* Top-edge gloss */}
         <linearGradient id={`${gradId}_shine`} x1="50%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%"   stopColor="rgba(255,255,255,0.20)" />
-          <stop offset="38%"  stopColor="rgba(255,255,255,0.04)" />
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.18)" />
+          <stop offset="40%"  stopColor="rgba(255,255,255,0.03)" />
           <stop offset="100%" stopColor="rgba(255,255,255,0)" />
         </linearGradient>
 
-        {/* Spark mark gradient — white centre, slightly warm at tips */}
-        <radialGradient id={`${gradId}_spark`} cx="50%" cy="50%" r="50%">
-          <stop offset="0%"   stopColor="#FFFFFF" />
-          <stop offset="100%" stopColor="rgba(233,213,255,0.92)" />
-        </radialGradient>
-
-        {/* Clip to rounded-square */}
         <clipPath id={`${gradId}_clip`}>
           <rect x="0" y="0" width="100" height="100" rx={CORNER} ry={CORNER} />
         </clipPath>
       </defs>
 
-      {/* ── Base rounded-square ── */}
+      {/* Base */}
       <rect x="0" y="0" width="100" height="100" rx={CORNER} ry={CORNER}
         fill={`url(#${gradId}_face)`} />
 
-      {/* ── Ambient inner glow ── */}
+      {/* Ambient glow */}
       <rect x="0" y="0" width="100" height="100" rx={CORNER} ry={CORNER}
         fill={`url(#${gradId}_glow)`} />
 
-      {/* ── Top-edge gloss highlight ── */}
+      {/* Gloss highlight */}
       <rect x="0" y="0" width="100" height="100" rx={CORNER} ry={CORNER}
         fill={`url(#${gradId}_shine)`} />
 
-      {/* ── Spark mark (clipped to rounded square) ── */}
+      {/* Lightning bolt */}
       <g clipPath={`url(#${gradId}_clip)`}>
-        {/* 4-pointed star */}
-        <path d={SPARK} fill={`url(#${gradId}_spark)`} />
-        {/* Centre dot — anchors the mark, represents the "post" pulse */}
-        <circle cx="50" cy="50" r="6.5"
-          fill="white" opacity="0.92" />
+        <path d={BOLT} fill="white" opacity="0.95" />
       </g>
     </svg>
   );
@@ -110,7 +94,6 @@ export function ItsPostingLogo({
   const { box, font, gap } = dims;
   const gradId = `ipLogo_${size}_${variant}`;
 
-  // Wordmark text style — gradient shimmer on dark, solid on light
   const wordmarkStyle = {
     fontWeight: 800,
     fontSize: font,
@@ -121,7 +104,6 @@ export function ItsPostingLogo({
       '-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"',
       '"Segoe UI"', 'system-ui', 'sans-serif',
     ].join(', '),
-    // Gradient text on dark theme; solid on light
     ...(theme === 'dark'
       ? {
           background: 'linear-gradient(135deg, #E9D5FF 0%, #FFFFFF 45%, #C4B5FD 100%)',
@@ -134,15 +116,12 @@ export function ItsPostingLogo({
 
   const iconEl = <IconMark size={box} gradId={gradId} noShadow={noShadow} />;
 
-  // ── icon-only ──
   if (variant === 'icon') return iconEl;
 
-  // ── wordmark-only ──
   if (variant === 'wordmark-only') {
     return <span style={wordmarkStyle}>ItsPosting</span>;
   }
 
-  // ── monochrome ──
   if (variant === 'monochrome') {
     const mc   = theme === 'light' ? '#111827' : '#FFFFFF';
     const bolt = theme === 'light' ? '#FFFFFF'  : '#000000';
@@ -156,9 +135,7 @@ export function ItsPostingLogo({
           style={{ flexShrink: 0, display: 'block' }}
         >
           <rect x="0" y="0" width="100" height="100" rx={CORNER} ry={CORNER} fill={mc} />
-          <path d={SPARK} fill={bolt} />
-          <circle cx="50" cy="50" r="6.5"
-            fill={bolt} opacity="0.8" />
+          <path d={BOLT} fill={bolt} opacity="0.95" />
         </svg>
         <span style={{
           ...wordmarkStyle,
@@ -174,7 +151,6 @@ export function ItsPostingLogo({
     );
   }
 
-  // ── full (default) — icon + wordmark ──
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap }}>
       {iconEl}
