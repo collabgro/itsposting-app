@@ -247,10 +247,10 @@ module.exports = (pool) => {
       const { picture } = profileRes.data;
       const profileImageUrl = picture?.data?.url || null;
 
-      // Step 1: Fetch pages
+      // Step 1: Fetch pages (include picture field to avoid extra per-page calls)
       const pagesRes = await axios.get('https://graph.facebook.com/v21.0/me/accounts', {
         params: {
-          fields: 'id,name,access_token',
+          fields: 'id,name,access_token,picture',
           access_token: longAccessToken,
           limit: 100,
         },
@@ -310,6 +310,18 @@ module.exports = (pool) => {
 
       // Step 2: Store all Facebook Pages first
       for (const page of pages) {
+        // Use the page's own profile picture, not the user's personal photo
+        let pageImageUrl = page.picture?.data?.url || null;
+        if (!pageImageUrl) {
+          // Fallback: fetch page picture directly if not included in accounts response
+          try {
+            const picRes = await axios.get(`https://graph.facebook.com/v21.0/${page.id}/picture`, {
+              params: { type: 'large', redirect: 'false', access_token: page.access_token },
+            });
+            pageImageUrl = picRes.data?.data?.url || null;
+          } catch { /* leave null */ }
+        }
+
         await pool.query(
           `INSERT INTO social_accounts
              (customer_id, platform, access_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
@@ -318,8 +330,9 @@ module.exports = (pool) => {
              access_token = EXCLUDED.access_token,
              token_expires_at = EXCLUDED.token_expires_at,
              account_name = EXCLUDED.account_name,
+             profile_image_url = EXCLUDED.profile_image_url,
              updated_at = NOW()`,
-          [customerId, page.access_token, expiresAt, page.id, page.name, profileImageUrl]
+          [customerId, page.access_token, expiresAt, page.id, page.name, pageImageUrl]
         );
       }
 
@@ -814,14 +827,27 @@ module.exports = (pool) => {
       const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000);
 
       const resolvedAccountId = pageId?.trim() || `manual_${Date.now()}`;
+
+      // For Facebook manual connect with a page ID, fetch the page's own profile picture
+      let manualProfileImageUrl = null;
+      if (platform === 'facebook' && pageId?.trim()) {
+        try {
+          const picRes = await axios.get(`https://graph.facebook.com/v21.0/${pageId.trim()}/picture`, {
+            params: { type: 'large', redirect: 'false', access_token: accessToken.trim() },
+          });
+          manualProfileImageUrl = picRes.data?.data?.url || null;
+        } catch { /* leave null */ }
+      }
+
       await pool.query(
         `INSERT INTO social_accounts
-           (customer_id, platform, access_token, token_expires_at, account_id, account_name, enabled, auto_post)
-         VALUES ($1, $2, $3, $4, $5, $6, true, true)
+           (customer_id, platform, access_token, token_expires_at, account_id, account_name, profile_image_url, enabled, auto_post)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, true, true)
          ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
            access_token = EXCLUDED.access_token,
            token_expires_at = EXCLUDED.token_expires_at,
            account_name = EXCLUDED.account_name,
+           profile_image_url = EXCLUDED.profile_image_url,
            updated_at = NOW()`,
         [
           req.customerId,
@@ -830,6 +856,7 @@ module.exports = (pool) => {
           expiresAt,
           resolvedAccountId,
           accountName?.trim() || platform,
+          manualProfileImageUrl,
         ]
       );
 

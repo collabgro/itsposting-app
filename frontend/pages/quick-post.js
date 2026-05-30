@@ -113,15 +113,25 @@ const PLAT_META = {
 
 // ─── Publish modal ─────────────────────────────────────────────────────────────
 function PublishModal({ accounts, selectedPlatforms, onConfirm, onClose, posting, t, dark }) {
-  // Only show platforms user selected AND that have connected accounts
-  const relevant = accounts.filter(a => selectedPlatforms.includes(a.platform));
+  // Active platforms starts with what the user selected, but can be expanded in-modal
+  const [activePlatforms, setActivePlatforms] = useState(() => {
+    // Only include platforms that actually have connected accounts
+    return selectedPlatforms.filter(pid => accounts.some(a => a.platform === pid));
+  });
 
-  // Group by platform, preserving selectedPlatforms order
+  const relevant = accounts.filter(a => activePlatforms.includes(a.platform));
+
+  // Group by platform
   const groups = {};
-  selectedPlatforms.forEach(pid => {
+  activePlatforms.forEach(pid => {
     const platAccts = relevant.filter(a => a.platform === pid);
     if (platAccts.length > 0) groups[pid] = platAccts;
   });
+
+  // Platforms that are connected but NOT yet in the active list (user can add them)
+  const addablePlatforms = Object.keys(PLAT_META).filter(pid =>
+    !activePlatforms.includes(pid) && accounts.some(a => a.platform === pid)
+  );
 
   const [selectedIds, setSelectedIds] = useState(() => relevant.map(a => a.id));
 
@@ -133,6 +143,12 @@ function PublishModal({ accounts, selectedPlatforms, onConfirm, onClose, posting
     const ids = platAccts.map(a => a.id);
     const allSel = ids.every(id => selectedIds.includes(id));
     setSelectedIds(prev => allSel ? prev.filter(id => !ids.includes(id)) : [...new Set([...prev, ...ids])]);
+  };
+
+  const addPlatform = (pid) => {
+    const newAccts = accounts.filter(a => a.platform === pid);
+    setActivePlatforms(prev => [...prev, pid]);
+    setSelectedIds(prev => [...new Set([...prev, ...newAccts.map(a => a.id)])]);
   };
 
   const count = selectedIds.length;
@@ -220,8 +236,14 @@ function PublishModal({ accounts, selectedPlatforms, onConfirm, onClose, posting
               <div key={platId}>
                 {/* Platform header row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <PIcon size={15} style={{ color: meta.color }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      width: 30, height: 30, borderRadius: 9, flexShrink: 0,
+                      background: `${meta.color}18`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <PIcon size={17} style={{ color: meta.color }} />
+                    </div>
                     <span style={{ fontSize: 11.5, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                       {meta.label}
                     </span>
@@ -336,6 +358,63 @@ function PublishModal({ accounts, selectedPlatforms, onConfirm, onClose, posting
               </div>
             );
           })}
+
+          {/* Also post to — connected platforms not yet selected */}
+          {addablePlatforms.length > 0 && (
+            <div style={{ paddingTop: 4 }}>
+              <div style={{
+                fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase',
+                letterSpacing: '0.07em', marginBottom: 9,
+              }}>
+                Also post to
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {addablePlatforms.map(pid => {
+                  const meta = PLAT_META[pid];
+                  if (!meta) return null;
+                  const AIcon = meta.Icon;
+                  const acctCount = accounts.filter(a => a.platform === pid).length;
+                  return (
+                    <button
+                      key={pid}
+                      onClick={() => addPlatform(pid)}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 7,
+                        padding: '8px 13px',
+                        background: dark ? 'rgba(255,255,255,0.04)' : '#F5F5FA',
+                        border: `1.5px dashed ${dark ? 'rgba(255,255,255,0.14)' : '#D8D8E8'}`,
+                        borderRadius: 10, cursor: 'pointer',
+                        transition: 'all 150ms ease',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = `${meta.color}14`;
+                        e.currentTarget.style.borderColor = `${meta.color}60`;
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.04)' : '#F5F5FA';
+                        e.currentTarget.style.borderColor = dark ? 'rgba(255,255,255,0.14)' : '#D8D8E8';
+                      }}
+                    >
+                      <div style={{
+                        width: 24, height: 24, borderRadius: 7,
+                        background: `${meta.color}18`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <AIcon size={13} style={{ color: meta.color }} />
+                      </div>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: t.text, letterSpacing: '-0.01em' }}>
+                        {meta.label}
+                      </span>
+                      <span style={{ fontSize: 11, color: t.textMuted }}>
+                        {acctCount > 1 ? `${acctCount} accounts` : ''}
+                      </span>
+                      <span style={{ fontSize: 13, color: meta.color, fontWeight: 700 }}>+</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -510,12 +589,13 @@ export default function QuickPost() {
     const wizardResult = {
       variations: {
         a: {
-          caption: result?.caption || '',
-          hashtags: result?.hashtags || [],
-          imagePrompt: result?.imagePrompt || '',
-          engagementQuestion: result?.engagementQuestion || '',
+          caption: getCaption(),
+          hashtags: getHashtags(),
+          imagePrompt: result?.variations?.[activeVar]?.imagePrompt || result?.imagePrompt || '',
+          engagementQuestion: getEngQ() || '',
         },
       },
+      mediaUrl: result?.mediaUrl || null,
       fromQuickPost: true,
     };
     sessionStorage.setItem('quickPostResult', JSON.stringify({ result: wizardResult, platforms: selectedPlats, tone, prompt: JOB_TYPES.find(j => j.id === jobType)?.prompt || '', timestamp: Date.now() }));
@@ -699,7 +779,7 @@ export default function QuickPost() {
               Platforms
             </div>
             <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 500 }}>
-              {selectedPlats.length === PLATFORMS.length ? 'All platforms' : `${selectedPlats.length} of ${PLATFORMS.length} selected`}
+              {selectedPlats.length === PLATFORMS.length ? 'All platforms selected' : `${selectedPlats.length} of ${PLATFORMS.length} selected`}
             </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(6, 1fr)', gap: isMobile ? 8 : 16 }}>
@@ -894,7 +974,7 @@ export default function QuickPost() {
 
         {/* ── Result card ────────────────────────────────────────────── */}
         {result && !generating && (
-          <div style={{ background: dark ? 'rgba(15,15,24,0.82)' : t.card, backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', border: `1px solid ${dark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 20, overflow: 'hidden', boxShadow: `${t.shadowLg}, inset 0 1px 0 rgba(255,255,255,0.06)`, animation: 'fadeIn 300ms cubic-bezier(0.16,1,0.3,1)' }}>
+          <div style={{ background: dark ? 'rgba(15,15,24,0.82)' : t.card, backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', border: `1px solid ${dark ? 'rgba(255,255,255,0.09)' : t.border}`, borderRadius: 20, overflow: 'hidden', boxShadow: `${t.shadowLg}, inset 0 1px 0 rgba(255,255,255,0.06)`, animation: 'qp-fade-in 300ms cubic-bezier(0.16,1,0.3,1)' }}>
 
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : t.border}`, background: dark ? 'rgba(124,92,252,0.13)' : 'rgba(124,92,252,0.07)' }}>
@@ -1002,7 +1082,7 @@ export default function QuickPost() {
             {/* Hashtags */}
             {getHashtags().length > 0 && (
               <div style={{ padding: '0 16px 12px', display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {getHashtags().slice(0, 8).map((h, i) => (
+                {getHashtags().map((h, i) => (
                   <span key={i} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: t.primaryBg, color: t.primary, border: `1px solid ${t.primaryBorder}` }}>
                     {h.startsWith('#') ? h : `#${h}`}
                   </span>
