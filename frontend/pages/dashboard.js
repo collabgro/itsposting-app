@@ -1180,8 +1180,11 @@ function ContentHealthBar({ data, t, router }) {
 }
 
 function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
-  const [dismissed, setDismissed] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [dismissed,   setDismissed]   = useState(false);
+  const [collapsed,   setCollapsed]   = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
+  const [exiting,     setExiting]     = useState(false);
+  const mountedRef  = useRef(false);
 
   const postedCount = allPosts.filter(p => p.status === 'posted').length;
 
@@ -1233,11 +1236,22 @@ function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const d = localStorage.getItem('ip_checklist_dismissed');
-    if (d) setDismissed(true);
+    if (localStorage.getItem('ip_checklist_dismissed')) setDismissed(true);
   }, []);
 
-  if (dismissed || allDone) return null;
+  /* Celebrate when the last step is ticked during this session.
+     Skip if allDone was already true on first render (returning customer). */
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return; }
+    if (!allDone || celebrating) return;
+    setCelebrating(true);
+    const t1 = setTimeout(() => setExiting(true),    2400);
+    const t2 = setTimeout(() => setDismissed(true),  3000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allDone]);
+
+  if (dismissed || (allDone && !celebrating)) return null;
 
   const pct = Math.round((completedCount / STEPS.length) * 100);
 
@@ -1246,12 +1260,54 @@ function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
       background: t.isDark ? 'rgba(15,15,24,0.75)' : t.card,
       backdropFilter: 'blur(16px) saturate(160%)',
       WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-      border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+      border: `1px solid ${celebrating ? 'rgba(124,92,252,0.35)' : (t.isDark ? 'rgba(255,255,255,0.07)' : t.border)}`,
       borderLeft: '3px solid #7C5CFC',
       borderRadius: 16, marginBottom: 22,
-      boxShadow: `0 1px 3px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+      boxShadow: celebrating
+        ? `0 0 32px rgba(124,92,252,0.22), 0 1px 3px rgba(0,0,0,0.5)`
+        : `0 1px 3px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
       overflow: 'hidden',
+      opacity: exiting ? 0 : 1,
+      transform: exiting ? 'translateY(-6px) scale(0.98)' : 'translateY(0) scale(1)',
+      transition: 'opacity 500ms ease, transform 500ms ease, box-shadow 400ms ease, border-color 400ms ease',
     }}>
+
+    {/* ── Celebration overlay — shown when all steps just completed ── */}
+    {celebrating && (
+      <div style={{ padding: '28px 24px', textAlign: 'center' }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: '50%', margin: '0 auto 16px',
+          background: 'linear-gradient(135deg, #7C5CFC, #0A84FF)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 0 24px rgba(124,92,252,0.45)',
+          animation: 'checkpop 500ms cubic-bezier(0.34,1.56,0.64,1)',
+        }}>
+          <IpCheck size={24} color="#fff" />
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: t.text, letterSpacing: '-0.03em', marginBottom: 6 }}>
+          You&apos;re all set!
+        </div>
+        <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5, marginBottom: 16 }}>
+          PostCore is ready to grow your business.<br />
+          <span style={{ color: '#9B7FFF', fontWeight: 600 }}>10 bonus credits</span> have been added to your account.
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {STEPS.map(s => (
+            <div key={s.id} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontSize: 11, color: t.textMuted, padding: '4px 10px',
+              background: 'rgba(124,92,252,0.08)', borderRadius: 20,
+              border: '1px solid rgba(124,92,252,0.18)',
+            }}>
+              <IpCheck size={9} color="#9B7FFF" /> {s.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* ── Normal checklist ── */}
+    {!celebrating && (<>
       {/* Header */}
       <div
         style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
@@ -1338,6 +1394,7 @@ function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
           </div>
         </div>
       )}
+    </>)}
     </div>
   );
 }
