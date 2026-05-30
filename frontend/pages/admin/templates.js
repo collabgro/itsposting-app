@@ -58,7 +58,7 @@ export default function AdminTemplates() {
   };
 
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState('photos');
+  const [activeTab, setActiveTab] = useState('canvas');
 
   // ── Stock Photos state ──
   const fileInputRef = useRef(null);
@@ -119,12 +119,11 @@ export default function AdminTemplates() {
   useEffect(() => {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
-    loadPhotos(0, false);
+    loadCanvasTemplates();
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
-    if (activeTab === 'photos') loadPhotos(0, false);
     if (activeTab === 'canvas') loadCanvasTemplates();
   }, [activeTab]);
 
@@ -148,12 +147,6 @@ export default function AdminTemplates() {
       setLibLoading(false);
     }
   }, [filterIndustry, filterCategory, filterActive, libSearch]);
-
-  useEffect(() => { loadPhotos(0, false); }, [filterIndustry, filterCategory, filterActive]);
-  useEffect(() => {
-    const timer = setTimeout(() => loadPhotos(0, false), 400);
-    return () => clearTimeout(timer);
-  }, [libSearch]);
 
   // ── Canvas template load ──
   const loadCanvasTemplates = useCallback(async () => {
@@ -485,149 +478,11 @@ export default function AdminTemplates() {
   };
 
   return (
-    <Layout title="Templates" subtitle="Manage stock photos and canvas templates used in Photo Studio">
+    <Layout title="Canvas Templates" subtitle="Manage templates available in Photo Studio for all customers">
       <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 80 }}>
 
-        {/* Tab bar */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 24, padding: '6px 8px', background: t.isDark ? 'rgba(15,15,24,0.5)' : t.card, borderRadius: 14, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : t.border}`, width: 'fit-content' }}>
-          <button onClick={() => setActiveTab('photos')} style={tabStyle('photos')}>
-            <IpPhotoStudio size={14} /> Stock Photos {photoTotal > 0 && <span style={{ fontSize: 11, opacity: 0.8 }}>({photoTotal})</span>}
-          </button>
-          <button onClick={() => setActiveTab('canvas')} style={tabStyle('canvas')}>
-            <IpPalette size={14} /> Canvas Templates {canvasTotal > 0 && <span style={{ fontSize: 11, opacity: 0.8 }}>({canvasTotal})</span>}
-          </button>
-        </div>
-
-        {/* ═══════════════════ STOCK PHOTOS TAB ═══════════════════ */}
-        {activeTab === 'photos' && (
-          <>
-            {/* Upload panel */}
-            <div style={{ ...gc }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                <IpPhotoStudio size={20} style={{ color: t.primary }} />
-                <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Upload Stock Photos</div>
-              </div>
-
-              <div
-                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
-                onClick={() => fileInputRef.current?.click()}
-                style={{ border: `2px dashed ${dragOver ? t.primary : t.border}`, borderRadius: 12, padding: '32px 24px', textAlign: 'center', cursor: 'pointer', background: dragOver ? `${t.primary}08` : 'transparent', transition: 'all 0.15s', marginBottom: 20 }}>
-                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display: 'none' }} onChange={e => handleFiles(e.target.files)} />
-                <IpPhotoStudio size={28} style={{ color: dragOver ? t.primary : t.textMuted, marginBottom: 10 }} />
-                <div style={{ fontSize: 14, fontWeight: 600, color: dragOver ? t.primary : t.text, marginBottom: 4 }}>
-                  {uploadFiles.length > 0 ? `${uploadFiles.length} file${uploadFiles.length > 1 ? 's' : ''} selected` : 'Drag photos here or click to browse'}
-                </div>
-                <div style={{ fontSize: 12, color: t.textMuted }}>JPG, PNG, WEBP · up to 20 files · max 50MB each</div>
-              </div>
-
-              {uploadFiles.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-                  {uploadFiles.map((f, i) => (
-                    <span key={i} style={{ padding: '3px 10px', fontSize: 11, borderRadius: 20, background: `${t.primary}15`, color: t.primary, border: `1px solid ${t.primary}30` }}>{f.name}</span>
-                  ))}
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 16 }}>
-                <div>
-                  <label style={labelStyle}>Industry *</label>
-                  <select value={uploadIndustry} onChange={e => setUploadIndustry(e.target.value)} style={selectStyle}>
-                    <option value="">Select industry...</option>
-                    {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>Category *</label>
-                  <select value={uploadCategory} onChange={e => setUploadCategory(e.target.value)} style={selectStyle}>
-                    <option value="">Select category...</option>
-                    {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>Tags (comma-separated)</label>
-                  <input value={uploadTags} onChange={e => setUploadTags(e.target.value)} placeholder="e.g. trees, trimming, summer" style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Title (optional)</label>
-                  <input value={uploadTitle} onChange={e => setUploadTitle(e.target.value)} placeholder="e.g. Landscaping job site" style={inputStyle} />
-                </div>
-              </div>
-
-              {uploadError && <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 14px', borderRadius: 8, background: 'rgba(239,68,68,0.1)', color: t.error, fontSize: 13, marginBottom: 12 }}><IpWarning size={14} />{uploadError}</div>}
-              {uploadResult && <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 14px', borderRadius: 8, background: 'rgba(34,197,94,0.1)', color: t.success, fontSize: 13, marginBottom: 12 }}><IpCheckCircle size={14} />{uploadResult} photo{uploadResult > 1 ? 's' : ''} uploaded.</div>}
-
-              <Button onClick={handleUpload} disabled={uploading || !uploadFiles.length} style={{ minWidth: 180 }}>
-                <IpPlus size={14} style={{ marginRight: 6 }} />
-                {uploading ? 'Uploading...' : `Upload ${uploadFiles.length || ''} Photo${uploadFiles.length !== 1 ? 's' : ''}`}
-              </Button>
-            </div>
-
-            {/* Photo library */}
-            <div style={gc}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-                <SectionHeader icon={IpPhotoStudio} title={`Photo Library (${photoTotal})`} subtitle="" />
-                <Button variant="ghost" size="sm" onClick={() => loadPhotos(0, false)} style={{ gap: 6 }}>
-                  <IpRefresh size={13} /> Refresh
-                </Button>
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-                <select value={filterIndustry} onChange={e => setFilterIndustry(e.target.value)} style={{ ...selectStyle, width: 'auto' }}>
-                  <option value="all">All industries</option>
-                  {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-                </select>
-                <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ ...selectStyle, width: 'auto' }}>
-                  <option value="all">All categories</option>
-                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
-                <div style={{ display: 'flex', background: t.input, borderRadius: 8, border: `1px solid ${t.border}`, overflow: 'hidden' }}>
-                  {[['active','Active'],['all','All']].map(([v, label]) => (
-                    <button key={v} onClick={() => setFilterActive(v)} style={{ padding: '7px 14px', fontSize: 12, fontWeight: 500, border: 'none', cursor: 'pointer', background: filterActive === v ? t.primary : 'transparent', color: filterActive === v ? '#fff' : t.textMuted, transition: 'all 0.15s' }}>{label}</button>
-                  ))}
-                </div>
-                <input value={libSearch} onChange={e => setLibSearch(e.target.value)} placeholder="Search..." style={{ ...inputStyle, width: 180 }} />
-              </div>
-
-              {libLoading ? (
-                <div style={{ textAlign: 'center', padding: 40, color: t.textMuted }}>Loading photos...</div>
-              ) : photos.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40, color: t.textMuted }}>No photos found.</div>
-              ) : (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
-                    {photos.map(photo => (
-                      <div key={photo.id} style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.input, position: 'relative' }}>
-                        <img src={photo.thumbnail_url || photo.url} alt={photo.title || ''} style={{ width: '100%', aspectRatio: '4/5', objectFit: 'cover', display: 'block' }} loading="lazy" />
-                        {!photo.is_active && (
-                          <div style={{ position: 'absolute', top: 6, left: 6, fontSize: 10, fontWeight: 700, padding: '2px 6px', background: 'rgba(0,0,0,0.7)', color: '#f97316', borderRadius: 4 }}>INACTIVE</div>
-                        )}
-                        <div style={{ padding: '8px 10px' }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: t.text, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{photo.title || '—'}</div>
-                          <div style={{ fontSize: 10, color: t.textMuted }}>{industryLabel(photo.industry)} · {categoryLabel(photo.category)}</div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                            <button onClick={() => { setEditPhoto(photo); setEditPhotoForm({ industry: photo.industry, category: photo.category, tags: (photo.tags || []).join(', '), title: photo.title || '', description: photo.description || '', is_active: photo.is_active !== false }); setSaveError(''); }} style={{ flex: 1, padding: '5px 0', fontSize: 11, borderRadius: 6, border: `1px solid ${t.border}`, background: 'transparent', color: t.textMuted, cursor: 'pointer' }}>Edit</button>
-                            <button onClick={() => setConfirmDeletePhotoId(photo.id)} style={{ padding: '5px 8px', fontSize: 11, borderRadius: 6, border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: t.error, cursor: 'pointer' }}>✕</button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {photos.length < photoTotal && (
-                    <div style={{ textAlign: 'center', marginTop: 20 }}>
-                      <Button variant="secondary" onClick={() => loadPhotos(photoOffset + 40, true)}>Load more</Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* ═══════════════════ CANVAS TEMPLATES TAB ═══════════════════ */}
-        {activeTab === 'canvas' && (
-          <div style={gc}>
+        {/* ═══════════════════ CANVAS TEMPLATES ═══════════════════ */}
+        <div style={gc}>
             {/* Header row */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
               <div>
@@ -761,44 +616,6 @@ export default function AdminTemplates() {
               </div>
             )}
           </div>
-        )}
-
-        {/* ── Edit Photo modal ── */}
-        {editPhoto && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ ...gc, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', marginBottom: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Edit Stock Photo</div>
-                <button onClick={() => setEditPhoto(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><IpClose size={18} style={{ color: t.textMuted }} /></button>
-              </div>
-              {editPhoto.thumbnail_url && <img src={editPhoto.thumbnail_url} alt="" style={{ width: '100%', borderRadius: 10, marginBottom: 20, maxHeight: 200, objectFit: 'cover' }} />}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 14 }}>
-                <div><label style={labelStyle}>Industry</label>
-                  <select value={editPhotoForm.industry} onChange={e => setEditPhotoForm(p => ({ ...p, industry: e.target.value }))} style={selectStyle}>
-                    {INDUSTRIES.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-                  </select>
-                </div>
-                <div><label style={labelStyle}>Category</label>
-                  <select value={editPhotoForm.category} onChange={e => setEditPhotoForm(p => ({ ...p, category: e.target.value }))} style={selectStyle}>
-                    {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div style={{ marginBottom: 14 }}><label style={labelStyle}>Title</label><input value={editPhotoForm.title} onChange={e => setEditPhotoForm(p => ({ ...p, title: e.target.value }))} style={inputStyle} /></div>
-              <div style={{ marginBottom: 14 }}><label style={labelStyle}>Tags (comma-separated)</label><input value={editPhotoForm.tags} onChange={e => setEditPhotoForm(p => ({ ...p, tags: e.target.value }))} style={inputStyle} /></div>
-              <div style={{ marginBottom: 14 }}><label style={labelStyle}>Description</label><textarea value={editPhotoForm.description} onChange={e => setEditPhotoForm(p => ({ ...p, description: e.target.value }))} rows={3} style={{ ...inputStyle, resize: 'vertical' }} /></div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer', fontSize: 13, color: t.text }}>
-                <input type="checkbox" checked={editPhotoForm.is_active} onChange={e => setEditPhotoForm(p => ({ ...p, is_active: e.target.checked }))} />
-                Active (visible to customers)
-              </label>
-              {saveError && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.1)', color: t.error, fontSize: 13, marginBottom: 14 }}>{saveError}</div>}
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <Button variant="secondary" onClick={() => setEditPhoto(null)}>Cancel</Button>
-                <Button onClick={handleSavePhoto} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</Button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ── Edit Canvas Template modal ── */}
         {editCanvasTemplate && (
