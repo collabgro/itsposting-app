@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 
-const GRAPH_VERSION = 'v18.0';
+const GRAPH_VERSION = 'v21.0';
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 const SYNC_COOLDOWN_HOURS = 4; // don't re-sync a post more often than this
 
@@ -127,23 +127,38 @@ class MetricsSyncService {
 
   async _fetchFacebookMetrics(fbPostId, account) {
     const token = account.access_token;
-    const res = await axios.get(`${GRAPH_BASE}/${fbPostId}/insights`, {
-      params: {
-        metric: 'post_impressions_unique,post_impressions,post_engaged_users,post_reactions_like_total',
-        access_token: token,
-      },
-      timeout: 15000,
-    });
 
-    const data = res.data?.data || [];
-    const getValue = (name) => data.find(m => m.name === name)?.values?.[0]?.value || 0;
+    const [insightsRes, fieldsRes] = await Promise.allSettled([
+      axios.get(`${GRAPH_BASE}/${fbPostId}/insights`, {
+        params: {
+          metric: 'post_impressions_unique,post_impressions,post_reactions_like_total',
+          access_token: token,
+        },
+        timeout: 15000,
+      }),
+      // comments.summary(true) and shares are available on the post object itself
+      axios.get(`${GRAPH_BASE}/${fbPostId}`, {
+        params: {
+          fields: 'comments.summary(true){id},shares',
+          access_token: token,
+        },
+        timeout: 15000,
+      }),
+    ]);
+
+    const insightsData = insightsRes.status === 'fulfilled' ? (insightsRes.value.data?.data || []) : [];
+    const getValue = (name) => insightsData.find(m => m.name === name)?.values?.[0]?.value || 0;
+
+    const fieldsData = fieldsRes.status === 'fulfilled' ? fieldsRes.value.data : {};
+    const comments = fieldsData?.comments?.summary?.total_count || 0;
+    const shares   = fieldsData?.shares?.count || 0;
 
     return {
       reach:       getValue('post_impressions_unique'),
       impressions: getValue('post_impressions'),
       likes:       getValue('post_reactions_like_total'),
-      comments:    0, // FB insights doesn't expose comment count in this endpoint
-      shares:      0,
+      comments,
+      shares,
     };
   }
 

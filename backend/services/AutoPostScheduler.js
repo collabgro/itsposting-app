@@ -100,6 +100,20 @@ class AutoPostScheduler {
         );
         console.log(`✅ Posted #${post.id} to ${Object.keys(platformPostIds).join(', ')}`);
 
+        // Update posting streak for this customer
+        try {
+          const ContentMixTracker = require('./ContentMixTracker');
+          await new ContentMixTracker(this.pool).updatePostingStreak(post.customer_id);
+        } catch (streakErr) {
+          console.warn(`[AutoPostScheduler] streak update failed for customer ${post.customer_id}:`, streakErr.message);
+        }
+
+        // Invalidate metrics cache
+        this.pool.query(
+          `DELETE FROM customer_metrics_cache WHERE customer_id = $1`,
+          [post.customer_id]
+        ).catch(() => {});
+
         // Sync real engagement metrics 5 minutes after publish
         setTimeout(() => {
           const MetricsSyncService = require('./MetricsSyncService');

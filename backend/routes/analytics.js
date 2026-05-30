@@ -631,10 +631,12 @@ module.exports = (pool) => {
         pool.query('SELECT business_name, industry, location, brand_colors FROM customers WHERE id=$1', [req.customerId]),
         pool.query(
           `SELECT id, content_type, caption, media_url, status, posted_at,
-                  COALESCE((engagement->>'likes')::int, 0) AS likes,
-                  COALESCE((engagement->>'comments')::int, 0) AS comments,
-                  COALESCE((engagement->>'shares')::int, 0) AS shares,
-                  performance_score
+                  COALESCE((engagement->>'likes')::int, 0)       AS likes,
+                  COALESCE((engagement->>'comments')::int, 0)    AS comments,
+                  COALESCE((engagement->>'shares')::int, 0)      AS shares,
+                  COALESCE((engagement->>'reach')::int, 0)       AS reach,
+                  COALESCE((engagement->>'impressions')::int, 0) AS impressions,
+                  performance_score, engagement
            FROM posts
            WHERE customer_id=$1 AND status='posted'
              AND posted_at BETWEEN $2 AND $3
@@ -647,8 +649,8 @@ module.exports = (pool) => {
       const posts     = postsRes.rows;
       const bizName   = profile.business_name || 'Your Business';
 
-      const totalEng  = posts.reduce((s, p) => s + (p.likes || 0) + (p.comments || 0) + (p.shares || 0), 0);
-      const totalReach = posts.reduce((s) => s + 150, 0); // estimate
+      const totalEng   = posts.reduce((s, p) => s + (p.likes || 0) + (p.comments || 0) + (p.shares || 0), 0);
+      const totalReach = posts.reduce((s, p) => s + (parseInt((p.engagement || {}).reach) || 0), 0);
       const topPosts  = posts.slice(0, 3);
 
       const typeCounts = {};

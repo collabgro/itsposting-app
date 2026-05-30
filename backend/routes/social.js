@@ -921,11 +921,28 @@ module.exports = (pool) => {
         [JSON.stringify(platformPostIds), postId]
       );
 
+      // Update posting streak
+      try {
+        const ContentMixTracker = require('../services/ContentMixTracker');
+        await new ContentMixTracker(pool).updatePostingStreak(req.customerId);
+      } catch (streakErr) {
+        console.warn('[social/publish] streak update failed:', streakErr.message);
+      }
+
       // Invalidate intelligence metrics cache — fire and forget
       pool.query(
         `DELETE FROM customer_metrics_cache WHERE customer_id = $1`,
         [req.customerId]
       ).catch(() => {});
+
+      // Schedule metrics sync 5 min after publish (gives platforms time to process)
+      if (Object.keys(platformPostIds).length) {
+        setTimeout(() => {
+          const MetricsSyncService = require('../services/MetricsSyncService');
+          new MetricsSyncService(pool).syncPost(postId, req.customerId)
+            .catch(err => console.warn(`[social/publish] delayed metrics sync failed for post ${postId}:`, err.message));
+        }, 5 * 60 * 1000);
+      }
 
       // Notify the user their post was published
       const publishedPlatforms = succeeded.join(', ');
