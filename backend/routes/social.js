@@ -893,7 +893,7 @@ module.exports = (pool) => {
       await pool.query(`UPDATE posts SET status = 'posting', updated_at = NOW() WHERE id = $1`, [postId]);
 
       const publisher = new SocialPublisher(pool);
-      const { platformPostIds, errors } = accountIds?.length
+      const { platformPostIds, accountLabels, errors } = accountIds?.length
         ? await publisher.publishToAccounts(post, accountIds)
         : platforms?.length
           ? await publisher.publishToPlatforms(post, platforms)
@@ -944,8 +944,10 @@ module.exports = (pool) => {
         }, 5 * 60 * 1000);
       }
 
-      // Notify the user their post was published
-      const publishedPlatforms = succeeded.join(', ');
+      // Notify the user their post was published — use friendly account names when available
+      const publishedPlatforms = accountLabels && Object.keys(accountLabels).length
+        ? Object.values(accountLabels).join(', ')
+        : succeeded.map(k => k.replace(/_\d+$/, '').replace(/_/g, ' ')).join(', ');
       setImmediate(() => notifier.postPublished(req.customerId, postId, publishedPlatforms));
 
       res.json({ success: true, posted: succeeded, errors, platformPostIds });

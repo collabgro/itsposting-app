@@ -73,7 +73,7 @@ class NotificationService {
   }
 
   postPublished(customerId, postId, platform) {
-    const label = platform ? platform.replace('_', ' ') : 'your platform';
+    const label = platform || 'your platform';
     this.create(
       customerId, TYPES.SYSTEM,
       'Post published',

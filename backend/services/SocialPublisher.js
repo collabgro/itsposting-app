@@ -56,12 +56,17 @@ class SocialPublisher {
     );
 
     const platformPostIds = {};
+    const accountLabels = {};
     const errors = [];
 
     for (const account of accounts.rows) {
       try {
         const platformId = await this.postToPlatform(account, post);
-        if (platformId) platformPostIds[`${account.platform}_${account.id}`] = platformId;
+        if (platformId) {
+          const key = `${account.platform}_${account.id}`;
+          platformPostIds[key] = platformId;
+          accountLabels[key] = account.account_name || account.account_username || account.platform;
+        }
       } catch (err) {
         const apiDetail = err.response?.data ? JSON.stringify(err.response.data) : null;
         console.error(`[SocialPublisher] ${account.platform} (id=${account.id}) failed:`, err.message, apiDetail || '');
@@ -69,7 +74,7 @@ class SocialPublisher {
       }
     }
 
-    return { platformPostIds, errors };
+    return { platformPostIds, accountLabels, errors };
   }
 
   /**
