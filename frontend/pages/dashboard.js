@@ -372,10 +372,10 @@ export default function Dashboard() {
         {!loading && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, marginBottom: 20 }}>
             {[
-              { icon: IpSparkle, label: 'Post for today',     sub: 'AI generates it',       color: '#7C5CFC', bg: 'rgba(124,92,252,0.12)', path: '/quick-post' },
-              { icon: IpCalendar, label: 'Schedule week',     sub: 'Plan ahead',             color: '#3B82F6', bg: 'rgba(59,130,246,0.10)',  path: '/calendar' },
-              { icon: IpAnalytics, label: 'My performance',   sub: 'See what\'s working',    color: '#10B981', bg: 'rgba(16,185,129,0.10)', path: '/analytics' },
-              { icon: IpSettings, label: 'Connect accounts',  sub: 'FB, IG, Google',         color: '#F59E0B', bg: 'rgba(245,158,11,0.10)',  path: '/settings' },
+              { icon: IpSparkle,   label: 'Post for today',    sub: 'AI generates it',    color: '#7C5CFC', bg: 'rgba(124,92,252,0.12)', path: '/quick-post' },
+              { icon: IpCalendar,  label: 'Schedule week',    sub: 'Plan ahead',         color: '#0A84FF', bg: 'rgba(10,132,255,0.10)',  path: '/calendar' },
+              { icon: IpAnalytics, label: 'My performance',   sub: 'See what\'s working', color: '#7C5CFC', bg: 'rgba(124,92,252,0.10)', path: '/analytics' },
+              { icon: IpSettings,  label: 'Connect accounts', sub: 'FB, IG, Google',     color: '#0A84FF', bg: 'rgba(10,132,255,0.10)',  path: '/settings' },
             ].map(q => (
               <div
                 key={q.label}
@@ -502,7 +502,7 @@ export default function Dashboard() {
               numericValue={metrics?.totalReach}
               sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local people` : 'No data yet'}
             />
-            <MetricCard t={t} accent={metrics?.isOutperforming ? 'success' : 'warning'}
+            <MetricCard t={t} accent="primary"
               label="Engagement Rate"
               main={metrics ? `${metrics.engagementRate}%` : '—'}
               numericValue={metrics?.engagementRate}
@@ -515,7 +515,7 @@ export default function Dashboard() {
             />
             {/* Streak card */}
             {(() => {
-              const streakCol = metrics?.postingStreak >= 1 ? '#EAB308' : (t.warning || '#F59E0B');
+              const streakCol = t.info || '#0A84FF';
               return (
                 <div
                   onMouseEnter={() => setStreakHovered(true)}
@@ -554,9 +554,7 @@ export default function Dashboard() {
             })()}
             {/* GEO / AI Visibility card */}
             {(() => {
-              const geoCol = geoScore?.score > 0
-                ? (geoScore.score >= 70 ? '#22C55E' : geoScore.score >= 40 ? '#F59E0B' : '#EF4444')
-                : t.primary;
+              const geoCol = t.primary;
               return (
                 <div
                   onClick={() => router.push('/geo-audit')}
@@ -661,7 +659,7 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'flex-start', gap: isMobile ? 8 : 12, marginBottom: 6 }}>
                     <div>
                       <span style={{ fontWeight: 700, fontSize: 13, color: t.text }}>{review.reviewerName}</span>
-                      <span style={{ marginLeft: 8, fontSize: 12, color: '#EAB308' }}>{'⭐'.repeat(review.starRating)}</span>
+                      <span style={{ marginLeft: 8, fontSize: 12, color: t.primary }}>{'★'.repeat(review.starRating)}</span>
                       {replySuccess === review.id && <span style={{ marginLeft: 8, fontSize: 11, color: t.success, fontWeight: 600 }}>✓ Replied</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
@@ -867,7 +865,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: 16, fontWeight: 800, color: t.text, letterSpacing: '-0.02em', marginBottom: 2 }}>Draft a Reply</div>
                 <div style={{ fontSize: 12, color: t.textMuted }}>
                   {replyModal.review.reviewerName} · {'⭐'.repeat(replyModal.review.starRating)}
-                  {replyModal.isBad && <span style={{ marginLeft: 6, color: '#FF453A', fontWeight: 600 }}>Needs a careful response</span>}
+                  {replyModal.isBad && <span style={{ marginLeft: 6, color: t.info || '#0A84FF', fontWeight: 600 }}>Needs a careful response</span>}
                 </div>
               </div>
               <button onClick={() => setReplyModal(null)} style={{ background: 'none', border: 'none', color: t.textMuted, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
@@ -967,7 +965,7 @@ export default function Dashboard() {
   );
 }
 
-const TYPE_COLORS_PLAN = { photo_post:'#3B82F6', carousel:'#7C5CFC', video:'#EF4444', text_card:'#22C55E', story:'#F97316' };
+const TYPE_COLORS_PLAN = { photo_post:'#0A84FF', carousel:'#7C5CFC', video:'#6D3FF2', text_card:'#34AADC', story:'#9B7FFF' };
 const DAY_ABBR = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 function ThisWeekWidget({ plans, t, router, isMobile }) {
@@ -1036,10 +1034,10 @@ function ThisWeekWidget({ plans, t, router, isMobile }) {
               {dayPlans.length > 0 ? (
                 <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, width:'100%' }}>
                   {hasAi && !hasScheduled && (
-                    <div style={{ fontSize:9, color:'#EAB308', fontWeight:700 }}>★ AI</div>
+                    <div style={{ fontSize:9, color:'#9B7FFF', fontWeight:700 }}>★ AI</div>
                   )}
                   {hasScheduled && (
-                    <div style={{ width:7, height:7, borderRadius:'50%', background:'#22C55E', boxShadow:'0 0 4px rgba(34,197,94,0.6)' }} />
+                    <div style={{ width:7, height:7, borderRadius:'50%', background:'#0A84FF', boxShadow:'0 0 4px rgba(10,132,255,0.6)' }} />
                   )}
                   {topPlan && (
                     <div style={{ width:22, height:3, borderRadius:2, background: TYPE_COLORS_PLAN[topPlan.content_type] || t.primary, opacity:0.8 }} />
@@ -1060,7 +1058,7 @@ function ThisWeekWidget({ plans, t, router, isMobile }) {
 }
 
 function MetricCard({ t, label, main, sub, subColor, accent = 'primary', numericValue, prefix = '', suffix = '' }) {
-  const accentColors = { primary: t.primary, info: t.info || '#3B82F6', success: t.success || '#22C55E', warning: t.warning || '#F59E0B' };
+  const accentColors = { primary: t.primary, info: t.info || '#0A84FF', success: t.primary, warning: t.info || '#0A84FF' };
   const col = accentColors[accent] || t.primary;
   const [hovered, setHovered] = useState(false);
   return (
@@ -1093,9 +1091,9 @@ function MetricCard({ t, label, main, sub, subColor, accent = 'primary', numeric
 }
 
 const TARGET_MIX = [
-  { key: 'educational', label: 'How-to Tips',    color: '#3B82F6', target: 70 },
-  { key: 'socialProof', label: 'Customer Wins',  color: '#22C55E', target: 20 },
-  { key: 'promotional', label: 'Special Offers', color: '#EAB308', target: 10 },
+  { key: 'educational', label: 'How-to Tips',    color: '#0A84FF', target: 70 },
+  { key: 'socialProof', label: 'Customer Wins',  color: '#7C5CFC', target: 20 },
+  { key: 'promotional', label: 'Special Offers', color: '#34AADC', target: 10 },
 ];
 
 function ContentHealthBar({ data, t, router }) {
@@ -1103,9 +1101,9 @@ function ContentHealthBar({ data, t, router }) {
   const { mix, recommendation, gaps } = data;
   const total = Object.values(mix).reduce((s, v) => s + v, 0);
   const allSegments = [
-    { key: 'educational', label: 'How-to Tips',    color: '#3B82F6', target: 70 },
-    { key: 'socialProof', label: 'Customer Wins',  color: '#22C55E', target: 20 },
-    { key: 'promotional', label: 'Special Offers', color: '#EAB308', target: 10 },
+    { key: 'educational', label: 'How-to Tips',    color: '#0A84FF', target: 70 },
+    { key: 'socialProof', label: 'Customer Wins',  color: '#7C5CFC', target: 20 },
+    { key: 'promotional', label: 'Special Offers', color: '#34AADC', target: 10 },
   ];
 
   const glassContentBar = {
@@ -1299,12 +1297,12 @@ function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
               {/* Check circle */}
               <div style={{
                 width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                background: step.done ? 'rgba(34,197,94,0.15)' : (t.isDark ? 'rgba(255,255,255,0.04)' : t.input),
-                border: `1px solid ${step.done ? 'rgba(34,197,94,0.4)' : (t.isDark ? 'rgba(255,255,255,0.1)' : t.border)}`,
+                background: step.done ? 'rgba(124,92,252,0.15)' : (t.isDark ? 'rgba(255,255,255,0.04)' : t.input),
+                border: `1px solid ${step.done ? 'rgba(124,92,252,0.4)' : (t.isDark ? 'rgba(255,255,255,0.1)' : t.border)}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 animation: step.done ? 'checkpop 300ms cubic-bezier(0.34,1.56,0.64,1)' : 'none',
               }}>
-                {step.done && <IpCheck size={11} color="#22C55E" />}
+                {step.done && <IpCheck size={11} color="#9B7FFF" />}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: step.done ? 500 : 600, color: step.done ? t.textMuted : t.text, letterSpacing: '-0.01em', textDecoration: step.done ? 'line-through' : 'none' }}>
