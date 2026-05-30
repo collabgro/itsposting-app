@@ -159,7 +159,8 @@ class BusinessIntelligence {
       else if (r.content_type === 'carousel')  counts.educational += n;
       else if (r.content_type === 'static')    counts.educational += n;
       else if (r.content_type === 'video')     counts.socialProof += n;
-      else                                     counts.promotional += n;
+      else if (r.content_type === 'photo')     counts.educational += n;
+      else                                     counts.educational += n; // safe default: photos/uploads are informational
     });
 
     const pct = k => Math.round((counts[k] / total) * 100);

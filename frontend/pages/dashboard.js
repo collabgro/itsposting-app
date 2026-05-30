@@ -11,7 +11,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, SectionHeader, EmptyState, Spinner, Skeleton, ErrorCard, AnimatedNumber, ProgressRing, PulseIndicator } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, socialAPI, calendarPlansAPI } from '../lib/api';
+import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, calendarPlansAPI } from '../lib/api';
 import { format } from 'date-fns';
 import PostPreviewModal from '../components/PostPreviewModal';
 import { setMascotMood } from '../components/PostCoreMascot';
@@ -31,7 +31,7 @@ function useScrollReveal(deps = []) {
 }
 
 const TYPE_ICON  = { static: IpDrafts, photo: IpPhoto, carousel: IpCarousel, video: IpVideo };
-const TYPE_COLOR = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
+const TYPE_COLOR = { static: '#34AADC', photo: '#0A84FF', carousel: '#7C5CFC', video: '#6D3FF2' };
 const PLAT_ICONS = {
   facebook:        { icon: IpFacebook,  color: '#1877F2' },
   instagram:       { icon: IpInstagram, color: '#E1306C' },
@@ -105,15 +105,6 @@ export default function Dashboard() {
   const [showTour,       setShowTour]       = useState(false);
   const [upcomingFilter, setUpcomingFilter] = useState('all');
   const [previewPostId,  setPreviewPostId]  = useState(null);
-  const [reviews,        setReviews]        = useState(null);
-  const [reviewsLoading, setReviewsLoading] = useState(false);
-  const [generatingReviewId, setGeneratingReviewId] = useState(null);
-  const [replyModal,     setReplyModal]     = useState(null); // { review, replies, isBad }
-  const [replyLoading,   setReplyLoading]   = useState(null); // reviewId being drafted
-  const [replyPosting,   setReplyPosting]   = useState(false);
-  const [selectedReply,  setSelectedReply]  = useState(null); // 'empathetic' | 'professional' | 'brief'
-  const [customReply,    setCustomReply]    = useState('');
-  const [replySuccess,   setReplySuccess]   = useState(null); // reviewId that just got replied
   const [showPerfToast,  setShowPerfToast]  = useState(false);
   const [bestPostId,     setBestPostId]     = useState(null);
   const [weekPlans,      setWeekPlans]      = useState([]);
@@ -211,58 +202,6 @@ export default function Dashboard() {
     const t = setTimeout(() => setShowPerfToast(false), 8000);
     return () => clearTimeout(t);
   }, [metrics, allPosts]);
-
-  const loadReviews = () => {
-    setReviewsLoading(true);
-    socialAPI.getReviews().then(res => {
-      setReviews((res.data?.reviews || []).slice(0, 3));
-    }).catch(() => setReviews([])).finally(() => setReviewsLoading(false));
-  };
-
-  const handleTurnReviewIntoPost = async (review) => {
-    setGeneratingReviewId(review.id);
-    setMascotMood('thinking', 'Turning that 5-star review into a post...');
-    try {
-      const res = await socialAPI.generateReviewPost({
-        reviewText: review.text,
-        reviewerName: review.reviewerName,
-        starRating: review.starRating,
-      });
-      const { caption, suggestedHashtags } = res.data;
-      sessionStorage.setItem('uploadPrefill', JSON.stringify({ caption, hashtags: suggestedHashtags }));
-      setMascotMood('celebrating', 'Review turned into a caption — ready to post!');
-      router.push('/upload');
-    } catch { /* silently fail */ }
-    finally { setGeneratingReviewId(null); }
-  };
-
-  const handleDraftReply = async (review) => {
-    setReplyLoading(review.id);
-    try {
-      const res = await socialAPI.draftReviewReply({
-        reviewText: review.text,
-        reviewerName: review.reviewerName,
-        starRating: review.starRating,
-      });
-      const { replies, isBad } = res.data;
-      setSelectedReply('empathetic');
-      setCustomReply(replies.empathetic || '');
-      setReplyModal({ review, replies, isBad });
-    } catch { /* silently fail */ }
-    finally { setReplyLoading(null); }
-  };
-
-  const handlePostReply = async () => {
-    if (!replyModal || !customReply.trim()) return;
-    setReplyPosting(true);
-    try {
-      await socialAPI.postReviewReply(replyModal.review.id, customReply.trim());
-      setReplySuccess(replyModal.review.id);
-      setReplyModal(null);
-    } catch (e) {
-      alert(e.response?.data?.error || 'Could not post reply. Please try again.');
-    } finally { setReplyPosting(false); }
-  };
 
   const dismissBriefing = async () => {
     setBriefingOpen(false);
@@ -620,7 +559,9 @@ export default function Dashboard() {
           <IpInfo size={13} color={t.info || '#0A84FF'} style={{ flexShrink: 0, marginTop: 1 }} />
           <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.6 }}>
             <span style={{ color: t.text, fontWeight: 600 }}>Where this data comes from: </span>
-            Reach &amp; engagement numbers are pulled from{' '}
+            All numbers reflect the{' '}
+            <span style={{ color: t.info || '#0A84FF', fontWeight: 600 }}>last 30 days</span>
+            , pulled from{' '}
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: t.text, fontWeight: 600 }}>
               <IpFacebook size={11} /> Facebook
             </span>{' '}and{' '}
@@ -631,7 +572,7 @@ export default function Dashboard() {
             <span style={{ color: t.textMuted }}>
               Google Business, LinkedIn, and TikTok do not expose post-level analytics to third-party apps — this is a platform limitation, not ours.
             </span>{' '}
-            Industry averages are based on published benchmarks, not live competitor data.{' '}
+            Industry averages are published benchmarks, not live competitor data. Actual results vary.{' '}
             {metrics?.disclaimer && <span style={{ opacity: 0.75 }}>{metrics.disclaimer}</span>}
           </div>
         </div>
@@ -639,66 +580,7 @@ export default function Dashboard() {
         {/* ── 3. Content Health Bar ── */}
         {contentMix && <div className="reveal reveal-d1"><ContentHealthBar data={contentMix} t={t} router={router} /></div>}
 
-        {/* ── 3b. Share a Review card ── */}
-        <div style={{ marginTop: 0, padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`, marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 12,
-                background: 'linear-gradient(135deg, rgba(234,179,8,0.2) 0%, rgba(234,179,8,0.08) 100%)',
-                border: '1px solid rgba(234,179,8,0.3)',
-                boxShadow: '0 4px 12px rgba(234,179,8,0.15)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-              }}>⭐</div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>Share a Review</div>
-                <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>Turn 5-star reviews into posts with one click</div>
-              </div>
-            </div>
-            {reviews === null && (
-              <Button variant="secondary" size="sm" onClick={loadReviews} disabled={reviewsLoading}>
-                {reviewsLoading ? 'Loading…' : 'Load Reviews'}
-              </Button>
-            )}
-          </div>
-          {reviews === null ? (
-            <div style={{ fontSize: 12, color: t.textMuted, padding: '6px 0' }}>
-              Load your most recent Google reviews and convert any of them into a ready-to-post caption.
-            </div>
-          ) : reviews.length === 0 ? (
-            <div style={{ fontSize: 12, color: t.textMuted }}>No reviews found. Make sure your Google Business account is connected in Settings.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {reviews.map(review => (
-                <div
-                  key={review.id}
-                  style={{ padding: '12px 14px', background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, transition: 'border-color 150ms, box-shadow 150ms' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.boxShadow = t.shadowSm; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.boxShadow = 'none'; }}
-                >
-                  <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'flex-start', gap: isMobile ? 8 : 12, marginBottom: 6 }}>
-                    <div>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: t.text }}>{review.reviewerName}</span>
-                      <span style={{ marginLeft: 8, fontSize: 12, color: t.primary }}>{'★'.repeat(review.starRating)}</span>
-                      {replySuccess === review.id && <span style={{ marginLeft: 8, fontSize: 11, color: t.success, fontWeight: 600 }}>✓ Replied</span>}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
-                      <Button variant="secondary" size="sm" onClick={() => handleDraftReply(review)} disabled={replyLoading === review.id || replySuccess === review.id} style={{ whiteSpace: 'nowrap', flex: isMobile ? 1 : 'none' }}>
-                        {replyLoading === review.id ? 'Drafting…' : replySuccess === review.id ? '✓ Replied' : 'Draft Reply'}
-                      </Button>
-                      <Button variant="primary" size="sm" onClick={() => handleTurnReviewIntoPost(review)} disabled={generatingReviewId === review.id} style={{ whiteSpace: 'nowrap', flex: isMobile ? 1 : 'none' }}>
-                        {generatingReviewId === review.id ? 'Generating…' : 'Turn into Post →'}
-                      </Button>
-                    </div>
-                  </div>
-                  {review.text && <div style={{ fontSize: 12, color: t.textSecondary, lineHeight: 1.5, maxHeight: 56, overflow: 'hidden', WebkitLineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical' }}>{review.text}</div>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── 3c. This Week's Content Plan ── */}
+        {/* ── 3b. This Week's Content Plan ── */}
         {weekPlans.length > 0 && (
           <ThisWeekWidget plans={weekPlans} t={t} router={router} isMobile={isMobile} />
         )}
@@ -862,86 +744,6 @@ export default function Dashboard() {
           onUpdate={updated => setUpcoming(prev => prev.map(p => p.id === updated.id ? updated : p))}
           onDelete={id => { setUpcoming(prev => prev.filter(p => p.id !== id)); setPreviewPostId(null); }}
         />
-      )}
-
-      {/* ── Review Reply Modal ── */}
-      {replyModal && (
-        <div
-          onClick={() => setReplyModal(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              background: t.isDark ? 'rgba(12,12,20,0.97)' : t.card,
-              border: `1px solid ${t.border}`, borderRadius: 20,
-              padding: '28px 28px 24px', maxWidth: 540, width: '100%',
-              boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
-              animation: 'scaleIn 200ms cubic-bezier(0.34,1.56,0.64,1)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: t.text, letterSpacing: '-0.02em', marginBottom: 2 }}>Draft a Reply</div>
-                <div style={{ fontSize: 12, color: t.textMuted }}>
-                  {replyModal.review.reviewerName} · {'⭐'.repeat(replyModal.review.starRating)}
-                  {replyModal.isBad && <span style={{ marginLeft: 6, color: t.info || '#0A84FF', fontWeight: 600 }}>Needs a careful response</span>}
-                </div>
-              </div>
-              <button onClick={() => setReplyModal(null)} style={{ background: 'none', border: 'none', color: t.textMuted, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
-            </div>
-
-            {/* Style selector */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              {[
-                { key: 'empathetic', label: 'Empathetic', color: '#0A84FF' },
-                { key: 'professional', label: 'Professional', color: '#7C5CFC' },
-                { key: 'brief', label: 'Brief', color: '#10B981' },
-              ].map(s => (
-                <button
-                  key={s.key}
-                  onClick={() => { setSelectedReply(s.key); setCustomReply(replyModal.replies[s.key] || ''); }}
-                  style={{
-                    padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                    background: selectedReply === s.key ? `${s.color}22` : t.input,
-                    border: `1px solid ${selectedReply === s.key ? s.color : t.border}`,
-                    color: selectedReply === s.key ? s.color : t.textMuted,
-                    transition: 'all 150ms',
-                  }}
-                >{s.label}</button>
-              ))}
-            </div>
-
-            {/* Editable reply text */}
-            <textarea
-              value={customReply}
-              onChange={e => setCustomReply(e.target.value)}
-              rows={5}
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                background: t.input, border: `1px solid ${t.border}`, borderRadius: 10,
-                padding: '12px 14px', fontSize: 13, color: t.text, lineHeight: 1.6, resize: 'vertical',
-                outline: 'none', transition: 'border-color 150ms',
-              }}
-              onFocus={e => e.target.style.borderColor = t.primary}
-              onBlur={e => e.target.style.borderColor = t.border}
-              placeholder="Edit your reply..."
-            />
-            <div style={{ fontSize: 11, color: t.textMuted, textAlign: 'right', marginTop: 4 }}>{customReply.length}/4096</div>
-
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-              <Button variant="secondary" onClick={() => setReplyModal(null)}>Cancel</Button>
-              <Button
-                variant="primary"
-                onClick={handlePostReply}
-                disabled={replyPosting || !customReply.trim()}
-                style={{ minWidth: 140 }}
-              >
-                {replyPosting ? 'Posting…' : 'Post Reply to Google'}
-              </Button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Performance Celebration Toast */}
