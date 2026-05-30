@@ -5,18 +5,18 @@ import { authAPI } from '../lib/api';
 import { ItsPostingLogo } from '../components/ItsPostingLogo';
 
 export default function ForgotPassword() {
-  const { t, theme } = useTheme();
+  const { t } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [visible, setVisible] = useState(false);
+  const [entered, setEntered] = useState(false);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
-  const [focusedField, setFocusedField] = useState(null);
+  const [focused, setFocused] = useState(null);
 
   useEffect(() => {
     setMounted(true);
-    setTimeout(() => setVisible(true), 80);
+    setTimeout(() => setEntered(true), 60);
   }, []);
 
   const handleSubmit = async (e) => {
@@ -33,135 +33,178 @@ export default function ForgotPassword() {
     }
   };
 
-  function iStyle(field) {
-    return {
-      width: '100%', padding: '12px 14px', boxSizing: 'border-box',
-      background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : t.input,
-      border: `1px solid ${focusedField === field ? 'rgba(124,92,252,0.6)' : t.borderStrong}`,
-      borderRadius: 10, color: t.text, fontSize: 14, outline: 'none',
-      boxShadow: focusedField === field ? '0 0 0 3px rgba(124,92,252,0.12)' : 'none',
-      transition: 'border-color 150ms, box-shadow 150ms',
-    };
-  }
+  const inputStyle = {
+    width: '100%',
+    padding: '13px 16px',
+    boxSizing: 'border-box',
+    background: t.isDark ? 'rgba(255,255,255,0.05)' : '#fff',
+    border: `1.5px solid ${focused === 'email' ? 'rgba(124,92,252,0.70)' : t.isDark ? 'rgba(255,255,255,0.09)' : t.border}`,
+    borderRadius: 11,
+    color: t.text,
+    fontSize: 14,
+    outline: 'none',
+    letterSpacing: '-0.01em',
+    boxShadow: focused === 'email' ? '0 0 0 4px rgba(124,92,252,0.11)' : 'none',
+    transition: 'border-color 180ms ease, box-shadow 180ms ease',
+  };
 
   if (!mounted) return null;
 
   return (
     <div style={{
-      minHeight: '100vh', position: 'relative',
-      background: theme === 'dark' ? '#07070E' : t.bg,
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      background: t.isDark ? '#040409' : '#F4F3FF',
+      padding: '40px 24px',
+      overflow: 'hidden',
     }}>
-      {/* Ambient glow */}
+      {/* Ambient */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-        background: `radial-gradient(ellipse 80% 50% at 50% -5%, rgba(124,92,252,${theme === 'dark' ? '0.28' : '0.12'}) 0%, transparent 65%)`,
+        background: t.isDark
+          ? 'radial-gradient(ellipse 70% 55% at 50% -10%, rgba(124,92,252,0.22) 0%, transparent 58%)'
+          : 'radial-gradient(ellipse 70% 55% at 50% -10%, rgba(124,92,252,0.12) 0%, transparent 58%)',
       }} />
 
       <div style={{
-        position: 'relative', zIndex: 1, display: 'flex',
-        alignItems: 'center', justifyContent: 'center',
-        minHeight: '100vh', padding: 20,
+        position: 'relative', zIndex: 1,
+        width: '100%', maxWidth: 380,
+        opacity: entered ? 1 : 0,
+        transform: entered ? 'none' : 'translateY(14px)',
+        transition: 'opacity 650ms cubic-bezier(0.16,1,0.3,1), transform 650ms cubic-bezier(0.16,1,0.3,1)',
       }}>
-        <div style={{
-          width: '100%', maxWidth: 400,
-          opacity: visible ? 1 : 0,
-          transform: visible ? 'translateY(0)' : 'translateY(28px)',
-          transition: 'opacity 700ms cubic-bezier(0.16,1,0.3,1), transform 700ms cubic-bezier(0.16,1,0.3,1)',
-        }}>
 
-          {/* Logo block */}
-          <div style={{ textAlign: 'center', marginBottom: 36 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, marginBottom: 4 }}>
-              <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
-            </div>
-            <div style={{ fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em', color: t.text }}>ItsPosting</div>
-            <div style={{ fontSize: 14, color: t.textMuted, marginTop: 6, letterSpacing: '-0.01em' }}>
-              Reset your password
-            </div>
-          </div>
-
-          {/* Card */}
-          <div style={{
-            background: t.card, border: `1px solid ${t.border}`,
-            borderRadius: 16, padding: '32px 28px',
-            boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 24px 64px rgba(0,0,0,0.4)',
-          }}>
-            {sent ? (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{
-                  width: 56, height: 56, borderRadius: '50%',
-                  background: 'rgba(124,92,252,0.15)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  margin: '0 auto 20px',
-                  fontSize: 26,
-                }}>
-                  ✉️
-                </div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: t.text, marginBottom: 10 }}>
-                  Check your inbox
-                </div>
-                <div style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.6 }}>
-                  If <strong style={{ color: t.text }}>{email}</strong> is registered, a password reset link has been sent. Check your inbox (and spam folder).
-                </div>
-              </div>
-            ) : (
-              <>
-                {error && (
-                  <div style={{
-                    padding: '10px 14px', background: 'rgba(239,68,68,0.1)',
-                    border: '1px solid rgba(239,68,68,0.3)', color: t.error,
-                    borderRadius: 8, marginBottom: 20, fontSize: 13,
-                  }}>
-                    {error}
-                  </div>
-                )}
-
-                <div style={{ fontSize: 14, color: t.textMuted, marginBottom: 24, lineHeight: 1.6 }}>
-                  Enter your email address and we&apos;ll send you a link to reset your password.
-                </div>
-
-                <form onSubmit={handleSubmit}>
-                  <div style={{ marginBottom: 20 }}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: t.textMuted, marginBottom: 8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                      Email
-                    </label>
-                    <input
-                      type="email" required placeholder="you@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onFocus={() => setFocusedField('email')}
-                      onBlur={() => setFocusedField(null)}
-                      style={iStyle('email')}
-                    />
-                  </div>
-
-                  <button
-                    type="submit" disabled={loading}
-                    style={{
-                      width: '100%', padding: '14px', display: 'flex',
-                      alignItems: 'center', justifyContent: 'center', gap: 6,
-                      fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
-                      background: loading ? t.textDisabled : 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)',
-                      border: 'none', borderRadius: 10, color: '#fff',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      boxShadow: loading ? 'none' : '0 4px 24px rgba(124,92,252,0.4)',
-                      transition: 'opacity 150ms, box-shadow 150ms',
-                    }}
-                  >
-                    {loading ? 'Sending…' : 'Send reset link →'}
-                  </button>
-                </form>
-              </>
-            )}
-          </div>
-
-          <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: t.textMuted }}>
-            <Link href="/login" style={{ color: t.primary, fontWeight: 600 }}>← Back to login</Link>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
+          <h1 style={{ margin: '14px 0 6px', fontSize: 26, fontWeight: 800, color: t.text, letterSpacing: '-0.04em' }}>
+            Reset password
+          </h1>
+          <p style={{ margin: 0, fontSize: 14, color: t.textMuted, letterSpacing: '-0.01em' }}>
+            {sent ? "Check your inbox" : "We'll email you a secure reset link"}
           </p>
-
         </div>
+
+        {sent ? (
+          <div style={{ textAlign: 'center', padding: '24px 0 32px' }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: 'rgba(124,92,252,0.13)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 22px',
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9472FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            </div>
+            <div style={{ fontWeight: 800, fontSize: 18, color: t.text, marginBottom: 12, letterSpacing: '-0.03em' }}>
+              Email sent
+            </div>
+            <div style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.65, maxWidth: 300, margin: '0 auto 28px' }}>
+              If <strong style={{ color: t.text }}>{email}</strong> is registered, a reset link is on its way. Check your inbox and spam folder.
+            </div>
+            <div style={{
+              padding: '12px 16px',
+              background: t.isDark ? 'rgba(255,255,255,0.04)' : t.card,
+              border: `1px solid ${t.border}`,
+              borderRadius: 10,
+              fontSize: 12.5,
+              color: t.textMuted,
+              lineHeight: 1.6,
+              textAlign: 'left',
+            }}>
+              <strong style={{ color: t.text, display: 'block', marginBottom: 4 }}>Didn't receive it?</strong>
+              Check your spam folder · The link expires in 1 hour · <button
+                onClick={() => { setSent(false); setEmail(''); }}
+                style={{ background: 'none', border: 'none', color: t.primary, fontWeight: 600, fontSize: 12.5, cursor: 'pointer', padding: 0 }}
+              >
+                Try a different email
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} noValidate>
+            {error && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 9,
+                padding: '11px 14px', marginBottom: 22,
+                background: t.errorBg, border: `1px solid ${t.errorBorder}`,
+                borderRadius: 10, fontSize: 13, color: t.error,
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                {error}
+              </div>
+            )}
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: t.text, letterSpacing: '-0.01em', marginBottom: 7 }}>
+                Email address
+              </label>
+              <input
+                type="email"
+                required
+                placeholder="you@company.com"
+                autoComplete="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onFocus={() => setFocused('email')}
+                onBlur={() => setFocused(null)}
+                style={inputStyle}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%', padding: '14px 20px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em',
+                background: loading
+                  ? (t.isDark ? 'rgba(255,255,255,0.07)' : '#E5E5EF')
+                  : 'linear-gradient(135deg, #7C5CFC 0%, #9472FF 100%)',
+                border: 'none', borderRadius: 11,
+                color: loading ? t.textDisabled : '#fff',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: loading ? 'none' : '0 4px 30px rgba(124,92,252,0.38)',
+                transition: 'transform 180ms ease, box-shadow 180ms ease',
+              }}
+              onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 40px rgba(124,92,252,0.50)'; } }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = loading ? 'none' : '0 4px 30px rgba(124,92,252,0.38)'; }}
+            >
+              {loading ? (
+                <>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.75s linear infinite' }}>
+                    <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+                  </svg>
+                  Sending…
+                </>
+              ) : 'Send reset link'}
+            </button>
+          </form>
+        )}
+
+        <p style={{ textAlign: 'center', marginTop: 30, fontSize: 13.5, color: t.textMuted, letterSpacing: '-0.01em' }}>
+          <Link href="/login" style={{ color: t.primary, fontWeight: 600, textDecoration: 'none' }}>
+            ← Back to sign in
+          </Link>
+        </p>
       </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus {
+          -webkit-box-shadow: 0 0 0 100px ${t.isDark ? '#0A0A16' : '#ffffff'} inset !important;
+          -webkit-text-fill-color: ${t.text} !important;
+          caret-color: ${t.text};
+        }
+      `}</style>
     </div>
   );
 }
-
