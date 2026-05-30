@@ -446,6 +446,43 @@ module.exports = (pool) => {
   });
 
   // ── POST /api/posts/:id/reject-approval ─────────────────────────────────────
+  // ── POST / — create a draft/scheduled post directly (used by calendar) ──────
+  router.post('/', authenticate, async (req, res) => {
+    try {
+      const {
+        caption = '', content_type = 'photo_post', platform = 'facebook',
+        platforms = [], status = 'draft', scheduled_date, scheduled_timezone,
+        media_url, source = 'manual_upload',
+      } = req.body;
+
+      if (!caption && !media_url) return res.status(400).json({ error: 'Caption or media is required' });
+
+      const result = await pool.query(
+        `INSERT INTO posts (customer_id, caption, content_type, platform, platforms, status,
+                            scheduled_date, scheduled_timezone, media_url, source,
+                            uploaded_by_user, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true,NOW(),NOW())
+         RETURNING *`,
+        [
+          req.customerId,
+          caption.substring(0, 3000),
+          content_type,
+          platform,
+          Array.isArray(platforms) ? platforms : [platform],
+          status,
+          scheduled_date || null,
+          scheduled_timezone || null,
+          media_url || null,
+          source,
+        ]
+      );
+      res.status(201).json({ post: result.rows[0] });
+    } catch (err) {
+      console.error('[posts POST /]', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   router.post('/:id/reject-approval', authenticate, async (req, res) => {
     try {
       const postId = parseInt(req.params.id);

@@ -99,6 +99,7 @@ export const scraperAPI = {
 
 export const postsAPI = {
   getAll: (params) => api.get('/api/posts', { params }),
+  create: (data) => api.post('/api/posts', data),
   getUpcoming: () => api.get('/api/posts/upcoming'),
   getById: (id) => api.get(`/api/posts/${id}`),
   update: (id, data) => api.patch(`/api/posts/${id}`, data),
