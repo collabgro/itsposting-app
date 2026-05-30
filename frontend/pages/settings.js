@@ -7,7 +7,7 @@ import {
   IpPlus, IpEdit,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, Input, Badge, SectionHeader, Spinner, ConfirmModal } from '../components/ui';
+import { Button, Input, Badge, SectionHeader, Spinner, ConfirmModal, Select } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI, authAPI, publicAPI } from '../lib/api';
 import IntegrationSetupWizard from '../components/IntegrationSetupWizard';
@@ -1391,16 +1391,12 @@ export default function Settings() {
                   return (
                     <div key={key}>
                       <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: t.textMuted, marginBottom: 5 }}>{label}</label>
-                      <select
+                      <Select
                         value={currentFont}
                         onChange={(e) => setProfile(p => ({ ...p, brand_fonts: { ...(p.brand_fonts || {}), [key]: e.target.value } }))}
-                        style={{ width: '100%', padding: '8px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 13, color: t.text, outline: 'none', cursor: 'pointer' }}
-                        onFocus={e => (e.target.style.borderColor = t.primary)}
-                        onBlur={e => (e.target.style.borderColor = t.border)}
-                      >
-                        <option value="">Not set</option>
-                        {fonts.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
-                      </select>
+                        placeholder="Not set"
+                        options={fonts.map(f => ({ value: f, label: f }))}
+                      />
                       {currentFont && (
                         <div style={{ marginTop: 5, fontSize: 15, fontFamily: currentFont, color: t.text, letterSpacing: '0.01em' }}>
                           {profile?.business_name || 'Your Business Name'}
@@ -1538,21 +1534,12 @@ export default function Settings() {
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>Your Timezone</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <select
+                <Select
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
-                  style={{
-                    flex: '1 1 280px', padding: '10px 12px',
-                    background: t.input, border: `1px solid ${t.border}`,
-                    borderRadius: 8, color: t.text, fontSize: 13, cursor: 'pointer',
-                  }}
-                >
-                  {TIMEZONES.map((tz) => (
-                    <option key={tz.value} value={tz.value}>
-                      {tz.label} ({tz.offset})
-                    </option>
-                  ))}
-                </select>
+                  options={TIMEZONES.map(tz => ({ value: tz.value, label: `${tz.label} (${tz.offset})` }))}
+                  style={{ flex: '1 1 280px' }}
+                />
                 <button
                   type="button"
                   onClick={() => {

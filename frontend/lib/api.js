@@ -175,7 +175,7 @@ export const billingAPI = {
   getCurrent: () => api.get('/api/billing/current'),
   getHistory: () => api.get('/api/billing/history'),
   getCheckoutLink: (plan, cycle) => api.get(`/api/billing/checkout-link?plan=${plan}&cycle=${cycle}`),
-  buyCredits: (pack) => api.get(`/api/billing/buy-credits?pack=${pack}`),
+  buyCredits: (pack, amount) => api.get(`/api/billing/buy-credits?pack=${pack}${amount ? `&amount=${encodeURIComponent(amount)}` : ''}`),
   cancel: () => api.post('/api/billing/cancel'),
   upgrade: (planId) => api.post('/api/billing/upgrade', { planId }),
 };

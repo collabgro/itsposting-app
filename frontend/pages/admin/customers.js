@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { IpSearch, IpChevronRight, IpTeam, IpAdmin, IpSave, IpChevronUp, IpChevronDown } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Button, Badge, EmptyState, Spinner } from '../../components/ui';
+import { Button, Badge, EmptyState, Spinner, Select } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
@@ -153,23 +153,41 @@ export default function AdminCustomers() {
             style={{ ...inputStyle, paddingLeft: 36, width: '100%', boxSizing: 'border-box' }}
           />
         </div>
-        <select value={filterPlan} onChange={(e) => { setFilterPlan(e.target.value); setPage(0); }} style={inputStyle}>
-          <option value="">All plans</option>
-          <option value="trial">Trial</option>
-          <option value="starter">Starter</option>
-          <option value="professional">Professional</option>
-          <option value="premium">Premium</option>
-        </select>
-        <select value={filterSuspended} onChange={(e) => { setFilterSuspended(e.target.value); setPage(0); }} style={inputStyle}>
-          <option value="">All status</option>
-          <option value="false">Active only</option>
-          <option value="true">Suspended only</option>
-        </select>
-        <select value={filterAccountType} onChange={(e) => { setFilterAccountType(e.target.value); setPage(0); }} style={inputStyle}>
-          <option value="">All accounts</option>
-          <option value="main">Main accounts</option>
-          <option value="workspace">Workspaces only</option>
-        </select>
+        <Select
+          value={filterPlan}
+          onChange={e => { setFilterPlan(e.target.value); setPage(0); }}
+          placeholder="All plans"
+          options={[
+            { value: '', label: 'All plans' },
+            { value: 'trial', label: 'Trial' },
+            { value: 'starter', label: 'Starter' },
+            { value: 'professional', label: 'Professional' },
+            { value: 'premium', label: 'Premium' },
+          ]}
+          style={{ width: 160 }}
+        />
+        <Select
+          value={filterSuspended}
+          onChange={e => { setFilterSuspended(e.target.value); setPage(0); }}
+          placeholder="All status"
+          options={[
+            { value: '', label: 'All status' },
+            { value: 'false', label: 'Active only' },
+            { value: 'true', label: 'Suspended only' },
+          ]}
+          style={{ width: 160 }}
+        />
+        <Select
+          value={filterAccountType}
+          onChange={e => { setFilterAccountType(e.target.value); setPage(0); }}
+          placeholder="All accounts"
+          options={[
+            { value: '', label: 'All accounts' },
+            { value: 'main', label: 'Main accounts' },
+            { value: 'workspace', label: 'Workspaces only' },
+          ]}
+          style={{ width: 170 }}
+        />
       </div>
 
       <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>

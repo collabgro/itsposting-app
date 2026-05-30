@@ -6,7 +6,7 @@ import {
   IpExternalLink, IpDollar, IpClose, IpMail,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, Spinner, EmptyState, SkeletonPage, ErrorCard } from '../components/ui';
+import { Button, Spinner, EmptyState, SkeletonPage, ErrorCard, Select } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { billingAPI, referralsAPI } from '../lib/api';
 
@@ -34,6 +34,7 @@ const CREDIT_PACKS = [
   { id: 'credits_150', amount: 150, price: 60 },
   { id: 'credits_200', amount: 200, price: 80 },
   { id: 'credits_250', amount: 250, price: 100 },
+  { id: 'credits_custom', amount: 0, price: 0, isCustom: true },
 ];
 
 export default function Billing() {
@@ -60,6 +61,7 @@ export default function Billing() {
   const [checkingOut, setCheckingOut] = useState(null); // plan id being checked out
   const [buyingPack, setBuyingPack] = useState(null); // credit pack id being purchased
   const [selectedPackId, setSelectedPackId] = useState('credits_100'); // Upwork-style dropdown selection
+  const [customCreditsInput, setCustomCreditsInput] = useState('');
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
   const [upgradeError, setUpgradeError] = useState('');
@@ -148,11 +150,19 @@ export default function Billing() {
   };
 
   const handleBuyCredits = async (pack) => {
+    if (pack.isCustom) {
+      const amt = parseInt(customCreditsInput) || 0;
+      if (amt < 10 || amt > 10000) {
+        setUpgradeError('Please enter an amount between 10 and 10,000 credits.');
+        return;
+      }
+    }
     setBuyingPack(pack.id);
     setCreditMsg('');
     setUpgradeError('');
     try {
-      const { data } = await billingAPI.buyCredits(pack.id);
+      const customAmt = pack.isCustom ? (parseInt(customCreditsInput) || 0) : undefined;
+      const { data } = await billingAPI.buyCredits(pack.id, customAmt);
       if (data.url) {
         window.location.href = data.url;
       } else if (data.message) {
@@ -674,9 +684,14 @@ export default function Billing() {
           </div>
         )}
 
-        {/* ── BUY MORE CREDITS (Upwork-style) ────────────────────────── */}
+        {/* ── BUY MORE CREDITS ────────────────────────────────────────── */}
         {(() => {
-          const selPack = CREDIT_PACKS.find(p => p.id === selectedPackId) || CREDIT_PACKS[3];
+          const isCustom = selectedPackId === 'credits_custom';
+          const customAmt = Math.max(0, parseInt(customCreditsInput) || 0);
+          const customPrice = customAmt > 0 ? Math.ceil(customAmt * 0.4) : 0;
+          const selPack = isCustom
+            ? { id: 'credits_custom', amount: customAmt, price: customPrice, isCustom: true }
+            : (CREDIT_PACKS.find(p => p.id === selectedPackId) || CREDIT_PACKS[3]);
           const currentBal = current?.credits_balance ?? 0;
           const newBal = currentBal + selPack.amount;
           const expiryDate = new Date();
@@ -685,6 +700,21 @@ export default function Billing() {
           const photoEq = Math.floor(selPack.amount / 3);
           const carouselEq = Math.floor(selPack.amount / 5);
           const videoEq = Math.floor(selPack.amount / 10);
+          const canBuy = !isCustom || (customAmt >= 10 && customAmt <= 10000);
+
+          const packOptions = CREDIT_PACKS.map(pack => {
+            if (pack.isCustom) return { value: pack.id, label: 'Custom amount' };
+            return {
+              value: pack.id,
+              label: `${pack.amount} credits for $${pack.price}`,
+              tag: pack.id === 'credits_200'
+                ? { label: 'Best Value', bg: 'rgba(16,185,129,0.15)', color: '#10b981' }
+                : pack.id === 'credits_100'
+                  ? { label: 'Popular', bg: `${t.primary}20`, color: t.primary }
+                  : null,
+            };
+          });
+
           return (
             <div style={{ ...gc, padding: 28, marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -695,62 +725,89 @@ export default function Billing() {
 
               {/* Current balance */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Your available Credits</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Your available credits</div>
                 <div style={{ fontSize: 28, fontWeight: 800, color: t.text, lineHeight: 1 }}>{currentBal.toLocaleString()}</div>
               </div>
 
               {/* Dropdown selector */}
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: isCustom ? 12 : 20 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Select the amount to buy</div>
-                <div style={{ position: 'relative' }}>
-                  <select
-                    value={selectedPackId}
-                    onChange={e => setSelectedPackId(e.target.value)}
-                    style={{
-                      width: '100%', maxWidth: 420, padding: '13px 44px 13px 16px',
-                      background: t.input, border: `1.5px solid ${t.border}`,
-                      borderRadius: 12, color: t.text, fontSize: 14, fontWeight: 600,
-                      cursor: 'pointer', outline: 'none', appearance: 'none',
-                      WebkitAppearance: 'none', transition: 'border-color 140ms',
-                    }}
-                    onFocus={e => (e.target.style.borderColor = t.primary)}
-                    onBlur={e => (e.target.style.borderColor = t.border)}
-                  >
-                    {CREDIT_PACKS.map(pack => {
-                      const tag = pack.id === 'credits_200' ? ' — Best Value' : pack.id === 'credits_100' ? ' — Popular' : '';
-                      return (
-                        <option key={pack.id} value={pack.id}>
-                          {pack.amount} credits for ${pack.price}{tag}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <div style={{ position: 'absolute', top: '50%', right: 14, transform: 'translateY(-50%)', pointerEvents: 'none', color: t.textMuted }}>
-                    ▾
-                  </div>
-                </div>
+                <Select
+                  value={selectedPackId}
+                  onChange={e => { setSelectedPackId(e.target.value); setCustomCreditsInput(''); setUpgradeError(''); }}
+                  options={packOptions}
+                  style={{ maxWidth: 420 }}
+                />
               </div>
 
+              {/* Custom amount input — shown only when "Custom amount" is selected */}
+              {isCustom && (
+                <div style={{ maxWidth: 420, marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Enter number of credits (10 – 10,000)</div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="number"
+                      min={10}
+                      max={10000}
+                      value={customCreditsInput}
+                      onChange={e => setCustomCreditsInput(e.target.value)}
+                      placeholder="e.g. 300"
+                      style={{
+                        width: '100%', boxSizing: 'border-box',
+                        padding: '12px 80px 12px 14px',
+                        background: t.input, border: `1.5px solid ${t.border}`,
+                        borderRadius: 12, color: t.text, fontSize: 14, fontWeight: 600,
+                        outline: 'none', transition: 'border-color 140ms',
+                      }}
+                      onFocus={e => (e.target.style.borderColor = t.primary)}
+                      onBlur={e => (e.target.style.borderColor = t.border)}
+                    />
+                    {customAmt > 0 && (
+                      <span style={{
+                        position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+                        fontSize: 13, fontWeight: 700, color: t.primary,
+                      }}>
+                        ${customPrice}
+                      </span>
+                    )}
+                  </div>
+                  {customCreditsInput && (customAmt < 10 || customAmt > 10000) && (
+                    <div style={{ fontSize: 11, color: t.error, marginTop: 5, fontWeight: 500 }}>
+                      {customAmt < 10 ? 'Minimum 10 credits' : 'Maximum 10,000 credits'}
+                    </div>
+                  )}
+                  {customAmt >= 10 && customAmt <= 10000 && (
+                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 5 }}>
+                      {customAmt} credits × $0.40 = <strong style={{ color: t.text }}>${customPrice}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Calculated summary */}
-              <div style={{ maxWidth: 420, borderRadius: 12, border: `1px solid ${t.border}`, overflow: 'hidden', marginBottom: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
-                  <span style={{ fontSize: 13, color: t.textMuted }}>Your account will be charged</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>${selPack.price}.00 + Tax</span>
+              {(!isCustom || (customAmt >= 10 && customAmt <= 10000)) && (
+                <div style={{ maxWidth: 420, borderRadius: 12, border: `1px solid ${t.border}`, overflow: 'hidden', marginBottom: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
+                    <span style={{ fontSize: 13, color: t.textMuted }}>Your account will be charged</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>
+                      {isCustom && customAmt > 0 ? `$${customPrice}` : `$${selPack.price}.00`} + Tax
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
+                    <span style={{ fontSize: 13, color: t.textMuted }}>Your new credits balance will be</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{newBal.toLocaleString()} credits</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
+                    <span style={{ fontSize: 13, color: t.textMuted }}>These credits will expire on</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{expiryStr}</span>
+                  </div>
+                  <div style={{ padding: '11px 18px', background: t.isDark ? 'rgba(124,92,252,0.05)' : 'rgba(124,92,252,0.03)' }}>
+                    <span style={{ fontSize: 12, color: t.textMuted }}>
+                      ≈ {photoEq} photo posts · {carouselEq} carousels · {videoEq} videos
+                    </span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
-                  <span style={{ fontSize: 13, color: t.textMuted }}>Your new Credits balance will be</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{newBal.toLocaleString()} credits</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
-                  <span style={{ fontSize: 13, color: t.textMuted }}>These credits will expire on</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{expiryStr}</span>
-                </div>
-                <div style={{ padding: '11px 18px', background: t.isDark ? 'rgba(124,92,252,0.05)' : 'rgba(124,92,252,0.03)' }}>
-                  <span style={{ fontSize: 12, color: t.textMuted }}>
-                    ≈ {photoEq} photo posts · {carouselEq} carousels · {videoEq} videos
-                  </span>
-                </div>
-              </div>
+              )}
 
               {/* Promo code */}
               <div style={{ maxWidth: 420, display: 'flex', gap: 8, marginBottom: 20 }}>
@@ -783,21 +840,30 @@ export default function Billing() {
               {/* Buy button */}
               <button
                 onClick={() => handleBuyCredits(selPack)}
-                disabled={!!buyingPack}
+                disabled={!!buyingPack || !canBuy || (isCustom && customAmt === 0)}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   width: '100%', maxWidth: 420, padding: '14px',
-                  background: buyingPack ? t.textMuted : 'linear-gradient(135deg,#7C5CFC,#9B7FFF)',
+                  background: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? t.textMuted : 'linear-gradient(135deg,#7C5CFC,#9B7FFF)',
                   color: '#fff', border: 'none', borderRadius: 12,
-                  fontSize: 15, fontWeight: 700, cursor: buyingPack ? 'not-allowed' : 'pointer',
-                  boxShadow: buyingPack ? 'none' : '0 4px 18px rgba(124,92,252,0.4)',
-                  transition: 'all 150ms', opacity: buyingPack ? 0.6 : 1,
+                  fontSize: 15, fontWeight: 700,
+                  cursor: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? 'not-allowed' : 'pointer',
+                  boxShadow: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? 'none' : '0 4px 18px rgba(124,92,252,0.4)',
+                  transition: 'all 150ms',
+                  opacity: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? 0.5 : 1,
                 }}
-                onMouseEnter={e => { if (!buyingPack) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(124,92,252,0.5)'; } }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = buyingPack ? 'none' : '0 4px 18px rgba(124,92,252,0.4)'; }}
+                onMouseEnter={e => { if (!buyingPack && canBuy && !(isCustom && customAmt === 0)) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(124,92,252,0.5)'; } }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = (buyingPack || !canBuy) ? 'none' : '0 4px 18px rgba(124,92,252,0.4)'; }}
               >
                 <IpCredits size={15} />
-                {buyingPack ? 'Redirecting to checkout…' : `Buy ${selPack.amount} Credits — $${selPack.price}`}
+                {buyingPack
+                  ? 'Redirecting to checkout…'
+                  : isCustom && customAmt > 0
+                    ? `Buy ${customAmt} Credits — $${customPrice}`
+                    : !isCustom
+                      ? `Buy ${selPack.amount} Credits — $${selPack.price}`
+                      : 'Enter an amount above'
+                }
               </button>
 
               <p style={{ fontSize: 12, color: t.textMuted, maxWidth: 420, marginTop: 12, lineHeight: 1.6 }}>

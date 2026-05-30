@@ -646,6 +646,141 @@ export function SkeletonPage({ rows = 3, cards = 3 }) {
   );
 }
 
+// ─── Select ───────────────────────────────────────────────────────────────────
+// Premium custom dropdown — replaces native <select> throughout the app.
+// options: Array of { value, label, tag?: { label, bg?, color? }, icon?, disabled? } or plain strings.
+// onChange receives a synthetic event: { target: { value } }
+export function Select({
+  value, onChange, options = [], placeholder = 'Select…',
+  style, disabled, error, maxWidth,
+}) {
+  const { t } = useTheme();
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e) => { if (!containerRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [open]);
+
+  // Normalise string[] to {value,label}[]
+  const normalised = options.map(o => (typeof o === 'string' ? { value: o, label: o } : o));
+  const selected = normalised.find(o => o.value === value);
+  const borderColor = error ? t.error : open ? t.primary : t.border;
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', maxWidth, ...style }}>
+      {/* ── Trigger ── */}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(v => !v)}
+        style={{
+          width: '100%',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+          padding: '11px 14px',
+          background: t.input,
+          border: `1.5px solid ${borderColor}`,
+          borderRadius: open ? '12px 12px 0 0' : 12,
+          color: selected ? t.text : t.textMuted,
+          fontSize: 14, fontWeight: selected ? 600 : 400,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          outline: 'none', textAlign: 'left',
+          boxShadow: open ? `0 0 0 3px ${error ? 'rgba(255,59,48,0.12)' : t.focusRing}` : 'none',
+          transition: 'border-color 140ms, box-shadow 140ms',
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selected ? selected.label : placeholder}
+        </span>
+        {selected?.tag && (
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5, flexShrink: 0,
+            background: selected.tag.bg || `${t.primary}20`,
+            color: selected.tag.color || t.primary,
+          }}>
+            {selected.tag.label}
+          </span>
+        )}
+        <svg
+          style={{ flexShrink: 0, color: t.textMuted, transition: 'transform 200ms', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          width="15" height="15" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {/* ── Dropdown panel ── */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 9999,
+          background: t.isDark ? 'rgba(10,10,18,0.98)' : 'rgba(255,255,255,0.99)',
+          backdropFilter: 'blur(24px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(200%)',
+          border: `1.5px solid ${t.primary}`,
+          borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'}`,
+          borderRadius: '0 0 12px 12px',
+          boxShadow: t.isDark
+            ? '0 20px 50px rgba(0,0,0,0.65), 0 6px 16px rgba(0,0,0,0.4)'
+            : '0 16px 48px rgba(0,0,0,0.14), 0 4px 12px rgba(0,0,0,0.07)',
+          maxHeight: 300, overflowY: 'auto',
+        }}>
+          {normalised.map((opt, idx) => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value ?? idx}
+                type="button"
+                disabled={opt.disabled}
+                onClick={() => { if (!opt.disabled) { onChange({ target: { value: opt.value } }); setOpen(false); } }}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  width: '100%', padding: '11px 16px',
+                  background: isSelected ? (t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.06)') : 'transparent',
+                  border: 'none',
+                  borderBottom: idx < normalised.length - 1 ? `1px solid ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'}` : 'none',
+                  cursor: opt.disabled ? 'not-allowed' : 'pointer', textAlign: 'left',
+                  opacity: opt.disabled ? 0.4 : 1,
+                  transition: 'background 80ms',
+                }}
+                onMouseEnter={e => { if (!isSelected && !opt.disabled) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'; }}
+                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isSelected ? (t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.06)') : 'transparent'; }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                  {opt.icon && <span style={{ flexShrink: 0, display: 'flex' }}>{opt.icon}</span>}
+                  <span style={{ fontSize: 13, color: t.text, fontWeight: isSelected ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {opt.label}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 8 }}>
+                  {opt.tag && (
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5,
+                      background: opt.tag.bg || `${t.primary}18`, color: opt.tag.color || t.primary,
+                    }}>
+                      {opt.tag.label}
+                    </span>
+                  )}
+                  {isSelected && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke={t.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ErrorCard ─────────────────────────────────────────────────────────────────
 // Standardised error state for any section or page-level failure.
 export function ErrorCard({ title = 'Could not load data', message, onRetry, style = {} }) {

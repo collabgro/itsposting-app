@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import { ConfirmModal } from '../components/ui';
+import { ConfirmModal, Select } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { contactsAPI } from '../lib/api';
 import {
@@ -85,13 +85,11 @@ function ContactModal({ contact, onSave, onClose, t }) {
           style={{ width: '100%', padding: '8px 10px', borderRadius: 6, background: t.input, border: `1px solid ${t.border}`, color: t.text, fontSize: 13, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
         />
       ) : opts.select ? (
-        <select
+        <Select
           value={form[key]}
           onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
-          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, background: t.input, border: `1px solid ${t.border}`, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-        >
-          {LEAD_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-        </select>
+          options={LEAD_STATUSES.map(s => ({ value: s.key, label: s.label }))}
+        />
       ) : (
         <input
           type={type}
@@ -495,13 +493,22 @@ export default function ContactsPage() {
                 {contact.estimated_job_value ? `$${parseFloat(contact.estimated_job_value).toLocaleString()}` : '—'}
               </div>
               <div onClick={e => e.stopPropagation()}>
+                {/* Compact inline status selector — uses native select for table-row density */}
                 <select
                   value={contact.lead_status}
                   onChange={e => handleStatusChange(contact.id, e.target.value)}
-                  style={{ padding: '3px 6px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: 'transparent', border: 'none', cursor: 'pointer', color: LEAD_STATUSES.find(s => s.key === contact.lead_status)?.color || t.text, outline: 'none' }}
+                  style={{
+                    padding: '4px 24px 4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                    background: (LEAD_STATUSES.find(s => s.key === contact.lead_status)?.color || t.primary) + '18',
+                    border: `1px solid ${(LEAD_STATUSES.find(s => s.key === contact.lead_status)?.color || t.primary)}40`,
+                    cursor: 'pointer', color: LEAD_STATUSES.find(s => s.key === contact.lead_status)?.color || t.text,
+                    outline: 'none', appearance: 'none', WebkitAppearance: 'none',
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat', backgroundPosition: 'calc(100% - 5px) 50%',
+                  }}
                 >
                   {LEAD_STATUSES.map(s => (
-                    <option key={s.key} value={s.key} style={{ color: t.text, background: t.card }}>{s.label}</option>
+                    <option key={s.key} value={s.key}>{s.label}</option>
                   ))}
                 </select>
               </div>

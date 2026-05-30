@@ -6,7 +6,7 @@ import {
   IpCalendar, IpInfo, IpCheck, IpRefresh,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Button, Badge, StatCard, SectionHeader, EmptyState, Spinner, SkeletonPage, ErrorCard } from '../../components/ui';
+import { Button, Badge, StatCard, SectionHeader, EmptyState, Spinner, SkeletonPage, ErrorCard, Select } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { analyticsAPI } from '../../lib/api';
 import { format, addDays } from 'date-fns';
@@ -177,27 +177,19 @@ function EngagementTrendChart({ posts, t, gc }) {
 }
 
 function MonthPicker({ value, onChange }) {
-  const { t } = useTheme();
   const now = new Date();
   const options = [];
   for (let i = 0; i < 6; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    options.push({ label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, year: d.getFullYear(), month: d.getMonth() });
+    options.push({ value: `${d.getFullYear()}-${d.getMonth()}`, label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}` });
   }
   return (
-    <select
+    <Select
       value={value}
       onChange={e => onChange(e.target.value)}
-      style={{
-        background: t.input, border: `1px solid ${t.border}`,
-        borderRadius: 8, padding: '8px 14px',
-        color: t.text, fontSize: 14, cursor: 'pointer', outline: 'none',
-      }}
-    >
-      {options.map(o => (
-        <option key={`${o.year}-${o.month}`} value={`${o.year}-${o.month}`}>{o.label}</option>
-      ))}
-    </select>
+      options={options}
+      style={{ width: 180 }}
+    />
   );
 }
 

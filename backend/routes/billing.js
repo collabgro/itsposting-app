@@ -250,7 +250,20 @@ module.exports = (pool) => {
   // ── Buy credits (generates checkout link for a credit pack) ──────────────────
   router.get('/buy-credits', authenticate, async (req, res) => {
     try {
-      const { pack } = req.query;
+      const { pack, amount: rawAmount } = req.query;
+
+      // Custom amount path
+      if (pack === 'credits_custom') {
+        const amount = parseInt(rawAmount);
+        if (!amount || amount < 10 || amount > 10000) {
+          return res.status(400).json({ error: 'Amount must be between 10 and 10,000 credits' });
+        }
+        const price = Math.ceil(amount * 0.4);
+        return res.json({
+          message: `To purchase ${amount} credits for $${price}, email support@itsposting.com with subject: "Credit purchase — ${amount} credits". We'll add them to your account within 24 hours.`,
+        });
+      }
+
       const creditPack = CREDIT_PACKS.find(p => p.id === pack);
       if (!creditPack) return res.status(400).json({ error: 'Invalid credit pack' });
 

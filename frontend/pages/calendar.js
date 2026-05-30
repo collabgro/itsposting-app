@@ -7,7 +7,7 @@ import {
   IpSchedule, IpSparkle, IpDelete, IpCheck,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, Badge, Skeleton } from '../components/ui';
+import { Button, Badge, Skeleton, Select } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI, socialAPI, wizardAPI, calendarPlansAPI } from '../lib/api';
 import {
@@ -494,21 +494,29 @@ export default function Calendar() {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <select value={bulkTone} onChange={e => setBulkTone(e.target.value)}
-                  style={{ padding: '6px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 12 }}>
-                  <option value="friendly">Friendly</option>
-                  <option value="professional">Professional</option>
-                  <option value="funny">Funny</option>
-                  <option value="educational">Educational</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-                <select value={bulkPlatform} onChange={e => setBulkPlatform(e.target.value)}
-                  style={{ padding: '6px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 12 }}>
-                  <option value="all">All platforms</option>
-                  <option value="facebook">Facebook</option>
-                  <option value="instagram">Instagram</option>
-                  <option value="google_business">Google Business</option>
-                </select>
+                <Select
+                  value={bulkTone}
+                  onChange={e => setBulkTone(e.target.value)}
+                  options={[
+                    { value: 'friendly', label: 'Friendly' },
+                    { value: 'professional', label: 'Professional' },
+                    { value: 'funny', label: 'Funny' },
+                    { value: 'educational', label: 'Educational' },
+                    { value: 'urgent', label: 'Urgent' },
+                  ]}
+                  style={{ width: 150 }}
+                />
+                <Select
+                  value={bulkPlatform}
+                  onChange={e => setBulkPlatform(e.target.value)}
+                  options={[
+                    { value: 'all', label: 'All platforms' },
+                    { value: 'facebook', label: 'Facebook' },
+                    { value: 'instagram', label: 'Instagram' },
+                    { value: 'google_business', label: 'Google Business' },
+                  ]}
+                  style={{ width: 170 }}
+                />
                 <button
                   onClick={handleBulkGenerate}
                   disabled={bulkDays.length === 0 || bulkLoading}
@@ -578,18 +586,18 @@ export default function Calendar() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '12px 14px' : '18px 24px', borderBottom: `1px solid ${t.border}`, flexWrap: 'wrap', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <CalendarIcon size={18} color="url(#brand-gradient)" />
-                {/* Month selector */}
-                <div style={{ position: 'relative' }}>
-                  <select value={currentMonth.getMonth()} onChange={handleMonthChange} style={selectStyle}>
-                    {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                  </select>
-                </div>
-                {/* Year selector */}
-                <div style={{ position: 'relative' }}>
-                  <select value={currentMonth.getFullYear()} onChange={handleYearChange} style={selectStyle}>
-                    {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
+                <Select
+                  value={String(currentMonth.getMonth())}
+                  onChange={e => handleMonthChange({ target: { value: e.target.value } })}
+                  options={MONTHS.map((m, i) => ({ value: String(i), label: m }))}
+                  style={{ width: 140 }}
+                />
+                <Select
+                  value={String(currentMonth.getFullYear())}
+                  onChange={e => handleYearChange({ target: { value: e.target.value } })}
+                  options={yearOptions.map(y => ({ value: String(y), label: String(y) }))}
+                  style={{ width: 100 }}
+                />
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <button

@@ -7,7 +7,7 @@ import {
   IpSparkle, IpFacebook, IpInstagram, IpGoogle,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, Input, Textarea, Spinner } from '../components/ui';
+import { Button, Input, Textarea, Spinner, Select } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { knowledgeAPI, receptionistAPI } from '../lib/api';
 
@@ -1217,16 +1217,16 @@ function RichTextModal({ t, entry, onClose, onSave }) {
         {!entry && (
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Type</label>
-            <select
+            <Select
               value={knowledgeType}
               onChange={e => setKnowledgeType(e.target.value)}
-              style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, fontFamily: 'inherit' }}
-            >
-              <option value="services">Services</option>
-              <option value="reviews">Reviews</option>
-              <option value="differentiators">About</option>
-              <option value="team">Team</option>
-            </select>
+              options={[
+                { value: 'services', label: 'Services' },
+                { value: 'reviews', label: 'Reviews' },
+                { value: 'differentiators', label: 'About' },
+                { value: 'team', label: 'Team' },
+              ]}
+            />
           </div>
         )}
         <div style={{ marginBottom: 20 }}>
@@ -1718,10 +1718,11 @@ function AiResponseTab({ t }) {
         </div>
         <div style={{ flex: 2, minWidth: 200 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, display: 'block', marginBottom: 6 }}>Timezone</label>
-          <select value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}
-            style={{ width: '100%', padding: '9px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
-            {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>)}
-          </select>
+          <Select
+            value={form.timezone}
+            onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}
+            options={TIMEZONES.map(tz => ({ value: tz, label: tz.replace('_', ' ') }))}
+          />
         </div>
       </div>
 
