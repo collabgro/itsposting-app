@@ -11,6 +11,7 @@
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const cloudinary = require('cloudinary').v2;
+const industryKnowledge = require('../data/industryKnowledge');
 
 class NanoBananaService {
   constructor() {
@@ -250,66 +251,151 @@ class NanoBananaService {
   }
 
   /**
-   * Enhance prompt with branding and quality modifiers
+   * Enhance prompt with industry-specific trade photography guidance.
+   * Uses industryKnowledge.imageVisuals to make every image feel authentic
+   * to the specific trade — not generic stock photography.
    */
   enhancePrompt(customer, userPrompt, options = {}) {
-    let enhanced = userPrompt;
+    const industry = customer.industry || 'general_contractor';
+    const industryData = industryKnowledge[industry] || industryKnowledge.general_contractor || {};
+    const iv = industryData.imageVisuals || {};
 
-    // Add quality modifiers if missing
-    if (!userPrompt.toLowerCase().includes('professional')) {
-      enhanced += ', professional photography';
-    }
-    if (!userPrompt.toLowerCase().includes('quality') && !userPrompt.toLowerCase().includes('8k')) {
-      enhanced += ', high quality, 8K resolution';
+    const parts = [userPrompt];
+
+    // 1. Trade-specific photography style — the most impactful addition for realism
+    const tradePhotoStyle = this._buildTradePhotoStyle(industry);
+    parts.push(tradePhotoStyle);
+
+    // 2. Mood and lighting from industry knowledge
+    if (iv.moodAndLighting) {
+      parts.push(iv.moodAndLighting);
     }
 
-    // Add style based on visual_style
-    const stylePrompts = {
-      modern: 'modern aesthetic, clean composition, bright lighting',
-      professional: 'professional polished look, sharp focus, well-lit',
-      bold: 'bold dramatic composition, vibrant colors, high contrast',
-      minimal: 'minimalist composition, clean background, simple',
+    // 3. Color palette — grounds Gemini in the real materials of this trade
+    if (iv.colorPalette) {
+      parts.push(`natural color palette: ${iv.colorPalette}`);
+    }
+
+    // 4. Seasonal visual context — makes the image timely and relevant
+    const season = this._getCurrentSeason();
+    const seasonalVisual = iv.seasonalVisuals?.[season];
+    if (seasonalVisual) {
+      parts.push(`seasonal context (${season}): ${seasonalVisual}`);
+    }
+
+    // 5. Brand color — if customer has one, incorporate into technician workwear
+    const brandColors = (() => {
+      if (!customer.brand_colors) return null;
+      const c = customer.brand_colors;
+      if (typeof c === 'string' && c.trim()) return c.trim();
+      if (Array.isArray(c) && c.length > 0) return c[0];
+      if (c.primary) return c.primary;
+      return null;
+    })();
+    if (brandColors) {
+      parts.push(`technician wearing branded workwear with ${brandColors} as the primary color`);
+    }
+
+    // 6. Visual style — adapted to feel authentic to trades (not corporate polished)
+    const styleMap = {
+      modern:       'clean sharp composition, natural lighting',
+      professional: 'sharp focus, well-lit, composed',
+      bold:         'high contrast, strong foreground subject, dramatic lighting',
+      minimal:      'tight crop, single subject in focus, clean background',
     };
-
-    if (customer.visual_style && stylePrompts[customer.visual_style]) {
-      enhanced += `, ${stylePrompts[customer.visual_style]}`;
+    if (customer.visual_style && styleMap[customer.visual_style]) {
+      parts.push(styleMap[customer.visual_style]);
     }
 
-    // Add aspect ratio hint
+    // 7. Composition and aspect ratio — platform-optimized framing
     if (options.aspectRatio === '9:16') {
-      enhanced += ', vertical portrait orientation, 9:16 aspect ratio, mobile-first framing';
+      parts.push('vertical 9:16 portrait framing, mobile-first composition, subject fills frame');
     } else if (options.aspectRatio === '16:9') {
-      enhanced += ', horizontal landscape orientation, 16:9 widescreen composition';
+      parts.push('horizontal 16:9 widescreen composition, wide establishing shot');
     } else if (options.aspectRatio === '4:5') {
-      enhanced += ', portrait orientation, 4:5 aspect ratio, ideal Instagram and Google Business feed framing';
+      parts.push('portrait 4:5 framing, optimized for Instagram and Google Business feed');
     } else if (options.aspectRatio === '1:1') {
-      enhanced += ', square composition, 1:1 aspect ratio, clean centered framing';
+      parts.push('square 1:1 composition, centered subject, balanced framing');
     } else {
-      enhanced += ', square 1:1 composition';
+      parts.push('portrait 4:5 framing, optimized for social media feed');
     }
 
-    // Always exclude unwanted elements
-    enhanced += '. Do not include any text, watermarks, signatures, or logos.';
+    // 8. Quality markers
+    parts.push('sharp focus throughout, high detail, photorealistic');
 
-    return enhanced;
+    // 9. Negative prompt — critical for avoiding the generic stock-photo look
+    const clichesToAvoid = iv.avoidCliches?.slice(0, 4).join(', ') || 'generic stock photography, clipart, cartoons, illustrations';
+    const finalPrompt = parts.join(', ') +
+      `. No text overlays, watermarks, signatures, or logos in the image. ` +
+      `Do not generate: ${clichesToAvoid}.`;
+
+    console.log(`🍌 [NanoBanana] Enhanced prompt for ${industry} (${finalPrompt.length} chars)`);
+    return finalPrompt;
   }
 
   /**
-   * Enhanced prompt for carousel slides (maintains consistency)
+   * Photography style descriptor per trade — tells Gemini what kind of photographer
+   * to emulate. This single addition has the biggest impact on image authenticity.
+   */
+  _buildTradePhotoStyle(industry) {
+    const styles = {
+      plumbing:           'photorealistic documentary-style trade photography, real licensed plumber actively working on residential job site, authentic not staged',
+      hvac:               'photorealistic documentary trade photography, HVAC technician in action at real job site, honest field photography not staged',
+      roofing:            'photorealistic outdoor trade photography, roofing crew at work on residential roof, natural daylight, honest job-site feel',
+      concrete:           'photorealistic construction photography, concrete work in progress, crew on active job site, natural outdoor lighting',
+      landscaping:        'photorealistic outdoor landscaping photography, crew actively working on residential property, natural daylight, real job site',
+      electrical:         'photorealistic trade photography, licensed electrician working on real residential electrical system, honest job-site lighting',
+      painting:           'photorealistic trade photography, professional painter at work in real residential setting, natural interior or exterior light',
+      pest_control:       'photorealistic documentary photography, pest control technician performing treatment at real home, honest outdoor and indoor lighting',
+      general_contractor: 'photorealistic construction photography, general contractor or crew at active renovation site, honest job-site lighting',
+      cleaning:           'photorealistic documentary photography, professional cleaning team working in real residential home, natural interior lighting',
+      tree_service:       'photorealistic outdoor trade photography, arborist crew at work on real residential tree job, natural daylight',
+      pressure_washing:   'photorealistic before/after trade photography, pressure washing in progress on real residential surface, natural outdoor lighting',
+      pool_spa:           'photorealistic residential pool photography, clear water and authentic pool equipment, natural outdoor daylight',
+      handyman:           'photorealistic trade photography, handyman performing real repair work in residential setting, honest natural lighting',
+      flooring:           'photorealistic interior trade photography, flooring installation in progress in real home, natural interior lighting',
+      junk_removal:       'photorealistic before/after documentary photography, junk removal crew at real residential property, honest natural lighting',
+      solar_gutter_cleaning: 'photorealistic exterior trade photography, technician cleaning solar panels or gutters on real residential roof, natural daylight',
+    };
+    return styles[industry] || 'photorealistic documentary-style trade photography, real technician at work on residential job site, authentic not staged';
+  }
+
+  /**
+   * Enhanced prompt for carousel slides — consistent style across all slides
+   * while maintaining the trade-authentic feel.
    */
   enhanceCarouselPrompt(customer, slidePrompt, slideNumber) {
-    let enhanced = `Slide ${slideNumber} of carousel: ${slidePrompt}`;
-    
-    // Maintain consistent style across slides
-    enhanced += `, consistent visual style with brand colors`;
-    
-    if (customer.brand_colors?.primary) {
-      enhanced += `, color palette featuring ${customer.brand_colors.primary}`;
+    const industry = customer.industry || 'general_contractor';
+    const industryData = industryKnowledge[industry] || {};
+    const iv = industryData.imageVisuals || {};
+
+    const parts = [`Slide ${slideNumber} of a carousel series: ${slidePrompt}`];
+
+    // Trade photo style for consistency across slides
+    parts.push(this._buildTradePhotoStyle(industry));
+
+    // Color palette consistency
+    if (iv.colorPalette) {
+      parts.push(`consistent color palette throughout series: ${iv.colorPalette}`);
     }
 
-    enhanced += ', professional photography, high quality, square 1:1 composition, no text or watermarks';
+    // Brand color
+    const brandColors = (() => {
+      if (!customer.brand_colors) return null;
+      const c = customer.brand_colors;
+      if (typeof c === 'string' && c.trim()) return c.trim();
+      if (Array.isArray(c) && c.length > 0) return c[0];
+      if (c.primary) return c.primary;
+      return null;
+    })();
+    if (brandColors) {
+      parts.push(`brand color ${brandColors} present in technician workwear or equipment`);
+    }
 
-    return enhanced;
+    parts.push('square 1:1 composition, sharp focus, consistent lighting style across all slides');
+    parts.push('no text, watermarks, or logos');
+
+    return parts.join(', ') + '.';
   }
 
   /**
@@ -342,7 +428,7 @@ class NanoBananaService {
   }
 
   /**
-   * Helper: Get current season
+   * Helper: Get current season (capitalized — used by theme prompts)
    */
   getCurrentSeason() {
     const month = new Date().getMonth();
@@ -350,6 +436,17 @@ class NanoBananaService {
     if (month >= 5 && month <= 7) return 'Summer';
     if (month >= 8 && month <= 10) return 'Fall';
     return 'Winter';
+  }
+
+  /**
+   * Helper: Get current season lowercase — matches imageVisuals.seasonalVisuals keys
+   */
+  _getCurrentSeason() {
+    const month = new Date().getMonth() + 1;
+    if (month >= 3 && month <= 5) return 'spring';
+    if (month >= 6 && month <= 8) return 'summer';
+    if (month >= 9 && month <= 11) return 'fall';
+    return 'winter';
   }
 
   /**

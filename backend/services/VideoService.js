@@ -20,6 +20,7 @@ const VeoService = require('./VeoService');
 const RunwayService = require('./RunwayService');
 const PikaService = require('./PikaService');
 const NanoBananaService = require('./NanoBananaService');
+const industryKnowledge = require('../data/industryKnowledge');
 
 class VideoService {
   constructor() {

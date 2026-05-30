@@ -114,38 +114,74 @@ You have deep knowledge of this industry. Use this to make every post feel speci
       expertise += `\n\nCurrent seasonal context (${this._getMonthName(this.currentMonth)}):
 - Most urgent topic right now: ${this.seasonal.urgencyTopic}
 - Best tip to share: ${this.seasonal.tipTopic}
-- Promotion angle: ${this.seasonal.promotionAngle}
-IMPORTANT: Weave seasonal urgency naturally into the post — don't force it.`;
+- Promotion angle: ${this.seasonal.promotionAngle}`;
+      if (this.seasonal.emotionalContext) {
+        expertise += `\n- Emotional temperature of your audience: ${this.seasonal.emotionalContext}`;
+      }
+      if (this.seasonal.postIdea) {
+        expertise += `\n- Proven post idea for this month: ${this.seasonal.postIdea}`;
+      }
+      if (this.seasonal.engagementHook) {
+        expertise += `\n- High-engagement question to use: ${this.seasonal.engagementHook}`;
+      }
+      expertise += `\nIMPORTANT: Weave seasonal urgency naturally into the post — don't force it.`;
     }
 
     if (k.customerPainPoints?.length > 0) {
-      const selected = k.customerPainPoints.slice(0, 3);
-      expertise += `\n\nReal customer pain points to reference naturally:`;
+      const selected = k.customerPainPoints.slice(0, 4);
+      expertise += `\n\nReal customer pain points to reference naturally (use their exact language):`;
       selected.forEach(p => { expertise += `\n- "${p}"`; });
     }
 
+    // Trade terminology — makes copy sound like a real professional wrote it
+    if (k.tradeTerminology?.length > 0) {
+      expertise += `\n\nTrade terminology to use naturally (these words signal authenticity to homeowners):`;
+      expertise += `\n${k.tradeTerminology.slice(0, 12).join(', ')}`;
+      expertise += `\nUse 2-3 of these per post where they fit naturally. Never force them.`;
+    }
+
+    // Content angle — match to wizard trigger if one is provided
+    if (k.contentAngles?.length > 0 && this.wizardTrigger) {
+      const triggerAngleMap = {
+        share_tip: ['water_bill_detective', 'flushable_wipes_myth', 'water_quality', 'diy_warning', 'emergency_prevention'],
+        finished_job: ['job_reveal', 'team_story'],
+        got_review: ['team_story'],
+        faq: ['tankless_debate', 'water_heater_age', 'water_bill_detective'],
+        seasonal: ['emergency_prevention', 'slab_leak_warning'],
+      };
+      const relevantAngles = triggerAngleMap[this.wizardTrigger] || [];
+      const matchedAngle = k.contentAngles.find(a => relevantAngles.includes(a.angle));
+      if (matchedAngle) {
+        expertise += `\n\nHigh-performing content angle for this post type:`;
+        expertise += `\n- Hook: "${matchedAngle.hook}"`;
+        expertise += `\n- Why it works: ${matchedAngle.why}`;
+        expertise += `\nUse this angle as inspiration — adapt it to the specific details provided.`;
+      }
+    }
+
     if (k.trustSignals?.length > 0) {
-      expertise += `\n\nTrust signals you can weave in naturally:`;
+      expertise += `\n\nTrust signals to weave in naturally (pick 1-2 that fit):`;
       k.trustSignals.slice(0, 4).forEach(s => { expertise += `\n- ${s}`; });
     }
 
     if (k.localKeywords?.length > 0) {
       const loc = this.customer.location || 'your city';
-      expertise += `\n\nLocal SEO keywords to inject naturally (replace [city] with "${loc}"):`;
-      k.localKeywords.slice(0, 4).forEach(kw => { expertise += `\n- ${kw.replace('[city]', loc)}`; });
+      expertise += `\n\nLocal SEO phrases (replace [city] with "${loc}"):`;
+      k.localKeywords.slice(0, 4).forEach(kw => { expertise += `\n- ${kw.replace(/\[city\]/g, loc)}`; });
     }
 
     if (k.hookFormulas?.length > 0) {
       const loc = this.customer.location || 'your city';
-      expertise += `\n\nProven hook formulas for this industry (pick the most fitting one for each variation):`;
-      k.hookFormulas.slice(0, 3).forEach((h, i) => {
-        expertise += `\n${i + 1}. "${h.replace('[city]', loc)}"`;
+      expertise += `\n\nProven hook formulas — use a DIFFERENT one for each variation:`;
+      k.hookFormulas.slice(0, 5).forEach((h, i) => {
+        expertise += `\n${i + 1}. "${h.replace(/\[city\]/g, loc)}"`;
       });
     }
 
     if (k.ctaVariations?.length > 0) {
+      const loc = this.customer.location || 'your city';
       expertise += `\n\nEffective CTAs for this industry:`;
-      k.ctaVariations.slice(0, 4).forEach(cta => { expertise += `\n- ${cta}`; });
+      k.ctaVariations.slice(0, 4).forEach(cta => { expertise += `\n- ${cta.replace(/\[city\]/g, loc)}`; });
     }
 
     return expertise;
@@ -273,6 +309,15 @@ Spoken language: natural, not scripted-sounding — conversational`,
     let rules = `=== CONTENT TYPE RULES ===
 ${triggerRule ? triggerRule + '\n\n' : ''}${contentTypeRules[this.contentType] || contentTypeRules.photo}`;
 
+    // Inject real FAQ pairs when the trigger is FAQ content
+    const k = this.knowledge;
+    if ((this.wizardTrigger === 'faq' || this.contentType === 'static') && k.faqPairs?.length > 0) {
+      rules += `\n\nReal FAQ pairs from this industry (use one as the basis for the post, or let the customer's question override):`;
+      k.faqPairs.slice(0, 4).forEach(pair => {
+        rules += `\nQ: ${pair.q}\nA: ${pair.a}\n`;
+      });
+    }
+
     const prefs = this.customer.content_preferences;
     if (prefs && typeof prefs === 'object' && !Array.isArray(prefs)) {
       const edu = prefs.educational ?? 70;
@@ -341,12 +386,16 @@ PostCore voice rules (non-negotiable):
   _section6_outputFormat() {
     const isCarousel = this.contentType === 'carousel';
     const isVideo = this.contentType === 'video';
+    const isStatic = this.contentType === 'static';
+
+    const imageGuidance = this._buildImagePromptGuidance();
 
     return `=== OUTPUT FORMAT (CRITICAL — ALWAYS FOLLOW THIS EXACTLY) ===
 Return ONLY valid JSON. No markdown, no backticks, no explanation before or after. First character: { Last character: }
 
+${imageGuidance}
 {
-  "imagePrompt": "A SINGLE shared image prompt used for ALL 3 variations. Must be universal — not tailored to any specific variation. Include: subject, setting, lighting, style, mood, composition. Be specific enough to generate a professional photo.",${isCarousel ? `
+  "imagePrompt": "A SINGLE shared image prompt used for ALL 3 variations. Must be universal — not tailored to any specific variation. Include: subject, setting, lighting, style, mood, composition. Be specific enough to generate a professional photo. Use the IMAGE PROMPT GUIDANCE above.",${isCarousel ? `
   "carouselSlides": [
     { "slideNumber": 1, "overlayText": "max 8 words", "description": "what this slide shows visually" },
     { "slideNumber": 2, "overlayText": "max 8 words", "description": "what this slide shows visually" },
@@ -452,6 +501,80 @@ CRITICAL JSON SAFETY RULES (violations cause parse errors):
     prompt += '\n\nRespond with ONLY the JSON object. Start with { and end with }. No markdown, no backticks, no explanation. Never put quotation marks inside a string value.';
 
     return prompt;
+  }
+
+  // ── Image prompt guidance from industry imageVisuals ──────────────────────
+  _buildImagePromptGuidance() {
+    const iv = this.knowledge.imageVisuals;
+    if (!iv || this.contentType === 'static') return '';
+
+    const season = this._getCurrentSeason();
+    const seasonalVisual = iv.seasonalVisuals?.[season] || '';
+    const brandColors = (() => {
+      const c = this.customer;
+      if (!c.brand_colors) return '';
+      const colors = Array.isArray(c.brand_colors) ? c.brand_colors.join(', ') : c.brand_colors;
+      return colors ? `If incorporating branded elements, the business brand colors are: ${colors}.` : '';
+    })();
+
+    let guidance = `=== IMAGE PROMPT GUIDANCE FOR THIS INDUSTRY ===
+When writing the imagePrompt, follow these industry-specific visual rules exactly:
+
+`;
+    if (iv.keyElements?.length > 0) {
+      guidance += `Authentic visual elements to include (choose the most relevant 3-4):
+${iv.keyElements.map(e => `- ${e}`).join('\n')}
+
+`;
+    }
+    if (iv.authenticScenes?.length > 0) {
+      guidance += `Authentic scene types that perform best for this industry (pick one as the setting):
+${iv.authenticScenes.slice(0, 4).map(s => `- ${s}`).join('\n')}
+
+`;
+    }
+    if (iv.moodAndLighting) {
+      guidance += `Mood and lighting: ${iv.moodAndLighting}
+
+`;
+    }
+    if (iv.composition) {
+      guidance += `Composition guidance: ${iv.composition}
+
+`;
+    }
+    if (iv.colorPalette) {
+      guidance += `Natural color palette for this industry: ${iv.colorPalette}
+
+`;
+    }
+    if (seasonalVisual) {
+      guidance += `Seasonal visual context for ${season}: ${seasonalVisual}
+
+`;
+    }
+    if (iv.avoidCliches?.length > 0) {
+      guidance += `NEVER use these generic clichés (they make the image look like stock photography):
+${iv.avoidCliches.map(a => `- ${a}`).join('\n')}
+
+`;
+    }
+    if (brandColors) {
+      guidance += `${brandColors}
+
+`;
+    }
+    guidance += `The imagePrompt must feel like a real job-site photo, not a studio shoot or stock photo. Specificity = credibility.`;
+
+    return guidance;
+  }
+
+  _getCurrentSeason() {
+    const m = this.currentMonth;
+    if (m >= 3 && m <= 5) return 'spring';
+    if (m >= 6 && m <= 8) return 'summer';
+    if (m >= 9 && m <= 11) return 'fall';
+    return 'winter';
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
