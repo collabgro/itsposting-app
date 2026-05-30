@@ -916,10 +916,26 @@ export default function QuickPost() {
                 )}
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {platformChips.map(p => (
-                    <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 20, background: t.input, border: `1px solid ${t.border}` }}>
-                      <p.Icon size={10} style={{ color: t.textMuted }} />
-                      <span style={{ fontSize: 9, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase' }}>{p.shortLabel}</span>
-                    </span>
+                    <button
+                      key={p.id}
+                      title={selectedPlats.length > 1 ? `Remove ${p.label}` : `${p.label} (last selected)`}
+                      onClick={() => selectedPlats.length > 1 && togglePlatform(p.id)}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        padding: '3px 8px 3px 7px', borderRadius: 20,
+                        background: `${p.color}18`, border: `1px solid ${p.color}40`,
+                        cursor: selectedPlats.length > 1 ? 'pointer' : 'default',
+                        transition: 'all 140ms ease',
+                      }}
+                      onMouseEnter={e => { if (selectedPlats.length > 1) { e.currentTarget.style.background = `${p.color}30`; e.currentTarget.style.borderColor = `${p.color}70`; } }}
+                      onMouseLeave={e => { e.currentTarget.style.background = `${p.color}18`; e.currentTarget.style.borderColor = `${p.color}40`; }}
+                    >
+                      <p.Icon size={10} style={{ color: p.color }} />
+                      <span style={{ fontSize: 9, fontWeight: 700, color: p.color, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{p.shortLabel}</span>
+                      {selectedPlats.length > 1 && (
+                        <span style={{ fontSize: 10, color: p.color, lineHeight: 1, opacity: 0.7 }}>×</span>
+                      )}
+                    </button>
                   ))}
                 </div>
               </div>
