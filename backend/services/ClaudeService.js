@@ -201,7 +201,14 @@ class ClaudeService {
     } catch (err) {
       console.error('[ClaudeService] generateCaption error:', err.message);
       if (rawText) console.error('[ClaudeService] Raw (first 500):', rawText.substring(0, 500));
-      throw new Error(`Caption generation failed: ${err.message}`);
+      // Never leak raw API error details — translate to clean internal signals
+      const isAuthErr = err.status === 401 || (err.message || '').includes('authentication_error') || (err.message || '').includes('api-key') || (err.message || '').includes('API key');
+      const isOverload = err.status === 529 || (err.message || '').includes('overloaded');
+      const isRateLimit = err.status === 429;
+      if (isAuthErr)   throw new Error('AI_AUTH_ERROR');
+      if (isOverload)  throw new Error('AI_OVERLOADED');
+      if (isRateLimit) throw new Error('AI_RATE_LIMITED');
+      throw new Error('AI_GENERATION_FAILED');
     }
   }
 

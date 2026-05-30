@@ -189,7 +189,7 @@ export default function QuickPost() {
       showToast('Post ready — choose a version below', 'success');
       window.dispatchEvent(new Event('creditRefresh'));
     } catch (err) {
-      setError(err.message || 'Something went wrong — please try again');
+      setError(err.response?.data?.error || 'PostCore couldn\'t generate your post. Please try again.');
     } finally {
       setGenerating(false);
     }
@@ -514,13 +514,13 @@ export default function QuickPost() {
         {/* ── Divider ───────────────────────────────────────────────── */}
         <hr style={{ border: 'none', borderTop: `1px solid ${t.border}`, margin: 0 }} />
 
-        {/* ── Tone chips ────────────────────────────────────────────── */}
+        {/* ── Tone cards ────────────────────────────────────────────── */}
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <span style={{ fontSize: 10, fontWeight: 800, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', letterSpacing: '0.04em' }}>04</span>
             Tone
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(5, 1fr)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: 10 }}>
             {TONES.map(tn => {
               const sel = tone === tn.id;
               const TIcon = tn.Icon;
@@ -530,16 +530,32 @@ export default function QuickPost() {
                   onClick={() => setTone(tn.id)}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    gap: 6, padding: '12px 8px',
-                    borderRadius: 12, cursor: 'pointer', transition: 'all 120ms',
-                    border: sel ? `1px solid ${t.primary}` : `1px solid ${t.border}`,
-                    background: sel ? t.primaryBg : 'transparent',
+                    gap: 10, padding: '20px 10px 18px',
+                    borderRadius: 14, cursor: 'pointer',
+                    transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)',
+                    border: sel ? `1.5px solid ${t.primary}` : `1px solid ${t.border}`,
+                    background: sel
+                      ? dark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.07)'
+                      : dark ? 'rgba(255,255,255,0.03)' : t.input,
+                    boxShadow: sel
+                      ? `0 0 0 3px rgba(124,92,252,0.12), 0 4px 16px rgba(124,92,252,0.18)`
+                      : 'none',
+                    transform: sel ? 'translateY(-1px)' : 'none',
                   }}
+                  onMouseEnter={e => { if (!sel) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.05)' : t.cardHover; } }}
+                  onMouseLeave={e => { if (!sel) { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.03)' : t.input; } }}
                 >
-                  <TIcon size={16} style={{ color: sel ? t.primary : t.textMuted, flexShrink: 0 }} />
+                  <div style={{
+                    width: 42, height: 42, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: sel ? `rgba(124,92,252,0.15)` : dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                    border: sel ? `1px solid rgba(124,92,252,0.3)` : `1px solid ${t.border}`,
+                    transition: 'all 150ms',
+                  }}>
+                    <TIcon size={20} style={{ color: sel ? t.primary : t.textMuted }} />
+                  </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: sel ? t.primary : t.text, lineHeight: 1 }}>{tn.label}</div>
-                    <div style={{ fontSize: 10, color: t.textMuted, marginTop: 3, lineHeight: 1.3 }}>{tn.desc}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: sel ? t.primary : t.text, lineHeight: 1.2, letterSpacing: '-0.01em' }}>{tn.label}</div>
+                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4, lineHeight: 1.4 }}>{tn.desc}</div>
                   </div>
                 </button>
               );
