@@ -13,7 +13,6 @@ import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI, postsAPI } from '../lib
 import NotificationBell from './NotificationBell';
 import { ConfirmModal } from './ui';
 import { ItsPostingLogo } from './ItsPostingLogo';
-import PostCoreMascot from './PostCoreMascot';
 
 const ROLE_PERMISSIONS = {
   manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:true, inbox:true, contacts:true, knowledge_base:true, settings:true },
@@ -557,11 +556,6 @@ export default function Layout({ children, title, subtitle, action }) {
               </Link>
             </div>
           </div>
-        )}
-
-        {/* POSTCORE MASCOT — bottom of sidebar, desktop only */}
-        {!isMobile && user && (
-          <PostCoreMascot user={user} />
         )}
 
         {/* USER PROFILE — clickable, opens popup */}
