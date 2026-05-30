@@ -1187,20 +1187,20 @@ function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
 
   const STEPS = [
     {
-      id: 'first_post',
-      label: 'Create your first post',
-      sub: 'Use the Post Wizard or Quick Post',
-      done: postedCount > 0,
-      action: () => router.push('/quick-post'),
-      cta: 'Create now',
-    },
-    {
       id: 'connect_social',
       label: 'Connect a social account',
       sub: 'Facebook, Instagram, or Google Business',
       done: typeof window !== 'undefined' && !!localStorage.getItem('ip_social_connected'),
       action: () => router.push('/settings'),
       cta: 'Connect',
+    },
+    {
+      id: 'first_post',
+      label: 'Create your first post',
+      sub: 'Use the Post Wizard or Quick Post',
+      done: postedCount > 0,
+      action: () => router.push('/quick-post'),
+      cta: 'Create now',
     },
     {
       id: 'schedule_post',
