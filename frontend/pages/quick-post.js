@@ -485,6 +485,7 @@ export default function QuickPost() {
   const [showPublishModal, setShowPublishModal] = useState(false);
 
   const loadMsgTimer = useRef(null);
+  const platformsDefaulted = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -494,7 +495,14 @@ export default function QuickPost() {
     window.addEventListener('resize', checkMobile);
     socialAPI.getAccounts().then(({ data }) => {
       const accts = Array.isArray(data) ? data : (data.accounts || []);
-      setSocialAccounts(accts.filter(a => a.enabled));
+      const enabled = accts.filter(a => a.enabled);
+      setSocialAccounts(enabled);
+      // Auto-select only platforms the user actually has connected (runs once)
+      if (!platformsDefaulted.current) {
+        platformsDefaulted.current = true;
+        const connected = [...new Set(enabled.map(a => a.platform))];
+        if (connected.length > 0) setSelectedPlats(connected);
+      }
     }).catch(() => {});
     return () => { clearInterval(loadMsgTimer.current); window.removeEventListener('resize', checkMobile); };
   }, []);
@@ -607,6 +615,12 @@ export default function QuickPost() {
   const handleReset = () => {
     setResult(null); setError(''); setEditing(false); setPosted(false);
     setJobType(null); setDetails(''); setActiveVar('a');
+  };
+
+  const handleRegenerate = () => {
+    setEditing(false);
+    setPosted(false);
+    handleGenerate();
   };
 
   const platformChips = PLATFORMS.filter(p => selectedPlats.includes(p.id));
@@ -834,12 +848,13 @@ export default function QuickPost() {
             {/* Individual platform cards */}
             {PLATFORMS.map(p => {
               const active = selectedPlats.includes(p.id);
+              const connected = socialAccounts.some(a => a.platform === p.id);
               const PIcon = p.Icon;
               return (
                 <button
                   key={p.id}
                   onClick={() => togglePlatform(p.id)}
-                  title={p.label}
+                  title={connected ? p.label : `${p.label} — not connected`}
                   style={{
                     position: 'relative',
                     padding: '24px 10px 22px',
@@ -852,12 +867,21 @@ export default function QuickPost() {
                     alignItems: 'center', justifyContent: 'center', gap: 12,
                     transition: 'all 160ms ease',
                     boxShadow: active ? `0 0 0 3px ${p.color}28, 0 4px 18px ${p.color}18` : 'none',
+                    opacity: socialAccounts.length > 0 && !connected ? 0.45 : 1,
                   }}
                 >
                   {active && (
                     <div style={{ position: 'absolute', top: 9, right: 9, width: 20, height: 20, borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <IpCheck size={11} color="#fff" />
                     </div>
+                  )}
+                  {/* Connected dot */}
+                  {socialAccounts.length > 0 && (
+                    <div style={{
+                      position: 'absolute', bottom: 8, right: 10,
+                      width: 7, height: 7, borderRadius: '50%',
+                      background: connected ? '#22C55E' : (dark ? 'rgba(255,255,255,0.2)' : '#C7C7D0'),
+                    }} />
                   )}
                   <div style={{
                     width: 60, height: 60, borderRadius: 16,
@@ -1019,12 +1043,21 @@ export default function QuickPost() {
                   ))}
                 </div>
               </div>
-              <button
-                onClick={handleReset}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
-              >
-                <IpRefresh size={12} style={{ color: t.textMuted }} /> Try again
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  onClick={handleRegenerate}
+                  disabled={generating}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, fontWeight: 600, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, padding: '4px 9px', cursor: generating ? 'not-allowed' : 'pointer', opacity: generating ? 0.5 : 1, flexShrink: 0 }}
+                >
+                  <IpRefresh size={11} style={{ color: t.primary }} /> Regenerate
+                </button>
+                <button
+                  onClick={handleReset}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  Reset
+                </button>
+              </div>
             </div>
 
             {/* Image preview (photo posts only) */}
@@ -1048,17 +1081,35 @@ export default function QuickPost() {
 
             {/* Variation tabs */}
             {result.variations && (
-              <div style={{ display: 'flex', gap: 6, padding: '12px 16px 0' }}>
+              <div style={{ display: 'flex', gap: 6, padding: '12px 16px 0', flexWrap: 'wrap' }}>
                 {['a', 'b', 'c'].map(key => {
                   if (!result.variations[key]) return null;
                   const active = activeVar === key;
+                  const score = result.variations[key]?.engagementScore;
+                  const scoreColor = !score ? null : score >= 80 ? '#22C55E' : score >= 65 ? '#F59E0B' : '#9CA3AF';
                   return (
                     <button
                       key={key}
                       onClick={() => { setActiveVar(key); setEditing(false); setEditedCaption(result.variations[key].caption); }}
-                      style={{ padding: '7px 18px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: active ? `1px solid ${t.primary}` : `1px solid ${t.border}`, background: active ? t.primaryBg : 'transparent', color: active ? t.primary : t.textMuted, transition: 'all 120ms' }}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '7px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                        border: active ? `1px solid ${t.primary}` : `1px solid ${t.border}`,
+                        background: active ? t.primaryBg : 'transparent',
+                        color: active ? t.primary : t.textMuted,
+                        transition: 'all 120ms',
+                      }}
                     >
                       Version {key.toUpperCase()}
+                      {score != null && (
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 8,
+                          background: `${scoreColor}20`, color: scoreColor,
+                          border: `1px solid ${scoreColor}40`,
+                        }}>
+                          {score}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -1066,7 +1117,7 @@ export default function QuickPost() {
             )}
 
             {/* Caption */}
-            <div style={{ padding: '14px 16px' }}>
+            <div style={{ padding: '14px 16px 8px' }}>
               {editing ? (
                 <textarea
                   value={editedCaption}
@@ -1075,8 +1126,22 @@ export default function QuickPost() {
                   style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', background: t.input, border: `2px solid ${t.primary}`, borderRadius: 10, color: t.text, fontSize: 14, fontFamily: 'inherit', lineHeight: 1.65, resize: 'vertical', outline: 'none' }}
                 />
               ) : (
-                <p style={{ fontSize: 14, color: t.textSecondary, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{getCaption()}</p>
+                <p style={{ fontSize: 14, color: t.text, lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>{getCaption()}</p>
               )}
+              {/* Character count */}
+              {(() => {
+                const len = getCaption().length;
+                const color = len < 300 ? '#22C55E' : len < 800 ? '#F59E0B' : '#EF4444';
+                const hint = len < 300 ? 'Optimal length' : len < 800 ? 'Good length' : 'Consider trimming';
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6, gap: 6, alignItems: 'center' }}>
+                    <span style={{ fontSize: 10.5, color: t.textMuted }}>{hint}</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color, background: `${color}15`, padding: '1px 7px', borderRadius: 8 }}>
+                      {len} chars
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Hashtags */}
@@ -1137,12 +1202,16 @@ export default function QuickPost() {
                   <IpSparkle size={13} style={{ color: t.textSecondary }} /> Wizard
                 </button>
                 <button
-                  onClick={handleCopy}
+                  onClick={() => {
+                    const tags = getHashtags().map(h => h.startsWith('#') ? h : `#${h}`).join(' ');
+                    const full = tags ? `${getCaption()}\n\n${tags}` : getCaption();
+                    navigator.clipboard.writeText(full).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2200); });
+                  }}
                   style={{ height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: copied ? 'rgba(34,197,94,0.08)' : t.card, color: copied ? t.success : t.textSecondary, border: `1px solid ${copied ? t.success : t.border}`, borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms' }}
                 >
                   {copied
                     ? <><IpCheck size={13} style={{ color: t.success }} />Copied</>
-                    : <><IpCopy size={13} style={{ color: t.textSecondary }} />Copy</>
+                    : <><IpCopy size={13} style={{ color: t.textSecondary }} />Copy All</>
                   }
                 </button>
               </div>
