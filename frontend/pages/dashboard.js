@@ -16,8 +16,8 @@ import { format } from 'date-fns';
 import PostPreviewModal from '../components/PostPreviewModal';
 import { setMascotMood } from '../components/PostCoreMascot';
 
-// Boot scroll-reveal once per page mount
-function useScrollReveal() {
+// Boot scroll-reveal — re-runs when mounted/loading changes so elements exist in DOM
+function useScrollReveal(deps = []) {
   useEffect(() => {
     const elements = document.querySelectorAll('.reveal, .reveal-left, .reveal-scale');
     if (!elements.length) return;
@@ -26,7 +26,8 @@ function useScrollReveal() {
     }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
     elements.forEach(el => io.observe(el));
     return () => io.disconnect();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
 }
 
 const TYPE_ICON  = { static: IpDrafts, photo: IpPhoto, carousel: IpCarousel, video: IpVideo };
@@ -116,7 +117,7 @@ export default function Dashboard() {
   const [weekPlans,      setWeekPlans]      = useState([]);
   const [isMobile,       setIsMobile]       = useState(false);
 
-  useScrollReveal();
+  useScrollReveal([mounted, loading]);
 
   const loadDashboard = () => {
     setLoadError(false);
