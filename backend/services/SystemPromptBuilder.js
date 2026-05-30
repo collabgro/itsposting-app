@@ -189,11 +189,59 @@ You have deep knowledge of this industry. Use this to make every post feel speci
 
   // ── Section 3: Platform-Specific Writing Rules ────────────────────────────
   _section3_platformRules() {
+    const loc = this.customer.location || 'your city';
+    const industry = this.customer.industry || 'home_services';
+    const cityTag = loc.replace(/\s+/g, '');
+
+    // Industry → core hashtag seeds (high-performing, non-generic)
+    const industrySeedTags = {
+      plumbing:          ['Plumber', 'Plumbing', 'PlumbingLife', 'PlumbingTips', 'EmergencyPlumber', 'DrainCleaning', 'WaterHeater', 'LeakRepair', 'PipeFix', 'HomeRepair'],
+      hvac:              ['HVAC', 'HVACTech', 'HVACLife', 'AirConditioning', 'ACRepair', 'HeatingAndCooling', 'FurnaceRepair', 'HVACService', 'IndoorAirQuality', 'HomeComfort'],
+      roofing:           ['Roofing', 'RoofRepair', 'RoofReplacement', 'Roofer', 'RoofingContractor', 'NewRoof', 'RoofInspection', 'StormDamage', 'RoofingLife', 'HomeImprovement'],
+      concrete:          ['Concrete', 'ConcreteWork', 'ConcreteDriveway', 'ConcreteContractor', 'ConcreteLife', 'DrivewayConcrete', 'FoundationRepair', 'ConcretePatio', 'ConcreteFloor', 'MasonryWork'],
+      landscaping:       ['Landscaping', 'LandscapeDesign', 'LawnCare', 'LawnMaintenance', 'Landscaper', 'GardenDesign', 'OutdoorLiving', 'CurbAppeal', 'LandscapingLife', 'YardTransformation'],
+      electrical:        ['Electrician', 'ElectricalWork', 'ElectricalContractor', 'ElectricalRepair', 'ElectricalLife', 'HomeElectrical', 'CircuitBreaker', 'PanelUpgrade', 'WiringRepair', 'ElectricianLife'],
+      painting:          ['PaintingContractor', 'HousePainting', 'InteriorPainting', 'ExteriorPainting', 'Painter', 'PaintLife', 'HomeRenovation', 'FreshPaint', 'WallPainting', 'PaintTransformation'],
+      pest_control:      ['PestControl', 'PestManagement', 'Exterminator', 'PestFree', 'BugControl', 'TermiteControl', 'PestRemoval', 'HomeProtection', 'PestControlLife', 'PestSolutions'],
+      general_contractor:['GeneralContractor', 'HomeRenovation', 'Remodeling', 'Contractor', 'HomeImprovement', 'Construction', 'RemodelLife', 'ContractorLife', 'HomeRemodel', 'BuildingContractor'],
+      cleaning:          ['CleaningService', 'HouseCleaning', 'ProfessionalCleaning', 'HomeCleaning', 'CleanHome', 'DeepCleaning', 'MaidService', 'CleaningBusiness', 'SpotlessHome', 'CleaningLife'],
+    };
+    const seeds = industrySeedTags[industry] || industrySeedTags.general_contractor;
+
+    // Cross-industry community tags (trades culture) — rotate, don't use all
+    const communityTags = ['HomeImprovement', 'TradesLife', 'SkilledTrades', 'BlueCollar', 'TradesTok', 'FixItFriday', 'HomeOwner', 'HomeOwnerLife', 'DIYorHireAPro', 'SkillsPayBills'];
+
+    const hashtagGuide = `
+HASHTAG STRATEGY — follow this tiered system for every post:
+
+Industry seed tags to draw from (pick the most relevant for each post): ${seeds.map(t => '#' + t).join(', ')}
+Local tags to always include: #${cityTag}${seeds[0]}, #${cityTag}HomeRepair, #${cityTag}Homes, #${cityTag}HomeServices
+Community/trades tags to rotate in: ${communityTags.slice(0, 6).map(t => '#' + t).join(', ')}
+
+TIER RULES (critical for reach):
+• Tier 1 — MEGA (1 tag): Single-word industry tag with millions of posts. Gets you into the main feed.
+  e.g. #${seeds[0]} or #HomeImprovement
+• Tier 2 — VOLUME (2-3 tags): Compound industry terms, 100K–1M posts. Less competition, still big.
+  e.g. #${seeds[1]}, #${seeds[2]}
+• Tier 3 — NICHE (3-4 tags): Specific service performed in THIS post, 10K–100K posts. Highest relevance.
+  e.g. #${seeds[4]}, #${seeds[6]} — describe exactly what happened
+• Tier 4 — LOCAL (3-4 tags): ALWAYS include. Local homeowners actively search these.
+  #${cityTag}${seeds[0]}, #${cityTag}HomeRepair, #${cityTag}Homes (NO spaces in city hashtags)
+• Tier 5 — COMMUNITY (1-2 tags): Trades culture tags. Builds brand affinity.
+  #TradesLife or #SkilledTrades
+
+HARD RULES:
+- NEVER use generic lifestyle tags (#home, #love, #life, #happy, #instagood) — they bury your post instantly
+- City name in hashtags: remove all spaces (Austin TX → #AustinTX, not #Austin TX)
+- Each variation (A, B, C) MUST use a DIFFERENT set of hashtags — rotate which tiers you emphasise
+- Match hashtags to the post content: if the post is about drain cleaning, use #DrainCleaning not just #Plumber
+- Seasonal posts get seasonal hashtags: winter → #FrozenPipes, spring → #SpringCleaning, etc.`;
+
     const rules = {
       facebook: `Platform: FACEBOOK
 - Length: 150-300 words
 - Tone: conversational, like talking to a neighbour
-- Hashtags: 2-3 maximum, broad + local only
+- Hashtags: 2-3 only — 1 local (#${cityTag}${seeds[0]}) + 1-2 broad industry (#${seeds[0]} or #HomeImprovement)
 - Emojis: 1-2 max — subtle, not overdone
 - MUST end with a direct question to drive comments
 - Reference the local area or city naturally
@@ -203,7 +251,7 @@ You have deep knowledge of this industry. Use this to make every post feel speci
 - Length: 100-150 words in caption
 - First line MUST be a scroll-stopping hook (only line visible before "more")
 - Tone: visual-first — write as if describing something beautiful or satisfying to watch
-- Hashtags: 8-15 (3 broad + 5 niche + 4 local + 3 industry-specific)
+- Hashtags: 12-15 total using the 5-tier system above (Mega + Volume + Niche + Local + Community)
 - Emojis: 3-5 per post — welcome and expected
 - Always end with an engagement question
 - Language: "Look at this..." "See how..." "Can you believe..."`,
@@ -211,38 +259,37 @@ You have deep knowledge of this industry. Use this to make every post feel speci
       google_business: `Platform: GOOGLE BUSINESS PROFILE
 - Length: 100-200 words
 - Tone: professional, keyword-rich, trust-building
-- Hashtags: NONE — use keywords naturally instead
+- Hashtags: NONE — use keywords naturally in the text instead (${loc} [service type])
 - Include the city and service type naturally at least once
 - Must include a hard CTA: phone number reference or "call us today"
 - Every post should boost local search rankings
-- Use phrases customers actually search: "[city] [service]"`,
+- Use phrases customers actually search: "${loc} [service]"`,
 
       linkedin: `Platform: LINKEDIN
 - Length: 150-300 words
 - Tone: professional, business-focused, thought leadership
-- Hashtags: 3-5 relevant professional/industry hashtags
+- Hashtags: 3-5 — mix of industry (#${seeds[0]}, #HomeImprovement) + professional (#SmallBusiness, #Entrepreneurship, #Trades)
 - Emojis: minimal (0-2 max) — keep it credible
 - End with a thought-provoking question to drive professional discussion
-- Showcase expertise, credibility, and business results
-- Focus on business value and professional insights`,
+- Showcase expertise, credibility, and business results`,
 
       tiktok: `Platform: TIKTOK
 - Length: 50-80 words (video-first platform — caption is secondary)
 - Hook in the first 3 words — must grab instantly
 - Tone: casual, energetic, authentic, relatable
-- Hashtags: 5-8 hashtags mixing trending, niche, and local tags
+- Hashtags: 6-8 — 1 mega + 2 niche + 2 local + 1-2 community (#TradesTok, #BlueCollar, #FixItFriday)
 - Emojis: 3-5 energetic emojis
 - Direct CTA: Follow, Comment, or Share focused
 - Write as if the viewer just paused their scroll`,
 
       all: `Platform: ALL PLATFORMS (Facebook + Instagram + Google Business)
 Generate 3 separate, fully-written variations — one per platform:
-- Variation A: Facebook — conversational, 150-200 words, 2-3 hashtags, question at end
-- Variation B: Instagram — visual-first hook, 100-150 words, 8-15 hashtags, 3-5 emojis
-- Variation C: Google Business — keyword-rich, 100-200 words, no hashtags, hard CTA with city name`,
+- Variation A: Facebook — conversational, 150-200 words, 2-3 hashtags (#${cityTag}${seeds[0]} + 1-2 broad), question at end
+- Variation B: Instagram — visual-first hook, 100-150 words, 12-15 hashtags using 5-tier system above, 3-5 emojis
+- Variation C: Google Business — keyword-rich, 100-200 words, ZERO hashtags, hard CTA with city name`,
     };
 
-    return `=== PLATFORM RULES ===\n${rules[this.platform] || rules.all}`;
+    return `=== PLATFORM RULES ===${hashtagGuide}\n\n${rules[this.platform] || rules.all}`;
   }
 
   // ── Section 4: Content Type Rules ────────────────────────────────────────
