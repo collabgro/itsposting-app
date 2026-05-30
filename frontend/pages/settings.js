@@ -543,9 +543,14 @@ export default function Settings() {
     setTimeout(() => setToast({ show: false, msg: '', type: 'success' }), 4000);
   };
 
+  const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
     loadData();
+    return () => window.removeEventListener('resize', check);
   }, []);
 
   useEffect(() => {
@@ -2251,7 +2256,7 @@ export default function Settings() {
             </div>
             <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 24 }}>Replace ItsPosting branding with your agency's logo, name, and colors. Changes apply immediately for all your sub-accounts.</div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto', gap: 24, alignItems: 'start' }}>
               {/* Form column */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 

@@ -16,8 +16,29 @@ module.exports = (pool) => {
 
   // ── GET /api/intelligence/metrics ────────────────────────────────────────
   router.get('/metrics', async (req, res) => {
+    const period = req.query.period || '30days';
     try {
-      const data = await bi.getBusinessMetrics(req.customerId, req.query.period || '30days');
+      // Return cached result if still fresh (1-hour TTL)
+      try {
+        const cached = await pool.query(
+          `SELECT metrics FROM customer_metrics_cache
+            WHERE customer_id = $1 AND period = $2 AND expires_at > NOW()`,
+          [req.customerId, period]
+        );
+        if (cached.rows.length) return res.json(cached.rows[0].metrics);
+      } catch (_) { /* cache table may not exist yet — skip */ }
+
+      const data = await bi.getBusinessMetrics(req.customerId, period);
+
+      // Upsert cache — fire and forget
+      pool.query(
+        `INSERT INTO customer_metrics_cache (customer_id, period, metrics, computed_at, expires_at)
+         VALUES ($1, $2, $3::jsonb, NOW(), NOW() + INTERVAL '1 hour')
+         ON CONFLICT (customer_id, period) DO UPDATE
+           SET metrics = EXCLUDED.metrics, computed_at = NOW(), expires_at = NOW() + INTERVAL '1 hour'`,
+        [req.customerId, period, JSON.stringify(data)]
+      ).catch(() => {});
+
       res.json(data);
     } catch (err) {
       console.error('[intelligence] GET /metrics:', err.message);

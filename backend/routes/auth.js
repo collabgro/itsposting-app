@@ -201,6 +201,12 @@ module.exports = (pool) => {
         }
       }
 
+      // Fire-and-forget: stamp last_active_at — non-blocking, never fails the request
+      pool.query(
+        `UPDATE customers SET last_active_at = NOW() WHERE id = $1`,
+        [req.customerId]
+      ).catch(() => {});
+
       res.json({ customer });
     } catch (error) {
       res.status(500).json({ error: error.message });

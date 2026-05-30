@@ -999,3 +999,147 @@ button, a {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 100;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE UTILITY CLASSES
+   Use these with className alongside inline styles for breakpoint control.
+══════════════════════════════════════════════════════════════════════════ */
+
+/* Hide/show by breakpoint */
+@media (max-width: 767px) {
+  .hide-mobile  { display: none !important; }
+  .show-mobile  { display: block; }
+  /* Stack flex containers vertically on mobile */
+  .flex-col-mobile { flex-direction: column !important; }
+  /* Full width on mobile */
+  .full-mobile  { width: 100% !important; min-width: unset !important; }
+  /* Responsive padding */
+  .pad-mobile   { padding: 16px !important; }
+  /* Compact text on mobile */
+  .text-sm-mobile { font-size: 12px !important; }
+}
+@media (min-width: 768px) {
+  .hide-mobile  { display: block; }
+  .show-mobile  { display: none !important; }
+}
+
+/* Responsive grid helpers */
+.grid-2-col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 767px) {
+  .grid-2-col { grid-template-columns: 1fr !important; }
+}
+
+.grid-3-col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 767px) {
+  .grid-3-col { grid-template-columns: 1fr !important; }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .grid-3-col { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+.grid-4-col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 767px) {
+  .grid-4-col { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* Responsive stat grid — 4 columns down to 2 */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 1023px) {
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 479px) {
+  .stat-grid { grid-template-columns: 1fr; gap: 8px; }
+}
+
+/* Sidebar + content split layouts */
+.layout-sidebar-content {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+}
+@media (max-width: 1023px) {
+  .layout-sidebar-content { grid-template-columns: 1fr; }
+}
+
+/* Card overflow guard — prevents horizontal scroll on mobile */
+.card-overflow-guard {
+  overflow-x: hidden;
+  word-break: break-word;
+}
+
+/* Scrollable table wrapper on mobile */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll table {
+  min-width: 600px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INTERACTIVE MICRO-ANIMATIONS (added here to share across pages)
+══════════════════════════════════════════════════════════════════════════ */
+
+/* Subtle scale on press */
+.press-scale {
+  transition: transform 120ms ease;
+}
+.press-scale:active {
+  transform: scale(0.97);
+}
+
+/* Card lift on hover */
+.card-hover {
+  transition: transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+}
+
+/* Shimmer loading effect */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Fade in */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.fade-in { animation: fade-in 300ms ease both; }
+
+/* Slide up */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.slide-up { animation: slide-up 320ms cubic-bezier(0.16,1,0.3,1) both; }
+
+/* Notification badge bounce */
+@keyframes badge-bounce {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.18); }
+}
+.badge-bounce { animation: badge-bounce 600ms ease 200ms both; }

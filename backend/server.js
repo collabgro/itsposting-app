@@ -745,6 +745,111 @@ console.log('══════════════════════�
       updated_at  TIMESTAMP DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_push_subs_customer ON push_subscriptions(customer_id)`,
+
+    // ── SCALABILITY — Phase S.1: composite indexes for high-frequency query patterns ──
+
+    // Posts: the three most common list queries
+    `CREATE INDEX IF NOT EXISTS idx_posts_customer_status_date
+       ON posts(customer_id, status, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_posts_customer_scheduled
+       ON posts(customer_id, scheduled_date)
+       WHERE scheduled_date IS NOT NULL`,
+    `CREATE INDEX IF NOT EXISTS idx_posts_customer_source_date
+       ON posts(customer_id, source, created_at DESC)`,
+    // Posts: text search on captions (for history search)
+    `CREATE INDEX IF NOT EXISTS idx_posts_caption_fts
+       ON posts USING GIN (to_tsvector('english', COALESCE(caption, '')))`,
+    // DMs: inbox sorted by recency per customer
+    `CREATE INDEX IF NOT EXISTS idx_dm_convs_customer_updated
+       ON dm_conversations(customer_id, updated_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_dm_messages_conv_created
+       ON dm_messages(conversation_id, created_at ASC)`,
+    // Credit transactions: billing history per customer
+    `CREATE INDEX IF NOT EXISTS idx_credit_tx_customer_type_date
+       ON credit_transactions(customer_id, transaction_type, created_at DESC)`,
+    // GEO: per-customer audit history
+    `CREATE INDEX IF NOT EXISTS idx_geo_audits_customer_status
+       ON geo_audits(customer_id, status, created_at DESC)`,
+    // Training data: by quality for export
+    `CREATE INDEX IF NOT EXISTS idx_training_data_quality
+       ON post_training_data(quality_score DESC NULLS LAST, created_at DESC)
+       WHERE quality_score IS NOT NULL`,
+    // Media library: search by type
+    `CREATE INDEX IF NOT EXISTS idx_media_library_type
+       ON media_library(customer_id, file_type, uploaded_at DESC)`,
+
+    // ── SCALABILITY — Phase S.2: customer lifecycle columns ──
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMP`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS total_credits_purchased INTEGER DEFAULT 0`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS churn_risk_score NUMERIC(3,1) DEFAULT NULL`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS lifetime_credits_used INTEGER DEFAULT 0`,
+    `CREATE INDEX IF NOT EXISTS idx_customers_last_active
+       ON customers(last_active_at DESC NULLS LAST) WHERE status = 'active'`,
+    `CREATE INDEX IF NOT EXISTS idx_customers_churn_risk
+       ON customers(churn_risk_score DESC NULLS LAST) WHERE churn_risk_score IS NOT NULL`,
+
+    // ── SCALABILITY — Phase S.3: AI usage audit log ──
+    `CREATE TABLE IF NOT EXISTS ai_usage_log (
+      id              SERIAL PRIMARY KEY,
+      customer_id     INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      model           VARCHAR(80) NOT NULL,
+      feature         VARCHAR(60) NOT NULL,
+      input_tokens    INTEGER DEFAULT 0,
+      output_tokens   INTEGER DEFAULT 0,
+      latency_ms      INTEGER,
+      success         BOOLEAN DEFAULT true,
+      error_code      VARCHAR(50),
+      created_at      TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_ai_usage_customer_date
+       ON ai_usage_log(customer_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_ai_usage_model_feature
+       ON ai_usage_log(model, feature, created_at DESC)`,
+
+    // ── SCALABILITY — Phase S.4: scheduled post queue with retry ──
+    `CREATE TABLE IF NOT EXISTS scheduled_post_queue (
+      id           SERIAL PRIMARY KEY,
+      post_id      INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      customer_id  INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      scheduled_at TIMESTAMPTZ NOT NULL,
+      platform     VARCHAR(50) NOT NULL,
+      status       VARCHAR(20) NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending','processing','done','failed','skipped')),
+      attempts     INTEGER DEFAULT 0,
+      last_error   TEXT,
+      locked_until TIMESTAMPTZ,
+      completed_at TIMESTAMPTZ,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_spq_pending
+       ON scheduled_post_queue(scheduled_at ASC, status)
+       WHERE status = 'pending'`,
+    `CREATE INDEX IF NOT EXISTS idx_spq_customer
+       ON scheduled_post_queue(customer_id, scheduled_at DESC)`,
+
+    // ── SCALABILITY — Phase S.5: customer metrics cache (avoid repeated heavy aggregates) ──
+    `CREATE TABLE IF NOT EXISTS customer_metrics_cache (
+      customer_id    INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      period         VARCHAR(20) NOT NULL DEFAULT 'monthly',
+      metrics        JSONB NOT NULL DEFAULT '{}',
+      computed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at     TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '1 hour',
+      PRIMARY KEY (customer_id, period)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_metrics_cache_expires
+       ON customer_metrics_cache(expires_at)`,
+
+    // ── SCALABILITY — Phase S.6: post engagement JSONB partial index ──
+    `CREATE INDEX IF NOT EXISTS idx_posts_engagement_gin
+       ON posts USING GIN (engagement_by_platform)
+       WHERE engagement_by_platform IS NOT NULL`,
+
+    // ── SCALABILITY — Phase S.7: update last_active_at on login (trigger helper) ──
+    // The actual UPDATE is handled in auth.js /api/auth/verify — no trigger needed
+    // but we index it here so the UPDATE is fast:
+    `CREATE INDEX IF NOT EXISTS idx_customers_id_status
+       ON customers(id) WHERE status = 'active'`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
