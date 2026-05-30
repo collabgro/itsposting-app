@@ -500,7 +500,7 @@ export default function Dashboard() {
               label="People Reached"
               main={fmt(metrics?.totalReach)}
               numericValue={metrics?.totalReach}
-              sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local people` : 'No data yet'}
+              sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local people (est.)` : 'Connect FB or IG to see data'}
             />
             <MetricCard t={t} accent="primary"
               label="Engagement Rate"
@@ -510,7 +510,7 @@ export default function Dashboard() {
               sub={metrics
                 ? (metrics.isOutperforming
                     ? `Top ${100 - metrics.percentileRank}% in industry`
-                    : `Industry avg ${metrics.industryAvgEngagement}%`)
+                    : `Industry avg ${metrics.industryAvgEngagement}% (benchmark)`)
                 : 'Post to see data'}
             />
             {/* Streak card */}
@@ -610,11 +610,31 @@ export default function Dashboard() {
           </>)}
         </div>
 
-        {metrics && (
-          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <IpInfo size={11} /> {metrics.disclaimer}
+        {/* ── Data transparency bar ── */}
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          background: t.isDark ? 'rgba(10,132,255,0.06)' : 'rgba(10,132,255,0.05)',
+          border: `1px solid ${t.isDark ? 'rgba(10,132,255,0.15)' : 'rgba(10,132,255,0.18)'}`,
+          borderRadius: 10, padding: '10px 14px', marginBottom: 20,
+        }}>
+          <IpInfo size={13} color={t.info || '#0A84FF'} style={{ flexShrink: 0, marginTop: 1 }} />
+          <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.6 }}>
+            <span style={{ color: t.text, fontWeight: 600 }}>Where this data comes from: </span>
+            Reach &amp; engagement numbers are pulled from{' '}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: t.text, fontWeight: 600 }}>
+              <IpFacebook size={11} /> Facebook
+            </span>{' '}and{' '}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: t.text, fontWeight: 600 }}>
+              <IpInstagram size={11} /> Instagram
+            </span>{' '}
+            only.{' '}
+            <span style={{ color: t.textMuted }}>
+              Google Business, LinkedIn, and TikTok do not expose post-level analytics to third-party apps — this is a platform limitation, not ours.
+            </span>{' '}
+            Industry averages are based on published benchmarks, not live competitor data.{' '}
+            {metrics?.disclaimer && <span style={{ opacity: 0.75 }}>{metrics.disclaimer}</span>}
           </div>
-        )}
+        </div>
 
         {/* ── 3. Content Health Bar ── */}
         {contentMix && <div className="reveal reveal-d1"><ContentHealthBar data={contentMix} t={t} router={router} /></div>}
