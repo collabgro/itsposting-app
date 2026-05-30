@@ -1162,8 +1162,9 @@ module.exports = (pool) => {
       const whereClause = industry ? `WHERE input_payload->>'industry' = $3` : '';
       const params = industry ? [limit, offset, industry] : [limit, offset];
       const [dataRes, countRes] = await Promise.all([
-        pool.query(`SELECT id, input_payload->>'industry' AS industry,
-          input_payload->>'content_type' AS content_type,
+        pool.query(`SELECT id,
+          input_payload->>'industry' AS industry,
+          COALESCE(input_payload->>'contentType', input_payload->>'content_type') AS content_type,
           variation_selected, was_edited, post_reach, post_engagement, quality_score,
           model_used, created_at
           FROM post_training_data ${whereClause}
