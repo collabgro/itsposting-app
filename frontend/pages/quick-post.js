@@ -102,6 +102,281 @@ const LOADING_MSGS = {
   ],
 };
 
+// ─── Platform metadata for modal ──────────────────────────────────────────────
+const PLAT_META = {
+  facebook:        { label: 'Facebook',         Icon: IpFacebook,  color: '#1877F2' },
+  instagram:       { label: 'Instagram',        Icon: IpInstagram, color: '#E1306C' },
+  google_business: { label: 'Google Business',  Icon: IpGoogle,    color: '#4285F4' },
+  linkedin:        { label: 'LinkedIn',         Icon: IpLinkedIn,  color: '#0A66C2' },
+  tiktok:          { label: 'TikTok',           Icon: IpTikTok,    color: '#69C9D0' },
+};
+
+// ─── Publish modal ─────────────────────────────────────────────────────────────
+function PublishModal({ accounts, selectedPlatforms, onConfirm, onClose, posting, t, dark }) {
+  // Only show platforms user selected AND that have connected accounts
+  const relevant = accounts.filter(a => selectedPlatforms.includes(a.platform));
+
+  // Group by platform, preserving selectedPlatforms order
+  const groups = {};
+  selectedPlatforms.forEach(pid => {
+    const platAccts = relevant.filter(a => a.platform === pid);
+    if (platAccts.length > 0) groups[pid] = platAccts;
+  });
+
+  const [selectedIds, setSelectedIds] = useState(() => relevant.map(a => a.id));
+
+  const toggleAccount = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const togglePlatform = (platId, platAccts) => {
+    const ids = platAccts.map(a => a.id);
+    const allSel = ids.every(id => selectedIds.includes(id));
+    setSelectedIds(prev => allSel ? prev.filter(id => !ids.includes(id)) : [...new Set([...prev, ...ids])]);
+  };
+
+  const count = selectedIds.length;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9998,
+          background: 'rgba(0,0,0,0.60)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          animation: 'qp-fade-in 200ms ease',
+        }}
+      />
+      {/* Modal */}
+      <div style={{
+        position: 'fixed', zIndex: 9999,
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 'calc(100vw - 32px)', maxWidth: 460,
+        background: dark ? '#0D0D18' : '#FFFFFF',
+        borderRadius: 22,
+        border: `1px solid ${dark ? 'rgba(255,255,255,0.09)' : '#E5E5EF'}`,
+        boxShadow: dark
+          ? '0 40px 100px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05)'
+          : '0 24px 80px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.04)',
+        animation: 'qp-slide-up 280ms cubic-bezier(0.16,1,0.3,1)',
+        maxHeight: 'calc(100vh - 80px)',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+      }}>
+
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          padding: '22px 22px 18px',
+          borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : '#F0F0F7'}`,
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>
+              Choose where to post
+            </div>
+            <div style={{ fontSize: 12.5, color: t.textMuted, marginTop: 3, letterSpacing: '-0.01em' }}>
+              {count === 0 ? 'Select at least one account' : `${count} account${count !== 1 ? 's' : ''} selected`}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32, height: 32, borderRadius: 9,
+              background: dark ? 'rgba(255,255,255,0.08)' : '#F2F2F7',
+              border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: t.textMuted, fontSize: 18, lineHeight: 1, flexShrink: 0,
+              transition: 'background 150ms ease',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.12)' : '#E5E5EF'}
+            onMouseLeave={e => e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.08)' : '#F2F2F7'}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Account list */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {Object.keys(groups).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+              <div style={{ fontSize: 36, marginBottom: 14 }}>🔌</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 8, letterSpacing: '-0.02em' }}>No accounts connected</div>
+              <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.6 }}>
+                Connect your social accounts in Settings → Social Accounts.
+              </div>
+            </div>
+          ) : Object.entries(groups).map(([platId, platAccts]) => {
+            const meta = PLAT_META[platId] || { label: platId, Icon: IpFacebook, color: '#7C5CFC' };
+            const PIcon = meta.Icon;
+            const platIds = platAccts.map(a => a.id);
+            const allSel = platIds.every(id => selectedIds.includes(id));
+
+            return (
+              <div key={platId}>
+                {/* Platform header row */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <PIcon size={15} style={{ color: meta.color }} />
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      {meta.label}
+                    </span>
+                    <span style={{
+                      fontSize: 10.5, fontWeight: 600, padding: '1px 7px', borderRadius: 10,
+                      background: dark ? 'rgba(255,255,255,0.07)' : '#F0F0F7',
+                      color: t.textMuted,
+                    }}>
+                      {platAccts.length}
+                    </span>
+                  </div>
+                  {platAccts.length > 1 && (
+                    <button
+                      onClick={() => togglePlatform(platId, platAccts)}
+                      style={{
+                        fontSize: 11.5, fontWeight: 600,
+                        color: allSel ? t.error : t.primary,
+                        background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      {allSel ? 'Deselect all' : 'Select all'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Account cards */}
+                <div style={{
+                  borderRadius: 14, overflow: 'hidden',
+                  border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : '#EBEBF5'}`,
+                }}>
+                  {platAccts.map((acct, i) => {
+                    const sel = selectedIds.includes(acct.id);
+                    const name = acct.account_name || acct.account_username || `${meta.label} Account`;
+                    const sub = acct.account_username && acct.account_username !== acct.account_name
+                      ? acct.account_username : null;
+
+                    return (
+                      <button
+                        key={acct.id}
+                        onClick={() => toggleAccount(acct.id)}
+                        style={{
+                          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '13px 14px',
+                          background: sel
+                            ? dark ? `${meta.color}16` : `${meta.color}09`
+                            : dark ? 'rgba(255,255,255,0.025)' : '#FAFAFA',
+                          border: 'none',
+                          borderTop: i > 0 ? `1px solid ${dark ? 'rgba(255,255,255,0.05)' : '#F0F0F5'}` : 'none',
+                          cursor: 'pointer', textAlign: 'left',
+                          transition: 'background 140ms ease',
+                        }}
+                        onMouseEnter={e => {
+                          if (!sel) e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.05)' : '#F5F5FA';
+                        }}
+                        onMouseLeave={e => {
+                          if (!sel) e.currentTarget.style.background = dark ? 'rgba(255,255,255,0.025)' : '#FAFAFA';
+                        }}
+                      >
+                        {/* Avatar */}
+                        {acct.profile_image_url ? (
+                          <img
+                            src={acct.profile_image_url}
+                            alt=""
+                            style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2px solid ${sel ? meta.color + '50' : 'transparent'}`, transition: 'border-color 140ms' }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+                            background: `${meta.color}20`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            border: `2px solid ${sel ? meta.color + '50' : meta.color + '20'}`,
+                            transition: 'border-color 140ms',
+                          }}>
+                            <PIcon size={18} style={{ color: meta.color }} />
+                          </div>
+                        )}
+
+                        {/* Name + username */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            fontSize: 13.5, fontWeight: 700, color: t.text,
+                            letterSpacing: '-0.015em',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>
+                            {name}
+                          </div>
+                          {sub && (
+                            <div style={{ fontSize: 11.5, color: t.textMuted, marginTop: 1 }}>{sub}</div>
+                          )}
+                        </div>
+
+                        {/* Custom checkbox */}
+                        <div style={{
+                          width: 22, height: 22, borderRadius: 7, flexShrink: 0,
+                          border: `2px solid ${sel ? meta.color : dark ? 'rgba(255,255,255,0.22)' : '#C7C7D0'}`,
+                          background: sel ? meta.color : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'all 150ms ease',
+                          boxShadow: sel ? `0 0 0 3px ${meta.color}22` : 'none',
+                        }}>
+                          {sel && (
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '14px 20px 20px',
+          borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : '#F0F0F7'}`,
+          flexShrink: 0,
+        }}>
+          <button
+            onClick={() => onConfirm(selectedIds)}
+            disabled={count === 0 || posting}
+            style={{
+              width: '100%', height: 52,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+              fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em',
+              background: count === 0 || posting
+                ? dark ? 'rgba(255,255,255,0.07)' : '#E5E5EF'
+                : 'linear-gradient(135deg, #7C5CFC 0%, #9472FF 100%)',
+              color: count === 0 || posting ? t.textDisabled : '#fff',
+              border: 'none', borderRadius: 13,
+              cursor: count === 0 || posting ? 'not-allowed' : 'pointer',
+              boxShadow: count === 0 || posting ? 'none' : '0 4px 28px rgba(124,92,252,0.38)',
+              transition: 'transform 180ms ease, box-shadow 180ms ease',
+            }}
+            onMouseEnter={e => { if (count > 0 && !posting) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 36px rgba(124,92,252,0.50)'; } }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = count === 0 || posting ? 'none' : '0 4px 28px rgba(124,92,252,0.38)'; }}
+          >
+            {posting ? (
+              <><Spinner size={15} /> Publishing…</>
+            ) : count === 0 ? (
+              'Select an account'
+            ) : (
+              <><IpSend size={15} color="#fff" /> Post to {count} account{count !== 1 ? 's' : ''}</>
+            )}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function QuickPost() {
@@ -127,6 +402,8 @@ export default function QuickPost() {
   const [posting,       setPosting]       = useState(false);
   const [posted,        setPosted]        = useState(false);
   const [isMobile,      setIsMobile]      = useState(false);
+  const [socialAccounts, setSocialAccounts] = useState([]);
+  const [showPublishModal, setShowPublishModal] = useState(false);
 
   const loadMsgTimer = useRef(null);
 
@@ -136,6 +413,10 @@ export default function QuickPost() {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener('resize', checkMobile);
+    socialAPI.getAccounts().then(({ data }) => {
+      const accts = Array.isArray(data) ? data : (data.accounts || []);
+      setSocialAccounts(accts.filter(a => a.enabled));
+    }).catch(() => {});
     return () => { clearInterval(loadMsgTimer.current); window.removeEventListener('resize', checkMobile); };
   }, []);
 
@@ -199,11 +480,16 @@ export default function QuickPost() {
   const getHashtags = () => result?.variations?.[activeVar]?.hashtags || result?.hashtags || [];
   const getEngQ     = () => result?.variations?.[activeVar]?.engagementQuestion || null;
 
-  const handlePostNow = async () => {
+  // accountIds = integer row IDs from social_accounts (when modal is used)
+  // falls back to platform names when no accounts loaded yet
+  const handlePostNow = async (accountIds) => {
     if (!result?.postId) return;
     setPosting(true);
+    setShowPublishModal(false);
     try {
-      const pubRes = await socialAPI.publish(result.postId, selectedPlats);
+      const pubRes = accountIds?.length
+        ? await socialAPI.publish(result.postId, accountIds, null)
+        : await socialAPI.publish(result.postId, null, selectedPlats);
       const { posted: postedTo = [], errors = [] } = pubRes.data;
       if (postedTo.length > 0) {
         setPosted(true);
@@ -240,7 +526,7 @@ export default function QuickPost() {
   };
   const handleReset = () => {
     setResult(null); setError(''); setEditing(false); setPosted(false);
-    setJobType(null); setDetails(''); setShowDetails(false); setActiveVar('a');
+    setJobType(null); setDetails(''); setActiveVar('a');
   };
 
   const platformChips = PLATFORMS.filter(p => selectedPlats.includes(p.id));
@@ -729,7 +1015,10 @@ export default function QuickPost() {
                 </div>
               ) : (
                 <button
-                  onClick={handlePostNow}
+                  onClick={() => {
+                    if (socialAccounts.length > 0) setShowPublishModal(true);
+                    else handlePostNow(null);
+                  }}
                   disabled={posting || !result?.postId}
                   style={{ width: '100%', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: posting ? 'rgba(124,92,252,0.6)' : 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: posting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 16px rgba(124,92,252,0.35)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}
                   onMouseEnter={e => { if (!posting) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(124,92,252,0.5)'; } }}
@@ -767,9 +1056,24 @@ export default function QuickPost() {
 
       </div>
       <style>{`
-        @keyframes qp-spin  { to { transform: rotate(360deg); } }
-        @keyframes qp-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
+        @keyframes qp-spin    { to { transform: rotate(360deg); } }
+        @keyframes qp-shake   { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
+        @keyframes qp-fade-in { from { opacity:0 } to { opacity:1 } }
+        @keyframes qp-slide-up{ from { opacity:0; transform:translate(-50%,-48%) scale(0.97) } to { opacity:1; transform:translate(-50%,-50%) scale(1) } }
       `}</style>
+
+      {/* ── Publish modal ─────────────────────────────────────────── */}
+      {showPublishModal && (
+        <PublishModal
+          accounts={socialAccounts}
+          selectedPlatforms={selectedPlats}
+          onConfirm={handlePostNow}
+          onClose={() => setShowPublishModal(false)}
+          posting={posting}
+          t={t}
+          dark={dark}
+        />
+      )}
     </Layout>
   );
 }
