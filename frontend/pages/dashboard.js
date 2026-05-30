@@ -100,6 +100,8 @@ export default function Dashboard() {
   const [loadError,      setLoadError]      = useState(false);
   const [briefingOpen,   setBriefingOpen]   = useState(true);
   const [geoScore,       setGeoScore]       = useState(null);
+  const [streakHovered,  setStreakHovered]  = useState(false);
+  const [geoHovered,     setGeoHovered]     = useState(false);
   const [showTour,       setShowTour]       = useState(false);
   const [upcomingFilter, setUpcomingFilter] = useState('all');
   const [previewPostId,  setPreviewPostId]  = useState(null);
@@ -512,86 +514,101 @@ export default function Dashboard() {
                 : 'Post to see data'}
             />
             {/* Streak card */}
-            <div style={{
-              background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
-              backdropFilter: 'blur(16px) saturate(160%)',
-              WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-              border: `1px solid ${metrics?.postingStreak >= 3 ? 'rgba(234,179,8,0.4)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
-              borderLeft: `3px solid ${metrics?.postingStreak >= 3 ? '#EAB308' : t.isDark ? 'rgba(255,255,255,0.15)' : t.border}`,
-              borderRadius: 18, padding: 22,
-              boxShadow: metrics?.postingStreak >= 3
-                ? `${t.shadowSm}, 0 0 16px rgba(234,179,8,0.18), inset 0 1px 0 rgba(255,255,255,0.04)`
-                : `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
-              position: 'relative', overflow: 'hidden',
-              transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = t.shadowMd; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `${t.isDark ? t.shadowSm : t.shadowSm}, inset 0 1px 0 rgba(255,255,255,0.04)`; }}
-            >
-              {metrics?.postingStreak >= 3 && (
-                <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: '#EAB308', opacity: 0.07, pointerEvents: 'none' }} />
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, letterSpacing: '-0.01em' }}>Posting Streak</div>
-                {metrics?.postingStreak >= 1 && <PulseIndicator color="#EAB308" size={7} />}
-              </div>
-              <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: metrics?.postingStreak >= 3 ? '#EAB308' : t.text, display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
-                {metrics?.postingStreak >= 3 && <IpFlame size={22} color="#EAB308" />}
-                {metrics?.postingStreak
-                  ? <AnimatedNumber value={metrics.postingStreak} suffix="d" duration={700} />
-                  : '—'}
-              </div>
-              <div style={{ fontSize: 11, color: t.textMuted }}>
-                {metrics?.postingStreak ? 'Keep posting to grow reach' : 'Post today to start your streak'}
-              </div>
-            </div>
-            {/* GEO / AI Visibility card */}
-            <div
-              onClick={() => router.push('/geo-audit')}
-              style={{
-                background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
-                backdropFilter: 'blur(16px) saturate(160%)',
-                WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-                border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
-                borderLeft: `3px solid ${geoScore?.score > 0 ? (geoScore.score >= 70 ? '#22C55E' : geoScore.score >= 40 ? '#F59E0B' : '#EF4444') : t.primary}`,
-                borderRadius: 18, padding: 22,
-                boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
-                cursor: 'pointer', position: 'relative', overflow: 'hidden',
-                transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `${t.shadowMd}, 0 0 20px rgba(124,92,252,0.15)`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`; }}
-            >
-              <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: t.primary, opacity: 0.06, pointerEvents: 'none' }} />
-              <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>AI Visibility</div>
-              {geoScore && geoScore.score > 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <ProgressRing
-                    value={geoScore.score}
-                    size={64}
-                    strokeWidth={6}
-                    color={geoScore.score >= 70 ? t.success : geoScore.score >= 40 ? t.warning : t.error}
-                    label={geoScore.score}
-                    sublabel="/100"
-                  />
-                  <div>
-                    <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 4 }}>
-                      {geoScore.score >= 70 ? 'Strong visibility' : geoScore.score >= 40 ? 'Needs work' : 'Low visibility'}
-                    </div>
-                    <div style={{ fontSize: 11, color: t.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                      See how to improve <IpArrowRight size={10} />
-                    </div>
+            {(() => {
+              const streakCol = metrics?.postingStreak >= 1 ? '#EAB308' : (t.warning || '#F59E0B');
+              return (
+                <div
+                  onMouseEnter={() => setStreakHovered(true)}
+                  onMouseLeave={() => setStreakHovered(false)}
+                  style={{
+                    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+                    backdropFilter: 'blur(16px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+                    border: `1px solid ${streakHovered ? `${streakCol}44` : (t.isDark ? 'rgba(255,255,255,0.07)' : t.border)}`,
+                    borderLeft: `3px solid ${streakCol}`,
+                    borderRadius: 18, padding: 22,
+                    boxShadow: streakHovered
+                      ? `${t.shadowMd}, 0 0 24px ${streakCol}28`
+                      : `${t.shadowSm}, 0 0 12px ${streakCol}18, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+                    transform: streakHovered ? 'translateY(-4px)' : 'translateY(0)',
+                    transition: 'transform 220ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 220ms ease, border-color 160ms ease',
+                    position: 'relative', overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: streakCol, opacity: 0.07, filter: 'blur(20px)', pointerEvents: 'none' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, letterSpacing: '-0.01em' }}>Posting Streak</div>
+                    {metrics?.postingStreak >= 1 && <PulseIndicator color={streakCol} size={7} />}
+                  </div>
+                  <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: streakCol, display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7, textShadow: `0 0 20px ${streakCol}40` }}>
+                    {metrics?.postingStreak >= 3 && <IpFlame size={22} color={streakCol} />}
+                    {metrics?.postingStreak
+                      ? <AnimatedNumber value={metrics.postingStreak} suffix="d" duration={700} />
+                      : '—'}
+                  </div>
+                  <div style={{ fontSize: 11, color: streakCol, fontWeight: 500 }}>
+                    {metrics?.postingStreak ? 'Keep posting to grow reach' : 'Post today to start your streak'}
                   </div>
                 </div>
-              ) : (
-                <>
-                  <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: t.text, marginBottom: 7 }}>—</div>
-                  <div style={{ fontSize: 11, color: t.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                    {geoScore?.freeAuditUsed ? 'Check your score' : 'Get your free score'} <IpArrowRight size={10} />
-                  </div>
-                </>
-              )}
-            </div>
+              );
+            })()}
+            {/* GEO / AI Visibility card */}
+            {(() => {
+              const geoCol = geoScore?.score > 0
+                ? (geoScore.score >= 70 ? '#22C55E' : geoScore.score >= 40 ? '#F59E0B' : '#EF4444')
+                : t.primary;
+              return (
+                <div
+                  onClick={() => router.push('/geo-audit')}
+                  onMouseEnter={() => setGeoHovered(true)}
+                  onMouseLeave={() => setGeoHovered(false)}
+                  style={{
+                    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+                    backdropFilter: 'blur(16px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+                    border: `1px solid ${geoHovered ? `${geoCol}44` : (t.isDark ? 'rgba(255,255,255,0.07)' : t.border)}`,
+                    borderLeft: `3px solid ${geoCol}`,
+                    borderRadius: 18, padding: 22,
+                    boxShadow: geoHovered
+                      ? `${t.shadowMd}, 0 0 24px ${geoCol}28`
+                      : `${t.shadowSm}, 0 0 12px ${geoCol}18, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+                    transform: geoHovered ? 'translateY(-4px)' : 'translateY(0)',
+                    transition: 'transform 220ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 220ms ease, border-color 160ms ease',
+                    cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: geoCol, opacity: 0.07, filter: 'blur(20px)', pointerEvents: 'none' }} />
+                  <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>AI Visibility</div>
+                  {geoScore && geoScore.score > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <ProgressRing
+                        value={geoScore.score}
+                        size={64}
+                        strokeWidth={6}
+                        color={geoCol}
+                        label={geoScore.score}
+                        sublabel="/100"
+                      />
+                      <div>
+                        <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 4 }}>
+                          {geoScore.score >= 70 ? 'Strong visibility' : geoScore.score >= 40 ? 'Needs work' : 'Low visibility'}
+                        </div>
+                        <div style={{ fontSize: 11, color: geoCol, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                          See how to improve <IpArrowRight size={10} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: geoCol, marginBottom: 7, textShadow: `0 0 20px ${geoCol}40` }}>—</div>
+                      <div style={{ fontSize: 11, color: geoCol, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                        {geoScore?.freeAuditUsed ? 'Check your score' : 'Get your free score'} <IpArrowRight size={10} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </>)}
         </div>
 
