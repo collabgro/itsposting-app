@@ -149,7 +149,9 @@ module.exports = (pool) => {
         `SELECT id, email, business_name, industry, location, plan, status, credits_balance,
                 brand_colors, visual_style, tone, avatar_id, voice_id, preferred_image_provider,
                 is_admin, role, suspended, parent_customer_id, free_geo_audit_used,
-                workspace_role, workspace_permissions
+                workspace_role, workspace_permissions,
+                white_label_config, logo_url, avatar_url, tagline,
+                posting_streak, total_posts_this_month, timezone
          FROM customers WHERE id = $1`,
         [req.customerId]
       );

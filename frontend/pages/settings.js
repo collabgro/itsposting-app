@@ -470,6 +470,8 @@ export default function Settings() {
   const [wlForm, setWlForm] = useState({ agencyName: '', logo: '', primaryColor: '', hidePoweredBy: false, customDomain: '' });
   const [wlSaving, setWlSaving] = useState(false);
   const [wlMsg, setWlMsg] = useState('');
+  const [wlLogoUploading, setWlLogoUploading] = useState(false);
+  const wlLogoInputRef = useRef(null);
 
   // Workspace context (invited members)
   const [workspaceUser, setWorkspaceUser] = useState(null);
@@ -778,6 +780,22 @@ export default function Settings() {
       setWlMsg(err.response?.data?.error || 'Failed to save');
     } finally {
       setWlSaving(false);
+    }
+  };
+
+  const handleWlLogoUpload = async (file) => {
+    if (!file) return;
+    setWlLogoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('asset', file);
+      const res = await customerAPI.uploadAsset(formData);
+      setWlForm(f => ({ ...f, logo: res.data.url }));
+      showToast('Agency logo uploaded');
+    } catch {
+      showToast('Upload failed', 'error');
+    } finally {
+      setWlLogoUploading(false);
     }
   };
 
@@ -2239,123 +2257,163 @@ export default function Settings() {
         {/* ── WHITE-LABEL (AGENCY PLAN) ────────────────────────────────────── */}
         {profile?.plan === 'agency' ? (
           <div style={gc}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <IpPalette size={16} color={t.primary} />
-                  <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>White-Label Branding</span>
-                  <span style={{ padding: '2px 8px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 5, letterSpacing: '0.04em' }}>AGENCY</span>
-                </div>
-                <div style={{ fontSize: 13, color: t.textMuted }}>Replace ItsPosting branding with your agency's logo, name, and colors.</div>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <IpPalette size={16} color={t.primary} />
+              <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>White-Label Branding</span>
+              <span style={{ padding: '2px 8px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 5, letterSpacing: '0.04em' }}>AGENCY</span>
             </div>
+            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 24 }}>Replace ItsPosting branding with your agency's logo, name, and colors. Changes apply immediately for all your sub-accounts.</div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Agency Name */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Agency Name</label>
-                <input
-                  type="text"
-                  value={wlForm.agencyName}
-                  onChange={e => setWlForm(f => ({ ...f, agencyName: e.target.value }))}
-                  placeholder="e.g. Apex Digital Agency"
-                  maxLength={80}
-                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                />
-                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Shown in the sidebar instead of "ItsPosting".</div>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'start' }}>
+              {/* Form column */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-              {/* Logo URL */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Logo URL</label>
-                <input
-                  type="url"
-                  value={wlForm.logo}
-                  onChange={e => setWlForm(f => ({ ...f, logo: e.target.value }))}
-                  placeholder="https://your-cdn.com/logo.png"
-                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                />
-                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>PNG or SVG. Displayed at 30px height in the sidebar. Hosted on a public CDN.</div>
-                {wlForm.logo && (
-                  <div style={{ marginTop: 10, padding: '10px 14px', background: t.input, borderRadius: 8, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <img src={wlForm.logo} alt="Preview" style={{ height: 30, maxWidth: 140, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
-                    <span style={{ fontSize: 11, color: t.textMuted }}>Preview</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Primary Color */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Primary Color</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input
-                    type="color"
-                    value={wlForm.primaryColor || '#7C5CFC'}
-                    onChange={e => setWlForm(f => ({ ...f, primaryColor: e.target.value }))}
-                    style={{ width: 44, height: 44, padding: 2, borderRadius: 8, border: `1px solid ${t.border}`, background: 'transparent', cursor: 'pointer' }}
-                  />
+                {/* Agency Name */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Agency Name</label>
                   <input
                     type="text"
-                    value={wlForm.primaryColor}
-                    onChange={e => setWlForm(f => ({ ...f, primaryColor: e.target.value }))}
-                    placeholder="#7C5CFC"
-                    maxLength={7}
-                    style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontFamily: 'monospace', outline: 'none' }}
+                    value={wlForm.agencyName}
+                    onChange={e => setWlForm(f => ({ ...f, agencyName: e.target.value }))}
+                    placeholder="e.g. Apex Digital Agency"
+                    maxLength={80}
+                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   />
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Shown in the sidebar instead of "ItsPosting".</div>
                 </div>
-                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Used for sidebar active state and accent elements. Must be a valid hex color (#RRGGBB).</div>
-              </div>
 
-              {/* Custom Domain */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Custom Domain <span style={{ padding: '1px 6px', background: t.input, color: t.textMuted, fontSize: 10, borderRadius: 4, marginLeft: 4, fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>DNS setup required</span>
-                </label>
-                <input
-                  type="text"
-                  value={wlForm.customDomain}
-                  onChange={e => setWlForm(f => ({ ...f, customDomain: e.target.value }))}
-                  placeholder="app.youragency.com"
-                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                />
-                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Point a CNAME record to <code style={{ background: t.input, padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace' }}>app.itsposting.com</code> then enter your domain here. Contact support to activate.</div>
-              </div>
-
-              {/* Hide Powered By */}
-              <div
-                onClick={() => setWlForm(f => ({ ...f, hidePoweredBy: !f.hidePoweredBy }))}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '13px 14px', borderRadius: 10, background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `1px solid ${wlForm.hidePoweredBy ? t.primaryBorder : (t.isDark ? 'rgba(255,255,255,0.05)' : t.border)}`, cursor: 'pointer', transition: 'border-color 150ms' }}
-              >
+                {/* Agency Logo */}
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 2 }}>Hide "Powered by ItsPosting"</div>
-                  <div style={{ fontSize: 11, color: t.textMuted }}>Remove the ItsPosting attribution from your client-facing sidebar.</div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Agency Logo</label>
+                  <input ref={wlLogoInputRef} type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" style={{ display: 'none' }} onChange={e => handleWlLogoUpload(e.target.files[0])} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="url"
+                      value={wlForm.logo}
+                      onChange={e => setWlForm(f => ({ ...f, logo: e.target.value }))}
+                      placeholder="https://your-cdn.com/logo.png"
+                      style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none' }}
+                    />
+                    <button
+                      onClick={() => wlLogoInputRef.current?.click()}
+                      disabled={wlLogoUploading}
+                      style={{ padding: '10px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                    >
+                      {wlLogoUploading ? 'Uploading...' : 'Upload'}
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>PNG, SVG or JPEG. Max 5MB. Displayed at 30px height in the sidebar.</div>
                 </div>
-                <button
-                  type="button"
-                  onClick={e => { e.stopPropagation(); setWlForm(f => ({ ...f, hidePoweredBy: !f.hidePoweredBy })); }}
-                  style={{ width: 44, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', padding: 3, background: wlForm.hidePoweredBy ? '#34C759' : (t.isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db'), transition: 'background 150ms', display: 'flex', alignItems: 'center', justifyContent: wlForm.hidePoweredBy ? 'flex-end' : 'flex-start', flexShrink: 0 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }} />
-                </button>
+
+                {/* Primary Color */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Primary Color</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input
+                      type="color"
+                      value={wlForm.primaryColor || '#7C5CFC'}
+                      onChange={e => setWlForm(f => ({ ...f, primaryColor: e.target.value }))}
+                      style={{ width: 44, height: 44, padding: 2, borderRadius: 8, border: `1px solid ${t.border}`, background: 'transparent', cursor: 'pointer', flexShrink: 0 }}
+                    />
+                    <input
+                      type="text"
+                      value={wlForm.primaryColor}
+                      onChange={e => setWlForm(f => ({ ...f, primaryColor: e.target.value }))}
+                      placeholder="#7C5CFC"
+                      maxLength={7}
+                      style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontFamily: 'monospace', outline: 'none' }}
+                    />
+                  </div>
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Used for active nav items and accent buttons. Must be a valid hex color.</div>
+                </div>
+
+                {/* Custom Domain */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Custom Domain
+                    <span style={{ marginLeft: 6, padding: '1px 6px', background: t.input, color: t.textMuted, fontSize: 10, borderRadius: 4, fontWeight: 500, textTransform: 'none', letterSpacing: 'normal', border: `1px solid ${t.border}` }}>DNS setup required</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={wlForm.customDomain}
+                    onChange={e => setWlForm(f => ({ ...f, customDomain: e.target.value }))}
+                    placeholder="app.youragency.com"
+                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>
+                    Point a CNAME record to <code style={{ background: t.input, padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace', border: `1px solid ${t.border}` }}>app.itsposting.com</code> then enter your domain here. <a href="mailto:support@itsposting.com?subject=Custom Domain Setup" style={{ color: t.primary, textDecoration: 'none' }}>Contact support</a> to activate.
+                  </div>
+                </div>
+
+                {/* Hide Powered By */}
+                <div
+                  onClick={() => setWlForm(f => ({ ...f, hidePoweredBy: !f.hidePoweredBy }))}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '13px 14px', borderRadius: 10, background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `1px solid ${wlForm.hidePoweredBy ? t.primaryBorder : (t.isDark ? 'rgba(255,255,255,0.05)' : t.border)}`, cursor: 'pointer', transition: 'border-color 150ms' }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 2 }}>Hide "Powered by ItsPosting"</div>
+                    <div style={{ fontSize: 11, color: t.textMuted }}>Remove the ItsPosting attribution from the sidebar footer.</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); setWlForm(f => ({ ...f, hidePoweredBy: !f.hidePoweredBy })); }}
+                    style={{ width: 44, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', padding: 3, background: wlForm.hidePoweredBy ? '#34C759' : (t.isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db'), transition: 'background 150ms', display: 'flex', alignItems: 'center', justifyContent: wlForm.hidePoweredBy ? 'flex-end' : 'flex-start', flexShrink: 0 }}
+                  >
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }} />
+                  </button>
+                </div>
+
+                {/* Save */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <button
+                    onClick={handleSaveWhiteLabel}
+                    disabled={wlSaving}
+                    style={{ padding: '10px 24px', background: `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: wlSaving ? 'not-allowed' : 'pointer', opacity: wlSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 7 }}
+                  >
+                    <IpSave size={14} />
+                    {wlSaving ? 'Saving...' : 'Save White-Label Settings'}
+                  </button>
+                  {wlMsg === 'saved' && <span style={{ fontSize: 12, color: t.success, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}><IpCheck size={13} /> Saved</span>}
+                  {wlMsg && wlMsg !== 'saved' && <span style={{ fontSize: 12, color: t.error }}>{wlMsg}</span>}
+                </div>
               </div>
 
-              {/* Save button */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button
-                  onClick={handleSaveWhiteLabel}
-                  disabled={wlSaving}
-                  style={{ padding: '10px 24px', background: `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: wlSaving ? 'not-allowed' : 'pointer', opacity: wlSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 7 }}
-                >
-                  <IpSave size={14} />
-                  {wlSaving ? 'Saving...' : 'Save White-Label Settings'}
-                </button>
-                {wlMsg === 'saved' && (
-                  <span style={{ fontSize: 12, color: t.success, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
-                    <IpCheck size={13} /> Saved
-                  </span>
-                )}
-                {wlMsg && wlMsg !== 'saved' && (
-                  <span style={{ fontSize: 12, color: t.error }}>{wlMsg}</span>
-                )}
+              {/* Live Preview column */}
+              <div style={{ width: 200, flexShrink: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Sidebar Preview</div>
+                <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.isDark ? 'rgba(10,10,18,0.9)' : '#F7F7FA', boxShadow: t.shadow }}>
+                  {/* Mini sidebar header */}
+                  <div style={{ padding: '14px 12px 10px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
+                    {wlForm.logo ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <img src={wlForm.logo} alt="logo" style={{ height: 24, maxWidth: 80, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+                        {wlForm.agencyName && <span style={{ fontSize: 12, fontWeight: 700, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wlForm.agencyName}</span>}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <div style={{ width: 24, height: 24, borderRadius: 6, background: wlForm.primaryColor || t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ color: '#fff', fontSize: 12, fontWeight: 800 }}>{(wlForm.agencyName || 'A').charAt(0)}</span>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: t.text }}>{wlForm.agencyName || 'Your Agency'}</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Mini nav items */}
+                  <div style={{ padding: '8px 8px' }}>
+                    {['Dashboard', 'Post Wizard', 'Calendar', 'Analytics'].map((item, i) => (
+                      <div key={item} style={{ padding: '6px 8px', borderRadius: 7, marginBottom: 2, background: i === 0 ? `${wlForm.primaryColor || t.primary}18` : 'transparent', display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: i === 0 ? (wlForm.primaryColor || t.primary) : t.textMuted, opacity: i === 0 ? 1 : 0.4 }} />
+                        <span style={{ fontSize: 11, fontWeight: i === 0 ? 600 : 400, color: i === 0 ? (wlForm.primaryColor || t.primary) : t.textMuted }}>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Powered by footer */}
+                  {!wlForm.hidePoweredBy && (
+                    <div style={{ padding: '8px 12px', borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}` }}>
+                      <div style={{ fontSize: 9, color: t.textMuted, textAlign: 'center', opacity: 0.6 }}>Powered by ItsPosting</div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

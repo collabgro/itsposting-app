@@ -469,7 +469,7 @@ export default function Layout({ children, title, subtitle, action }) {
                   borderRadius: 10, fontSize: 13, fontWeight: active ? 600 : 500,
                   color: active ? t.text : t.textMuted,
                   background: 'transparent',
-                  borderLeft: active ? `2.5px solid ${t.primary}` : '2.5px solid transparent',
+                  borderLeft: active ? `2.5px solid ${wlPrimary}` : '2.5px solid transparent',
                   transition: 'all 160ms cubic-bezier(0.34,1.56,0.64,1)', whiteSpace: 'nowrap',
                   textDecoration: 'none', position: 'relative',
                   letterSpacing: '-0.01em',
