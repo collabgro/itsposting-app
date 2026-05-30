@@ -732,3 +732,270 @@ body[data-theme="light"] .glass-deep {
   0%, 60%, 100% { transform: translateY(0);    opacity: 0.45; }
   30%            { transform: translateY(-7px); opacity: 1.00; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SCROLL-REVEAL SYSTEM
+   JS: add class "revealed" when element enters viewport (IntersectionObserver)
+   Elements start invisible; CSS transition runs when .revealed is added.
+══════════════════════════════════════════════════════════════════════════ */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 500ms cubic-bezier(0.16,1,0.3,1), transform 500ms cubic-bezier(0.16,1,0.3,1);
+  will-change: opacity, transform;
+}
+.reveal.revealed { opacity: 1; transform: translateY(0); }
+
+.reveal-fast { transition-duration: 280ms; }
+.reveal-slow { transition-duration: 700ms; }
+
+/* Stagger delays for child groups */
+.reveal-d1 { transition-delay: 60ms; }
+.reveal-d2 { transition-delay: 120ms; }
+.reveal-d3 { transition-delay: 180ms; }
+.reveal-d4 { transition-delay: 240ms; }
+.reveal-d5 { transition-delay: 300ms; }
+
+/* Slide from left */
+.reveal-left  { opacity: 0; transform: translateX(-18px); transition: opacity 450ms cubic-bezier(0.16,1,0.3,1), transform 450ms cubic-bezier(0.16,1,0.3,1); }
+.reveal-left.revealed { opacity: 1; transform: translateX(0); }
+
+/* Scale-up reveal */
+.reveal-scale { opacity: 0; transform: scale(0.94); transition: opacity 380ms cubic-bezier(0.34,1.56,0.64,1), transform 380ms cubic-bezier(0.34,1.56,0.64,1); }
+.reveal-scale.revealed { opacity: 1; transform: scale(1); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INTERACTIVE FEEDBACK UTILITIES
+══════════════════════════════════════════════════════════════════════════ */
+
+/* Lift on hover — add to any card */
+.hover-lift {
+  transition: transform 220ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 220ms ease !important;
+  cursor: pointer;
+}
+.hover-lift:hover  { transform: translateY(-4px); }
+.hover-lift:active { transform: translateY(-1px) scale(0.99); }
+
+/* Subtle lift — less dramatic */
+.hover-lift-sm:hover  { transform: translateY(-2px); }
+.hover-lift-sm:active { transform: scale(0.98); }
+
+/* Glow on hover */
+.hover-glow:hover { box-shadow: 0 0 24px rgba(124,92,252,0.28), 0 8px 32px rgba(0,0,0,0.4) !important; }
+
+/* Clickable row */
+.clickable-row {
+  transition: background 100ms ease;
+  cursor: pointer;
+}
+.clickable-row:hover  { background: rgba(124,92,252,0.05) !important; }
+.clickable-row:active { background: rgba(124,92,252,0.09) !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   WIZARD STEP TRANSITION SYSTEM
+══════════════════════════════════════════════════════════════════════════ */
+
+.step-enter {
+  animation: step-slide-in 320ms cubic-bezier(0.16,1,0.3,1) both;
+}
+.step-exit {
+  animation: step-slide-out 200ms cubic-bezier(0.4,0,1,1) both;
+}
+
+@keyframes step-slide-in {
+  from { opacity: 0; transform: translateX(22px) scale(0.98); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes step-slide-out {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-16px); }
+}
+
+/* Card selection spring pop */
+@keyframes card-select {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.96); }
+  70%  { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+.card-selected-pop { animation: card-select 280ms cubic-bezier(0.34,1.56,0.64,1); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PROGRESS BAR ANIMATED FILL
+══════════════════════════════════════════════════════════════════════════ */
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 800ms cubic-bezier(0.16,1,0.3,1);
+  will-change: width;
+}
+
+/* Striped animated bar (for in-progress uploads) */
+.progress-bar-striped {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(255,255,255,0.08) 10px,
+    rgba(255,255,255,0.08) 20px
+  );
+  animation: progress-stripe 1s linear infinite;
+}
+@keyframes progress-stripe { to { background-position: 28px 0; } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TOOLTIP
+══════════════════════════════════════════════════════════════════════════ */
+
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(15,15,24,0.96);
+  color: #F5F5F7;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.09);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms, transform 160ms cubic-bezier(0.16,1,0.3,1);
+  transform: translateX(-50%) translateY(4px);
+  z-index: 9999;
+}
+[data-tip]:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PLATFORM BADGES (Facebook / Instagram / Google pill labels)
+══════════════════════════════════════════════════════════════════════════ */
+
+.plat-fb  { background: rgba(24,119,242,0.12); color: #1877F2; border: 1px solid rgba(24,119,242,0.25); }
+.plat-ig  { background: rgba(225,48,108,0.12);  color: #E1306C; border: 1px solid rgba(225,48,108,0.25); }
+.plat-gb  { background: rgba(66,133,244,0.12);  color: #4285F4; border: 1px solid rgba(66,133,244,0.25); }
+.plat-li  { background: rgba(10,102,194,0.12);  color: #0A66C2; border: 1px solid rgba(10,102,194,0.25); }
+.plat-tt  { background: rgba(255,255,255,0.07); color: #ccc;    border: 1px solid rgba(255,255,255,0.12); }
+.plat-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 99px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DRAG & DROP ZONE
+══════════════════════════════════════════════════════════════════════════ */
+
+.drop-zone {
+  border: 2px dashed rgba(124,92,252,0.3);
+  border-radius: 16px;
+  transition: border-color 180ms, background 180ms;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: rgba(124,92,252,0.7);
+  background: rgba(124,92,252,0.06);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CONTENT SKELETON LAYOUTS
+   Pre-built skeletons matching specific page layouts
+══════════════════════════════════════════════════════════════════════════ */
+
+/* Dashboard stat skeleton */
+.skel-stat { height: 104px; border-radius: 18px; }
+.skel-card { height: 180px; border-radius: 16px; }
+.skel-row  { height: 64px;  border-radius: 12px; }
+.skel-text { height: 14px;  border-radius: 6px; width: 60%; }
+.skel-text-sm { height: 11px; border-radius: 5px; width: 40%; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   REDUCED MOTION — respect system preference
+══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal, .reveal-left, .reveal-scale { opacity: 1; transform: none; }
+  .float, .glow-pulse, .breathe,
+  .btn-shimmer::after, .animated-gradient-text { animation: none !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MOBILE-FIRST TOUCH OVERRIDES
+══════════════════════════════════════════════════════════════════════════ */
+
+/* Minimum touch target size (iOS HIG: 44×44, Android: 48×48) */
+@media (hover: none) {
+  button, a, [role="button"] { min-height: 44px; }
+  .touch-target-sm { min-height: 36px !important; }
+}
+
+/* Prevent callout on long-press for interactive elements */
+@media (hover: none) {
+  button, a, img { -webkit-touch-callout: none; }
+}
+
+/* Remove tap highlight on iOS */
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS momentum scroll */
+.scroll-momentum {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE ADDITIONS
+══════════════════════════════════════════════════════════════════════════ */
+
+/* 2-col stat grid for mid tablets */
+@media (max-width: 640px) {
+  .stat-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+}
+@media (max-width: 380px) {
+  .stat-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Quick actions horizontal scroll on tiny screens */
+@media (max-width: 480px) {
+  .quick-actions-scroll {
+    display: flex !important;
+    overflow-x: auto;
+    gap: 8px !important;
+    padding-bottom: 4px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .quick-actions-scroll > * {
+    flex: 0 0 calc(50vw - 32px);
+    scroll-snap-align: start;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PWA SAFE AREAS
+══════════════════════════════════════════════════════════════════════════ */
+
+.safe-top    { padding-top:    env(safe-area-inset-top,    0px); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-left   { padding-left:   env(safe-area-inset-left,   0px); }
+.safe-right  { padding-right:  env(safe-area-inset-right,  0px); }
+
+/* Fixed bottom bar accounts for notch */
+.fixed-bottom-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 100;
+}

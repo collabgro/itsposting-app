@@ -989,7 +989,7 @@ export default function Wizard() {
             STEP 1 — Content Type Selection
         ───────────────────────────────────────────────────────────────────── */}
         {step === 1 && (
-          <div>
+          <div className="step-enter">
             <StepHeading t={t} icon="text_post" title="What type of post?" sub="Choose the format that works best for your content" />
 
             {/* ── Load saved template ── */}
@@ -1269,7 +1269,7 @@ export default function Wizard() {
             STEP 3 — What's happening today?
         ───────────────────────────────────────────────────────────────────── */}
         {step === 3 && (
-          <div>
+          <div className="step-enter">
             <StepHeading t={t} icon="sparkles" title="What's happening today?" sub="Pick the type of post you want to create" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 32 }}>
               {CONTENT_THEMES.map((item) => {
@@ -1292,7 +1292,7 @@ export default function Wizard() {
             STEP 4 — What's the vibe?
         ───────────────────────────────────────────────────────────────────── */}
         {step === 4 && (
-          <div>
+          <div className="step-enter">
             <StepHeading t={t} icon="friendly" title="What's the vibe?" sub="Choose the tone that fits your brand today" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
               {TONES.map((item) => {
@@ -1353,7 +1353,7 @@ export default function Wizard() {
             STEP 5 — Add any details (optional)
         ───────────────────────────────────────────────────────────────────── */}
         {step === 5 && (
-          <div>
+          <div className="step-enter">
             <StepHeading t={t} icon="edit" title="Add any details" sub="Optional — but the more context you give PostCore, the better the posts" />
 
             {/* Summary pills */}
@@ -1408,7 +1408,7 @@ export default function Wizard() {
             STEP 6 — Where are we posting?
         ───────────────────────────────────────────────────────────────────── */}
         {step === 6 && (
-          <div>
+          <div className="step-enter">
             <StepHeading t={t} icon="all_platforms" title="Where are we posting?" sub="Select one or more platforms — PostCore adapts the caption for each" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 16 }}>
               {PLATFORMS.map((item) => {
@@ -1510,6 +1510,17 @@ export default function Wizard() {
               {[0, 1, 2].map(i => (
                 <div key={i} style={{ width: 9, height: 9, borderRadius: '50%', background: `linear-gradient(135deg, #7C5CFC, #9B7BFF)`, opacity: loadingMsgIdx % 3 === i ? 1 : 0.25, animation: `bounce 1.4s ease-in-out ${i * 0.18}s infinite`, boxShadow: loadingMsgIdx % 3 === i ? '0 0 8px rgba(124,92,252,0.6)' : 'none', transition: 'opacity 300ms, box-shadow 300ms' }} />
               ))}
+            </div>
+
+            {/* Progress track */}
+            <div style={{ width: 220, height: 3, borderRadius: 3, background: 'rgba(255,255,255,0.07)', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+              <div style={{
+                height: '100%', borderRadius: 3,
+                background: 'linear-gradient(90deg, #7C5CFC, #9B7BFF)',
+                width: `${Math.min(((loadingMsgIdx + 1) / ((LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry).length)) * 100, 95)}%`,
+                transition: 'width 600ms cubic-bezier(0.16,1,0.3,1)',
+                boxShadow: '0 0 8px rgba(124,92,252,0.5)',
+              }} />
             </div>
 
             <style>{`

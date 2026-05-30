@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpCalendar, IpSchedule, IpSparkle, IpPlus,
@@ -9,12 +9,25 @@ import {
   IpClose, IpInfo, IpCheck, IpCheckCircle, IpSettings,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, SectionHeader, EmptyState, Spinner, Skeleton, ErrorCard } from '../components/ui';
+import { Button, SectionHeader, EmptyState, Spinner, Skeleton, ErrorCard, AnimatedNumber, ProgressRing, PulseIndicator } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, socialAPI, calendarPlansAPI } from '../lib/api';
 import { format } from 'date-fns';
 import PostPreviewModal from '../components/PostPreviewModal';
 import { setMascotMood } from '../components/PostCoreMascot';
+
+// Boot scroll-reveal once per page mount
+function useScrollReveal() {
+  useEffect(() => {
+    const elements = document.querySelectorAll('.reveal, .reveal-left, .reveal-scale');
+    if (!elements.length) return;
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('revealed'); io.unobserve(e.target); } });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    elements.forEach(el => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+}
 
 const TYPE_ICON  = { static: IpDrafts, photo: IpPhoto, carousel: IpCarousel, video: IpVideo };
 const TYPE_COLOR = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
@@ -102,6 +115,8 @@ export default function Dashboard() {
   const [bestPostId,     setBestPostId]     = useState(null);
   const [weekPlans,      setWeekPlans]      = useState([]);
   const [isMobile,       setIsMobile]       = useState(false);
+
+  useScrollReveal();
 
   const loadDashboard = () => {
     setLoadError(false);
@@ -474,18 +489,21 @@ export default function Dashboard() {
         )}
 
         {/* ── 2. Business Metrics Row ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 8 }}>
+        <div className="stat-grid reveal" style={{ marginBottom: 8 }}>
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height={104} borderRadius={18} />)
           ) : (<>
             <MetricCard t={t} accent="info"
               label="People Reached"
               main={fmt(metrics?.totalReach)}
+              numericValue={metrics?.totalReach}
               sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local people` : 'No data yet'}
             />
             <MetricCard t={t} accent={metrics?.isOutperforming ? 'success' : 'warning'}
               label="Engagement Rate"
               main={metrics ? `${metrics.engagementRate}%` : '—'}
+              numericValue={metrics?.engagementRate}
+              suffix="%"
               sub={metrics
                 ? (metrics.isOutperforming
                     ? `Top ${100 - metrics.percentileRank}% in industry`
@@ -512,10 +530,15 @@ export default function Dashboard() {
               {metrics?.postingStreak >= 3 && (
                 <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: '#EAB308', opacity: 0.07, pointerEvents: 'none' }} />
               )}
-              <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>Posting Streak</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, letterSpacing: '-0.01em' }}>Posting Streak</div>
+                {metrics?.postingStreak >= 1 && <PulseIndicator color="#EAB308" size={7} />}
+              </div>
               <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: metrics?.postingStreak >= 3 ? '#EAB308' : t.text, display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7 }}>
                 {metrics?.postingStreak >= 3 && <IpFlame size={22} color="#EAB308" />}
-                {metrics?.postingStreak ? `${metrics.postingStreak}d` : '—'}
+                {metrics?.postingStreak
+                  ? <AnimatedNumber value={metrics.postingStreak} suffix="d" duration={700} />
+                  : '—'}
               </div>
               <div style={{ fontSize: 11, color: t.textMuted }}>
                 {metrics?.postingStreak ? 'Keep posting to grow reach' : 'Post today to start your streak'}
@@ -541,14 +564,24 @@ export default function Dashboard() {
               <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: t.primary, opacity: 0.06, pointerEvents: 'none' }} />
               <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>AI Visibility</div>
               {geoScore && geoScore.score > 0 ? (
-                <>
-                  <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 7, color: geoScore.score >= 70 ? t.success : geoScore.score >= 40 ? t.warning : t.error }}>
-                    {geoScore.score}<span style={{ fontSize: 14, color: t.textMuted, fontWeight: 500, letterSpacing: 0 }}>/100</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <ProgressRing
+                    value={geoScore.score}
+                    size={64}
+                    strokeWidth={6}
+                    color={geoScore.score >= 70 ? t.success : geoScore.score >= 40 ? t.warning : t.error}
+                    label={geoScore.score}
+                    sublabel="/100"
+                  />
+                  <div>
+                    <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 4 }}>
+                      {geoScore.score >= 70 ? 'Strong visibility' : geoScore.score >= 40 ? 'Needs work' : 'Low visibility'}
+                    </div>
+                    <div style={{ fontSize: 11, color: t.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                      See how to improve <IpArrowRight size={10} />
+                    </div>
                   </div>
-                  <div style={{ fontSize: 11, color: t.primary, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                    See how to improve <IpArrowRight size={10} />
-                  </div>
-                </>
+                </div>
               ) : (
                 <>
                   <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: t.text, marginBottom: 7 }}>—</div>
@@ -568,7 +601,7 @@ export default function Dashboard() {
         )}
 
         {/* ── 3. Content Health Bar ── */}
-        {contentMix && <ContentHealthBar data={contentMix} t={t} router={router} />}
+        {contentMix && <div className="reveal reveal-d1"><ContentHealthBar data={contentMix} t={t} router={router} /></div>}
 
         {/* ── 3b. Share a Review card ── */}
         <div style={{ marginTop: 0, padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`, marginBottom: 20 }}>
@@ -635,7 +668,7 @@ export default function Dashboard() {
         )}
 
         {/* ── 4. Calendar + Upcoming ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20, marginTop: 4 }}>
+        <div className="reveal reveal-d2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20, marginTop: 4 }}>
           <div style={{ padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
             <SectionHeader
               icon={IpCalendar}
@@ -1008,28 +1041,34 @@ function ThisWeekWidget({ plans, t, router, isMobile }) {
   );
 }
 
-function MetricCard({ t, label, main, sub, subColor, accent = 'primary' }) {
+function MetricCard({ t, label, main, sub, subColor, accent = 'primary', numericValue, prefix = '', suffix = '' }) {
   const accentColors = { primary: t.primary, info: t.info || '#3B82F6', success: t.success || '#22C55E', warning: t.warning || '#F59E0B' };
   const col = accentColors[accent] || t.primary;
+  const [hovered, setHovered] = useState(false);
   return (
     <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
         backdropFilter: 'blur(16px) saturate(160%)',
         WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-        border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+        border: `1px solid ${hovered ? `${col}44` : (t.isDark ? 'rgba(255,255,255,0.07)' : t.border)}`,
         borderLeft: `3px solid ${col}`,
         borderRadius: 18, padding: 22,
-        boxShadow: `${t.shadowSm}, 0 0 12px ${col}18, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
-        transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
+        boxShadow: hovered ? `${t.shadowMd}, 0 0 24px ${col}28` : `${t.shadowSm}, 0 0 12px ${col}18, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+        transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+        transition: 'transform 220ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 220ms ease, border-color 160ms ease',
         position: 'relative', overflow: 'hidden',
       }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `${t.shadowMd}, 0 0 20px ${col}25`; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `${t.shadowSm}, 0 0 12px ${col}18, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`; }}
     >
       <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: col, opacity: 0.07, filter: 'blur(20px)', pointerEvents: 'none' }} />
       <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, marginBottom: 10, letterSpacing: '-0.01em' }}>{label}</div>
-      <div style={{ fontSize: 34, fontWeight: 800, color: col, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 7, textShadow: `0 0 20px ${col}40` }}>{main}</div>
+      <div style={{ fontSize: 34, fontWeight: 800, color: col, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 7, textShadow: `0 0 20px ${col}40` }}>
+        {numericValue !== undefined
+          ? <AnimatedNumber value={numericValue} prefix={prefix} suffix={suffix} duration={900} />
+          : main}
+      </div>
       {sub && <div style={{ fontSize: 11, color: subColor || col, fontWeight: 500 }}>{sub}</div>}
     </div>
   );

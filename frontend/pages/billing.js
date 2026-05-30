@@ -6,7 +6,7 @@ import {
   IpExternalLink, IpDollar, IpClose, IpMail,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, Spinner, EmptyState, SkeletonPage, ErrorCard, Select } from '../components/ui';
+import { Button, Spinner, EmptyState, SkeletonPage, ErrorCard, Select, AnimatedNumber, ProgressRing, PulseIndicator } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { billingAPI, referralsAPI } from '../lib/api';
 
@@ -317,48 +317,28 @@ export default function Billing() {
             )}
           </div>
 
-          {/* Credit usage — circular ring */}
+          {/* Credit usage — ProgressRing */}
           <div style={{ ...gc, padding: 24 }}>
             <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 18 }}>
               Credit usage this month
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-              {/* SVG Circular progress ring */}
-              {(() => {
-                const R = 42, C = 2 * Math.PI * R;
-                const ringColor = usagePct >= 90 ? t.error : usagePct >= 70 ? t.warning : t.primary;
-                const dashOffset = C * (1 - Math.min(usagePct, 100) / 100);
-                return (
-                  <div style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
-                    <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
-                      <defs>
-                        <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor={ringColor} />
-                          <stop offset="100%" stopColor={usagePct >= 90 ? '#FF6B62' : usagePct >= 70 ? '#FFB347' : '#9B7FFF'} />
-                        </linearGradient>
-                      </defs>
-                      {/* Track */}
-                      <circle cx="50" cy="50" r={R} fill="none" stroke={t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'} strokeWidth="8" />
-                      {/* Progress */}
-                      <circle cx="50" cy="50" r={R} fill="none" stroke="url(#ring-grad)" strokeWidth="8"
-                        strokeLinecap="round" strokeDasharray={C} strokeDashoffset={dashOffset}
-                        style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.4,0,0.2,1)' }} />
-                    </svg>
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: t.text, fontFamily: 'monospace', lineHeight: 1 }}>{usagePct}</div>
-                      <div style={{ fontSize: 10, color: t.textMuted, fontWeight: 600 }}>%</div>
-                    </div>
-                  </div>
-                );
-              })()}
+              <ProgressRing
+                value={usagePct}
+                max={100}
+                size={100}
+                strokeWidth={8}
+                color={usagePct >= 90 ? t.error : usagePct >= 70 ? t.warning : t.primary}
+                label={<AnimatedNumber value={usagePct} suffix="%" style={{ fontSize: 20, fontWeight: 800, color: t.text, fontFamily: 'monospace', lineHeight: 1 }} />}
+              />
               <div style={{ flex: 1 }}>
                 <div style={{ marginBottom: 8 }}>
-                  <span style={{ fontSize: 28, fontWeight: 800, fontFamily: 'monospace', color: t.text, letterSpacing: '-0.04em' }}>{usedThisMonth}</span>
+                  <AnimatedNumber value={usedThisMonth} style={{ fontSize: 28, fontWeight: 800, fontFamily: 'monospace', color: t.text, letterSpacing: '-0.04em' }} />
                   <span style={{ fontSize: 13, color: t.textMuted }}> / {totalCredits}</span>
                 </div>
                 <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 6 }}>credits used this month</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: t.primary, fontFamily: 'monospace' }}>{balance}</span>
+                  <AnimatedNumber value={balance} style={{ fontSize: 13, fontWeight: 700, color: t.primary, fontFamily: 'monospace' }} />
                   <span style={{ fontSize: 12, color: t.textMuted }}>remaining</span>
                 </div>
                 {usagePct >= 80 && (
@@ -434,9 +414,12 @@ export default function Billing() {
                     { label: 'Credits released',   value: referralData.credits_earned,     icon: IpCredits,       color: '#10b981' },
                     { label: 'Credits pending',    value: referralData.credits_pending || 0, icon: IpCredits,     color: '#f59e0b' },
                   ].map(stat => (
-                    <div key={stat.label} style={{ background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, padding: 20, textAlign: 'center' }}>
+                    <div key={stat.label} style={{ background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, padding: 20, textAlign: 'center', transition: 'transform 180ms ease', cursor: 'default' }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
                       <stat.icon size={20} style={{ color: stat.color, margin: '0 auto 10px', display: 'block' }} />
-                      <div style={{ fontSize: 32, fontWeight: 800, color: t.text, fontFamily: 'monospace', letterSpacing: '-0.04em' }}>{stat.value}</div>
+                      <AnimatedNumber value={stat.value} style={{ fontSize: 32, fontWeight: 800, color: t.text, fontFamily: 'monospace', letterSpacing: '-0.04em' }} />
                       <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 600, marginTop: 4 }}>{stat.label}</div>
                     </div>
                   ))}
@@ -503,7 +486,7 @@ export default function Billing() {
               >
                 {c === 'monthly' ? 'Monthly' : 'Yearly'}
                 {c === 'yearly' && (
-                  <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, background: `${t.success}33`, color: t.success, padding: '2px 6px', borderRadius: 4 }}>
+                  <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, background: cycle === 'yearly' ? `${t.success}33` : 'rgba(16,185,129,0.12)', color: t.success, padding: '2px 6px', borderRadius: 4, transition: 'all 200ms', animation: cycle === 'yearly' ? 'pulse-ring 2s ease infinite' : 'none' }}>
                     Save 10%
                   </span>
                 )}
@@ -535,22 +518,24 @@ export default function Billing() {
               <div
                 key={plan.id}
                 style={{
-                  background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card,
+                  background: plan.popular && !isCurrent
+                    ? (t.isDark ? 'linear-gradient(160deg, rgba(124,92,252,0.1) 0%, rgba(15,15,24,0.88) 40%)' : 'linear-gradient(160deg, rgba(124,92,252,0.05) 0%, #fff 40%)')
+                    : (t.isDark ? 'rgba(15,15,24,0.78)' : t.card),
                   backdropFilter: 'blur(20px) saturate(180%)',
                   WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                  border: `2px solid ${isCurrent ? t.primary : plan.popular ? 'rgba(124,92,252,0.4)' : t.border}`,
+                  border: `2px solid ${isCurrent ? t.primary : plan.popular ? 'rgba(124,92,252,0.55)' : t.border}`,
                   borderRadius: 20, padding: 24, position: 'relative',
                   display: 'flex', flexDirection: 'column',
                   opacity: isDowngrade ? 0.6 : 1,
                   boxShadow: isCurrent
                     ? `0 0 0 1px rgba(124,92,252,0.25), 0 12px 40px rgba(124,92,252,0.18), inset 0 1px 0 rgba(255,255,255,0.06)`
                     : plan.popular
-                      ? `0 8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.05)`
+                      ? `0 8px 40px rgba(124,92,252,0.22), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)`
                       : `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.03)`,
                   transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
                 }}
-                onMouseEnter={e => { if (!isDowngrade) { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = t.shadowXl; } }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                onMouseEnter={e => { if (!isDowngrade) { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = plan.popular ? '0 16px 56px rgba(124,92,252,0.35), 0 4px 12px rgba(0,0,0,0.4)' : t.shadowXl; } }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = plan.popular ? '0 8px 40px rgba(124,92,252,0.22), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)' : 'none'; }}
               >
                 {plan.popular && !isCurrent && (
                   <div style={{
@@ -578,7 +563,7 @@ export default function Billing() {
                 )}
 
                 <div style={{ marginBottom: 4 }}>
-                  <span style={{ fontSize: 48, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>${price}</span>
+                  <span style={{ fontSize: 48, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>$<AnimatedNumber value={price} duration={700} /></span>
                   <span style={{ color: t.textMuted, fontSize: 14 }}> / mo</span>
                   {cycle === 'yearly' && (
                     <span style={{ display: 'block', fontSize: 11, color: t.textMuted, marginTop: 2 }}>
@@ -594,7 +579,7 @@ export default function Billing() {
 
                 <div style={{ background: t.input, padding: '10px 12px', borderRadius: 8, marginBottom: 14, border: `1px solid ${t.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 12, color: t.textMuted }}>Credits / month</span>
-                  <span style={{ fontSize: 20, fontWeight: 800, color: t.primary, fontFamily: 'monospace' }}>{plan.credits}</span>
+                  <AnimatedNumber value={plan.credits} duration={800} style={{ fontSize: 20, fontWeight: 800, color: t.primary, fontFamily: 'monospace' }} />
                 </div>
 
                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', flex: 1 }}>

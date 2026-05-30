@@ -810,3 +810,198 @@ export function ErrorCard({ title = 'Could not load data', message, onRetry, sty
     </div>
   );
 }
+
+// ─── AnimatedNumber ───────────────────────────────────────────────────────────
+// Counts up from 0 to `value` on mount. Feels like Apple's Activity rings.
+// value: number | string (e.g. "1,234" — extracts leading number)
+// duration: ms for full animation (default 900)
+// decimals: decimal places for float display
+export function AnimatedNumber({ value, duration = 900, decimals = 0, prefix = '', suffix = '', style = {} }) {
+  const [display, setDisplay] = useState(0);
+  const frameRef = useRef(null);
+  const startRef = useRef(null);
+
+  const numericValue = typeof value === 'string'
+    ? parseFloat(value.replace(/[^0-9.-]/g, '')) || 0
+    : (value || 0);
+
+  useEffect(() => {
+    if (numericValue === 0) { setDisplay(0); return; }
+    const start = performance.now();
+    startRef.current = start;
+
+    const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    const tick = (now) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = ease(progress);
+      setDisplay(eased * numericValue);
+      if (progress < 1) frameRef.current = requestAnimationFrame(tick);
+    };
+
+    frameRef.current = requestAnimationFrame(tick);
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+  }, [numericValue, duration]);
+
+  const formatted = decimals > 0
+    ? display.toFixed(decimals)
+    : Math.round(display).toLocaleString();
+
+  return (
+    <span style={style} className="value-flash">
+      {prefix}{formatted}{suffix}
+    </span>
+  );
+}
+
+// ─── ProgressRing ─────────────────────────────────────────────────────────────
+// Circular SVG progress indicator — perfect for GEO scores, completion %.
+// Animates from 0 to `value` on mount.
+export function ProgressRing({
+  value = 0, max = 100, size = 80, strokeWidth = 7,
+  color, trackColor, label, sublabel, animate = true,
+}) {
+  const { t } = useTheme();
+  const [animatedValue, setAnimatedValue] = useState(animate ? 0 : value);
+  const frameRef = useRef(null);
+
+  const c = color || t.primary;
+  const tc = trackColor || (t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)');
+
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  useEffect(() => {
+    if (!animate) { setAnimatedValue(value); return; }
+    const target = value;
+    const start = performance.now();
+    const dur = 1000;
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const tick = (now) => {
+      const progress = Math.min((now - start) / dur, 1);
+      setAnimatedValue(ease(progress) * target);
+      if (progress < 1) frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+  }, [value, animate]);
+
+  const pct = Math.min(animatedValue / max, 1);
+  const offset = circumference * (1 - pct);
+
+  return (
+    <div style={{ position: 'relative', width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)' }}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tc} strokeWidth={strokeWidth} />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke={c} strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={{ transition: 'none', filter: `drop-shadow(0 0 6px ${c}60)` }}
+        />
+      </svg>
+      {(label !== undefined) && (
+        <div style={{ textAlign: 'center', zIndex: 1 }}>
+          <div style={{ fontSize: size * 0.24, fontWeight: 800, color: c, lineHeight: 1, letterSpacing: '-0.03em' }}>
+            {Math.round(animatedValue)}
+          </div>
+          {sublabel && <div style={{ fontSize: size * 0.13, color: t.textMuted, marginTop: 1, lineHeight: 1 }}>{sublabel}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── PulseIndicator ───────────────────────────────────────────────────────────
+// Animated live dot — use for "connected", "live", "active" states.
+export function PulseIndicator({ color = '#30D158', size = 8, style = {} }) {
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, ...style }}>
+      <span style={{
+        position: 'absolute', width: size, height: size, borderRadius: '50%',
+        background: color, opacity: 0.4,
+        animation: 'pulse-ring 1.8s ease-out infinite',
+      }} />
+      <span style={{ width: size * 0.7, height: size * 0.7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <style>{`@keyframes pulse-ring{0%{transform:scale(1);opacity:0.4}100%{transform:scale(2.4);opacity:0}}`}</style>
+    </span>
+  );
+}
+
+// ─── ToggleSwitch ─────────────────────────────────────────────────────────────
+// Clean iOS-style toggle. onChange(newBooleanValue)
+export function ToggleSwitch({ checked, onChange, disabled, size = 'md', label, color }) {
+  const { t } = useTheme();
+  const sizes = { sm: { w: 32, h: 18, dot: 12, offset: 2 }, md: { w: 44, h: 24, dot: 18, offset: 3 } };
+  const s = sizes[size] || sizes.md;
+  const activeColor = color || t.primary;
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, cursor: disabled ? 'not-allowed' : 'pointer', userSelect: 'none', opacity: disabled ? 0.5 : 1 }}>
+      <span
+        style={{
+          position: 'relative', display: 'inline-block', width: s.w, height: s.h,
+          borderRadius: s.h, flexShrink: 0,
+          background: checked ? activeColor : (t.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.15)'),
+          transition: 'background 200ms cubic-bezier(0.16,1,0.3,1)',
+          boxShadow: checked ? `0 0 12px ${activeColor}40` : 'none',
+        }}
+        onClick={() => !disabled && onChange(!checked)}
+      >
+        <span style={{
+          position: 'absolute', top: s.offset, left: s.offset,
+          width: s.dot, height: s.dot, borderRadius: '50%',
+          background: '#fff',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          transition: 'transform 220ms cubic-bezier(0.34,1.56,0.64,1)',
+          transform: checked ? `translateX(${s.w - s.dot - s.offset * 2}px)` : 'translateX(0)',
+        }} />
+      </span>
+      {label && <span style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{label}</span>}
+    </label>
+  );
+}
+
+// ─── StepProgress ─────────────────────────────────────────────────────────────
+// Linear step progress bar for multi-step flows (wizard, onboarding).
+export function StepProgress({ steps, current, style = {} }) {
+  const { t } = useTheme();
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0, ...style }}>
+      {steps.map((step, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', flex: i < steps.length - 1 ? 1 : 0 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 700,
+              background: done
+                ? 'linear-gradient(135deg, #7C5CFC, #6D3FF2)'
+                : active
+                  ? 'linear-gradient(135deg, rgba(124,92,252,0.2), rgba(124,92,252,0.1))'
+                  : (t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+              border: done ? 'none' : `1.5px solid ${active ? t.primary : t.border}`,
+              color: done ? '#fff' : active ? t.primary : t.textMuted,
+              transition: 'all 250ms cubic-bezier(0.16,1,0.3,1)',
+              boxShadow: active ? `0 0 16px rgba(124,92,252,0.35)` : 'none',
+            }}>
+              {done ? '✓' : i + 1}
+            </div>
+            {i < steps.length - 1 && (
+              <div style={{
+                flex: 1, height: 2, margin: '0 4px',
+                background: done ? t.primary : (t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'),
+                borderRadius: 2,
+                transition: 'background 350ms ease',
+              }} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
