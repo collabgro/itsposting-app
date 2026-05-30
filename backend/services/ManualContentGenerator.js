@@ -77,7 +77,9 @@ class ManualContentGenerator {
       ? options.platforms
       : (options.platform ? [options.platform] : ['facebook']);
     const primaryPlatform = platformsArr[0] || 'facebook';
-    const opts = { ...options, platform: primaryPlatform };
+    // When multiple platforms selected, use 'all' so Claude writes one variation per platform
+    const effectivePlatform = platformsArr.length > 1 ? 'all' : primaryPlatform;
+    const opts = { ...options, platform: effectivePlatform };
 
     // 2. Generate based on type
     let result;
@@ -121,7 +123,7 @@ class ManualContentGenerator {
    */
   async generateStatic(customer, prompt, options = {}) {
     const captionData = await this.claude.generateCaption(
-      customer, prompt, 'static', options.platform || 'instagram'
+      customer, prompt, 'static', options.platform || 'instagram', options.wizardTrigger || null
     );
 
     return {
@@ -148,7 +150,7 @@ class ManualContentGenerator {
 
     // Caption first — Claude's imagePrompt is richer than the raw user prompt
     const captionData = await this.claude.generateCaption(
-      customer, prompt, 'photo', options.platform || 'instagram'
+      customer, prompt, 'photo', options.platform || 'instagram', options.wizardTrigger || null
     );
 
     const imageGenPrompt = captionData.imagePrompt || prompt;

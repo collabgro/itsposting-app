@@ -36,36 +36,42 @@ const JOB_TYPES = [
   {
     id: 'job_done',  label: 'Finished a Job',     desc: 'Show off a completed project',     Icon: IpCheckCircle,
     prompt: 'Just completed a job',
+    wizardTrigger: 'finished_job',
     color: '#22C55E',
     detailHint: 'E.g. replaced water heater, fixed burst pipe, emergency call...',
   },
   {
     id: 'review',    label: 'Got a 5-Star Review', desc: 'Turn 5 stars into new customers',  Icon: IpSparkle,
     prompt: 'Received a 5-star customer review',
+    wizardTrigger: 'got_review',
     color: '#EAB308',
     detailHint: 'Who left it? Long-time customer, first-time client, referral...',
   },
   {
     id: 'tip',       label: 'Sharing a Tip',       desc: 'Teach, build trust, get saves',    Icon: IpInfo,
     prompt: 'Sharing a helpful maintenance or safety tip',
+    wizardTrigger: 'share_tip',
     color: '#3B82F6',
     detailHint: 'What\'s the tip? E.g. check your water pressure monthly...',
   },
   {
     id: 'deal',      label: 'Running a Deal',      desc: 'Announce an offer or discount',    Icon: IpDollar,
     prompt: 'Running a special promotion or discount',
+    wizardTrigger: 'promotion',
     color: '#F472B6',
     detailHint: 'What\'s the offer? E.g. 10% off first service this month...',
   },
   {
     id: 'seasonal',  label: 'Seasonal Content',    desc: 'Post what matters this month',     Icon: IpCalendar,
     prompt: 'Seasonal content relevant to this time of year',
+    wizardTrigger: 'seasonal',
     color: '#A78BFA',
     detailHint: 'Any specific angle? E.g. winter pipe protection, summer AC prep...',
   },
   {
     id: 'team',      label: 'Team Moment',         desc: 'Put a face to your business',      Icon: IpTeam,
     prompt: 'Showcasing our team or behind the scenes',
+    wizardTrigger: 'behind_scenes',
     color: '#FB923C',
     detailHint: 'Who or what are you showcasing?',
   },
@@ -549,7 +555,12 @@ export default function QuickPost() {
       const { data } = await contentAPI.generate({
         contentType,
         prompt: `${assembled} [Tone: ${tone}]`,
-        options: { platforms: selectedPlats, tone, quickPost: true },
+        options: {
+          platforms: selectedPlats,
+          tone,
+          quickPost: true,
+          wizardTrigger: jt.wizardTrigger,
+        },
       });
       setResult(data);
       setEditedCaption(data.variations?.a?.caption || data.caption || '');

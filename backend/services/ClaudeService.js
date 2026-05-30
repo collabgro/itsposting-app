@@ -147,8 +147,9 @@ class ClaudeService {
   // Used by ManualContentGenerator for the content API (/api/content/generate).
   // Routes the user's typed prompt through counterAnswers.custom so
   // SystemPromptBuilder includes it as "additional context" in the user message.
+  // wizardTrigger activates industry-specific content type rules + content angles.
   // Returns variation_a as primary + full `variations` object for saving.
-  async generateCaption(customer, prompt, contentType = 'photo', platform = 'instagram') {
+  async generateCaption(customer, prompt, contentType = 'photo', platform = 'instagram', wizardTrigger = null) {
     if (!this.client) throw new Error('Claude not configured. Set ANTHROPIC_API_KEY.');
 
     let businessKnowledge = [];
@@ -163,6 +164,7 @@ class ClaudeService {
     const builder = new SystemPromptBuilder(customer, {
       platform,
       contentType,
+      wizardTrigger,                  // activates content-type rules + industry content angles
       counterAnswers: { custom: prompt },
       businessKnowledge,
     });
