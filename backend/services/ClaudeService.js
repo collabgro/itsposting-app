@@ -258,24 +258,55 @@ Return ONLY valid JSON:
     if (!this.client) throw new Error('Claude not configured');
 
     const wordCount = Math.floor((durationSeconds * 2.5) - 5);
+    const industryKnowledge = require('../data/industryKnowledge');
+    const knowledge = industryKnowledge[customer.industry] || industryKnowledge.general_contractor || {};
+    const currentMonth = new Date().getMonth() + 1;
+    const seasonal = knowledge.seasonalContent?.[currentMonth] || null;
+    const tradeTerms = knowledge.tradeTerminology?.slice(0, 8).join(', ') || '';
+    const hookFormula = knowledge.hookFormulas?.[Math.floor(Math.random() * Math.min(5, knowledge.hookFormulas?.length || 1))] || '';
     const builder = new SystemPromptBuilder(customer, { platform: 'all', contentType: 'video' });
     const { systemPrompt } = builder.build();
 
+    // Industry-specific voice guidance injected into the system prompt
+    const tradeVoiceAddendum = `
+=== VIDEO SCRIPT VOICE RULES (NON-NEGOTIABLE) ===
+This script will be spoken by a real business owner to their local community.
+
+SPEAK LIKE A REAL ${(customer.industry || 'tradesperson').toUpperCase()}:
+- Start with the PROBLEM or SITUATION, never with "Hi I'm [name] from..."
+- Use natural speech with pauses: "..." indicates a natural pause
+- Use real trade terms where they fit naturally: ${tradeTerms}
+- Mention the city/area (${customer.location || 'your area'}) at least once
+- One clear action at the end — not multiple options
+${seasonal ? `- It is ${new Date().toLocaleString('default', { month: 'long' })} — weave in: "${seasonal.urgencyTopic}" if relevant` : ''}
+${hookFormula ? `- Proven hook to adapt: "${hookFormula}"` : ''}
+
+WHAT GREAT LOCAL TRADE VIDEO SCRIPTS SOUND LIKE:
+✓ "If you are on [city] and your water bill jumped this month — chances are you have a slow leak running 24 hours a day. Here is how to check before you call us..."
+✓ "It is January in [city]. Pipes freeze when temperatures hit 20 degrees. Last week we had three burst pipe calls in one morning. Here is the one thing that prevents most of them..."
+✗ NEVER: "Hello! I am excited to share some amazing tips about our incredible services today!"
+✗ NEVER: "As a valued member of our community, we want to leverage our expertise to synergize..."
+
+The script should be conversational, direct, and sound exactly like a trusted local expert talking to a neighbor — not a sales pitch.`;
+
+    const fullSystemPrompt = systemPrompt + tradeVoiceAddendum;
+
     const userPrompt = `Write a ${durationSeconds}-second video script about: ${prompt}
-Target word count: ${wordCount} words
+Target word count: ${wordCount} words (this is what fits naturally in ${durationSeconds} seconds of comfortable speech)
 
 Return ONLY valid JSON:
 {
-  "script": "the spoken script",
-  "caption": "post caption when sharing",
-  "hashtags": ["tag1", "tag2"]
+  "script": "the spoken script — written exactly as it will be spoken aloud, with ... for natural pauses",
+  "visualDescription": "a 1-2 sentence description of what should be SHOWN on screen (for video generation — separate from what is spoken)",
+  "caption": "the social media post caption to accompany this video",
+  "hashtags": ["tag1", "tag2", "tag3"]
 }`;
 
     try {
       const response = await this.client.messages.create({
         model: this.model,
         max_tokens: 1500,
-        system: systemPrompt,
+        system: fullSystemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       });
       const text = response.content[0].text;

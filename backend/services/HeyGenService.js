@@ -118,9 +118,12 @@ class HeyGenService {
       throw new Error('HeyGen not configured. Set HEYGEN_API_KEY in .env');
     }
 
+    // Polish the script so the avatar sounds like a real local tradesperson
+    const polishedScript = this._formatTradeScript(customer, script);
+
     try {
       console.log('🎥 HeyGen generating video...');
-      const videoId = await this.createVideo(customer, script, options);
+      const videoId = await this.createVideo(customer, polishedScript, options);
       const videoUrl = await this.waitForVideo(videoId);
       const cloudinaryUrl = await this.uploadToCloudinary(videoUrl);
 
@@ -134,6 +137,71 @@ class HeyGenService {
       console.error('HeyGen error:', error.response?.data || error.message);
       throw new Error(`Video generation failed: ${error.message}`);
     }
+  }
+
+  /**
+   * Format a script so a HeyGen avatar sounds like a real local tradesperson.
+   *
+   * HeyGen converts text to speech literally — every word gets spoken.
+   * Marketing speak sounds robotic. Real trade voice sounds human and trustworthy.
+   * This method cleans the script for natural TTS delivery.
+   */
+  _formatTradeScript(customer, rawScript) {
+    if (!rawScript || typeof rawScript !== 'string') return rawScript;
+
+    const biz = customer.business_name || 'us';
+    const loc = customer.location || 'your area';
+    let script = rawScript;
+
+    // Remove any stage directions (text in [brackets] or (parentheses))
+    script = script.replace(/\[[^\]]*\]/g, '').replace(/\([^)]*\)/g, '');
+
+    // Remove markdown formatting that would be spoken aloud
+    script = script.replace(/\*\*/g, '').replace(/\*/g, '').replace(/#/g, '');
+
+    // Replace em dashes with natural pauses
+    script = script.replace(/—/g, '...');
+    script = script.replace(/–/g, '...');
+
+    // Enforce a maximum of 250 words (HeyGen has a 1500 char limit, ~250 words = 60s max)
+    const words = script.trim().split(/\s+/);
+    if (words.length > 250) {
+      script = words.slice(0, 250).join(' ');
+      // End on a complete sentence
+      const lastPeriod = script.lastIndexOf('.');
+      if (lastPeriod > script.length * 0.7) {
+        script = script.substring(0, lastPeriod + 1);
+      }
+    }
+
+    // If script opens with a generic greeting, replace with something more human
+    const genericOpenings = [
+      /^(hi|hello|hey)[,\s]+(i'm|i am|my name is|this is|we are|we're)/i,
+      /^(welcome|greetings)/i,
+      /^(as a valued)/i,
+    ];
+    for (const pattern of genericOpenings) {
+      if (pattern.test(script.trim())) {
+        // Prepend a local, human intro instead
+        const humanIntros = {
+          plumbing:   `Quick tip for ${loc} homeowners...`,
+          hvac:       `If you're in ${loc} and wondering about your heating and cooling...`,
+          roofing:    `Roofing season in ${loc}...`,
+          concrete:   `For ${loc} homeowners thinking about their driveway or patio...`,
+          landscaping: `Spring lawn tips for ${loc}...`,
+          electrical: `Important for ${loc} homeowners...`,
+          painting:   `Quick tip from ${biz} in ${loc}...`,
+          pest_control: `Pest season in ${loc}...`,
+          general_contractor: `Thinking about a renovation in ${loc}?`,
+          cleaning:   `Quick tip from your local cleaning team in ${loc}...`,
+        };
+        const intro = humanIntros[customer.industry] || `Quick tip from ${biz} in ${loc}...`;
+        script = `${intro} ${script.replace(pattern, '').trim()}`;
+        break;
+      }
+    }
+
+    return script.trim();
   }
 
   async createVideo(customer, script, options = {}) {
