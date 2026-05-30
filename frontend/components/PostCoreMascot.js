@@ -3,110 +3,105 @@ import { useRouter } from 'next/router';
 import { useTheme } from '../lib/theme';
 
 export function setMascotMood(mood, message) {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined')
     window.dispatchEvent(new CustomEvent('postcoreMood', { detail: { mood, message } }));
-  }
 }
 export function triggerMilestone(milestone) {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined')
     window.dispatchEvent(new CustomEvent('postcoreMood', { detail: { milestone } }));
-  }
 }
 
-// ─── Mood definitions — coords for new 100×130 viewBox ───────────────────────
-// Head center: (50, 44)  Eyes at y≈43  Brows at y≈28–32  Mouth at y≈63–70
+// ─── Moods ────────────────────────────────────────────────────────────────────
+// ViewBox 0 0 140 185 | Head cx=70 cy=76 r=54 | Eyes left(44,72) right(96,72)
+// Eye sclera rx=20 ry=22 | Brows above y=50 | Nose cy=90 | Mouth start y≥100
 const MOODS = {
   idle: {
-    bodyAnim: 'pc3-float', armL: 'pc3-arm-idle-l', armR: 'pc3-arm-idle-r',
-    eyeRy: 14, squint: false, showTeeth: false,
-    browsL: 'M 24 30 Q 35 26 45 30', browsR: 'M 55 30 Q 65 26 76 30',
-    mouth: 'M 35 65 Q 50 75 65 65',
+    bodyAnim: 'pc7-float', armL: 'pc7-arm-idle-l', armR: 'pc7-arm-idle-r',
+    eyeRy: 22, squint: false, showTeeth: false, starEye: false,
+    browsL: 'M 22 44 C 34 34 50 34 57 40',
+    browsR: 'M 83 40 C 90 34 106 34 118 44',
+    mouth: 'M 48 101 Q 70 117 92 101',
     blush: true, sparkle: false,
-    glow: 'rgba(108,60,240,0.30)',
     msg: "What are we posting today?",
   },
   happy: {
-    bodyAnim: 'pc3-bounce-soft', armL: 'pc3-arm-idle-l', armR: 'pc3-arm-wave-r',
-    eyeRy: 9, squint: true, showTeeth: false,
-    browsL: 'M 24 27 Q 35 22 45 27', browsR: 'M 55 27 Q 65 22 76 27',
-    mouth: 'M 30 63 Q 50 80 70 63',
+    bodyAnim: 'pc7-bounce-soft', armL: 'pc7-arm-idle-l', armR: 'pc7-arm-wave-r',
+    eyeRy: 11, squint: true, showTeeth: false, starEye: false,
+    browsL: 'M 22 40 C 34 30 50 30 57 36',
+    browsR: 'M 83 36 C 90 30 106 30 118 40',
+    mouth: 'M 40 101 Q 70 122 100 101',
     blush: true, sparkle: false,
-    glow: 'rgba(124,92,252,0.42)',
     msg: "Looking great! Keep that streak going!",
   },
   thinking: {
-    bodyAnim: 'pc3-float-slow', armL: 'pc3-arm-think', armR: 'pc3-arm-idle-r',
-    eyeRy: 14, squint: false, showTeeth: false,
-    browsL: 'M 24 27 Q 35 22 45 31', browsR: 'M 55 31 Q 65 22 76 27',
-    mouth: 'M 37 66 Q 50 71 63 66',
+    bodyAnim: 'pc7-float-slow', armL: 'pc7-arm-think', armR: 'pc7-arm-idle-r',
+    eyeRy: 22, squint: false, showTeeth: false, starEye: false,
+    browsL: 'M 22 42 C 34 32 50 36 57 42',
+    browsR: 'M 83 44 C 90 38 106 33 118 42',
+    mouth: 'M 50 104 Q 70 114 90 104',
     blush: false, sparkle: true,
-    glow: 'rgba(99,102,241,0.24)',
     msg: "Working on something great for you...",
   },
   celebrating: {
-    bodyAnim: 'pc3-bounce-big', armL: 'pc3-arm-cele-l', armR: 'pc3-arm-cele-r',
-    eyeRy: 9, squint: true, showTeeth: true,
-    browsL: 'M 24 24 Q 35 18 45 24', browsR: 'M 55 24 Q 65 18 76 24',
-    mouth: 'M 28 61 Q 50 84 72 61',
+    bodyAnim: 'pc7-bounce-big', armL: 'pc7-arm-cele-l', armR: 'pc7-arm-cele-r',
+    eyeRy: 11, squint: true, showTeeth: true, starEye: true,
+    browsL: 'M 18 36 C 32 25 50 25 57 31',
+    browsR: 'M 83 31 C 90 25 108 25 122 36',
+    mouth: 'M 32 100 Q 70 126 108 100',
     blush: true, sparkle: true,
-    glow: 'rgba(124,92,252,0.60)',
     msg: "Yes! That's what I'm talking about! 🎉",
   },
   worried: {
-    bodyAnim: 'pc3-wiggle', armL: 'pc3-arm-idle-l', armR: 'pc3-arm-idle-r',
-    eyeRy: 13, squint: false, showTeeth: false,
-    browsL: 'M 24 32 Q 35 27 45 30', browsR: 'M 55 30 Q 65 27 76 32',
-    mouth: 'M 35 69 Q 50 62 65 69',
+    bodyAnim: 'pc7-wiggle', armL: 'pc7-arm-idle-l', armR: 'pc7-arm-idle-r',
+    eyeRy: 19, squint: false, showTeeth: false, starEye: false,
+    browsL: 'M 22 46 C 34 42 50 40 57 44',
+    browsR: 'M 83 44 C 90 40 106 42 118 46',
+    mouth: 'M 48 113 Q 70 102 92 113',
     blush: false, sparkle: false,
-    glow: 'rgba(234,179,8,0.32)',
     msg: "Running low on credits — let's top up!",
   },
   sad: {
-    bodyAnim: 'pc3-float-slow', armL: 'pc3-arm-idle-l', armR: 'pc3-arm-idle-r',
-    eyeRy: 12, squint: false, showTeeth: false,
-    browsL: 'M 24 33 Q 35 31 45 33', browsR: 'M 55 33 Q 65 31 76 33',
-    mouth: 'M 35 71 Q 50 63 65 71',
+    bodyAnim: 'pc7-float-slow', armL: 'pc7-arm-idle-l', armR: 'pc7-arm-idle-r',
+    eyeRy: 16, squint: false, showTeeth: false, starEye: false,
+    browsL: 'M 22 48 C 34 47 50 46 57 48',
+    browsR: 'M 83 48 C 90 46 106 47 118 48',
+    mouth: 'M 46 113 Q 70 100 94 113',
     blush: false, sparkle: false,
-    glow: 'rgba(79,47,214,0.12)',
     msg: "Out of credits. Tap to upgrade and keep going!",
   },
   excited: {
-    bodyAnim: 'pc3-excited', armL: 'pc3-arm-wave-l', armR: 'pc3-arm-wave-r',
-    eyeRy: 16, squint: false, showTeeth: true,
-    browsL: 'M 24 22 Q 35 16 45 22', browsR: 'M 55 22 Q 65 16 76 22',
-    mouth: 'M 26 60 Q 50 85 74 60',
+    bodyAnim: 'pc7-excited', armL: 'pc7-arm-wave-l', armR: 'pc7-arm-wave-r',
+    eyeRy: 22, squint: false, showTeeth: true, starEye: true,
+    browsL: 'M 18 36 C 32 25 50 25 57 31',
+    browsR: 'M 83 31 C 90 25 108 25 122 36',
+    mouth: 'M 28 100 Q 70 128 112 100',
     blush: true, sparkle: true,
-    glow: 'rgba(124,92,252,0.52)',
     msg: "Let's make something amazing together!",
   },
   viral: {
-    bodyAnim: 'pc3-pulse-zoom', armL: 'pc3-arm-cele-l', armR: 'pc3-arm-cele-r',
-    eyeRy: 18, squint: true, showTeeth: true,
-    browsL: 'M 20 20 Q 35 14 45 20', browsR: 'M 55 20 Q 65 14 80 20',
-    mouth: 'M 22 57 Q 50 90 78 57',
+    bodyAnim: 'pc7-pulse-zoom', armL: 'pc7-arm-cele-l', armR: 'pc7-arm-cele-r',
+    eyeRy: 22, squint: false, showTeeth: true, starEye: true,
+    browsL: 'M 16 34 C 31 22 50 22 57 28',
+    browsR: 'M 83 28 C 90 22 109 22 124 34',
+    mouth: 'M 24 99 Q 70 130 116 99',
     blush: true, sparkle: true,
-    glow: 'rgba(251,191,36,0.72)',
     msg: "That post is on fire! Your community loves it! 🔥",
   },
   first_encouragement: {
-    bodyAnim: 'pc3-bounce-soft', armL: 'pc3-arm-idle-l', armR: 'pc3-arm-wave-r',
-    eyeRy: 15, squint: false, showTeeth: false,
-    browsL: 'M 24 27 Q 35 22 45 27', browsR: 'M 55 27 Q 65 22 76 27',
-    mouth: 'M 33 65 Q 50 76 67 65',
+    bodyAnim: 'pc7-bounce-soft', armL: 'pc7-arm-idle-l', armR: 'pc7-arm-wave-r',
+    eyeRy: 22, squint: false, showTeeth: false, starEye: false,
+    browsL: 'M 22 43 C 34 33 50 33 57 39',
+    browsR: 'M 83 39 C 90 33 106 33 118 43',
+    mouth: 'M 48 101 Q 70 117 92 101',
     blush: true, sparkle: false,
-    glow: 'rgba(124,92,252,0.44)',
     msg: "Your first post is one tap away. Let's do it together!",
   },
 };
 
 const ROUTE_MOODS = {
-  '/wizard':         'excited',
-  '/quick-post':     'happy',
-  '/analytics':      'happy',
-  '/billing':        'worried',
-  '/knowledge-base': 'thinking',
-  '/studio':         'excited',
-  '/geo-audit':      'thinking',
+  '/wizard': 'excited', '/quick-post': 'happy', '/analytics': 'happy',
+  '/billing': 'worried', '/knowledge-base': 'thinking',
+  '/studio': 'excited', '/geo-audit': 'thinking',
 };
 
 const SEASONAL_MSGS = {
@@ -136,166 +131,120 @@ const MILESTONE_MSGS = {
   viral_post:  "🔥 That post is on fire! Your community loves this content!",
 };
 
-// ─── Seasonal accessories (repositioned for new head at 50, 44) ───────────────
-function SeasonalAccessory({ month }) {
-  if (month === 12) return (
-    <g>
-      <path d="M 26 22 Q 36 10 45 4 Q 48 -1 51 4 Q 60 10 72 22 Z" fill="#DC2626" />
-      <ellipse cx="50" cy="22" rx="24" ry="5" fill="white" />
-      <circle cx="51" cy="4" r="6" fill="white" />
-    </g>
-  );
-  if (month === 1 || month === 2) return (
-    <g>
-      <path d="M 28 22 Q 24 8 37 4 Q 50 0 63 4 Q 76 8 72 22 Z" fill="#3B82F6" />
-      <ellipse cx="50" cy="22" rx="22" ry="5" fill="#1D4ED8" />
-      <circle cx="50" cy="5" r="7" fill="#93C5FD" />
-    </g>
-  );
-  if (month >= 3 && month <= 5) return (
-    <g>
-      <circle cx="50" cy="9" r="5" fill="#FCD34D" />
-      <circle cx="39" cy="13" r="4" fill="#F472B6" />
-      <circle cx="61" cy="13" r="4" fill="#F472B6" />
-      <ellipse cx="34" cy="20" rx="4.5" ry="2.5" fill="#4ADE80" transform="rotate(-25 34 20)" />
-      <ellipse cx="66" cy="20" rx="4.5" ry="2.5" fill="#4ADE80" transform="rotate(25 66 20)" />
-    </g>
-  );
-  if (month >= 6 && month <= 8) return (
-    <g>
-      <rect x="21" y="37" width="24" height="15" rx="7.5" fill="#0F172A" opacity="0.92" />
-      <rect x="55" y="37" width="24" height="15" rx="7.5" fill="#0F172A" opacity="0.92" />
-      <rect x="45" y="41" width="10" height="6" rx="2" fill="#374151" />
-      <path d="M 21 44 L 8 42" stroke="#0F172A" strokeWidth="3" strokeLinecap="round" />
-      <path d="M 79 44 L 92 42" stroke="#0F172A" strokeWidth="3" strokeLinecap="round" />
-      <ellipse cx="29" cy="40" rx="6" ry="3.5" fill="rgba(99,179,237,0.14)" />
-      <ellipse cx="67" cy="40" rx="6" ry="3.5" fill="rgba(99,179,237,0.14)" />
-    </g>
-  );
-  if (month === 10) return (
-    <g>
-      <ellipse cx="50" cy="19" rx="22" ry="5" fill="#1F2937" />
-      <path d="M 30 19 Q 37 10 43 4 Q 47 -2 50 0 Q 53 -2 57 4 Q 63 10 70 19 Z" fill="#111827" />
-      <rect x="28" y="17" width="44" height="5" rx="2.5" fill="#7C5CFC" opacity="0.9" />
-    </g>
-  );
-  return null;
-}
-
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const PC_CSS = `
-@keyframes pc3-float {
+@keyframes pc7-float {
   0%,100% { transform: translateY(0) rotate(-0.6deg); }
-  35%     { transform: translateY(-6px) rotate(0.8deg); }
-  70%     { transform: translateY(-3px) rotate(-0.3deg); }
+  40%     { transform: translateY(-8px) rotate(0.9deg); }
+  75%     { transform: translateY(-3px) rotate(-0.3deg); }
 }
-@keyframes pc3-bounce-soft {
+@keyframes pc7-bounce-soft {
   0%,100% { transform: translateY(0) scaleX(1) scaleY(1); }
-  35%     { transform: translateY(-9px) scaleX(0.95) scaleY(1.06); }
-  65%     { transform: translateY(-3px) scaleX(1.02) scaleY(0.98); }
+  35%     { transform: translateY(-12px) scaleX(0.93) scaleY(1.08); }
+  65%     { transform: translateY(-5px) scaleX(1.02) scaleY(0.98); }
 }
-@keyframes pc3-bounce-big {
+@keyframes pc7-bounce-big {
   0%,100% { transform: translateY(0) scaleX(1) scaleY(1); }
-  10%     { transform: translateY(-4px) scaleX(1.06) scaleY(0.94); }
-  28%     { transform: translateY(-22px) scaleX(0.88) scaleY(1.14); }
-  50%     { transform: translateY(-12px) scaleX(0.94) scaleY(1.07); }
-  68%     { transform: translateY(-20px) scaleX(0.90) scaleY(1.11); }
-  85%     { transform: translateY(-4px) scaleX(1.04) scaleY(0.97); }
+  14%     { transform: translateY(-6px) scaleX(1.08) scaleY(0.92); }
+  30%     { transform: translateY(-28px) scaleX(0.86) scaleY(1.16); }
+  54%     { transform: translateY(-14px) scaleX(0.92) scaleY(1.09); }
+  70%     { transform: translateY(-24px) scaleX(0.89) scaleY(1.12); }
+  88%     { transform: translateY(-5px) scaleX(1.05) scaleY(0.96); }
 }
-@keyframes pc3-excited {
+@keyframes pc7-excited {
   0%,100% { transform: translateY(0) rotate(0) scale(1); }
-  20%     { transform: translateY(-14px) rotate(-4deg) scale(1.07); }
-  45%     { transform: translateY(-7px) rotate(3.5deg) scale(1.04); }
-  65%     { transform: translateY(-17px) rotate(-2.5deg) scale(1.09); }
-  85%     { transform: translateY(-5px) rotate(2deg) scale(1.03); }
+  20%     { transform: translateY(-16px) rotate(-4.5deg) scale(1.09); }
+  45%     { transform: translateY(-8px) rotate(5deg) scale(1.05); }
+  68%     { transform: translateY(-20px) rotate(-3deg) scale(1.11); }
+  85%     { transform: translateY(-6px) rotate(2.5deg) scale(1.04); }
 }
-@keyframes pc3-wiggle {
+@keyframes pc7-wiggle {
   0%,100% { transform: rotate(0) translateX(0); }
-  15%     { transform: rotate(-6.5deg) translateX(-5px); }
-  42%     { transform: rotate(6.5deg) translateX(5px); }
-  58%     { transform: rotate(-4deg) translateX(-3px); }
-  78%     { transform: rotate(5deg) translateX(4px); }
+  15%     { transform: rotate(-7.5deg) translateX(-6px); }
+  42%     { transform: rotate(7.5deg) translateX(6px); }
+  60%     { transform: rotate(-4.5deg) translateX(-3px); }
+  80%     { transform: rotate(6deg) translateX(4px); }
 }
-@keyframes pc3-float-slow {
+@keyframes pc7-float-slow {
   0%,100% { transform: translateY(0); }
-  50%     { transform: translateY(-4px); }
+  50%     { transform: translateY(-5px); }
 }
-@keyframes pc3-pulse-zoom {
+@keyframes pc7-pulse-zoom {
   0%,100% { transform: scale(1) rotate(0); }
-  20%     { transform: scale(1.14) rotate(-4deg); }
-  45%     { transform: scale(1.08) rotate(3deg); }
-  65%     { transform: scale(1.16) rotate(-2deg); }
-  85%     { transform: scale(1.07) rotate(2deg); }
+  22%     { transform: scale(1.16) rotate(-4.5deg); }
+  47%     { transform: scale(1.10) rotate(4.5deg); }
+  70%     { transform: scale(1.18) rotate(-3deg); }
+  88%     { transform: scale(1.09) rotate(2.5deg); }
 }
-/* Arms — pivot via transformOrigin */
-@keyframes pc3-arm-idle-l {
-  0%,100% { transform: rotate(8deg); }
-  50%     { transform: rotate(13deg); }
+/* Arms */
+@keyframes pc7-arm-idle-l {
+  0%,100% { transform: rotate(5deg); }
+  50%     { transform: rotate(11deg); }
 }
-@keyframes pc3-arm-idle-r {
-  0%,100% { transform: rotate(-8deg); }
-  50%     { transform: rotate(-13deg); }
+@keyframes pc7-arm-idle-r {
+  0%,100% { transform: rotate(-5deg); }
+  50%     { transform: rotate(-11deg); }
 }
-@keyframes pc3-arm-wave-r {
-  0%,100% { transform: rotate(-8deg); }
-  22%     { transform: rotate(-64deg); }
-  48%     { transform: rotate(-36deg); }
-  72%     { transform: rotate(-70deg); }
+@keyframes pc7-arm-wave-l {
+  0%,100% { transform: rotate(5deg); }
+  25%     { transform: rotate(68deg); }
+  52%     { transform: rotate(40deg); }
+  76%     { transform: rotate(74deg); }
 }
-@keyframes pc3-arm-wave-l {
-  0%,100% { transform: rotate(8deg); }
-  22%     { transform: rotate(64deg); }
-  48%     { transform: rotate(36deg); }
-  72%     { transform: rotate(70deg); }
+@keyframes pc7-arm-wave-r {
+  0%,100% { transform: rotate(-5deg); }
+  25%     { transform: rotate(-68deg); }
+  52%     { transform: rotate(-40deg); }
+  76%     { transform: rotate(-74deg); }
 }
-@keyframes pc3-arm-cele-l {
-  0%,100% { transform: rotate(-72deg); }
-  50%     { transform: rotate(-84deg) translateX(-3px); }
+@keyframes pc7-arm-cele-l {
+  0%,100% { transform: rotate(-74deg); }
+  50%     { transform: rotate(-88deg); }
 }
-@keyframes pc3-arm-cele-r {
-  0%,100% { transform: rotate(72deg); }
-  50%     { transform: rotate(84deg) translateX(3px); }
+@keyframes pc7-arm-cele-r {
+  0%,100% { transform: rotate(74deg); }
+  50%     { transform: rotate(88deg); }
 }
-@keyframes pc3-arm-think {
-  0%,100% { transform: rotate(-34deg); }
-  50%     { transform: rotate(-38deg); }
+@keyframes pc7-arm-think {
+  0%,100% { transform: rotate(-36deg); }
+  50%     { transform: rotate(-40deg); }
 }
 /* Sparkles */
-@keyframes pc3-star-a {
+@keyframes pc7-star-a {
   0%   { opacity:0; transform:translate(0,0) scale(0) rotate(0deg); }
   18%  { opacity:1; }
-  100% { opacity:0; transform:translate(28px,-34px) scale(1.4) rotate(400deg); }
+  100% { opacity:0; transform:translate(34px,-42px) scale(1.6) rotate(430deg); }
 }
-@keyframes pc3-star-b {
+@keyframes pc7-star-b {
   0%   { opacity:0; transform:translate(0,0) scale(0); }
   15%  { opacity:1; }
-  100% { opacity:0; transform:translate(-26px,-38px) scale(1.1); }
+  100% { opacity:0; transform:translate(-32px,-46px) scale(1.3); }
 }
-@keyframes pc3-star-c {
+@keyframes pc7-star-c {
   0%   { opacity:0; transform:translate(0,0) scale(0) rotate(0deg); }
-  22%  { opacity:0.9; }
-  100% { opacity:0; transform:translate(18px,-44px) scale(0.9) rotate(-320deg); }
+  22%  { opacity:1; }
+  100% { opacity:0; transform:translate(24px,-54px) scale(1.1) rotate(-350deg); }
 }
-@keyframes pc3-star-d {
+@keyframes pc7-star-d {
   0%   { opacity:0; transform:translate(0,0) scale(0); }
   18%  { opacity:1; }
-  100% { opacity:0; transform:translate(-30px,-28px) scale(0.85); }
+  100% { opacity:0; transform:translate(-36px,-34px) scale(0.9); }
 }
-@keyframes pc3-sweat {
-  0%,100% { transform:translateY(0); opacity:0.8; }
-  65%     { transform:translateY(10px); opacity:0.3; }
+@keyframes pc7-sweat {
+  0%,100% { transform:translateY(0); opacity:0.90; }
+  65%     { transform:translateY(12px); opacity:0.28; }
 }
-@keyframes pc3-tooltip-in {
-  from { opacity:0; transform:translateY(-50%) translateX(-10px) scale(0.92); }
+@keyframes pc7-tooltip-in {
+  from { opacity:0; transform:translateY(-50%) translateX(-12px) scale(0.90); }
   to   { opacity:1; transform:translateY(-50%) translateX(0) scale(1); }
 }
-@keyframes pc3-click-ripple {
-  0%   { transform:scale(0.7); opacity:0.85; }
-  100% { transform:scale(2.2); opacity:0; }
+@keyframes pc7-ripple {
+  0%   { transform:scale(0.7); opacity:0.9; }
+  100% { transform:scale(2.8); opacity:0; }
 }
-@keyframes pc3-antenna-bob {
-  0%,100% { transform: rotate(-4deg); }
-  50%     { transform: rotate(6deg); }
+@keyframes pc7-star-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 `;
 
@@ -317,9 +266,10 @@ export default function PostCoreMascot({ user, compact = false }) {
   const month = new Date().getMonth() + 1;
   const applyMood = (m) => { if (MOODS[m]) setMood(m); };
 
+  // Reveal
   useEffect(() => {
-    const t1 = setTimeout(() => setVisible(true), 700);
-    return () => clearTimeout(t1);
+    const id = setTimeout(() => setVisible(true), 700);
+    return () => clearTimeout(id);
   }, []);
 
   // Eye tracking
@@ -329,11 +279,11 @@ export default function PostCoreMascot({ user, compact = false }) {
       if (!mascotRef.current) return;
       const rect = mascotRef.current.getBoundingClientRect();
       const hx = rect.left + rect.width * 0.5;
-      const hy = rect.top + rect.height * 0.36;
+      const hy = rect.top  + rect.height * 0.38;
       const dx = e.clientX - hx, dy = e.clientY - hy;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const MAX = 3.5;
-      setEyeOffset(dist < 12 ? { x: 0, y: 0 } : {
+      const MAX = 4;
+      setEyeOffset(dist < 15 ? { x: 0, y: 0 } : {
         x: Math.max(-MAX, Math.min(MAX, (dx / dist) * MAX * Math.min(1, dist / 160))),
         y: Math.max(-MAX, Math.min(MAX, (dy / dist) * MAX * Math.min(1, dist / 160))),
       });
@@ -347,11 +297,11 @@ export default function PostCoreMascot({ user, compact = false }) {
     const iv = setInterval(() => {
       if (Date.now() - lastMoveRef.current > 5000) {
         const angle = Math.random() * Math.PI * 2;
-        const r = 1.5 + Math.random() * 2;
+        const r = 1.5 + Math.random() * 2.5;
         setEyeOffset({ x: Math.cos(angle) * r, y: Math.sin(angle) * r });
         setTimeout(() => {
           if (Date.now() - lastMoveRef.current > 5000) setEyeOffset({ x: 0, y: 0 });
-        }, 800 + Math.random() * 1000);
+        }, 900 + Math.random() * 1100);
       }
     }, 4000 + Math.random() * 3000);
     return () => clearInterval(iv);
@@ -384,7 +334,7 @@ export default function PostCoreMascot({ user, compact = false }) {
     else if (credits < 5) applyMood('worried');
   }, [user?.credits_balance]);
 
-  // Seasonal + first-time
+  // Seasonal + first post
   useEffect(() => {
     if (router.pathname !== '/dashboard') return;
     const msg = SEASONAL_MSGS[month];
@@ -405,13 +355,9 @@ export default function PostCoreMascot({ user, compact = false }) {
   useEffect(() => {
     if (!user) return;
     const streak = user.posting_streak || 0;
-    const total  = user.total_posts_this_month || 0;
-    const key = `ms_${streak}_${total}`;
+    const key = `ms_streak_${streak}`;
     if (sessionStorage.getItem(key)) return;
-    let msg = null;
-    if (streak === 30) msg = MILESTONE_MSGS.streak_30;
-    else if (streak === 7) msg = MILESTONE_MSGS.streak_7;
-    else if (streak === 3) msg = MILESTONE_MSGS.streak_3;
+    const msg = streak === 30 ? MILESTONE_MSGS.streak_30 : streak === 7 ? MILESTONE_MSGS.streak_7 : streak === 3 ? MILESTONE_MSGS.streak_3 : null;
     if (msg) {
       sessionStorage.setItem(key, '1');
       setTimeout(() => {
@@ -429,18 +375,16 @@ export default function PostCoreMascot({ user, compact = false }) {
     if (total < 10) return;
     const key = `ms_posts_${total}`;
     if (sessionStorage.getItem(key)) return;
-    let msg = total >= 50 ? MILESTONE_MSGS.posts_50 : total >= 25 ? MILESTONE_MSGS.posts_25 : MILESTONE_MSGS.posts_10;
-    if (msg) {
-      sessionStorage.setItem(key, '1');
-      setTimeout(() => {
-        applyMood('celebrating'); setCustomMsg(msg);
-        setTimeout(() => applyMood('happy'), 3500);
-        setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 7500);
-      }, 1800);
-    }
+    const msg = total >= 50 ? MILESTONE_MSGS.posts_50 : total >= 25 ? MILESTONE_MSGS.posts_25 : MILESTONE_MSGS.posts_10;
+    sessionStorage.setItem(key, '1');
+    setTimeout(() => {
+      applyMood('celebrating'); setCustomMsg(msg);
+      setTimeout(() => applyMood('happy'), 3500);
+      setTimeout(() => { applyMood('idle'); setCustomMsg(''); }, 7500);
+    }, 1800);
   }, [user?.total_posts_this_month]);
 
-  // Event-based
+  // Custom event handler
   useEffect(() => {
     const handler = (e) => {
       const { mood: m, message, milestone } = e.detail || {};
@@ -485,24 +429,34 @@ export default function PostCoreMascot({ user, compact = false }) {
   const tooltipMsg = customMsg || m.msg;
   const ex = eyeOffset.x, ey = eyeOffset.y;
 
-  // Eye geometry
-  const eyeRy     = blinking ? 1 : m.eyeRy;
-  const squintRy  = m.squint && !blinking ? m.eyeRy * 0.58 : eyeRy;
-  const irisScale = blinking ? 0 : m.squint ? 0.7 : 1;
+  const eyeRy    = blinking ? 1.5 : m.eyeRy;
+  const squintRy = m.squint && !blinking ? m.eyeRy * 0.50 : eyeRy;
+  const irisR    = (blinking || m.squint) ? 13 * (blinking ? 0 : 0.68) : 14.5;
+  const pupilR   = (blinking || m.squint) ? 9  * (blinking ? 0 : 0.68) : 9;
 
-  const armDur = (anim) =>
-    anim.includes('cele') ? '0.72s' : anim.includes('wave') ? '0.62s' :
-    anim.includes('think') ? '2.8s' : '3.5s';
+  const armDur = (a) =>
+    a.includes('cele') ? '0.74s' : a.includes('wave') ? '0.66s' :
+    a.includes('think') ? '2.8s' : '3.8s';
 
   const bodyDur = {
-    'pc3-float': '3.5s', 'pc3-bounce-soft': '1.7s', 'pc3-bounce-big': '0.9s',
-    'pc3-excited': '0.82s', 'pc3-wiggle': '0.55s', 'pc3-float-slow': '4.2s',
-    'pc3-pulse-zoom': '0.60s',
-  }[m.bodyAnim] || '3.5s';
+    'pc7-float': '3.8s', 'pc7-bounce-soft': '1.8s', 'pc7-bounce-big': '0.9s',
+    'pc7-excited': '0.86s', 'pc7-wiggle': '0.56s', 'pc7-float-slow': '4.4s',
+    'pc7-pulse-zoom': '0.64s',
+  }[m.bodyAnim] || '3.8s';
 
-  const armRAnim = hovered ? 'pc3-arm-wave-r' : m.armR;
-  const charW = compact ? 48 : 88;
-  const charH = compact ? 62 : 114;
+  const armRAnim = hovered ? 'pc7-arm-wave-r' : m.armR;
+  const charW = compact ? 54 : 92;
+  const charH = compact ? 54 : 122;
+
+  // Compact: crop to head only (face + horns + top fur)
+  const svgVB = compact ? '4 4 132 128' : '0 0 140 185';
+
+  // ─── Color palette — light, warm, fluffy (NOT dark purple robot) ─────────────
+  const C_WHITE  = '#FFFFFF';
+  const C_FUR_HL = '#F8F5FF';   // Near-white lavender
+  const C_FUR    = '#EDE9FE';   // Very light lavender
+  const C_MID    = '#C4B5FD';   // Soft purple
+  const C_DEEP   = '#7C3AED';   // Deep shadow only
 
   return (
     <div style={{
@@ -520,14 +474,14 @@ export default function PostCoreMascot({ user, compact = false }) {
     }}>
       <style dangerouslySetInnerHTML={{ __html: PC_CSS }} />
 
-      {/* Tooltip — to the right, never overlaps nav */}
+      {/* Tooltip — right side, never overlaps nav */}
       {hovered && (
         <div style={{
           position: 'absolute',
           left: 'calc(100% + 14px)',
           top: '50%',
           transform: 'translateY(-50%)',
-          width: 200,
+          width: 214,
           background: t.isDark ? 'rgba(8,6,20,0.97)' : 'rgba(255,255,255,0.98)',
           border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.38)' : 'rgba(124,92,252,0.28)'}`,
           borderRadius: 14,
@@ -538,7 +492,7 @@ export default function PostCoreMascot({ user, compact = false }) {
           lineHeight: 1.55,
           boxShadow: '0 14px 36px rgba(0,0,0,0.26)',
           zIndex: 400,
-          animation: 'pc3-tooltip-in 200ms ease both',
+          animation: 'pc7-tooltip-in 200ms ease both',
           backdropFilter: 'blur(18px)',
           WebkitBackdropFilter: 'blur(18px)',
           pointerEvents: 'none',
@@ -551,7 +505,7 @@ export default function PostCoreMascot({ user, compact = false }) {
         </div>
       )}
 
-      {/* Character container */}
+      {/* Character wrapper */}
       <div
         ref={mascotRef}
         onClick={handleClick}
@@ -560,213 +514,293 @@ export default function PostCoreMascot({ user, compact = false }) {
         style={{ width: charW, height: charH, cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none', position: 'relative' }}
       >
         {clickFlash && (
-          <div style={{ position: 'absolute', top: '32%', left: '50%', width: 52, height: 52, marginLeft: -26, marginTop: -26, borderRadius: '50%', border: `2.5px solid ${t.primary}`, animation: 'pc3-click-ripple 0.55s ease-out both', pointerEvents: 'none', zIndex: 10 }} />
+          <div style={{
+            position: 'absolute', top: '30%', left: '50%',
+            width: 60, height: 60, marginLeft: -30, marginTop: -30,
+            borderRadius: '50%', border: `2.5px solid ${t.primary}`,
+            animation: 'pc7-ripple 0.55s ease-out both',
+            pointerEvents: 'none', zIndex: 10,
+          }} />
         )}
 
-        <svg viewBox="0 0 100 130" fill="none" xmlns="http://www.w3.org/2000/svg"
+        {/* ───────────────────── SVG Character ───────────────────── */}
+        <svg viewBox={svgVB} fill="none" xmlns="http://www.w3.org/2000/svg"
           style={{ width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}>
+
           <defs>
-            {/* Head — warm sphere radial gradient */}
-            <radialGradient id="pc3-hg" cx="36%" cy="28%" r="70%">
-              <stop offset="0%"  stopColor="#D8B4FE" />
-              <stop offset="30%" stopColor="#A855F7" />
-              <stop offset="65%" stopColor="#7C3AED" />
-              <stop offset="100%" stopColor="#4C1D95" />
+            {/* HEAD / BODY — light lavender-cream sphere, NOT dark purple */}
+            <radialGradient id="pc7-fur" cx="33%" cy="21%" r="72%">
+              <stop offset="0%"   stopColor="#FFFFFF" />      {/* Pure white specular */}
+              <stop offset="14%"  stopColor="#F8F5FF" />      {/* Near-white lavender */}
+              <stop offset="36%"  stopColor="#EDE9FE" />      {/* Light lavender */}
+              <stop offset="62%"  stopColor="#C4B5FD" />      {/* Soft purple */}
+              <stop offset="84%"  stopColor="#8B5CF6" />      {/* Medium purple */}
+              <stop offset="100%" stopColor="#5B21B6" />      {/* Deep shadow edge */}
             </radialGradient>
-            {/* Body gradient */}
-            <radialGradient id="pc3-bodg" cx="42%" cy="22%" r="78%">
-              <stop offset="0%"  stopColor="#C084FC" />
-              <stop offset="50%" stopColor="#7C3AED" />
-              <stop offset="100%" stopColor="#4C1D95" />
+
+            {/* LIMBS — slightly richer */}
+            <radialGradient id="pc7-limb" cx="38%" cy="20%" r="74%">
+              <stop offset="0%"   stopColor="#F0EBFF" />
+              <stop offset="44%"  stopColor="#C4B5FD" />
+              <stop offset="100%" stopColor="#6D28D9" />
             </radialGradient>
-            {/* Ear gradient */}
-            <radialGradient id="pc3-eg" cx="58%" cy="34%" r="68%">
-              <stop offset="0%"  stopColor="#C084FC" />
-              <stop offset="100%" stopColor="#5B21B6" />
+
+            {/* HORN */}
+            <radialGradient id="pc7-horn" cx="38%" cy="22%" r="70%">
+              <stop offset="0%"   stopColor="#F5F0FF" />
+              <stop offset="100%" stopColor="#8B5CF6" />
             </radialGradient>
-            {/* Eye iris — bright cyan for maximum contrast against purple */}
-            <radialGradient id="pc3-iris" cx="36%" cy="30%" r="65%">
-              <stop offset="0%"  stopColor="#BAE6FD" />
-              <stop offset="42%" stopColor="#38BDF8" />
-              <stop offset="100%" stopColor="#075985" />
+
+            {/* EYE IRIS — warm honey amber: the most welcoming eye color */}
+            <radialGradient id="pc7-iris" cx="33%" cy="26%" r="66%">
+              <stop offset="0%"   stopColor="#FFFFF5" />      {/* Bright center */}
+              <stop offset="18%"  stopColor="#FEF3C7" />      {/* Pale gold */}
+              <stop offset="44%"  stopColor="#FCD34D" />      {/* Warm gold */}
+              <stop offset="70%"  stopColor="#F59E0B" />      {/* Rich amber */}
+              <stop offset="90%"  stopColor="#D97706" />      {/* Deep amber */}
+              <stop offset="100%" stopColor="#92400E" />      {/* Dark amber edge */}
             </radialGradient>
-            {/* Ambient glow on head */}
-            <radialGradient id="pc3-glow" cx="38%" cy="30%" r="60%">
-              <stop offset="0%"  stopColor="rgba(216,180,254,0.28)" />
-              <stop offset="100%" stopColor="rgba(124,58,237,0)" />
+
+            {/* BLUSH — soft radial fade */}
+            <radialGradient id="pc7-bl" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stopColor="rgba(251,113,133,0.68)" />
+              <stop offset="100%" stopColor="rgba(251,113,133,0)" />
             </radialGradient>
+            <radialGradient id="pc7-br" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stopColor="rgba(251,113,133,0.68)" />
+              <stop offset="100%" stopColor="rgba(251,113,133,0)" />
+            </radialGradient>
+
+            {/* DROP SHADOW — gives character depth off the screen */}
+            <filter id="pc7-shadow" x="-30%" y="-10%" width="160%" height="150%">
+              <feDropShadow dx="0" dy="9" stdDeviation="11" floodColor="#4C1D95" floodOpacity="0.36"/>
+            </filter>
+
+            {/* GLOW — for sparkle / excited states */}
+            <filter id="pc7-glow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
           </defs>
 
-          {/* ── Body animation wrapper ── */}
-          <g style={{ animation: `${m.bodyAnim} ${bodyDur} ease-in-out infinite`, transformOrigin: '50px 65px' }}>
+          {/* ═══════════════ BODY ANIMATION WRAPPER ═══════════════ */}
+          <g style={{
+            animation: `${m.bodyAnim} ${bodyDur} ease-in-out infinite`,
+            transformOrigin: '70px 100px',
+            filter: 'url(#pc7-shadow)',
+          }}>
 
-            {/* Ground shadow */}
-            <ellipse cx="50" cy="128" rx="20" ry="3.5" fill="rgba(0,0,0,0.13)" />
+            {/* Ground shadow (uses filter:none to avoid double shadow) */}
+            <ellipse cx="70" cy="182" rx="26" ry="5" fill="rgba(0,0,0,0.11)" style={{ filter: 'none' }} />
 
-            {/* ══ LEFT FOOT ══ */}
-            <ellipse cx="30" cy="124" rx="13" ry="6" fill="#3B0F9E" />
-            <ellipse cx="28" cy="122" rx="7" ry="3" fill="rgba(255,255,255,0.10)" />
+            {/* ══ FEET ══ */}
+            <ellipse cx="44"  cy="175" rx="18" ry="9"   fill={C_MID} />
+            <ellipse cx="41"  cy="171" rx="10" ry="5"   fill="rgba(255,255,255,0.48)" />
+            <ellipse cx="96"  cy="175" rx="18" ry="9"   fill={C_MID} />
+            <ellipse cx="93"  cy="171" rx="10" ry="5"   fill="rgba(255,255,255,0.48)" />
 
-            {/* ══ RIGHT FOOT ══ */}
-            <ellipse cx="70" cy="124" rx="13" ry="6" fill="#3B0F9E" />
-            <ellipse cx="68" cy="122" rx="7" ry="3" fill="rgba(255,255,255,0.10)" />
+            {/* ══ LEGS ══ */}
+            <path d="M 50 157 C 48 166 44 172 42 174 C 47 178 55 178 55 171 C 55 166 55 162 50 157 Z" fill={C_MID} />
+            <path d="M 90 157 C 92 166 96 172 98 174 C 93 178 85 178 85 171 C 85 166 85 162 90 157 Z" fill={C_MID} />
 
-            {/* ══ LEFT LEG ══ */}
-            <path d="M 36 110 C 34 116 30 120 28 122 C 32 126 38 126 38 120 C 38 116 38 112 36 110 Z" fill="#5B21B6" />
-
-            {/* ══ RIGHT LEG ══ */}
-            <path d="M 64 110 C 66 116 70 120 72 122 C 68 126 62 126 62 120 C 62 116 62 112 64 110 Z" fill="#5B21B6" />
-
-            {/* ══ LEFT ARM (behind head+body) ══ */}
-            <g style={{ transformBox: 'view-box', transformOrigin: '24px 86px', animation: `${m.armL} ${armDur(m.armL)} ease-in-out infinite` }}>
-              {/* Arm — organic teardrop path */}
-              <path d="M 24 86 C 16 90 10 100 10 112 C 10 122 16 128 22 124 C 26 120 22 110 24 100 C 26 94 26 90 24 86 Z"
-                fill="url(#pc3-bodg)" />
-              {/* Hand (round fist) */}
-              <circle cx="16" cy="124" r="10" fill="#8B5CF6" />
-              <ellipse cx="13" cy="119" rx="5" ry="3" fill="rgba(255,255,255,0.18)" />
+            {/* ══ LEFT ARM ══ */}
+            <g style={{ transformBox: 'view-box', transformOrigin: '30px 130px', animation: `${m.armL} ${armDur(m.armL)} ease-in-out infinite` }}>
+              {/* Arm body */}
+              <path d="M 30 130 C 21 134 14 146 13 158 C 12 169 18 177 25 174 C 31 171 27 160 29 148 C 31 139 31 134 30 130 Z"
+                fill="url(#pc7-limb)" />
+              {/* Fluffy bumps on arm edge */}
+              <circle cx="13" cy="150" r="9"  fill={C_FUR_HL} opacity="0.70" />
+              <circle cx="12" cy="163" r="9"  fill={C_FUR_HL} opacity="0.65" />
+              {/* Round hand */}
+              <circle cx="18" cy="174" r="14" fill={C_FUR} />
+              <ellipse cx="14" cy="168" rx="7.5" ry="4.5" fill="rgba(255,255,255,0.72)" />
+              {/* Finger nubs */}
+              <circle cx="8"  cy="180" r="5.5" fill={C_MID} />
+              <circle cx="17" cy="184" r="5.5" fill={C_MID} />
+              <circle cx="26" cy="180" r="5.5" fill={C_MID} />
             </g>
 
-            {/* ══ RIGHT ARM (behind head+body) ══ */}
-            <g style={{ transformBox: 'view-box', transformOrigin: '76px 86px', animation: `${armRAnim} ${armDur(armRAnim)} ease-in-out infinite` }}>
-              <path d="M 76 86 C 84 90 90 100 90 112 C 90 122 84 128 78 124 C 74 120 78 110 76 100 C 74 94 74 90 76 86 Z"
-                fill="url(#pc3-bodg)" />
-              <circle cx="84" cy="124" r="10" fill="#8B5CF6" />
-              <ellipse cx="81" cy="119" rx="5" ry="3" fill="rgba(255,255,255,0.18)" />
+            {/* ══ RIGHT ARM ══ */}
+            <g style={{ transformBox: 'view-box', transformOrigin: '110px 130px', animation: `${armRAnim} ${armDur(armRAnim)} ease-in-out infinite` }}>
+              <path d="M 110 130 C 119 134 126 146 127 158 C 128 169 122 177 115 174 C 109 171 113 160 111 148 C 109 139 109 134 110 130 Z"
+                fill="url(#pc7-limb)" />
+              <circle cx="127" cy="150" r="9"  fill={C_FUR_HL} opacity="0.70" />
+              <circle cx="128" cy="163" r="9"  fill={C_FUR_HL} opacity="0.65" />
+              <circle cx="122" cy="174" r="14" fill={C_FUR} />
+              <ellipse cx="118" cy="168" rx="7.5" ry="4.5" fill="rgba(255,255,255,0.72)" />
+              <circle cx="114" cy="180" r="5.5" fill={C_MID} />
+              <circle cx="123" cy="184" r="5.5" fill={C_MID} />
+              <circle cx="132" cy="180" r="5.5" fill={C_MID} />
             </g>
 
             {/* ══ BODY ══ */}
-            <path d="M 26 92 C 18 98 16 108 16 116 C 16 124 30 130 50 130 C 70 130 84 124 84 116 C 84 108 82 98 74 92 C 66 86 58 84 50 84 C 42 84 34 86 26 92 Z"
-              fill="url(#pc3-bodg)" />
+            <ellipse cx="70" cy="158" rx="37" ry="30" fill="url(#pc7-fur)" />
+            {/* Body fur bumps (sides) */}
+            <circle cx="33" cy="150" r="11" fill={C_WHITE} opacity="0.52" />
+            <circle cx="107" cy="150" r="11" fill={C_WHITE} opacity="0.52" />
+            <circle cx="35" cy="168" r="10" fill={C_WHITE} opacity="0.45" />
+            <circle cx="105" cy="168" r="10" fill={C_WHITE} opacity="0.45" />
+            {/* Body specular highlight */}
+            <ellipse cx="56" cy="147" rx="18" ry="12" fill="rgba(255,255,255,0.30)" transform="rotate(-12 56 147)" />
+            {/* PC badge */}
+            <rect x="59" y="152" width="22" height="15" rx="6.5" fill="rgba(109,40,217,0.15)" />
+            <text x="70" y="163.5" textAnchor="middle" fill="rgba(109,40,217,0.70)"
+              fontSize="8" fontWeight="800" fontFamily="-apple-system, system-ui, sans-serif" letterSpacing="-0.5">PC</text>
 
-            {/* Body belly highlight (soft) */}
-            <ellipse cx="50" cy="112" rx="20" ry="14" fill="#C084FC" opacity="0.22" />
-            <ellipse cx="43" cy="106" rx="10" ry="6" fill="rgba(255,255,255,0.10)" transform="rotate(-10 43 106)" />
+            {/* ══ HEAD FUR BUMPS — BACK LAYER (creates fluffy cloud outline) ══ */}
+            <circle cx="70"  cy="14"  r="14" fill={C_WHITE} />  {/* Top center */}
+            <circle cx="52"  cy="17"  r="13" fill={C_WHITE} />  {/* Top left */}
+            <circle cx="88"  cy="17"  r="13" fill={C_WHITE} />  {/* Top right */}
+            <circle cx="35"  cy="25"  r="12" fill={C_WHITE} />  {/* Upper-left */}
+            <circle cx="105" cy="25"  r="12" fill={C_WHITE} />  {/* Upper-right */}
+            <circle cx="19"  cy="48"  r="12" fill={C_WHITE} />  {/* Left upper */}
+            <circle cx="121" cy="48"  r="12" fill={C_WHITE} />  {/* Right upper */}
+            <circle cx="13"  cy="74"  r="12" fill={C_WHITE} />  {/* Left mid */}
+            <circle cx="127" cy="74"  r="12" fill={C_WHITE} />  {/* Right mid */}
+            <circle cx="15"  cy="102" r="11" fill={C_WHITE} />  {/* Left lower */}
+            <circle cx="125" cy="102" r="11" fill={C_WHITE} />  {/* Right lower */}
 
-            {/* Body chest badge */}
-            <rect x="41" y="96" width="18" height="13" rx="5.5" fill="rgba(255,255,255,0.11)" />
-            <text x="50" y="106" textAnchor="middle" fill="rgba(255,255,255,0.68)" fontSize="6.5" fontWeight="800" fontFamily="-apple-system, system-ui, sans-serif">PC</text>
+            {/* ══ HEAD MAIN SPHERE ══ */}
+            <circle cx="70" cy="76" r="54" fill="url(#pc7-fur)" />
 
-            {/* ══ LEFT EAR ══ */}
-            <circle cx="15" cy="48" r="13" fill="url(#pc3-eg)" />
-            <circle cx="14" cy="51" r="6.5" fill="rgba(196,132,252,0.30)" />
-            <ellipse cx="12" cy="43" rx="5" ry="3.5" fill="rgba(255,255,255,0.15)" transform="rotate(-20 12 43)" />
+            {/* Head 3D sphere highlights */}
+            {/* Large primary specular (upper-left — defines the light source) */}
+            <ellipse cx="44" cy="42" rx="23" ry="15" fill="rgba(255,255,255,0.42)" transform="rotate(-22 44 42)" />
+            {/* Smaller secondary shimmer */}
+            <ellipse cx="34" cy="62" rx="11" ry="7"  fill="rgba(255,255,255,0.24)" transform="rotate(-10 34 62)" />
+            {/* Rim light at bottom (creates roundness) */}
+            <ellipse cx="70" cy="126" rx="30" ry="8"  fill="rgba(196,181,253,0.28)" />
 
-            {/* ══ RIGHT EAR ══ */}
-            <circle cx="85" cy="48" r="13" fill="url(#pc3-eg)" />
-            <circle cx="86" cy="51" r="6.5" fill="rgba(196,132,252,0.30)" />
-            <ellipse cx="82" cy="43" rx="5" ry="3.5" fill="rgba(255,255,255,0.15)" transform="rotate(20 82 43)" />
+            {/* ══ HEAD FUR BUMPS — FRONT LAYER (adds depth to fur) ══ */}
+            <circle cx="22"  cy="56"  r="10" fill={C_WHITE} opacity="0.50" />
+            <circle cx="118" cy="56"  r="10" fill={C_WHITE} opacity="0.50" />
+            <circle cx="26"  cy="36"  r="10" fill={C_WHITE} opacity="0.46" />
+            <circle cx="114" cy="36"  r="10" fill={C_WHITE} opacity="0.46" />
 
-            {/* ══ ANTENNA ══ */}
-            <g style={{ transformOrigin: '52px 22px', animation: 'pc3-antenna-bob 2.6s ease-in-out infinite' }}>
-              <path d="M 50 10 Q 51 18 52 24" stroke="#6D28D9" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-              <circle cx="51" cy="8" r="7" fill="#F472B6" />
-              <ellipse cx="49" cy="5.5" rx="2.8" ry="1.8" fill="rgba(255,255,255,0.65)" />
-            </g>
-
-            {/* ══ HEAD ══ */}
-            <circle cx="50" cy="44" r="36" fill="url(#pc3-hg)" />
-            {/* Ambient inner glow */}
-            <circle cx="50" cy="44" r="36" fill="url(#pc3-glow)" />
-            {/* Top-left specular highlight */}
-            <ellipse cx="34" cy="25" rx="14" ry="8.5" fill="rgba(255,255,255,0.22)" transform="rotate(-22 34 25)" />
-            {/* Secondary subtle shine */}
-            <ellipse cx="60" cy="58" rx="8" ry="5" fill="rgba(124,58,237,0.28)" />
-
-            {/* Seasonal accessory */}
-            <SeasonalAccessory month={month} />
+            {/* ══ HORNS — rounded yeti-style (not sharp — cute!) ══ */}
+            {/* Left horn */}
+            <ellipse cx="46" cy="30" rx="9" ry="15" fill="url(#pc7-horn)" transform="rotate(-20 46 30)" />
+            <ellipse cx="45" cy="28" rx="5.5" ry="9.5" fill="rgba(255,255,255,0.55)" transform="rotate(-20 45 28)" />
+            {/* Right horn */}
+            <ellipse cx="94" cy="30" rx="9" ry="15" fill="url(#pc7-horn)" transform="rotate(20 94 30)" />
+            <ellipse cx="95" cy="28" rx="5.5" ry="9.5" fill="rgba(255,255,255,0.55)" transform="rotate(20 95 28)" />
 
             {/* ══ SPARKLES ══ */}
             {m.sparkle && (<>
-              <g style={{ transformOrigin: '80px 10px', animation: 'pc3-star-a 1.9s ease-in-out infinite' }}>
-                <path d="M80 7 L81.5 9.5 L84 10 L82 12 L82.6 15 L80 13.6 L77.4 15 L78 12 L76 10 L78.5 9.5 Z" fill="#FCD34D" />
+              <g style={{ transformOrigin: '109px 18px', animation: 'pc7-star-a 2.1s ease-in-out infinite' }}>
+                <path d="M109 15 L110.8 17.8 L114 18 L111.7 20.3 L112.5 23.6 L109 21.8 L105.5 23.6 L106.3 20.3 L104 18 L107.2 17.8 Z" fill="#FCD34D" />
               </g>
-              <g style={{ transformOrigin: '8px 22px', animation: 'pc3-star-b 2.4s ease-in-out infinite 0.3s' }}>
-                <path d="M8 19 L9.4 21.5 L12 22 L10 24 L10.6 26.8 L8 25.4 L5.4 26.8 L6 24 L4 22 L6.6 21.5 Z" fill="#F0ABFC" />
+              <g style={{ transformOrigin: '7px 38px', animation: 'pc7-star-b 2.6s ease-in-out infinite 0.3s' }}>
+                <path d="M7 35 L8.7 37.8 L12 38 L9.7 40.3 L10.5 43.6 L7 41.8 L3.5 43.6 L4.3 40.3 L2 38 L5.3 37.8 Z" fill="#F0ABFC" />
               </g>
-              <g style={{ transformOrigin: '84px 30px', animation: 'pc3-star-c 2.7s ease-in-out infinite 0.6s' }}>
-                <circle cx="84" cy="30" r="4" fill="#A5F3FC" />
+              <g style={{ transformOrigin: '113px 46px', animation: 'pc7-star-c 2.9s ease-in-out infinite 0.6s' }}>
+                <circle cx="113" cy="46" r="6" fill="#BAE6FD" />
               </g>
-              <g style={{ transformOrigin: '6px 50px', animation: 'pc3-star-d 2.1s ease-in-out infinite 0.9s' }}>
-                <circle cx="6" cy="50" r="3" fill="#6EE7B7" />
+              <g style={{ transformOrigin: '4px 72px', animation: 'pc7-star-d 2.3s ease-in-out infinite 0.9s' }}>
+                <circle cx="4" cy="72" r="5" fill="#6EE7B7" />
               </g>
             </>)}
 
-            {/* ══ BLUSH CHEEKS ══ */}
+            {/* ══ BLUSH CHEEKS — radial gradient fade ══ */}
             {m.blush && (<>
-              <ellipse cx="20" cy="56" rx="9" ry="5.5" fill="rgba(251,113,133,0.42)" />
-              <ellipse cx="80" cy="56" rx="9" ry="5.5" fill="rgba(251,113,133,0.42)" />
+              <ellipse cx="22"  cy="90" rx="18" ry="11" fill="url(#pc7-bl)" />
+              <ellipse cx="118" cy="90" rx="18" ry="11" fill="url(#pc7-br)" />
             </>)}
 
-            {/* ══ EYEBROWS ══ */}
-            <path d={m.browsL} stroke="#2D0760" strokeWidth="3.8" strokeLinecap="round" fill="none" />
-            <path d={m.browsR} stroke="#2D0760" strokeWidth="3.8" strokeLinecap="round" fill="none" />
+            {/* ══ EYEBROWS — thick, expressive ══ */}
+            <path d={m.browsL} stroke="#1E0048" strokeWidth="5" strokeLinecap="round" fill="none" />
+            <path d={m.browsR} stroke="#1E0048" strokeWidth="5" strokeLinecap="round" fill="none" />
 
-            {/* ══ LEFT EYE — multi-layer Pixar style ══ */}
-            {/* Outer shadow */}
-            <ellipse cx="35" cy="45" rx="15" ry="16.5" fill="#1a0050" opacity="0.22" />
-            {/* Sclera */}
-            <ellipse cx="35" cy="43" rx="13.5" ry={squintRy} fill="white" />
-            {/* Upper lid shadow overlay */}
-            <ellipse cx="35" cy="32" rx="13.5" ry="8" fill="rgba(20,0,60,0.18)" />
-            {/* Iris */}
-            {!blinking && <circle cx={35 + ex} cy={43 + ey} r={9.5 * irisScale} fill="url(#pc3-iris)" />}
-            {/* Pupil */}
-            {!blinking && <circle cx={35 + ex} cy={43 + ey} r={5.5 * irisScale} fill="#050015" />}
-            {/* Main catchlight — oval, upper-right */}
-            {!blinking && <ellipse cx={38.5 + ex} cy={38.5 + ey} rx={4 * irisScale} ry={2.6 * irisScale} fill="white" />}
-            {/* Secondary tiny catchlight — lower-left */}
-            {!blinking && <circle cx={31 + ex} cy={48 + ey} r={1.8 * irisScale} fill="white" opacity="0.75" />}
-            {/* Lash line */}
-            <path d="M 22 37 Q 35 29 48 37" stroke="#1E0648" strokeWidth="2.8" strokeLinecap="round" fill="none" />
+            {/* ══ LEFT EYE — full Pixar treatment ══ */}
+            {/* Outer shadow drop */}
+            <ellipse cx="44" cy="74" rx="23" ry="26" fill="rgba(30,0,72,0.13)" />
+            {/* White sclera */}
+            <ellipse cx="44" cy="72" rx="20" ry={squintRy} fill={C_WHITE} />
+            {/* Upper eyelid shadow — creates Pixar hooded-eye depth */}
+            <ellipse cx="44" cy="54" rx="20" ry="15" fill="rgba(30,0,72,0.16)" />
+            {/* Iris — warm amber honey */}
+            {!blinking && <circle cx={44 + ex} cy={72 + ey} r={irisR} fill="url(#pc7-iris)" />}
+            {/* Pupil — large for curious/engaged look */}
+            {!blinking && <circle cx={44 + ex} cy={72 + ey} r={pupilR} fill="#080012" />}
+            {/* Star shimmer in pupil (exciting moods) */}
+            {!blinking && m.starEye && (
+              <g style={{ transformOrigin: `${44+ex}px ${72+ey}px`, animation: 'pc7-star-spin 3.5s linear infinite' }}>
+                <path
+                  d={`M${44+ex} ${65+ey} L${46.2+ex} ${70.2+ey} L${51+ex} ${70.2+ey} L${47.1+ex} ${73.4+ey} L${48.8+ex} ${79+ey} L${44+ex} ${75.8+ey} L${39.2+ex} ${79+ey} L${40.9+ex} ${73.4+ey} L${37+ex} ${70.2+ey} L${41.8+ex} ${70.2+ey} Z`}
+                  fill="rgba(255,245,160,0.88)"
+                />
+              </g>
+            )}
+            {/* Main catchlight — large oval, upper-right (Pixar signature) */}
+            {!blinking && <ellipse cx={49.5 + ex} cy={63 + ey} rx={7}   ry={4.5} fill={C_WHITE} opacity="0.97" />}
+            {/* Secondary sparkle catchlight — lower-left */}
+            {!blinking && <circle  cx={34    + ex} cy={80 + ey} r={3.2} fill={C_WHITE} opacity="0.72" />}
+            {/* Upper lash line */}
+            <path d="M 22 57 Q 44 43 66 57" stroke="#120026" strokeWidth="4.2" strokeLinecap="round" fill="none" />
+            {/* Lower lash (subtle) */}
+            <path d="M 26 87 Q 44 97 62 87" stroke="#120026" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.30" />
 
-            {/* ══ RIGHT EYE — multi-layer ══ */}
-            <ellipse cx="65" cy="45" rx="15" ry="16.5" fill="#1a0050" opacity="0.22" />
-            <ellipse cx="65" cy="43" rx="13.5" ry={squintRy} fill="white" />
-            <ellipse cx="65" cy="32" rx="13.5" ry="8" fill="rgba(20,0,60,0.18)" />
-            {!blinking && <circle cx={65 + ex} cy={43 + ey} r={9.5 * irisScale} fill="url(#pc3-iris)" />}
-            {!blinking && <circle cx={65 + ex} cy={43 + ey} r={5.5 * irisScale} fill="#050015" />}
-            {!blinking && <ellipse cx={68.5 + ex} cy={38.5 + ey} rx={4 * irisScale} ry={2.6 * irisScale} fill="white" />}
-            {!blinking && <circle cx={61 + ex} cy={48 + ey} r={1.8 * irisScale} fill="white" opacity="0.75" />}
-            <path d="M 52 37 Q 65 29 78 37" stroke="#1E0648" strokeWidth="2.8" strokeLinecap="round" fill="none" />
+            {/* ══ RIGHT EYE ══ */}
+            <ellipse cx="96" cy="74" rx="23" ry="26" fill="rgba(30,0,72,0.13)" />
+            <ellipse cx="96" cy="72" rx="20" ry={squintRy} fill={C_WHITE} />
+            <ellipse cx="96" cy="54" rx="20" ry="15" fill="rgba(30,0,72,0.16)" />
+            {!blinking && <circle cx={96 + ex} cy={72 + ey} r={irisR} fill="url(#pc7-iris)" />}
+            {!blinking && <circle cx={96 + ex} cy={72 + ey} r={pupilR} fill="#080012" />}
+            {!blinking && m.starEye && (
+              <g style={{ transformOrigin: `${96+ex}px ${72+ey}px`, animation: 'pc7-star-spin 3.5s linear infinite 0.7s' }}>
+                <path
+                  d={`M${96+ex} ${65+ey} L${98.2+ex} ${70.2+ey} L${103+ex} ${70.2+ey} L${99.1+ex} ${73.4+ey} L${100.8+ex} ${79+ey} L${96+ex} ${75.8+ey} L${91.2+ex} ${79+ey} L${92.9+ex} ${73.4+ey} L${89+ex} ${70.2+ey} L${93.8+ex} ${70.2+ey} Z`}
+                  fill="rgba(255,245,160,0.88)"
+                />
+              </g>
+            )}
+            {!blinking && <ellipse cx={101.5 + ex} cy={63 + ey} rx={7}   ry={4.5} fill={C_WHITE} opacity="0.97" />}
+            {!blinking && <circle  cx={86     + ex} cy={80 + ey} r={3.2} fill={C_WHITE} opacity="0.72" />}
+            <path d="M 74 57 Q 96 43 118 57" stroke="#120026" strokeWidth="4.2" strokeLinecap="round" fill="none" />
+            <path d="M 78 87 Q 96 97 114 87" stroke="#120026" strokeWidth="1.8" strokeLinecap="round" fill="none" opacity="0.30" />
 
-            {/* ══ NOSE ══ */}
-            <ellipse cx="50" cy="60" rx="5" ry="3" fill="rgba(74,0,180,0.28)" />
-            <circle cx="47.5" cy="59" r="2" fill="rgba(74,0,180,0.22)" />
-            <circle cx="52.5" cy="59" r="2" fill="rgba(74,0,180,0.22)" />
+            {/* ══ NOSE — cute pink button ══ */}
+            <ellipse cx="70" cy="91" rx="8.5" ry="6" fill="#FCA5A5" opacity="0.84" />
+            <circle  cx="64" cy="89" r="3.8" fill="#F87171" opacity="0.68" />
+            <circle  cx="76" cy="89" r="3.8" fill="#F87171" opacity="0.68" />
+            <ellipse cx="66" cy="88" rx="2.5" ry="1.5" fill="rgba(255,255,255,0.55)" />
 
             {/* ══ MOUTH ══ */}
-            {/* Mouth shadow/outline */}
+            {m.showTeeth && <path d={m.mouth} fill="#1E0048" opacity="0.90" />}
+            <path d={m.mouth} stroke="#1E0048" strokeWidth="4.5" strokeLinecap="round" fill="none" />
             {m.showTeeth && (
-              <path d={m.mouth} fill="#1E0648" opacity="0.9" />
-            )}
-            {/* Smile stroke */}
-            <path d={m.mouth} stroke="rgba(30,6,72,0.88)" strokeWidth="3.2" strokeLinecap="round" fill="none" />
-            {/* Teeth bar for big smiles */}
-            {m.showTeeth && (
-              <clipPath id="pc3-teeth-clip">
-                <path d={m.mouth} />
-              </clipPath>
-            )}
-            {m.showTeeth && (
-              <ellipse cx="50" cy="70" rx="20" ry="9" fill="white" opacity="0.92" clipPath="url(#pc3-teeth-clip)" />
+              <>
+                <clipPath id="pc7-teeth">
+                  <path d={m.mouth} />
+                </clipPath>
+                {/* Teeth bar */}
+                <rect x="34" y="100" width="72" height="24" rx="5" fill={C_WHITE} opacity="0.95" clipPath="url(#pc7-teeth)" />
+                {/* Tooth dividers */}
+                <line x1="52" y1="100" x2="52" y2="124" stroke="rgba(220,210,255,0.42)" strokeWidth="1.4" clipPath="url(#pc7-teeth)" />
+                <line x1="70" y1="100" x2="70" y2="124" stroke="rgba(220,210,255,0.42)" strokeWidth="1.4" clipPath="url(#pc7-teeth)" />
+                <line x1="88" y1="100" x2="88" y2="124" stroke="rgba(220,210,255,0.42)" strokeWidth="1.4" clipPath="url(#pc7-teeth)" />
+              </>
             )}
 
-            {/* ══ SWEAT DROP (worried) ══ */}
+            {/* ══ SWEAT DROP (worried only) ══ */}
             {mood === 'worried' && (
-              <g style={{ animation: 'pc3-sweat 1.1s ease-in-out infinite' }}>
-                <ellipse cx="76" cy="24" rx="3.5" ry="2.5" fill="#93C5FD" opacity="0.90" />
-                <path d="M 76 16 Q 80 20 76 24" fill="#93C5FD" opacity="0.75" />
+              <g style={{ animation: 'pc7-sweat 1.1s ease-in-out infinite' }}>
+                <ellipse cx="114" cy="36" rx="5" ry="3.5" fill="#93C5FD" opacity="0.88" />
+                <path d="M 114 24 Q 120 30 114 36" fill="#93C5FD" opacity="0.76" />
               </g>
             )}
 
-          </g>{/* end body anim group */}
+          </g>{/* end body animation group */}
         </svg>
       </div>
 
-      {/* Label — sidebar only */}
+      {/* "PostCore" label — sidebar non-compact only */}
       {!compact && (
-        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', color: t.isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)', textTransform: 'uppercase', marginTop: 1, marginBottom: 4 }}>
+        <div style={{
+          fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+          color: t.isDark ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.20)',
+          textTransform: 'uppercase', marginTop: 1, marginBottom: 4,
+        }}>
           PostCore
         </div>
       )}
