@@ -503,6 +503,7 @@ export default function WorkspacesPage() {
   const [switching, setSwitching] = useState(null);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
 
   // Team Members tab state
   const [activeTab, setActiveTab] = useState('workspaces');
@@ -517,6 +518,9 @@ export default function WorkspacesPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { router.push('/login'); return; }
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
     Promise.all([authAPI.verify(), workspacesAPI.list(), workspacesAPI.myMemberships()])
       .then(([authRes, wsRes, membershipsRes]) => {
         setCurrentUserId(authRes.data?.id || authRes.data?.customer?.id);
@@ -525,6 +529,7 @@ export default function WorkspacesPage() {
       })
       .catch(() => setError('Failed to load workspaces'))
       .finally(() => setLoading(false));
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {

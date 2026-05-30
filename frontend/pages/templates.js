@@ -41,11 +41,17 @@ export default function TemplatesPage() {
   const [isAdmin,              setIsAdmin]              = useState(false);
   const [activeSection,        setActiveSection]        = useState('templates'); // 'templates' | 'mydesigns'
 
+  const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
     customerAPI.getProfile().then(r => setIsAdmin(!!r.data?.is_admin)).catch(() => {});
     loadCurated();
     loadCreations();
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const loadCurated = async (industry = 'all') => {
@@ -118,7 +124,7 @@ export default function TemplatesPage() {
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
       {/* ── Section tabs ── */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 28, background: t.input, padding: 4, borderRadius: 12, width: 'fit-content', border: `1px solid ${t.border}` }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 28, background: t.input, padding: 4, borderRadius: 12, width: isMobile ? '100%' : 'fit-content', border: `1px solid ${t.border}` }}>
         {[
           { id: 'templates',  label: 'ItsPosting Templates', icon: IpSparkle },
           { id: 'mydesigns',  label: 'My Designs',           icon: IpPhotoStudio },
@@ -127,8 +133,9 @@ export default function TemplatesPage() {
           const active = activeSection === s.id;
           return (
             <button key={s.id} onClick={() => setActiveSection(s.id)} style={{
-              display: 'flex', alignItems: 'center', gap: 7,
+              display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'center',
               padding: '8px 18px', borderRadius: 9, border: 'none',
+              flex: isMobile ? 1 : undefined,
               background: active ? t.primary : 'transparent',
               color: active ? '#fff' : t.textMuted,
               fontSize: 13, fontWeight: 600, cursor: 'pointer',

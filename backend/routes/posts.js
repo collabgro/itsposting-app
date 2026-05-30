@@ -308,6 +308,12 @@ module.exports = (pool) => {
           console.error('[ContentMixTracker] streak update failed:', streakErr.message);
         }
 
+        // Invalidate intelligence metrics cache so next dashboard load reflects the new post
+        pool.query(
+          `DELETE FROM customer_metrics_cache WHERE customer_id = $1`,
+          [req.customerId]
+        ).catch(() => {});
+
         // Sync real engagement metrics 5 minutes after publish (gives platforms time to process)
         const postIds = updatedPost.platform_post_ids;
         if (postIds && Object.keys(postIds).length) {

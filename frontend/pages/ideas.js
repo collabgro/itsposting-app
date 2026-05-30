@@ -233,6 +233,7 @@ export default function PostIdeas() {
   const [copiedId, setCopiedId] = useState(null);
   const [industry, setIndustry] = useState('');
   const [toast, setToast] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
@@ -274,10 +275,14 @@ export default function PostIdeas() {
 
   useEffect(() => {
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
     customerAPI.getProfile().then(r => setIndustry(r.data.industry || '')).catch(() => {});
     // If no ideas yet, show generating state while first fetch happens
     setGenerating(true);
     load(false);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const handleRefresh = () => load(true);

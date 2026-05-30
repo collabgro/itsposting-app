@@ -83,16 +83,23 @@ export default function MediaLibrary() {
   const [templatePexelsThumbs, setTemplatePexelsThumbs] = useState({});
   const [isAdmin,              setIsAdmin]              = useState(false);
 
+  // ── Responsive
+  const [isMobile, setIsMobile] = useState(false);
+
   // ── Mount + auth
   useEffect(() => {
     setMounted(true);
     if (!localStorage.getItem('token')) { router.replace('/login'); return; }
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
       setCustomFolders(Array.isArray(stored) ? stored : []);
     } catch { setCustomFolders([]); }
     loadAll();
     customerAPI.getProfile().then(r => setIsAdmin(!!r.data?.is_admin)).catch(() => {});
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Cancel drag on Escape
@@ -512,20 +519,20 @@ export default function MediaLibrary() {
         ? (quota ? `${quota.usedFormatted} / ${quota.quotaFormatted} used` : 'Loading...')
         : 'Pick a stock photo, add your message, post it.'}
       action={activeTab === 'library' ? (
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {selectedIds.size > 0 && (
             <Button variant="danger" onClick={handleBulkDelete}>
-              <IpDelete size={14} /> Delete ({selectedIds.size})
+              <IpDelete size={14} /> {isMobile ? selectedIds.size : `Delete (${selectedIds.size})`}
             </Button>
           )}
           <Button variant="secondary" onClick={() => setShowFolderModal(true)}>
-            <IpFolderPlus size={14} /> New Folder
+            <IpFolderPlus size={14} /> {!isMobile && 'New Folder'}
           </Button>
           <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
             {uploading
               ? <img src="/icon-192.png" alt="" style={{ width: 14, height: 14, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} />
               : <IpPublish size={14} strokeWidth={2.5} />}
-            {uploading ? `Uploading ${uploadProgress}%` : 'Upload Files'}
+            {uploading ? (isMobile ? `${uploadProgress}%` : `Uploading ${uploadProgress}%`) : (isMobile ? 'Upload' : 'Upload Files')}
           </Button>
         </div>
       ) : null}
@@ -590,7 +597,7 @@ export default function MediaLibrary() {
           )}
 
           {/* FILTERS */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20, flexDirection: isMobile ? 'column' : 'row' }}>
             {filterFolder !== 'all' && (
               <button
                 onClick={() => setFilterFolder('all')}
@@ -613,7 +620,7 @@ export default function MediaLibrary() {
                 {selectedIds.size === displayFiles.length ? 'Deselect all' : 'Select all'}
               </button>
             )}
-            <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 320 }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: isMobile ? '100%' : 200, maxWidth: isMobile ? '100%' : 320, width: isMobile ? '100%' : undefined }}>
               <IpSearch size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted }} />
               <input
                 type="text" placeholder="Search files..." value={search}

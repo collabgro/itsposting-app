@@ -921,6 +921,12 @@ module.exports = (pool) => {
         [JSON.stringify(platformPostIds), postId]
       );
 
+      // Invalidate intelligence metrics cache — fire and forget
+      pool.query(
+        `DELETE FROM customer_metrics_cache WHERE customer_id = $1`,
+        [req.customerId]
+      ).catch(() => {});
+
       // Notify the user their post was published
       const publishedPlatforms = succeeded.join(', ');
       setImmediate(() => notifier.postPublished(req.customerId, postId, publishedPlatforms));
