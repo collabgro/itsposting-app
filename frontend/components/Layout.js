@@ -11,7 +11,6 @@ import {
 import { useTheme } from '../lib/theme';
 import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI, postsAPI } from '../lib/api';
 import NotificationBell from './NotificationBell';
-import PostCoreMascot from './PostCoreMascot';
 import { ConfirmModal } from './ui';
 import { ItsPostingLogo } from './ItsPostingLogo';
 
@@ -674,8 +673,6 @@ export default function Layout({ children, title, subtitle, action }) {
                 <IpMenu size={16} />
               </button>
             )}
-            {/* PostCore mascot — compact topbar version */}
-            {!isMobile && user && <PostCoreMascot user={user} compact />}
             <NotificationBell />
             <button
               aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
