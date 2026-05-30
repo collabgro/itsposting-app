@@ -42,7 +42,7 @@ const NAV_ITEMS = [
   { isDivider: true, label: 'Create' },
   { name: 'Quick Post',    href: '/quick-post',     icon: IpZap,          isQuickPost: true },
   { name: 'Post Wizard',   href: '/wizard',         icon: IpWizard,       showSuggBadge: true },
-  { name: 'Video Wizard',  href: '/video-wizard',   icon: IpVideo },
+  { name: 'Templates',     href: '/templates',      icon: IpPhotoStudio },
   { name: 'Post Ideas',    href: '/ideas',          icon: IpSparkle },
   { name: 'Content Calendar', href: '/content-calendar', icon: IpSchedule },
   { name: 'Upload',        href: '/upload',         icon: IpCreatePost },
@@ -64,7 +64,7 @@ const NAV_ITEMS = [
   { isDivider: true, label: 'Account' },
   { name: 'Knowledge Base', href: '/knowledge-base', icon: IpBusiness },
   { name: 'Workspaces',    href: '/workspaces',     icon: IpTeam,         isWorkspaceNav: true },
-  { name: 'Approvals',     href: '/approvals',      icon: IpCheck,        isWorkspaceNav: true, badgeKey: 'pendingApprovals' },
+  { name: 'Refer & Earn',  href: '/billing?tab=referral', icon: IpZap },
   { name: 'Billing',       href: '/billing',        icon: IpBilling },
   { name: 'Profile',       href: '/profile',        icon: IpUser },
   { name: 'Settings',      href: '/settings',       icon: IpSettings },
@@ -263,7 +263,7 @@ export default function Layout({ children, title, subtitle, action }) {
                 )}
               </div>
             ) : (
-              <ItsPostingLogo size="sm" variant="full" theme={t.isDark ? 'dark' : 'light'} />
+              <ItsPostingLogo size="xs" variant="full" theme={t.isDark ? 'dark' : 'light'} />
             )
           )}
           {isMobile && (

@@ -602,6 +602,10 @@ console.log('══════════════════════�
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS referral_code VARCHAR(20) UNIQUE`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS referred_by VARCHAR(20)`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS referral_credits_earned INTEGER DEFAULT 0`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS owner_name VARCHAR(150)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS owner_phone VARCHAR(40)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS owner_email VARCHAR(255)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_opt_in BOOLEAN DEFAULT true`,
     `CREATE TABLE IF NOT EXISTS referral_awards (
       id SERIAL PRIMARY KEY,
       referrer_customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,

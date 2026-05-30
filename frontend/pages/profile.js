@@ -189,8 +189,9 @@ export default function ProfilePage() {
   const [isMobile, setIsMobile] = useState(false);
 
   // Edit fields
-  const [bizFields, setBizFields] = useState({ business_name: '', tagline: '', location: '', phone: '', website: '' });
-  const [voiceFields, setVoiceFields] = useState({ tone: 'professional', visual_style: 'modern', timezone: 'UTC' });
+  const [bizFields,     setBizFields]     = useState({ business_name: '', tagline: '', location: '', phone: '', website: '' });
+  const [voiceFields,   setVoiceFields]   = useState({ tone: 'professional', visual_style: 'modern', timezone: 'UTC' });
+  const [ownerFields,   setOwnerFields]   = useState({ owner_name: '', owner_phone: '', owner_email: '', marketing_opt_in: true });
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -215,6 +216,12 @@ export default function ProfilePage() {
         phone: p.phone || '',
         website: p.website || '',
       });
+      setOwnerFields({
+        owner_name:     p.owner_name     || '',
+        owner_phone:    p.owner_phone    || '',
+        owner_email:    p.owner_email    || '',
+        marketing_opt_in: p.marketing_opt_in !== false,
+      });
       setVoiceFields({
         tone: p.tone || 'professional',
         visual_style: p.visual_style || 'modern',
@@ -238,6 +245,21 @@ export default function ProfilePage() {
         website: bizFields.website,
       });
       setProfile(p => ({ ...p, ...bizFields }));
+    } finally {
+      setSaving('');
+    }
+  }
+
+  async function saveOwnerInfo() {
+    setSaving('owner');
+    try {
+      await customerAPI.updateProfile({
+        ownerName:      ownerFields.owner_name,
+        ownerPhone:     ownerFields.owner_phone,
+        ownerEmail:     ownerFields.owner_email,
+        marketingOptIn: ownerFields.marketing_opt_in,
+      });
+      setProfile(p => ({ ...p, ...ownerFields }));
     } finally {
       setSaving('');
     }
@@ -409,6 +431,43 @@ export default function ProfilePage() {
                     <span style={{ fontSize: 12, color: t.primary, cursor: 'pointer', marginLeft: 6 }}>Change in Settings →</span>
                   </Link>
                 </div>
+              )}
+            </>
+          )}
+        </EditableSection>
+
+        {/* ── Personal / Owner Information ── */}
+        <EditableSection title="Account Owner" onSave={saveOwnerInfo} saving={saving === 'owner'}>
+          {(editing) => (
+            <>
+              <InfoRow label="Your Name"      value={profile.owner_name}     editing={editing} field="owner_name"  fields={ownerFields} setFields={setOwnerFields} placeholder="e.g. Mike Johnson" />
+              <InfoRow label="Personal Phone" value={profile.owner_phone}    editing={editing} field="owner_phone" fields={ownerFields} setFields={setOwnerFields} type="tel" placeholder="e.g. (555) 123-4567" />
+              <InfoRow label="Personal Email" value={profile.owner_email}    editing={editing} field="owner_email" fields={ownerFields} setFields={setOwnerFields} type="email" placeholder="e.g. mike@yourbusiness.com" />
+              {editing ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                  <input
+                    type="checkbox"
+                    id="mkt-opt"
+                    checked={ownerFields.marketing_opt_in}
+                    onChange={e => setOwnerFields(f => ({ ...f, marketing_opt_in: e.target.checked }))}
+                    style={{ width: 16, height: 16, cursor: 'pointer', accentColor: t.primary }}
+                  />
+                  <label htmlFor="mkt-opt" style={{ fontSize: 13, color: t.textMuted, cursor: 'pointer' }}>
+                    I agree to receive product updates and tips from ItsPosting
+                  </label>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13, color: t.textMuted, minWidth: 140 }}>Marketing emails</span>
+                  <span style={{ fontSize: 13, color: profile.marketing_opt_in !== false ? t.success : t.textMuted }}>
+                    {profile.marketing_opt_in !== false ? 'Subscribed' : 'Unsubscribed'}
+                  </span>
+                </div>
+              )}
+              {!editing && (
+                <p style={{ fontSize: 12, color: t.textMuted, marginTop: 12, borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
+                  This information is private and used only to personalise your experience and send product updates.
+                </p>
               )}
             </>
           )}

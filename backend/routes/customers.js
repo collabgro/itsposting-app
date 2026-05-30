@@ -40,7 +40,8 @@ module.exports = (pool) => {
                 auto_post_frequency, posting_times, timezone,
                 is_admin, role, suspended, posting_streak,
                 last_posted_at, total_posts_this_month, parent_customer_id,
-                free_geo_audit_used, avatar_url, tagline, white_label_config, public_handle, created_at
+                free_geo_audit_used, avatar_url, tagline, white_label_config, public_handle, created_at,
+                owner_name, owner_phone, owner_email, marketing_opt_in
          FROM customers WHERE id = $1`,
         [req.customerId]
       );
@@ -94,9 +95,13 @@ module.exports = (pool) => {
         notificationPreferences,
         avatarUrl,
         tagline,
+        ownerName,
+        ownerPhone,
+        ownerEmail,
+        marketingOptIn,
       } = req.body;
 
-      const MAX_LENGTHS = { businessName: 100, location: 200, phone: 30, website: 500, tone: 50, visualStyle: 100, tagline: 200 };
+      const MAX_LENGTHS = { businessName: 100, location: 200, phone: 30, website: 500, tone: 50, visualStyle: 100, tagline: 200, ownerName: 150, ownerPhone: 40, ownerEmail: 255 };
       for (const [field, max] of Object.entries(MAX_LENGTHS)) {
         const val = req.body[field];
         if (val && String(val).length > max) {
@@ -129,6 +134,10 @@ module.exports = (pool) => {
             ELSE content_preferences END,
           avatar_url = CASE WHEN $20::text IS NOT NULL THEN $20::text ELSE avatar_url END,
           tagline = COALESCE($21, tagline),
+          owner_name = COALESCE($23, owner_name),
+          owner_phone = COALESCE($24, owner_phone),
+          owner_email = COALESCE($25, owner_email),
+          marketing_opt_in = COALESCE($26, marketing_opt_in),
           updated_at = NOW()
         WHERE id = $19
         RETURNING *`,
@@ -146,6 +155,10 @@ module.exports = (pool) => {
           avatarUrl !== undefined ? avatarUrl : null,
           tagline,
           brandFonts ? JSON.stringify(brandFonts) : null,
+          ownerName || null,
+          ownerPhone || null,
+          ownerEmail || null,
+          marketingOptIn !== undefined ? marketingOptIn : null,
         ]
       );
 

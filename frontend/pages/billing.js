@@ -59,6 +59,9 @@ export default function Billing() {
   const [cycle, setCycle] = useState('monthly'); // 'monthly' | 'yearly'
   const [checkingOut, setCheckingOut] = useState(null); // plan id being checked out
   const [buyingPack, setBuyingPack] = useState(null); // credit pack id being purchased
+  const [selectedPackId, setSelectedPackId] = useState('credits_100'); // Upwork-style dropdown selection
+  const [promoCode, setPromoCode] = useState('');
+  const [promoApplied, setPromoApplied] = useState(false);
   const [upgradeError, setUpgradeError] = useState('');
   const [creditMsg, setCreditMsg] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -79,6 +82,16 @@ export default function Billing() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Activate referral tab if URL has ?tab=referral
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query.tab === 'referral') {
+      setActiveTab('referral');
+      setReferralLoading(true);
+      referralsAPI.getMyCode().then(r => setReferralData(r.data)).catch(() => {}).finally(() => setReferralLoading(false));
+    }
+  }, [router.isReady]);
 
   const loadData = async () => {
     try {
@@ -661,75 +674,145 @@ export default function Billing() {
           </div>
         )}
 
-        {/* ── BUY MORE CREDITS ───────────────────────────────────────── */}
-        <div style={{ ...gc, padding: 24, marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
-            <div>
+        {/* ── BUY MORE CREDITS (Upwork-style) ────────────────────────── */}
+        {(() => {
+          const selPack = CREDIT_PACKS.find(p => p.id === selectedPackId) || CREDIT_PACKS[3];
+          const currentBal = current?.credits_balance ?? 0;
+          const newBal = currentBal + selPack.amount;
+          const expiryDate = new Date();
+          expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+          const expiryStr = expiryDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+          const photoEq = Math.floor(selPack.amount / 3);
+          const carouselEq = Math.floor(selPack.amount / 5);
+          const videoEq = Math.floor(selPack.amount / 10);
+          return (
+            <div style={{ ...gc, padding: 28, marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <IpCredits size={16} color="url(#brand-gradient)" />
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, margin: 0 }}>Buy More Credits</h3>
               </div>
-              <p style={{ fontSize: 13, color: t.textMuted, margin: 0 }}>Top up your balance anytime — added instantly, never expire</p>
-            </div>
-            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: t.textMuted }}>
-              <span>Photo post = 3 credits</span>
-              <span>Carousel = 5 credits</span>
-              <span>Video = 10 credits</span>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
-            {CREDIT_PACKS.map(pack => {
-              const isBestValue = pack.id === 'credits_200';
-              const isRecommended = pack.id === 'credits_100';
-              const costPerCredit = (pack.price / pack.amount).toFixed(2);
-              const photoEquiv = Math.floor(pack.amount / 3);
-              const carouselEquiv = Math.floor(pack.amount / 5);
-              const context = pack.amount >= 100
-                ? `≈ ${carouselEquiv} carousels`
-                : `≈ ${photoEquiv} photo posts`;
-              const isActive = buyingPack === pack.id;
+              <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 24px' }}>Top up your balance anytime — added instantly, never expire</p>
 
-              return (
-                <button
-                  key={pack.id}
-                  onClick={() => handleBuyCredits(pack)}
-                  disabled={!!buyingPack}
+              {/* Current balance */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Your available Credits</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: t.text, lineHeight: 1 }}>{currentBal.toLocaleString()}</div>
+              </div>
+
+              {/* Dropdown selector */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Select the amount to buy</div>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={selectedPackId}
+                    onChange={e => setSelectedPackId(e.target.value)}
+                    style={{
+                      width: '100%', maxWidth: 420, padding: '13px 44px 13px 16px',
+                      background: t.input, border: `1.5px solid ${t.border}`,
+                      borderRadius: 12, color: t.text, fontSize: 14, fontWeight: 600,
+                      cursor: 'pointer', outline: 'none', appearance: 'none',
+                      WebkitAppearance: 'none', transition: 'border-color 140ms',
+                    }}
+                    onFocus={e => (e.target.style.borderColor = t.primary)}
+                    onBlur={e => (e.target.style.borderColor = t.border)}
+                  >
+                    {CREDIT_PACKS.map(pack => {
+                      const tag = pack.id === 'credits_200' ? ' — Best Value' : pack.id === 'credits_100' ? ' — Popular' : '';
+                      return (
+                        <option key={pack.id} value={pack.id}>
+                          {pack.amount} credits for ${pack.price}{tag}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <div style={{ position: 'absolute', top: '50%', right: 14, transform: 'translateY(-50%)', pointerEvents: 'none', color: t.textMuted }}>
+                    ▾
+                  </div>
+                </div>
+              </div>
+
+              {/* Calculated summary */}
+              <div style={{ maxWidth: 420, borderRadius: 12, border: `1px solid ${t.border}`, overflow: 'hidden', marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
+                  <span style={{ fontSize: 13, color: t.textMuted }}>Your account will be charged</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>${selPack.price}.00 + Tax</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
+                  <span style={{ fontSize: 13, color: t.textMuted }}>Your new Credits balance will be</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{newBal.toLocaleString()} credits</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
+                  <span style={{ fontSize: 13, color: t.textMuted }}>These credits will expire on</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{expiryStr}</span>
+                </div>
+                <div style={{ padding: '11px 18px', background: t.isDark ? 'rgba(124,92,252,0.05)' : 'rgba(124,92,252,0.03)' }}>
+                  <span style={{ fontSize: 12, color: t.textMuted }}>
+                    ≈ {photoEq} photo posts · {carouselEq} carousels · {videoEq} videos
+                  </span>
+                </div>
+              </div>
+
+              {/* Promo code */}
+              <div style={{ maxWidth: 420, display: 'flex', gap: 8, marginBottom: 20 }}>
+                <input
+                  value={promoCode}
+                  onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                  placeholder="Promo code"
                   style={{
-                    padding: '16px 12px', border: `2px solid ${isActive ? t.primaryBorder : isRecommended ? t.primaryBorder : isBestValue ? 'rgba(251,191,36,0.5)' : t.border}`,
-                    borderRadius: 12, background: isActive ? t.primaryBg : isRecommended ? t.primaryBg : t.input,
-                    cursor: buyingPack ? 'not-allowed' : 'pointer', textAlign: 'center',
-                    transition: 'all 150ms', opacity: buyingPack && !isActive ? 0.5 : 1,
-                    position: 'relative',
+                    flex: 1, padding: '10px 14px', background: t.input,
+                    border: `1.5px solid ${promoApplied ? t.success : t.border}`, borderRadius: 10,
+                    color: t.text, fontSize: 13, outline: 'none', transition: 'border-color 140ms',
                   }}
-                  onMouseEnter={e => { if (!buyingPack) { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.background = t.primaryBg; } }}
-                  onMouseLeave={e => { if (!buyingPack) { e.currentTarget.style.borderColor = isRecommended ? t.primaryBorder : isBestValue ? 'rgba(251,191,36,0.5)' : t.border; e.currentTarget.style.background = isRecommended ? t.primaryBg : t.input; } }}
+                  onFocus={e => (e.target.style.borderColor = t.primary)}
+                  onBlur={e => (e.target.style.borderColor = promoApplied ? t.success : t.border)}
+                />
+                <button
+                  onClick={() => { if (promoCode.trim()) setPromoApplied(true); }}
+                  style={{
+                    padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                    background: promoApplied ? t.success : t.primaryBg,
+                    color: promoApplied ? '#fff' : t.primary,
+                    border: `1.5px solid ${promoApplied ? t.success : t.primaryBorder}`,
+                    cursor: 'pointer', transition: 'all 120ms', whiteSpace: 'nowrap',
+                  }}
                 >
-                  {isBestValue && (
-                    <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #FBBF24, #F59E0B)', color: '#fff', padding: '2px 10px', borderRadius: 9999, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-                      Best Value
-                    </div>
-                  )}
-                  {isRecommended && !isBestValue && (
-                    <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: t.primary, color: '#fff', padding: '2px 10px', borderRadius: 9999, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-                      Popular
-                    </div>
-                  )}
-                  <div style={{ fontSize: 28, fontWeight: 800, color: t.primary, fontFamily: 'monospace', lineHeight: 1 }}>{pack.amount}</div>
-                  <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 8 }}>credits</div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: t.text, marginBottom: 6 }}>${pack.price}</div>
-                  <div style={{ fontSize: 10, color: t.textSecondary, padding: '3px 6px', background: 'rgba(124,92,252,0.08)', borderRadius: 6 }}>{context}</div>
-                  {isActive && <div style={{ fontSize: 10, color: t.primary, marginTop: 6, fontWeight: 600 }}>Redirecting…</div>}
+                  {promoApplied ? '✓ Applied' : 'Apply'}
                 </button>
-              );
-            })}
-          </div>
-          {creditMsg && (
-            <div style={{ marginTop: 16, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, fontSize: 12, color: t.textSecondary, lineHeight: 1.6 }}>
-              {creditMsg}
-              <button onClick={() => setCreditMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={14} /></button>
+              </div>
+
+              {/* Buy button */}
+              <button
+                onClick={() => handleBuyCredits(selPack)}
+                disabled={!!buyingPack}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  width: '100%', maxWidth: 420, padding: '14px',
+                  background: buyingPack ? t.textMuted : 'linear-gradient(135deg,#7C5CFC,#9B7FFF)',
+                  color: '#fff', border: 'none', borderRadius: 12,
+                  fontSize: 15, fontWeight: 700, cursor: buyingPack ? 'not-allowed' : 'pointer',
+                  boxShadow: buyingPack ? 'none' : '0 4px 18px rgba(124,92,252,0.4)',
+                  transition: 'all 150ms', opacity: buyingPack ? 0.6 : 1,
+                }}
+                onMouseEnter={e => { if (!buyingPack) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(124,92,252,0.5)'; } }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = buyingPack ? 'none' : '0 4px 18px rgba(124,92,252,0.4)'; }}
+              >
+                <IpCredits size={15} />
+                {buyingPack ? 'Redirecting to checkout…' : `Buy ${selPack.amount} Credits — $${selPack.price}`}
+              </button>
+
+              <p style={{ fontSize: 12, color: t.textMuted, maxWidth: 420, marginTop: 12, lineHeight: 1.6 }}>
+                Credits are added to your account instantly after payment. Unused credits never expire. Taxes may apply based on your location.
+              </p>
+
+              {creditMsg && (
+                <div style={{ marginTop: 12, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, fontSize: 12, color: t.textSecondary, lineHeight: 1.6, maxWidth: 420 }}>
+                  {creditMsg}
+                  <button onClick={() => setCreditMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={14} /></button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* ── CREDIT HISTORY ─────────────────────────────────────────── */}
         <div style={{ ...gc, padding: 0, overflow: 'hidden' }}>
