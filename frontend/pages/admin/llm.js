@@ -5,7 +5,7 @@ import {
   IpWarning, IpTrendingUp, IpTeam, IpAdmin, IpChevronRight,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Button, Badge, SectionHeader } from '../../components/ui';
+import { Button, Badge, SectionHeader, Select } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
 
@@ -33,6 +33,11 @@ export default function AdminLLM() {
   const [curated, setCurated] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showAddExample, setShowAddExample] = useState(false);
+  const [showNewExp, setShowNewExp] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [addExForm, setAddExForm] = useState({ industry: 'plumbing', contentType: 'job_finished', inputPayload: '', idealOutput: '', qualityScore: '5' });
+  const [newExpForm, setNewExpForm] = useState({ modelVersionId: '', trafficPct: '5', notes: '' });
 
   const gc = {
     background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
@@ -102,6 +107,51 @@ export default function AdminLLM() {
       const res = await adminAPI.getLLMCuratedExamples();
       setCurated(res.data.examples || []);
     } catch {}
+  };
+
+  const handleAddExample = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      let inputParsed, outputParsed;
+      try { inputParsed = JSON.parse(addExForm.inputPayload); } catch { return alert('Input Payload must be valid JSON'); }
+      try { outputParsed = JSON.parse(addExForm.idealOutput); } catch { return alert('Ideal Output must be valid JSON with variation_a/b/c'); }
+      await adminAPI.addLLMCuratedExample({
+        industry: addExForm.industry,
+        contentType: addExForm.contentType,
+        inputPayload: inputParsed,
+        idealOutput: outputParsed,
+        qualityScore: parseFloat(addExForm.qualityScore),
+      });
+      setShowAddExample(false);
+      setAddExForm({ industry: 'plumbing', contentType: 'job_finished', inputPayload: '', idealOutput: '', qualityScore: '5' });
+      await loadCurated();
+      if (tab !== 'curated') setTab('curated');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to add example');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleNewExperiment = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await adminAPI.createLLMExperiment({
+        modelVersionId: parseInt(newExpForm.modelVersionId),
+        trafficPct: parseInt(newExpForm.trafficPct) || 5,
+        notes: newExpForm.notes || null,
+      });
+      setShowNewExp(false);
+      setNewExpForm({ modelVersionId: '', trafficPct: '5', notes: '' });
+      await loadExperiments();
+      if (tab !== 'ab') setTab('ab');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to create experiment');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!mounted) return null;
@@ -383,7 +433,7 @@ export default function AdminLLM() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <SectionHeader icon={IpAnalytics} title="A/B Experiments" subtitle="Compare PostCore Brain vs Claude on live traffic" />
               {models.length > 0 && (
-                <Button variant="primary" size="sm" onClick={() => {}}>New experiment</Button>
+                <Button variant="primary" size="sm" onClick={() => { setNewExpForm(f => ({ ...f, modelVersionId: models[0]?.id?.toString() || '' })); setShowNewExp(true); }}>New experiment</Button>
               )}
             </div>
             {experiments.length === 0 ? (
@@ -474,7 +524,7 @@ export default function AdminLLM() {
           <div style={gc}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <SectionHeader icon={IpTeam} title="Curated Gold Examples" subtitle="Human-annotated high-quality examples that anchor fine-tuning quality" />
-              <Button variant="primary" size="sm" onClick={() => {}}>Add example</Button>
+              <Button variant="primary" size="sm" onClick={() => setShowAddExample(true)}>Add example</Button>
             </div>
             {curated.length === 0 ? (
               <div style={{ padding: '40px 0', textAlign: 'center' }}>
@@ -508,6 +558,104 @@ export default function AdminLLM() {
         )}
 
       </div>
+
+      {/* ── Add Curated Example Modal ─────────────────────────────────── */}
+      {showAddExample && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ ...gc, maxWidth: 600, width: '100%', maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: t.text }}>Add Curated Example</div>
+              <button onClick={() => setShowAddExample(false)} style={{ background: 'none', border: 'none', color: t.textMuted, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <form onSubmit={handleAddExample} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Industry</div>
+                  <Select value={addExForm.industry} onChange={e => setAddExForm(f => ({ ...f, industry: e.target.value }))}
+                    options={['plumbing','hvac','roofing','concrete','landscaping','electrical','painting','pest_control','general_contractor','cleaning'].map(v => ({ value: v, label: v.replace('_', ' ') }))} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Content Type</div>
+                  <Select value={addExForm.contentType} onChange={e => setAddExForm(f => ({ ...f, contentType: e.target.value }))}
+                    options={['job_finished','tip','testimonial','seasonal','promotion','community','faq','team'].map(v => ({ value: v, label: v.replace('_', ' ') }))} />
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quality Score (1–5)</div>
+                <Select value={addExForm.qualityScore} onChange={e => setAddExForm(f => ({ ...f, qualityScore: e.target.value }))}
+                  options={['5','4.5','4','3.5','3'].map(v => ({ value: v, label: `${v} ★` }))} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Input Payload (JSON)</div>
+                <textarea
+                  value={addExForm.inputPayload}
+                  onChange={e => setAddExForm(f => ({ ...f, inputPayload: e.target.value }))}
+                  placeholder={'{\n  "tone": "friendly",\n  "details": "Customer had burst pipe..."\n}'}
+                  rows={4}
+                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 12, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ideal Output (JSON with variation_a/b/c)</div>
+                <textarea
+                  value={addExForm.idealOutput}
+                  onChange={e => setAddExForm(f => ({ ...f, idealOutput: e.target.value }))}
+                  placeholder={'{\n  "variation_a": { "caption": "...", "hashtags": [], "engagementQuestion": "?" },\n  "variation_b": {...},\n  "variation_c": {...}\n}'}
+                  rows={6}
+                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 12, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <Button type="button" variant="ghost" onClick={() => setShowAddExample(false)}>Cancel</Button>
+                <Button type="submit" variant="primary" disabled={submitting}>{submitting ? 'Saving…' : 'Add Example'}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── New Experiment Modal ──────────────────────────────────────── */}
+      {showNewExp && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ ...gc, maxWidth: 480, width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: t.text }}>New A/B Experiment</div>
+              <button onClick={() => setShowNewExp(false)} style={{ background: 'none', border: 'none', color: t.textMuted, fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ padding: '12px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 10, marginBottom: 20 }}>
+              <div style={{ fontSize: 12, color: '#D97706', fontWeight: 600, marginBottom: 4 }}>⚠️ This will route live wizard traffic to a PostCore Brain model</div>
+              <div style={{ fontSize: 12, color: t.textMuted }}>Only run experiments with thoroughly evaluated models. Set traffic % low (5–10%) to start.</div>
+            </div>
+            <form onSubmit={handleNewExperiment} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Model Version</div>
+                <Select value={newExpForm.modelVersionId} onChange={e => setNewExpForm(f => ({ ...f, modelVersionId: e.target.value }))}
+                  options={models.map(m => ({ value: m.id.toString(), label: `${m.version_name} (${m.training_examples?.toLocaleString()} examples)` }))} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Traffic % to PostCore Brain</div>
+                <Select value={newExpForm.trafficPct} onChange={e => setNewExpForm(f => ({ ...f, trafficPct: e.target.value }))}
+                  options={['5','10','20','50'].map(v => ({ value: v, label: `${v}% — ${100 - parseInt(v)}% Claude` }))} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes (optional)</div>
+                <textarea
+                  value={newExpForm.notes}
+                  onChange={e => setNewExpForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="e.g. Testing v0.1 on plumbing industry only"
+                  rows={3}
+                  style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <Button type="button" variant="ghost" onClick={() => setShowNewExp(false)}>Cancel</Button>
+                <Button type="submit" variant="primary" disabled={submitting || !newExpForm.modelVersionId}>{submitting ? 'Creating…' : 'Start Experiment'}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </Layout>
   );
 }
