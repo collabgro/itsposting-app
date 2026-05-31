@@ -1,23 +1,67 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
-  IpPublish as UploadIcon, IpPhoto as ImageIcon, IpCarousel, IpVideo,
+  IpPublish as UploadIcon, IpPhoto as ImageIcon,
   IpCalendar as CalendarIcon, IpSave, IpFacebook, IpInstagram, IpGoogle,
-  IpLinkedIn, IpTikTok, IpFolderOpen, IpClose, IpSparkle, IpCheck, IpPlay,
+  IpLinkedIn, IpTikTok, IpFolderOpen, IpClose, IpSparkle, IpPlay,
 } from '../components/icons';
 import Layout from '../components/Layout';
+import ImageEditor from '../components/ImageEditor';
 import { Card, Button, Input, Textarea, SectionHeader, Skeleton, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { mediaAPI, uploadAPI, socialAPI, analyticsAPI } from '../lib/api';
 import {
-  CHAR_LIMITS, PLATFORM_META, MOCKUP_MAP, PlatformTab,
+  CHAR_LIMITS, PLATFORM_META, MOCKUP_MAP,
 } from '../components/PostMockups';
 
-const CONTENT_TYPES = [
-  { id: 'photo',    label: 'Photo',    icon: ImageIcon },
-  { id: 'carousel', label: 'Carousel', icon: IpCarousel },
-  { id: 'video',    label: 'Video',    icon: IpVideo },
+const EMOJI_CATEGORIES = [
+  { label: 'Smileys', emojis: ['😀','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤭','🤫','🤔','🤐','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','😺','😸','😹','😻','😼','😽','🙀','😿','😾'] },
+  { label: 'Gestures', emojis: ['👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','🫶','👐','🤲','🙏','🤝','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🫀','🫁','🧠','🦷','🦴','👀','👁️','👅','👄'] },
+  { label: 'People', emojis: ['👶','🧒','👦','👧','🧑','👱','👨','🧔','👩','🧓','👴','👵','🙍','🙎','🙅','🙆','💁','🙋','🧏','🙇','🤦','🤷','👮','🕵️','💂','🥷','👷','🤴','👸','👳','👲','🧕','🤵','👰','🤰','🤱','👼','🎅','🤶','🦸','🦹','🧙','🧝','🧛','🧟','🧞','🧜','🧚','👫','👬','👭','💏','💑','👨‍👩‍👦','👨‍👩‍👧','🧑‍🤝‍🧑'] },
+  { label: 'Hearts & Symbols', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️','✝️','☪️','🕉️','✡️','🔯','♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓','⛎','🔀','🔁','🔂','▶️','⏩','⏫','🔼','⏭️','⏹️','⏸️','⏺️','⏏️','🎦','🔅','🔆','📶','📳','📴','♻️','🔱','📛','🔰','⭕','✅','☑️','✔️','❌','❎','➕','➖','➗','➰','➿','❓','❔','❕','❗','‼️','⚡','🔥','💥','⭐','🌟','✨','💫','🎵','🎶','🎸'] },
+  { label: 'Nature', emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🦣','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🦮','🐕‍🦺','🐈','🐈‍⬛','🌸','🌺','🌻','🌹','🌷','🌼','🌾','🍀','🌿','🌱','🌲','🌳','🌴','🌵','☘️','🍃','🍂','🍁','🍄','🌊','💧','🌙','☀️','🌤️','⛅','🌦️','🌧️','⛈️','❄️','🌈','🌪️','🌫️','🌍','🌎','🌏','🏔️','⛰️','🌋','🏕️','🏖️','🏜️','🏝️'] },
+  { label: 'Food & Drink', emojis: ['🍎','🍊','🍋','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🥑','🍆','🥦','🥬','🥒','🌽','🥕','🧅','🧄','🥔','🍠','🥜','🌰','🍞','🥐','🥖','🫓','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🫔','🌮','🌯','🥙','🧆','🥚','🥘','🍲','🫕','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🦪','🍣','🍤','🍙','🥟','🦞','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','☕','🍵','🧃','🥤','🧋','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🧉','🍾'] },
+  { label: 'Travel & Places', emojis: ['🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🏍️','🛵','🛺','🚲','🛴','🛹','🛼','🚏','🛣️','🛤️','⛽','🛞','🚨','🚥','🚦','🛑','🚧','⚓','🛟','⛵','🚤','🛥️','🛳️','⛴️','🚢','✈️','🛩️','🛫','🛬','🛰️','🚀','🛸','🚁','🛶','⛺','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛪','🕌','🕍','⛩️','🕋','⛲','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','🗺️','🧭'] },
+  { label: 'Activities', emojis: ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🏓','🏸','🏒','🥍','🏑','🥊','🥋','🎯','⛳','🎣','🤿','🎽','🎿','🛷','🥌','🎮','🕹️','🎲','♟️','🎭','🎨','🧵','🧶','🎻','🎸','🎹','🥁','🎷','🎺','🎤','🎧','🎼','🎙️','📻','🎬','🎥','📽️','🎞️','📺','🎪','🤹','🎠','🎡','🎢','🎀','🎁','🎊','🎉','🎈','🎋','🎍','🎑','🧧','🎏','🎐','🧨','🎆','🎇','✨','🎃','🎄','🎋','🎍'] },
+  { label: 'Objects', emojis: ['📱','💻','🖥️','🖨️','⌨️','🖱️','🖲️','💽','💾','💿','📀','📷','📸','📹','🎥','📽️','📞','☎️','📟','📠','📺','📻','🧭','⏱️','⏲️','⏰','⌛','⏳','📡','🔋','🔌','💡','🔦','🕯️','💰','💳','💵','💴','💶','💷','💸','💹','✉️','📧','📨','📩','📤','📥','📦','📫','📪','📬','📭','📮','🗳️','✏️','✒️','🖊️','🖋️','📝','📁','📂','🗂️','📅','📆','📇','📈','📉','📊','📋','📌','📍','📎','🖇️','📏','📐','✂️','🗃️','🗄️','🗑️','🔒','🔓','🔏','🔐','🔑','🗝️','🔨','🪓','⛏️','⚒️','🛠️','🗡️','⚔️','🔧','🔩','🗜️','⚙️','🔗','⛓️','🪝','🧲','🔫','🧨','💣','🪃','🏹','🛡️','🪚','🔬','🔭','📡','💊','🩺','🩻','🌡️','🧬','🦠','🧪','🧫','🔑','🪞','🪟','🛋️','🪑','🚿','🛁','🪠','🧴','🧷','🧹','🧺','🧻','🪣','🧼','🫧','🪥','🧽','🪒','🛒','🚪','🪤','🧸','🪆','🖼️','🪄','🎩','🧢','👒','🎓','⛑️','💄','💍','👛','👜','🎒','🧳'] },
+  { label: 'Business & Work', emojis: ['💼','📊','📈','📉','🗂️','📋','📌','📍','📎','✂️','🖊️','✏️','📝','💡','🔍','🔎','🏆','🥇','🎯','✅','❌','⚠️','🔔','🔕','📢','📣','🗣️','💬','💭','🤝','🙌','👏','💪','🧠','💰','💵','💳','📱','💻','⌚','📞','✉️','📧','📅','🗓️','⏰','🔑','🔒','🏠','🏢','🏗️','🔨','🔧','⚙️','🛠️','🚀','⭐','🌟','✨','💫','🔥','🎉','🎊','🏅','🎗️','🎁','🎀'] },
 ];
+
+
+const FB_BG_COLORS = [
+  { id: 'none',   label: 'None',    bg: null,      text: '#1c1e21' },
+  { id: 'yellow', label: 'Yellow',  bg: '#f5e642', text: '#1c1e21' },
+  { id: 'orange', label: 'Orange',  bg: '#f08c00', text: '#fff' },
+  { id: 'red',    label: 'Red',     bg: '#e24444', text: '#fff' },
+  { id: 'purple', label: 'Purple',  bg: '#7b5af6', text: '#fff' },
+  { id: 'blue',   label: 'Blue',    bg: '#4e7bf6', text: '#fff' },
+  { id: 'green',  label: 'Green',   bg: '#5fbf5e', text: '#fff' },
+  { id: 'teal',   label: 'Teal',    bg: '#4eb7c4', text: '#fff' },
+  { id: 'dark',   label: 'Dark',    bg: '#2e2e2e', text: '#fff' },
+];
+
+const toUnicodeBold = (text) => [...text].map(c => {
+  const cap = c.charCodeAt(0) - 65;
+  const low = c.charCodeAt(0) - 97;
+  const dig = c.charCodeAt(0) - 48;
+  if (cap >= 0 && cap < 26) return String.fromCodePoint(0x1D400 + cap);
+  if (low >= 0 && low < 26) return String.fromCodePoint(0x1D41A + low);
+  if (dig >= 0 && dig < 10) return String.fromCodePoint(0x1D7CE + dig);
+  return c;
+}).join('');
+
+const toUnicodeItalic = (text) => {
+  const exc = { H: 'ℋ', I: 'ℑ', L: 'ℒ', R: 'ℛ', Z: 'ℨ', e: 'ℯ', g: 'ℊ', h: 'ℎ' };
+  return [...text].map(c => {
+    if (exc[c]) return exc[c];
+    const cap = c.charCodeAt(0) - 65;
+    const low = c.charCodeAt(0) - 97;
+    if (cap >= 0 && cap < 26) return String.fromCodePoint(0x1D434 + cap);
+    if (low >= 0 && low < 26) return String.fromCodePoint(0x1D44E + low);
+    return c;
+  }).join('');
+};
+
 
 const PLATFORMS = [
   { id: 'facebook',        name: 'Facebook',         icon: IpFacebook },
@@ -43,7 +87,9 @@ export default function Upload() {
   const router = useRouter();
   const { t } = useTheme();
   const fileInputRef = useRef(null);
+  const accountDropdownRef = useRef(null);
   const [mounted, setMounted] = useState(false);
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [contentType, setContentType] = useState('photo');
   const [files, setFiles] = useState([]);
@@ -56,15 +102,16 @@ export default function Upload() {
   const [accountGroups, setAccountGroups] = useState([]);
   const [customCaptionsEnabled, setCustomCaptionsEnabled] = useState(false);
   const [platformCaptions, setPlatformCaptions] = useState({});
+  const [activePlatformTab, setActivePlatformTab] = useState(null);
   const [locationQuery, setLocationQuery] = useState('');
   const [locationResults, setLocationResults] = useState([]);
   const [locationSearching, setLocationSearching] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const locationTimerRef = useRef(null);
-  const [previewPlatform, setPreviewPlatform] = useState('facebook');
+  const [previewPlatform, setPreviewPlatform] = useState('all');
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('09:00');
-  const [scheduleMode, setScheduleMode] = useState('draft');
+  const [scheduleMode, setScheduleMode] = useState('now');
   const [uploading, setUploading] = useState(false);
   const [bestTimes, setBestTimes] = useState([]);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -73,6 +120,36 @@ export default function Upload() {
   const [libraryFolders, setLibraryFolders] = useState([]);
   const [libraryFolder, setLibraryFolder] = useState(null);
   const [libraryLoading, setLibraryLoading] = useState(false);
+  const captionRef = useRef(null);
+  const postDropdownRef = useRef(null);
+  const emojiPickerRef = useRef(null);
+  const emojiPortalRef = useRef(null);
+  const bgPickerRef = useRef(null);
+  const linkInputRef = useRef(null);
+  const libraryFileInputRef = useRef(null);
+  const [followUpEnabled, setFollowUpEnabled] = useState(false);
+  const [followUpComment, setFollowUpComment] = useState('');
+  const [mediaOptimization, setMediaOptimization] = useState(true);
+  const [postDropdownOpen, setPostDropdownOpen] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiPickerPos, setEmojiPickerPos] = useState({ top: 0, left: 0 });
+  const [fbPostFormat, setFbPostFormat] = useState('feed');
+  const [igPostFormat, setIgPostFormat] = useState('feed');
+  const [igCollaborator, setIgCollaborator] = useState('');
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkInputVal, setLinkInputVal] = useState('');
+  const [fbBgColor, setFbBgColor] = useState(null);
+  const [showBgPicker, setShowBgPicker] = useState(false);
+  const [showLocationPopup, setShowLocationPopup] = useState(false);
+  const locationPopupRef = useRef(null);
+  const [imageEditorIdx, setImageEditorIdx] = useState(null);
+  const [editDropdownIdx, setEditDropdownIdx] = useState(null);
+  const [editDropdownAnchor, setEditDropdownAnchor] = useState({ top: 0, right: 0 });
+  const [libraryUploadType, setLibraryUploadType] = useState('image');
+  const [replaceFileIdx, setReplaceFileIdx] = useState(null);
+  const draggedIdxRef = useRef(null);
+  const replaceFileInputRef = useRef(null);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -115,8 +192,9 @@ export default function Upload() {
     if (uploadPrefill) {
       try {
         const data = JSON.parse(uploadPrefill);
-        if (data.caption) setCaption(data.caption);
-        if (data.hashtags?.length) setHashtags(data.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' '));
+        const tagStr = data.hashtags?.length ? '\n' + data.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') : '';
+        if (data.caption) setCaption(data.caption + tagStr);
+        else if (tagStr) setCaption(tagStr.trim());
         sessionStorage.removeItem('uploadPrefill');
       } catch {}
     }
@@ -135,8 +213,9 @@ export default function Upload() {
     if (quickPostData) {
       try {
         const data = JSON.parse(quickPostData);
-        if (data.caption) setCaption(data.caption);
-        if (data.hashtags?.length) setHashtags(data.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' '));
+        const tagStr = data.hashtags?.length ? '\n' + data.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') : '';
+        if (data.caption) setCaption(data.caption + tagStr);
+        else if (tagStr) setCaption(tagStr.trim());
         if (data.platforms?.length) setPlatforms(data.platforms.filter(p => p !== 'all'));
         sessionStorage.removeItem('quickPostData');
       } catch {}
@@ -145,8 +224,9 @@ export default function Upload() {
     if (wizardPost) {
       try {
         const data = JSON.parse(wizardPost);
-        if (data.caption) setCaption(data.caption);
-        if (data.hashtags?.length) setHashtags(data.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' '));
+        const tagStr = data.hashtags?.length ? '\n' + data.hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') : '';
+        if (data.caption) setCaption(data.caption + tagStr);
+        else if (tagStr) setCaption(tagStr.trim());
         if (data.platform) setPlatforms([data.platform]);
         sessionStorage.removeItem('wizardPost');
       } catch {}
@@ -158,22 +238,142 @@ export default function Upload() {
     };
   }, []);
 
+  // Close account dropdown when clicking outside
+  useEffect(() => {
+    if (!accountDropdownOpen) return;
+    const handler = (e) => {
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(e.target)) {
+        setAccountDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [accountDropdownOpen]);
+
+  useEffect(() => {
+    if (!postDropdownOpen) return;
+    const handler = (e) => {
+      if (postDropdownRef.current && !postDropdownRef.current.contains(e.target)) setPostDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [postDropdownOpen]);
+
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handler = (e) => {
+      const inButton = emojiPickerRef.current?.contains(e.target);
+      const inPortal = emojiPortalRef.current?.contains(e.target);
+      if (!inButton && !inPortal) setShowEmojiPicker(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showEmojiPicker]);
+
+  useEffect(() => {
+    if (!showBgPicker) return;
+    const handler = (e) => {
+      if (bgPickerRef.current && !bgPickerRef.current.contains(e.target)) setShowBgPicker(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showBgPicker]);
+
+  useEffect(() => {
+    if (!showLinkInput) return;
+    const t2 = setTimeout(() => linkInputRef.current?.focus(), 50);
+    return () => clearTimeout(t2);
+  }, [showLinkInput]);
+
+  useEffect(() => {
+    if (editDropdownIdx === null) return;
+    const handler = () => setEditDropdownIdx(null);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [editDropdownIdx]);
+
+  useEffect(() => {
+    if (!showLocationPopup) return;
+    const handler = (e) => {
+      if (locationPopupRef.current && !locationPopupRef.current.contains(e.target)) setShowLocationPopup(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showLocationPopup]);
+
+  const handleLibraryUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const { data } = await uploadAPI.uploadMedia(file);
+      setFiles(prev => [...prev, { libraryFileId: data.id || null, url: data.url, type: data.type || (file.type.startsWith('video') ? 'video' : 'image'), name: file.name }]);
+      setPreviews(prev => [...prev, data.url]);
+    } catch { setMessage({ type: 'error', text: 'Upload failed. Please try again.' }); }
+    e.target.value = '';
+  };
+
+  const handleReplaceFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || replaceFileIdx === null) return;
+    const prevUrl = previews[replaceFileIdx];
+    if (prevUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrl);
+    const url = URL.createObjectURL(file);
+    setPreviews(prev => prev.map((u, i) => i === replaceFileIdx ? url : u));
+    setFiles(prev => prev.map((f, i) => i === replaceFileIdx ? file : f));
+    setReplaceFileIdx(null);
+    e.target.value = '';
+  };
+
+  const handleDragStart = (idx) => { draggedIdxRef.current = idx; };
+  const handleDragOver = (e) => { e.preventDefault(); };
+  const handleDrop = (e, dropIdx) => {
+    e.preventDefault();
+    const fromIdx = draggedIdxRef.current;
+    if (fromIdx == null || fromIdx === dropIdx) { draggedIdxRef.current = null; return; }
+    const nf = [...files]; const np = [...previews];
+    const [fi] = nf.splice(fromIdx, 1); const [pi] = np.splice(fromIdx, 1);
+    nf.splice(dropIdx, 0, fi); np.splice(dropIdx, 0, pi);
+    setFiles(nf); setPreviews(np);
+    draggedIdxRef.current = null;
+  };
+
   // Keep previewPlatform in sync with selected platforms
   useEffect(() => {
-    if (!platforms.includes(previewPlatform)) {
-      setPreviewPlatform(platforms[0] || 'facebook');
+    if (previewPlatform === 'all') return;
+    if (!platforms.includes(previewPlatform)) setPreviewPlatform('all');
+  }, [platforms]);
+
+  // Keep activePlatformTab in sync — default to first platform
+  useEffect(() => {
+    if (!activePlatformTab || !platforms.includes(activePlatformTab)) {
+      setActivePlatformTab(platforms[0] || null);
     }
   }, [platforms]);
 
   const handleFileSelect = (e) => {
     const selected = Array.from(e.target.files);
     if (selected.length === 0) return;
-    if (contentType === 'photo' && selected.length > 1) { setMessage({ type: 'error', text: 'Photo posts allow only 1 image' }); return; }
-    if (contentType === 'video' && selected.length > 1) { setMessage({ type: 'error', text: 'Video posts allow only 1 video' }); return; }
-    if (contentType === 'carousel' && selected.length > 10) { setMessage({ type: 'error', text: 'Carousel max is 10 images' }); return; }
+
+    // Appending to an existing carousel — don't replace
+    if (files.length > 0 && contentType === 'carousel') {
+      const combined = [...files, ...selected];
+      if (combined.length > 10) { setMessage({ type: 'error', text: 'Carousel max is 10 images' }); return; }
+      setFiles(combined);
+      setPreviews(prev => [...prev, ...selected.map(f => URL.createObjectURL(f))]);
+      setMessage({ type: '', text: '' });
+      e.target.value = '';
+      return;
+    }
+
+    // Fresh selection — auto-detect type
+    if (selected.length > 10) { setMessage({ type: 'error', text: 'Maximum 10 files allowed' }); return; }
+    const hasVideo = selected.some(f => f.type.startsWith('video/'));
+    const autoType = hasVideo ? 'video' : selected.length > 1 ? 'carousel' : 'photo';
+    setContentType(autoType);
     setFiles(selected);
     setPreviews(selected.map(f => URL.createObjectURL(f)));
     setMessage({ type: '', text: '' });
+    e.target.value = '';
   };
 
   const removeFile = (idx) => {
@@ -198,12 +398,33 @@ export default function Upload() {
     finally { setLibraryLoading(false); }
   };
 
+  const openLibraryForType = async (type) => {
+    setShowLibrary(true);
+    setLibraryLoading(true);
+    setLibraryFolder(null);
+    try {
+      const [filesRes, foldersRes] = await Promise.all([
+        mediaAPI.list({ type }),
+        mediaAPI.getFolders(),
+      ]);
+      setLibraryFiles(filesRes.data.filter(f => f.file_type === type));
+      setLibraryFolders(foldersRes.data);
+    } catch {}
+    finally { setLibraryLoading(false); }
+  };
+
   const selectFromLibrary = (file) => {
-    if (contentType === 'carousel') {
+    if (files.length > 0) {
+      // Already have files — add to carousel
       if (files.length >= 10) { setMessage({ type: 'error', text: 'Carousel max is 10 files' }); return; }
-      setFiles(prev => [...prev, { libraryFileId: file.id, url: file.url, type: file.file_type, name: file.file_name }]);
+      const newFiles = [...files, { libraryFileId: file.id, url: file.url, type: file.file_type, name: file.file_name }];
+      setFiles(newFiles);
       setPreviews(prev => [...prev, file.url]);
+      if (newFiles.length > 1) setContentType('carousel');
     } else {
+      // First file — auto-detect type
+      const autoType = file.file_type === 'video' ? 'video' : 'photo';
+      setContentType(autoType);
       setFiles([{ libraryFileId: file.id, url: file.url, type: file.file_type, name: file.file_name }]);
       setPreviews([file.url]);
       setShowLibrary(false);
@@ -239,15 +460,82 @@ export default function Upload() {
       const uniquePlatforms = [...new Set(
         socialAccounts.filter(a => next.includes(a.id)).map(a => a.platform)
       )];
-      if (uniquePlatforms.length) setPlatforms(uniquePlatforms);
+      setPlatforms(uniquePlatforms.length ? uniquePlatforms : []);
+      return next;
+    });
+  };
+
+  const insertIntoCaption = (text) => {
+    const el = captionRef.current;
+    if (customCaptionsEnabled && activePlatformTab) {
+      const platId = activePlatformTab;
+      const val = platformCaptions[platId] ?? caption;
+      if (el) {
+        const start = el.selectionStart ?? val.length;
+        const end = el.selectionEnd ?? val.length;
+        const newVal = val.substring(0, start) + text + val.substring(end);
+        setPlatformCaptions(prev => ({ ...prev, [platId]: newVal }));
+        requestAnimationFrame(() => {
+          if (captionRef.current) {
+            captionRef.current.selectionStart = captionRef.current.selectionEnd = start + text.length;
+            captionRef.current.focus();
+          }
+        });
+      } else {
+        setPlatformCaptions(prev => ({ ...prev, [platId]: val + text }));
+      }
+    } else {
+      if (el) {
+        const start = el.selectionStart ?? caption.length;
+        const end = el.selectionEnd ?? caption.length;
+        const newVal = caption.substring(0, start) + text + caption.substring(end);
+        setCaption(newVal);
+        requestAnimationFrame(() => {
+          if (captionRef.current) {
+            captionRef.current.selectionStart = captionRef.current.selectionEnd = start + text.length;
+            captionRef.current.focus();
+          }
+        });
+      } else {
+        setCaption(prev => prev + text);
+      }
+    }
+  };
+
+  const applyFormatting = (type) => {
+    const el = captionRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    if (start === end) return;
+    const selected = caption.substring(start, end);
+    const converted = type === 'bold' ? toUnicodeBold(selected) : toUnicodeItalic(selected);
+    const newVal = caption.substring(0, start) + converted + caption.substring(end);
+    setCaption(newVal);
+    requestAnimationFrame(() => {
+      if (captionRef.current) {
+        captionRef.current.selectionStart = start;
+        captionRef.current.selectionEnd = start + converted.length;
+        captionRef.current.focus();
+      }
+    });
+  };
+
+  const togglePlatformGroup = (platId, platAccounts, allSelected) => {
+    setSelectedAccountIds(prev => {
+      const enabledIds = platAccounts.filter(a => a.enabled).map(a => a.id);
+      const next = allSelected
+        ? prev.filter(id => !platAccounts.some(a => a.id === id))
+        : [...new Set([...prev, ...enabledIds])];
+      const uniquePlatforms = [...new Set(socialAccounts.filter(a => next.includes(a.id)).map(a => a.platform))];
+      setPlatforms(uniquePlatforms.length ? uniquePlatforms : []);
       return next;
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (files.length === 0) { setMessage({ type: 'error', text: 'Please select at least one file' }); return; }
-    if (contentType === 'carousel' && files.length < 2) { setMessage({ type: 'error', text: 'Carousel needs at least 2 images' }); return; }
+    if (contentType === 'carousel' && files.length > 0 && files.length < 2) { setMessage({ type: 'error', text: 'Carousel needs at least 2 images' }); return; }
     if (!caption.trim()) { setMessage({ type: 'error', text: 'Caption is required' }); return; }
     const hasSelection = selectedAccountIds.length > 0 || platforms.length > 0;
     if (!hasSelection) { setMessage({ type: 'error', text: 'Select at least one account' }); return; }
@@ -257,35 +545,55 @@ export default function Upload() {
       ? `${scheduleDate}T${scheduleTime}:00` : null;
 
     setUploading(true);
-    setMessage({ type: 'info', text: 'Uploading files...' });
+    setMessage({ type: 'info', text: files.length > 0 ? 'Uploading files...' : 'Creating post...' });
 
     try {
       let mediaUrl = null;
       let mediaUrls = null;
-      const isLibraryFile = files[0]?.libraryFileId !== undefined;
+      // No files = text-only post; use 'static' so backend skips mediaUrl requirement
+      const resolvedContentType = files.length === 0 ? 'static' : contentType;
 
-      if (isLibraryFile) {
-        if (contentType === 'carousel') mediaUrls = files.map(f => f.url);
-        else mediaUrl = files[0].url;
-        await Promise.all(files.filter(f => f.libraryFileId).map(f => mediaAPI.markUsed(f.libraryFileId)));
-      } else if (contentType === 'carousel') {
-        const { data: carouselData } = await uploadAPI.uploadCarousel(files);
-        mediaUrls = carouselData.slides.map(s => s.url);
-      } else {
-        const { data: mediaData } = await uploadAPI.uploadMedia(files[0]);
-        mediaUrl = mediaData.url;
+      if (files.length > 0) {
+        if (resolvedContentType === 'carousel') {
+          // Each slide handled individually — supports mixed library + new uploads in same carousel
+          mediaUrls = await Promise.all(files.map(async (f) => {
+            if (f.libraryFileId !== undefined) {
+              await mediaAPI.markUsed(f.libraryFileId).catch(() => {});
+              return f.url;
+            }
+            const { data } = await uploadAPI.uploadMedia(f);
+            return data.url;
+          }));
+        } else {
+          // Single file (photo or video)
+          const f = files[0];
+          if (f.libraryFileId !== undefined) {
+            mediaUrl = f.url;
+            await mediaAPI.markUsed(f.libraryFileId).catch(() => {});
+          } else {
+            const { data } = await uploadAPI.uploadMedia(f);
+            mediaUrl = data.url;
+          }
+        }
       }
 
       setMessage({ type: 'info', text: 'Creating post...' });
-      const hashtagArr = hashtags.split(/[\s,]+/).map(h => h.trim().replace(/^#/, '')).filter(Boolean);
+      const hashtagArr = (caption.match(/#[\w]+/g) || []).map(h => h.replace(/^#/, '')).filter(Boolean);
       const { data: postData } = await uploadAPI.createPost({
-        contentType, mediaUrl, mediaUrls, caption, hashtags: hashtagArr,
+        contentType: resolvedContentType, mediaUrl, mediaUrls, caption, hashtags: hashtagArr,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         platforms, accountIds: selectedAccountIds,
         platform_captions: customCaptionsEnabled && Object.keys(platformCaptions).length > 0 ? platformCaptions : undefined,
         location_id: selectedLocation?.id || null,
         location_name: selectedLocation?.name || null,
         scheduledDate: scheduledDateTime,
         publishNow: scheduleMode === 'now',
+        followUpComment: followUpEnabled && followUpComment.trim() ? followUpComment.trim() : null,
+        optimizeMedia: mediaOptimization,
+        fbPostFormat, igPostFormat,
+        igCollaborator: igCollaborator.trim() || null,
+        fbTextBackground: fbBgColor || null,
+        status: scheduleMode === 'approval' ? 'pending_approval' : undefined,
       });
       let successMsg, msgType = 'success';
       if (scheduleMode === 'now') {
@@ -302,15 +610,24 @@ export default function Upload() {
         } else {
           successMsg = 'Published successfully!';
         }
+      } else if (scheduleMode === 'approval') {
+        successMsg = 'Sent for approval!';
+      } else if (scheduleMode === 'draft') {
+        successMsg = 'Saved as draft';
       } else {
-        successMsg = 'Scheduled! · 0 credits used';
+        successMsg = 'Scheduled!';
       }
       setMessage({ type: msgType, text: successMsg });
       if (msgType !== 'error') {
         setTimeout(() => {
-          setFiles([]); setPreviews([]); setCaption(''); setHashtags('');
+          setFiles([]); setPreviews([]); setCaption('');
           setScheduleDate(''); setMessage({ type: '', text: '' });
-          router.push('/calendar');
+          setFbBgColor(null); setIgCollaborator('');
+          if (scheduleMode === 'draft' || scheduleMode === 'approval') {
+            router.push('/history');
+          } else {
+            router.push('/calendar');
+          }
         }, 2000);
       }
     } catch (error) {
@@ -324,7 +641,14 @@ export default function Upload() {
 
   // ── computed ──────────────────────────────────────────────────────────────
   const allSelected = platforms.length === ALL_PLATFORM_IDS.length;
-  const charLimit = CHAR_LIMITS[previewPlatform] || 63206;
+  // Use most restrictive char limit across all selected platforms
+  const activeCharPlatforms = platforms.filter(p => CHAR_LIMITS[p]);
+  const charLimit = activeCharPlatforms.length > 0
+    ? Math.min(...activeCharPlatforms.map(p => CHAR_LIMITS[p]))
+    : 63206;
+  const charLimitPlatId = activeCharPlatforms.length > 1
+    ? activeCharPlatforms.reduce((min, p) => CHAR_LIMITS[p] < CHAR_LIMITS[min] ? p : min)
+    : null;
   const overLimitPlatforms = platforms.filter(p => {
     if (!CHAR_LIMITS[p]) return false;
     const text = customCaptionsEnabled ? (platformCaptions[p] ?? caption) : caption;
@@ -384,23 +708,29 @@ export default function Upload() {
     fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
   });
 
+  // Get real profile data for a platform from connected social accounts
+  const getProfileForPlatform = (pid) => {
+    const acc = socialAccounts.find(a => a.platform === pid && a.enabled !== false);
+    if (!acc) return null;
+    return {
+      name: acc.account_name || null,
+      handle: acc.account_username || acc.account_name?.toLowerCase().replace(/[^a-z0-9._]/g, '') || null,
+      picture: acc.profile_image_url || null,
+    };
+  };
+
   // Live preview post object (synthetic — drives mockup)
-  const hashtagArr = hashtags.split(/[\s,]+/).map(h => h.trim().replace(/^#/, '')).filter(Boolean);
   const previewPost = {
     content_type: contentType,
     media_url: previews[0] || null,
     media_urls: previews,
-    hashtags: hashtagArr,
+    hashtags: (caption.match(/#[\w]+/g) || []).map(h => h.replace(/^#/, '')),
     platforms,
     caption,
   };
 
   const ActiveMockup = MOCKUP_MAP[previewPlatform];
 
-  const submitLabel = uploading ? 'Saving…'
-    : scheduleMode === 'later' ? 'Schedule Post'
-    : scheduleMode === 'now'   ? 'Publish Now'
-    : 'Save Draft';
 
   const renderLibraryGrid = (fileList) => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
@@ -460,7 +790,7 @@ export default function Upload() {
         </div>
       }
     >
-      <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+      <div style={{ maxWidth: 1300, margin: '0 auto', width: '100%', paddingBottom: 80, paddingLeft: isMobile ? 0 : undefined, paddingRight: isMobile ? 0 : undefined }}>
 
         {message.text && (
           <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13, background: msgStyle[message.type]?.bg, border: `1px solid ${msgStyle[message.type]?.border}`, color: msgStyle[message.type]?.color }}>
@@ -469,334 +799,756 @@ export default function Upload() {
         )}
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
+          <div style={{ display: 'flex', gap: isMobile ? 12 : 20, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
 
             {/* ══ LEFT — Compose ══════════════════════════════════════════════ */}
-            <div style={{ flex: '0 0 46%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ flex: isMobile ? '1' : '0 0 54%', width: isMobile ? '100%' : undefined, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* Post to — account picker */}
-              <div style={glassCard}>
-                <SectionHeader icon={IpFacebook} title="Post to" />
-                {socialAccounts.length === 0 ? (
-                  <div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {PLATFORMS.map(({ id, name, icon: PlatIcon }) => {
-                        const sel = platforms.includes(id);
-                        const meta = PLATFORM_META[id];
-                        return (
-                          <button
-                            key={id} type="button" onClick={() => togglePlatform(id)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 7,
-                              padding: '7px 13px', borderRadius: 8, cursor: 'pointer',
-                              border: `1.5px solid ${sel ? meta.color : t.border}`,
-                              background: sel ? `${meta.color}15` : t.input,
-                              transition: 'all 150ms',
-                            }}
-                          >
-                            <PlatIcon size={14} style={{ color: sel ? meta.color : t.textMuted, flexShrink: 0 }} />
-                            <span style={{ fontSize: 12, fontWeight: 600, color: sel ? t.text : t.textMuted }}>{name}</span>
-                          </button>
-                        );
-                      })}
+              {/* Post to — compact GHL-style dropdown */}
+              <div style={{ ...glassCard, position: 'relative', zIndex: 50 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+
+                  {/* Left: Post to selector */}
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 7 }}>Post to</label>
+
+                    <div ref={accountDropdownRef} style={{ position: 'relative' }}>
+                      {/* Trigger button */}
                       <button
-                        type="button" onClick={toggleAllPlatforms}
-                        style={{
-                          padding: '7px 13px', borderRadius: 8, cursor: 'pointer',
-                          border: `1.5px solid ${allSelected ? t.primary : t.border}`,
-                          background: allSelected ? t.primaryBg : t.input,
-                          fontSize: 12, fontWeight: 700,
-                          color: allSelected ? t.primary : t.textMuted,
-                          transition: 'all 150ms',
-                        }}
-                      >All</button>
-                    </div>
-                    <div style={{ marginTop: 10, fontSize: 12, color: t.textMuted }}>
-                      No accounts connected. <a href="/settings" style={{ color: t.primary }}>Connect in Settings →</a>
+                        type="button"
+                        onClick={() => setAccountDropdownOpen(v => !v)}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, cursor: 'pointer', border: `1.5px solid ${accountDropdownOpen ? t.primary : t.border}`, background: t.isDark ? 'rgba(255,255,255,0.03)' : t.card, transition: 'all 150ms', minHeight: 48, boxSizing: 'border-box' }}
+                      >
+                        {selectedAccountIds.length === 0 ? (
+                          <span style={{ fontSize: 13, color: t.textMuted, flex: 1, textAlign: 'left' }}>Select accounts…</span>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                            {/* Stacked overlapping avatars */}
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              {socialAccounts.filter(a => selectedAccountIds.includes(a.id)).slice(0, 7).map((acct, idx) => {
+                                const meta = PLATFORM_META[acct.platform];
+                                return (
+                                  <div key={acct.id} style={{ position: 'relative', marginLeft: idx === 0 ? 0 : -10, zIndex: idx, flexShrink: 0 }}>
+                                    {acct.profile_image_url ? (
+                                      <img src={acct.profile_image_url} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', border: `2.5px solid ${t.isDark ? 'rgba(12,12,22,1)' : '#fff'}`, display: 'block' }} />
+                                    ) : (
+                                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#7C5CFC,#5B3FF0)', border: `2.5px solid ${t.isDark ? 'rgba(12,12,22,1)' : '#fff'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{(acct.account_name || acct.account_username || '?')[0].toUpperCase()}</span>
+                                      </div>
+                                    )}
+                                    {/* Platform badge bottom-right */}
+                                    <div style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, borderRadius: '50%', background: meta?.color || '#666', border: `1.5px solid ${t.isDark ? 'rgba(12,12,22,1)' : '#fff'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
+                                      {meta?.Icon && <meta.Icon size={8} color="#fff" />}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {selectedAccountIds.length > 7 && (
+                                <div style={{ width: 34, height: 34, borderRadius: '50%', background: t.input, border: `2.5px solid ${t.isDark ? 'rgba(12,12,22,1)' : '#fff'}`, marginLeft: -10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: t.textSecondary, flexShrink: 0, zIndex: 10 }}>
+                                  +{selectedAccountIds.length - 7}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {/* Chevron */}
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, transition: 'transform 200ms', transform: accountDropdownOpen ? 'rotate(180deg)' : 'none', color: t.textMuted }}>
+                          <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+
+                      {/* Clear all */}
+                      {selectedAccountIds.length > 0 && (
+                        <button type="button" onClick={() => { setSelectedAccountIds([]); setPlatforms([]); }}
+                          style={{ marginTop: 5, fontSize: 12, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'block' }}
+                        >Clear all</button>
+                      )}
+                      {selectedAccountIds.length === 0 && platforms.length === 0 && (
+                        <div style={{ marginTop: 5, fontSize: 12, color: t.error }}>Select at least one account</div>
+                      )}
+
+                      {/* Dropdown panel */}
+                      {accountDropdownOpen && (
+                        <div style={{ position: 'absolute', top: 'calc(100% + 5px)', left: 0, right: 0, zIndex: 300, background: t.isDark ? 'rgba(12,12,22,0.98)' : t.card, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: `1px solid ${t.border}`, borderRadius: 10, boxShadow: '0 8px 32px rgba(0,0,0,0.22)', maxHeight: 340, overflowY: 'auto' }}>
+
+                          {socialAccounts.length === 0 ? (
+                            <div style={{ padding: '16px 14px' }}>
+                              <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 8 }}>No accounts connected yet.</div>
+                              <a href="/settings" style={{ color: t.primary, fontSize: 13, fontWeight: 600 }}>Connect in Settings →</a>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Global select all */}
+                              <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderBottom: `1px solid ${t.border}`, cursor: 'pointer' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={socialAccounts.filter(a => a.enabled).length > 0 && socialAccounts.filter(a => a.enabled).every(a => selectedAccountIds.includes(a.id))}
+                                  ref={el => { if (el) el.indeterminate = selectedAccountIds.length > 0 && !socialAccounts.filter(a => a.enabled).every(a => selectedAccountIds.includes(a.id)); }}
+                                  onChange={() => {
+                                    const allEnabled = socialAccounts.filter(a => a.enabled);
+                                    const allSel = allEnabled.every(a => selectedAccountIds.includes(a.id));
+                                    if (allSel) { setSelectedAccountIds([]); setPlatforms([]); }
+                                    else { setSelectedAccountIds(allEnabled.map(a => a.id)); setPlatforms([...new Set(allEnabled.map(a => a.platform))]); }
+                                  }}
+                                  style={{ accentColor: t.primary, width: 15, height: 15, flexShrink: 0, cursor: 'pointer' }}
+                                />
+                                <span style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, flex: 1 }}>All accounts</span>
+                                <span style={{ fontSize: 11, color: t.textMuted }}>{socialAccounts.filter(a => a.enabled).length} connected</span>
+                              </label>
+
+                              {/* Quick groups */}
+                              {accountGroups.length > 0 && accountGroups.map(group => (
+                                <button key={group.id} type="button"
+                                  onClick={() => {
+                                    const ids = group.account_ids || [];
+                                    setSelectedAccountIds(ids);
+                                    setPlatforms([...new Set(socialAccounts.filter(a => ids.includes(a.id)).map(a => a.platform))]);
+                                    setAccountDropdownOpen(false);
+                                  }}
+                                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: 'none', border: 'none', borderBottom: `1px solid ${t.border}`, cursor: 'pointer', textAlign: 'left' }}
+                                  onMouseEnter={e => e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'}
+                                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={t.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: t.primary }}>{group.name}</span>
+                                  <span style={{ fontSize: 11, color: t.textMuted }}>({(group.account_ids || []).length})</span>
+                                </button>
+                              ))}
+
+                              {/* Platform groups */}
+                              {PLATFORMS.filter(p => socialAccounts.some(a => a.platform === p.id)).map(({ id: platId, name: platName, icon: PlatIcon }) => {
+                                const platAccounts = socialAccounts.filter(a => a.platform === platId);
+                                const enabledPlatAccounts = platAccounts.filter(a => a.enabled);
+                                const meta = PLATFORM_META[platId];
+                                const allPlatSel = enabledPlatAccounts.length > 0 && enabledPlatAccounts.every(a => selectedAccountIds.includes(a.id));
+                                const somePlatSel = platAccounts.some(a => selectedAccountIds.includes(a.id));
+
+                                return (
+                                  <div key={platId}>
+                                    {/* Platform group header */}
+                                    <div
+                                      style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 14px', background: t.isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)', borderBottom: `1px solid ${t.border}`, cursor: 'pointer' }}
+                                      onClick={() => togglePlatformGroup(platId, platAccounts, allPlatSel)}
+                                    >
+                                      <input type="checkbox" checked={allPlatSel}
+                                        ref={el => { if (el) el.indeterminate = somePlatSel && !allPlatSel; }}
+                                        onChange={() => togglePlatformGroup(platId, platAccounts, allPlatSel)}
+                                        style={{ accentColor: meta.color, width: 14, height: 14, flexShrink: 0, cursor: 'pointer' }}
+                                        onClick={e => e.stopPropagation()}
+                                      />
+                                      <div style={{ width: 20, height: 20, borderRadius: 5, background: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: `0 1px 5px ${meta.color}55` }}>
+                                        <PlatIcon size={11} color="#fff" />
+                                      </div>
+                                      <span style={{ fontSize: 12, fontWeight: 700, color: t.text, flex: 1 }}>{platName}</span>
+                                      <span style={{ fontSize: 11, color: t.textMuted }}>{platAccounts.length}</span>
+                                    </div>
+
+                                    {/* Account rows */}
+                                    {platAccounts.map((account, idx) => {
+                                      const checked = selectedAccountIds.includes(account.id);
+                                      const isLast = idx === platAccounts.length - 1;
+                                      return (
+                                        <label key={account.id}
+                                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px 9px 42px', background: checked ? `${meta.color}0a` : 'transparent', cursor: account.enabled ? 'pointer' : 'default', borderBottom: isLast ? 'none' : `1px solid ${t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'}`, transition: 'background 120ms' }}
+                                          onMouseEnter={e => { if (!checked && account.enabled) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'; }}
+                                          onMouseLeave={e => { if (!checked) e.currentTarget.style.background = 'transparent'; }}
+                                        >
+                                          <input type="checkbox" checked={checked} disabled={!account.enabled}
+                                            onChange={() => account.enabled && toggleAccount(account.id)}
+                                            style={{ accentColor: meta.color, width: 14, height: 14, flexShrink: 0, cursor: account.enabled ? 'pointer' : 'default' }}
+                                          />
+                                          {/* Avatar + platform badge */}
+                                          <div style={{ position: 'relative', flexShrink: 0 }}>
+                                            {account.profile_image_url ? (
+                                              <img src={account.profile_image_url} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
+                                            ) : (
+                                              <div style={{ width: 30, height: 30, borderRadius: '50%', background: `${meta.color}20`, border: `1.5px solid ${meta.color}35`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <span style={{ fontSize: 12, fontWeight: 700, color: meta.color }}>{(account.account_name || account.account_username || '?')[0].toUpperCase()}</span>
+                                              </div>
+                                            )}
+                                            <div style={{ position: 'absolute', bottom: -1, right: -1, width: 13, height: 13, borderRadius: '50%', background: meta.color, border: `1.5px solid ${t.isDark ? 'rgba(12,12,22,0.98)' : t.card}`, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+                                              <PlatIcon size={7} color="#fff" />
+                                            </div>
+                                          </div>
+                                          {/* Name + handle */}
+                                          <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: account.enabled ? t.text : t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                              {account.account_name || account.account_username || platName}
+                                            </div>
+                                            {account.account_username && (
+                                              <div style={{ fontSize: 11, color: t.textMuted }}>@{account.account_username.replace(/^@/, '')}</div>
+                                            )}
+                                          </div>
+                                          {/* Status dot */}
+                                          <div style={{ width: 7, height: 7, borderRadius: '50%', background: account.enabled ? '#22c55e' : '#ef4444', flexShrink: 0 }} />
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })}
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {/* Group quick-select chips */}
-                    {accountGroups.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Quick Select</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {accountGroups.map(group => (
-                            <button
-                              key={group.id} type="button"
-                              onClick={() => {
-                                const ids = group.account_ids || [];
-                                setSelectedAccountIds(ids);
-                                const uniquePlatforms = [...new Set(socialAccounts.filter(a => ids.includes(a.id)).map(a => a.platform))];
-                                setPlatforms(uniquePlatforms.length ? uniquePlatforms : []);
-                              }}
-                              style={{ padding: '5px 11px', borderRadius: 20, border: `1.5px solid ${t.primary}`, background: t.primaryBg, color: t.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                            >
-                              {group.name}
-                              <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.7 }}>({(group.account_ids || []).length})</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {PLATFORMS.filter(p => socialAccounts.some(a => a.platform === p.id)).map(({ id: platId, name: platName, icon: PlatIcon }) => {
-                      const platAccounts = socialAccounts.filter(a => a.platform === platId);
-                      const meta = PLATFORM_META[platId];
-                      return (
-                        <div key={platId}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                            <PlatIcon size={13} style={{ color: meta?.color || t.textMuted }} />
-                            <span style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{platName}</span>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 4 }}>
-                            {platAccounts.map(account => {
-                              const checked = selectedAccountIds.includes(account.id);
-                              return (
-                                <label key={account.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '5px 8px', borderRadius: 7, background: checked ? t.primaryBg : 'transparent', border: `1px solid ${checked ? t.primaryBorder : 'transparent'}`, transition: 'all 150ms' }}>
-                                  <input type="checkbox" checked={checked} onChange={() => toggleAccount(account.id)} style={{ accentColor: t.primary, width: 14, height: 14, flexShrink: 0 }} />
-                                  <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{account.account_name || account.username || platName}</span>
-                                  {account.username && account.account_name && (
-                                    <span style={{ fontSize: 11, color: t.textMuted }}>@{account.username.replace(/^@/, '')}</span>
-                                  )}
-                                  {!account.enabled && (
-                                    <span style={{ fontSize: 10, color: t.warning, marginLeft: 'auto' }}>Disconnected</span>
-                                  )}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div style={{ marginTop: 2, display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <button type="button" onClick={() => {
-                        const allIds = socialAccounts.filter(a => a.enabled).map(a => a.id);
-                        setSelectedAccountIds(allIds);
-                        const uniquePlatforms = [...new Set(socialAccounts.filter(a => a.enabled).map(a => a.platform))];
-                        setPlatforms(uniquePlatforms);
-                      }} style={{ fontSize: 11, fontWeight: 600, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
-                        Select all
+
+                  {/* Right: Customize for each channel toggle */}
+                  {platforms.length > 1 && (
+                    <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 3, gap: 8, flexShrink: 0 }}>
+                      <button type="button" onClick={() => setCustomCaptionsEnabled(v => !v)}
+                        style={{ width: 40, height: 22, borderRadius: 11, background: customCaptionsEnabled ? t.primary : t.isDark ? 'rgba(255,255,255,0.12)' : '#d1d5db', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 220ms', padding: 0, flexShrink: 0 }}
+                      >
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: customCaptionsEnabled ? 20 : 2, transition: 'left 220ms', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }} />
                       </button>
-                      <span style={{ color: t.border, userSelect: 'none' }}>·</span>
-                      <button type="button" onClick={() => { setSelectedAccountIds([]); setPlatforms([]); }} style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
-                        Clear
-                      </button>
+                      <span style={{ fontSize: 12, color: t.textSecondary, whiteSpace: 'nowrap' }}>Customize for each channel</span>
                     </div>
-                  </div>
-                )}
-                {selectedAccountIds.length === 0 && platforms.length === 0 && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: t.error }}>Select at least one account</div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Caption + Hashtags */}
               <div style={glassCard}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Caption</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {!customCaptionsEnabled && (
-                      <span style={{ fontSize: 11, color: caption.length > charLimit ? t.error : t.textMuted, fontWeight: caption.length > charLimit ? 700 : 400 }}>
-                        {caption.length.toLocaleString()} / {charLimit.toLocaleString()}
+                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type content</label>
+                  {!customCaptionsEnabled && platforms.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {charLimitPlatId && PLATFORM_META[charLimitPlatId] && (
+                        <span style={{ fontSize: 11, color: t.textMuted }}>Limited by {PLATFORM_META[charLimitPlatId].label}</span>
+                      )}
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 11px', borderRadius: 20, background: caption.length > charLimit ? 'rgba(239,68,68,0.1)' : t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)', color: caption.length > charLimit ? t.error : t.text, border: `1px solid ${caption.length > charLimit ? 'rgba(239,68,68,0.3)' : t.border}`, transition: 'all 150ms' }}>
+                        Char limit: {Math.max(0, charLimit - caption.length).toLocaleString()}
                       </span>
-                    )}
-                    {platforms.length > 1 && (
-                      <button type="button" onClick={() => setCustomCaptionsEnabled(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: customCaptionsEnabled ? t.primary : t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', textDecoration: 'underline' }}>
-                        {customCaptionsEnabled ? 'One caption' : 'Customize per platform'}
-                      </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 {customCaptionsEnabled && platforms.length > 1 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {platforms.map(platId => {
+                  <div>
+                    {/* GHL-style platform tabs */}
+                    <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, marginBottom: 14, gap: 0 }}>
+                      {platforms.map(platId => {
+                        const meta = PLATFORM_META[platId];
+                        const PlatIcon = meta?.Icon;
+                        const isActive = (activePlatformTab || platforms[0]) === platId;
+                        return (
+                          <button key={platId} type="button"
+                            onClick={() => setActivePlatformTab(platId)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'none', border: 'none', borderBottom: `2.5px solid ${isActive ? (meta?.color || t.primary) : 'transparent'}`, marginBottom: -1, color: isActive ? (meta?.color || t.primary) : t.textMuted, cursor: 'pointer', fontSize: 13, fontWeight: isActive ? 700 : 500, transition: 'all 150ms', whiteSpace: 'nowrap' }}
+                          >
+                            {PlatIcon && <PlatIcon size={15} color={isActive ? (meta?.color || t.primary) : t.textMuted} />}
+                            <span>{meta?.label || platId}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Active platform caption textarea */}
+                    {(() => {
+                      const platId = activePlatformTab || platforms[0];
                       const meta = PLATFORM_META[platId];
                       const limit = CHAR_LIMITS[platId] || 63206;
                       const val = platformCaptions[platId] ?? caption;
                       const over = val.length > limit;
                       return (
-                        <div key={platId}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                            <label style={{ fontSize: 11, fontWeight: 700, color: meta?.color || t.textSecondary }}>{meta?.label || platId}</label>
-                            <span style={{ fontSize: 10, color: over ? t.error : t.textMuted, fontWeight: over ? 700 : 400 }}>{val.length.toLocaleString()} / {limit.toLocaleString()}</span>
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: meta?.color || t.textSecondary }}>{meta?.label || platId}</span>
+                            <span style={{ fontSize: 12, color: over ? t.error : t.textMuted, fontWeight: over ? 700 : 500, fontVariantNumeric: 'tabular-nums' }}>{val.length.toLocaleString()} / {limit.toLocaleString()}</span>
                           </div>
-                          <Textarea
+                          <textarea
+                            key={platId}
+                            ref={captionRef}
                             value={val}
                             onChange={e => setPlatformCaptions(prev => ({ ...prev, [platId]: e.target.value }))}
-                            placeholder={`Caption for ${meta?.label || platId}…`}
-                            rows={4}
-                            style={{ borderColor: over ? t.error : undefined }}
+                            placeholder={`Caption for ${meta?.label || platId}...`}
+                            rows={7}
+                            style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1.5px solid ${over ? t.error : (t.isDark ? 'rgba(255,255,255,0.08)' : t.borderStrong)}`, borderRadius: 8, color: t.text, fontSize: 14, lineHeight: 1.6, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 150ms' }}
+                            onFocus={e => { if (!over) e.target.style.borderColor = meta?.color || t.primary; }}
+                            onBlur={e => { e.target.style.borderColor = over ? t.error : (t.isDark ? 'rgba(255,255,255,0.08)' : t.borderStrong); }}
                           />
+                          {over && (
+                            <div style={{ marginTop: 6, fontSize: 12, color: t.error }}>
+                              {val.length - limit} characters over the {meta?.label} limit
+                            </div>
+                          )}
+                          {/* Formatting toolbar — same as single caption mode */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 1, marginTop: 6, padding: '4px 6px', background: t.isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderRadius: 8, border: `1px solid ${t.border}`, flexWrap: 'wrap' }}>
+                            <div ref={emojiPickerRef}>
+                              <button type="button" title="Emoji" onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setEmojiPickerPos({ top: r.bottom + 6, left: r.left }); setShowEmojiPicker(v => !v); }}
+                                style={{ width: 32, height: 28, background: showEmojiPicker ? (t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)') : 'none', border: 'none', cursor: 'pointer', borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 120ms', color: t.textSecondary }}
+                                onMouseEnter={e => e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)'}
+                                onMouseLeave={e => e.currentTarget.style.background = showEmojiPicker ? (t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)') : 'none'}
+                              >
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                              </button>
+                            </div>
+                            <div style={{ width: 1, height: 18, background: t.border, margin: '0 3px', flexShrink: 0 }} />
+                            <button type="button" title="Insert hashtag" onClick={() => setPlatformCaptions(prev => ({ ...prev, [platId]: (prev[platId] ?? caption) + ' #' }))}
+                              style={{ height: 28, padding: '0 8px', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 5, fontSize: 14, fontWeight: 700, color: t.textSecondary, transition: 'background 120ms' }}
+                              onMouseEnter={e => e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                            >#</button>
+                            <button type="button" title="Insert mention" onClick={() => setPlatformCaptions(prev => ({ ...prev, [platId]: (prev[platId] ?? caption) + ' @' }))}
+                              style={{ height: 28, padding: '0 8px', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 5, fontSize: 14, fontWeight: 700, color: t.textSecondary, transition: 'background 120ms' }}
+                              onMouseEnter={e => e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                            >@</button>
+                            <div style={{ width: 1, height: 18, background: t.border, margin: '0 3px', flexShrink: 0 }} />
+                            <button type="button" title="Insert link"
+                              onClick={() => { const url = window.prompt('Paste a URL to insert:'); if (url?.trim()) setPlatformCaptions(prev => ({ ...prev, [platId]: (prev[platId] ?? caption) + ` ${url.trim().startsWith('http') ? url.trim() : 'https://'+url.trim()}` })); }}
+                              style={{ width: 32, height: 28, background: 'none', border: 'none', cursor: 'pointer', borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 120ms', color: t.textSecondary }}
+                              onMouseEnter={e => e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            </button>
+                          </div>
                         </div>
                       );
-                    })}
+                    })()}
                   </div>
                 ) : (
                   <>
-                    <Textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Write a caption…" rows={7} />
+                    <textarea
+                      ref={captionRef}
+                      value={caption}
+                      onChange={e => setCaption(e.target.value)}
+                      placeholder="Write a caption…"
+                      rows={7}
+                      style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1.5px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 14, lineHeight: 1.6, resize: 'vertical', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 150ms' }}
+                      onFocus={e => e.target.style.borderColor = t.primary}
+                      onBlur={e => e.target.style.borderColor = t.isDark ? 'rgba(255,255,255,0.08)' : t.borderStrong}
+                    />
+
+                    {/* Formatting toolbar — GHL style */}
+                    {(() => {
+                      const tbBtn = (opts = {}) => ({ width: 30, height: 30, background: 'none', border: 'none', cursor: opts.disabled ? 'default' : 'pointer', borderRadius: 6, color: opts.disabled ? t.textMuted : t.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 120ms', opacity: opts.disabled ? 0.38 : 1, padding: 0, fontSize: 13, fontWeight: 600 });
+                      const tbHover = (e, on) => { if (e.currentTarget.style.opacity !== '0.38') e.currentTarget.style.background = on ? (t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)') : 'none'; };
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 1, marginTop: 8, padding: '4px 6px', background: t.isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)', borderRadius: 10, border: `1px solid ${t.border}`, flexWrap: 'wrap', position: 'relative' }}>
+                          {/* Bold */}
+                          <button type="button" title="Bold — select text first"
+                            onClick={() => applyFormatting('bold')}
+                            style={tbBtn()} onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                          >
+                            <span style={{ fontWeight: 800, fontFamily: 'serif', fontSize: 14 }}>B</span>
+                          </button>
+                          {/* Italic */}
+                          <button type="button" title="Italic — select text first"
+                            onClick={() => applyFormatting('italic')}
+                            style={tbBtn()} onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                          >
+                            <span style={{ fontStyle: 'italic', fontFamily: 'serif', fontSize: 14 }}>I</span>
+                          </button>
+                          <div style={{ width: 1, height: 18, background: t.border, margin: '0 3px', flexShrink: 0 }} />
+                          {/* Emoji — picker rendered as root portal (see below) */}
+                          <div ref={emojiPickerRef}>
+                            <button type="button" title="Add emoji" onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setEmojiPickerPos({ top: r.bottom + 6, left: r.left }); setShowEmojiPicker(v => !v); }}
+                              style={{ ...tbBtn(), background: showEmojiPicker ? (t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)') : 'none' }}
+                              onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                            >
+                              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                            </button>
+                          </div>
+                          {/* Add Image — opens library modal directly */}
+                          <button type="button" title="Add Image"
+                            onClick={() => { setLibraryUploadType('image'); openLibraryForType('image'); }}
+                            style={tbBtn()} onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                          </button>
+                          {/* Upload from device */}
+                          <button type="button" title="Upload from device"
+                            onClick={() => fileInputRef.current?.click()}
+                            style={tbBtn()} onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                          </button>
+                          {/* Add Video — opens library modal */}
+                          <button type="button" title="Add Video"
+                            onClick={() => { setLibraryUploadType('video'); openLibraryForType('video'); }}
+                            style={tbBtn()} onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                          </button>
+                          <div style={{ width: 1, height: 18, background: t.border, margin: '0 3px', flexShrink: 0 }} />
+                          {/* Hashtag */}
+                          <button type="button" title="Add Hashtag" onClick={() => insertIntoCaption(' #')}
+                            style={tbBtn()} onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+                          </button>
+                          {/* Tag / Mention */}
+                          <button type="button" title="Tag someone" onClick={() => insertIntoCaption(' @')}
+                            style={tbBtn()} onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                          </button>
+                          {/* Link — inline input */}
+                          <div style={{ position: 'relative', flexShrink: 0 }}>
+                            <button type="button" title="Link Shortener"
+                              onClick={() => setShowLinkInput(v => !v)}
+                              style={{ ...tbBtn(), background: showLinkInput ? (t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)') : 'none' }}
+                              onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            </button>
+                            {showLinkInput && (
+                              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 600, background: t.isDark ? 'rgba(12,12,22,0.98)' : t.card, backdropFilter: 'blur(20px)', border: `1px solid ${t.border}`, borderRadius: 10, padding: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.22)', width: 280, display: 'flex', gap: 6 }}>
+                                <input
+                                  ref={linkInputRef}
+                                  value={linkInputVal}
+                                  onChange={e => setLinkInputVal(e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') { const url = linkInputVal.trim(); if (url) { insertIntoCaption(` ${url.startsWith('http') ? url : 'https://'+url}`); } setShowLinkInput(false); setLinkInputVal(''); } if (e.key === 'Escape') { setShowLinkInput(false); setLinkInputVal(''); } }}
+                                  placeholder="https://example.com"
+                                  style={{ flex: 1, padding: '6px 10px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 7, color: t.text, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+                                />
+                                <button type="button"
+                                  onClick={() => { const url = linkInputVal.trim(); if (url) insertIntoCaption(` ${url.startsWith('http') ? url : 'https://'+url}`); setShowLinkInput(false); setLinkInputVal(''); }}
+                                  style={{ padding: '6px 12px', background: t.primary, border: 'none', borderRadius: 7, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                >Insert</button>
+                              </div>
+                            )}
+                          </div>
+                          {/* Add Location — inline popup */}
+                          <div style={{ position: 'relative', flexShrink: 0 }} ref={locationPopupRef}>
+                            <button type="button" title="Add Location"
+                              onClick={() => setShowLocationPopup(v => !v)}
+                              style={{ ...tbBtn(), background: (showLocationPopup || selectedLocation) ? (t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)') : 'none', color: selectedLocation ? t.primary : t.textSecondary }}
+                              onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                            </button>
+                            {showLocationPopup && (
+                              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)', zIndex: 600, background: t.isDark ? 'rgba(12,12,22,0.98)' : t.card, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: `1px solid ${t.border}`, borderRadius: 12, padding: 12, boxShadow: '0 12px 32px rgba(0,0,0,0.22)', width: 280 }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Add Location</div>
+                                {selectedLocation ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8 }}>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill={t.primary} stroke="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: t.primary, flex: 1 }}>{selectedLocation.name}{selectedLocation.city ? `, ${selectedLocation.city}` : ''}</span>
+                                    <button type="button" onClick={() => { setSelectedLocation(null); }}
+                                      style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', padding: '0 2px', display: 'flex', alignItems: 'center' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                                  </div>
+                                ) : (
+                                  <div style={{ position: 'relative' }}>
+                                    <input
+                                      value={locationQuery}
+                                      onChange={e => handleLocationSearch(e.target.value)}
+                                      placeholder="Search a place…"
+                                      autoFocus
+                                      style={{ width: '100%', padding: '8px 10px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                                      onFocus={e => e.target.style.borderColor = t.primary}
+                                      onBlur={e => e.target.style.borderColor = t.border}
+                                    />
+                                    {locationSearching && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4 }}>Searching…</div>}
+                                    {locationResults.length > 0 && (
+                                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 700, background: t.isDark ? 'rgba(12,12,22,0.98)' : t.card, border: `1px solid ${t.border}`, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.18)', marginTop: 4, overflow: 'hidden' }}>
+                                        {locationResults.map(loc => (
+                                          <button key={loc.id} type="button"
+                                            onClick={() => { setSelectedLocation(loc); setLocationQuery(''); setLocationResults([]); setShowLocationPopup(false); }}
+                                            style={{ width: '100%', padding: '9px 12px', background: 'none', border: 'none', borderBottom: `1px solid ${t.border}`, color: t.text, fontSize: 13, textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}
+                                            onMouseEnter={e => e.currentTarget.style.background = t.input}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                          >
+                                            <span style={{ fontWeight: 600 }}>{loc.name}</span>
+                                            {loc.city && <span style={{ fontSize: 11, color: t.textMuted }}>{loc.city}{loc.country ? `, ${loc.country}` : ''}</span>}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {/* Text Background — Facebook only */}
+                          <div style={{ position: 'relative', flexShrink: 0 }} ref={bgPickerRef}>
+                            <button type="button" title="Text backgrounds apply to Facebook posts only."
+                              onClick={() => setShowBgPicker(v => !v)}
+                              style={{ ...tbBtn(), background: fbBgColor ? `${fbBgColor}22` : (showBgPicker ? (t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)') : 'none') }}
+                              onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                            >
+                              <span style={{ fontSize: 13, fontWeight: 700, background: fbBgColor || (t.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'), color: fbBgColor ? '#fff' : 'inherit', borderRadius: 3, padding: '1px 4px', letterSpacing: '-0.02em' }}>A</span>
+                            </button>
+                            {showBgPicker && (
+                              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 600, background: t.isDark ? 'rgba(12,12,22,0.98)' : t.card, backdropFilter: 'blur(20px)', border: `1px solid ${t.border}`, borderRadius: 12, padding: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.22)', width: 220 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Facebook Background</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                  {FB_BG_COLORS.map(c => (
+                                    <button key={c.id} type="button"
+                                      onClick={() => { setFbBgColor(c.bg); setShowBgPicker(false); }}
+                                      title={c.label}
+                                      style={{ width: 28, height: 28, borderRadius: 6, background: c.bg || (t.isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb'), border: fbBgColor === c.bg ? `2px solid ${t.primary}` : `1.5px solid ${t.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 100ms' }}
+                                    >
+                                      {c.id === 'none' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={t.textMuted} strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {overLimitPlatforms.length > 0 && (
                       <div style={{ marginTop: 8, padding: '7px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 7, fontSize: 12, color: t.error }}>
                         Too long for: {overLimitPlatforms.map(p => `${PLATFORM_META[p]?.label || p} (${caption.length.toLocaleString()} / ${CHAR_LIMITS[p].toLocaleString()})`).join(' · ')}
                       </div>
                     )}
+
+                    {/* Media optimization + thumbnail preview */}
+                    <div style={{ marginTop: 12 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', width: 'fit-content' }}>
+                        <div onClick={() => setMediaOptimization(v => !v)}
+                          style={{ width: 36, height: 20, borderRadius: 10, background: mediaOptimization ? t.primary : (t.isDark ? 'rgba(255,255,255,0.12)' : '#d1d5db'), position: 'relative', transition: 'background 220ms', cursor: 'pointer', flexShrink: 0 }}>
+                          <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: mediaOptimization ? 18 : 2, transition: 'left 220ms', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }} />
+                        </div>
+                        <span style={{ fontSize: 12, color: t.textSecondary }}>Media optimization</span>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                          onMouseEnter={e => { const tip = e.currentTarget.querySelector('[data-tip]'); if (tip) tip.style.display = 'block'; }}
+                          onMouseLeave={e => { const tip = e.currentTarget.querySelector('[data-tip]'); if (tip) tip.style.display = 'none'; }}
+                        >
+                          <span style={{ cursor: 'help', color: t.textMuted, display: 'flex', alignItems: 'center' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
+                          </span>
+                          <div data-tip style={{ display: 'none', position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: '#1c1c1c', color: '#fff', fontSize: 12, lineHeight: 1.55, padding: '9px 13px', borderRadius: 8, width: 240, zIndex: 9999, boxShadow: '0 4px 20px rgba(0,0,0,0.35)', pointerEvents: 'none', whiteSpace: 'normal' }}>
+                            All images will be optimized for all required content formats to support all channels
+                            <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid #1c1c1c' }} />
+                          </div>
+                        </div>
+                      </label>
+
+                      {previews.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10, alignItems: 'center' }}>
+                          {previews.map((url, idx) => {
+                            const isVideo = files[idx]?.type === 'video' || (typeof files[idx] === 'object' && !files[idx]?.libraryFileId && files[idx]?.name?.match(/\.(mp4|mov|webm)$/i));
+                            return (
+                              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}
+                                draggable={contentType === 'carousel'}
+                                onDragStart={() => handleDragStart(idx)}
+                                onDragOver={handleDragOver}
+                                onDrop={e => handleDrop(e, idx)}
+                              >
+                                {/* Drag handle — outside left, GHL style */}
+                                {contentType === 'carousel' && (
+                                  <div style={{ cursor: 'grab', padding: '4px 2px', color: t.textMuted, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                                    title="Drag to reorder"
+                                  >
+                                    <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor">
+                                      <circle cx="2" cy="2" r="1.2"/><circle cx="6" cy="2" r="1.2"/>
+                                      <circle cx="2" cy="6" r="1.2"/><circle cx="6" cy="6" r="1.2"/>
+                                      <circle cx="2" cy="10" r="1.2"/><circle cx="6" cy="10" r="1.2"/>
+                                    </svg>
+                                  </div>
+                                )}
+                                {/* Thumbnail */}
+                                <div style={{ position: 'relative', width: 88, height: 88, borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${t.border}`, flexShrink: 0 }}>
+                                  {isVideo ? (
+                                    <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  ) : (
+                                    <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  )}
+                                  {/* Overlay: trash (left) + pencil+chevron (right) — GHL style */}
+                                  <div style={{ position: 'absolute', top: 3, left: 3, right: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    {/* Trash */}
+                                    <button type="button" title="Remove" onClick={() => removeFile(idx)}
+                                      style={{ width: 22, height: 22, background: 'rgba(30,30,30,0.82)', border: 'none', borderRadius: 5, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0, backdropFilter: 'blur(4px)' }}>
+                                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                                    </button>
+                                    {/* Pencil + Chevron — split edit button (dropdown is a fixed portal, not inline) */}
+                                    {!isVideo && (
+                                      <div style={{ display: 'flex', flexShrink: 0 }}>
+                                        <button type="button" title="Edit in Image Editor"
+                                          onClick={e => { e.stopPropagation(); setImageEditorIdx(idx); setEditDropdownIdx(null); }}
+                                          style={{ width: 22, height: 22, background: t.primary, border: 'none', borderRadius: '5px 0 0 5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                        </button>
+                                        <button type="button"
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            setEditDropdownAnchor({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                                            setEditDropdownIdx(editDropdownIdx === idx ? null : idx);
+                                          }}
+                                          style={{ width: 16, height: 22, background: t.primary, border: 'none', borderLeft: '1px solid rgba(255,255,255,0.28)', borderRadius: '0 5px 5px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                                          <svg width="7" height="5" viewBox="0 0 10 6" fill="none"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {/* Add more for carousel */}
+                          {contentType === 'carousel' && files.length < 10 && (
+                            <button type="button" onClick={() => fileInputRef.current?.click()}
+                              style={{ width: 88, height: 88, borderRadius: 10, border: `2px dashed ${t.border}`, background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, color: t.textMuted, flexShrink: 0, transition: 'all 150ms' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = t.primary; e.currentTarget.style.color = t.primary; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}
+                            >
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                              <span style={{ fontSize: 10, fontWeight: 600 }}>Add</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Hidden file inputs */}
+                      <input type="file" ref={fileInputRef} onChange={handleFileSelect}
+                        accept="image/*,video/*"
+                        multiple
+                        style={{ display: 'none' }}
+                      />
+                      <input type="file" ref={libraryFileInputRef} onChange={handleLibraryUpload}
+                        accept={libraryUploadType === 'video' ? 'video/*' : 'image/*,video/*'}
+                        style={{ display: 'none' }}
+                      />
+                      <input type="file" ref={replaceFileInputRef} onChange={handleReplaceFile}
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                      />
+                    </div>
                   </>
                 )}
-                <div style={{ marginTop: 10 }}>
-                  <Input value={hashtags} onChange={e => setHashtags(e.target.value)} placeholder="#social #marketing #yourcity" />
+
+                {/* Follow up comment */}
+                <div style={{ marginTop: 14, borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
+                  <button type="button" onClick={() => setFollowUpEnabled(v => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: '100%', color: followUpEnabled ? t.primary : t.textMuted }}
+                    onMouseEnter={e => { e.currentTarget.style.color = t.primary; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = followUpEnabled ? t.primary : t.textMuted; }}
+                  >
+                    {/* Custom speech bubble with reply arrow icon */}
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transition: 'color 150ms' }}>
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                      <line x1="9" y1="10" x2="15" y2="10"/>
+                      <line x1="9" y1="13" x2="13" y2="13"/>
+                    </svg>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'inherit', flex: 1, textAlign: 'left', transition: 'color 150ms' }}>Follow up comment</span>
+                    <div title="Automatically posts a first comment — great for adding links without hurting organic reach"
+                      onClick={e => e.stopPropagation()}
+                      style={{ width: 16, height: 16, borderRadius: '50%', background: t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', flexShrink: 0, marginRight: 4 }}>
+                      <span style={{ fontSize: 10, color: t.textMuted, lineHeight: 1 }}>?</span>
+                    </div>
+                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transition: 'transform 200ms', transform: followUpEnabled ? 'rotate(180deg)' : 'none', color: 'inherit', flexShrink: 0 }}>
+                      <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  {followUpEnabled && (
+                    <Textarea
+                      value={followUpComment}
+                      onChange={e => setFollowUpComment(e.target.value)}
+                      placeholder="Add a follow-up comment posted automatically as the first comment…"
+                      rows={3}
+                      style={{ marginTop: 10 }}
+                    />
+                  )}
                 </div>
               </div>
 
-              {/* Location Tagging */}
-              {platforms.some(p => p === 'facebook' || p === 'instagram') && (
+              {/* Selected location badge — shown inline when a location is chosen */}
+              {selectedLocation && (
+                <div style={{ ...glassCard, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill={t.primary} stroke="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: t.primary, flex: 1 }}>{selectedLocation.name}{selectedLocation.city ? `, ${selectedLocation.city}` : ''}</span>
+                  <button type="button" onClick={() => setSelectedLocation(null)}
+                    style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', padding: '0 2px', display: 'flex', alignItems: 'center' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                </div>
+              )}
+
+
+              {/* Advanced options — Facebook/Instagram platform-specific */}
+              {(platforms.includes('facebook') || platforms.includes('instagram')) && (
                 <div style={glassCard}>
-                  <SectionHeader icon={IpFacebook} title="Add Location" />
-                  {selectedLocation ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: t.text, flex: 1 }}>
-                        📍 {selectedLocation.name}{selectedLocation.city ? `, ${selectedLocation.city}` : ''}
-                      </span>
-                      <button type="button" onClick={() => setSelectedLocation(null)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', padding: '2px 4px', fontSize: 12 }}>✕ Remove</button>
-                    </div>
-                  ) : (
-                    <div style={{ position: 'relative' }}>
-                      <Input
-                        value={locationQuery}
-                        onChange={e => handleLocationSearch(e.target.value)}
-                        placeholder="Search a place…"
-                      />
-                      {locationSearching && <div style={{ fontSize: 12, color: t.textMuted, marginTop: 4 }}>Searching…</div>}
-                      {locationResults.length > 0 && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', marginTop: 4 }}>
-                          {locationResults.map(loc => (
-                            <button key={loc.id} type="button" onClick={() => { setSelectedLocation(loc); setLocationQuery(''); setLocationResults([]); }} style={{ width: '100%', padding: '9px 12px', background: 'none', border: 'none', borderBottom: `1px solid ${t.border}`, color: t.text, fontSize: 13, textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}
-                              onMouseEnter={e => e.currentTarget.style.background = t.input}
-                              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                              <span style={{ fontWeight: 600 }}>{loc.name}</span>
-                              {loc.city && <span style={{ fontSize: 11, color: t.textMuted }}>{loc.city}{loc.country ? `, ${loc.country}` : ''}</span>}
-                            </button>
-                          ))}
+                  <button type="button" onClick={() => setShowAdvancedOptions(v => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: '100%', textAlign: 'left' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: t.textSecondary, flex: 1 }}>Advanced options</span>
+                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transition: 'transform 200ms', transform: showAdvancedOptions ? 'rotate(180deg)' : 'none', color: t.textMuted }}>
+                      <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+
+                  {showAdvancedOptions && (
+                    <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+                      {/* Facebook options */}
+                      {platforms.includes('facebook') && (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                            <IpFacebook size={16} color="#1877F2" />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Facebook options</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 8, fontWeight: 500 }}>Post this as</div>
+                          <div style={{ display: 'flex', gap: 20 }}>
+                            {['Feed', 'Reel', 'Story'].map(fmt => (
+                              <label key={fmt} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer' }}>
+                                <input type="radio" name="fb-format" value={fmt.toLowerCase()}
+                                  checked={fbPostFormat === fmt.toLowerCase()}
+                                  onChange={() => setFbPostFormat(fmt.toLowerCase())}
+                                  style={{ accentColor: '#1877F2', width: 15, height: 15, cursor: 'pointer' }}
+                                />
+                                <span style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{fmt}</span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
                       )}
+
+                      {/* Instagram options */}
+                      {platforms.includes('instagram') && (
+                        <div style={{ borderTop: platforms.includes('facebook') ? `1px solid ${t.border}` : 'none', paddingTop: platforms.includes('facebook') ? 18 : 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                            <IpInstagram size={16} color="#E1306C" />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Instagram options</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 8, fontWeight: 500 }}>Post this as</div>
+                          <div style={{ display: 'flex', gap: 20, marginBottom: 16 }}>
+                            {['Feed', 'Reel', 'Story'].map(fmt => (
+                              <label key={fmt} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer' }}>
+                                <input type="radio" name="ig-format" value={fmt.toLowerCase()}
+                                  checked={igPostFormat === fmt.toLowerCase()}
+                                  onChange={() => setIgPostFormat(fmt.toLowerCase())}
+                                  style={{ accentColor: '#E1306C', width: 15, height: 15, cursor: 'pointer' }}
+                                />
+                                <span style={{ fontSize: 13, color: t.text, fontWeight: 500 }}>{fmt}</span>
+                              </label>
+                            ))}
+                          </div>
+
+                          {/* Invite collaborators */}
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t.textSecondary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Invite collaborators</span>
+                              <div title="If they accept, this post will be shared to their followers and they'll be shown as authors of this post." style={{ width: 15, height: 15, borderRadius: '50%', background: t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', flexShrink: 0 }}>
+                                <span style={{ fontSize: 10, color: t.textMuted }}>?</span>
+                              </div>
+                            </div>
+                            <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 8, lineHeight: 1.5 }}>
+                              If they accept, this post will be shared to their followers and they'll be shown as authors of this post. Please confirm that you're using the correct username.
+                            </div>
+                            <Input
+                              value={igCollaborator}
+                              onChange={e => setIgCollaborator(e.target.value)}
+                              placeholder="Invite collaborators by entering their Instagram username here."
+                            />
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Media */}
-              <div style={glassCard}>
-                <SectionHeader icon={UploadIcon} title="Media" />
-
-                {/* Content type compact buttons */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-                  {CONTENT_TYPES.map(opt => {
-                    const sel = contentType === opt.id;
-                    return (
-                      <button
-                        key={opt.id} type="button"
-                        onClick={() => { setContentType(opt.id); setFiles([]); setPreviews([]); }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '9px 16px', borderRadius: 10, cursor: 'pointer',
-                          border: `1.5px solid ${sel ? 'rgba(124,92,252,0.5)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
-                          background: sel ? (t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.07)') : (t.isDark ? 'rgba(255,255,255,0.03)' : t.input),
-                          backdropFilter: 'blur(12px)',
-                          WebkitBackdropFilter: 'blur(12px)',
-                          boxShadow: sel ? '0 4px 16px rgba(124,92,252,0.18), inset 0 1px 0 rgba(255,255,255,0.07)' : 'none',
-                          transform: sel ? 'translateY(-1px)' : 'none',
-                          transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
-                        }}
-                      >
-                        <opt.icon size={15} color={sel ? 'url(#brand-gradient)' : t.textMuted} />
-                        <span style={{ fontSize: 12, fontWeight: 600, color: sel ? t.text : t.textMuted }}>{opt.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Upload buttons */}
-                <div style={{ display: 'flex', gap: 10, marginBottom: previews.length > 0 ? 14 : 0, flexWrap: 'wrap' }}>
-                  <button
-                    type="button" onClick={() => fileInputRef.current?.click()}
-                    style={{ flex: '1 1 160px', padding: '18px 14px', background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `2px dashed ${t.isDark ? 'rgba(255,255,255,0.12)' : t.borderStrong}`, borderRadius: 12, color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, transition: 'all 220ms cubic-bezier(0.34,1.56,0.64,1)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(124,92,252,0.5)'; e.currentTarget.style.background = 'rgba(124,92,252,0.06)'; e.currentTarget.style.color = t.primary; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.isDark ? 'rgba(255,255,255,0.12)' : t.borderStrong; e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.02)' : t.input; e.currentTarget.style.color = t.textSecondary; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
-                  >
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: t.isDark ? 'rgba(124,92,252,0.1)' : 'rgba(124,92,252,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid rgba(124,92,252,0.2)` }}>
-                      <UploadIcon size={18} color="url(#brand-gradient)" />
-                    </div>
-                    <span>Upload from device</span>
-                  </button>
-                  <button
-                    type="button" onClick={openLibrary}
-                    style={{ flex: '1 1 160px', padding: '18px 14px', background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.05)', border: `1px solid rgba(124,92,252,0.22)`, borderRadius: 12, color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, transition: 'all 220ms cubic-bezier(0.34,1.56,0.64,1)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(124,92,252,0.13)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,92,252,0.2), 0 0 0 3px rgba(124,92,252,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.05)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
-                  >
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(124,92,252,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid rgba(124,92,252,0.25)` }}>
-                      <IpFolderOpen size={18} color="url(#brand-gradient)" />
-                    </div>
-                    <span>Choose from library</span>
-                  </button>
-                </div>
-                <input
-                  ref={fileInputRef} type="file"
-                  accept={contentType === 'video' ? 'video/*' : 'image/*'}
-                  multiple={contentType === 'carousel'}
-                  onChange={handleFileSelect} style={{ display: 'none' }}
-                />
-
-                {/* Preview grid */}
-                {previews.length > 0 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8 }}>
-                    {previews.map((url, idx) => (
-                      <div key={idx} style={{ aspectRatio: '1/1', borderRadius: 8, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, position: 'relative' }}>
-                        {contentType === 'video'
-                          ? <video src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls />
-                          : <img src={url} alt={`preview ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        }
-                        {files[idx]?.libraryFileId && (
-                          <div style={{ position: 'absolute', bottom: 4, left: 4, padding: '2px 6px', background: 'rgba(124,92,252,0.9)', borderRadius: 4, fontSize: 9, color: '#fff', fontWeight: 600 }}>LIB</div>
-                        )}
-                        <button
-                          type="button" onClick={() => removeFile(idx)}
-                          style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.72)', border: 'none', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2, padding: 0 }}
-                        >
-                          <IpClose size={9} />
-                        </button>
-                      </div>
-                    ))}
-                    {contentType === 'carousel' && files.length < 10 && (
-                      <button
-                        type="button" onClick={openLibrary}
-                        style={{ aspectRatio: '1/1', borderRadius: 8, background: t.input, border: `2px dashed ${t.border}`, color: t.textMuted, fontSize: 24, fontWeight: 300, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >+</button>
-                    )}
-                  </div>
-                )}
-                {contentType === 'carousel' && files.length > 0 && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>{files.length} / 10 images</span>
-                    {files.length < 2 && <span style={{ color: t.warning }}>— need at least 2</span>}
-                  </div>
-                )}
-              </div>
-
-              {/* Schedule */}
+              {/* Schedule — only visible when "Schedule for Later" is chosen from the Post split button */}
+              {scheduleMode === 'later' && (
               <div style={glassCard}>
                 <SectionHeader icon={CalendarIcon} title="When to Post" />
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: scheduleMode === 'later' ? 18 : 0, padding: 4, background: t.isDark ? 'rgba(255,255,255,0.03)' : t.input, borderRadius: 12, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.05)' : t.border}`, width: 'fit-content' }}>
-                  {[{ id: 'draft', label: 'Save as Draft' }, { id: 'now', label: 'Publish Now' }, { id: 'later', label: 'Schedule for Later' }].map(({ id, label }) => {
-                    const sel = scheduleMode === id;
-                    return (
-                      <button key={id} type="button" onClick={() => setScheduleMode(id)} style={{ padding: '7px 15px', borderRadius: 9, border: sel ? '1px solid rgba(124,92,252,0.4)' : '1px solid transparent', background: sel ? 'linear-gradient(135deg,#7C5CFC,#5B3FF0)' : 'transparent', color: sel ? '#fff' : t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', boxShadow: sel ? '0 2px 10px rgba(124,92,252,0.3), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none' }}>
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {scheduleMode === 'later' && (
+                {(
                   <div>
                     {/* Best time suggestion chips */}
                     {bestTimes.length > 0 && (
@@ -849,81 +1601,224 @@ export default function Upload() {
                     </div>
                     {scheduledPreview && (
                       <div style={{ padding: '10px 14px', background: 'rgba(124,92,252,0.08)', border: `1px solid rgba(124,92,252,0.22)`, borderRadius: 10, fontSize: 13, color: t.primary, fontWeight: 600, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-                        📅 Scheduled for {scheduledPreview}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Scheduled for {scheduledPreview}</span>
                       </div>
                     )}
                   </div>
                 )}
               </div>
+              )}
 
-              {/* Actions */}
-              <div style={{ display: 'flex', justifyContent: isMobile ? 'stretch' : 'flex-end', flexDirection: isMobile ? 'column-reverse' : 'row', gap: 10 }}>
-                <Button type="button" variant="secondary" onClick={() => router.push('/dashboard')} style={isMobile ? { justifyContent: 'center' } : {}}>Cancel</Button>
-                <button
-                  type="submit"
-                  disabled={uploading || (selectedAccountIds.length === 0 && platforms.length === 0) || overLimitPlatforms.length > 0}
-                  style={{
-                    padding: '10px 24px', borderRadius: 10, border: 'none', cursor: uploading ? 'default' : 'pointer',
-                    background: (uploading || (selectedAccountIds.length === 0 && platforms.length === 0)) ? t.border : 'linear-gradient(135deg,#7C5CFC,#5B3FF0)',
-                    color: '#fff', fontSize: 14, fontWeight: 700,
-                    boxShadow: (uploading || (selectedAccountIds.length === 0 && platforms.length === 0)) ? 'none' : '0 4px 16px rgba(124,92,252,0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
-                    transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
-                    ...(isMobile ? { justifyContent: 'center', width: '100%' } : {}),
-                  }}
-                  onMouseEnter={e => { if (!uploading) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(124,92,252,0.45), inset 0 1px 0 rgba(255,255,255,0.15)'; } }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,92,252,0.35), inset 0 1px 0 rgba(255,255,255,0.15)'; }}
-                >
-                  {submitLabel}
-                </button>
-              </div>
+              {/* Hidden form submit anchor — the visible action bar is fixed at the bottom */}
+              <button id="upload-submit-btn" type="submit" style={{ display: 'none' }} disabled={uploading} />
             </div>
 
             {/* ══ RIGHT — Live Preview ════════════════════════════════════════ */}
-            <div style={{ flex: 1, minWidth: 0, position: isMobile ? 'static' : 'sticky', top: 20 }}>
+            <div style={{ flex: 1, width: isMobile ? '100%' : undefined, minWidth: 0, position: isMobile ? 'static' : 'sticky', top: 20, alignSelf: 'flex-start' }}>
               <div style={{ ...glassCard, boxShadow: `0 8px 32px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.05' : '0.9'})` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'linear-gradient(135deg,#7C5CFC,#5B3FF0)', boxShadow: '0 0 6px rgba(124,92,252,0.6)' }} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Live Preview</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Post Preview</span>
                 </div>
 
-                {/* Platform tabs — only selected platforms */}
+                {/* Platform tabs — GHL style: All + platform icons with underline */}
                 {platforms.length > 0 ? (
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16, padding: 3, background: t.isDark ? 'rgba(255,255,255,0.03)' : t.input, borderRadius: 10, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.05)' : t.border}`, width: 'fit-content' }}>
-                    {platforms.filter(pid => MOCKUP_MAP[pid]).map(pid => (
-                      <PlatformTab key={pid} pid={pid} isActive={previewPlatform === pid} onClick={setPreviewPlatform} t={t} />
-                    ))}
+                  <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${t.border}`, marginBottom: 16, gap: 0 }}>
+                    {/* All tab */}
+                    <button type="button" onClick={() => setPreviewPlatform('all')}
+                      style={{ padding: '7px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: previewPlatform === 'all' ? t.primary : t.textMuted, borderBottom: `2px solid ${previewPlatform === 'all' ? t.primary : 'transparent'}`, marginBottom: -1, transition: 'all 150ms', whiteSpace: 'nowrap' }}
+                    >All</button>
+                    {/* Per-platform icon tabs */}
+                    {platforms.filter(pid => MOCKUP_MAP[pid]).map(pid => {
+                      const meta = PLATFORM_META[pid];
+                      const PlatIcon = meta?.Icon;
+                      const isActive = previewPlatform === pid;
+                      return (
+                        <button key={pid} type="button" onClick={() => setPreviewPlatform(pid)}
+                          style={{ padding: '7px 12px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: `2px solid ${isActive ? (meta?.color || t.primary) : 'transparent'}`, marginBottom: -1, transition: 'all 150ms', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          {PlatIcon && <PlatIcon size={18} style={{ color: isActive ? meta?.color : t.textMuted, transition: 'color 150ms' }} />}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div style={{ marginBottom: 16, fontSize: 12, color: t.textMuted }}>Select platforms on the left to preview</div>
+                  <div style={{ marginBottom: 16, fontSize: 12, color: t.textMuted }}>Select accounts on the left to preview</div>
                 )}
 
                 {/* Mockup area */}
-                <div style={{ background: t.isDark ? 'rgba(6,6,14,0.9)' : '#f8f8fb', borderRadius: 12, padding: 20, minHeight: 280, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.05)' : t.border}` }}>
-                  {ActiveMockup && (caption || previews.length > 0) ? (
-                    <ActiveMockup post={previewPost} caption={caption} />
+                <div style={{ borderRadius: 12, padding: previewPlatform === 'all' ? 0 : 0, minHeight: 280, overflow: 'hidden' }}>
+                  {previewPlatform === 'all' ? (
+                    /* All — stack every selected platform preview */
+                    platforms.filter(pid => MOCKUP_MAP[pid]).length > 0 && (caption || previews.length > 0) ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                        {platforms.filter(pid => MOCKUP_MAP[pid]).map((pid, idx) => {
+                          const Mock = MOCKUP_MAP[pid];
+                          const platCaption = customCaptionsEnabled ? (platformCaptions[pid] ?? caption) : caption;
+                          const isLast = idx === platforms.filter(p => MOCKUP_MAP[p]).length - 1;
+                          return (
+                            <div key={pid} style={{ borderBottom: isLast ? 'none' : `1px solid ${t.border}`, paddingBottom: isLast ? 0 : 20, marginBottom: isLast ? 0 : 20 }}>
+                              <Mock post={previewPost} caption={platCaption} profile={getProfileForPlatform(pid)} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 240, gap: 12, textAlign: 'center', padding: 20 }}>
+                        <div style={{ width: 52, height: 52, borderRadius: 14, background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid rgba(124,92,252,0.15)` }}>
+                          <IpSave size={22} color="url(#brand-gradient)" />
+                        </div>
+                        <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>Start typing your caption or<br />upload media to see a preview</div>
+                      </div>
+                    )
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 240, gap: 12, textAlign: 'center' }}>
-                      <div style={{ width: 52, height: 52, borderRadius: 14, background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid rgba(124,92,252,0.15)` }}>
-                        <IpSave size={22} color="url(#brand-gradient)" />
+                    /* Single platform */
+                    ActiveMockup && (caption || previews.length > 0) ? (
+                      <ActiveMockup post={previewPost} caption={customCaptionsEnabled ? (platformCaptions[previewPlatform] ?? caption) : caption} profile={getProfileForPlatform(previewPlatform)} />
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 240, gap: 12, textAlign: 'center', padding: 20 }}>
+                        <div style={{ width: 52, height: 52, borderRadius: 14, background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid rgba(124,92,252,0.15)` }}>
+                          <IpSave size={22} color="url(#brand-gradient)" />
+                        </div>
+                        <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>Start typing your caption or<br />upload media to see a preview</div>
                       </div>
-                      <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>
-                        Start typing your caption or<br />upload media to see a preview
-                      </div>
-                    </div>
+                    )
                   )}
                 </div>
-
-                {/* Char limit note for active preview platform */}
-                {platforms.length > 0 && (
-                  <div style={{ marginTop: 10, fontSize: 11, color: t.textMuted, textAlign: 'right' }}>
-                    {PLATFORM_META[previewPlatform]?.label} · {charLimit.toLocaleString()} char limit
-                  </div>
-                )}
               </div>
             </div>
 
           </div>
         </form>
+      </div>
+
+      {/* ─── Edit image dropdown portal — fixed so it escapes overflow:hidden thumbnail ─── */}
+      {editDropdownIdx !== null && (
+        <div onMouseDown={e => e.stopPropagation()}
+          style={{ position: 'fixed', top: editDropdownAnchor.top, right: editDropdownAnchor.right, zIndex: 10000, background: t.isDark ? 'rgba(12,12,22,0.98)' : t.card, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: `1px solid ${t.border}`, borderRadius: 10, overflow: 'hidden', boxShadow: '0 8px 28px rgba(0,0,0,0.22)', minWidth: 185 }}>
+          <button type="button"
+            onClick={() => { setImageEditorIdx(editDropdownIdx); setEditDropdownIdx(null); }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'none', border: 'none', borderBottom: `1px solid ${t.border}`, cursor: 'pointer', textAlign: 'left' }}
+            onMouseEnter={e => e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSecondary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Edit in Image Editor</span>
+          </button>
+          <button type="button"
+            onClick={() => { setReplaceFileIdx(editDropdownIdx); setEditDropdownIdx(null); replaceFileInputRef.current?.click(); }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+            onMouseEnter={e => e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.textSecondary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+            <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Replace Image</span>
+          </button>
+        </div>
+      )}
+
+      {/* ─── Image Editor Modal ─── */}
+      {imageEditorIdx !== null && previews[imageEditorIdx] && (
+        <ImageEditor
+          imageUrl={previews[imageEditorIdx]}
+          onSave={(newUrl) => {
+            setPreviews(prev => prev.map((u, i) => i === imageEditorIdx ? newUrl : u));
+            setFiles(prev => prev.map((f, i) => i === imageEditorIdx ? { ...f, url: newUrl, libraryFileId: null } : f));
+            setImageEditorIdx(null);
+          }}
+          onClose={() => setImageEditorIdx(null)}
+        />
+      )}
+
+      {/* ─── Fixed bottom action bar — GHL style, right-aligned ─── */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 300, background: t.isDark ? 'rgba(10,10,20,0.96)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderTop: `1px solid ${t.border}`, padding: isMobile ? '10px 16px' : '12px 32px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: isMobile ? 8 : 10, boxShadow: '0 -4px 24px rgba(0,0,0,0.08)' }}>
+
+        {/* Cancel — hidden on mobile */}
+        {!isMobile && (
+          <button type="button" onClick={() => router.push('/dashboard')}
+            style={{ padding: '9px 18px', borderRadius: 9, border: `1.5px solid ${t.border}`, background: 'transparent', color: t.textSecondary, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'all 150ms' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = t.textMuted; e.currentTarget.style.color = t.text; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textSecondary; }}
+          >Cancel</button>
+        )}
+
+        {/* Save for later / Draft */}
+        <button type="button" disabled={uploading}
+          onClick={() => { setScheduleMode('draft'); setTimeout(() => document.getElementById('upload-submit-btn')?.click(), 50); }}
+          style={{ padding: '9px 18px', borderRadius: 9, border: `1.5px solid ${t.border}`, background: 'transparent', color: t.textSecondary, fontSize: 14, fontWeight: 600, cursor: uploading ? 'default' : 'pointer', transition: 'all 150ms', whiteSpace: 'nowrap' }}
+          onMouseEnter={e => { if (!uploading) { e.currentTarget.style.borderColor = t.primary; e.currentTarget.style.color = t.primary; } }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textSecondary; }}
+        >{isMobile ? 'Draft' : 'Save for later'}</button>
+
+        {/* Split action button — main + chevron dropdown */}
+        <div ref={postDropdownRef} style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
+          <button type="button"
+            disabled={uploading || (selectedAccountIds.length === 0 && platforms.length === 0) || overLimitPlatforms.length > 0}
+            onClick={() => document.getElementById('upload-submit-btn')?.click()}
+            style={{
+              padding: '9px 20px', borderRadius: '9px 0 0 9px', border: 'none', cursor: uploading ? 'wait' : 'pointer',
+              background: (uploading || (selectedAccountIds.length === 0 && platforms.length === 0)) ? t.border : 'linear-gradient(135deg,#7C5CFC,#5B3FF0)',
+              color: '#fff', fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap',
+              boxShadow: (uploading || (selectedAccountIds.length === 0 && platforms.length === 0)) ? 'none' : '0 4px 16px rgba(124,92,252,0.3)',
+              transition: 'all 200ms', display: 'flex', alignItems: 'center', gap: 7,
+            }}
+          >
+            {scheduleMode === 'later' ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            ) : scheduleMode === 'now' ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            ) : scheduleMode === 'approval' ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            )}
+            {uploading ? 'Saving…' : scheduleMode === 'later' ? 'Schedule' : scheduleMode === 'now' ? 'Post Now' : scheduleMode === 'approval' ? 'Send for Approval' : 'Save Draft'}
+          </button>
+          <button type="button" disabled={uploading}
+            onClick={() => setPostDropdownOpen(v => !v)}
+            style={{ padding: '9px 12px', borderRadius: '0 9px 9px 0', border: 'none', borderLeft: '1px solid rgba(255,255,255,0.22)', background: (uploading || (selectedAccountIds.length === 0 && platforms.length === 0)) ? t.border : 'linear-gradient(135deg,#7C5CFC,#5B3FF0)', color: '#fff', cursor: uploading ? 'default' : 'pointer', transition: 'all 200ms', display: 'flex', alignItems: 'center' }}
+          >
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+              <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+
+          {postDropdownOpen && (
+            <div style={{ position: 'absolute', bottom: 'calc(100% + 10px)', right: 0, background: t.isDark ? 'rgba(12,12,22,0.98)' : t.card, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: `1px solid ${t.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)', minWidth: 240, zIndex: 9999 }}>
+              {[
+                { mode: 'now',
+                  icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>,
+                  label: 'Post Now', desc: 'Publish immediately' },
+                { mode: 'later',
+                  icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+                  label: 'Schedule for Later', desc: 'Choose a date & time' },
+                { mode: 'draft',
+                  icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
+                  label: 'Save as Draft', desc: 'Finish and publish later' },
+                { mode: 'approval',
+                  icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>,
+                  label: 'Send for Approval', desc: 'Request team review' },
+              ].map(({ mode, icon, label, desc }, idx, arr) => (
+                <button key={mode} type="button"
+                  onClick={() => { setScheduleMode(mode); setPostDropdownOpen(false); }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: scheduleMode === mode ? t.primaryBg : 'none', border: 'none', borderBottom: idx < arr.length - 1 ? `1px solid ${t.border}` : 'none', cursor: 'pointer', textAlign: 'left', transition: 'background 120ms' }}
+                  onMouseEnter={e => { if (scheduleMode !== mode) e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'; }}
+                  onMouseLeave={e => { if (scheduleMode !== mode) e.currentTarget.style.background = 'none'; }}
+                >
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: scheduleMode === mode ? t.primaryBg : (t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: scheduleMode === mode ? t.primary : t.textSecondary }}>
+                    {icon}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: scheduleMode === mode ? t.primary : t.text }}>{label}</div>
+                    <div style={{ fontSize: 11, color: t.textMuted }}>{desc}</div>
+                  </div>
+                  {scheduleMode === mode && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={t.primary} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ─── Media Library Modal ─── */}
@@ -938,7 +1833,7 @@ export default function Upload() {
           >
             <div style={{ padding: '18px 22px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: 12 }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Choose from Library</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Media Library</div>
                 <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
                   {contentType === 'carousel'
                     ? `Click files to add them — ${files.length} / 10 selected`
@@ -946,6 +1841,16 @@ export default function Upload() {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* Upload button — GHL style */}
+                <button type="button"
+                  onClick={() => libraryFileInputRef.current?.click()}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px', background: 'linear-gradient(135deg,#7C5CFC,#5B3FF0)', border: 'none', borderRadius: 9, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(124,92,252,0.3)', transition: 'opacity 150ms' }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                  Upload
+                </button>
                 {contentType === 'carousel' && files.length > 0 && (
                   <Button variant="primary" size="sm" onClick={() => setShowLibrary(false)}>
                     Done ({files.length} selected)
@@ -1027,6 +1932,47 @@ export default function Upload() {
           </div>
         </div>
       )}
+
+      {/* ─── Emoji picker portal — at root level, escapes all backdropFilter stacking contexts ─── */}
+      {showEmojiPicker && mounted && (
+        <div ref={emojiPortalRef}
+          style={{
+            position: 'fixed',
+            top: Math.min(emojiPickerPos.top, window.innerHeight - 360),
+            left: Math.min(Math.max(4, emojiPickerPos.left), window.innerWidth - 344),
+            zIndex: 99999,
+            background: t.isDark ? 'rgba(12,12,22,0.98)' : '#fff',
+            border: `1px solid ${t.border}`,
+            borderRadius: 14,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.28)',
+            width: 340,
+            maxHeight: 360,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Scrollable grid */}
+          <div style={{ overflowY: 'auto', padding: '8px 8px 10px' }}>
+            {EMOJI_CATEGORIES.map(cat => (
+              <div key={cat.label}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '8px 4px 4px' }}>{cat.label}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {cat.emojis.map(emoji => (
+                    <button key={emoji} type="button"
+                      onClick={() => { insertIntoCaption(emoji); setShowEmojiPicker(false); }}
+                      style={{ width: 30, height: 30, background: 'none', border: 'none', cursor: 'pointer', fontSize: 19, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 80ms' }}
+                      onMouseEnter={e => e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >{emoji}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
     </Layout>
   );
 }

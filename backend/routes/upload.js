@@ -187,9 +187,9 @@ module.exports = (pool) => {
   router.post('/post', authenticate, async (req, res) => {
     const client = await pool.connect();
     try {
-      const { contentType, mediaUrl, mediaUrls, caption, hashtags, platforms, accountIds, platform_captions, location_id, location_name, scheduledDate, timezone, publishNow } = req.body;
+      const { contentType, mediaUrl, mediaUrls, caption, hashtags, platforms, accountIds, platform_captions, location_id, location_name, scheduledDate, timezone, publishNow, status: requestedStatus } = req.body;
       if (!contentType || !caption) return res.status(400).json({ error: 'contentType and caption required' });
-      if (contentType !== 'carousel' && !mediaUrl) return res.status(400).json({ error: 'mediaUrl required' });
+      if (contentType !== 'carousel' && contentType !== 'static' && !mediaUrl) return res.status(400).json({ error: 'mediaUrl required' });
       if (contentType === 'carousel' && (!mediaUrls || mediaUrls.length < 2))
         return res.status(400).json({ error: 'Carousel requires at least 2 mediaUrls' });
 
@@ -203,7 +203,9 @@ module.exports = (pool) => {
 
       await client.query('BEGIN');
       let status;
-      if (scheduledDate) {
+      if (requestedStatus === 'pending_approval') {
+        status = 'pending_approval';
+      } else if (scheduledDate) {
         status = 'scheduled';
       } else if (publishNow === true || publishNow === 'true') {
         status = 'scheduled';
@@ -239,8 +241,9 @@ module.exports = (pool) => {
       await client.query('COMMIT');
 
       // Immediately publish when publishNow=true — don't wait for the 5-min cron
+      // Never publish pending_approval posts — they need manual approval first
       let publishResult = null;
-      if (publishNow === true || publishNow === 'true') {
+      if ((publishNow === true || publishNow === 'true') && status !== 'pending_approval') {
         try {
           const publisher = new SocialPublisher(pool);
           const postForPublish = { ...post, customer_id: req.customerId };
