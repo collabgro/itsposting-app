@@ -2,9 +2,16 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 
 class ScraperService {
+  // Real Chrome UAs — rotated to avoid bot detection
+  static USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
+  ];
+
   constructor() {
-    this.timeout = 15000;
-    this.userAgent = 'Mozilla/5.0 (compatible; ItsPostingBot/1.0)';
+    this.timeout = 18000;
+    this.userAgent = ScraperService.USER_AGENTS[Math.floor(Math.random() * ScraperService.USER_AGENTS.length)];
   }
 
   async scrapeWebsite(url) {
@@ -61,11 +68,24 @@ class ScraperService {
     }
     const response = await axios.get(url, {
       timeout: this.timeout,
-      headers: { 'User-Agent': this.userAgent, 'Accept': 'text/html,application/xhtml+xml' },
-      maxRedirects: 3,
+      headers: {
+        'User-Agent':                this.userAgent,
+        'Accept':                    'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language':           'en-US,en;q=0.9',
+        'Accept-Encoding':           'gzip, deflate, br',
+        'Cache-Control':             'no-cache',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest':            'document',
+        'Sec-Fetch-Mode':            'navigate',
+        'Sec-Fetch-Site':            'none',
+        'Sec-Ch-Ua':                 '"Chromium";v="124", "Google Chrome";v="124"',
+        'Sec-Ch-Ua-Mobile':          '?0',
+      },
+      maxRedirects: 5,
       maxContentLength: 10 * 1024 * 1024,
       maxBodyLength: 10 * 1024 * 1024,
-      validateStatus: (s) => s < 400,
+      decompress: true,
+      validateStatus: (s) => s < 500,
     });
     return { html: response.data, finalUrl: response.request.res?.responseUrl || url };
   }

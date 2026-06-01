@@ -237,7 +237,13 @@ module.exports = (pool) => {
     res.sendStatus(200);
 
     try {
-      if (FACEBOOK_APP_SECRET) {
+      if (!FACEBOOK_APP_SECRET) {
+        if (process.env.NODE_ENV === 'production') {
+          console.error('[MetaWebhook] FACEBOOK_APP_SECRET not set in production — rejecting payload');
+          return;
+        }
+        console.warn('[MetaWebhook] FACEBOOK_APP_SECRET not set — skipping signature check (dev only)');
+      } else {
         const sig = req.headers['x-hub-signature-256'];
         if (!sig) {
           console.warn('[MetaWebhook] Missing X-Hub-Signature-256 header — ignoring');

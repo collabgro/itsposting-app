@@ -113,9 +113,26 @@ module.exports = (pool) => {
       const auditCustomer = { ...customer, business_name: businessName, location };
 
       // Fire-and-forget — client polls for completion
-      geoAuditService.runAudit(auditCustomer, audit.id, { serviceFocus, competitors, services }).catch(err => {
+      geoAuditService.runAudit(auditCustomer, audit.id, { serviceFocus, competitors, services }).catch(async (err) => {
         console.error('[GeoAudit route] runAudit failed:', err.message);
-        pool.query(`UPDATE geo_audits SET status = 'failed' WHERE id = $1`, [audit.id]);
+        await pool.query(`UPDATE geo_audits SET status = 'failed' WHERE id = $1`, [audit.id]);
+        // Refund the cost so failed audits don't consume the user's entitlement
+        try {
+          if (isFree) {
+            await pool.query('UPDATE customers SET free_geo_audit_used = false WHERE id = $1', [billingId]);
+          } else {
+            await pool.query('UPDATE customers SET credits_balance = credits_balance + 5 WHERE id = $1', [billingId]);
+            await pool.query(
+              `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+               VALUES ($1, 'credit', 5,
+                       (SELECT credits_balance FROM customers WHERE id = $1),
+                       'GEO Audit failed — refund')`,
+              [billingId]
+            );
+          }
+        } catch (refundErr) {
+          console.error('[GeoAudit route] Refund after failure failed:', refundErr.message);
+        }
       });
 
       res.json({ auditId: audit.id, status: 'running', isFree });

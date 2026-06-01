@@ -143,7 +143,7 @@ module.exports = (pool) => {
         ? `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/linkedin')}&scope=${encodeURIComponent('openid profile email w_member_social')}&state=${encodeURIComponent(state)}`
         : null,
       tiktok: TIKTOK_CLIENT_KEY
-        ? `https://www.tiktok.com/v2/auth/authorize/?client_key=${TIKTOK_CLIENT_KEY}&response_type=code&scope=${encodeURIComponent('user.info.basic,video.publish,video.upload')}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/tiktok')}&state=${encodeURIComponent(state)}`
+        ? `https://www.tiktok.com/v2/auth/authorize/?client_key=${TIKTOK_CLIENT_KEY}&response_type=code&scope=${encodeURIComponent('user.info.basic,video.publish,video.upload,video.list')}&redirect_uri=${encodeURIComponent(baseUrl + '/api/social/callback/tiktok')}&state=${encodeURIComponent(state)}`
         : null,
     };
 
@@ -336,6 +336,28 @@ module.exports = (pool) => {
              updated_at = NOW()`,
           [customerId, page.access_token, expiresAt, page.id, page.name, pageImageUrl]
         );
+
+        // Subscribe this page to real-time webhook events (DMs + Instagram DMs).
+        // Without this call, Meta never delivers webhook events for this page even
+        // if the app-level webhook URL is registered in the Facebook Developer portal.
+        try {
+          await axios.post(
+            `https://graph.facebook.com/v21.0/${page.id}/subscribed_apps`,
+            null,
+            {
+              params: {
+                access_token: page.access_token,
+                subscribed_fields: 'messages,messaging_postbacks,instagram_messaging',
+              },
+              timeout: 8000,
+            }
+          );
+          console.log(`[Social/FB] Subscribed page "${page.name}" (${page.id}) to webhook events`);
+        } catch (subErr) {
+          // Non-fatal: polling fallback still works. Most common cause is the app
+          // webhook URL not yet registered in the Facebook Developer portal.
+          console.warn(`[Social/FB] Page webhook subscription failed for "${page.name}":`, subErr.response?.data?.error?.message || subErr.message);
+        }
       }
 
       // Step 3: Check each page for a linked Instagram account (separate calls after pages are stored)

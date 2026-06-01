@@ -439,7 +439,7 @@ export default function Dashboard() {
               label="People Reached"
               main={fmt(metrics?.totalReach)}
               numericValue={metrics?.totalReach}
-              sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local people (est.)` : 'Connect FB or IG to see data'}
+              sub={metrics ? `~${fmt(metrics.estimatedLocalReach)} local people (est.)` : 'Connect FB, IG, or TikTok to see data'}
             />
             <MetricCard t={t} accent="primary"
               label="Engagement Rate"
@@ -561,18 +561,23 @@ export default function Dashboard() {
             <span style={{ color: t.text, fontWeight: 600 }}>Where this data comes from: </span>
             All numbers reflect the{' '}
             <span style={{ color: t.info || '#0A84FF', fontWeight: 600 }}>last 30 days</span>
-            , pulled from{' '}
+            , synced from{' '}
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: t.text, fontWeight: 600 }}>
               <IpFacebook size={11} /> Facebook
-            </span>{' '}and{' '}
+            </span>
+            ,{' '}
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: t.text, fontWeight: 600 }}>
               <IpInstagram size={11} /> Instagram
-            </span>{' '}
-            only.{' '}
+            </span>
+            {' '}and{' '}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: t.text, fontWeight: 600 }}>
+              <IpTikTok size={11} /> TikTok
+            </span>
+            .{' '}
             <span style={{ color: t.textMuted }}>
-              Google Business, LinkedIn, and TikTok do not expose post-level analytics to third-party apps — this is a platform limitation, not ours.
+              Google Business does not provide per-post engagement via their API. LinkedIn sync coming soon.
             </span>{' '}
-            Industry averages are published benchmarks, not live competitor data. Actual results vary.{' '}
+            Industry averages are published benchmarks, not live competitor data.{' '}
             {metrics?.disclaimer && <span style={{ opacity: 0.75 }}>{metrics.disclaimer}</span>}
           </div>
         </div>

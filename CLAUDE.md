@@ -223,13 +223,13 @@ itsposting-app-main/
 - `wizard.js` — dedicated full-page AI content creation wizard (multi-step, all content types)
 - `billing.js` — plan management; each plan card has a plain-English tagline; "Email us to downgrade" links to support email
 - `settings.js` — profile, branding, social connections, integrations (Image Source + Inbox Sync sections removed)
-- `reports.js` — redirects to /analytics?tab=monthly
+- `reports.js` — redirects to /analytics
 - `roi.js` — redirects to /analytics
 - `receptionist.js` — redirects to /knowledge-base?tab=ai-response
 - `workspaces.js` — multi-account workspace switcher UI; permission labels use plain names (AI Visibility, Knowledge Base)
 - `contacts.js` — contacts management
 - `knowledge-base.js` — Knowledge Base UI (page title: "Knowledge Base"); train AI with business info, FAQs, pricing, docs, AI Receptionist config
-- `analytics/index.js` — analytics overview; content type labels use display names (Text Card, Photo, etc.)
+- `analytics/index.js` — analytics overview (2 tabs: Overview + Posts); content type labels use display names (Text Card, Photo, etc.)
 - `analytics/posts/[id].js` — per-post performance detail
 - `geo-audit/index.js` — AI Visibility dashboard (page title: "AI Visibility"); run/configure visibility checks
 - `geo-audit/[id].js` — AI Visibility Report (page title: "AI Visibility Report")

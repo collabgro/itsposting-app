@@ -6,6 +6,40 @@
  */
 
 const axios = require('axios');
+const sharp = require('sharp');
+const cloudinary = require('cloudinary').v2;
+
+// Background options for Facebook text-only posts — mirrors frontend FB_BG_OPTIONS.
+// Facebook native text_format_preset_id values (same approach as GHL / Publer).
+// Primary: use the preset ID for native Facebook backgrounds (≤130 chars).
+// Fallback: generate a styled image for longer captions.
+const FB_BG_MAP = {
+  sunrise:  { presetId: '901751159967576',  stops: ['#FF6B35', '#FF4785'], textColor: '#ffffff' },
+  golden:   { presetId: '901751159967576',  stops: ['#F7C948', '#FF8C00'], textColor: '#1c1e21' },
+  coral:    { presetId: '204187940028597',  stops: ['#FF6B6B', '#FE8C4B'], textColor: '#ffffff' },
+  rose:     { presetId: '1903718606535395', stops: ['#F43F5E', '#EC4899'], textColor: '#ffffff' },
+  violet:   { presetId: '1777259169190672', stops: ['#8B5CF6', '#EC4899'], textColor: '#ffffff' },
+  ocean:    { presetId: '217761075370932',  stops: ['#4FACFE', '#00F2FE'], textColor: '#ffffff' },
+  sky:      { presetId: '1365883126823705', stops: ['#6EE7F7', '#3B82F6'], textColor: '#ffffff' },
+  lavender: { presetId: '106018623298955',  stops: ['#C084FC', '#7C3AED'], textColor: '#ffffff' },
+  midnight: { presetId: '122708641613922',  stops: ['#1A1A2E', '#0F3460'], textColor: '#ffffff' },
+  forest:   { presetId: '688479024672716',  stops: ['#134E5E', '#71B280'], textColor: '#ffffff' },
+  mint:     { presetId: '301029513638534',  stops: ['#23D5AB', '#23A6D5'], textColor: '#ffffff' },
+  peach:    { presetId: '175493843120364',  stops: ['#FFDAB9', '#FF9A8B'], textColor: '#1c1e21' },
+  aurora:   { presetId: '688479024672716',  stops: ['#43E97B', '#38F9D7'], textColor: '#ffffff' },
+  yellow:   { presetId: '175493843120364',  solid: '#F5E642',              textColor: '#1c1e21' },
+  orange:   { presetId: '901751159967576',  solid: '#F08C00',              textColor: '#ffffff' },
+  red:      { presetId: '621731364695726',  solid: '#E24444',              textColor: '#ffffff' },
+  crimson:  { presetId: '1289741387813798', solid: '#9F1239',              textColor: '#ffffff' },
+  purple:   { presetId: '433967226963128',  solid: '#7B5AF6',              textColor: '#ffffff' },
+  blue:     { presetId: '1365883126823705', solid: '#4E7BF6',              textColor: '#ffffff' },
+  navy:     { presetId: '1289741387813798', solid: '#1E3A5F',              textColor: '#ffffff' },
+  green:    { presetId: '688479024672716',  solid: '#5FBF5E',              textColor: '#ffffff' },
+  teal:     { presetId: '154977255088164',  solid: '#4EB7C4',              textColor: '#ffffff' },
+  pink:     { presetId: '219266485227663',  solid: '#EC4899',              textColor: '#ffffff' },
+  dark:     { presetId: '1881421442117417', solid: '#2E2E2E',              textColor: '#ffffff' },
+  white:    { presetId: null,               solid: '#FFFFFF',              textColor: '#1c1e21' },
+};
 
 class SocialPublisher {
   constructor(pool) {
@@ -143,6 +177,73 @@ class SocialPublisher {
     }
   }
 
+  // Word-wrap plain text into lines fitting maxCharsPerLine.
+  _wrapTextLines(text, maxCharsPerLine) {
+    const words = text.split(/\s+/);
+    const lines = [];
+    let current = '';
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (candidate.length > maxCharsPerLine && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = candidate;
+      }
+    }
+    if (current) lines.push(current);
+    return lines;
+  }
+
+  // Generate a 1080×1080 styled-text image (gradient or solid bg + caption text).
+  // SVG → Sharp → Cloudinary. Returns URL or null on failure.
+  async _generateFbTextBgImage(caption, bgOptionId) {
+    const opt = FB_BG_MAP[bgOptionId];
+    if (!opt || !process.env.CLOUDINARY_CLOUD_NAME) return null;
+    try {
+      const W = 1080, H = 1080, PAD = 90;
+      const textLen = caption.length;
+      const fontSize = textLen < 60 ? 80 : textLen < 120 ? 62 : textLen < 220 ? 48 : 38;
+      const maxChars = Math.floor((W - 2 * PAD) / (fontSize * 0.55));
+      const lines = this._wrapTextLines(caption, maxChars);
+      const lineHeight = Math.round(fontSize * 1.4);
+      const startY = Math.round((H - lines.length * lineHeight) / 2) + Math.round(fontSize * 0.85);
+      const escXml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+      let bgDef = '', fillAttr = '';
+      if (opt.stops) {
+        bgDef = `<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${opt.stops[0]}"/><stop offset="100%" stop-color="${opt.stops[1]}"/></linearGradient></defs>`;
+        fillAttr = 'url(#g)';
+      } else {
+        fillAttr = opt.solid;
+      }
+
+      const textEls = lines.map((line, i) =>
+        `<text x="${W / 2}" y="${startY + i * lineHeight}" font-family="Arial,Helvetica,sans-serif" font-size="${fontSize}" font-weight="bold" fill="${opt.textColor}" text-anchor="middle">${escXml(line)}</text>`
+      ).join('');
+
+      const svg = `<?xml version="1.0" encoding="UTF-8"?><svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">${bgDef}<rect width="${W}" height="${H}" fill="${fillAttr}"/>${textEls}</svg>`;
+      const buffer = await sharp(Buffer.from(svg)).jpeg({ quality: 88 }).toBuffer();
+
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      });
+
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { resource_type: 'image', folder: 'itsposting/fb_text_bg' },
+          (err, result) => err ? reject(err) : resolve(result.secure_url)
+        );
+        stream.end(buffer);
+      });
+    } catch (err) {
+      console.warn('[SocialPublisher] FB text bg image generation failed:', err.message);
+      return null;
+    }
+  }
+
   async postToFacebook(account, post) {
     const pageId = account.account_id;
     const token  = account.access_token;
@@ -215,8 +316,10 @@ class SocialPublisher {
       }
 
       // ── Facebook Feed (default) ────────────────────────────────────────────
-      if (post.media_url && isVideo) {
-        const videoBody = { file_url: post.media_url, description: caption, published: true, access_token: token };
+      const effectiveMediaUrl = post.media_url || null;
+
+      if (effectiveMediaUrl && this._isVideoUrl(effectiveMediaUrl)) {
+        const videoBody = { file_url: effectiveMediaUrl, description: caption, published: true, access_token: token };
         if (post.location_id) videoBody.place = post.location_id;
         const res = await axios.post(`https://graph.facebook.com/v18.0/${pageId}/videos`, videoBody, { timeout: 90000 });
         const videoPostId = res.data.id;
@@ -224,19 +327,40 @@ class SocialPublisher {
         return videoPostId;
       }
 
-      if (post.media_url) {
-        const photoBody = { url: post.media_url, caption, access_token: token };
+      if (effectiveMediaUrl) {
+        const photoBody = { url: effectiveMediaUrl, caption, access_token: token };
         if (post.location_id) photoBody.place = post.location_id;
-        if (post.fb_text_background) photoBody.text_format_metadata = JSON.stringify({ bg_color: post.fb_text_background });
         const res = await axios.post(`https://graph.facebook.com/v18.0/${pageId}/photos`, photoBody, { timeout: 30000 });
         const photoPostId = res.data.id;
         await this._postFollowUpComment(photoPostId, token, post.follow_up_comment);
         return photoPostId;
       }
 
+      // ── Facebook native background text (GHL approach) ────────────────────
+      // Uses text_format_preset_id — same native API that GHL / Publer use.
+      // Facebook limit: 130 chars. Longer captions fall back to plain text.
+      // Bad/expired preset IDs are caught and fall through to plain text post.
+      if (post.fb_text_background) {
+        const bgOpt = FB_BG_MAP[post.fb_text_background];
+        if (bgOpt?.presetId && caption.length <= 130) {
+          try {
+            const bgBody = { message: caption, text_format_preset_id: bgOpt.presetId, access_token: token };
+            if (post.location_id) bgBody.place = post.location_id;
+            const bgRes = await axios.post(`https://graph.facebook.com/v18.0/${pageId}/feed`, bgBody, { timeout: 30000 });
+            const bgPostId = bgRes.data.id;
+            await this._postFollowUpComment(bgPostId, token, post.follow_up_comment);
+            return bgPostId;
+          } catch (bgErr) {
+            const detail = bgErr.response?.data?.error;
+            console.warn('[SocialPublisher] FB native background failed (preset=%s): %s — falling back to plain text',
+              bgOpt.presetId, detail?.message || bgErr.message);
+            // fall through to plain text post below
+          }
+        }
+      }
+
       const feedBody = { message: caption, access_token: token };
       if (post.location_id) feedBody.place = post.location_id;
-      if (post.fb_text_background) feedBody.formatting = 'MARKDOWN'; // cosmetic only
       const res = await axios.post(`https://graph.facebook.com/v18.0/${pageId}/feed`, feedBody, { timeout: 30000 });
       const feedPostId = res.data.id;
       await this._postFollowUpComment(feedPostId, token, post.follow_up_comment);
@@ -299,8 +423,8 @@ class SocialPublisher {
       // Location (Feed only — not supported for Stories/Reels)
       if (post.location_id && format === 'feed') containerBody.location_id = post.location_id;
 
-      // Collaborators (Feed only, image only — Instagram API limitation)
-      if (post.ig_collaborator && format === 'feed' && !isVideo) {
+      // Collaborators — Instagram supports Feed and Reels (not Stories, not Carousels)
+      if (post.ig_collaborator && (format === 'feed' || format === 'reel')) {
         const handle = post.ig_collaborator.replace(/^@/, '').trim();
         if (handle) containerBody.collaborators = [handle];
       }

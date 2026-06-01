@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpSparkle, IpPlus, IpDelete, IpRefresh, IpArrowRight,
-  IpCheck, IpWarning, IpClose, IpGlobe, IpTrendingUp, IpAnalytics,
+  IpWarning, IpGlobe, IpTrendingUp,
+  IpSearch, IpDollar, IpReview, IpShare, IpTip,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Button, Skeleton, ErrorCard, useToast } from '../components/ui';
@@ -11,11 +12,11 @@ import { competitorAPI } from '../lib/api';
 
 const MAX = 3;
 
-function CardSection({ title, icon, children, t }) {
+function CardSection({ title, Icon, iconColor, children, t }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ fontSize: 13 }}>{icon}</span>
+        {Icon && <Icon size={13} color={iconColor || t.textMuted} />}
         <span style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</span>
       </div>
       {children}
@@ -56,7 +57,6 @@ function OpportunityCard({ opp, t, onUse }) {
 }
 
 function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyzing }) {
-  const [expanded, setExpanded] = useState(true);
   const analysis = comp.analysis;
 
   return (
@@ -132,17 +132,20 @@ function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyz
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
             {analysis.pricingSignal && (
               <div style={{ fontSize: 12, color: t.textSecondary, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 13, flexShrink: 0 }}>💰</span> {analysis.pricingSignal}
+                <IpDollar size={13} color={t.textMuted} style={{ flexShrink: 0, marginTop: 1 }} />
+                {analysis.pricingSignal}
               </div>
             )}
             {analysis.reviewSignal && (
               <div style={{ fontSize: 12, color: t.textSecondary, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 13, flexShrink: 0 }}>⭐</span> {analysis.reviewSignal}
+                <IpReview size={13} color={t.textMuted} style={{ flexShrink: 0, marginTop: 1 }} />
+                {analysis.reviewSignal}
               </div>
             )}
             {analysis.socialSignal && (
               <div style={{ fontSize: 12, color: t.textSecondary, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 13, flexShrink: 0 }}>📱</span> {analysis.socialSignal}
+                <IpShare size={13} color={t.textMuted} style={{ flexShrink: 0, marginTop: 1 }} />
+                {analysis.socialSignal}
               </div>
             )}
           </div>
@@ -150,7 +153,7 @@ function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyz
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 14 }}>
             {/* Strengths */}
             {analysis.strengths?.length > 0 && (
-              <CardSection title="Their strengths" icon="🎯" t={t}>
+              <CardSection title="Their strengths" Icon={IpTrendingUp} iconColor="#EF4444" t={t}>
                 {analysis.strengths.map((s, i) => (
                   <div key={i} style={{ display: 'flex', gap: 7, marginBottom: 5 }}>
                     <span style={{ fontSize: 11, color: '#EF4444', flexShrink: 0, marginTop: 1 }}>•</span>
@@ -161,7 +164,7 @@ function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyz
             )}
             {/* Gaps */}
             {analysis.gaps?.length > 0 && (
-              <CardSection title="Their gaps" icon="💡" t={t}>
+              <CardSection title="Their gaps" Icon={IpTip} iconColor="#22C55E" t={t}>
                 {analysis.gaps.map((g, i) => (
                   <div key={i} style={{ display: 'flex', gap: 7, marginBottom: 5 }}>
                     <span style={{ fontSize: 11, color: '#22C55E', flexShrink: 0, marginTop: 1 }}>•</span>
@@ -174,7 +177,7 @@ function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyz
 
           {/* Opportunities */}
           {analysis.contentOpportunities?.length > 0 && (
-            <CardSection title="Content opportunities for you" icon="✨" t={t}>
+            <CardSection title="Content opportunities for you" Icon={IpSparkle} iconColor={t.primary} t={t}>
               {analysis.contentOpportunities.map((opp, i) => (
                 <OpportunityCard key={i} opp={opp} t={t} onUse={onUseOpportunity} />
               ))}
@@ -294,7 +297,6 @@ export default function CompetitorIntelPage() {
   }
 
   function handleUseOpportunity(opp) {
-    // Pre-fill wizard with the opportunity hint
     const hint = opp.wizardHint || opp.angle;
     router.push(`/wizard?details=${encodeURIComponent(hint)}`);
   }
@@ -313,7 +315,7 @@ export default function CompetitorIntelPage() {
     >
       {/* Info banner */}
       <div style={{
-        display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 20,
+        display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12,
         padding: '14px 18px', borderRadius: 12,
         background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.06)',
         border: `1px solid rgba(124,92,252,0.2)`,
@@ -323,6 +325,22 @@ export default function CompetitorIntelPage() {
           <strong style={{ color: t.text }}>How this works:</strong> Add up to {MAX} competitors by website URL.
           PostCore scrapes their site and generates a strategic breakdown — strengths, gaps, and 3 content angles you can use to outcompete them.
           Each analysis costs 1 credit.
+        </div>
+      </div>
+
+      {/* Disclaimer */}
+      <div style={{
+        display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 20,
+        padding: '11px 14px', borderRadius: 10,
+        background: t.isDark ? 'rgba(10,132,255,0.06)' : 'rgba(10,132,255,0.05)',
+        border: `1px solid ${t.isDark ? 'rgba(10,132,255,0.15)' : 'rgba(10,132,255,0.18)'}`,
+      }}>
+        <IpWarning size={13} color={t.info} style={{ flexShrink: 0, marginTop: 2 }} />
+        <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.7 }}>
+          <span style={{ color: t.text, fontWeight: 600 }}>Good to know: </span>
+          PostCore reads the competitor's full website to build the analysis — including content hidden behind tabs, accordions, and dynamic sections.
+          Sites with Cloudflare or heavy bot protection may still limit what can be extracted; in those cases, PostCore analyses from the domain alone.
+          {' '}<span style={{ color: t.textMuted }}>Your credit is automatically refunded if the analysis fails entirely.</span>
         </div>
       </div>
 
@@ -394,7 +412,11 @@ export default function CompetitorIntelPage() {
           borderRadius: 16,
           boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
         }}>
-          <div style={{ fontSize: 40, marginBottom: 14 }}>🔍</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+            <div style={{ width: 64, height: 64, borderRadius: 18, background: t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <IpSearch size={28} color={t.primary} />
+            </div>
+          </div>
           <div style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 8 }}>Know your competition</div>
           <div style={{ fontSize: 14, color: t.textMuted, maxWidth: 420, margin: '0 auto 20px', lineHeight: 1.6 }}>
             Add a competitor's website and PostCore will analyze their positioning, find their content gaps, and show you 3 angles to win more local customers.

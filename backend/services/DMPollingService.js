@@ -10,7 +10,7 @@
  * - 7-day human agent window (HUMAN_AGENT tag required)
  * - 200 DMs/hour rate limit
  * - Can only message users who messaged first (no cold outreach)
- * - Requires pages_messaging + instagram_business_manage_messages permissions
+ * - Requires pages_messaging + instagram_manage_messages permissions
  */
 
 const cron = require('node-cron');
@@ -559,7 +559,6 @@ class DMPollingService {
         'SELECT auto_reply_sent, sender_platform_id, platform_thread_id FROM dm_conversations WHERE id = $1',
         [conversationId]
       );
-      if (convResult.rows[0]?.auto_reply_sent) return;
 
       const rulesResult = await this.pool.query(
         `SELECT * FROM dm_auto_reply_rules
@@ -585,10 +584,17 @@ class DMPollingService {
           if (keywords.some(k => lowerMessage.includes(k.toLowerCase()))) { matchedRule = rule; break; }
         } else if (rule.trigger_type === 'intent') {
           if (this.detectIntent(messageText) === rule.intent) { matchedRule = rule; break; }
+        } else if (rule.trigger_type === 'any') {
+          matchedRule = rule; break;
         }
       }
 
       if (!matchedRule) return;
+
+      // For send_only_once rules, skip if an auto-reply was already sent in this conversation.
+      // Rules with send_only_once = false always fire regardless of prior auto-replies.
+      if (matchedRule.send_only_once && convResult.rows[0]?.auto_reply_sent) return;
+
       if (matchedRule.delay_seconds > 0) await this._sleep(matchedRule.delay_seconds * 1000);
 
       // TikTok auto-replies target conversation_id and need business_id; Meta uses /me/messages (accountId null)
@@ -614,11 +620,11 @@ class DMPollingService {
 
       await this.pool.query(
         `UPDATE dm_conversations SET
-          auto_reply_sent = true,
+          auto_reply_sent = CASE WHEN $2 THEN true ELSE auto_reply_sent END,
           last_message_direction = 'outgoing',
           updated_at = NOW()
          WHERE id = $1`,
-        [conversationId]
+        [conversationId, matchedRule.send_only_once]
       );
 
       await this.pool.query(

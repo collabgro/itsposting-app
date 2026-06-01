@@ -39,7 +39,7 @@ const PLATFORM_COLORS = {
 
 const GROUP_META = [
   { key: 'a', label: 'Brand Visibility', color: '#7C5CFC', desc: (n) => `${n} of 5 brand searches found your business` },
-  { key: 'b', label: 'Competitive Intel', color: '#F97316', desc: (n) => `${n} of 5 searches named your competitors` },
+  { key: 'b', label: 'Competitive Intel', color: '#F97316', desc: (n) => `${n} of 5 competitive searches mentioned your business` },
   { key: 'c', label: 'Trust Criteria', color: '#22C55E', desc: (n) => `${n} of 3 searches described hiring criteria` },
   { key: 'd', label: 'Platform Intel', color: '#3B82F6', desc: (n) => `${n} of 2 searches named platforms` },
 ];
@@ -65,6 +65,18 @@ export default function GeoAuditReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchesExpanded, setSearchesExpanded] = useState(false);
+
+  // Defined early so it can be used in all early-return branches below
+  const gc = {
+    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -121,6 +133,19 @@ export default function GeoAuditReport() {
     );
   }
 
+  if (audit.status === 'failed') {
+    return (
+      <Layout title="AI Visibility Report" action={<Button variant="ghost" onClick={() => router.push('/geo-audit')}><IpArrowLeft size={13} /> Back</Button>}>
+        <EmptyState
+          icon={IpWarning}
+          title="Audit failed"
+          subtitle="The visibility check encountered an error. This can happen when AI engines are temporarily unavailable. Please try again in a few minutes."
+          action={<Button onClick={() => router.push('/geo-audit')}>Try Again</Button>}
+        />
+      </Layout>
+    );
+  }
+
   const report = audit.report_data || {};
   const verdict = report.verdict || 'low';
   const score = audit.geo_score || 0;
@@ -141,17 +166,6 @@ export default function GeoAuditReport() {
     d: queryGrid.slice(13, 15).filter(q => q.chatgpt || q.claude || q.perplexity).length,
   } : null;
 
-  const gc = {
-    background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
-    backdropFilter: 'blur(16px) saturate(160%)',
-    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-    border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`,
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
-    boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
-  };
-
   return (
     <Layout
       title="AI Visibility Report"
@@ -163,7 +177,7 @@ export default function GeoAuditReport() {
         </div>
       }
     >
-      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         {/* ── 1. SCORE CARD ── */}
         <div style={gc}>

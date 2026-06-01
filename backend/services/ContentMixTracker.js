@@ -45,7 +45,6 @@ const IDEAL_MIX = {
   promotional: 0.10,
 };
 
-const LOW_THRESHOLD  = 0.05; // flag if a bucket is less than half its ideal target
 const HIGH_THRESHOLD = 0.60;
 
 const BUCKET_LABELS = {
@@ -123,9 +122,10 @@ class ContentMixTracker {
 
     const gaps = [], overloaded = [];
     for (const bucket of Object.keys(counts)) {
-      const ratio = total > 0 ? counts[bucket] / total : 0;
-      if (ratio < LOW_THRESHOLD && total > 0) gaps.push(bucket);
-      if (ratio > HIGH_THRESHOLD)             overloaded.push(bucket);
+      const ratio     = total > 0 ? counts[bucket] / total : 0;
+      const halfIdeal = IDEAL_MIX[bucket] * 0.5; // gap = below half the ideal target
+      if (ratio < halfIdeal && total > 0) gaps.push(bucket);
+      if (ratio > HIGH_THRESHOLD)         overloaded.push(bucket);
     }
 
     return {

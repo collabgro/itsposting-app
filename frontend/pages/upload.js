@@ -28,16 +28,35 @@ const EMOJI_CATEGORIES = [
 ];
 
 
-const FB_BG_COLORS = [
-  { id: 'none',   label: 'None',    bg: null,      text: '#1c1e21' },
-  { id: 'yellow', label: 'Yellow',  bg: '#f5e642', text: '#1c1e21' },
-  { id: 'orange', label: 'Orange',  bg: '#f08c00', text: '#fff' },
-  { id: 'red',    label: 'Red',     bg: '#e24444', text: '#fff' },
-  { id: 'purple', label: 'Purple',  bg: '#7b5af6', text: '#fff' },
-  { id: 'blue',   label: 'Blue',    bg: '#4e7bf6', text: '#fff' },
-  { id: 'green',  label: 'Green',   bg: '#5fbf5e', text: '#fff' },
-  { id: 'teal',   label: 'Teal',    bg: '#4eb7c4', text: '#fff' },
-  { id: 'dark',   label: 'Dark',    bg: '#2e2e2e', text: '#fff' },
+const FB_BG_OPTIONS = [
+  { id: 'none',     label: 'None',     css: null,                                              bg: null,      text: '#1c1e21' },
+  // Gradient backgrounds (matching Facebook's native colored-background text post styles)
+  { id: 'sunrise',  label: 'Sunrise',  css: 'linear-gradient(135deg,#FF6B35,#FF4785)',         bg: null,      text: '#fff'    },
+  { id: 'golden',   label: 'Golden',   css: 'linear-gradient(135deg,#F7C948,#FF8C00)',         bg: null,      text: '#1c1e21' },
+  { id: 'coral',    label: 'Coral',    css: 'linear-gradient(135deg,#FF6B6B,#FE8C4B)',         bg: null,      text: '#fff'    },
+  { id: 'rose',     label: 'Rose',     css: 'linear-gradient(135deg,#F43F5E,#EC4899)',         bg: null,      text: '#fff'    },
+  { id: 'violet',   label: 'Violet',   css: 'linear-gradient(135deg,#8B5CF6,#EC4899)',         bg: null,      text: '#fff'    },
+  { id: 'ocean',    label: 'Ocean',    css: 'linear-gradient(135deg,#4FACFE,#00F2FE)',         bg: null,      text: '#fff'    },
+  { id: 'sky',      label: 'Sky',      css: 'linear-gradient(135deg,#6EE7F7,#3B82F6)',         bg: null,      text: '#fff'    },
+  { id: 'lavender', label: 'Lavender', css: 'linear-gradient(135deg,#C084FC,#7C3AED)',         bg: null,      text: '#fff'    },
+  { id: 'midnight', label: 'Midnight', css: 'linear-gradient(135deg,#1A1A2E,#0F3460)',         bg: null,      text: '#fff'    },
+  { id: 'forest',   label: 'Forest',   css: 'linear-gradient(135deg,#134E5E,#71B280)',         bg: null,      text: '#fff'    },
+  { id: 'mint',     label: 'Mint',     css: 'linear-gradient(135deg,#23D5AB,#23A6D5)',         bg: null,      text: '#fff'    },
+  { id: 'peach',    label: 'Peach',    css: 'linear-gradient(135deg,#FFDAB9,#FF9A8B)',         bg: null,      text: '#1c1e21' },
+  { id: 'aurora',   label: 'Aurora',   css: 'linear-gradient(135deg,#43E97B,#38F9D7)',         bg: null,      text: '#fff'    },
+  // Solid colors
+  { id: 'yellow',   label: 'Yellow',   css: null,                                              bg: '#F5E642', text: '#1c1e21' },
+  { id: 'orange',   label: 'Orange',   css: null,                                              bg: '#F08C00', text: '#fff'    },
+  { id: 'red',      label: 'Red',      css: null,                                              bg: '#E24444', text: '#fff'    },
+  { id: 'crimson',  label: 'Crimson',  css: null,                                              bg: '#9F1239', text: '#fff'    },
+  { id: 'purple',   label: 'Purple',   css: null,                                              bg: '#7B5AF6', text: '#fff'    },
+  { id: 'blue',     label: 'Blue',     css: null,                                              bg: '#4E7BF6', text: '#fff'    },
+  { id: 'navy',     label: 'Navy',     css: null,                                              bg: '#1E3A5F', text: '#fff'    },
+  { id: 'green',    label: 'Green',    css: null,                                              bg: '#5FBF5E', text: '#fff'    },
+  { id: 'teal',     label: 'Teal',     css: null,                                              bg: '#4EB7C4', text: '#fff'    },
+  { id: 'pink',     label: 'Pink',     css: null,                                              bg: '#EC4899', text: '#fff'    },
+  { id: 'dark',     label: 'Dark',     css: null,                                              bg: '#2E2E2E', text: '#fff'    },
+  { id: 'white',    label: 'White',    css: null,                                              bg: '#FFFFFF', text: '#1c1e21' },
 ];
 
 const toUnicodeBold = (text) => [...text].map(c => {
@@ -124,7 +143,8 @@ export default function Upload() {
   const postDropdownRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const emojiPortalRef = useRef(null);
-  const bgPickerRef = useRef(null);
+  const bgPickerRef = useRef(null);   // "A" button wrapper
+  const bgPortalRef = useRef(null);   // picker portal at root level
   const libraryFileInputRef = useRef(null);
   const [followUpEnabled, setFollowUpEnabled] = useState(false);
   const [followUpComment, setFollowUpComment] = useState('');
@@ -148,6 +168,7 @@ export default function Upload() {
   const [linkPreviewDismissed, setLinkPreviewDismissed] = useState(false);
   const [fbBgColor, setFbBgColor] = useState(null);
   const [showBgPicker, setShowBgPicker] = useState(false);
+  const [bgPickerPos, setBgPickerPos] = useState({ top: 0, right: 0 });
   const [showLocationPopup, setShowLocationPopup] = useState(false);
   const locationPopupRef = useRef(null);
   const [imageEditorIdx, setImageEditorIdx] = useState(null);
@@ -280,7 +301,9 @@ export default function Upload() {
   useEffect(() => {
     if (!showBgPicker) return;
     const handler = (e) => {
-      if (bgPickerRef.current && !bgPickerRef.current.contains(e.target)) setShowBgPicker(false);
+      const inBtn    = bgPickerRef.current && bgPickerRef.current.contains(e.target);
+      const inPortal = bgPortalRef.current && bgPortalRef.current.contains(e.target);
+      if (!inBtn && !inPortal) setShowBgPicker(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -568,10 +591,12 @@ export default function Upload() {
     try {
       let mediaUrl = null;
       let mediaUrls = null;
+      // FB background = always text-only — image generated server-side; skip any leftover file state
       // No files = text-only post; use 'static' so backend skips mediaUrl requirement
-      const resolvedContentType = files.length === 0 ? 'static' : contentType;
+      // Also force 'static' when no actual media URL ends up being set (safety net for stale file state)
+      let resolvedContentType = (fbBgColor || files.length === 0) ? 'static' : contentType;
 
-      if (files.length > 0) {
+      if (files.length > 0 && !fbBgColor) {
         if (resolvedContentType === 'carousel') {
           // Each slide handled individually — supports mixed library + new uploads in same carousel
           mediaUrls = await Promise.all(files.map(async (f) => {
@@ -590,10 +615,15 @@ export default function Upload() {
             await mediaAPI.markUsed(f.libraryFileId).catch(() => {});
           } else {
             const { data } = await uploadAPI.uploadMedia(f);
-            mediaUrl = data.url;
+            // When media optimization is OFF, post the original unprocessed file.
+            // When ON (default), use the platform-optimised universal_feed URL.
+            mediaUrl = mediaOptimization ? data.url : (data.originalUrl || data.url);
           }
         }
       }
+
+      // If files were provided but no URL came through (stale/failed entry), treat as text-only
+      if (!mediaUrl && !mediaUrls && resolvedContentType !== 'static') resolvedContentType = 'static';
 
       setMessage({ type: 'info', text: 'Creating post...' });
       const hashtagArr = (caption.match(/#[\w]+/g) || []).map(h => h.replace(/^#/, '')).filter(Boolean);
@@ -649,7 +679,7 @@ export default function Upload() {
         }, 2000);
       }
     } catch (error) {
-      setMessage({ type: 'error', text: error.message });
+      setMessage({ type: 'error', text: error.response?.data?.error || error.message });
     } finally {
       setUploading(false);
     }
@@ -738,6 +768,7 @@ export default function Upload() {
   };
 
   // Live preview post object (synthetic — drives mockup)
+  const _previewBgOpt = fbBgColor ? FB_BG_OPTIONS.find(o => o.id === fbBgColor) : null;
   const previewPost = {
     content_type: contentType,
     media_url: previews[0] || null,
@@ -745,6 +776,9 @@ export default function Upload() {
     hashtags: (caption.match(/#[\w]+/g) || []).map(h => h.replace(/^#/, '')),
     platforms,
     caption,
+    fb_text_background: fbBgColor || null,
+    fb_text_background_css: _previewBgOpt ? (_previewBgOpt.css || _previewBgOpt.bg) : null,
+    fb_text_color: _previewBgOpt ? _previewBgOpt.text : '#050505',
   };
 
   const ActiveMockup = MOCKUP_MAP[previewPlatform];
@@ -1263,31 +1297,21 @@ export default function Upload() {
                             )}
                           </div>
                           {/* Text Background — Facebook only */}
+                          {(() => {
+                            const selBg = FB_BG_OPTIONS.find(o => o.id === fbBgColor);
+                            const selCss = selBg ? (selBg.css || selBg.bg) : null;
+                            return (
                           <div style={{ position: 'relative', flexShrink: 0 }} ref={bgPickerRef}>
-                            <button type="button" title="Text backgrounds apply to Facebook posts only."
-                              onClick={() => setShowBgPicker(v => !v)}
-                              style={{ ...tbBtn(), background: fbBgColor ? `${fbBgColor}22` : (showBgPicker ? (t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)') : 'none') }}
+                            <button type="button" title="Text backgrounds — Facebook text-only posts only."
+                              onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setBgPickerPos({ top: r.bottom + 6, right: window.innerWidth - r.right }); setShowBgPicker(v => !v); }}
+                              style={{ ...tbBtn(), background: selCss ? 'none' : (showBgPicker ? (t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)') : 'none') }}
                               onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
                             >
-                              <span style={{ fontSize: 13, fontWeight: 700, background: fbBgColor || (t.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'), color: fbBgColor ? '#fff' : 'inherit', borderRadius: 3, padding: '1px 4px', letterSpacing: '-0.02em' }}>A</span>
+                              <span style={{ fontSize: 13, fontWeight: 700, background: selCss || (t.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'), color: selCss ? '#fff' : 'inherit', borderRadius: 3, padding: '1px 4px', letterSpacing: '-0.02em' }}>A</span>
                             </button>
-                            {showBgPicker && (
-                              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 600, background: t.isDark ? 'rgba(12,12,22,0.98)' : t.card, backdropFilter: 'blur(20px)', border: `1px solid ${t.border}`, borderRadius: 12, padding: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.22)', width: 220 }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Facebook Background</div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                  {FB_BG_COLORS.map(c => (
-                                    <button key={c.id} type="button"
-                                      onClick={() => { setFbBgColor(c.bg); setShowBgPicker(false); }}
-                                      title={c.label}
-                                      style={{ width: 28, height: 28, borderRadius: 6, background: c.bg || (t.isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb'), border: fbBgColor === c.bg ? `2px solid ${t.primary}` : `1.5px solid ${t.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 100ms' }}
-                                    >
-                                      {c.id === 'none' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={t.textMuted} strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
                           </div>
+                            );
+                          })()}
                         </div>
                       );
                     })()}
@@ -1295,6 +1319,11 @@ export default function Upload() {
                     {overLimitPlatforms.length > 0 && (
                       <div style={{ marginTop: 8, padding: '7px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 7, fontSize: 12, color: t.error }}>
                         Too long for: {overLimitPlatforms.map(p => `${PLATFORM_META[p]?.label || p} (${caption.length.toLocaleString()} / ${CHAR_LIMITS[p].toLocaleString()})`).join(' · ')}
+                      </div>
+                    )}
+                    {fbBgColor && caption.length > 130 && (
+                      <div style={{ marginTop: 8, padding: '7px 10px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 7, fontSize: 12, color: '#d97706' }}>
+                        Facebook backgrounds require ≤130 characters. Your caption ({caption.length}) will post without the background on Facebook.
                       </div>
                     )}
 
@@ -1986,6 +2015,46 @@ export default function Upload() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── FB Background Styles picker portal — root level, escapes backdropFilter stacking contexts ─── */}
+      {showBgPicker && mounted && (
+        <div ref={bgPortalRef}
+          style={{
+            position: 'fixed',
+            top: Math.min(bgPickerPos.top, window.innerHeight - 340),
+            right: Math.max(0, bgPickerPos.right),
+            zIndex: 99999,
+            background: t.isDark ? 'rgba(12,12,22,0.98)' : '#fff',
+            border: `1px solid ${t.border}`,
+            borderRadius: 12,
+            padding: 14,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.28)',
+            width: 282,
+            maxHeight: Math.min(340, window.innerHeight - 80),
+            overflowY: 'auto',
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Facebook Background Styles</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 5 }}>
+            {FB_BG_OPTIONS.map(c => {
+              const swatchBg = c.css || c.bg || (t.isDark ? 'rgba(255,255,255,0.08)' : '#f0f0f0');
+              const isSelected = fbBgColor === c.id;
+              return (
+                <button key={c.id} type="button"
+                  onClick={() => { setFbBgColor(c.id === 'none' ? null : c.id); setShowBgPicker(false); }}
+                  title={c.label}
+                  style={{ width: '100%', aspectRatio: '1', borderRadius: 8, background: swatchBg, border: isSelected ? `2.5px solid ${t.primary}` : `1.5px solid ${t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 100ms', transform: isSelected ? 'scale(1.08)' : 'scale(1)', boxShadow: isSelected ? `0 0 0 3px ${t.primary}44` : 'none' }}
+                >
+                  {c.id === 'none' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={t.isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)'} strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 10, fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>
+            Selecting a background generates a styled image posted to Facebook as a photo.
           </div>
         </div>
       )}

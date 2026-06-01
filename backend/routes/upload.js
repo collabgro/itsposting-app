@@ -194,7 +194,6 @@ module.exports = (pool) => {
         fbPostFormat, igPostFormat, igCollaborator, optimizeMedia, fbTextBackground, followUpComment,
       } = req.body;
       if (!contentType || !caption) return res.status(400).json({ error: 'contentType and caption required' });
-      if (contentType !== 'carousel' && contentType !== 'static' && !mediaUrl) return res.status(400).json({ error: 'mediaUrl required' });
       if (contentType === 'carousel' && (!mediaUrls || mediaUrls.length < 2))
         return res.status(400).json({ error: 'Carousel requires at least 2 mediaUrls' });
 
@@ -275,6 +274,12 @@ module.exports = (pool) => {
               [JSON.stringify(result.platformPostIds), post.id]
             );
             post.status = 'posted';
+            try {
+              const ContentMixTracker = require('../services/ContentMixTracker');
+              await new ContentMixTracker(pool).updatePostingStreak(req.customerId);
+            } catch (streakErr) {
+              console.warn('[upload] streak update failed:', streakErr.message);
+            }
           } else if (result.errors.length > 0) {
             await pool.query(
               `UPDATE posts SET status = 'failed',

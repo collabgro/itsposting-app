@@ -431,11 +431,9 @@ export const analyticsAPI = {
   getContentMix: () => api.get('/api/analytics/content-mix'),
   getStreak: () => api.get('/api/analytics/streak'),
   updateStreak: () => api.post('/api/analytics/streak/update'),
-  getMonthlyStats: () => api.get('/api/analytics/monthly-stats'),
   syncMetrics: (data = {}) => api.post('/api/analytics/sync-metrics', data),
   getVariationStats: () => api.get('/api/analytics/variation-stats'),
   getLeaderboard: () => api.get('/api/analytics/leaderboard'),
-  exportPdf: (year, month) => api.get('/api/analytics/export-pdf', { params: { year, month }, responseType: 'blob' }),
 };
 
 export const dmsAPI = {
@@ -503,6 +501,8 @@ export const knowledgeAPI = {
   updateEntry: (id, data) => api.put(`/api/knowledge/${id}`, data),
   deleteEntry: (id) => api.delete(`/api/knowledge/${id}`),
   uploadFile: (formData) => api.post('/api/knowledge/upload-file', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  setRefreshSchedule: (jobId, data) => api.patch(`/api/knowledge/crawl/${jobId}/refresh`, data),
+  saveEditedData: (jobId, editedText) => api.put(`/api/knowledge/crawl/${jobId}/data`, { editedText }),
 };
 
 export const suggestionsAPIExtra = {
@@ -526,6 +526,8 @@ export const studioAPI = {
   getCreation: (id) => api.get(`/api/studio/creations/${id}`),
   save: (data) => api.post('/api/studio/save', data),
   updateCreation: (id, data) => api.patch(`/api/studio/creations/${id}`, data),
+  deleteCreation: (id) => api.delete(`/api/studio/creations/${id}`),
+  duplicateCreation: (id) => api.post(`/api/studio/creations/${id}/duplicate`),
   postCreation: (id, data) => api.post(`/api/studio/creations/${id}/post`, data),
   renderVideo: (data) => api.post('/api/studio/video-render', data),
   getRenderStatus: (jobId) => api.get(`/api/studio/video-render/${jobId}`),

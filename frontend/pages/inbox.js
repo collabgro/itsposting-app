@@ -434,7 +434,7 @@ export default function InboxPage() {
     { key: 'pending_approval', label: 'Pending', count: stats.pendingApprovalCount },
     { key: 'facebook', label: 'Facebook', count: stats.facebookCount },
     { key: 'instagram', label: 'Instagram', count: stats.instagramCount },
-    { key: 'linkedin', label: 'LinkedIn', count: stats.linkedinCount },
+    { key: 'linkedin', label: 'LinkedIn', count: stats.linkedinCount, lab: true },
     { key: 'tiktok', label: 'TikTok', count: stats.tiktokCount, lab: true },
     { key: 'starred', label: 'Starred' },
   ];
@@ -596,7 +596,23 @@ export default function InboxPage() {
 
           {/* Conversation list */}
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {filter === 'tiktok' && user !== null && !user.is_admin ? (
+            {filter === 'linkedin' && user !== null && !user.is_admin ? (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', height: '100%', padding: 32, textAlign: 'center', gap: 12,
+              }}>
+                <IpLinkedIn size={40} style={{ color: t.textMuted, opacity: 0.25 }} />
+                <div style={{ fontWeight: 700, fontSize: 13, color: t.text }}>LinkedIn DM — Early Access</div>
+                <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.6, maxWidth: 220 }}>
+                  This feature is currently being tested by our team. It will be available to all customers soon.
+                </div>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+                  padding: '3px 8px', borderRadius: 4,
+                  background: 'rgba(234,179,8,0.15)', color: '#ca8a04',
+                }}>LAB FEATURE</span>
+              </div>
+            ) : filter === 'tiktok' && user !== null && !user.is_admin ? (
               <div style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 justifyContent: 'center', height: '100%', padding: 32, textAlign: 'center', gap: 12,

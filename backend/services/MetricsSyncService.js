@@ -72,24 +72,37 @@ class MetricsSyncService {
     return { synced, skipped, errors };
   }
 
+  // Resolve a platform's post ID from the stored map.
+  // publishToPlatforms() uses clean keys ('facebook'), while publishToAccounts()
+  // uses suffixed keys ('facebook_123'). This handles both formats.
+  _resolvePlatformId(platformIds, platform) {
+    if (platformIds[platform]) return platformIds[platform];
+    const entry = Object.entries(platformIds).find(([k]) => k.startsWith(`${platform}_`));
+    return entry ? entry[1] : null;
+  }
+
   // Core sync logic — fetches from all platforms and writes to DB.
   async _syncPostMetrics(post, platformIds, customerId) {
     const accounts = await this.pool.query(
       `SELECT platform, account_id, access_token FROM social_accounts
-       WHERE customer_id = $1 AND platform IN ('facebook', 'instagram') AND enabled = true`,
+       WHERE customer_id = $1 AND platform IN ('facebook', 'instagram', 'tiktok') AND enabled = true`,
       [customerId]
     );
 
     const accountMap = {};
     for (const row of accounts.rows) accountMap[row.platform] = row;
 
-    let fbReach = 0, igReach = 0;
+    const fbPostId      = this._resolvePlatformId(platformIds, 'facebook');
+    const igPostId      = this._resolvePlatformId(platformIds, 'instagram');
+    const ttPublishId   = this._resolvePlatformId(platformIds, 'tiktok');
+
+    let fbReach = 0, igReach = 0, ttViews = 0;
     let likes = 0, comments = 0, shares = 0, impressions = 0;
     const synced_platforms = [];
 
-    if (platformIds.facebook && accountMap.facebook) {
+    if (fbPostId && accountMap.facebook) {
       try {
-        const fb = await this._fetchFacebookMetrics(platformIds.facebook, accountMap.facebook);
+        const fb = await this._fetchFacebookMetrics(fbPostId, accountMap.facebook);
         fbReach = fb.reach || 0;
         likes += fb.likes || 0;
         comments += fb.comments || 0;
@@ -101,23 +114,47 @@ class MetricsSyncService {
       }
     }
 
-    if (platformIds.instagram && accountMap.instagram) {
+    if (igPostId && accountMap.instagram) {
       try {
-        const ig = await this._fetchInstagramMetrics(platformIds.instagram, accountMap.instagram);
+        const ig = await this._fetchInstagramMetrics(igPostId, accountMap.instagram);
         igReach = ig.reach || 0;
         likes += ig.likes || 0;
         comments += ig.comments || 0;
         impressions += ig.impressions || 0;
         synced_platforms.push('instagram');
       } catch (err) {
-        console.warn(`[MetricsSyncService] IG metrics failed for post ${post.id}:`, err.message);
+        // Instagram insights require a Business/Creator account — log clearly
+        const isInsightsError = err.response?.data?.error?.code === 100 || err.message?.includes('insights');
+        console.warn(
+          `[MetricsSyncService] IG metrics failed for post ${post.id}:`,
+          isInsightsError ? 'Account needs to be Business/Creator type for insights' : err.message
+        );
+      }
+    }
+
+    if (ttPublishId && accountMap.tiktok) {
+      try {
+        const tt = await this._fetchTikTokMetrics(ttPublishId, accountMap.tiktok);
+        likes += tt.likes || 0;
+        comments += tt.comments || 0;
+        shares += tt.shares || 0;
+        ttViews = tt.views || 0; // TikTok view_count is the closest equivalent to reach
+        synced_platforms.push('tiktok');
+      } catch (err) {
+        const isScopeErr = err.response?.data?.error?.code === 'access_token_invalid'
+          || err.message?.includes('scope') || err.message?.includes('video.list');
+        console.warn(
+          `[MetricsSyncService] TikTok metrics failed for post ${post.id}:`,
+          isScopeErr ? 'Reconnect TikTok in Settings to grant video.list scope' : err.message
+        );
       }
     }
 
     if (!synced_platforms.length) return { synced: false, reason: 'no_data' };
 
-    // Reach: use max across platforms — the same person may follow both accounts
-    const reach = Math.max(fbReach, igReach);
+    // Reach: take the highest single-platform value — same person may follow multiple accounts.
+    // TikTok view_count is used as reach equivalent (closest available metric).
+    const reach = Math.max(fbReach, igReach, ttViews);
     const performance_score = Math.round((reach / 100) + (likes * 2) + (comments * 3) + (shares * 5));
 
     await this._updatePostEngagement(post.id, { reach, likes, comments, shares, impressions, performance_score });
@@ -188,6 +225,48 @@ class MetricsSyncService {
     };
   }
 
+  async _fetchTikTokMetrics(publishId, account) {
+    const token = account.access_token;
+
+    // Step 1 — resolve publish_id → video_id (TikTok processes videos asynchronously)
+    const statusRes = await axios.post(
+      'https://open.tiktokapis.com/v2/post/publish/status/fetch/',
+      { publish_id: publishId },
+      {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8' },
+        timeout: 15000,
+      }
+    );
+
+    const videoId = statusRes.data?.data?.video_id;
+    if (!videoId) {
+      // Video still processing — not an error, just skip this sync cycle
+      throw new Error(`TikTok video still processing (publish_id=${publishId})`);
+    }
+
+    // Step 2 — query video stats (requires video.list scope)
+    const metricsRes = await axios.post(
+      'https://open.tiktokapis.com/v2/video/query/',
+      { filters: { video_ids: [videoId] } },
+      {
+        params:  { fields: 'id,like_count,comment_count,share_count,view_count' },
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        timeout: 15000,
+      }
+    );
+
+    const video = metricsRes.data?.data?.videos?.[0];
+    if (!video) throw new Error(`TikTok video ${videoId} not found in query response`);
+
+    return {
+      videoId,
+      likes:    video.like_count    || 0,
+      comments: video.comment_count || 0,
+      shares:   video.share_count   || 0,
+      views:    video.view_count    || 0,
+    };
+  }
+
   async _updatePostEngagement(postId, { reach, likes, comments, shares, impressions, performance_score }) {
     const client = await this.pool.connect();
     try {
@@ -210,7 +289,7 @@ class MetricsSyncService {
 
       // Snapshot for trend history — skip if already snapshotted today
       await client.query(
-        `INSERT INTO post_engagement_snapshots (post_id, snapshotted_at, reach, likes, comments, shares)
+        `INSERT INTO post_engagement_snapshots (post_id, snapshot_at, reach, likes, comments, shares)
          VALUES ($1, NOW(), $2, $3, $4, $5)
          ON CONFLICT DO NOTHING`,
         [postId, reach, likes, comments, shares]

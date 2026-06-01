@@ -414,9 +414,9 @@ Include exactly 5 recommendations. queryGrid must include all ${questions.length
       // Bulk insert citations
       for (const c of citations) {
         await this.pool.query(
-          `INSERT INTO geo_citations (audit_id, engine, query_text, response_excerpt, business_mentioned, mention_position, competitors_mentioned)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [auditId, c.engine, c.query_text, c.response_excerpt, c.business_mentioned, c.mention_position, c.competitors_mentioned]
+          `INSERT INTO geo_citations (audit_id, engine, query_text, response_excerpt, business_mentioned, mention_position, competitors_mentioned, trust_signals, platform_mentions)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [auditId, c.engine, c.query_text, c.response_excerpt, c.business_mentioned, c.mention_position, c.competitors_mentioned, c.trust_signals, c.platform_mentions]
         );
       }
 

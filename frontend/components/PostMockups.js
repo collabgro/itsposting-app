@@ -248,6 +248,7 @@ export function FacebookMockup({ post, caption, profile }) {
   const hashtags = parseHashtags(post.hashtags);
   const fullText = caption + (hashtags.length ? '\n' + hashtags.map(h => `#${h}`).join(' ') : '');
   const hasMedia = post.content_type !== 'static' && (post.media_url || parseMediaUrls(post.media_urls).length > 0);
+  const hasBg = !hasMedia && post.fb_text_background_css && fullText;
 
   return (
     <div style={{ background: '#fff', borderRadius: 8, boxShadow: '0 1px 2px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.1)', overflow: 'hidden', maxWidth: 500, margin: '0 auto', fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
@@ -266,12 +267,21 @@ export function FacebookMockup({ post, caption, profile }) {
         <ThreeDotsHSvg size={20} color="#65676B" />
       </div>
 
-      {/* Caption */}
-      {fullText ? (
+      {/* Caption — plain text when no background */}
+      {fullText && !hasBg ? (
         <div style={{ padding: '2px 16px', fontSize: 15, color: '#050505', lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: hasMedia ? 10 : 12 }}>
           {fullText}
         </div>
       ) : null}
+
+      {/* Gradient/color background — GHL-style: full-width square with centred text */}
+      {hasBg && (
+        <div style={{ background: post.fb_text_background_css, width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, boxSizing: 'border-box' }}>
+          <div style={{ color: post.fb_text_color || '#fff', fontSize: caption.length < 60 ? 28 : caption.length < 140 ? 22 : 17, fontWeight: 700, textAlign: 'center', lineHeight: 1.45, wordBreak: 'break-word', whiteSpace: 'pre-wrap', maxWidth: '100%' }}>
+            {caption}
+          </div>
+        </div>
+      )}
 
       {/* Media */}
       {hasMedia && <PostImage post={post} style={{ maxHeight: 420 }} />}

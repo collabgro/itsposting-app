@@ -3,21 +3,18 @@ import { useRouter } from 'next/router';
 import {
   IpTrendingUp, IpHeart, IpComment, IpShare, IpAnalytics, IpChevronRight,
   IpSchedule, IpSparkle, IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
-  IpCalendar, IpInfo, IpCheck, IpRefresh,
+  IpCalendar, IpInfo, IpCheck, IpRefresh, IpFacebook, IpInstagram,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
-import { Button, Badge, StatCard, SectionHeader, EmptyState, Spinner, SkeletonPage, ErrorCard, Select } from '../../components/ui';
+import { Button, Badge, StatCard, SectionHeader, EmptyState, Spinner, SkeletonPage, ErrorCard } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { analyticsAPI } from '../../lib/api';
 import { format, addDays } from 'date-fns';
 
 /* ─── constants ──────────────────────────────────────────── */
 const DAYS     = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DAYS_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const HOURS    = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
 const FMT_HOUR = h => { const a = h >= 12 ? 'pm' : 'am'; const h12 = h % 12 === 0 ? 12 : h % 12; return `${h12}${a}`; };
-const MONTH_NAMES = ['January','February','March','April','May','June',
-  'July','August','September','October','November','December'];
 
 const TYPE_META = {
   static:   { label: 'Text Card',  icon: IpDrafts,   color: '#60A5FA' },
@@ -25,6 +22,31 @@ const TYPE_META = {
   carousel: { label: 'Carousel',   icon: IpCarousel, color: '#F472B6' },
   video:    { label: 'Video',      icon: IpVideo,    color: '#FB923C' },
 };
+
+const PLATFORM_COLORS = {
+  facebook:         { color: '#1877F2', short: 'FB' },
+  instagram:        { color: '#E1306C', short: 'IG' },
+  google_business:  { color: '#34A853', short: 'GB' },
+  linkedin:         { color: '#0A66C2', short: 'LI' },
+  tiktok:           { color: '#69C9D0', short: 'TK' },
+};
+
+const PLATFORM_FILTERS = [
+  { id: 'all',             label: 'All platforms', color: '#7C5CFC' },
+  { id: 'facebook',        label: 'Facebook',      color: '#1877F2' },
+  { id: 'instagram',       label: 'Instagram',     color: '#E1306C' },
+  { id: 'google_business', label: 'Google',        color: '#34A853' },
+  { id: 'linkedin',        label: 'LinkedIn',      color: '#0A66C2' },
+  { id: 'tiktok',          label: 'TikTok',        color: '#69C9D0' },
+];
+
+const CT_FILTERS = [
+  { id: 'all',      label: 'All types' },
+  { id: 'static',   label: 'Text Card' },
+  { id: 'photo',    label: 'Photo' },
+  { id: 'carousel', label: 'Carousel' },
+  { id: 'video',    label: 'Video' },
+];
 
 /* ─── helpers ────────────────────────────────────────────── */
 function heatColor(score, maxScore) {
@@ -43,9 +65,11 @@ function buildScheduledDate(dow, hour) {
   return target.toISOString().slice(0, 16);
 }
 
-/* ─── MonthPicker ────────────────────────────────────────── */
-function EngagementTrendChart({ posts, t, gc }) {
-  const W = 600, H = 120, PAD = { top: 12, right: 20, bottom: 28, left: 36 };
+/* ─── EngagementTrendChart ───────────────────────────────── */
+function EngagementTrendChart({ posts, t, gc, router }) {
+  const [hoverIdx, setHoverIdx] = useState(null);
+
+  const W = 600, H = 140, PAD = { top: 16, right: 20, bottom: 32, left: 40 };
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top - PAD.bottom;
 
@@ -55,84 +79,134 @@ function EngagementTrendChart({ posts, t, gc }) {
   for (let i = 29; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    days.push(d.toDateString());
+    days.push({
+      key:   d.toDateString(),
+      label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    });
   }
-  const buckets = {};
-  days.forEach(d => { buckets[d] = 0; });
+
+  const engBuckets    = {};
+  const postBuckets   = {};
+  const detailBuckets = {};
+  days.forEach(({ key }) => {
+    engBuckets[key]    = 0;
+    postBuckets[key]   = 0;
+    detailBuckets[key] = { likes: 0, comments: 0, shares: 0 };
+  });
+
   posts.forEach(p => {
     const dateKey = new Date(p.posted_at || p.created_at).toDateString();
-    if (buckets[dateKey] !== undefined) {
-      buckets[dateKey] += (p.likes || 0) + (p.comments || 0) + (p.shares || 0) + 1;
-    }
-  });
-  const values = days.map(d => buckets[d]);
-  const maxV = Math.max(...values, 1);
-
-  // Build SVG path
-  const pts = values.map((v, i) => {
-    const x = PAD.left + (i / (values.length - 1)) * chartW;
-    const y = PAD.top + chartH - (v / maxV) * chartH;
-    return [x, y];
+    if (engBuckets[dateKey] === undefined) return;
+    const eng      = p.engagement || {};
+    const likes    = parseInt(eng.likes)    || 0;
+    const comments = parseInt(eng.comments) || 0;
+    const shares   = parseInt(eng.shares)   || 0;
+    engBuckets[dateKey]              += likes + comments + shares;
+    detailBuckets[dateKey].likes    += likes;
+    detailBuckets[dateKey].comments += comments;
+    detailBuckets[dateKey].shares   += shares;
+    if (p.status === 'posted') postBuckets[dateKey]++;
   });
 
-  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  const values     = days.map(({ key }) => engBuckets[key]);
+  const postCounts = days.map(({ key }) => postBuckets[key]);
+  const details    = days.map(({ key }) => detailBuckets[key]);
+  const totalEng   = values.reduce((a, b) => a + b, 0);
+  const totalPosts = postCounts.reduce((a, b) => a + b, 0);
+  const hasEng     = totalEng > 0;
+  const maxV       = Math.max(...values, 1);
+
+  // Trend: compare first half vs second half (only meaningful with real engagement)
+  const half      = Math.floor(values.length / 2);
+  const firstAvg  = values.slice(0, half).reduce((a, b) => a + b, 0) / half;
+  const secondAvg = values.slice(half).reduce((a, b) => a + b, 0) / (values.length - half);
+  const trending  = !hasEng ? 'none'
+    : secondAvg > firstAvg * 1.1 ? 'up'
+    : secondAvg < firstAvg * 0.9 ? 'down'
+    : 'flat';
+
+  // SVG points
+  const pts = values.map((v, i) => ({
+    x: PAD.left + (i / (days.length - 1)) * chartW,
+    y: PAD.top + chartH - (v / maxV) * chartH,
+  }));
+
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
   const areaPath = [
-    `M ${pts[0][0].toFixed(1)} ${(PAD.top + chartH).toFixed(1)}`,
-    ...pts.map(p => `L ${p[0].toFixed(1)} ${p[1].toFixed(1)}`),
-    `L ${pts[pts.length - 1][0].toFixed(1)} ${(PAD.top + chartH).toFixed(1)}`,
+    `M ${pts[0].x.toFixed(1)} ${(PAD.top + chartH).toFixed(1)}`,
+    ...pts.map(p => `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`),
+    `L ${pts[pts.length - 1].x.toFixed(1)} ${(PAD.top + chartH).toFixed(1)}`,
     'Z',
   ].join(' ');
 
-  // Trend: compare first half avg vs second half avg
-  const half = Math.floor(values.length / 2);
-  const firstAvg = values.slice(0, half).reduce((a, b) => a + b, 0) / half;
-  const secondAvg = values.slice(half).reduce((a, b) => a + b, 0) / (values.length - half);
-  const trending = secondAvg > firstAvg * 1.1 ? 'up' : secondAvg < firstAvg * 0.9 ? 'down' : 'flat';
-
-  const totalEng = values.reduce((a, b) => a + b, 0);
-
-  // X-axis labels: show first, middle, last
   const xLabels = [
-    { i: 0, label: '30d ago' },
+    { i: 0,  label: '30d ago' },
     { i: 14, label: '15d ago' },
-    { i: 29, label: 'Today' },
+    { i: 29, label: 'Today'   },
   ];
+
+  const hoverDay    = hoverIdx !== null ? days[hoverIdx]    : null;
+  const hoverDetail = hoverIdx !== null ? details[hoverIdx] : null;
+  const hoverPosts  = hoverIdx !== null ? postCounts[hoverIdx] : 0;
 
   return (
     <div style={{ ...gc, marginBottom: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: t.text, letterSpacing: '-0.02em' }}>
             Engagement trend <span style={{ fontSize: 12, fontWeight: 400, color: t.textMuted }}>— last 30 days</span>
           </div>
-          <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>Likes + comments + shares per day across all posts</div>
+          <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>Likes + comments + shares per day</div>
         </div>
-        <div style={{ display: 'flex', align: 'center', gap: 12 }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.04em', color: t.text, lineHeight: 1 }}>{totalEng.toLocaleString()}</div>
-            <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>total interactions</div>
-          </div>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,
-            background: trending === 'up' ? 'rgba(34,197,94,0.12)' : trending === 'down' ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
-            color: trending === 'up' ? '#22C55E' : trending === 'down' ? '#EF4444' : t.textMuted,
-            border: `1px solid ${trending === 'up' ? 'rgba(34,197,94,0.3)' : trending === 'down' ? 'rgba(239,68,68,0.3)' : t.border}`,
-          }}>
-            {trending === 'up' ? '↑ Trending up' : trending === 'down' ? '↓ Trending down' : '→ Steady'}
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {hasEng ? (
+            <>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.04em', color: t.text, lineHeight: 1 }}>{totalEng.toLocaleString()}</div>
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>total interactions</div>
+              </div>
+              {trending !== 'none' && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+                  background: trending === 'up' ? 'rgba(34,197,94,0.12)' : trending === 'down' ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
+                  color: trending === 'up' ? '#22C55E' : trending === 'down' ? '#EF4444' : t.textMuted,
+                  border: `1px solid ${trending === 'up' ? 'rgba(34,197,94,0.3)' : trending === 'down' ? 'rgba(239,68,68,0.3)' : t.border}`,
+                }}>
+                  {trending === 'up' ? '↑ Trending up' : trending === 'down' ? '↓ Trending down' : '→ Steady'}
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{totalPosts} post{totalPosts !== 1 ? 's' : ''} published</div>
+              <button onClick={() => router.push('/settings')}
+                style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, color: t.primary, fontWeight: 600, cursor: 'pointer', marginTop: 2 }}>
+                Sync to see engagement →
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div style={{ width: '100%', overflowX: 'auto' }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block' }} preserveAspectRatio="none">
+      {/* ── Chart ── */}
+      <div style={{ position: 'relative', width: '100%', userSelect: 'none' }}
+        onMouseLeave={() => setHoverIdx(null)}
+        onMouseMove={e => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const pct  = (e.clientX - rect.left) / rect.width;
+          setHoverIdx(Math.max(0, Math.min(29, Math.round(pct * 29))));
+        }}
+      >
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }} preserveAspectRatio="none">
           <defs>
             <linearGradient id="engAreaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#7C5CFC" stopOpacity={t.isDark ? '0.45' : '0.30'} />
+              <stop offset="0%"   stopColor="#7C5CFC" stopOpacity={t.isDark ? '0.4' : '0.25'} />
               <stop offset="100%" stopColor="#7C5CFC" stopOpacity="0" />
             </linearGradient>
           </defs>
 
-          {/* Grid lines */}
+          {/* Grid lines + Y-axis labels (only when there's real engagement) */}
           {[0.25, 0.5, 0.75, 1].map(frac => {
             const y = PAD.top + chartH - frac * chartH;
             return (
@@ -140,30 +214,69 @@ function EngagementTrendChart({ posts, t, gc }) {
                 <line x1={PAD.left} y1={y} x2={PAD.left + chartW} y2={y}
                   stroke={t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}
                   strokeDasharray="3 4" strokeWidth="1" />
-                <text x={PAD.left - 4} y={y + 3.5} textAnchor="end" fill={t.isDark ? 'rgba(255,255,255,0.3)' : '#8E8E93'}
-                  fontSize="9" fontFamily="-apple-system,BlinkMacSystemFont,sans-serif">
-                  {Math.round(maxV * frac)}
-                </text>
+                {hasEng && (
+                  <text x={PAD.left - 4} y={y + 3.5} textAnchor="end"
+                    fill={t.isDark ? 'rgba(255,255,255,0.3)' : '#8E8E93'}
+                    fontSize="9" fontFamily="-apple-system,BlinkMacSystemFont,sans-serif">
+                    {Math.round(maxV * frac)}
+                  </text>
+                )}
               </g>
             );
           })}
 
-          {/* Area fill */}
-          <path d={areaPath} fill="url(#engAreaGrad)" />
+          {/* Baseline */}
+          <line x1={PAD.left} y1={PAD.top + chartH} x2={PAD.left + chartW} y2={PAD.top + chartH}
+            stroke={t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} strokeWidth="1" />
 
-          {/* Line */}
-          <path d={linePath} fill="none" stroke="#7C5CFC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Posts-published markers — amber tick at baseline */}
+          {days.map(({ key }, i) => {
+            if (!postBuckets[key]) return null;
+            const x     = PAD.left + (i / (days.length - 1)) * chartW;
+            const baseY = PAD.top + chartH;
+            return (
+              <g key={key}>
+                <line x1={x} y1={baseY - 7} x2={x} y2={baseY}
+                  stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
+                {postBuckets[key] > 1 && (
+                  <text x={x} y={baseY - 9} textAnchor="middle" fill="#F59E0B"
+                    fontSize="7" fontFamily="-apple-system,BlinkMacSystemFont,sans-serif">
+                    {postBuckets[key]}
+                  </text>
+                )}
+              </g>
+            );
+          })}
 
-          {/* Dots on non-zero days */}
-          {pts.map(([x, y], i) => values[i] > 0 && (
-            <circle key={i} cx={x} cy={y} r="3" fill="#7C5CFC" stroke={t.isDark ? '#05050A' : '#fff'} strokeWidth="1.5" />
-          ))}
+          {/* Engagement area + line (only with real data) */}
+          {hasEng && (
+            <>
+              <path d={areaPath} fill="url(#engAreaGrad)" />
+              <path d={linePath} fill="none" stroke="#7C5CFC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              {pts.map(({ x, y }, i) => values[i] > 0 && (
+                <circle key={i} cx={x} cy={y}
+                  r={hoverIdx === i ? 4.5 : 3}
+                  fill="#7C5CFC"
+                  stroke={t.isDark ? '#05050A' : '#fff'}
+                  strokeWidth={hoverIdx === i ? 2 : 1.5} />
+              ))}
+            </>
+          )}
 
-          {/* X axis labels */}
+          {/* Hover vertical line */}
+          {hoverIdx !== null && (
+            <line
+              x1={pts[hoverIdx].x} y1={PAD.top}
+              x2={pts[hoverIdx].x} y2={PAD.top + chartH}
+              stroke={t.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'}
+              strokeWidth="1" strokeDasharray="3 3" />
+          )}
+
+          {/* X-axis labels */}
           {xLabels.map(({ i, label }) => (
-            <text key={i}
-              x={PAD.left + (i / (values.length - 1)) * chartW}
-              y={H - 4}
+            <text key={label}
+              x={PAD.left + (i / (days.length - 1)) * chartW}
+              y={H - 3}
               textAnchor={i === 0 ? 'start' : i === 29 ? 'end' : 'middle'}
               fill={t.isDark ? 'rgba(255,255,255,0.3)' : '#8E8E93'}
               fontSize="9" fontFamily="-apple-system,BlinkMacSystemFont,sans-serif">
@@ -171,25 +284,64 @@ function EngagementTrendChart({ posts, t, gc }) {
             </text>
           ))}
         </svg>
+
+        {/* Hover tooltip */}
+        {hoverIdx !== null && hoverDay && (
+          <div style={{
+            position: 'absolute', top: 8,
+            left: `${(hoverIdx / 29) * 100}%`,
+            transform: hoverIdx > 22 ? 'translateX(-105%)' : hoverIdx < 5 ? 'translateX(4%)' : 'translateX(-50%)',
+            background: t.isDark ? 'rgba(18,18,28,0.97)' : 'rgba(255,255,255,0.98)',
+            border: `1px solid ${t.border}`, borderRadius: 8,
+            padding: '8px 12px', minWidth: 150,
+            pointerEvents: 'none', zIndex: 10,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.22)',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: t.text, marginBottom: 6 }}>{hoverDay.label}</div>
+            {hoverPosts > 0 && (
+              <div style={{ fontSize: 11, color: '#F59E0B', marginBottom: 4 }}>
+                📅 {hoverPosts} post{hoverPosts > 1 ? 's' : ''} published
+              </div>
+            )}
+            {hasEng ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div style={{ fontSize: 11, color: t.textMuted }}>❤️ Likes <span style={{ float: 'right', color: t.text, fontWeight: 700 }}>{hoverDetail?.likes || 0}</span></div>
+                <div style={{ fontSize: 11, color: t.textMuted }}>💬 Comments <span style={{ float: 'right', color: t.text, fontWeight: 700 }}>{hoverDetail?.comments || 0}</span></div>
+                <div style={{ fontSize: 11, color: t.textMuted }}>🔁 Shares <span style={{ float: 'right', color: t.text, fontWeight: 700 }}>{hoverDetail?.shares || 0}</span></div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: t.textMuted }}>No engagement synced yet</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Legend + no-engagement CTA */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 14 }}>
+          {hasEng && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 14, height: 3, borderRadius: 2, background: '#7C5CFC' }} />
+              <span style={{ fontSize: 11, color: t.textMuted }}>Engagement</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 3, height: 12, borderRadius: 2, background: '#F59E0B' }} />
+            <span style={{ fontSize: 11, color: t.textMuted }}>Post published</span>
+          </div>
+        </div>
+        {!hasEng && totalPosts > 0 && (
+          <div style={{ fontSize: 11, color: t.textMuted }}>
+            Connect Facebook/Instagram in{' '}
+            <button onClick={() => router.push('/settings')}
+              style={{ background: 'none', border: 'none', padding: 0, color: t.primary, fontWeight: 600, cursor: 'pointer', fontSize: 11 }}>
+              Settings
+            </button>
+            {' '}then click <strong style={{ color: t.text }}>Sync metrics</strong> to see engagement here.
+          </div>
+        )}
       </div>
     </div>
-  );
-}
-
-function MonthPicker({ value, onChange }) {
-  const now = new Date();
-  const options = [];
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    options.push({ value: `${d.getFullYear()}-${d.getMonth()}`, label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}` });
-  }
-  return (
-    <Select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      options={options}
-      style={{ width: 180 }}
-    />
   );
 }
 
@@ -202,6 +354,7 @@ export default function Analytics() {
   const [loading, setLoading]         = useState(true);
   const [overview, setOverview]       = useState(null);
   const [posts, setPosts]             = useState([]);
+  const [chartPosts, setChartPosts]   = useState([]);
   const [sort, setSort]               = useState('recent');
   const [period, setPeriod]           = useState('30');
   const [optTimes, setOptTimes]       = useState(null);
@@ -215,20 +368,20 @@ export default function Analytics() {
   // Tab state
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Monthly report state
-  const [reportMonth, setReportMonth] = useState(() => {
-    const n = new Date(); return `${n.getFullYear()}-${n.getMonth()}`;
-  });
-  const [reportPosts, setReportPosts]     = useState([]);
-  const [reportLoading, setReportLoading] = useState(false);
+  // Overview tab platform filter
+  const [overviewPlatform, setOverviewPlatform] = useState('all');
+
+  // Posts tab filter state
+  const [platformFilter, setPlatformFilter] = useState('all');
+  const [ctFilter, setCtFilter]             = useState('all');
+  const [statusFilter, setStatusFilter]     = useState('all');
+  const [periodFilter, setPeriodFilter]     = useState('all');
+  const [postsLoading, setPostsLoading]     = useState(false);
 
   // Sync metrics state
   const [syncing, setSyncing]   = useState(false);
   const [syncMsg, setSyncMsg]   = useState('');
   const [isMobile, setIsMobile] = useState(false);
-
-  // PDF export state
-  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -242,18 +395,13 @@ export default function Analytics() {
 
   // Sync tab from URL query
   useEffect(() => {
-    if (router.query.tab && ['overview', 'posts', 'monthly'].includes(router.query.tab)) {
+    if (router.query.tab && ['overview', 'posts'].includes(router.query.tab)) {
       setActiveTab(router.query.tab);
     }
   }, [router.query.tab]);
 
-  useEffect(() => { if (mounted) loadOverview(); }, [period]);
-  useEffect(() => { if (mounted) loadPosts(); }, [sort]);
-
-  useEffect(() => {
-    if (activeTab !== 'monthly' || !mounted) return;
-    loadMonthlyReport();
-  }, [activeTab, reportMonth]);
+  useEffect(() => { if (mounted) loadOverview(); }, [period, overviewPlatform]);
+  useEffect(() => { if (mounted) loadPosts(); }, [sort, platformFilter, ctFilter, statusFilter, periodFilter]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -274,7 +422,9 @@ export default function Analytics() {
         analyticsAPI.getLeaderboard().catch(() => ({ data: null })),
       ]);
       setOverview(o.data);
-      setPosts(Array.isArray(p.data) ? p.data : []);
+      const allPosts = Array.isArray(p.data) ? p.data : [];
+      setPosts(allPosts);
+      setChartPosts(allPosts);
       setOptTimes(ot.data);
       setContentPerf(cp.data);
       if (str?.data) setStreak(str.data);
@@ -286,27 +436,26 @@ export default function Analytics() {
   };
 
   const loadOverview = async () => {
-    try { const r = await analyticsAPI.getOverview({ period }); setOverview(r.data); } catch {}
+    try {
+      const params = { period };
+      if (overviewPlatform !== 'all') params.platform = overviewPlatform;
+      const r = await analyticsAPI.getOverview(params);
+      setOverview(r.data);
+    } catch {}
   };
 
   const loadPosts = async () => {
-    try { const r = await analyticsAPI.listPosts({ sort }); setPosts(Array.isArray(r.data) ? r.data : []); } catch {}
-  };
-
-  const loadMonthlyReport = async () => {
-    setReportLoading(true);
+    setPostsLoading(true);
     try {
-      const [selYear, selMonth] = reportMonth.split('-').map(Number);
-      const daysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
-      const r = await analyticsAPI.listPosts({ limit: 100, period: daysInMonth });
-      const all = Array.isArray(r.data) ? r.data : (r.data?.posts || []);
-      const filtered = all.filter(p => {
-        const d = new Date(p.posted_at || p.created_at);
-        return d.getFullYear() === selYear && d.getMonth() === selMonth && p.status === 'posted';
-      });
-      setReportPosts(filtered);
-    } catch { setReportPosts([]); }
-    finally { setReportLoading(false); }
+      const params = { sort, limit: 100 };
+      if (platformFilter !== 'all') params.platform    = platformFilter;
+      if (ctFilter       !== 'all') params.contentType = ctFilter;
+      if (statusFilter   !== 'all') params.status      = statusFilter;
+      if (periodFilter   !== 'all') params.period      = periodFilter;
+      const r = await analyticsAPI.listPosts(params);
+      setPosts(Array.isArray(r.data) ? r.data : []);
+    } catch {}
+    finally { setPostsLoading(false); }
   };
 
   const handleSync = async () => {
@@ -316,33 +465,27 @@ export default function Analytics() {
     try {
       await analyticsAPI.syncMetrics();
       setSyncMsg('Metrics synced');
-      // Refresh overview and posts after sync
-      await Promise.all([loadOverview(), loadPosts()]);
+      await Promise.all([
+        loadOverview(),
+        loadPosts(),
+        analyticsAPI.listPosts({ sort: 'recent', limit: 100 }).then(r => {
+          setChartPosts(Array.isArray(r.data) ? r.data : []);
+        }).catch(() => {}),
+        analyticsAPI.getContentPerformance().then(r => {
+          if (r?.data) setContentPerf(r.data);
+        }).catch(() => {}),
+        analyticsAPI.getOptimalTimes().then(r => {
+          if (r?.data) setOptTimes(r.data);
+        }).catch(() => {}),
+        analyticsAPI.getLeaderboard().then(r => {
+          if (r?.data) setLeaderboard(r.data);
+        }).catch(() => {}),
+      ]);
       setTimeout(() => setSyncMsg(''), 3000);
     } catch {
       setSyncMsg('Sync failed — check your social connections');
       setTimeout(() => setSyncMsg(''), 4000);
     } finally { setSyncing(false); }
-  };
-
-  const handleExportPdf = async () => {
-    if (exportingPdf) return;
-    setExportingPdf(true);
-    try {
-      const [selYear, selMonth] = reportMonth.split('-').map(Number);
-      const res = await analyticsAPI.exportPdf(selYear, selMonth);
-      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const a = document.createElement('a');
-      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-      a.href = url;
-      a.download = `ItsPosting-Report-${selYear}-${monthNames[selMonth]}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('PDF export failed:', err.message);
-    } finally { setExportingPdf(false); }
   };
 
   const handleUseTime = (slot) => {
@@ -360,30 +503,9 @@ export default function Analytics() {
     ? Math.max(...contentPerf.byType.map(r => parseFloat(r.avg_score) || 0), 1)
     : 1;
 
-  // Monthly report derived data
-  const [selYear, selMonth] = reportMonth.split('-').map(Number);
-  const monthLabel = `${MONTH_NAMES[selMonth]} ${selYear}`;
-
-  const bestPost = reportPosts.reduce((best, p) => {
-    const eng = (p.likes || 0) + (p.comments || 0) + (p.shares || 0);
-    const bEng = (best?.likes || 0) + (best?.comments || 0) + (best?.shares || 0);
-    return eng > bEng ? p : best;
-  }, null);
-
-  const typeCounts = {};
-  reportPosts.forEach(p => { typeCounts[p.content_type] = (typeCounts[p.content_type] || 0) + 1; });
-
-  const dowCounts = Array(7).fill(0);
-  reportPosts.forEach(p => { const d = new Date(p.posted_at || p.created_at); dowCounts[d.getDay()]++; });
-  const bestDowIdx = dowCounts.indexOf(Math.max(...dowCounts));
-
-  const totalEng = reportPosts.reduce((s, p) => s + (p.likes || 0) + (p.comments || 0) + (p.shares || 0), 0);
-  const totalReach = reportPosts.reduce((s, p) => s + (parseInt(p.reach) || 150), 0);
-
   const TAB_DEFS = [
     { id: 'overview', label: 'Overview' },
     { id: 'posts',    label: 'Posts' },
-    { id: 'monthly',  label: 'Monthly Report' },
   ];
 
   const gc = {
@@ -479,16 +601,88 @@ export default function Analytics() {
             <SkeletonPage rows={4} cards={4} />
           ) : (
             <>
+              {/* ── OVERVIEW PLATFORM FILTER ──────────────────── */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                {PLATFORM_FILTERS.map(pf => (
+                  <button key={pf.id} onClick={() => setOverviewPlatform(pf.id)}
+                    style={{ padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: overviewPlatform === pf.id ? 700 : 400, cursor: 'pointer', border: `1px solid ${overviewPlatform === pf.id ? pf.color : t.border}`, background: overviewPlatform === pf.id ? `${pf.color}18` : 'transparent', color: overviewPlatform === pf.id ? pf.color : t.textSecondary, transition: 'all 120ms', whiteSpace: 'nowrap' }}
+                  >{pf.label}</button>
+                ))}
+              </div>
+
               {/* ── STAT CARDS ─────────────────────────────────── */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 16, marginBottom: 16 }}>
                 <StatCard label="Posts published" value={parseInt(summary.posted) || 0}       hint={`${parseInt(summary.active_days) || 0} active days`} accent="primary" />
                 <StatCard label="Total likes"     value={parseInt(summary.total_likes) || 0}    accent="primary" />
                 <StatCard label="Total comments"  value={parseInt(summary.total_comments) || 0} accent="success" />
                 <StatCard label="Total shares"    value={parseInt(summary.total_shares) || 0}   accent="warning" />
               </div>
 
+              {/* ── SYNC HINT (shown when posts exist but 0 engagement) ─ */}
+              {parseInt(summary.posted) > 0 &&
+               !parseInt(summary.total_likes) &&
+               !parseInt(summary.total_comments) &&
+               !parseInt(summary.total_shares) ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', background: 'rgba(124,92,252,0.05)', border: `1px solid ${t.primaryBorder}`, borderRadius: 10, marginBottom: 12, fontSize: 12, color: t.textSecondary }}>
+                  <IpInfo size={13} style={{ color: t.primary, flexShrink: 0 }} />
+                  <span>
+                    Connect Facebook, Instagram, or TikTok in{' '}
+                    <button onClick={() => router.push('/settings')} style={{ background: 'none', border: 'none', padding: 0, color: t.primary, fontWeight: 600, cursor: 'pointer', fontSize: 12 }}>Settings</button>
+                    , then click <strong style={{ color: t.text }}>Sync metrics</strong> above to pull real likes, comments &amp; shares.
+                    {' '}Google Business and LinkedIn don&apos;t expose per-post engagement via their APIs.
+                  </span>
+                </div>
+              ) : null}
+
+              {/* ── DATA TRANSPARENCY NOTE ─────────────────────── */}
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+                background: t.isDark ? 'rgba(10,132,255,0.06)' : 'rgba(10,132,255,0.05)',
+                border: `1px solid ${t.isDark ? 'rgba(10,132,255,0.15)' : 'rgba(10,132,255,0.18)'}`,
+                borderRadius: 10, padding: '12px 14px', marginBottom: 20,
+              }}>
+                <IpInfo size={13} color={t.info || '#0A84FF'} style={{ flexShrink: 0, marginTop: 2 }} />
+                <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.7 }}>
+                  <span style={{ color: t.text, fontWeight: 600 }}>Where this data comes from:</span>
+                  <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                      <span style={{ color: '#22C55E', fontWeight: 700, flexShrink: 0 }}>✓</span>
+                      <span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: t.text, fontWeight: 600 }}><IpFacebook size={11} /> Facebook</span>
+                        {' & '}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: t.text, fontWeight: 600 }}><IpInstagram size={11} /> Instagram</span>
+                        {' — likes, comments, shares via Meta Graph API. Click '}
+                        <strong style={{ color: t.text }}>Sync metrics</strong> to update.
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                      <span style={{ color: '#22C55E', fontWeight: 700, flexShrink: 0 }}>✓</span>
+                      <span>
+                        <strong style={{ color: t.text }}>TikTok</strong>
+                        {' — views, likes, comments, shares via TikTok API. '}
+                        <span style={{ color: t.textMuted }}>If you connected TikTok before June 2026, re-connect in Settings to enable metrics.</span>
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                      <span style={{ color: '#F59E0B', fontWeight: 700, flexShrink: 0 }}>—</span>
+                      <span>
+                        <strong style={{ color: t.text }}>Google Business</strong>
+                        {' — posts are indexed for local search but Google does not provide per-post likes, comments, or shares via their API.'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                      <span style={{ color: t.primary, fontWeight: 700, flexShrink: 0, fontSize: 10 }}>SOON</span>
+                      <span>
+                        <strong style={{ color: t.text }}>LinkedIn</strong>
+                        {' — analytics sync is coming soon. Your posts are published normally; metrics will appear here once this feature launches.'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* ── ENGAGEMENT TREND CHART ─────────────────────── */}
-              {posts.length > 1 && <EngagementTrendChart posts={posts} t={t} gc={gc} />}
+              {chartPosts.length > 0 && <EngagementTrendChart posts={chartPosts} t={t} gc={gc} router={router} />}
 
               {/* ── STREAK CARD ────────────────────────────────── */}
               {streak !== null && streak.streak > 0 && (
@@ -521,7 +715,9 @@ export default function Analytics() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Content Mix <span style={{ fontSize: 12, fontWeight: 400, color: t.textMuted }}>· last 30 days</span></div>
-                      <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>Target: 30% educational · 25% social proof · 20% seasonal · 25% promotional</div>
+                      <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>
+                        Target: {contentMix.idealMix.educational}% educational · {contentMix.idealMix.socialProof}% social proof · {contentMix.idealMix.promotional}% promotional
+                      </div>
                     </div>
                     <div style={{ padding: '5px 12px', borderRadius: 20, background: contentMix.healthScore >= 80 ? 'rgba(34,197,94,0.1)' : contentMix.healthScore >= 55 ? 'rgba(234,179,8,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${contentMix.healthScore >= 80 ? 'rgba(34,197,94,0.3)' : contentMix.healthScore >= 55 ? 'rgba(234,179,8,0.3)' : 'rgba(239,68,68,0.3)'}`, fontSize: 13, fontWeight: 700, color: contentMix.healthScore >= 80 ? '#22C55E' : contentMix.healthScore >= 55 ? '#EAB308' : '#EF4444' }}>
                       {contentMix.healthScore}/100
@@ -776,7 +972,7 @@ export default function Analytics() {
               </div>
 
               {/* ── CONTENT PERFORMANCE + DOW BARS ─────────────── */}
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 20 }}>
                 <div style={gc}>
                   <SectionHeader icon={IpAnalytics} title="Content type performance" subtitle="Avg engagement by type" />
                   {!contentPerf?.byType?.length ? (
@@ -989,33 +1185,120 @@ export default function Analytics() {
         {/* POSTS TAB                                          */}
         {/* ══════════════════════════════════════════════════ */}
         {activeTab === 'posts' && (
-          loading ? (
-            <SkeletonPage rows={6} cards={2} />
-          ) : (
+          loading ? <SkeletonPage rows={6} cards={2} /> : (
             <div style={gc}>
-              <SectionHeader
-                icon={IpAnalytics}
-                title="All posts"
-                action={
-                  <div style={{ display: 'flex', gap: 4, background: t.input, padding: 3, borderRadius: 8 }}>
-                    {[{ id: 'recent', label: 'Recent' }, { id: 'best', label: 'Best' }].map(s => (
-                      <button
-                        key={s.id} onClick={() => setSort(s.id)}
-                        style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 500, border: 'none', cursor: 'pointer', color: sort === s.id ? t.text : t.textMuted, background: sort === s.id ? t.card : 'transparent', transition: 'all 150ms' }}
-                      >{s.label}</button>
+
+              {/* ── Header row ─────────────────────────────── */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <IpAnalytics size={16} color="url(#brand-gradient)" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: t.text, lineHeight: 1 }}>All posts</div>
+                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>{posts.length} result{posts.length !== 1 ? 's' : ''}</div>
+                  </div>
+                </div>
+                {/* Sort toggle */}
+                <div style={{ display: 'flex', gap: 3, padding: 3, background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, flexShrink: 0 }}>
+                  {[{ id: 'recent', label: 'Recent' }, { id: 'best', label: 'Best' }].map(s => (
+                    <button key={s.id} onClick={() => setSort(s.id)}
+                      style={{ padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: sort === s.id ? 600 : 500, border: 'none', cursor: 'pointer', color: sort === s.id ? t.text : t.textMuted, background: sort === s.id ? t.card : 'transparent', transition: 'all 150ms' }}
+                    >{s.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Filter bar ─────────────────────────────── */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18, padding: '14px 16px', background: t.isDark ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.02)', borderRadius: 12, border: `1px solid ${t.border}` }}>
+
+                {/* Platform chips */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 52, flexShrink: 0 }}>Platform</span>
+                  {PLATFORM_FILTERS.map(pf => (
+                    <button key={pf.id} onClick={() => setPlatformFilter(pf.id)}
+                      style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: platformFilter === pf.id ? 700 : 400, cursor: 'pointer', border: `1px solid ${platformFilter === pf.id ? pf.color : t.border}`, background: platformFilter === pf.id ? `${pf.color}18` : 'transparent', color: platformFilter === pf.id ? pf.color : t.textSecondary, transition: 'all 120ms', whiteSpace: 'nowrap' }}
+                    >{pf.label}</button>
+                  ))}
+                </div>
+
+                {/* Content type + period + status */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 52, flexShrink: 0 }}>Type</span>
+                  {CT_FILTERS.map(cf => (
+                    <button key={cf.id} onClick={() => setCtFilter(cf.id)}
+                      style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: ctFilter === cf.id ? 700 : 400, cursor: 'pointer', border: `1px solid ${ctFilter === cf.id ? t.primary : t.border}`, background: ctFilter === cf.id ? t.primaryBg : 'transparent', color: ctFilter === cf.id ? t.primary : t.textSecondary, transition: 'all 120ms', whiteSpace: 'nowrap' }}
+                    >{cf.label}</button>
+                  ))}
+                </div>
+
+                {/* Date + status row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 52, flexShrink: 0 }}>Date</span>
+                  <div style={{ display: 'flex', gap: 3, padding: 2, background: t.card, border: `1px solid ${t.border}`, borderRadius: 8 }}>
+                    {[{ v: 'all', l: 'All time' }, { v: '7', l: '7 days' }, { v: '30', l: '30 days' }, { v: '90', l: '90 days' }].map(({ v, l }) => (
+                      <button key={v} onClick={() => setPeriodFilter(v)}
+                        style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500, border: 'none', cursor: 'pointer', color: periodFilter === v ? t.text : t.textMuted, background: periodFilter === v ? t.primaryBg : 'transparent', transition: 'all 120ms', whiteSpace: 'nowrap' }}
+                      >{l}</button>
                     ))}
                   </div>
-                }
-              />
+                  <div style={{ display: 'flex', gap: 3, padding: 2, background: t.card, border: `1px solid ${t.border}`, borderRadius: 8 }}>
+                    {[{ v: 'all', l: 'All status' }, { v: 'posted', l: 'Posted' }, { v: 'scheduled', l: 'Scheduled' }, { v: 'draft', l: 'Drafts' }].map(({ v, l }) => (
+                      <button key={v} onClick={() => setStatusFilter(v)}
+                        style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500, border: 'none', cursor: 'pointer', color: statusFilter === v ? t.text : t.textMuted, background: statusFilter === v ? t.primaryBg : 'transparent', transition: 'all 120ms', whiteSpace: 'nowrap' }}
+                      >{l}</button>
+                    ))}
+                  </div>
+                  {(platformFilter !== 'all' || ctFilter !== 'all' || statusFilter !== 'all' || periodFilter !== 'all') && (
+                    <button
+                      onClick={() => { setPlatformFilter('all'); setCtFilter('all'); setStatusFilter('all'); setPeriodFilter('all'); }}
+                      style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, border: `1px solid ${t.border}`, cursor: 'pointer', color: t.textMuted, background: 'transparent', transition: 'all 120ms' }}
+                    >Clear filters</button>
+                  )}
+                </div>
+              </div>
 
-              {posts.length === 0 ? (
-                <EmptyState icon={IpAnalytics} title="No published posts yet" subtitle="Once you start posting, performance data will appear here" />
+              {/* ── Sync hint ──────────────────────────────── */}
+              {posts.some(p => p.status === 'posted' && !p.last_metrics_sync) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: 10, marginBottom: 16, fontSize: 12, color: t.textSecondary }}>
+                  <IpInfo size={13} style={{ color: '#EAB308', flexShrink: 0 }} />
+                  <span>Some posts haven't been synced yet. Click <strong style={{ color: t.text }}>Sync metrics</strong> in the top bar to pull real engagement data from Facebook & Instagram.</span>
+                </div>
+              )}
+
+              {/* ── Posts list ─────────────────────────────── */}
+              {postsLoading ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={32} /></div>
+              ) : posts.length === 0 ? (
+                <EmptyState
+                  icon={IpAnalytics}
+                  title="No posts match these filters"
+                  subtitle="Try adjusting the filters above, or publish your first post."
+                  action={<Button variant="primary" onClick={() => router.push('/wizard')}><IpSparkle size={13} /> Create a Post</Button>}
+                />
               ) : (
                 <div>
                   {posts.map(p => {
                     const eng   = p.engagement || {};
                     const total = (parseInt(eng.likes) || 0) + (parseInt(eng.comments) || 0) + (parseInt(eng.shares) || 0);
-                    const meta  = TYPE_META[p.content_type] || { color: t.primary };
+                    const meta  = TYPE_META[p.content_type] || { label: p.content_type, color: t.primary, icon: IpDrafts };
+                    const TypeIcon = meta.icon || IpDrafts;
+
+                    // Parse platform list
+                    let pList = [];
+                    try {
+                      if (Array.isArray(p.platforms)) pList = p.platforms;
+                      else if (p.platforms) pList = JSON.parse(p.platforms);
+                    } catch {}
+                    if (!pList.length && p.platform) pList = [p.platform];
+
+                    // Sync age label
+                    let syncLabel = null;
+                    if (p.last_metrics_sync) {
+                      const ageMin = Math.round((Date.now() - new Date(p.last_metrics_sync).getTime()) / 60000);
+                      syncLabel = ageMin < 60 ? `Synced ${ageMin}m ago` : ageMin < 1440 ? `Synced ${Math.round(ageMin / 60)}h ago` : `Synced ${Math.round(ageMin / 1440)}d ago`;
+                    }
+
                     return (
                       <div
                         key={p.id}
@@ -1024,37 +1307,66 @@ export default function Analytics() {
                         onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
+                        {/* Thumbnail */}
                         {p.media_url ? (
                           <img src={p.media_url} alt="" style={{ width: 52, height: 52, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} onError={e => e.target.style.display = 'none'} />
                         ) : (
                           <div style={{ width: 52, height: 52, borderRadius: 8, background: t.input, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {p.content_type === 'carousel' ? <IpCarousel size={22} style={{ color: t.textMuted }} /> : p.content_type === 'video' ? <IpVideo size={22} style={{ color: t.textMuted }} /> : <IpDrafts size={22} style={{ color: t.textMuted }} />}
+                            <TypeIcon size={22} style={{ color: t.textMuted }} />
                           </div>
                         )}
+
+                        {/* Content */}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 500, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 5 }}>
                             {p.caption || '(no caption)'}
                           </div>
-                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: 11, color: t.textMuted }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpHeart size={10} /> {eng.likes || 0}</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpComment size={10} /> {eng.comments || 0}</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IpShare size={10} /> {eng.shares || 0}</span>
-                            <span style={{ color: meta.color, fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>{meta.label || p.content_type}</span>
-                            {p.posted_at && <span>{format(new Date(p.posted_at), 'MMM d, yyyy')}</span>}
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {/* Type badge */}
+                            <span style={{ fontSize: 10, fontWeight: 700, color: meta.color, background: `${meta.color}15`, padding: '2px 7px', borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{meta.label}</span>
+                            {/* Status badge (non-posted only) */}
+                            {p.status !== 'posted' && (
+                              <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', color: p.status === 'scheduled' ? '#F59E0B' : t.textMuted, background: p.status === 'scheduled' ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.05)' }}>
+                                {p.status}
+                              </span>
+                            )}
+                            {/* Platform dots */}
+                            {pList.slice(0, 4).map(pl => {
+                              const pm = PLATFORM_COLORS[pl] || { color: '#8E8E93', short: pl.slice(0, 2).toUpperCase() };
+                              return (
+                                <span key={pl} title={pl.replace('_', ' ')} style={{ fontSize: 10, fontWeight: 700, color: pm.color, background: `${pm.color}18`, padding: '2px 6px', borderRadius: 8, whiteSpace: 'nowrap' }}>{pm.short}</span>
+                              );
+                            })}
+                            {/* Date */}
+                            <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>
+                              {p.posted_at ? format(new Date(p.posted_at), 'MMM d, yyyy')
+                                : p.scheduled_date ? `⏰ ${format(new Date(p.scheduled_date), 'MMM d')}`
+                                : format(new Date(p.created_at), 'MMM d, yyyy')}
+                            </span>
+                            {/* Engagement inline */}
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: t.textMuted }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}><IpHeart size={10} /> {eng.likes || 0}</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}><IpComment size={10} /> {eng.comments || 0}</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}><IpShare size={10} /> {eng.shares || 0}</span>
+                            </span>
+                            {/* Sync age */}
+                            {syncLabel && <span style={{ fontSize: 10, color: t.textMuted, whiteSpace: 'nowrap' }}>{syncLabel}</span>}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+
+                        {/* Right: total + score */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 22, fontWeight: 800, color: total > 0 ? t.primary : t.textMuted, fontFamily: 'monospace' }}>{total}</div>
+                            <div style={{ fontSize: 20, fontWeight: 800, color: total > 0 ? t.primary : t.textMuted, fontFamily: 'monospace', lineHeight: 1 }}>{total}</div>
                             <div style={{ fontSize: 10, color: t.textMuted }}>total</div>
                           </div>
                           {p.performance_score > 0 && (
                             <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: 16, fontWeight: 700, color: t.success, fontFamily: 'monospace' }}>{Math.round(p.performance_score)}</div>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: t.success, fontFamily: 'monospace', lineHeight: 1 }}>{Math.round(p.performance_score)}</div>
                               <div style={{ fontSize: 10, color: t.textMuted }}>score</div>
                             </div>
                           )}
-                          <IpChevronRight size={16} style={{ color: t.textMuted }} />
+                          <IpChevronRight size={15} style={{ color: t.textMuted }} />
                         </div>
                       </div>
                     );
@@ -1065,188 +1377,6 @@ export default function Analytics() {
           )
         )}
 
-        {/* ══════════════════════════════════════════════════ */}
-        {/* MONTHLY REPORT TAB                                 */}
-        {/* ══════════════════════════════════════════════════ */}
-        {activeTab === 'monthly' && (
-          <>
-            {/* Month picker header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: t.text }}>Monthly Report</div>
-                <div style={{ fontSize: 13, color: t.textMuted, marginTop: 2 }}>Performance summary for {monthLabel}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <MonthPicker value={reportMonth} onChange={setReportMonth} />
-                <button
-                  onClick={handleExportPdf}
-                  disabled={exportingPdf}
-                  title="Download this month's report as PDF"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '8px 14px', borderRadius: 8,
-                    background: exportingPdf ? t.border : t.primary,
-                    color: '#fff', border: 'none', fontSize: 12, fontWeight: 700,
-                    cursor: exportingPdf ? 'not-allowed' : 'pointer',
-                    whiteSpace: 'nowrap', flexShrink: 0,
-                    transition: 'background 120ms',
-                  }}
-                >
-                  {exportingPdf ? '⏳ Exporting...' : '⬇ Export PDF'}
-                </button>
-              </div>
-            </div>
-
-            {reportLoading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Spinner size={40} /></div>
-            ) : (
-              <>
-                {/* 4 stat cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-                  {[
-                    { label: 'Posts Published', value: reportPosts.length, sub: `in ${monthLabel}`, color: t.primary },
-                    { label: 'Estimated Reach', value: totalReach > 999 ? `~${(totalReach/1000).toFixed(1)}k` : `~${totalReach}`, sub: 'estimated local people', color: '#3B82F6' },
-                    { label: 'Total Engagement', value: totalEng, sub: 'likes + comments + shares', color: '#F59E0B' },
-                    { label: 'Best Day', value: reportPosts.length > 0 ? DAYS_FULL[bestDowIdx].slice(0, 3) : '—', sub: reportPosts.length > 0 ? `${dowCounts[bestDowIdx]} post${dowCounts[bestDowIdx] !== 1 ? 's' : ''}` : 'no posts yet', color: '#22C55E' },
-                  ].map(({ label, value, sub, color }) => (
-                    <div key={label} style={{ ...gc, padding: '18px 20px' }}>
-                      <p style={{ margin: '0 0 6px', fontSize: 11, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{label}</p>
-                      <p style={{ margin: 0, fontSize: 36, fontWeight: 800, color, fontFamily: 'monospace', textShadow: `0 0 20px ${color}40` }}>{value}</p>
-                      <p style={{ margin: '4px 0 0', fontSize: 12, color: t.textSecondary }}>{sub}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 24 }}>
-                  {/* Top post */}
-                  <div style={gc}>
-                    <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top Post This Month</p>
-                    {!bestPost ? (
-                      <EmptyState icon={IpSparkle} title="No posts yet" subtitle={`Publish posts in ${monthLabel} to see top performers.`} />
-                    ) : (
-                      <div
-                        onClick={() => router.push(`/analytics/posts/${bestPost.id}`)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        {bestPost.media_url && (
-                          <div style={{ width: '100%', aspectRatio: '4/3', borderRadius: 8, marginBottom: 12, background: t.border, overflow: 'hidden' }}>
-                            <img src={bestPost.media_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </div>
-                        )}
-                        <p style={{ margin: '0 0 10px', fontSize: 13, color: t.text, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                          {bestPost.caption || 'No text preview'}
-                        </p>
-                        <div style={{ display: 'flex', gap: 14, fontSize: 12, color: t.textSecondary }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><IpHeart size={12} />{bestPost.likes || 0}</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><IpComment size={12} />{bestPost.comments || 0}</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><IpShare size={12} />{bestPost.shares || 0}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Content mix */}
-                  <div style={gc}>
-                    <p style={{ margin: '0 0 14px', fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Content Mix</p>
-                    {reportPosts.length === 0 ? (
-                      <EmptyState icon={IpCalendar} title="No posts yet" subtitle="Publish posts this month to see your content breakdown." />
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {Object.entries(typeCounts).map(([type, count]) => {
-                          const meta = TYPE_META[type] || { label: type, color: t.textMuted, icon: IpDrafts };
-                          const pct = Math.round((count / reportPosts.length) * 100);
-                          const Icon = meta.icon;
-                          return (
-                            <div key={type}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, alignItems: 'center' }}>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: t.text }}>
-                                  <Icon size={14} style={{ color: meta.color }} /> {meta.label}
-                                </span>
-                                <span style={{ fontSize: 12, color: t.textSecondary, fontFamily: 'monospace' }}>{count} ({pct}%)</span>
-                              </div>
-                              <div style={{ height: 6, background: t.border, borderRadius: 4, overflow: 'hidden' }}>
-                                <div style={{ height: '100%', width: `${pct}%`, background: meta.color, borderRadius: 4 }} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                        <div style={{ marginTop: 8, padding: '8px 10px', background: t.primaryBg, borderRadius: 8, fontSize: 12, color: t.textSecondary }}>
-                          Target: <strong style={{ color: t.text }}>70%</strong> educational · <strong style={{ color: t.text }}>20%</strong> social proof · <strong style={{ color: t.text }}>10%</strong> promotional
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* All posts table */}
-                <div style={gc}>
-                  <p style={{ margin: '0 0 16px', fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>All Posts — {monthLabel}</p>
-                  {reportPosts.length === 0 ? (
-                    <EmptyState
-                      icon={IpCalendar}
-                      title={`No posts in ${monthLabel}`}
-                      subtitle="Published posts will appear here once they go live."
-                      action={<Button onClick={() => router.push('/wizard')}><IpSparkle size={14} /> Create a Post</Button>}
-                    />
-                  ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                        <thead>
-                          <tr style={{ borderBottom: `1px solid ${t.border}` }}>
-                            {['Date', 'Type', 'Platform', 'Caption', 'Reach', 'Engagement'].map(h => (
-                              <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: t.textMuted, fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportPosts.map(p => {
-                            const meta = TYPE_META[p.content_type] || { label: p.content_type, color: t.textMuted };
-                            const eng = (p.likes || 0) + (p.comments || 0) + (p.shares || 0);
-                            const reach = parseInt(p.reach) || 0;
-                            const hasReal = p.performance_score > 0;
-                            return (
-                              <tr
-                                key={p.id}
-                                onClick={() => router.push(`/analytics/posts/${p.id}`)}
-                                style={{ borderBottom: `1px solid ${t.border}`, cursor: 'pointer' }}
-                                onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
-                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                              >
-                                <td style={{ padding: '10px 10px', color: t.textSecondary, whiteSpace: 'nowrap' }}>
-                                  {new Date(p.posted_at || p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                                </td>
-                                <td style={{ padding: '10px 10px' }}>
-                                  <span style={{ fontSize: 11, fontWeight: 600, color: meta.color, background: `${meta.color}1a`, padding: '2px 8px', borderRadius: 20 }}>
-                                    {meta.label}
-                                  </span>
-                                </td>
-                                <td style={{ padding: '10px 10px', color: t.textSecondary, textTransform: 'capitalize' }}>
-                                  {(p.platform || '').replace('_', ' ') || '—'}
-                                </td>
-                                <td style={{ padding: '10px 10px', color: t.text, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {p.caption?.slice(0, 80) || '—'}
-                                </td>
-                                <td style={{ padding: '10px 10px', color: t.textSecondary, fontFamily: 'monospace', textAlign: 'right' }}>
-                                  {reach > 0
-                                    ? <span title="Real synced reach">{reach > 999 ? `${(reach/1000).toFixed(1)}k` : reach}</span>
-                                    : <span title="Estimated reach" style={{ color: t.textMuted }}>~150 est.</span>}
-                                </td>
-                                <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontWeight: 700, textAlign: 'right', color: eng > 0 ? t.success : t.textMuted }}>
-                                  {eng || '—'}
-                                  {!hasReal && eng > 0 && <span style={{ fontSize: 10, fontWeight: 400, color: t.textMuted }}> est.</span>}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </>
-        )}
       </Layout>
     </>
   );

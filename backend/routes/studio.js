@@ -382,7 +382,8 @@ Return ONLY valid JSON (no markdown fences):
 
       const { rows } = await pool.query(
         `SELECT sc.id, sc.output_url, sc.overlay_title, sc.overlay_subtitle,
-                sc.overlay_style, sc.overlay_color, sc.status, sc.created_at,
+                sc.overlay_style, sc.overlay_color, sc.status, sc.creation_type, sc.render_status,
+                sc.canvas_width, sc.canvas_height, sc.created_at, sc.updated_at,
                 sp.title AS photo_title, sp.industry AS photo_industry
          FROM studio_creations sc
          LEFT JOIN stock_photos sp ON sp.id = sc.stock_photo_id
@@ -530,6 +531,59 @@ Return ONLY valid JSON (no markdown fences):
     } catch (err) {
       console.error('[Studio] PATCH /creations/:id:', err.message);
       res.status(500).json({ error: 'Autosave failed' });
+    }
+  });
+
+  // DELETE /api/studio/creations/:id
+  router.delete('/creations/:id', authenticate, async (req, res) => {
+    try {
+      const creationId = parseInt(req.params.id);
+      const { rows: [existing] } = await pool.query(
+        'SELECT id FROM studio_creations WHERE id = $1 AND customer_id = $2',
+        [creationId, req.customerId]
+      );
+      if (!existing) return res.status(404).json({ error: 'Not found' });
+      await pool.query('DELETE FROM studio_creations WHERE id = $1', [creationId]);
+      res.json({ success: true });
+    } catch (err) {
+      console.error('[Studio] DELETE /creations/:id:', err.message);
+      res.status(500).json({ error: 'Failed to delete' });
+    }
+  });
+
+  // POST /api/studio/creations/:id/duplicate
+  router.post('/creations/:id/duplicate', authenticate, async (req, res) => {
+    try {
+      const creationId = parseInt(req.params.id);
+      const { rows: [src] } = await pool.query(
+        'SELECT * FROM studio_creations WHERE id = $1 AND customer_id = $2',
+        [creationId, req.customerId]
+      );
+      if (!src) return res.status(404).json({ error: 'Not found' });
+
+      const { rows: [copy] } = await pool.query(
+        `INSERT INTO studio_creations
+           (customer_id, overlay_title, canvas_json, creation_type, output_url, status,
+            canvas_width, canvas_height, template_id, render_status, updated_at)
+         VALUES ($1, $2, $3, $4, $5, 'created', $6, $7, $8, $9, NOW())
+         RETURNING id, overlay_title, creation_type, output_url, render_status,
+                   canvas_width, canvas_height, status, created_at, updated_at`,
+        [
+          req.customerId,
+          `Copy of ${(src.overlay_title || 'Untitled').substring(0, 110)}`,
+          src.canvas_json ? JSON.stringify(src.canvas_json) : null,
+          src.creation_type || 'image',
+          src.output_url,
+          src.canvas_width || 1080,
+          src.canvas_height || 1350,
+          src.template_id || null,
+          src.render_status || 'none',
+        ]
+      );
+      res.json({ creation: copy });
+    } catch (err) {
+      console.error('[Studio] POST /creations/:id/duplicate:', err.message);
+      res.status(500).json({ error: 'Failed to duplicate' });
     }
   });
 

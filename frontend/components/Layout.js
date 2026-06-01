@@ -106,7 +106,6 @@ export default function Layout({ children, title, subtitle, action }) {
         break;
       case '/analytics':
         analyticsAPI.getOverview().catch(() => {});
-        analyticsAPI.getMonthlyStats().catch(() => {});
         break;
       case '/billing':
         billingAPI.getCurrent().catch(() => {});

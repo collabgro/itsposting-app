@@ -233,7 +233,7 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
   const [jobs,        setJobs]        = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [search,      setSearch]      = useState('');
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [liveUpdates, setLiveUpdates] = useState(false);
   const [showModal,   setShowModal]   = useState(false);
   const [toast,       setToast]       = useState('');
   const [page,        setPage]        = useState(1);
@@ -242,6 +242,9 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
   const [viewData,    setViewData]    = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [savingEntry, setSavingEntry] = useState(false);
+  const [savingEdits, setSavingEdits] = useState(false);
+  const [editText,    setEditText]    = useState('');
+  const [schedules,   setSchedules]   = useState({}); // { [jobId]: 'daily'|'weekly'|'monthly'|'' }
   const [bgJobId,      setBgJobId]      = useState(null);
   const [bgPagesFound, setBgPagesFound] = useState(0);
   const [bgDoneJobId,  setBgDoneJobId]  = useState(null);
@@ -250,7 +253,12 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
   const fetchJobs = async () => {
     try {
       const { data } = await knowledgeAPI.listCrawlJobs();
-      setJobs(data.jobs || []);
+      const fetched = data.jobs || [];
+      setJobs(fetched);
+      // Populate per-row schedule state from DB values
+      const schMap = {};
+      fetched.forEach(j => { schMap[j.id] = j.auto_refresh ? (j.refresh_interval || '') : ''; });
+      setSchedules(schMap);
     } catch {}
     setLoading(false);
   };
@@ -258,7 +266,7 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
   useEffect(() => { fetchJobs(); }, [refreshKey]);
 
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (!liveUpdates) return;
     const id = setInterval(async () => {
       try {
         const { data } = await knowledgeAPI.listCrawlJobs();
@@ -266,7 +274,7 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
       } catch {}
     }, 5000);
     return () => clearInterval(id);
-  }, [autoRefresh]);
+  }, [liveUpdates]);
 
   useEffect(() => {
     if (!bgJobId) return;
@@ -320,12 +328,47 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
   const handleViewData = async (jobId) => {
     setViewJob(jobId);
     setViewData(null);
+    setEditText('');
     setViewLoading(true);
     try {
       const { data } = await knowledgeAPI.getCrawlStatus(jobId);
       setViewData(data.job);
+      // Pre-populate editable text — prefer previously saved edits over auto-extracted
+      const summary = data.job?.result_summary || {};
+      const text = summary.edited_text || buildScrapedText(summary.pages || []);
+      setEditText(text);
     } catch {}
     setViewLoading(false);
+  };
+
+  const handleSaveEdits = async () => {
+    if (!viewJob || !editText) return;
+    setSavingEdits(true);
+    try {
+      await knowledgeAPI.saveEditedData(viewJob, editText);
+      setToast('Edits saved');
+      setTimeout(() => setToast(''), 3000);
+    } catch {
+      setToast('Failed to save edits');
+      setTimeout(() => setToast(''), 3000);
+    } finally {
+      setSavingEdits(false);
+    }
+  };
+
+  const handleScheduleChange = async (jobId, interval) => {
+    setSchedules(prev => ({ ...prev, [jobId]: interval }));
+    try {
+      await knowledgeAPI.setRefreshSchedule(jobId, {
+        auto_refresh: Boolean(interval),
+        refresh_interval: interval || null,
+      });
+      setToast(interval ? `Auto-refresh set to ${interval}` : 'Auto-refresh turned off');
+      setTimeout(() => setToast(''), 3000);
+    } catch {
+      setToast('Failed to update schedule');
+      setTimeout(() => setToast(''), 3000);
+    }
   };
 
   function buildScrapedText(pages = []) {
@@ -347,18 +390,18 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
   }
 
   const handleSaveEntry = async () => {
-    if (!viewData) return;
+    if (!viewData || !editText.trim()) return;
     setSavingEntry(true);
     try {
-      const text = buildScrapedText(viewData.result_summary?.pages || []);
       const hostname = (() => { try { return new URL(viewData.url).hostname; } catch { return viewData.url; } })();
-      await knowledgeAPI.createEntry({ knowledgeType: 'richtext', title: hostname, content: text });
+      await knowledgeAPI.createEntry({ knowledgeType: 'richtext', title: hostname, content: editText.trim() });
       setViewJob(null);
       setViewData(null);
-      setToast('Saved to knowledge base');
+      setEditText('');
+      setToast('Added to knowledge base');
       setTimeout(() => setToast(''), 3000);
     } catch {
-      setToast('Failed to save');
+      setToast('Failed to add entry');
       setTimeout(() => setToast(''), 3000);
     } finally {
       setSavingEntry(false);
@@ -409,7 +452,7 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
         const scrapedText = viewData ? buildScrapedText(pages) : '';
         const wordCount = scrapedText.trim() ? scrapedText.trim().split(/\s+/).filter(Boolean).length : 0;
         return (
-          <div onClick={() => setViewJob(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={() => { setViewJob(null); setViewData(null); setEditText(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', width: '100%', maxWidth: 660, display: 'flex', flexDirection: 'column', boxShadow: '0 24px 48px rgba(0,0,0,0.35)' }}>
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid #e5e7eb' }}>
@@ -417,7 +460,7 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
                   <IpEdit size={16} color="#374151" />
                   <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Data scraped from website</span>
                 </div>
-                <button onClick={() => setViewJob(null)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                <button onClick={() => { setViewJob(null); setViewData(null); setEditText(''); }} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
                   <IpClose size={14} />
                 </button>
               </div>
@@ -435,31 +478,50 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
                   )}
                 </div>
               )}
-              {/* Content */}
+              {/* Content — editable textarea */}
               <div style={{ padding: '14px 22px' }}>
                 {viewLoading ? (
                   <div style={{ textAlign: 'center', padding: 40 }}><Spinner size={24} /></div>
                 ) : !viewData ? (
                   <div style={{ textAlign: 'center', padding: 40, fontSize: 13, color: '#6b7280' }}>No data available for this job.</div>
                 ) : (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: '14px 16px', height: 350, overflowY: 'auto', fontSize: 13, color: '#374151', lineHeight: 1.7, background: '#fff' }}>
-                    {scrapedText || <span style={{ color: '#9ca3af' }}>No content available for this crawl job.</span>}
-                  </div>
+                  <>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>
+                      Edit the extracted content below before saving to your knowledge base.
+                    </div>
+                    <textarea
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      style={{ width: '100%', height: 320, border: '1px solid #e2e8f0', borderRadius: 6, padding: '12px 14px', fontSize: 13, color: '#374151', lineHeight: 1.7, background: '#fff', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
+                      placeholder="No content available for this crawl job."
+                    />
+                  </>
                 )}
               </div>
               {/* Footer */}
-              <div style={{ padding: '12px 22px', borderTop: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: '#6b7280' }}>{wordCount > 0 ? `${wordCount} words used` : ''}</span>
-                <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ padding: '12px 22px', borderTop: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>
+                  {editText.trim().split(/\s+/).filter(Boolean).length > 0
+                    ? `${editText.trim().split(/\s+/).filter(Boolean).length} words`
+                    : ''}
+                </span>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button onClick={() => setViewJob(null)} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
-                    Cancel
+                    Close
+                  </button>
+                  <button
+                    onClick={handleSaveEdits}
+                    disabled={savingEdits || !editText.trim()}
+                    style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid #cbd5e1', background: savingEdits ? '#f1f5f9' : '#f8fafc', fontSize: 13, fontWeight: 600, cursor: savingEdits ? 'not-allowed' : 'pointer', color: '#374151' }}
+                  >
+                    {savingEdits ? 'Saving…' : 'Save Edits'}
                   </button>
                   <button
                     onClick={handleSaveEntry}
-                    disabled={savingEntry || !scrapedText}
-                    style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: savingEntry || !scrapedText ? '#93c5fd' : '#1A56DB', color: '#fff', fontSize: 13, fontWeight: 600, cursor: savingEntry || !scrapedText ? 'not-allowed' : 'pointer' }}
+                    disabled={savingEntry || !editText.trim()}
+                    style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: savingEntry || !editText.trim() ? '#93c5fd' : '#1A56DB', color: '#fff', fontSize: 13, fontWeight: 600, cursor: savingEntry || !editText.trim() ? 'not-allowed' : 'pointer' }}
                   >
-                    {savingEntry ? 'Saving…' : 'Save'}
+                    {savingEntry ? 'Adding…' : 'Add to Knowledge Base'}
                   </button>
                 </div>
               </div>
@@ -506,11 +568,11 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: t.textSecondary }}>
           <input
             type="checkbox"
-            checked={autoRefresh}
-            onChange={e => setAutoRefresh(e.target.checked)}
+            checked={liveUpdates}
+            onChange={e => setLiveUpdates(e.target.checked)}
             style={{ accentColor: '#1A56DB' }}
           />
-          Auto-Refresh
+          Live Updates
         </label>
         <div style={{ flex: 1 }} />
         <div style={{ position: 'relative' }}>
@@ -542,22 +604,40 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
         <div style={{ overflowX: 'auto', borderRadius: 12 }}>
         <div style={{ ...gc, padding: 0, overflow: 'hidden', minWidth: 560 }}>
           {/* Table header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 140px 180px 100px', gap: 0, padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.input }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 120px 130px 160px 110px', gap: 0, padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.input }}>
             <div />
-            {['Path', 'Status', 'Data Refreshed At', 'Action'].map(h => (
+            {['Path', 'Status', 'Auto-Refresh', 'Last Crawled', 'Actions'].map(h => (
               <div key={h} style={{ fontSize: 12, fontWeight: 700, color: t.textMuted }}>{h}</div>
             ))}
           </div>
           {visible.map((job, i) => (
             <div
               key={job.id}
-              style={{ display: 'grid', gridTemplateColumns: '36px 1fr 140px 180px 100px', gap: 0, padding: '12px 16px', borderBottom: i < visible.length - 1 ? `1px solid ${t.border}` : 'none', alignItems: 'center' }}
+              style={{ display: 'grid', gridTemplateColumns: '36px 1fr 120px 130px 160px 110px', gap: 0, padding: '12px 16px', borderBottom: i < visible.length - 1 ? `1px solid ${t.border}` : 'none', alignItems: 'center' }}
             >
               <input type="checkbox" style={{ accentColor: '#1A56DB' }} />
               <a href={job.url} target="_blank" rel="noopener noreferrer" onClick={e => e.preventDefault()} style={{ fontSize: 13, color: '#1A56DB', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 12 }}>
                 {job.url}
               </a>
               <div>{statusBadge(job.status)}</div>
+              {/* Per-row auto-refresh schedule selector */}
+              <div>
+                <select
+                  value={schedules[job.id] || ''}
+                  onChange={e => handleScheduleChange(job.id, e.target.value)}
+                  style={{ fontSize: 12, padding: '4px 6px', borderRadius: 6, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontFamily: 'inherit', cursor: 'pointer', width: '100%', maxWidth: 108 }}
+                >
+                  <option value="">Off</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+                {job.next_refresh_at && schedules[job.id] && (
+                  <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>
+                    Next: {new Date(job.next_refresh_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  </div>
+                )}
+              </div>
               <div style={{ fontSize: 12, color: t.textMuted }}>
                 {job.completed_at
                   ? new Date(job.completed_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -567,8 +647,8 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
                 }
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <ActionBtn title="View scraped data" onClick={() => handleViewData(job.id)}><IpCopy size={13} /></ActionBtn>
-                <ActionBtn title="Re-crawl"  onClick={() => handleRecrawl(job.url, job.mode)}><IpRefresh size={13} /></ActionBtn>
+                <ActionBtn title="View & edit scraped data" onClick={() => handleViewData(job.id)}><IpCopy size={13} /></ActionBtn>
+                <ActionBtn title="Re-crawl now"  onClick={() => handleRecrawl(job.url, job.mode)}><IpRefresh size={13} /></ActionBtn>
                 <ActionBtn title="Delete"    onClick={() => handleDelete(job.id)} danger><IpDelete size={13} /></ActionBtn>
               </div>
             </div>
@@ -729,7 +809,7 @@ function AddWebsiteModal({ t, onClose, onSuccess, onBackground, initialJobId }) 
               ))}
             </div>
             <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 20 }}>
-              Pages limit based on your plan — Starter: 5 pages · Pro: 50 pages · Premium: unlimited
+              Pages limit based on your plan — Starter: 15 pages · Pro: 100 pages · Premium: 500 pages
             </div>
             {error && <div style={{ color: '#C81E1E', fontSize: 12, marginBottom: 12 }}>{error}</div>}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>

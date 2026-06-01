@@ -127,10 +127,11 @@ module.exports = (pool) => {
   // POST /api/competitor/:id/analyze — scrape + AI analysis
   router.post('/:id/analyze', analyzeLimiter, authenticate, async (req, res) => {
     const client = await pool.connect();
+    let creditDeducted = false;
+    const billingId = getBillingCustomerId(req);
     try {
       const { id } = req.params;
       const customerId = req.customerId;
-      const billingId = getBillingCustomerId(req);
 
       // Fetch competitor and customer
       const [compRes, custRes] = await Promise.all([
@@ -162,6 +163,7 @@ module.exports = (pool) => {
         [billingId, ANALYZE_CREDIT_COST, billing[0].credits_balance - ANALYZE_CREDIT_COST, `Competitor analysis: ${comp.name || comp.website}`]
       );
       await client.query('COMMIT');
+      creditDeducted = true;
 
       // Scrape competitor website
       let scrapedData = null;
@@ -273,6 +275,18 @@ Return ONLY valid JSON with this exact structure:
       res.json({ competitor: updated[0], analysis, creditsUsed: ANALYZE_CREDIT_COST });
     } catch (err) {
       try { await client.query('ROLLBACK'); } catch (_) {}
+      // If credits were already committed but analysis failed, refund automatically
+      if (creditDeducted) {
+        pool.query(
+          `UPDATE customers SET credits_balance = credits_balance + $1 WHERE id = $2
+           RETURNING credits_balance`,
+          [ANALYZE_CREDIT_COST, billingId]
+        ).then(r => pool.query(
+          `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+           VALUES ($1, 'refund', $2, $3, 'Competitor analysis failed — credit refunded')`,
+          [billingId, ANALYZE_CREDIT_COST, r.rows[0]?.credits_balance ?? 0]
+        )).catch(refundErr => console.error('[Competitor] credit refund failed:', refundErr.message));
+      }
       console.error('[Competitor] analyze error:', err.message);
       res.status(500).json({ error: 'Analysis failed: ' + err.message });
     } finally {

@@ -2,6 +2,6 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 export default function Reports() {
   const router = useRouter();
-  useEffect(() => { router.replace('/analytics?tab=monthly'); }, []);
+  useEffect(() => { router.replace('/analytics'); }, []);
   return null;
 }

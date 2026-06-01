@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
 import { studioAPI, customerAPI } from '../lib/api';
-import { IpPhotoStudio, IpClose, IpVideo, IpSparkle } from '../components/icons';
+import { IpPhotoStudio, IpClose, IpVideo, IpSparkle, IpSearch, IpCopy, IpEdit, IpDelete } from '../components/icons';
 import { EmptyState } from '../components/ui';
 
 const INDUSTRIES = ['all','plumbing','hvac','roofing','concrete','landscaping','electrical','painting','pest_control','cleaning','general_contractor'];
@@ -24,6 +24,32 @@ const CAT_ICONS = {
   'before-after':'◑', 'social-proof':'⭐', 'seasonal':'❄', 'educational':'💡',
   'promotional':'📣', 'team':'👥',
 };
+
+// Relative time helper
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  const h = Math.floor(diff / 3600000);
+  const d = Math.floor(diff / 86400000);
+  if (m < 1) return 'Just now';
+  if (m < 60) return `${m}m ago`;
+  if (h < 24) return `${h}h ago`;
+  if (d < 7) return `${d}d ago`;
+  if (d < 30) return `${Math.floor(d / 7)}w ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
+// Canvas size label
+function sizeLabel(w, h) {
+  if (!w || !h) return null;
+  if (w === 1080 && h === 1350) return 'Portrait';
+  if (w === 1080 && h === 1080) return 'Square';
+  if (w === 1080 && h === 1920) return 'Story';
+  if (w === 1200 && h === 630) return 'Facebook';
+  if (w === 720  && h === 720)  return 'Google';
+  return `${w}×${h}`;
+}
 
 // Rounded-rect path helper (avoids ctx.roundRect which is unavailable in older Safari)
 function rrect(ctx, x, y, w, h, r) {
@@ -57,6 +83,15 @@ export default function TemplatesPage() {
   const [isAdmin,              setIsAdmin]              = useState(false);
   const [activeSection,        setActiveSection]        = useState('templates'); // 'templates' | 'mydesigns'
 
+  // My Designs UI state
+  const [designSearch,    setDesignSearch]    = useState('');
+  const [designSort,      setDesignSort]      = useState('recent'); // 'recent' | 'oldest' | 'name'
+  const [menuOpenId,      setMenuOpenId]      = useState(null);
+  const [renamingId,      setRenamingId]      = useState(null);
+  const [renameValue,     setRenameValue]     = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [duplicatingId,   setDuplicatingId]   = useState(null);
+
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -83,10 +118,61 @@ export default function TemplatesPage() {
     setCreationsLoading(true);
     try {
       const { data } = await studioAPI.getCreations({ limit: 50 });
-      setCreations(Array.isArray(data) ? data : []);
+      setCreations(Array.isArray(data?.creations) ? data.creations : []);
     } catch { setCreations([]); }
     finally { setCreationsLoading(false); }
   };
+
+  const handleRenameStart = useCallback((c) => {
+    setMenuOpenId(null);
+    setRenamingId(c.id);
+    setRenameValue(c.overlay_title || 'Untitled');
+  }, []);
+
+  const handleRenameSave = useCallback(async (id) => {
+    const trimmed = renameValue.trim();
+    setRenamingId(null);
+    if (!trimmed) return;
+    try {
+      await studioAPI.updateCreation(id, { title: trimmed });
+      setCreations(prev => prev.map(c => c.id === id ? { ...c, overlay_title: trimmed, updated_at: new Date().toISOString() } : c));
+    } catch {}
+  }, [renameValue]);
+
+  const handleDuplicate = useCallback(async (c) => {
+    setMenuOpenId(null);
+    setDuplicatingId(c.id);
+    try {
+      const { data } = await studioAPI.duplicateCreation(c.id);
+      if (data?.creation) setCreations(prev => [data.creation, ...prev]);
+    } catch {}
+    setDuplicatingId(null);
+  }, []);
+
+  const handleDelete = useCallback(async (id) => {
+    setDeleteConfirmId(null);
+    try {
+      await studioAPI.deleteCreation(id);
+      setCreations(prev => prev.filter(c => c.id !== id));
+    } catch {}
+  }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!menuOpenId) return;
+    const handler = () => setMenuOpenId(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [menuOpenId]);
+
+  // Filtered + sorted designs
+  const filteredDesigns = creations
+    .filter(c => !designSearch || (c.overlay_title || '').toLowerCase().includes(designSearch.toLowerCase()))
+    .sort((a, b) => {
+      if (designSort === 'name') return (a.overlay_title || '').localeCompare(b.overlay_title || '');
+      if (designSort === 'oldest') return new Date(a.created_at) - new Date(b.created_at);
+      return new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at);
+    });
 
   // Canvas-side thumbnail generation — renders actual template layout
   const canvasRef = useRef(null);
@@ -410,47 +496,171 @@ export default function TemplatesPage() {
               action={<button onClick={() => setShowSizePicker(true)} style={{ padding: '10px 24px', background: '#7C5CFC', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(124,92,252,0.35)' }}>New Design</button>}
             />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, paddingBottom: 60 }}>
-              {creations.map(c => (
-                <div
-                  key={c.id}
-                  style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.card, cursor: 'pointer', position: 'relative', transition: 'all 180ms cubic-bezier(0.34,1.56,0.64,1)' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = t.shadowLg; e.currentTarget.querySelector('.design-hover').style.opacity = '1'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = t.border;        e.currentTarget.style.transform = 'none';            e.currentTarget.style.boxShadow = 'none';       e.currentTarget.querySelector('.design-hover').style.opacity = '0'; }}
-                >
-                  {c.creation_type === 'video' ? (
-                    <div style={{ position: 'relative', aspectRatio: '9/16', background: '#000', overflow: 'hidden' }}>
-                      {c.output_url
-                        ? <video src={c.output_url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontSize: 11 }}>{c.render_status === 'rendering' ? 'Rendering…' : 'Processing'}</div>
-                      }
-                      <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.7)', borderRadius: 6, padding: '3px 8px', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
-                        <IpVideo size={10} /> Video
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ aspectRatio: '4/5', overflow: 'hidden', position: 'relative' }}>
-                      {c.output_url
-                        ? <img src={c.output_url} alt={c.overlay_title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.input, fontSize: 11, color: t.textMuted }}>No preview</div>
-                      }
-                    </div>
-                  )}
-                  <div className="design-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', padding: 12, backdropFilter: 'blur(2px)' }}>
-                    <button
-                      onClick={() => router.push(c.creation_type === 'video' ? `/templates/editor?id=${c.id}&mode=video` : `/templates/editor?id=${c.id}`)}
-                      style={{ width: '100%', padding: '9px 0', background: '#fff', color: '#111', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      Edit
+            <>
+              {/* ── Search + Sort toolbar ── */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 180, position: 'relative' }}>
+                  <IpSearch size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: t.textMuted, pointerEvents: 'none' }} />
+                  <input
+                    value={designSearch}
+                    onChange={e => setDesignSearch(e.target.value)}
+                    placeholder="Search designs…"
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px 8px 34px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 13, outline: 'none' }}
+                  />
+                  {designSearch && (
+                    <button onClick={() => setDesignSearch('')} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, display: 'flex', alignItems: 'center' }}>
+                      <IpClose size={12} />
                     </button>
-                  </div>
-                  <div style={{ padding: '12px 14px' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.overlay_title || 'Untitled'}</div>
-                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3 }}>{new Date(c.created_at).toLocaleDateString()}</div>
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {[{ id: 'recent', label: 'Recent' }, { id: 'oldest', label: 'Oldest' }, { id: 'name', label: 'A–Z' }].map(s => (
+                    <button key={s.id} onClick={() => setDesignSort(s.id)} style={{
+                      padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 120ms ease',
+                      background: designSort === s.id ? t.primary : t.input,
+                      color:      designSort === s.id ? '#fff'     : t.textMuted,
+                      border:     `1px solid ${designSort === s.id ? t.primary : t.border}`,
+                    }}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── No search results ── */}
+              {filteredDesigns.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 0', color: t.textMuted, border: `1px dashed ${t.border}`, borderRadius: 16 }}>
+                  <div style={{ fontSize: 36, marginBottom: 12 }}>🔍</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: t.text }}>No designs match "{designSearch}"</div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, paddingBottom: 60 }}>
+                  {filteredDesigns.map(c => {
+                    const editPath = c.creation_type === 'video' ? `/templates/editor?id=${c.id}&mode=video` : `/templates/editor?id=${c.id}`;
+                    const badge = sizeLabel(c.canvas_width, c.canvas_height);
+                    const isDuplicating = duplicatingId === c.id;
+                    const isDeleting = deleteConfirmId === c.id;
+                    return (
+                      <div key={c.id} style={{ borderRadius: 14, overflow: 'visible', border: `1px solid ${t.border}`, background: t.card, position: 'relative', transition: 'border-color 180ms ease, box-shadow 180ms ease', cursor: 'default' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.boxShadow = t.shadowLg; e.currentTarget.querySelector('.dhover-edit').style.opacity = '1'; e.currentTarget.querySelector('.dhover-menu-btn').style.opacity = '1'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.querySelector('.dhover-edit').style.opacity = '0'; e.currentTarget.querySelector('.dhover-menu-btn').style.opacity = '0'; }}
+                      >
+                        {/* ── Thumbnail ── */}
+                        <div
+                          style={{ aspectRatio: c.creation_type === 'video' ? '9/16' : '4/5', borderRadius: '13px 13px 0 0', overflow: 'hidden', position: 'relative', background: t.input, cursor: 'pointer' }}
+                          onClick={() => router.push(editPath)}
+                        >
+                          {c.creation_type === 'video' ? (
+                            c.output_url
+                              ? <video src={c.output_url} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                              : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: t.textMuted }}>{c.render_status === 'rendering' ? 'Rendering…' : 'Processing'}</div>
+                          ) : (
+                            c.output_url
+                              ? <img src={c.output_url} alt={c.overlay_title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: t.textMuted }}>No preview</div>
+                          )}
+
+                          {/* Type / size badge — top-left */}
+                          <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 4 }}>
+                            {c.creation_type === 'video' && (
+                              <span style={{ background: 'rgba(0,0,0,0.72)', borderRadius: 5, padding: '3px 7px', fontSize: 10, color: '#fff', display: 'flex', alignItems: 'center', gap: 3, fontWeight: 600, backdropFilter: 'blur(4px)' }}>
+                                <IpVideo size={9} /> Video
+                              </span>
+                            )}
+                            {badge && (
+                              <span style={{ background: 'rgba(0,0,0,0.56)', borderRadius: 5, padding: '3px 7px', fontSize: 10, color: 'rgba(255,255,255,0.9)', fontWeight: 500, backdropFilter: 'blur(4px)' }}>
+                                {badge}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Kebab menu button — top-right, reveals on hover */}
+                          <button
+                            className="dhover-menu-btn"
+                            onClick={e => { e.stopPropagation(); setMenuOpenId(prev => prev === c.id ? null : c.id); }}
+                            style={{ position: 'absolute', top: 8, right: 8, width: 30, height: 30, borderRadius: 7, background: 'rgba(0,0,0,0.6)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms, background 120ms', backdropFilter: 'blur(4px)' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.85)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.6)'; }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2" fill="#fff"/><circle cx="12" cy="12" r="2" fill="#fff"/><circle cx="12" cy="19" r="2" fill="#fff"/></svg>
+                          </button>
+
+                          {/* Kebab dropdown */}
+                          {menuOpenId === c.id && (
+                            <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: 44, right: 8, background: t.card, border: `1px solid ${t.border}`, borderRadius: 11, boxShadow: '0 8px 28px rgba(0,0,0,0.22)', zIndex: 50, minWidth: 162, overflow: 'hidden' }}>
+                              {[
+                                { label: 'Edit', icon: IpEdit, action: () => { setMenuOpenId(null); router.push(editPath); } },
+                                { label: isDuplicating ? 'Duplicating…' : 'Make a copy', icon: IpCopy, action: () => handleDuplicate(c) },
+                                { label: 'Rename', action: () => handleRenameStart(c), icon: null },
+                                { label: 'Delete', icon: IpDelete, action: () => { setMenuOpenId(null); setDeleteConfirmId(c.id); }, danger: true },
+                              ].map(item => (
+                                <button key={item.label} onClick={item.action} style={{
+                                  width: '100%', padding: '9px 14px', background: 'transparent', border: 'none', cursor: isDuplicating && item.label !== 'Edit' ? 'default' : 'pointer',
+                                  color: item.danger ? '#ef4444' : t.text, fontSize: 13, fontWeight: 500, textAlign: 'left',
+                                  display: 'flex', alignItems: 'center', gap: 9, transition: 'background 100ms',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = item.danger ? 'rgba(239,68,68,0.08)' : (t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'); }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                                >
+                                  {item.icon && <item.icon size={13} />}
+                                  {!item.icon && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>}
+                                  {item.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Edit CTA — bottom gradient, reveals on hover */}
+                          <div className="dhover-edit" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '32px 10px 10px', background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)', opacity: 0, transition: 'opacity 150ms', pointerEvents: 'none' }}>
+                            <div style={{ width: '100%', padding: '8px 0', background: 'rgba(255,255,255,0.95)', borderRadius: 8, fontSize: 12, fontWeight: 700, color: '#111', textAlign: 'center', letterSpacing: '0.01em' }}>
+                              Open
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ── Info strip below thumbnail ── */}
+                        <div style={{ padding: '10px 12px 12px' }}>
+                          {renamingId === c.id ? (
+                            <input
+                              value={renameValue}
+                              onChange={e => setRenameValue(e.target.value)}
+                              onBlur={() => handleRenameSave(c.id)}
+                              onKeyDown={e => { if (e.key === 'Enter') handleRenameSave(c.id); if (e.key === 'Escape') setRenamingId(null); }}
+                              autoFocus
+                              style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: `1px solid ${t.primary}`, borderRadius: 5, color: t.text, fontSize: 13, fontWeight: 600, padding: '2px 6px', outline: 'none' }}
+                            />
+                          ) : (
+                            <div
+                              onClick={() => handleRenameStart(c)}
+                              title="Click to rename"
+                              style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text', paddingBottom: 1 }}
+                            >
+                              {c.overlay_title || 'Untitled'}
+                            </div>
+                          )}
+                          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3 }}>
+                            Edited {timeAgo(c.updated_at || c.created_at)}
+                          </div>
+                        </div>
+
+                        {/* ── Delete confirmation inline ── */}
+                        {isDeleting && (
+                          <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', inset: 0, background: t.isDark ? 'rgba(15,10,30,0.93)' : 'rgba(255,255,255,0.95)', borderRadius: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, zIndex: 40, padding: 20, backdropFilter: 'blur(4px)' }}>
+                            <div style={{ fontSize: 28 }}>🗑️</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: t.text, textAlign: 'center' }}>Delete this design?</div>
+                            <div style={{ fontSize: 11, color: t.textMuted, textAlign: 'center', lineHeight: 1.5 }}>This cannot be undone.</div>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                              <button onClick={() => setDeleteConfirmId(null)} style={{ padding: '7px 16px', borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.text, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                              <button onClick={() => handleDelete(c.id)} style={{ padding: '7px 16px', borderRadius: 8, background: '#ef4444', border: 'none', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Delete</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

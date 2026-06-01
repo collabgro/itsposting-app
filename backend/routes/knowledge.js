@@ -182,6 +182,17 @@ module.exports = (pool) => {
     }
   });
 
+  // ── DB migrations for auto-refresh columns ──────────────────────
+  ;(async () => {
+    try {
+      await pool.query(`ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS auto_refresh BOOLEAN DEFAULT FALSE`);
+      await pool.query(`ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS refresh_interval VARCHAR(20)`);
+      await pool.query(`ALTER TABLE crawl_jobs ADD COLUMN IF NOT EXISTS next_refresh_at TIMESTAMP`);
+    } catch (err) {
+      console.error('[knowledge] auto-refresh migration:', err.message);
+    }
+  })();
+
   // ── POST /api/knowledge/crawl ─────────────────────────────────────
   // Start a new crawl job. Returns jobId for polling.
   router.post('/crawl', async (req, res) => {
@@ -207,12 +218,66 @@ module.exports = (pool) => {
   router.get('/crawls', async (req, res) => {
     try {
       const { rows } = await pool.query(
-        `SELECT id, url, mode, status, pages_crawled, pages_found, created_at, completed_at
+        `SELECT id, url, mode, status, pages_crawled, pages_found,
+                auto_refresh, refresh_interval, next_refresh_at,
+                created_at, completed_at
          FROM crawl_jobs WHERE customer_id=$1 ORDER BY created_at DESC`,
         [req.customerId]
       );
       res.json({ jobs: rows });
     } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── PATCH /api/knowledge/crawl/:jobId/refresh ─────────────────────
+  // Set auto-refresh schedule for a crawl job
+  router.patch('/crawl/:jobId/refresh', async (req, res) => {
+    try {
+      const { auto_refresh, refresh_interval } = req.body;
+      const enabled = Boolean(auto_refresh);
+
+      // Calculate next refresh time based on interval
+      let nextRefreshExpr = 'NULL';
+      if (enabled && refresh_interval) {
+        const intervalMap = { daily: '1 day', weekly: '7 days', monthly: '30 days' };
+        const pg = intervalMap[refresh_interval];
+        if (pg) nextRefreshExpr = `NOW() + INTERVAL '${pg}'`;
+      }
+
+      const { rows } = await pool.query(
+        `UPDATE crawl_jobs
+         SET auto_refresh=$1, refresh_interval=$2,
+             next_refresh_at=${enabled && refresh_interval ? `NOW() + INTERVAL '1 ${refresh_interval === 'daily' ? 'day' : refresh_interval === 'weekly' ? 'week' : 'month'}'` : 'NULL'}
+         WHERE id=$3 AND customer_id=$4 RETURNING id, auto_refresh, refresh_interval, next_refresh_at`,
+        [enabled, enabled ? (refresh_interval || null) : null, req.params.jobId, req.customerId]
+      );
+      if (!rows.length) return res.status(404).json({ error: 'Job not found' });
+      res.json({ job: rows[0] });
+    } catch (err) {
+      console.error('[knowledge] PATCH refresh:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── PUT /api/knowledge/crawl/:jobId/data ──────────────────────────
+  // Save edited scraped text back to the crawl job (overrides auto-extracted content)
+  router.put('/crawl/:jobId/data', async (req, res) => {
+    try {
+      const { editedText } = req.body;
+      if (typeof editedText !== 'string') return res.status(400).json({ error: 'editedText is required' });
+
+      // Store edited_text inside result_summary so it survives re-crawls as an override
+      const { rows } = await pool.query(
+        `UPDATE crawl_jobs
+         SET result_summary = COALESCE(result_summary, '{}'::jsonb) || jsonb_build_object('edited_text', $1::text)
+         WHERE id=$2 AND customer_id=$3 RETURNING id`,
+        [editedText.substring(0, 50000), req.params.jobId, req.customerId]
+      );
+      if (!rows.length) return res.status(404).json({ error: 'Job not found' });
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[knowledge] PUT data:', err.message);
       res.status(500).json({ error: err.message });
     }
   });

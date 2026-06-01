@@ -201,6 +201,8 @@ console.log('══════════════════════�
       created_at TIMESTAMP DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_geo_citations_audit ON geo_citations(audit_id)`,
+    `ALTER TABLE geo_citations ADD COLUMN IF NOT EXISTS trust_signals TEXT[]`,
+    `ALTER TABLE geo_citations ADD COLUMN IF NOT EXISTS platform_mentions TEXT[]`,
     `CREATE TABLE IF NOT EXISTS geo_tracking_scores (
       id SERIAL PRIMARY KEY,
       customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
@@ -210,6 +212,7 @@ console.log('══════════════════════�
       created_at TIMESTAMP DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_geo_tracking_customer ON geo_tracking_scores(customer_id, week_start DESC)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_geo_tracking_unique ON geo_tracking_scores(customer_id, week_start)`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS geo_score INTEGER DEFAULT 0`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS last_geo_audit_at TIMESTAMP`,
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS free_geo_audit_used BOOLEAN DEFAULT false`,
@@ -258,6 +261,9 @@ console.log('══════════════════════�
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS render_status VARCHAR(20) DEFAULT 'none'`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS duration_seconds NUMERIC(8,2)`,
     `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS template_id INTEGER REFERENCES canvas_templates(id) ON DELETE SET NULL`,
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()`,
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS canvas_width INTEGER DEFAULT 1080`,
+    `ALTER TABLE studio_creations ADD COLUMN IF NOT EXISTS canvas_height INTEGER DEFAULT 1350`,
     // AI Receptionist — crawler job tracking
     `CREATE TABLE IF NOT EXISTS crawl_jobs (
       id SERIAL PRIMARY KEY,
@@ -297,6 +303,91 @@ console.log('══════════════════════�
     `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS appointment_at TIMESTAMP`,
     `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS cal_event_id VARCHAR(255)`,
     `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_ai_summary TEXT`,
+    // DM core tables — safe to re-run (CREATE IF NOT EXISTS)
+    `CREATE TABLE IF NOT EXISTS dm_conversations (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      platform VARCHAR(50) NOT NULL,
+      platform_thread_id VARCHAR(255) NOT NULL,
+      sender_platform_id VARCHAR(255),
+      sender_name VARCHAR(255),
+      sender_profile_pic TEXT,
+      status VARCHAR(50) DEFAULT 'open',
+      last_message_at TIMESTAMP,
+      last_message_preview TEXT,
+      last_message_direction VARCHAR(20),
+      window_expires_at TIMESTAMP,
+      human_agent_window_expires_at TIMESTAMP,
+      is_read BOOLEAN DEFAULT false,
+      is_starred BOOLEAN DEFAULT false,
+      auto_reply_sent BOOLEAN DEFAULT false,
+      intent VARCHAR(100),
+      urgency VARCHAR(20) DEFAULT 'normal',
+      contact_id INTEGER,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(customer_id, platform, platform_thread_id)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_dm_conversations_customer ON dm_conversations(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_dm_conversations_unread ON dm_conversations(customer_id, is_read) WHERE is_read = false`,
+    `CREATE TABLE IF NOT EXISTS dm_messages (
+      id SERIAL PRIMARY KEY,
+      conversation_id INTEGER REFERENCES dm_conversations(id) ON DELETE CASCADE,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      platform_message_id VARCHAR(255) UNIQUE,
+      direction VARCHAR(20) NOT NULL,
+      message_text TEXT,
+      attachments JSONB DEFAULT '[]'::jsonb,
+      status VARCHAR(50) DEFAULT 'delivered',
+      reply_type VARCHAR(50),
+      ai_generated BOOLEAN DEFAULT false,
+      sent_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_dm_messages_conversation ON dm_messages(conversation_id)`,
+    `CREATE TABLE IF NOT EXISTS dm_auto_reply_rules (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      trigger_type VARCHAR(50) NOT NULL,
+      keywords JSONB DEFAULT '[]'::jsonb,
+      intent VARCHAR(100),
+      reply_text TEXT NOT NULL,
+      is_active BOOLEAN DEFAULT true,
+      delay_seconds INTEGER DEFAULT 0,
+      send_only_once BOOLEAN DEFAULT true,
+      times_triggered INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_auto_reply_customer ON dm_auto_reply_rules(customer_id)`,
+    `CREATE TABLE IF NOT EXISTS dm_sync_log (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      platform VARCHAR(50) NOT NULL,
+      last_synced_at TIMESTAMP DEFAULT NOW(),
+      messages_found INTEGER DEFAULT 0,
+      sync_status VARCHAR(50) DEFAULT 'success',
+      error_message TEXT,
+      UNIQUE(customer_id, platform)
+    )`,
+    `CREATE TABLE IF NOT EXISTS inbox_messages (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      platform VARCHAR(50) NOT NULL,
+      platform_message_id VARCHAR(500) NOT NULL,
+      post_id INTEGER REFERENCES posts(id) ON DELETE SET NULL,
+      message_type VARCHAR(50) DEFAULT 'comment',
+      sender_name VARCHAR(255),
+      sender_platform_id VARCHAR(255),
+      message_text TEXT NOT NULL,
+      reply_text TEXT,
+      replied_at TIMESTAMP,
+      is_read BOOLEAN DEFAULT false,
+      received_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(platform_message_id)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_inbox_customer_unread ON inbox_messages(customer_id, is_read, received_at DESC)`,
     // AI Receptionist — track which DM messages were AI-auto-handled
     `ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS ai_handled BOOLEAN DEFAULT false`,
     `ALTER TABLE dm_conversations ADD COLUMN IF NOT EXISTS external_conversation_id VARCHAR(255)`,
@@ -312,6 +403,7 @@ console.log('══════════════════════�
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS error_message TEXT`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS platform_post_ids JSONB`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS posted_at TIMESTAMP`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS last_metrics_sync TIMESTAMP`,
     `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS account_username VARCHAR(255)`,
     `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS refresh_token TEXT`,
     `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS connected_at TIMESTAMP DEFAULT NOW()`,
@@ -2866,7 +2958,7 @@ app.use('/api/content/generate', generationLimiter);
 app.use('/api/v1/generate', generationLimiter);
 app.use('/api/media/upload', uploadLimiter);
 app.use('/api/customers/upload-asset', uploadLimiter);
-app.use('/api/geo/audit', geoLimiter);
+app.post('/api/geo/audit', geoLimiter); // only limit audit creation — not polling/reads
 app.use('/api/customers/invite', inviteLimiter);
 app.use('/api/social/publish', publishLimiter);
 app.use('/api/studio/generate', studioLimiter);
@@ -3020,6 +3112,38 @@ cron.schedule('5 0 * * *', async () => {
   await suggestionsEngine.cleanupExpired();
 });
 console.log('💡 SuggestionsEngine cron scheduled (8am daily + midnight cleanup)');
+
+// ── Knowledge Base Auto-Refresh Cron ──────────────────────────────────────────
+// Runs every hour — finds crawl jobs due for scheduled re-crawl and triggers them
+cron.schedule('0 * * * *', async () => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, url, mode, refresh_interval FROM crawl_jobs
+       WHERE auto_refresh = true AND status = 'done' AND next_refresh_at <= NOW()`
+    );
+    if (!rows.length) return;
+    console.log(`[CrawlAutoRefresh] ${rows.length} job(s) due for refresh`);
+    const CrawlerService = require('./services/CrawlerService');
+    const crawler = new CrawlerService(pool);
+    for (const job of rows) {
+      try {
+        await crawler.recrawl(job.id);
+        const intervalSql = job.refresh_interval === 'daily' ? '1 day'
+          : job.refresh_interval === 'weekly' ? '7 days' : '30 days';
+        await pool.query(
+          `UPDATE crawl_jobs SET next_refresh_at = NOW() + INTERVAL '${intervalSql}' WHERE id = $1`,
+          [job.id]
+        );
+        console.log(`[CrawlAutoRefresh] Triggered recrawl for job ${job.id} (${job.url})`);
+      } catch (err) {
+        console.error(`[CrawlAutoRefresh] Job ${job.id} failed:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[CrawlAutoRefresh] cron error:', err.message);
+  }
+});
+console.log('🔄 Knowledge Base auto-refresh cron scheduled (hourly)');
 
 const PostCoreAdvisor = require('./services/PostCoreAdvisor');
 const postCoreAdvisor = new PostCoreAdvisor(pool);
