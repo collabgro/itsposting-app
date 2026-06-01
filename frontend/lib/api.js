@@ -503,6 +503,7 @@ export const knowledgeAPI = {
   uploadFile: (formData) => api.post('/api/knowledge/upload-file', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   setRefreshSchedule: (jobId, data) => api.patch(`/api/knowledge/crawl/${jobId}/refresh`, data),
   saveEditedData: (jobId, editedText) => api.put(`/api/knowledge/crawl/${jobId}/data`, { editedText }),
+  recrawlJob: (jobId) => api.post(`/api/knowledge/crawl/${jobId}/recrawl`, {}),
 };
 
 export const suggestionsAPIExtra = {

@@ -237,18 +237,14 @@ module.exports = (pool) => {
       const { auto_refresh, refresh_interval } = req.body;
       const enabled = Boolean(auto_refresh);
 
-      // Calculate next refresh time based on interval
-      let nextRefreshExpr = 'NULL';
-      if (enabled && refresh_interval) {
-        const intervalMap = { daily: '1 day', weekly: '7 days', monthly: '30 days' };
-        const pg = intervalMap[refresh_interval];
-        if (pg) nextRefreshExpr = `NOW() + INTERVAL '${pg}'`;
-      }
+      const intervalMap = { daily: '1 day', weekly: '7 days', monthly: '30 days' };
+      const nextRefreshExpr = (enabled && refresh_interval && intervalMap[refresh_interval])
+        ? `NOW() + INTERVAL '${intervalMap[refresh_interval]}'`
+        : 'NULL';
 
       const { rows } = await pool.query(
         `UPDATE crawl_jobs
-         SET auto_refresh=$1, refresh_interval=$2,
-             next_refresh_at=${enabled && refresh_interval ? `NOW() + INTERVAL '1 ${refresh_interval === 'daily' ? 'day' : refresh_interval === 'weekly' ? 'week' : 'month'}'` : 'NULL'}
+         SET auto_refresh=$1, refresh_interval=$2, next_refresh_at=${nextRefreshExpr}
          WHERE id=$3 AND customer_id=$4 RETURNING id, auto_refresh, refresh_interval, next_refresh_at`,
         [enabled, enabled ? (refresh_interval || null) : null, req.params.jobId, req.customerId]
       );
@@ -289,6 +285,25 @@ module.exports = (pool) => {
       if (!job) return res.status(404).json({ error: 'Crawl job not found' });
       res.json({ job });
     } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/knowledge/crawl/:jobId/recrawl ─────────────────────
+  // Re-crawl an existing job in-place (resets status/counters, does not create a new row)
+  router.post('/crawl/:jobId/recrawl', async (req, res) => {
+    try {
+      const jobId = parseInt(req.params.jobId);
+      const job = await crawler.getJob(jobId, req.customerId);
+      if (!job) return res.status(404).json({ error: 'Crawl job not found' });
+      if (job.status === 'running' || job.status === 'pending') {
+        return res.status(409).json({ error: 'This job is already running' });
+      }
+      // Run recrawl async — respond immediately so the UI can start polling
+      crawler.recrawl(jobId).catch(err => console.error('[knowledge] recrawl error:', err.message));
+      res.json({ ok: true, jobId });
+    } catch (err) {
+      console.error('[knowledge] recrawl:', err.message);
       res.status(500).json({ error: err.message });
     }
   });

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
-  IpPlus, IpDelete, IpRefresh, IpSearch, IpCheckCircle, IpCloseCircle, IpCheck,
+  IpPlus, IpDelete, IpRefresh, IpSearch, IpCheckCircle, IpCloseCircle,
   IpGlobe, IpFAQ, IpEdit, IpDollar, IpFolderOpen, IpCopy, IpClose,
   IpExternalLink, IpComment, IpLoader,
   IpSparkle, IpFacebook, IpInstagram, IpGoogle,
@@ -314,10 +314,10 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
     } catch {}
   };
 
-  const handleRecrawl = async (jobUrl, jobMode) => {
+  const handleRecrawl = async (jobId) => {
     try {
       setToast('Starting re-crawl…');
-      const { data } = await knowledgeAPI.startCrawl(jobUrl, jobMode || 'domain');
+      await knowledgeAPI.recrawlJob(jobId);
       setTimeout(() => setToast(''), 2000);
       await fetchJobs();
     } catch (err) {
@@ -448,9 +448,6 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
       )}
 
       {viewJob !== null && (() => {
-        const pages = viewData?.result_summary?.pages || [];
-        const scrapedText = viewData ? buildScrapedText(pages) : '';
-        const wordCount = scrapedText.trim() ? scrapedText.trim().split(/\s+/).filter(Boolean).length : 0;
         return (
           <div onClick={() => { setViewJob(null); setViewData(null); setEditText(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', width: '100%', maxWidth: 660, display: 'flex', flexDirection: 'column', boxShadow: '0 24px 48px rgba(0,0,0,0.35)' }}>
@@ -506,7 +503,7 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
                     : ''}
                 </span>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button onClick={() => setViewJob(null)} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+                  <button onClick={() => { setViewJob(null); setViewData(null); setEditText(''); }} style={{ padding: '7px 18px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
                     Close
                   </button>
                   <button
@@ -648,7 +645,7 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <ActionBtn title="View & edit scraped data" onClick={() => handleViewData(job.id)}><IpCopy size={13} /></ActionBtn>
-                <ActionBtn title="Re-crawl now"  onClick={() => handleRecrawl(job.url, job.mode)}><IpRefresh size={13} /></ActionBtn>
+                <ActionBtn title="Re-crawl now"  onClick={() => handleRecrawl(job.id)}><IpRefresh size={13} /></ActionBtn>
                 <ActionBtn title="Delete"    onClick={() => handleDelete(job.id)} danger><IpDelete size={13} /></ActionBtn>
               </div>
             </div>
@@ -1446,7 +1443,6 @@ function TestBar({ t }) {
   const [messages,   setMessages]   = useState([]);
   const [isOpen,     setIsOpen]     = useState(false);
   const [isMobile,   setIsMobile]   = useState(false);
-  const [activeSrcs, setActiveSrcs] = useState(['crawler', 'faqs', 'richtext', 'tables']);
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -1460,14 +1456,6 @@ function TestBar({ t }) {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  const sources = [
-    { id: 'crawler',  label: 'Web Crawler' },
-    { id: 'faqs',     label: 'FAQs' },
-    { id: 'richtext', label: 'Rich Text' },
-    { id: 'tables',   label: 'Tables' },
-  ];
-
-  const toggleSrc = (id) => setActiveSrcs(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
 
   const handleTest = async () => {
     if (!query.trim() || sending) return;
@@ -1550,17 +1538,8 @@ function TestBar({ t }) {
           </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, color: t.textMuted }}>Sources:</span>
-          {sources.map(s => (
-            <button
-              key={s.id}
-              onClick={() => toggleSrc(s.id)}
-              style={{ padding: '3px 10px', borderRadius: 20, border: `1px solid ${activeSrcs.includes(s.id) ? '#1A56DB' : t.border}`, background: activeSrcs.includes(s.id) ? 'rgba(26,86,219,0.08)' : 'transparent', color: activeSrcs.includes(s.id) ? '#1A56DB' : t.textMuted, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              {s.label}
-            </button>
-          ))}
-          <span style={{ fontSize: 10, color: t.textMuted, marginLeft: 4 }}>Enter to run · Shift+Enter new line</span>
+          <span style={{ fontSize: 11, color: t.textMuted }}>Sources: Web Crawler · FAQs · Rich Text · Tables</span>
+          <span style={{ fontSize: 10, color: t.textMuted, marginLeft: 4 }}>Enter to run</span>
         </div>
       </div>
     </div>
