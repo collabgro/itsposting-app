@@ -99,9 +99,10 @@ class EmailQueue {
   }
 
   /** Called when a workspace invite is sent */
-  async notifyWorkspaceInvite({ toEmail, inviterBusinessName, roleLabel, acceptUrl }) {
+  async notifyWorkspaceInvite({ toEmail, inviterBusinessName, platformName = 'ItsPosting', roleLabel, acceptUrl }) {
     await this.queue(toEmail, 'workspace_invite', {
       inviterBusinessName,
+      platformName,
       roleLabel,
       acceptUrl,
     });

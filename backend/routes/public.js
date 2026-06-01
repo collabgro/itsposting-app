@@ -6,6 +6,62 @@ const HANDLE_RE = /^[a-z0-9_-]{3,50}$/;
 module.exports = (pool) => {
   const router = express.Router();
 
+  // GET /api/public/agency-branding — returns white-label config for a given domain or handle
+  // Used by login.js to detect agency branding on page load (no auth required).
+  router.get('/agency-branding', async (req, res) => {
+    try {
+      const { domain, handle } = req.query;
+      if (!domain && !handle) return res.status(400).json({ error: 'domain or handle required' });
+
+      let row = null;
+
+      if (domain) {
+        // Normalize: strip port, lowercase
+        const cleanDomain = String(domain).toLowerCase().replace(/:\d+$/, '').substring(0, 200);
+        // Skip localhost / Railway internal — never a custom domain
+        if (cleanDomain === 'localhost' || cleanDomain.endsWith('.railway.app') || cleanDomain.endsWith('.itsposting.com')) {
+          return res.status(404).json({ error: 'No agency branding for this domain' });
+        }
+        const result = await pool.query(
+          `SELECT business_name, white_label_config
+           FROM customers
+           WHERE white_label_config->>'customDomain' = $1
+             AND plan = 'agency'
+             AND (suspended = FALSE OR suspended IS NULL)
+           LIMIT 1`,
+          [cleanDomain]
+        );
+        row = result.rows[0] || null;
+      } else if (handle) {
+        const cleanHandle = String(handle).toLowerCase().replace(/[^a-z0-9_-]/g, '').substring(0, 50);
+        const result = await pool.query(
+          `SELECT business_name, white_label_config
+           FROM customers
+           WHERE public_handle = $1
+             AND plan = 'agency'
+             AND (suspended = FALSE OR suspended IS NULL)
+           LIMIT 1`,
+          [cleanHandle]
+        );
+        row = result.rows[0] || null;
+      }
+
+      if (!row) return res.status(404).json({ error: 'No agency branding found' });
+
+      const wl = row.white_label_config || {};
+      res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=300');
+      res.json({
+        agencyName:    wl.agencyName    || row.business_name || null,
+        logo:          wl.logo          || null,
+        primaryColor:  wl.primaryColor  || null,
+        hidePoweredBy: wl.hidePoweredBy || false,
+      });
+    } catch (err) {
+      console.error('[Public] Agency branding error:', err.message);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
   // GET /api/public/showcase — must be BEFORE /:handle to avoid being swallowed
   router.get('/showcase', async (req, res) => {
     try {

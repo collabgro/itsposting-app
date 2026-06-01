@@ -1,18 +1,25 @@
 /**
- * EmailService — provider-agnostic email service.
+ * EmailService — provider-agnostic transactional email service.
  *
- * Currently runs in LOG-ONLY mode (no emails sent, all output goes to console).
- * To activate real sending, set EMAIL_PROVIDER to 'sendgrid', 'resend', or 'smtp'
- * and add the corresponding credentials as environment variables.
- *
- * Providers ready to activate:
- *   - SendGrid:  EMAIL_PROVIDER=sendgrid  +  SENDGRID_API_KEY
- *   - Resend:    EMAIL_PROVIDER=resend    +  RESEND_API_KEY
- *   - SMTP:      EMAIL_PROVIDER=smtp      +  SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+ * Provider is auto-detected from available environment variables:
+ *   - RESEND_API_KEY present       → uses Resend  (preferred)
+ *   - SENDGRID_API_KEY present     → uses SendGrid
+ *   - SMTP_HOST present            → uses SMTP / nodemailer
+ *   - EMAIL_PROVIDER set explicitly → overrides auto-detect
+ *   - None of the above            → LOG-ONLY mode (console output, no actual sending)
  */
 
-const PROVIDER = process.env.EMAIL_PROVIDER || 'log';
-const FROM_NAME = process.env.EMAIL_FROM_NAME || 'Its Posting';
+// Auto-detect provider from available API keys so emails work without explicitly setting EMAIL_PROVIDER
+function resolveProvider() {
+  if (process.env.EMAIL_PROVIDER) return process.env.EMAIL_PROVIDER;
+  if (process.env.RESEND_API_KEY)      return 'resend';
+  if (process.env.SENDGRID_API_KEY)    return 'sendgrid';
+  if (process.env.SMTP_HOST)           return 'smtp';
+  return 'log';
+}
+
+const PROVIDER = resolveProvider();
+const FROM_NAME  = process.env.EMAIL_FROM_NAME    || 'ItsPosting';
 const FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS || 'noreply@app.itsposting.com';
 
 class EmailService {
@@ -275,20 +282,20 @@ const TEMPLATES = {
   },
 
   workspace_invite: {
-    subject: "You've been invited to join {{inviterBusinessName}} on ItsPosting",
+    subject: "You've been invited to join {{inviterBusinessName}} on {{platformName}}",
     html: `
       <p>Hi there,</p>
-      <p><strong>{{inviterBusinessName}}</strong> has invited you to join their team on ItsPosting as a <strong style="color:#7C5CFC;">{{roleLabel}}</strong>.</p>
+      <p><strong>{{inviterBusinessName}}</strong> has invited you to join their team on {{platformName}} as a <strong style="color:#7C5CFC;">{{roleLabel}}</strong>.</p>
       <p>Click the button below to accept the invitation and set up your account. It takes less than a minute.</p>
       <a href="{{acceptUrl}}" class="btn">Accept invitation →</a>
-      <p style="font-size:13px;color:#666;">This invitation expires in <strong style="color:#E2E2E8;">7 days</strong>. If you already have an ItsPosting account, just log in on the next page — you'll be linked automatically.</p>
+      <p style="font-size:13px;color:#666;">This invitation expires in <strong style="color:#E2E2E8;">7 days</strong>. If you already have a {{platformName}} account, just log in on the next page — you'll be linked automatically.</p>
       <div class="box">
         <p style="margin:0;font-size:12px;color:#666;">If the button doesn't work, copy and paste this link:</p>
         <code>{{acceptUrl}}</code>
       </div>
       <p style="font-size:12px;color:#555;">If you weren't expecting this invitation, you can safely ignore this email.</p>
     `,
-    text: `{{inviterBusinessName}} has invited you to join their team on ItsPosting as a {{roleLabel}}.\n\nAccept the invitation here (expires in 7 days):\n{{acceptUrl}}\n\nIf you already have an account, just log in on the next page.\n\nIf you weren't expecting this, you can ignore this email.`,
+    text: `{{inviterBusinessName}} has invited you to join their team on {{platformName}} as a {{roleLabel}}.\n\nAccept the invitation here (expires in 7 days):\n{{acceptUrl}}\n\nIf you already have an account, just log in on the next page.\n\nIf you weren't expecting this, you can ignore this email.`,
   },
 
   postcore_briefing: {

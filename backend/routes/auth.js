@@ -187,17 +187,19 @@ module.exports = (pool) => {
           pool.query(`SELECT credits_balance, free_geo_audit_used FROM customers WHERE id = $1`, [req.ownerId]),
           req.workspaceId
             ? pool.query(
-                `SELECT role FROM workspace_members WHERE member_id = $1 AND workspace_id = $2 AND revoked_at IS NULL LIMIT 1`,
+                `SELECT role, permissions FROM workspace_members WHERE member_id = $1 AND workspace_id = $2 AND revoked_at IS NULL LIMIT 1`,
                 [req.customerId, req.workspaceId]
               )
             : Promise.resolve({ rows: [] }),
         ]);
         if (ownerRow.rows.length) {
-          customer.credits_balance     = ownerRow.rows[0].credits_balance;
-          customer.free_geo_audit_used = ownerRow.rows[0].free_geo_audit_used;
-          customer.is_member           = true;
-          customer.workspace_id        = req.workspaceId || null;
-          customer.workspace_role      = memberRoleRow.rows[0]?.role || customer.workspace_role || 'editor';
+          const memberRow = memberRoleRow.rows[0];
+          customer.credits_balance      = ownerRow.rows[0].credits_balance;
+          customer.free_geo_audit_used  = ownerRow.rows[0].free_geo_audit_used;
+          customer.is_member            = true;
+          customer.workspace_id         = req.workspaceId || null;
+          customer.workspace_role       = memberRow?.role || 'editor';
+          customer.workspace_permissions = memberRow?.permissions || null;
         }
       }
 
@@ -292,6 +294,7 @@ module.exports = (pool) => {
         `SELECT wi.id, wi.email, wi.role, wi.permissions, wi.status, wi.expires_at,
                 wi.workspace_id,
                 c.business_name AS inviter_business_name,
+                c.white_label_config AS inviter_white_label_config,
                 ws.business_name AS workspace_business_name
          FROM workspace_invitations wi
          JOIN customers c ON c.id = wi.inviter_id
@@ -317,6 +320,7 @@ module.exports = (pool) => {
 
       const existingCheck = await pool.query('SELECT id FROM customers WHERE email = $1', [invite.email]);
 
+      const wlConfig = invite.inviter_white_label_config || {};
       res.json({
         invite: {
           id: invite.id,
@@ -327,6 +331,9 @@ module.exports = (pool) => {
           workspaceId: invite.workspace_id,
           workspaceBusinessName: invite.workspace_business_name,
           expiresAt: invite.expires_at,
+          agencyName: wlConfig.agencyName || null,
+          agencyLogo: wlConfig.logo || null,
+          agencyColor: wlConfig.primaryColor || null,
         },
         existingAccount: existingCheck.rows.length > 0,
       });

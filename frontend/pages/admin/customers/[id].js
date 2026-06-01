@@ -460,7 +460,7 @@ function EditModal({ customer: c, onClose, onSubmit, t }) {
             <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 6 }}>Plan</label>
             <select value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })}
               style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13 }}>
-              {['trial', 'starter', 'professional', 'premium'].map((p) => <option key={p} value={p}>{p}</option>)}
+              {['trial', 'starter', 'professional', 'premium', 'agency'].map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div>
@@ -487,10 +487,11 @@ function EditModal({ customer: c, onClose, onSubmit, t }) {
 
 function ChangePlanModal({ customer: c, onClose, onSubmit, t }) {
   const PLANS = [
-    { id: 'trial',        name: 'Trial',        credits: 10,  price: 'Free'    },
-    { id: 'starter',      name: 'Starter',      credits: 50,  price: '$20/mo'  },
-    { id: 'professional', name: 'Professional', credits: 100, price: '$40/mo'  },
-    { id: 'premium',      name: 'Premium',      credits: 150, price: '$60/mo'  },
+    { id: 'trial',        name: 'Trial',        credits: 10,  price: 'Free'      },
+    { id: 'starter',      name: 'Starter',      credits: 50,  price: '$20/mo'    },
+    { id: 'professional', name: 'Professional', credits: 100, price: '$40/mo'    },
+    { id: 'premium',      name: 'Premium',      credits: 150, price: '$60/mo'    },
+    { id: 'agency',       name: 'Agency',       credits: 200, price: '$200/mo'   },
   ];
   const [selectedPlan, setSelectedPlan] = useState(c.plan || 'trial');
   const [billingCycle, setBillingCycle] = useState(c.billing_cycle || 'monthly');

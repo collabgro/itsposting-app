@@ -21,6 +21,10 @@ const PLANS = {
     id: 'premium', name: 'Premium', price: 60, yearlyPrice: 54, credits: 150, duration: 'per month',
     features: ['150 credits/month', 'Instagram, TikTok, Facebook, LinkedIn & Google Business', 'Custom AI training on your brand', 'Priority support', 'Dedicated support manager', '7-day free trial'],
   },
+  agency: {
+    id: 'agency', name: 'Agency', price: 200, yearlyPrice: 200, credits: 200, duration: 'per month',
+    features: ['200 credits/month', 'Unlimited sub-accounts', 'White-label branding (logo, name, colors)', 'Hide "Powered by ItsPosting"', 'Custom domain support', 'All Premium features included'],
+  },
 };
 
 const CREDIT_PACKS = [

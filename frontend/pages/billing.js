@@ -627,47 +627,50 @@ export default function Billing() {
         )}
 
         {/* ── AGENCY PLAN ─────────────────────────────────────────────── */}
-        {current?.currentPlan?.id !== 'agency' && (
-          <div style={{
-            ...gc, padding: 24, marginBottom: 24,
-            background: t.isDark ? 'linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(15,15,24,0.9) 100%)' : 'linear-gradient(135deg, rgba(124,92,252,0.06) 0%, #fff 100%)',
-            border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.3)' : 'rgba(124,92,252,0.2)'}`,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 220 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <IpCrown size={18} color="url(#brand-gradient)" />
-                  <span style={{ fontSize: 17, fontWeight: 800, color: t.text }}>Agency Plan</span>
-                  <span style={{ padding: '3px 10px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 9999, letterSpacing: '0.04em' }}>$200/mo</span>
-                </div>
-                <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 14px', lineHeight: 1.6 }}>
-                  For marketing agencies managing multiple local business clients — white-label branding, unlimited sub-accounts, and full client isolation.
-                </p>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  {[
-                    'Unlimited sub-accounts (one per client)',
-                    'White-label: custom logo, name, and brand color',
-                    '"Powered by ItsPosting" can be hidden',
-                    'Custom domain support (app.youragency.com)',
-                    'Shared credit pool with role-based access',
-                    'All Premium features included',
-                  ].map((f, i) => (
-                    <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: t.textSecondary }}>
-                      <IpCheck size={13} strokeWidth={3} style={{ color: t.success, flexShrink: 0, marginTop: 2 }} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
+        <div style={{
+          ...gc, padding: 24, marginBottom: 24,
+          background: t.isDark ? 'linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(15,15,24,0.9) 100%)' : 'linear-gradient(135deg, rgba(124,92,252,0.06) 0%, #fff 100%)',
+          border: `1px solid ${current?.currentPlan?.id === 'agency' ? 'rgba(124,92,252,0.6)' : (t.isDark ? 'rgba(124,92,252,0.3)' : 'rgba(124,92,252,0.2)')}`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <IpCrown size={18} color="url(#brand-gradient)" />
+                <span style={{ fontSize: 17, fontWeight: 800, color: t.text }}>Agency Plan</span>
+                <span style={{ padding: '3px 10px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 9999, letterSpacing: '0.04em' }}>$200/mo</span>
+                {current?.currentPlan?.id === 'agency' && (
+                  <span style={{ padding: '3px 10px', background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontSize: 10, fontWeight: 700, borderRadius: 9999, border: '1px solid rgba(34,197,94,0.3)' }}>Current Plan</span>
+                )}
               </div>
+              <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 14px', lineHeight: 1.6 }}>
+                For marketing agencies managing multiple local business clients — white-label branding, unlimited sub-accounts, and full client isolation.
+              </p>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {[
+                  'Unlimited sub-accounts (one per client)',
+                  'White-label: custom logo, name, and brand color',
+                  '"Powered by ItsPosting" can be hidden',
+                  'Custom domain support (app.youragency.com)',
+                  'Shared credit pool with role-based access',
+                  'All Premium features included',
+                ].map((f, i) => (
+                  <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: t.textSecondary }}>
+                    <IpCheck size={13} strokeWidth={3} style={{ color: t.success, flexShrink: 0, marginTop: 2 }} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {current?.currentPlan?.id !== 'agency' && (
               <a
                 href="mailto:support@itsposting.com?subject=Agency Plan Inquiry"
                 style={{ padding: '11px 22px', background: `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', alignSelf: 'flex-start' }}
               >
                 <IpMail size={14} /> Contact Us
               </a>
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* ── BUY MORE CREDITS ────────────────────────────────────────── */}
         {(() => {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useTheme } from '../lib/theme';
-import { authAPI } from '../lib/api';
+import { authAPI, publicAPI } from '../lib/api';
 import { ItsPostingLogo } from '../components/ItsPostingLogo';
 
 const QUOTES = [
@@ -91,6 +91,7 @@ export default function Login() {
   const [focused, setFocused] = useState(null);
   const [showPwd, setShowPwd] = useState(false);
   const [isWide, setIsWide] = useState(false);
+  const [agencyBranding, setAgencyBranding] = useState(null);
 
   useEffect(() => {
     setMounted(true);
@@ -102,6 +103,17 @@ export default function Login() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Detect agency branding: check ?a=handle URL param first, then hostname
+  useEffect(() => {
+    if (!router.isReady) return;
+    const handle = router.query.a;
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const params = handle ? { handle } : { domain: hostname };
+    publicAPI.getAgencyBranding(params)
+      .then(res => { if (res.data?.agencyName || res.data?.logo) setAgencyBranding(res.data); })
+      .catch(() => {}); // Silently fail — fallback to ItsPosting branding
+  }, [router.isReady]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -109,12 +121,18 @@ export default function Login() {
     try {
       const { data } = await authAPI.login(formData);
       localStorage.setItem('token', data.token);
-      router.push('/dashboard');
+      router.push('/select-account');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
       setLoading(false);
     }
   };
+
+  // Agency-aware accent color — falls back to ItsPosting purple
+  const brandColor = agencyBranding?.primaryColor || '#7C5CFC';
+  const brandName  = agencyBranding?.agencyName   || 'ItsPosting';
+  const brandLogo  = agencyBranding?.logo          || null;
+  const isWhiteLabeled = !!agencyBranding;
 
   const inputBase = (field) => ({
     width: '100%',
@@ -123,7 +141,7 @@ export default function Login() {
     background: t.isDark ? 'rgba(255,255,255,0.05)' : '#fff',
     border: `1.5px solid ${
       focused === field
-        ? 'rgba(124,92,252,0.70)'
+        ? `${brandColor}b3`
         : t.isDark ? 'rgba(255,255,255,0.09)' : t.border
     }`,
     borderRadius: 11,
@@ -131,7 +149,7 @@ export default function Login() {
     fontSize: 14,
     outline: 'none',
     letterSpacing: '-0.01em',
-    boxShadow: focused === field ? '0 0 0 4px rgba(124,92,252,0.11)' : 'none',
+    boxShadow: focused === field ? `0 0 0 4px ${brandColor}1c` : 'none',
     transition: 'border-color 180ms ease, box-shadow 180ms ease',
   });
 
@@ -146,12 +164,12 @@ export default function Login() {
       overflow: 'hidden',
     }}>
 
-      {/* Page-level ambient glow */}
+      {/* Page-level ambient glow — uses agency brand color */}
       <div style={{
         position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
         background: t.isDark
-          ? 'radial-gradient(ellipse 65% 55% at 20% -8%, rgba(124,92,252,0.22) 0%, transparent 55%), radial-gradient(ellipse 45% 45% at 80% 110%, rgba(0,196,204,0.08) 0%, transparent 55%)'
-          : 'radial-gradient(ellipse 65% 55% at 20% -8%, rgba(124,92,252,0.11) 0%, transparent 55%)',
+          ? `radial-gradient(ellipse 65% 55% at 20% -8%, ${brandColor}38 0%, transparent 55%), radial-gradient(ellipse 45% 45% at 80% 110%, rgba(0,196,204,0.08) 0%, transparent 55%)`
+          : `radial-gradient(ellipse 65% 55% at 20% -8%, ${brandColor}1c 0%, transparent 55%)`,
       }} />
 
       {/* ─── LEFT PANEL ─── */}
@@ -173,11 +191,11 @@ export default function Login() {
           transition: 'opacity 800ms cubic-bezier(0.16,1,0.3,1), transform 800ms cubic-bezier(0.16,1,0.3,1)',
         }}>
 
-          {/* Ambient orbs */}
+          {/* Ambient orbs — use agency brand color when white-labeled */}
           <div style={{
             position: 'absolute', top: -110, left: -90,
             width: 420, height: 420, borderRadius: '50%',
-            background: 'rgba(124,92,252,0.13)', filter: 'blur(100px)', pointerEvents: 'none',
+            background: `${brandColor}21`, filter: 'blur(100px)', pointerEvents: 'none',
           }} />
           <div style={{
             position: 'absolute', bottom: -70, right: -70,
@@ -185,9 +203,20 @@ export default function Login() {
             background: 'rgba(0,196,204,0.07)', filter: 'blur(80px)', pointerEvents: 'none',
           }} />
 
-          {/* Logo */}
+          {/* Logo — agency branded or ItsPosting default */}
           <div>
-            <ItsPostingLogo size="sm" variant="full" theme="dark" />
+            {brandLogo ? (
+              <img src={brandLogo} alt={brandName} style={{ height: 32, maxWidth: 180, objectFit: 'contain' }} />
+            ) : isWhiteLabeled ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: `linear-gradient(135deg, ${brandColor}, ${brandColor}cc)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#fff', fontSize: 14 }}>
+                  {brandName.charAt(0).toUpperCase()}
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em' }}>{brandName}</span>
+              </div>
+            ) : (
+              <ItsPostingLogo size="sm" variant="full" theme="dark" />
+            )}
           </div>
 
           {/* Main content block — vertically centered */}
@@ -226,18 +255,33 @@ export default function Login() {
               </span>
             </h2>
 
-            {/* Subtitle */}
-            <p style={{
-              fontSize: 15,
-              color: 'rgba(255,255,255,0.35)',
-              lineHeight: 1.65,
-              margin: '0 0 52px',
-              maxWidth: 300,
-              letterSpacing: '-0.015em',
-            }}>
-              PostCore knows your trade, your season, and your city.
-              First post in 60 seconds — no marketing experience needed.
-            </p>
+            {/* Subtitle — hide PostCore reference for white-labeled agencies */}
+            {!isWhiteLabeled && (
+              <p style={{
+                fontSize: 15,
+                color: 'rgba(255,255,255,0.35)',
+                lineHeight: 1.65,
+                margin: '0 0 52px',
+                maxWidth: 300,
+                letterSpacing: '-0.015em',
+              }}>
+                PostCore knows your trade, your season, and your city.
+                First post in 60 seconds — no marketing experience needed.
+              </p>
+            )}
+            {isWhiteLabeled && (
+              <p style={{
+                fontSize: 15,
+                color: 'rgba(255,255,255,0.35)',
+                lineHeight: 1.65,
+                margin: '0 0 52px',
+                maxWidth: 300,
+                letterSpacing: '-0.015em',
+              }}>
+                AI-powered social media for local businesses.
+                Post in seconds — no marketing experience needed.
+              </p>
+            )}
 
             {/* Quote */}
             <QuoteCycler />
@@ -279,7 +323,18 @@ export default function Login() {
           {/* Mobile — logo icon + tagline */}
           {!isWide && (
             <div style={{ textAlign: 'center', marginBottom: 44 }}>
-              <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
+              {brandLogo ? (
+                <img src={brandLogo} alt={brandName} style={{ height: 40, maxWidth: 200, objectFit: 'contain' }} />
+              ) : isWhiteLabeled ? (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 9, background: `linear-gradient(135deg, ${brandColor}, ${brandColor}cc)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#fff', fontSize: 16 }}>
+                    {brandName.charAt(0).toUpperCase()}
+                  </div>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>{brandName}</span>
+                </div>
+              ) : (
+                <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
+              )}
               <p style={{ margin: '14px 0 0', fontSize: 13, color: t.textMuted, letterSpacing: '-0.01em' }}>
                 Your business, on autopilot.
               </p>
@@ -304,7 +359,7 @@ export default function Login() {
               margin: 0,
               letterSpacing: '-0.01em',
             }}>
-              Sign in to continue to ItsPosting
+              Sign in to continue to {brandName}
             </p>
           </div>
 
@@ -370,7 +425,7 @@ export default function Login() {
                 </label>
                 <Link href="/forgot-password" style={{
                   fontSize: 12.5,
-                  color: t.primary,
+                  color: brandColor,
                   fontWeight: 600,
                   textDecoration: 'none',
                   letterSpacing: '-0.01em',
@@ -440,23 +495,23 @@ export default function Login() {
                 letterSpacing: '-0.02em',
                 background: loading
                   ? (t.isDark ? 'rgba(255,255,255,0.07)' : '#E5E5EF')
-                  : 'linear-gradient(135deg, #7C5CFC 0%, #9472FF 100%)',
+                  : `linear-gradient(135deg, ${brandColor} 0%, ${brandColor}cc 100%)`,
                 border: 'none',
                 borderRadius: 11,
                 color: loading ? t.textDisabled : '#fff',
                 cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: loading ? 'none' : '0 4px 30px rgba(124,92,252,0.38)',
+                boxShadow: loading ? 'none' : `0 4px 30px ${brandColor}61`,
                 transition: 'transform 180ms ease, box-shadow 180ms ease, background 180ms ease',
               }}
               onMouseEnter={e => {
                 if (!loading) {
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 8px 40px rgba(124,92,252,0.50)';
+                  e.currentTarget.style.boxShadow = `0 8px 40px ${brandColor}80`;
                 }
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = loading ? 'none' : '0 4px 30px rgba(124,92,252,0.38)';
+                e.currentTarget.style.boxShadow = loading ? 'none' : `0 4px 30px ${brandColor}61`;
               }}
             >
               {loading ? (
@@ -499,7 +554,7 @@ export default function Login() {
           }}>
             No account?{' '}
             <Link href="/signup" style={{
-              color: t.primary,
+              color: brandColor,
               fontWeight: 700,
               textDecoration: 'none',
             }}>

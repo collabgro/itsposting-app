@@ -314,6 +314,7 @@ export const billingAPI = {
 
 export const workspacesAPI = {
   list: () => api.get('/api/workspaces'),
+  accessible: () => api.get('/api/workspaces/accessible'),
   create: (data) => api.post('/api/workspaces', data),
   remove: (id) => api.delete(`/api/workspaces/${id}`),
   rename: (id, name) => api.patch(`/api/workspaces/${id}`, { name }),
@@ -355,6 +356,7 @@ export const publicAPI = {
   getProfile: (handle) => api.get(`/api/public/${handle}`),
   setHandle: (handle) => api.patch('/api/public/handle', { handle }),
   getShowcase: (params) => api.get('/api/public/showcase', { params }),
+  getAgencyBranding: (params) => api.get('/api/public/agency-branding', { params }),
 };
 
 export const adminAPI = {

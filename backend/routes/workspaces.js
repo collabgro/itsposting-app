@@ -3,12 +3,14 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { authenticate, generateToken } = require('../middleware/auth');
 const EmailQueue = require('../services/EmailQueue');
+const EmailService = require('../services/EmailService');
 
 const WORKSPACE_LIMITS = {
   trial: 1,
   starter: 1,
   professional: 2,
   premium: 3,
+  agency: 99,
 };
 
 const VALID_ROLES = ['manager', 'editor', 'viewer'];
@@ -73,7 +75,7 @@ module.exports = (pool) => {
       );
       const currentCount = parseInt(countResult.rows[0].cnt) + 1; // +1 for main account itself
       if (currentCount >= limit) {
-        const nextPlan = main.plan === 'starter' ? 'Professional' : main.plan === 'professional' ? 'Premium' : null;
+        const nextPlan = main.plan === 'starter' ? 'Professional' : main.plan === 'professional' ? 'Premium' : main.plan === 'premium' ? 'Agency' : null;
         return res.status(403).json({
           error: `Workspace limit reached for your plan (${limit} total). ${nextPlan ? `Upgrade to ${nextPlan} to add more workspaces.` : ''}`,
           limitReached: true,
@@ -212,15 +214,20 @@ module.exports = (pool) => {
         return res.status(400).json({ error: 'Role must be manager, editor, or viewer' });
       }
 
-      // Try new workspace_members table first (invited members)
+      const permsValue = permissions ? JSON.stringify(permissions) : null;
+
+      // Try new workspace_members table first (invited members).
+      // When role is explicitly changed, clear any prior custom permissions so the new
+      // role's defaults take effect — unless the caller is also supplying new custom permissions.
       const wmUpdate = await pool.query(
         `UPDATE workspace_members
          SET role        = COALESCE($1, role),
-             permissions = COALESCE($2, permissions),
+             permissions = CASE WHEN $1 IS NOT NULL THEN $2
+                                ELSE COALESCE($2, permissions) END,
              updated_at  = NOW()
          WHERE member_id = $3 AND owner_id = $4 AND revoked_at IS NULL
          RETURNING id`,
-        [role || null, permissions ? JSON.stringify(permissions) : null, memberId, parentId]
+        [role || null, permsValue, memberId, parentId]
       );
 
       if (!wmUpdate.rows.length) {
@@ -228,11 +235,12 @@ module.exports = (pool) => {
         const legacyUpdate = await pool.query(
           `UPDATE customers
            SET workspace_role        = COALESCE($1, workspace_role),
-               workspace_permissions = COALESCE($2, workspace_permissions),
+               workspace_permissions = CASE WHEN $1 IS NOT NULL THEN $2
+                                            ELSE COALESCE($2, workspace_permissions) END,
                updated_at            = NOW()
            WHERE id = $3 AND parent_customer_id = $4
            RETURNING id`,
-          [role || null, permissions ? JSON.stringify(permissions) : null, memberId, parentId]
+          [role || null, permsValue, memberId, parentId]
         );
         if (!legacyUpdate.rows.length) return res.status(404).json({ error: 'Member not found' });
       }
@@ -334,16 +342,33 @@ module.exports = (pool) => {
         [parentId, normalizedEmail, tokenHash, role, permissions ? JSON.stringify(permissions) : null, expiresAt, targetWorkspaceId]
       );
 
-      const inviterRow = await pool.query('SELECT business_name FROM customers WHERE id = $1', [parentId]);
+      const inviterRow = await pool.query('SELECT business_name, white_label_config FROM customers WHERE id = $1', [parentId]);
       const inviterName = inviterRow.rows[0]?.business_name || 'Someone';
-      const acceptUrl = `${process.env.FRONTEND_URL}/accept-invite?token=${rawToken}`;
+      const wlConfig = inviterRow.rows[0]?.white_label_config || {};
+      const platformName = wlConfig.agencyName || 'ItsPosting';
+      const acceptUrl = `${process.env.FRONTEND_URL || 'https://app.itsposting.com'}/accept-invite?token=${rawToken}`;
+      const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
 
-      emailQueue.notifyWorkspaceInvite({
-        toEmail: normalizedEmail,
-        inviterBusinessName: inviterName,
-        roleLabel: role.charAt(0).toUpperCase() + role.slice(1),
-        acceptUrl,
-      });
+      // Send invite email immediately (non-blocking). On failure, queue as fallback so the
+      // EmailWorker retries within 30 seconds — ensures delivery even if the Resend API
+      // has a transient blip at the moment the invite is created.
+      const emailSvc = new EmailService();
+      try {
+        const rendered = emailSvc.renderTemplate('workspace_invite', {
+          inviterBusinessName: inviterName,
+          platformName,
+          roleLabel,
+          acceptUrl,
+        });
+        emailSvc.send({ to: normalizedEmail, subject: rendered.subject, html: rendered.html, text: rendered.text })
+          .catch(sendErr => {
+            console.error('[Workspaces] Direct invite email failed, falling back to queue:', sendErr.message);
+            emailQueue.notifyWorkspaceInvite({ toEmail: normalizedEmail, inviterBusinessName: inviterName, platformName, roleLabel, acceptUrl });
+          });
+      } catch (renderErr) {
+        console.error('[Workspaces] Email template render error:', renderErr.message);
+        emailQueue.notifyWorkspaceInvite({ toEmail: normalizedEmail, inviterBusinessName: inviterName, platformName, roleLabel, acceptUrl });
+      }
 
       res.json({ success: true, inviteId: insert.rows[0].id });
     } catch (err) {
@@ -417,6 +442,49 @@ module.exports = (pool) => {
       // Issue a clean JWT with no workspace context
       const token = generateToken(main.id, main.email);
       res.json({ token });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── GET /api/workspaces/accessible ─────────────────────────────────────────
+  // Returns ALL accounts the current user can access in one call:
+  // their own main account, their own child workspaces, and external memberships.
+  // Always resolves from req.customerId — ignores any workspace context in the JWT.
+  router.get('/accessible', authenticate, async (req, res) => {
+    try {
+      const userId = req.customerId;
+      const [ownResult, ownWorkspacesResult, membershipsResult] = await Promise.all([
+        pool.query(
+          `SELECT id, business_name, workspace_display_name, industry, location, plan, credits_balance, status, logo_url, favicon_url
+           FROM customers WHERE id = $1`,
+          [userId]
+        ),
+        pool.query(
+          `SELECT id, business_name, workspace_display_name, industry, location, status, plan, created_at, logo_url, favicon_url
+           FROM customers
+           WHERE parent_customer_id = $1 AND status != 'inactive'
+           ORDER BY created_at ASC`,
+          [userId]
+        ),
+        pool.query(
+          `SELECT wm.id AS membership_id, wm.workspace_id, wm.owner_id,
+                  wm.role, wm.permissions, wm.joined_at,
+                  c.business_name, c.workspace_display_name, c.industry, c.location, c.logo_url, c.favicon_url,
+                  o.business_name AS owner_business_name
+           FROM workspace_members wm
+           JOIN customers c ON c.id = wm.workspace_id
+           JOIN customers o ON o.id = wm.owner_id
+           WHERE wm.member_id = $1 AND wm.revoked_at IS NULL
+           ORDER BY wm.joined_at ASC`,
+          [userId]
+        ),
+      ]);
+      res.json({
+        ownAccount:    ownResult.rows[0] || null,
+        ownWorkspaces: ownWorkspacesResult.rows,
+        memberships:   membershipsResult.rows,
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

@@ -78,6 +78,7 @@ export default function Layout({ children, title, subtitle, action }) {
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [hasToken, setHasToken] = useState(false);
   const [wsData, setWsData] = useState(null);
+  const [myMemberships, setMyMemberships] = useState([]);
   const [wsDropdownOpen, setWsDropdownOpen] = useState(false);
   const [switchingWs, setSwitchingWs] = useState(null);
   const [impersonatingAs, setImpersonatingAs] = useState(null);
@@ -159,15 +160,17 @@ export default function Layout({ children, title, subtitle, action }) {
           result = await tryVerify();
           if (result === false) return;
         }
-        const [dmsResult, suggResult, wsResult, approvalResult] = await Promise.allSettled([
+        const [dmsResult, suggResult, wsResult, membershipsResult, approvalResult] = await Promise.allSettled([
           dmsAPI.getStats(),
           suggestionsAPI.getCount(),
           workspacesAPI.list(),
+          workspacesAPI.myMemberships(),
           postsAPI.getPendingApproval(),
         ]);
         if (dmsResult.status === 'fulfilled') setDmUnread(dmsResult.value.data?.unreadCount || 0);
         if (suggResult.status === 'fulfilled') setUnseenSugg(suggResult.value.data?.count || 0);
         if (wsResult.status === 'fulfilled' && wsResult.value.data) setWsData(wsResult.value.data);
+        if (membershipsResult.status === 'fulfilled') setMyMemberships(membershipsResult.value.data?.memberships || []);
         if (approvalResult.status === 'fulfilled') setPendingApprovals(Array.isArray(approvalResult.value.data) ? approvalResult.value.data.length : 0);
       })();
     }
@@ -226,9 +229,8 @@ export default function Layout({ children, title, subtitle, action }) {
   const wlConfig = user?.white_label_config || {};
   const wlPrimary = wlConfig.primaryColor || t.primary;
 
-  // Hide Workspaces nav item when operating inside a workspace (not the main account)
-  const isInWorkspace = wsData?.mainAccount && wsData.mainAccount.id !== user?.id;
-  const baseNavItems = NAV_ITEMS.filter(item => !(item.isWorkspaceNav && isInWorkspace));
+  // Always show Workspaces nav — members need it to manage their memberships
+  const baseNavItems = NAV_ITEMS;
 
   // Nav items + conditionally add admin link for admins
   const navItems = user?.is_admin
@@ -247,10 +249,11 @@ export default function Layout({ children, title, subtitle, action }) {
       ]
     : baseNavItems;
 
-  // Permission filter for sub-accounts (team members)
+  // Permission filter for sub-accounts (Type A) and invited members (Type B)
   const isSubAccount = !!user?.parent_customer_id;
-  const effectivePerms = isSubAccount
-    ? (user.workspace_permissions || ROLE_PERMISSIONS[user.workspace_role || 'viewer'])
+  const isMember = !!user?.is_member;
+  const effectivePerms = (isSubAccount || isMember)
+    ? (user.workspace_permissions || ROLE_PERMISSIONS[user.workspace_role || 'editor'])
     : null;
   const visibleNavItems = !effectivePerms
     ? navItems
@@ -353,6 +356,7 @@ export default function Layout({ children, title, subtitle, action }) {
                   position: 'absolute', top: 'calc(100% - 4px)', left: 12, right: 12,
                   background: t.card, border: `1px solid ${t.border}`, borderRadius: 10,
                   boxShadow: '0 8px 24px rgba(0,0,0,0.16)', zIndex: 200, overflow: 'hidden',
+                  maxHeight: 380, overflowY: 'auto',
                 }}
               >
                 {/* Close dropdown on outside click */}
@@ -360,78 +364,180 @@ export default function Layout({ children, title, subtitle, action }) {
                   style={{ position: 'fixed', inset: 0, zIndex: -1 }}
                   onClick={() => setWsDropdownOpen(false)}
                 />
-                <div style={{ padding: '6px 10px 4px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                  Switch workspace
-                </div>
 
-                {/* Main account row */}
-                {wsData?.mainAccount && (
-                  <button
-                    onClick={() => {
-                      if (wsData.mainAccount.id === user.id) { setWsDropdownOpen(false); return; }
-                      setWsDropdownOpen(false);
-                      switchToMain();
-                    }}
-                    style={{
-                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '8px 10px', background: wsData.mainAccount.id === user.id ? t.primaryBg : 'transparent',
-                      border: 'none', cursor: wsData.mainAccount.id === user.id ? 'default' : 'pointer',
-                      borderRadius: 6, transition: 'background 150ms',
-                    }}
-                    onMouseEnter={(e) => { if (wsData.mainAccount.id !== user.id) e.currentTarget.style.background = t.cardHover; }}
-                    onMouseLeave={(e) => { if (wsData.mainAccount.id !== user.id) e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #FB923C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
-                      {(wsData.mainAccount.favicon_url || wsData.mainAccount.logo_url)
-                        ? <img src={wsData.mainAccount.favicon_url || wsData.mainAccount.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : (wsData.mainAccount.business_name || 'M').charAt(0).toUpperCase()}
+                {/* ── When operating inside another owner's workspace (Type B member):
+                     show "Back to my account" as the first row ── */}
+                {user?.is_member && (
+                  <>
+                    <div style={{ padding: '6px 10px 4px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                      My Account
                     </div>
-                    <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wsData.mainAccount.business_name}</div>
-                      <div style={{ fontSize: 10, color: t.textMuted }}>Main account</div>
-                    </div>
-                    {wsData.mainAccount.id === user.id && switchingWs !== 'main' && (
-                      <span style={{ fontSize: 10, color: t.primary, fontWeight: 700 }}>Active</span>
-                    )}
-                    {switchingWs === 'main' && <span style={{ fontSize: 10, color: t.textMuted }}>Switching…</span>}
-                  </button>
+                    <button
+                      onClick={() => { setWsDropdownOpen(false); switchToMain(); }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: 6, transition: 'background 150ms' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #FB923C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                        {(user.business_name || '?').charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.business_name || 'My Account'}</div>
+                        <div style={{ fontSize: 10, color: t.textMuted }}>← Back to my account</div>
+                      </div>
+                      {switchingWs === 'main' && <span style={{ fontSize: 10, color: t.textMuted }}>Switching…</span>}
+                    </button>
+                    <div style={{ height: 1, background: t.border, margin: '4px 0' }} />
+                  </>
                 )}
 
-                {/* Workspace rows */}
-                {wsData?.workspaces?.filter(ws => ws.status !== 'inactive').map((ws) => (
-                  <button
-                    key={ws.id}
-                    onClick={() => {
-                      if (ws.id === user.id) { setWsDropdownOpen(false); return; }
-                      setWsDropdownOpen(false);
-                      switchToWorkspace(ws.id);
-                    }}
-                    style={{
-                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '8px 10px', background: ws.id === user.id ? t.primaryBg : 'transparent',
-                      border: 'none', cursor: ws.id === user.id ? 'default' : 'pointer',
-                      borderRadius: 6, transition: 'background 150ms',
-                    }}
-                    onMouseEnter={(e) => { if (ws.id !== user.id) e.currentTarget.style.background = t.cardHover; }}
-                    onMouseLeave={(e) => { if (ws.id !== user.id) e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
-                      {(ws.favicon_url || ws.logo_url)
-                        ? <img src={ws.favicon_url || ws.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        : (ws.workspace_display_name || ws.business_name || 'W').charAt(0).toUpperCase()}
+                {/* ── Own account hierarchy (only for non-member users) ── */}
+                {!user?.is_member && (
+                  <>
+                    <div style={{ padding: '6px 10px 4px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                      Switch workspace
                     </div>
-                    <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.workspace_display_name || ws.business_name}</div>
-                      <div style={{ fontSize: 10, color: t.textMuted }}>Workspace</div>
+
+                    {/* Main account row */}
+                    {wsData?.mainAccount && (
+                      <button
+                        onClick={() => {
+                          if (wsData.mainAccount.id === user.id) { setWsDropdownOpen(false); return; }
+                          setWsDropdownOpen(false);
+                          switchToMain();
+                        }}
+                        style={{
+                          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '8px 10px',
+                          background: wsData.mainAccount.id === user.id ? t.primaryBg : 'transparent',
+                          border: 'none',
+                          cursor: wsData.mainAccount.id === user.id ? 'default' : 'pointer',
+                          borderRadius: 6, transition: 'background 150ms',
+                        }}
+                        onMouseEnter={(e) => { if (wsData.mainAccount.id !== user.id) e.currentTarget.style.background = t.cardHover; }}
+                        onMouseLeave={(e) => { if (wsData.mainAccount.id !== user.id) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #FB923C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                          {(wsData.mainAccount.favicon_url || wsData.mainAccount.logo_url)
+                            ? <img src={wsData.mainAccount.favicon_url || wsData.mainAccount.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : (wsData.mainAccount.business_name || 'M').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wsData.mainAccount.business_name}</div>
+                          <div style={{ fontSize: 10, color: t.textMuted }}>Main account</div>
+                        </div>
+                        {wsData.mainAccount.id === user.id && switchingWs !== 'main' && (
+                          <span style={{ fontSize: 10, color: t.primary, fontWeight: 700 }}>Active</span>
+                        )}
+                        {switchingWs === 'main' && <span style={{ fontSize: 10, color: t.textMuted }}>Switching…</span>}
+                      </button>
+                    )}
+
+                    {/* Child workspace rows */}
+                    {wsData?.workspaces?.filter(ws => ws.status !== 'inactive').map((ws) => (
+                      <button
+                        key={ws.id}
+                        onClick={() => {
+                          if (ws.id === user.id) { setWsDropdownOpen(false); return; }
+                          setWsDropdownOpen(false);
+                          switchToWorkspace(ws.id);
+                        }}
+                        style={{
+                          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '8px 10px', background: ws.id === user.id ? t.primaryBg : 'transparent',
+                          border: 'none', cursor: ws.id === user.id ? 'default' : 'pointer',
+                          borderRadius: 6, transition: 'background 150ms',
+                        }}
+                        onMouseEnter={(e) => { if (ws.id !== user.id) e.currentTarget.style.background = t.cardHover; }}
+                        onMouseLeave={(e) => { if (ws.id !== user.id) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                          {(ws.favicon_url || ws.logo_url)
+                            ? <img src={ws.favicon_url || ws.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : (ws.workspace_display_name || ws.business_name || 'W').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.workspace_display_name || ws.business_name}</div>
+                          <div style={{ fontSize: 10, color: t.textMuted }}>Workspace</div>
+                        </div>
+                        {ws.id === user.id && <span style={{ fontSize: 10, color: t.primary, fontWeight: 700 }}>Active</span>}
+                        {switchingWs === ws.id && <span style={{ fontSize: 10, color: t.textMuted }}>Switching…</span>}
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {/* ── For Type B members: show current workspace as non-clickable label ── */}
+                {user?.is_member && (() => {
+                  const activeMembership = myMemberships.find(m => m.workspace_id === user.workspace_id);
+                  if (!activeMembership) return null;
+                  return (
+                    <>
+                      <div style={{ height: 1, background: t.border, margin: '4px 0' }} />
+                      <div style={{ padding: '6px 10px 4px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                        Currently viewing
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 6, background: t.primaryBg }}>
+                        <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #0EA5E9, #0284C7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                          {(activeMembership.business_name || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeMembership.workspace_display_name || activeMembership.business_name}</div>
+                          <div style={{ fontSize: 10, color: t.textMuted }}>by {activeMembership.owner_business_name}</div>
+                        </div>
+                        <span style={{ fontSize: 10, color: t.primary, fontWeight: 700 }}>Active</span>
+                      </div>
+                    </>
+                  );
+                })()}
+
+                {/* ── External memberships (shared accounts from other owners) ── */}
+                {myMemberships.length > 0 && (
+                  <>
+                    <div style={{ height: 1, background: t.border, margin: '4px 0' }} />
+                    <div style={{ padding: '6px 10px 4px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                      Shared accounts
                     </div>
-                    {ws.id === user.id && <span style={{ fontSize: 10, color: t.primary, fontWeight: 700 }}>Active</span>}
-                    {switchingWs === ws.id && <span style={{ fontSize: 10, color: t.textMuted }}>Switching…</span>}
-                  </button>
-                ))}
+                    {myMemberships.map((m) => {
+                      const wsName = m.workspace_display_name || m.business_name;
+                      const isActiveMembership = user?.workspace_id === m.workspace_id;
+                      return (
+                        <button
+                          key={m.membership_id}
+                          onClick={() => {
+                            if (isActiveMembership) { setWsDropdownOpen(false); return; }
+                            setWsDropdownOpen(false);
+                            switchToWorkspace(m.workspace_id);
+                          }}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '8px 10px', background: isActiveMembership ? t.primaryBg : 'transparent',
+                            border: 'none', cursor: isActiveMembership ? 'default' : 'pointer',
+                            borderRadius: 6, transition: 'background 150ms',
+                          }}
+                          onMouseEnter={(e) => { if (!isActiveMembership) e.currentTarget.style.background = t.cardHover; }}
+                          onMouseLeave={(e) => { if (!isActiveMembership) e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #0EA5E9, #0284C7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                            {(m.favicon_url || m.logo_url)
+                              ? <img src={m.favicon_url || m.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : (wsName || '?').charAt(0).toUpperCase()}
+                          </div>
+                          <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wsName}</div>
+                            <div style={{ fontSize: 10, color: t.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>by {m.owner_business_name}</div>
+                          </div>
+                          {isActiveMembership && <span style={{ fontSize: 10, color: t.primary, fontWeight: 700 }}>Active</span>}
+                          {switchingWs === m.workspace_id && <span style={{ fontSize: 10, color: t.textMuted }}>Switching…</span>}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
 
                 {/* Add workspace / Manage */}
                 <div style={{ borderTop: `1px solid ${t.border}`, padding: '6px 8px 8px', display: 'flex', gap: 6 }}>
-                  {wsData && wsData.workspaces && (wsData.workspaces.filter(w => w.status !== 'inactive').length + 1) < (wsData.planLimit || 1) && (
+                  {!user?.is_member && wsData && wsData.workspaces && (wsData.workspaces.filter(w => w.status !== 'inactive').length + 1) < (wsData.planLimit || 1) && (
                     <button
                       onClick={() => { setWsDropdownOpen(false); router.push('/workspaces'); }}
                       style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 10px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 7, color: t.primary, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
@@ -460,20 +566,20 @@ export default function Layout({ children, title, subtitle, action }) {
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 gap: 8, padding: '12px 14px',
-                background: `linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #6D3FF2 100%)`,
+                background: `linear-gradient(135deg, ${wlPrimary} 0%, ${wlPrimary}cc 50%, ${wlPrimary}ee 100%)`,
                 backgroundSize: '200% 100%',
                 border: 'none', borderRadius: 12, color: '#fff', fontSize: 13, fontWeight: 700,
                 transition: 'transform 180ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 180ms ease', cursor: 'pointer',
-                boxShadow: '0 4px 20px rgba(124,92,252,0.45), 0 1px 3px rgba(124,92,252,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
+                boxShadow: `0 4px 20px ${wlPrimary}73, 0 1px 3px ${wlPrimary}4d, inset 0 1px 0 rgba(255,255,255,0.15)`,
                 letterSpacing: '-0.01em',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 28px rgba(124,92,252,0.55), 0 2px 6px rgba(124,92,252,0.35), inset 0 1px 0 rgba(255,255,255,0.2)';
+                e.currentTarget.style.boxShadow = `0 8px 28px ${wlPrimary}8c, 0 2px 6px ${wlPrimary}59, inset 0 1px 0 rgba(255,255,255,0.2)`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,92,252,0.45), 0 1px 3px rgba(124,92,252,0.3), inset 0 1px 0 rgba(255,255,255,0.15)';
+                e.currentTarget.style.boxShadow = `0 4px 20px ${wlPrimary}73, 0 1px 3px ${wlPrimary}4d, inset 0 1px 0 rgba(255,255,255,0.15)`;
               }}
               onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(0.97)'; }}
               onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-2px) scale(1)'; }}
@@ -508,7 +614,7 @@ export default function Layout({ children, title, subtitle, action }) {
                   gap: 10, padding: '8px 11px', marginBottom: 1,
                   borderRadius: 10, fontSize: 13, fontWeight: active ? 600 : 500,
                   color: active ? t.text : t.textMuted,
-                  background: 'transparent',
+                  background: active ? `${wlPrimary}12` : 'transparent',
                   borderLeft: active ? `2.5px solid ${wlPrimary}` : '2.5px solid transparent',
                   transition: 'all 160ms cubic-bezier(0.34,1.56,0.64,1)', whiteSpace: 'nowrap',
                   textDecoration: 'none', position: 'relative',
@@ -535,7 +641,10 @@ export default function Layout({ children, title, subtitle, action }) {
                   <item.icon
                     size={16}
                     strokeWidth={active ? 2.2 : 1.85}
-                    color={active ? 'url(#brand-gradient)' : (item.isAdmin ? 'url(#brand-gradient)' : t.textMuted)}
+                    color={active
+                      ? (wlConfig.primaryColor ? wlPrimary : 'url(#brand-gradient)')
+                      : (item.isAdmin ? (wlConfig.primaryColor ? wlPrimary : 'url(#brand-gradient)') : t.textMuted)
+                    }
                   />
                   {hasSuggDot && (
                     <div style={{ position: 'absolute', top: -3, right: -3, width: 7, height: 7, borderRadius: '50%', background: '#EF4444', border: `1.5px solid ${t.isDark ? '#08080F' : '#fff'}`, boxShadow: '0 0 5px rgba(239,68,68,0.65)' }} />
@@ -584,15 +693,15 @@ export default function Layout({ children, title, subtitle, action }) {
         {/* TRIAL CARD */}
         {!isMobile && user?.status === 'trial' && (
           <div style={{ padding: '10px 12px', borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.07)'}`, flexShrink: 0 }}>
-            <div style={{ padding: '13px 14px', background: t.isDark ? 'rgba(124,92,252,0.09)' : 'rgba(124,92,252,0.05)', borderRadius: 12, border: `1px solid rgba(124,92,252,0.22)`, boxShadow: '0 4px 16px rgba(124,92,252,0.1), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+            <div style={{ padding: '13px 14px', background: `${wlPrimary}17`, borderRadius: 12, border: `1px solid ${wlPrimary}38`, boxShadow: `0 4px 16px ${wlPrimary}1a, inset 0 1px 0 rgba(255,255,255,0.06)` }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: t.text, letterSpacing: '-0.01em' }}>Free Trial</div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: t.primary }}>{user.credits_balance ?? 0} {isSubAccount ? 'shared credits' : 'credits left'}</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: wlPrimary }}>{user.credits_balance ?? 0} {isSubAccount ? 'shared credits' : 'credits left'}</div>
               </div>
               <div style={{ height: 5, background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)', borderRadius: 99, overflow: 'hidden', marginBottom: 10 }}>
-                <div style={{ height: '100%', width: `${Math.min(100, ((user.credits_balance ?? 0) / 10) * 100)}%`, background: 'linear-gradient(90deg, #7C5CFC, #9B7FFF)', borderRadius: 99, boxShadow: '0 0 6px rgba(124,92,252,0.5)', transition: 'width 600ms ease' }} />
+                <div style={{ height: '100%', width: `${Math.min(100, ((user.credits_balance ?? 0) / 10) * 100)}%`, background: `linear-gradient(90deg, ${wlPrimary}, ${wlPrimary}cc)`, borderRadius: 99, boxShadow: `0 0 6px ${wlPrimary}80`, transition: 'width 600ms ease' }} />
               </div>
-              <Link href="/billing" className="btn-shimmer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px 0', background: 'linear-gradient(135deg, #7C5CFC, #9B7FFF)', borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 700, textDecoration: 'none', letterSpacing: '-0.01em', boxShadow: '0 2px 8px rgba(124,92,252,0.35)', position: 'relative', overflow: 'hidden' }}>
+              <Link href="/billing" className="btn-shimmer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '7px 0', background: `linear-gradient(135deg, ${wlPrimary}, ${wlPrimary}cc)`, borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 700, textDecoration: 'none', letterSpacing: '-0.01em', boxShadow: `0 2px 8px ${wlPrimary}59`, position: 'relative', overflow: 'hidden' }}>
                 Upgrade to Pro →
               </Link>
             </div>
@@ -628,7 +737,7 @@ export default function Layout({ children, title, subtitle, action }) {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                     <span style={{ fontSize: 11, color: t.textMuted, textTransform: 'capitalize' }}>{user.plan || 'trial'} plan</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: t.primary }}>{user.credits_balance ?? 0} credits</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: wlPrimary }}>{user.credits_balance ?? 0} credits</span>
                   </div>
                 </div>
                 {/* Actions */}
@@ -740,7 +849,7 @@ export default function Layout({ children, title, subtitle, action }) {
             {user && !isMobile && (
               <div className="credit-chip" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 9, fontSize: 12 }}>
                 <span style={{ color: t.textMuted, fontWeight: 500 }}>{isSubAccount ? 'Shared' : 'Credits'}</span>
-                <span style={{ color: t.primary, fontWeight: 800, fontFamily: 'monospace', fontSize: 13 }}>{user.credits_balance ?? 0}</span>
+                <span style={{ color: wlPrimary, fontWeight: 800, fontFamily: 'monospace', fontSize: 13 }}>{user.credits_balance ?? 0}</span>
               </div>
             )}
             {!isMobile && action}
@@ -753,7 +862,7 @@ export default function Layout({ children, title, subtitle, action }) {
             {user && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 12 }}>
                 <span style={{ color: t.textMuted }}>{isSubAccount ? 'Shared:' : 'Credits:'}</span>
-                <span style={{ color: t.primary, fontWeight: 700, fontFamily: 'monospace' }}>{user.credits_balance ?? 0}</span>
+                <span style={{ color: wlPrimary, fontWeight: 700, fontFamily: 'monospace' }}>{user.credits_balance ?? 0}</span>
               </div>
             )}
             {action}

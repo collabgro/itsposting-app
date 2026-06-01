@@ -91,6 +91,8 @@ if (process.env.HEYGEN_API_KEY) {
   console.log('     - Test mode:', process.env.HEYGEN_TEST_MODE === 'true' ? '✓ ON (watermarked videos)' : 'OFF (real credits used)');
 }
 console.log('  ☁️  Storage:', process.env.CLOUDINARY_CLOUD_NAME ? '✓ Cloudinary' : '✗ Not configured');
+const _emailProvider = process.env.EMAIL_PROVIDER || (process.env.RESEND_API_KEY ? 'resend (auto)' : process.env.SENDGRID_API_KEY ? 'sendgrid (auto)' : 'log (no emails sent)');
+console.log('  📧 Email:', _emailProvider);
 console.log('═══════════════════════════════════════════\n');
 
 // Startup schema migrations — safe to re-run (IF NOT EXISTS / IF NOT column already)
@@ -1052,6 +1054,33 @@ console.log('══════════════════════�
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS optimize_media BOOLEAN DEFAULT true`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS fb_text_background VARCHAR(50)`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS follow_up_comment TEXT`,
+    // Email queue — transactional emails (invites, notifications, briefings).
+    // Must be here so the table auto-creates on any fresh deploy without needing RUN_IN_RAILWAY.sql.
+    `CREATE TABLE IF NOT EXISTS email_queue (
+      id            SERIAL PRIMARY KEY,
+      to_email      VARCHAR(255) NOT NULL,
+      subject       VARCHAR(255),
+      body_html     TEXT,
+      body_text     TEXT,
+      template_name VARCHAR(100),
+      template_data JSONB        DEFAULT '{}'::jsonb,
+      status        VARCHAR(50)  DEFAULT 'pending',
+      attempts      INTEGER      DEFAULT 0,
+      last_error    TEXT,
+      scheduled_at  TIMESTAMPTZ  DEFAULT NOW(),
+      sent_at       TIMESTAMPTZ,
+      created_at    TIMESTAMPTZ  DEFAULT NOW(),
+      updated_at    TIMESTAMPTZ  DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_email_queue_status ON email_queue(status, scheduled_at)`,
+
+    // ── AGENCY TEST ACCESS ── Grant agency plan to the test account
+    `UPDATE customers
+       SET plan = 'agency', status = 'active',
+           credits_balance = GREATEST(credits_balance, 200),
+           updated_at = NOW()
+     WHERE email = 'collabgroo@gmail.com'
+       AND plan != 'agency'`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }

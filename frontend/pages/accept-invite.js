@@ -12,16 +12,16 @@ const ROLE_META = {
 };
 
 const ROLE_DEFAULTS = {
-  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:true, geo_audit:true, inbox:true, receptionist:true, contacts:true, knowledge_base:true, settings:true },
-  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:false, geo_audit:false, inbox:true, receptionist:false, contacts:false, knowledge_base:false, settings:false },
-  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, reports:true, geo_audit:false, inbox:false, receptionist:false, contacts:false, knowledge_base:false, settings:false },
+  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:true, geo_audit:true, inbox:true, receptionist:true, knowledge_base:true, settings:true },
+  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:false, geo_audit:false, inbox:true, receptionist:false, knowledge_base:false, settings:false },
+  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, reports:true, geo_audit:false, inbox:false, receptionist:false, knowledge_base:false, settings:false },
 };
 
 const MODULE_LABELS = {
   wizard: 'Post Wizard', upload: 'Create & Upload', calendar: 'Calendar',
   history: 'History & Drafts', media: 'Media Library', studio: 'Photo Studio',
   analytics: 'Analytics', reports: 'Reports & ROI', geo_audit: 'AI Visibility',
-  inbox: 'Inbox & DMs', receptionist: 'AI Receptionist', contacts: 'Contacts',
+  inbox: 'Inbox & DMs', receptionist: 'AI Receptionist',
   knowledge_base: 'Knowledge Base', settings: 'Business Settings',
 };
 
@@ -70,7 +70,7 @@ export default function AcceptInvite() {
       const { data } = await inviteAPI.acceptInvite(token, { password });
       localStorage.setItem('token', data.token);
       setPageState('success');
-      setTimeout(() => router.push('/dashboard'), 1600);
+      setTimeout(() => router.push('/select-account'), 1600);
     } catch (err) {
       setFormError(err.response?.data?.error || 'Something went wrong. Please try again.');
       setPageState(existingAccount ? 'ready_existing' : 'ready_new');
@@ -84,6 +84,11 @@ export default function AcceptInvite() {
   const roleMeta = invite ? ROLE_META[invite.role || 'editor'] : null;
   const daysLeft = invite ? Math.max(0, Math.ceil((new Date(invite.expiresAt || invite.expires_at) - Date.now()) / (1000 * 60 * 60 * 24))) : null;
 
+  // Agency white-label: use inviter's branding if available
+  const agencyColor = invite?.agencyColor || '#7C5CFC';
+  const agencyName = invite?.agencyName || 'ItsPosting';
+  const agencyLogo = invite?.agencyLogo || null;
+
   const inputStyle = {
     width: '100%', padding: '12px 14px', boxSizing: 'border-box',
     background: t.input, border: `1px solid ${t.border}`, borderRadius: 10,
@@ -92,16 +97,22 @@ export default function AcceptInvite() {
 
   return (
     <div style={{ minHeight: '100vh', background: t.background, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', position: 'relative', overflow: 'hidden' }}>
-      {/* Ambient glow */}
-      <div style={{ position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)', width: 600, height: 400, background: 'radial-gradient(ellipse, rgba(124,92,252,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      {/* Ambient glow — uses agency brand color */}
+      <div style={{ position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)', width: 600, height: 400, background: `radial-gradient(ellipse, ${agencyColor}1e 0%, transparent 70%)`, pointerEvents: 'none' }} />
 
       <div style={{ width: '100%', maxWidth: 440, position: 'relative', zIndex: 1 }}>
-        {/* Logo */}
+        {/* Logo — agency branded or ItsPosting default */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28, justifyContent: 'center' }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <IpSparkle size={18} color="#fff" />
-          </div>
-          <span style={{ fontSize: 17, fontWeight: 800, color: t.text, letterSpacing: '-0.02em' }}>ItsPosting</span>
+          {agencyLogo ? (
+            <img src={agencyLogo} alt={agencyName} style={{ height: 34, maxWidth: 160, objectFit: 'contain' }} />
+          ) : (
+            <>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${agencyColor} 0%, ${agencyColor}cc 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IpSparkle size={18} color="#fff" />
+              </div>
+              <span style={{ fontSize: 17, fontWeight: 800, color: t.text, letterSpacing: '-0.02em' }}>{agencyName}</span>
+            </>
+          )}
         </div>
 
         {/* ── LOADING ── */}
@@ -136,10 +147,10 @@ export default function AcceptInvite() {
         {(pageState === 'ready_new' || pageState === 'ready_existing' || pageState === 'submitting') && invite && (
           <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
 
-            {/* Invite info banner */}
-            <div style={{ background: 'linear-gradient(135deg, rgba(124,92,252,0.14) 0%, rgba(91,63,240,0.08) 100%)', borderBottom: `1px solid ${t.border}`, padding: '22px 28px' }}>
+            {/* Invite info banner — uses agency brand color */}
+            <div style={{ background: `linear-gradient(135deg, ${agencyColor}24 0%, ${agencyColor}0d 100%)`, borderBottom: `1px solid ${t.border}`, padding: '22px 28px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${agencyColor}, ${agencyColor}cc)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                   {(invite.inviterBusinessName || 'B').charAt(0).toUpperCase()}
                 </div>
                 <div>
@@ -222,15 +233,15 @@ export default function AcceptInvite() {
                 )}
 
                 <button type="submit" disabled={pageState === 'submitting' || !password}
-                  style={{ width: '100%', padding: '13px 0', background: '#7C5CFC', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, cursor: pageState === 'submitting' || !password ? 'not-allowed' : 'pointer', opacity: pageState === 'submitting' || !password ? 0.6 : 1, marginBottom: 16 }}>
+                  style={{ width: '100%', padding: '13px 0', background: agencyColor, border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, cursor: pageState === 'submitting' || !password ? 'not-allowed' : 'pointer', opacity: pageState === 'submitting' || !password ? 0.6 : 1, marginBottom: 16 }}>
                   {pageState === 'submitting' ? 'Joining…' : existingAccount ? `Log in and accept invite` : `Join ${invite.inviterBusinessName}`}
                 </button>
 
                 <p style={{ margin: 0, fontSize: 12, color: t.textMuted, textAlign: 'center' }}>
                   {existingAccount ? (
-                    <>Not you? <Link href="/signup" style={{ color: t.primary, textDecoration: 'none', fontWeight: 600 }}>Sign up with a different email</Link></>
+                    <>Not you? <Link href="/signup" style={{ color: agencyColor, textDecoration: 'none', fontWeight: 600 }}>Sign up with a different email</Link></>
                   ) : (
-                    <>Already have an account? <Link href="/login" style={{ color: t.primary, textDecoration: 'none', fontWeight: 600 }}>Log in</Link></>
+                    <>Already have an account? <Link href="/login" style={{ color: agencyColor, textDecoration: 'none', fontWeight: 600 }}>Log in</Link></>
                   )}
                 </p>
               </form>
@@ -239,7 +250,7 @@ export default function AcceptInvite() {
         )}
 
         <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: t.textMuted }}>
-          &copy; {new Date().getFullYear()} ItsPosting · AI Social Media for Local Businesses
+          &copy; {new Date().getFullYear()} {agencyName}
         </p>
       </div>
     </div>

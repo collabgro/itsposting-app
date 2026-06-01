@@ -235,14 +235,14 @@ module.exports = (pool) => {
 
   // POST /api/admin/customers/:id/plan
   router.post('/customers/:id/plan', async (req, res) => {
-    const PLAN_CREDITS = { trial: 10, starter: 50, professional: 100, premium: 150 };
+    const PLAN_CREDITS = { trial: 10, starter: 50, professional: 100, premium: 150, agency: 200 };
     const client = await pool.connect();
     try {
       const { plan, billingCycle = 'monthly', allocateCredits = true, reason } = req.body;
       const id = req.params.id;
 
       if (!PLAN_CREDITS.hasOwnProperty(plan)) {
-        return res.status(400).json({ error: 'Invalid plan. Must be trial, starter, professional, or premium.' });
+        return res.status(400).json({ error: 'Invalid plan. Must be trial, starter, professional, premium, or agency.' });
       }
       if (!reason || reason.trim().length < 3) {
         return res.status(400).json({ error: 'Reason required (min 3 chars)' });

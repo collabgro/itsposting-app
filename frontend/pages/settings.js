@@ -10,6 +10,7 @@ import Layout from '../components/Layout';
 import { Button, Input, Badge, SectionHeader, Spinner, ConfirmModal, Select } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI, authAPI, publicAPI } from '../lib/api';
+import { useAuthStore } from '../lib/store';
 import IntegrationSetupWizard from '../components/IntegrationSetupWizard';
 
 const TIMEZONES = [
@@ -406,6 +407,7 @@ const NOTIF_GROUPS = [
 export default function Settings() {
   const router = useRouter();
   const { t, theme } = useTheme();
+  const updateUser = useAuthStore(s => s.updateUser);
   const [profile, setProfile] = useState(null);
   const [providers, setProviders] = useState(null);
   const [socialAccounts, setSocialAccounts] = useState([]);
@@ -778,7 +780,9 @@ export default function Settings() {
     setWlMsg('');
     try {
       const res = await customerAPI.updateWhiteLabel(wlForm);
-      setWlConfig(res.data.config || {});
+      const config = res.data.config || {};
+      setWlConfig(config);
+      updateUser({ white_label_config: config });
       setWlMsg('saved');
       setTimeout(() => setWlMsg(''), 3000);
     } catch (err) {
@@ -2319,6 +2323,32 @@ export default function Settings() {
                   <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Used for active nav items and accent buttons. Must be a valid hex color.</div>
                 </div>
 
+                {/* Branded Login URL */}
+                {profile?.public_handle && (
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Branded Login URL</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <code style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.primary, fontSize: 12, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {typeof window !== 'undefined' ? window.location.origin : 'https://app.itsposting.com'}/login?a={profile.public_handle}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => { const url = `${window.location.origin}/login?a=${profile.public_handle}`; navigator.clipboard?.writeText(url); }}
+                        style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Share this URL with your clients — they'll see your logo and brand colors on the login page.</div>
+                  </div>
+                )}
+                {!profile?.public_handle && (
+                  <div style={{ padding: '10px 12px', background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `1px solid ${t.border}`, borderRadius: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 3 }}>Branded Login URL</div>
+                    <div style={{ fontSize: 11, color: t.textMuted }}>Set a public handle in your profile settings to get a branded login URL for your clients.</div>
+                  </div>
+                )}
+
                 {/* Custom Domain */}
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -2332,8 +2362,11 @@ export default function Settings() {
                     placeholder="app.youragency.com"
                     style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   />
-                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>
-                    Point a CNAME record to <code style={{ background: t.input, padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace', border: `1px solid ${t.border}` }}>app.itsposting.com</code> then enter your domain here. <a href="mailto:support@itsposting.com?subject=Custom Domain Setup" style={{ color: t.primary, textDecoration: 'none' }}>Contact support</a> to activate.
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 1.55 }}>
+                    <strong style={{ color: t.textSecondary }}>Step 1:</strong> Add a CNAME record: <code style={{ background: t.input, padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace', border: `1px solid ${t.border}` }}>app.youragency.com → app.itsposting.com</code><br />
+                    <strong style={{ color: t.textSecondary }}>Step 2:</strong> Enter your domain above and save.<br />
+                    <strong style={{ color: t.textSecondary }}>Step 3:</strong> <a href="mailto:support@itsposting.com?subject=Custom Domain Setup" style={{ color: t.primary, textDecoration: 'none' }}>Email support</a> with your domain to activate SSL.
+                    <br />Once active, clients visiting your domain will see your branding automatically.
                   </div>
                 </div>
 

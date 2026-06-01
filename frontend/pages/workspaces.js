@@ -9,9 +9,9 @@ import {
   IpBilling, IpCheckCircle, IpSettings,
 } from '../components/icons';
 
-const PLAN_LABELS = { trial: 'Free Trial', starter: 'Starter', professional: 'Professional', premium: 'Premium' };
-const WORKSPACE_LIMITS = { trial: 1, starter: 1, professional: 2, premium: 3 };
-const NEXT_PLAN = { starter: 'Professional', professional: 'Premium', premium: null };
+const PLAN_LABELS = { trial: 'Free Trial', starter: 'Starter', professional: 'Professional', premium: 'Premium', agency: 'Agency' };
+const WORKSPACE_LIMITS = { trial: 1, starter: 1, professional: 2, premium: 3, agency: 99 };
+const NEXT_PLAN = { starter: 'Professional', professional: 'Premium', premium: 'Agency', agency: null };
 const INDUSTRIES = [
   'plumbing', 'hvac', 'roofing', 'concrete', 'landscaping',
   'electrical', 'painting', 'pest_control', 'general_contractor', 'cleaning',
@@ -20,9 +20,9 @@ const INDUSTRIES = [
 // ─── Permission model ────────────────────────────────────────────────────────
 
 const ROLE_DEFAULTS = {
-  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:true, geo_audit:true, inbox:true, receptionist:true, contacts:true, knowledge_base:true, settings:true },
-  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:false, geo_audit:false, inbox:true, receptionist:false, contacts:false, knowledge_base:false, settings:false },
-  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, reports:true, geo_audit:false, inbox:false, receptionist:false, contacts:false, knowledge_base:false, settings:false },
+  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:true, geo_audit:true, inbox:true, receptionist:true, knowledge_base:true, settings:true },
+  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, reports:false, geo_audit:false, inbox:true, receptionist:false, knowledge_base:false, settings:false },
+  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, reports:true, geo_audit:false, inbox:false, receptionist:false, knowledge_base:false, settings:false },
 };
 
 const ROLE_META = {
@@ -48,7 +48,6 @@ const MODULES = [
   { group: 'Engagement',  items: [
     { id: 'inbox',         label: 'Inbox & DMs' },
     { id: 'receptionist',  label: 'AI Receptionist' },
-    { id: 'contacts',      label: 'Contacts' },
   ]},
   { group: 'Settings',    items: [
     { id: 'knowledge_base', label: 'Knowledge Base' },
@@ -279,7 +278,7 @@ function InviteModal({ onClose, onInvited, workspaces = [] }) {
                   style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: 0, marginBottom: showCustom ? 12 : 0 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Module access</span>
                   {hasCustom && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: 'rgba(245,158,11,0.15)', color: '#D97706', border: '1px solid rgba(245,158,11,0.3)' }}>Custom</span>}
-                  <span style={{ fontSize: 11, color: t.textMuted, marginLeft: 4 }}>{totalEnabled} / 14</span>
+                  <span style={{ fontSize: 11, color: t.textMuted, marginLeft: 4 }}>{totalEnabled} / 13</span>
                   <span style={{ fontSize: 11, color: t.primary, marginLeft: 'auto' }}>{showCustom ? 'Hide' : 'Customize →'}</span>
                 </button>
 
@@ -423,7 +422,7 @@ function MemberPermissionModal({ member, onClose, onSave, onRemove }) {
               {hasCustom && (
                 <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: 'rgba(245,158,11,0.15)', color: '#D97706', border: '1px solid rgba(245,158,11,0.3)' }}>Custom</span>
               )}
-              <span style={{ fontSize: 11, color: t.textMuted, marginLeft: 'auto' }}>{totalEnabled} / 14 enabled</span>
+              <span style={{ fontSize: 11, color: t.textMuted, marginLeft: 'auto' }}>{totalEnabled} / 13 enabled</span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0 24px' }}>
@@ -496,6 +495,7 @@ export default function WorkspacesPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentWorkspaceId, setCurrentWorkspaceId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -523,7 +523,9 @@ export default function WorkspacesPage() {
     window.addEventListener('resize', checkMobile);
     Promise.all([authAPI.verify(), workspacesAPI.list(), workspacesAPI.myMemberships()])
       .then(([authRes, wsRes, membershipsRes]) => {
-        setCurrentUserId(authRes.data?.id || authRes.data?.customer?.id);
+        const customer = authRes.data?.customer || authRes.data;
+        setCurrentUserId(customer?.id);
+        setCurrentWorkspaceId(customer?.workspace_id || null);
         setData(wsRes.data);
         setMemberships(membershipsRes.data.memberships || []);
       })
@@ -542,17 +544,14 @@ export default function WorkspacesPage() {
     setMembersLoading(true);
     Promise.all([workspacesAPI.getMembers(), workspacesAPI.getInvitations()])
       .then(([membersRes, invitesRes]) => {
-        // Normalize both Type A (workspace profiles) and Type B (invited members) to a common shape.
-        // Type A returns workspace_role/workspace_permissions; Type B returns role/permissions.
+        // Only show real invited people (Type B workspace_members rows).
+        // Workspace business profiles (Type A, fake internal emails) belong in the Workspaces tab, not here.
         const normalize = (m) => ({
           ...m,
-          workspace_role:        m.workspace_role        || m.role        || 'editor',
+          workspace_role:        m.workspace_role || m.role        || 'editor',
           workspace_permissions: m.workspace_permissions || m.permissions || null,
         });
-        const allMembers = [
-          ...(membersRes.data.workspaceProfiles || []),
-          ...(membersRes.data.members || []),
-        ].map(normalize);
+        const allMembers = (membersRes.data.members || []).map(normalize);
         setMembers(allMembers);
         setPendingInvites(invitesRes.data.invitations || []);
         setMembersLoaded(true);
@@ -566,6 +565,9 @@ export default function WorkspacesPage() {
   const planLimit = data?.planLimit || 1;
   const totalUsed = workspaces.length + 1;
   const canAddMore = totalUsed < planLimit;
+  // isOnMainAccount: true when the logged-in user IS the main account owner.
+  // For Type B invited members (is_member), they are never the main account owner
+  // of another workspace — they can manage their OWN account's team from here.
   const isOnMainAccount = mainAccount?.id === currentUserId;
 
   async function handleSwitch(wsId) {
@@ -843,9 +845,13 @@ export default function WorkspacesPage() {
                             {' · '}by {m.owner_business_name}
                           </div>
                         </div>
-                        <Button variant="secondary" onClick={() => handleSwitch(m.workspace_id)} disabled={!!switching}>
-                          {switching === m.workspace_id ? 'Switching…' : 'Switch'}
-                        </Button>
+                        {currentWorkspaceId === m.workspace_id ? (
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'rgba(124,92,252,0.12)', color: '#7C5CFC' }}>Active</span>
+                        ) : (
+                          <Button variant="secondary" onClick={() => handleSwitch(m.workspace_id)} disabled={!!switching}>
+                            {switching === m.workspace_id ? 'Switching…' : 'Switch'}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );
@@ -945,7 +951,7 @@ export default function WorkspacesPage() {
                       <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3 }}>
                         {member.email}
                         {' · '}Joined {new Date(member.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                        {' · '}{count} / 14 modules
+                        {' · '}{count} / 13 modules
                       </div>
                     </div>
                     {isOnMainAccount && (
