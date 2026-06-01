@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import {
@@ -9,7 +9,7 @@ import {
   IpPhotoStudio, IpWarning, IpSchedule, IpUser, IpVideo, IpCheck, IpTrendingUp,
 } from './icons';
 import { useTheme } from '../lib/theme';
-import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI, postsAPI } from '../lib/api';
+import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI, postsAPI, intelligenceAPI, analyticsAPI, billingAPI, geoAPI, knowledgeAPI, customerAPI, mediaAPI } from '../lib/api';
 import NotificationBell from './NotificationBell';
 import { ConfirmModal } from './ui';
 import { ItsPostingLogo } from './ItsPostingLogo';
@@ -49,7 +49,7 @@ const NAV_ITEMS = [
 
   { isDivider: true, label: 'Manage' },
   { name: 'Calendar',      href: '/calendar',       icon: IpCalendar },
-  { name: 'Drafts',        href: '/history',        icon: IpDrafts },
+  { name: 'Post History',  href: '/calendar',       icon: IpDrafts },
   { name: 'Media Library', href: '/media',          icon: IpMediaLibrary },
 
   { isDivider: true, label: 'Insights' },
@@ -86,6 +86,50 @@ export default function Layout({ children, title, subtitle, action }) {
   const [impersonatingAs, setImpersonatingAs] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+
+  // ── Nav hover prefetch ───────────────────────────────────────────────────────
+  // Each route is prefetched at most once per session (tracked in a Set).
+  // Fires when the cursor enters the nav link — by the time the user clicks,
+  // the data is already cached and the destination page loads instantly.
+  const _prefetched = useRef(new Set());
+  const handleNavHover = useCallback((href) => {
+    if (_prefetched.current.has(href)) return;
+    _prefetched.current.add(href);
+    switch (href) {
+      case '/dashboard':
+        postsAPI.getAll({ limit: 100 }).catch(() => {});
+        intelligenceAPI.getMetrics().catch(() => {});
+        intelligenceAPI.getBriefing().catch(() => {});
+        break;
+      case '/calendar':
+      case '/history':
+        postsAPI.getAll({ limit: 200 }).catch(() => {});
+        break;
+      case '/analytics':
+        analyticsAPI.getOverview().catch(() => {});
+        analyticsAPI.getMonthlyStats().catch(() => {});
+        break;
+      case '/billing':
+        billingAPI.getCurrent().catch(() => {});
+        break;
+      case '/geo-audit':
+        geoAPI.getLatest().catch(() => {});
+        geoAPI.getHistory().catch(() => {});
+        break;
+      case '/knowledge-base':
+        knowledgeAPI.list().catch(() => {});
+        break;
+      case '/settings':
+        customerAPI.getProfile().catch(() => {});
+        customerAPI.getSocialAccounts().catch(() => {});
+        break;
+      case '/media':
+        mediaAPI.getQuota().catch(() => {});
+        break;
+      default:
+        break;
+    }
+  }, []);
 
   useEffect(() => {
     const updateMobile = () => setIsMobile(window.innerWidth < 900);
@@ -263,7 +307,7 @@ export default function Layout({ children, title, subtitle, action }) {
                 )}
               </div>
             ) : (
-              <ItsPostingLogo size="xs" variant="full" theme={t.isDark ? 'dark' : 'light'} />
+              <ItsPostingLogo size="sm" variant="full" theme={t.isDark ? 'dark' : 'light'} />
             )
           )}
           {isMobile && (
@@ -480,6 +524,7 @@ export default function Layout({ children, title, subtitle, action }) {
                     e.currentTarget.style.color = t.text;
                     e.currentTarget.style.transform = 'translateX(2px)';
                   }
+                  handleNavHover(item.href);
                 }}
                 onMouseLeave={(e) => {
                   if (!active) {
@@ -649,19 +694,20 @@ export default function Layout({ children, title, subtitle, action }) {
       </aside>
 
       {/* MAIN CONTENT */}
-      <main style={{ flex: 1, marginLeft: isMobile ? 0 : sidebarWidth, transition: 'margin-left 200ms ease', minWidth: 0 }}>
+      <main style={{ flex: 1, marginLeft: isMobile ? 0 : sidebarWidth, transition: 'margin-left 200ms ease', minWidth: 0, maxWidth: '100vw', overflowX: 'hidden' }}>
         {/* TOP BAR */}
         <header
           className="topbar-glass"
           style={{
             height: 64,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: isMobile ? '0 20px' : '0 36px', position: 'sticky', top: 0, zIndex: 40,
+            padding: isMobile ? '0 16px' : '0 36px', position: 'sticky', top: 0, zIndex: 40,
+            minWidth: 0,
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
-            {title && <h1 style={{ fontSize: 18, fontWeight: 700, color: t.text, letterSpacing: '-0.035em', lineHeight: 1 }}>{title}</h1>}
-            {subtitle && <p style={{ fontSize: 12, color: t.textMuted, lineHeight: 1, margin: 0, letterSpacing: '-0.01em' }}>{subtitle}</p>}
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3, minWidth: 0, flex: 1, overflow: 'hidden' }}>
+            {title && <h1 style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: t.text, letterSpacing: '-0.035em', lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</h1>}
+            {subtitle && <p style={{ fontSize: 11, color: t.textMuted, lineHeight: 1, margin: 0, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</p>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {isMobile && (
@@ -707,7 +753,7 @@ export default function Layout({ children, title, subtitle, action }) {
 
         {/* ACTION SUB-BAR — mobile only, shows page action buttons below the header */}
         {isMobile && action && (
-          <div style={{ padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.bg, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', position: 'sticky', top: 64, zIndex: 39 }}>
+          <div style={{ padding: '8px 16px', borderBottom: `1px solid ${t.border}`, background: t.bg, display: 'flex', gap: 8, alignItems: 'center', position: 'sticky', top: 64, zIndex: 39, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {user && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 12 }}>
                 <span style={{ color: t.textMuted }}>{isSubAccount ? 'Shared:' : 'Credits:'}</span>
@@ -740,12 +786,13 @@ export default function Layout({ children, title, subtitle, action }) {
           key={router.pathname}
           className="page-fade-in"
           style={{
-            padding: isMobile ? '24px 16px' : '40px 44px',
+            padding: isMobile ? '20px 14px' : '40px 44px',
             paddingBottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom))' : 48,
             minHeight: 'calc(100vh - 64px)',
             width: '100%',
-            maxWidth: '100vw',
+            maxWidth: '100%',
             overflowX: 'hidden',
+            boxSizing: 'border-box',
           }}
         >{children}</div>
       </main>

@@ -1,22 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpChevronLeft, IpChevronRight, IpPlus, IpCalendar as CalendarIcon,
   IpClose, IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
   IpFacebook, IpInstagram, IpGoogle, IpLinkedIn, IpTikTok,
   IpSchedule, IpSparkle, IpDelete, IpCheck,
+  IpHeart, IpComment, IpShare, IpSearch, IpEdit, IpAnalytics, IpCopy,
 } from '../components/icons';
 import Layout from '../components/Layout';
-import { Button, Badge, Skeleton, Select } from '../components/ui';
+import { Button, Badge, Skeleton, Select, EmptyState, ErrorCard, useToast, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { postsAPI, socialAPI, wizardAPI, calendarPlansAPI } from '../lib/api';
+import PostPreviewModal from '../components/PostPreviewModal';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks,
 } from 'date-fns';
 
 const TYPE_ICON  = { static: IpDrafts, photo: ImageIcon, carousel: IpCarousel, video: IpVideo };
-const TYPE_COLOR  = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6', video: '#FB923C' };
+const TYPE_COLOR  = { static: '#60A5FA', photo: '#06B6D4', carousel: '#F472B6', video: '#FF9F0A' };
 const TYPE_LABEL = { static: 'Text Card', photo: 'Photo', carousel: 'Carousel', video: 'Video' };
 const STATUS_DOT  = { posted: '#22C55E', scheduled: '#F59E0B', draft: '#94A3B8', failed: '#EF4444', posting: '#60A5FA' };
 const STATUS_VAR = { posted: 'success', scheduled: 'warning', draft: 'default', failed: 'error' };
@@ -73,6 +75,36 @@ export default function Calendar() {
 
   const [calPlans, setCalPlans] = useState([]);
 
+  // ── Page view toggle ───────────────────────────────────────────────────────
+  const [pageView, setPageView]                 = useState('calendar'); // 'calendar' | 'list'
+
+  // ── Calendar: content type filter + GHL expanded day popup ────────────────
+  const [contentTypeFilter, setContentTypeFilter] = useState('all');
+  const [expandedDay, setExpandedDay]             = useState(null); // { day, posts, x, y }
+
+  // ── List view state ────────────────────────────────────────────────────────
+  const [listPosts, setListPosts]               = useState([]);
+  const [listLoading, setListLoading]           = useState(false);
+  const [listFilter, setListFilter]             = useState('all');
+  const [listSearch, setListSearch]             = useState('');
+  const [listDateRange, setListDateRange]       = useState('all');
+  const [listPlatformFilter, setListPlatformFilter] = useState('all');
+  const [listContentType, setListContentType]   = useState('all');
+  const [listViewMode, setListViewMode]         = useState('list');
+  const [listSelectedIds, setListSelectedIds]   = useState([]);
+  const [listLoadError, setListLoadError]       = useState(false);
+  const [listTotal, setListTotal]               = useState(0);
+  const [listDeleting, setListDeleting]         = useState(null);
+  const [listPublishingPost, setListPublishingPost] = useState(null);
+  const [cloning, setCloning]                   = useState(null);
+  const [hoveredCard, setHoveredCard]           = useState(null);
+  const [confirmModal, setConfirmModal]         = useState(null);
+  const [previewPostId, setPreviewPostId]       = useState(null);
+  const [previewDefaultMode, setPreviewDefaultMode] = useState('view');
+  const [kebabMenu, setKebabMenu]               = useState(null); // { postId, x, y }
+
+  const { showToast } = useToast();
+
   const now = new Date();
   const currentYear = now.getFullYear();
   const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 2 + i);
@@ -88,6 +120,26 @@ export default function Calendar() {
   }, []);
 
   useEffect(() => { if (mounted) loadPosts(); }, [currentMonth]);
+
+  // List view effects
+  useEffect(() => { if (mounted && pageView === 'list') loadListPosts(); }, [pageView, listFilter]);
+  useEffect(() => {
+    if (!mounted || pageView !== 'list') return;
+    const tid = setTimeout(() => loadListPosts(), 300);
+    return () => clearTimeout(tid);
+  }, [listSearch]);
+  useEffect(() => {
+    if (!kebabMenu) return;
+    const handler = () => setKebabMenu(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [kebabMenu]);
+  useEffect(() => {
+    if (!expandedDay) return;
+    const handler = (e) => { if (!e.target.closest('[data-expanded-popup]')) setExpandedDay(null); };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [expandedDay]);
 
   const monthStart  = startOfMonth(currentMonth);
   const monthEnd    = endOfMonth(currentMonth);
@@ -110,9 +162,121 @@ export default function Calendar() {
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
+  const loadListPosts = async () => {
+    setListLoading(true); setListLoadError(false);
+    try {
+      const params = { limit: 100, ...(listFilter !== 'all' && { status: listFilter }), ...(listSearch.trim() && { search: listSearch.trim() }) };
+      const res = await postsAPI.getAll(params);
+      const rows = Array.isArray(res.data) ? res.data : [];
+      setListPosts(rows); setListTotal(rows.length);
+    } catch { setListLoadError(true); } finally { setListLoading(false); }
+  };
+
+  const handleClone = async (post) => {
+    setCloning(post.id); setKebabMenu(null);
+    try {
+      let hashtags = [];
+      try { hashtags = post.hashtags ? JSON.parse(post.hashtags) : []; } catch {}
+      await postsAPI.create({
+        caption: post.caption, content_type: post.content_type,
+        media_url: post.media_url, platforms: parsePlatforms(post.platforms),
+        hashtags, status: 'draft', source: post.source,
+      });
+      showToast('Post cloned as draft!', 'success');
+      loadListPosts();
+    } catch { showToast('Failed to clone post', 'error'); }
+    finally { setCloning(null); }
+  };
+
+  const handleListDelete = (id) => {
+    setConfirmModal({
+      title: 'Delete Post',
+      message: 'This will permanently delete this post and cannot be undone.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        setListDeleting(id);
+        try {
+          await postsAPI.delete(id);
+          setListPosts(prev => prev.filter(p => p.id !== id));
+          showToast('Post deleted', 'success');
+        } catch (e) { showToast(e.response?.data?.error || 'Delete failed', 'error'); }
+        finally { setListDeleting(null); }
+      },
+    });
+  };
+
+  const handleListPublishNow = async (post) => {
+    const platforms = parsePlatforms(post.platforms);
+    setListPublishingPost(post.id);
+    try {
+      await socialAPI.publish(post.id, platforms.length > 0 ? platforms : undefined);
+      setListPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: 'posted' } : p));
+      showToast('Post published!', 'success');
+    } catch (e) { showToast(e.response?.data?.error || 'Failed to publish', 'error'); }
+    finally { setListPublishingPost(null); }
+  };
+
+  const openPreview = (postId, mode = 'view') => {
+    setPreviewDefaultMode(mode); setPreviewPostId(postId);
+  };
+
+  const toggleListSelect = (id, e) => {
+    if (e) e.stopPropagation();
+    setListSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleBulkListDelete = () => {
+    setConfirmModal({
+      title: `Delete ${listSelectedIds.length} post${listSelectedIds.length > 1 ? 's' : ''}`,
+      message: 'This will permanently delete the selected posts. This cannot be undone.',
+      confirmLabel: 'Delete All',
+      onConfirm: async () => {
+        try {
+          await Promise.all(listSelectedIds.map(id => postsAPI.delete(id)));
+          setListPosts(prev => prev.filter(p => !listSelectedIds.includes(p.id)));
+          showToast(`${listSelectedIds.length} post${listSelectedIds.length > 1 ? 's' : ''} deleted`, 'success');
+          setListSelectedIds([]);
+        } catch { showToast('Some posts failed to delete', 'error'); }
+      },
+    });
+  };
+
+  const handleBulkListPublish = async () => {
+    try {
+      const toPublish = listSelectedIds.filter(id => {
+        const post = listPosts.find(p => p.id === id);
+        return post && (post.status === 'draft' || post.status === 'scheduled');
+      });
+      await Promise.allSettled(toPublish.map(id => {
+        const post = listPosts.find(p => p.id === id);
+        const platforms = parsePlatforms(post?.platforms);
+        return socialAPI.publish(id, platforms.length > 0 ? platforms : undefined);
+      }));
+      setListPosts(prev => prev.map(p => toPublish.includes(p.id) ? { ...p, status: 'posted' } : p));
+      showToast(`Published ${toPublish.length} post${toPublish.length !== 1 ? 's' : ''}`, 'success');
+      setListSelectedIds([]);
+    } catch { showToast('Some posts failed to publish', 'error'); }
+  };
+
+  // List display posts (filtered client-side)
+  const listDateRangeCutoff = (() => {
+    const n = new Date();
+    if (listDateRange === '7d')   { const d = new Date(n); d.setDate(d.getDate() - 7); return d; }
+    if (listDateRange === '30d')  { const d = new Date(n); d.setDate(d.getDate() - 30); return d; }
+    if (listDateRange === 'month') { return new Date(n.getFullYear(), n.getMonth(), 1); }
+    return null;
+  })();
+  const listDisplayPosts = listPosts.filter(p => {
+    if (listPlatformFilter !== 'all' && !parsePlatforms(p.platforms).includes(listPlatformFilter)) return false;
+    if (listContentType !== 'all' && p.content_type !== listContentType) return false;
+    if (listDateRangeCutoff) { const d = new Date(p.scheduled_date || p.created_at); if (d < listDateRangeCutoff) return false; }
+    return true;
+  });
+
   const filteredPosts = posts.filter(p => {
     if (platformFilter !== 'all' && !parsePlatforms(p.platforms).includes(platformFilter)) return false;
     if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+    if (contentTypeFilter !== 'all' && p.content_type !== contentTypeFilter) return false;
     return true;
   });
   const getPostsForDay = (day) => filteredPosts.filter(p => p.scheduled_date && isSameDay(new Date(p.scheduled_date), day));
@@ -201,11 +365,11 @@ export default function Calendar() {
   const handleConfirmPlan = async () => {
     if (!planMonthSlots.length) return;
     setPlanMonthSaving(true);
-    let saved = 0;
-    for (const slot of planMonthSlots) {
-      try {
+    let completed = 0;
+    const results = await Promise.allSettled(
+      planMonthSlots.map(async slot => {
         const platforms = slot.platform === 'all' ? ['facebook','instagram','google_business'] : [slot.platform];
-        await postsAPI.create({
+        const res = await postsAPI.create({
           caption: slot.captionPreview,
           content_type: slot.contentType,
           status: 'draft',
@@ -214,10 +378,12 @@ export default function Calendar() {
           source: 'ai_generated',
           notes: slot.topic,
         });
-        saved++;
-        setPlanMonthSaved(saved);
-      } catch { /* skip failed drafts */ }
-    }
+        completed++;
+        setPlanMonthSaved(completed);
+        return res;
+      })
+    );
+    const saved = results.filter(r => r.status === 'fulfilled').length;
     await loadPosts();
     setPlanMonthModal(false);
     setPlanMonthSlots([]);
@@ -410,18 +576,34 @@ export default function Calendar() {
         title="Calendar"
         subtitle="Schedule and manage your posts"
         action={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="secondary" onClick={handlePlanMonth} disabled={planMonthLoading} style={{ background: 'rgba(124,92,252,0.08)', borderColor: 'rgba(124,92,252,0.3)' }}>
-              <IpSparkle size={13} color="url(#brand-gradient)" /> {planMonthLoading ? 'Planning...' : 'Auto-plan month'}
-            </Button>
-            <Button variant="secondary" onClick={() => { setBulkMode(m => !m); setBulkDays([]); setBulkPreview(null); }} style={{ background: bulkMode ? 'rgba(124,92,252,0.15)' : undefined, borderColor: bulkMode ? 'rgba(124,92,252,0.5)' : undefined }}>
-              <CalendarIcon size={13} /> Plan my week
-            </Button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Calendar / List view toggle */}
+            <div style={{ display: 'flex', padding: 3, gap: 2, background: t.isDark ? 'rgba(255,255,255,0.04)' : t.input, border: `1px solid ${t.border}`, borderRadius: 10 }}>
+              <button onClick={() => setPageView('calendar')} title="Calendar view"
+                style={{ width: 30, height: 30, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: pageView === 'calendar' ? `1px solid ${t.primaryBorder}` : '1px solid transparent', background: pageView === 'calendar' ? t.primaryBg : 'transparent', color: pageView === 'calendar' ? t.primary : t.textMuted }}>
+                <CalendarIcon size={13} />
+              </button>
+              <button onClick={() => setPageView('list')} title="List view"
+                style={{ width: 30, height: 30, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: pageView === 'list' ? `1px solid ${t.primaryBorder}` : '1px solid transparent', background: pageView === 'list' ? t.primaryBg : 'transparent', color: pageView === 'list' ? t.primary : t.textMuted, fontSize: 16, fontWeight: 700 }}>
+                ≡
+              </button>
+            </div>
+            {pageView === 'calendar' && <>
+              <Button variant="secondary" onClick={handlePlanMonth} disabled={planMonthLoading} style={{ background: 'rgba(124,92,252,0.08)', borderColor: 'rgba(124,92,252,0.3)' }}>
+                <IpSparkle size={13} color="url(#brand-gradient)" /> {planMonthLoading ? 'Planning...' : 'Auto-plan month'}
+              </Button>
+              <Button variant="secondary" onClick={() => { setBulkMode(m => !m); setBulkDays([]); setBulkPreview(null); }} style={{ background: bulkMode ? 'rgba(124,92,252,0.15)' : undefined, borderColor: bulkMode ? 'rgba(124,92,252,0.5)' : undefined }}>
+                <CalendarIcon size={13} /> Plan my week
+              </Button>
+            </>}
             <Button variant="secondary" onClick={() => router.push('/wizard')}><IpSparkle size={13} /> Post Wizard</Button>
             <Button variant="primary"   onClick={() => router.push('/upload')}><IpPlus size={14} strokeWidth={2.5} /> Upload</Button>
           </div>
         }
       >
+        {/* ── Calendar view ── */}
+        {pageView === 'calendar' && <>
+
         {/* ── Filter bar ── */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0 }}>
           {/* Platform */}
@@ -470,8 +652,29 @@ export default function Calendar() {
             ))}
           </div>
 
-          {(platformFilter !== 'all' || statusFilter !== 'all') && (
-            <button onClick={() => { setPlatformFilter('all'); setStatusFilter('all'); }}
+          <div style={{ width: 1, height: 20, background: t.border, flexShrink: 0 }} />
+
+          {/* Post Type filter */}
+          <div style={{ display: 'flex', gap: 3, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 10, padding: 3, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
+            {[
+              { id: 'all', label: 'All types', color: null },
+              { id: 'static', label: 'Text', color: '#60A5FA' },
+              { id: 'photo', label: 'Photo', color: '#06B6D4' },
+              { id: 'carousel', label: 'Carousel', color: '#F472B6' },
+              { id: 'video', label: 'Video', color: '#FF9F0A' },
+            ].map(opt => (
+              <button key={opt.id} onClick={() => setContentTypeFilter(opt.id)}
+                style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+                  background: contentTypeFilter === opt.id ? (opt.color ? `${opt.color}18` : t.primaryBg) : 'transparent',
+                  color: contentTypeFilter === opt.id ? (opt.color || t.primary) : t.textMuted,
+                  border: contentTypeFilter === opt.id ? `1px solid ${opt.color ? `${opt.color}55` : t.primaryBorder}` : '1px solid transparent' }}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {(platformFilter !== 'all' || statusFilter !== 'all' || contentTypeFilter !== 'all') && (
+            <button onClick={() => { setPlatformFilter('all'); setStatusFilter('all'); setContentTypeFilter('all'); }}
               style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '5px 8px', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
               Clear
             </button>
@@ -861,7 +1064,10 @@ export default function Calendar() {
                               );
                             })}
                             {dayPosts.length > 2 && (
-                              <div style={{ fontSize: 10, color: t.textMuted, paddingLeft: 4 }}>+{dayPosts.length - 2} more</div>
+                              <button onClick={e => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setExpandedDay({ day, posts: dayPosts, x: rect.right + 8, y: rect.top }); }}
+                                style={{ fontSize: 10, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', paddingLeft: 4, textAlign: 'left', fontWeight: 600 }}>
+                                +{dayPosts.length - 2} more ▾
+                              </button>
                             )}
                             {/* Content calendar plan indicator */}
                             {isCurrentMonth && (() => {
@@ -1126,6 +1332,251 @@ export default function Calendar() {
             </div>
           )}
         </div>
+        </> /* end calendar view */}
+
+        {/* ── LIST VIEW ── */}
+        {pageView === 'list' && <>
+          {/* Search bar */}
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <IpSearch size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: t.textMuted, pointerEvents: 'none' }} />
+            <input type="text" placeholder="Search your posts…" value={listSearch} onChange={e => setListSearch(e.target.value)}
+              style={{ width: '100%', paddingLeft: 38, paddingRight: 14, paddingTop: 11, paddingBottom: 11, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, borderRadius: 12, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.8'})` }} />
+          </div>
+
+          {/* Filter row */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Platform pills */}
+            <div style={{ display: 'flex', gap: 5, overflowX: 'auto', scrollbarWidth: 'none' }}>
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'facebook', label: 'Facebook', Icon: IpFacebook, color: '#1877F2' },
+                { id: 'instagram', label: 'Instagram', Icon: IpInstagram, color: '#E1306C' },
+                { id: 'tiktok', label: 'TikTok', Icon: IpTikTok, color: '#000000' },
+                { id: 'linkedin', label: 'LinkedIn', Icon: IpLinkedIn, color: '#0A66C2' },
+                { id: 'google_business', label: 'Google Business', Icon: IpGoogle, color: '#4285F4' },
+              ].map(pf => {
+                const isActive = listPlatformFilter === pf.id;
+                const col = pf.color || t.primary;
+                return (
+                  <button key={pf.id} onClick={() => setListPlatformFilter(pf.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, whiteSpace: 'nowrap', fontSize: 12, fontWeight: isActive ? 700 : 500, border: `1px solid ${isActive ? col + '55' : t.border}`, background: isActive ? col + '18' : t.card, color: isActive ? col : t.textMuted, cursor: 'pointer', flexShrink: 0 }}>
+                    {pf.Icon && <pf.Icon size={12} />}{pf.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ width: 1, height: 20, background: t.border, flexShrink: 0 }} />
+            {/* Date range */}
+            <div style={{ display: 'flex', gap: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 9, padding: 3, flexShrink: 0 }}>
+              {[{ id: 'all', label: 'All time' }, { id: '7d', label: 'Last 7d' }, { id: '30d', label: 'Last 30d' }, { id: 'month', label: 'This month' }].map(opt => (
+                <button key={opt.id} onClick={() => setListDateRange(opt.id)}
+                  style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, border: listDateRange === opt.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent', background: listDateRange === opt.id ? t.primaryBg : 'transparent', color: listDateRange === opt.id ? t.primary : t.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {/* Content type */}
+            <div style={{ display: 'flex', gap: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 9, padding: 3, flexShrink: 0 }}>
+              {[{ id: 'all', label: 'All types' }, { id: 'photo', label: 'Photo', color: '#06B6D4' }, { id: 'video', label: 'Video', color: '#FF9F0A' }, { id: 'carousel', label: 'Carousel', color: '#F472B6' }, { id: 'static', label: 'Text', color: '#60A5FA' }].map(opt => (
+                <button key={opt.id} onClick={() => setListContentType(opt.id)}
+                  style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, border: listContentType === opt.id ? `1px solid ${(opt.color || t.primary) + '55'}` : '1px solid transparent', background: listContentType === opt.id ? (opt.color ? opt.color + '18' : t.primaryBg) : 'transparent', color: listContentType === opt.id ? (opt.color || t.primary) : t.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Status tabs */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 16, padding: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 12, flexWrap: 'wrap', width: 'fit-content', boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.9'})` }}>
+            {[{ id: 'all', label: 'All' }, { id: 'posted', label: 'Published' }, { id: 'scheduled', label: 'Scheduled' }, { id: 'draft', label: 'Drafts' }, { id: 'failed', label: 'Failed' }].map(f => (
+              <button key={f.id} onClick={() => setListFilter(f.id)}
+                style={{ padding: '6px 14px', borderRadius: 7, fontSize: 12, fontWeight: 500, color: listFilter === f.id ? t.text : t.textMuted, background: listFilter === f.id ? t.primaryBg : 'transparent', border: listFilter === f.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent', cursor: 'pointer', display: 'flex', gap: 6, alignItems: 'center' }}>
+                {f.label}{f.id === 'all' && <span style={{ fontSize: 11, padding: '0 5px', background: t.input, borderRadius: 9, color: t.textMuted }}>{listTotal}</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Result count + view controls */}
+          {!listLoading && (
+            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span>{listDisplayPosts.length} post{listDisplayPosts.length !== 1 ? 's' : ''}</span>
+              {(listPlatformFilter !== 'all' || listContentType !== 'all' || listDateRange !== 'all' || listSearch) && (
+                <button onClick={() => { setListPlatformFilter('all'); setListContentType('all'); setListDateRange('all'); setListSearch(''); }}
+                  style={{ fontSize: 11, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontWeight: 600 }}>Clear filters</button>
+              )}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+                {listSelectedIds.length > 0 && (
+                  <button onClick={() => setListSelectedIds([])}
+                    style={{ fontSize: 11, fontWeight: 600, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 7, padding: '4px 10px', cursor: 'pointer' }}>
+                    {listSelectedIds.length} selected — clear
+                  </button>
+                )}
+                {listDisplayPosts.length > 0 && (
+                  <button onClick={() => listSelectedIds.length === listDisplayPosts.length ? setListSelectedIds([]) : setListSelectedIds(listDisplayPosts.map(p => p.id))}
+                    style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, background: t.input, border: `1px solid ${t.border}`, borderRadius: 7, padding: '4px 10px', cursor: 'pointer' }}>
+                    {listSelectedIds.length === listDisplayPosts.length ? 'Deselect all' : 'Select all'}
+                  </button>
+                )}
+                <div style={{ display: 'flex', padding: 3, gap: 2, background: t.isDark ? 'rgba(255,255,255,0.04)' : t.input, border: `1px solid ${t.border}`, borderRadius: 9 }}>
+                  {[{ id: 'list', label: '≡ List' }, { id: 'grid', label: '⊞ Grid' }].map(v => (
+                    <button key={v.id} onClick={() => setListViewMode(v.id)}
+                      style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: listViewMode === v.id ? t.primaryBg : 'transparent', color: listViewMode === v.id ? t.primary : t.textMuted, border: listViewMode === v.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent', transition: 'all 150ms' }}>
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Post list / grid */}
+          {listLoadError ? (
+            <ErrorCard title="Could not load posts" message="Check your connection and try again." onRetry={loadListPosts} style={{ marginTop: 24 }} />
+          ) : listLoading ? (
+            listViewMode === 'grid' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : 3}, 1fr)`, gap: 8 }}>
+                {Array.from({ length: isMobile ? 6 : 9 }).map((_, i) => <Skeleton key={i} height={180} borderRadius={12} />)}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height={118} borderRadius={14} />)}
+              </div>
+            )
+          ) : listDisplayPosts.length === 0 ? (
+            <div style={{ padding: '20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16 }}>
+              <EmptyState icon={IpDrafts} title={listSearch ? 'No posts match your search' : 'No posts yet'} subtitle={listSearch ? 'Try a different search term' : 'Create your first post to get started'}
+                action={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}><Button variant="secondary" size="sm" onClick={() => router.push('/wizard')}><IpSparkle size={12} /> Post Wizard</Button><Button variant="secondary" size="sm" onClick={() => router.push('/upload')}>Manual upload</Button></div>} />
+            </div>
+          ) : listViewMode === 'grid' ? (
+            /* Grid view */
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 2 : 3}, 1fr)`, gap: 8 }}>
+              {listDisplayPosts.map(post => {
+                const TypeIcon = TYPE_ICON[post.content_type] || IpDrafts;
+                const typeColor = TYPE_COLOR[post.content_type] || t.primary;
+                const isHovered = hoveredCard === post.id;
+                const isSelected = listSelectedIds.includes(post.id);
+                return (
+                  <div key={post.id} onClick={() => listSelectedIds.length > 0 ? toggleListSelect(post.id) : openPreview(post.id, 'view')}
+                    onMouseEnter={() => setHoveredCard(post.id)} onMouseLeave={() => setHoveredCard(null)}
+                    style={{ borderRadius: 12, overflow: 'hidden', cursor: 'pointer', position: 'relative', border: isSelected ? `2px solid ${t.primary}` : `1px solid ${isHovered ? 'rgba(124,92,252,0.4)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, transform: isHovered && !isSelected ? 'translateY(-2px)' : 'none', boxShadow: isHovered ? '0 8px 24px rgba(0,0,0,0.25)' : t.shadowSm, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, transition: 'all 200ms' }}>
+                    <div style={{ aspectRatio: '1', background: t.input, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {post.media_url ? <img src={post.media_url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} /> : <TypeIcon size={32} style={{ color: typeColor, opacity: 0.4 }} />}
+                      <div onClick={(e) => toggleListSelect(post.id, e)} style={{ position: 'absolute', top: 7, left: 7, width: 22, height: 22, borderRadius: '50%', background: isSelected ? '#7C5CFC' : 'rgba(0,0,0,0.45)', border: `2px solid ${isSelected ? '#7C5CFC' : 'rgba(255,255,255,0.7)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: listSelectedIds.length > 0 || isHovered ? 1 : 0, transition: 'opacity 150ms' }}>
+                        {isSelected && <IpCheck size={10} color="#fff" strokeWidth={3} />}
+                      </div>
+                      <div style={{ position: 'absolute', bottom: 6, left: 6, right: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <div style={{ width: 7, height: 7, borderRadius: '50%', background: STATUS_DOT[post.status] || '#94A3B8', boxShadow: '0 1px 4px rgba(0,0,0,0.5)' }} />
+                        <span style={{ fontSize: 9, fontWeight: 800, background: 'rgba(0,0,0,0.65)', color: '#fff', padding: '2px 5px', borderRadius: 4, textTransform: 'uppercase' }}>{TYPE_LABEL[post.content_type] || 'POST'}</span>
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px 10px 10px' }}>
+                      <p style={{ fontSize: 11, color: t.textSecondary, lineHeight: 1.5, margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{post.caption || <span style={{ color: t.textMuted, fontStyle: 'italic' }}>No caption</span>}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                        {parsePlatforms(post.platforms).slice(0, 3).map(pid => { const pm = PLATFORM_ICONS[pid]; if (!pm) return null; const PI = pm.icon; return <PI key={pid} size={11} style={{ color: pm.color }} />; })}
+                        {post.scheduled_date && <span style={{ fontSize: 9, color: t.textMuted, marginLeft: 'auto' }}>{format(new Date(post.scheduled_date), 'MMM d')}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* List view */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {listDisplayPosts.map(post => {
+                const TypeIcon = TYPE_ICON[post.content_type] || IpDrafts;
+                const typeColor = TYPE_COLOR[post.content_type] || t.primary;
+                const postPlatforms = parsePlatforms(post.platforms);
+                const isHovered = hoveredCard === post.id;
+                const isDraft = post.status === 'draft';
+                const isScheduled = post.status === 'scheduled';
+                const dotColor = STATUS_DOT[post.status] || '#94A3B8';
+                const isSelected = listSelectedIds.includes(post.id);
+                const isKebabOpen = kebabMenu?.postId === post.id;
+                return (
+                  <div key={post.id} onClick={() => listSelectedIds.length > 0 ? toggleListSelect(post.id) : openPreview(post.id, 'view')}
+                    onMouseEnter={() => setHoveredCard(post.id)} onMouseLeave={() => setHoveredCard(null)}
+                    style={{ display: 'flex', gap: 0, background: isSelected ? (t.isDark ? 'rgba(124,92,252,0.1)' : 'rgba(124,92,252,0.06)') : t.isDark ? (isHovered ? 'rgba(20,20,32,0.88)' : 'rgba(15,15,24,0.72)') : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `${isSelected ? 2 : 1}px solid ${isSelected ? t.primary : isHovered ? 'rgba(124,92,252,0.4)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', transform: isHovered && !isSelected ? 'translateY(-3px)' : 'none', boxShadow: isSelected ? '0 0 0 3px rgba(124,92,252,0.15)' : isHovered ? '0 12px 36px rgba(0,0,0,0.3)' : t.shadowSm }}>
+                    {/* Left accent */}
+                    <div style={{ width: 4, background: typeColor, flexShrink: 0 }} />
+                    {/* Thumbnail */}
+                    <div style={{ width: 96, height: 96, flexShrink: 0, margin: '16px 0 16px 16px', borderRadius: 10, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                      {post.media_url ? <img src={post.media_url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} /> : <TypeIcon size={30} style={{ color: typeColor, opacity: 0.45 }} />}
+                      <div style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 8, fontWeight: 800, background: 'rgba(0,0,0,0.65)', color: '#fff', borderRadius: 4, padding: '2px 5px', textTransform: 'uppercase' }}>{TYPE_LABEL[post.content_type] || 'POST'}</div>
+                      <div onClick={(e) => toggleListSelect(post.id, e)} style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: '50%', background: isSelected ? '#7C5CFC' : 'rgba(0,0,0,0.45)', border: `2px solid ${isSelected ? '#7C5CFC' : 'rgba(255,255,255,0.7)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: listSelectedIds.length > 0 || isHovered ? 1 : 0, transition: 'opacity 150ms', zIndex: 1 }}>
+                        {isSelected && <IpCheck size={9} color="#fff" strokeWidth={3} />}
+                      </div>
+                    </div>
+                    {/* Content */}
+                    <div style={{ flex: 1, padding: '14px 12px 14px 16px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: dotColor }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+                          {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
+                        </span>
+                        {post.source === 'ai_generated' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 9, background: t.primaryBg, color: t.primary, border: `1px solid ${t.primaryBorder}`, fontWeight: 600 }}>AI</span>}
+                        {postPlatforms.length > 0 && (
+                          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                            {postPlatforms.map(pid => { const pm = PLATFORM_ICONS[pid]; if (!pm) return null; const PI = pm.icon; return <PI key={pid} size={14} style={{ color: pm.color }} title={pid} />; })}
+                          </div>
+                        )}
+                        <span style={{ fontSize: 11, color: t.textMuted, marginLeft: 'auto', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <CalendarIcon size={10} />
+                          {post.scheduled_date ? format(new Date(post.scheduled_date), 'MMM d, yyyy · h:mm a') : format(new Date(post.created_at), 'MMM d, yyyy')}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.55, margin: '0 0 8px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {post.caption || <span style={{ color: t.textMuted, fontStyle: 'italic' }}>No caption</span>}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: t.textMuted, flexWrap: 'wrap' }}>
+                        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                          {post.status === 'posted' && (
+                            <button onClick={() => router.push(`/analytics/posts/${post.id}`)} style={{ padding: '5px 11px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 7, fontSize: 11, fontWeight: 600, color: t.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <IpAnalytics size={11} /> Analytics
+                            </button>
+                          )}
+                          {isDraft && (
+                            <button onClick={() => handleListPublishNow(post)} disabled={listPublishingPost === post.id}
+                              style={{ padding: '5px 11px', background: 'rgba(34,197,94,0.10)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 7, fontSize: 11, fontWeight: 600, color: '#22C55E', cursor: listPublishingPost === post.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: listPublishingPost === post.id ? 0.6 : 1 }}>
+                              <IpCheck size={11} strokeWidth={3} /> {listPublishingPost === post.id ? '…' : 'Publish Now'}
+                            </button>
+                          )}
+                          {/* Kebab menu */}
+                          <div style={{ position: 'relative' }}>
+                            <button onClick={e => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setKebabMenu(isKebabOpen ? null : { postId: post.id, x: rect.right - 140, y: rect.bottom + 4 });
+                            }} style={{ width: 30, height: 30, borderRadius: 7, background: isKebabOpen ? t.primaryBg : t.input, border: `1px solid ${isKebabOpen ? t.primaryBorder : t.border}`, color: isKebabOpen ? t.primary : t.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>
+                              ⋮
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Floating bulk action bar */}
+          {listSelectedIds.length > 0 && (
+            <div style={{ position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 18px', borderRadius: 20, background: t.isDark ? 'rgba(12,12,20,0.96)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(28px) saturate(200%)', WebkitBackdropFilter: 'blur(28px) saturate(200%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)'}`, boxShadow: '0 12px 40px rgba(0,0,0,0.3)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{listSelectedIds.length} selected</span>
+              <div style={{ width: 1, height: 18, background: t.border }} />
+              <button onClick={handleBulkListPublish} style={{ padding: '6px 14px', borderRadius: 10, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#22C55E', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IpCheck size={12} strokeWidth={3} /> Publish All
+              </button>
+              <button onClick={handleBulkListDelete} style={{ padding: '6px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#EF4444', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IpDelete size={12} /> Delete All
+              </button>
+              <button onClick={() => setListSelectedIds([])} style={{ width: 28, height: 28, borderRadius: '50%', background: t.input, border: `1px solid ${t.border}`, color: t.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IpClose size={12} />
+              </button>
+            </div>
+          )}
+        </>}
       </Layout>
 
       <style>{`@keyframes calPreviewIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }`}</style>
@@ -1178,6 +1629,82 @@ export default function Calendar() {
         </div>
       )}
 
+      {/* ── GHL "See X more" expanded day popup ── */}
+      {expandedDay && (
+        <div data-expanded-popup onClick={e => e.stopPropagation()} style={{ position: 'fixed', left: Math.min(expandedDay.x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 300), top: Math.min(expandedDay.y, (typeof window !== 'undefined' ? window.innerHeight : 800) - 420), width: 280, zIndex: 9998, background: t.isDark ? 'rgba(12,12,20,0.97)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(28px) saturate(200%)', WebkitBackdropFilter: 'blur(28px) saturate(200%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`, borderRadius: 14, boxShadow: '0 16px 48px rgba(0,0,0,0.28)', padding: 14, maxHeight: 420, overflowY: 'auto', animation: 'calPreviewIn 120ms ease' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontWeight: 700, fontSize: 13, color: t.text }}>{format(expandedDay.day, 'EEEE, MMMM d')}</span>
+            <button onClick={() => setExpandedDay(null)} style={{ width: 24, height: 24, borderRadius: 6, background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: t.textMuted }}><IpClose size={12} /></button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {expandedDay.posts.map(post => {
+              const tc = TYPE_COLOR[post.content_type] || t.primary;
+              const TI = TYPE_ICON[post.content_type] || IpDrafts;
+              return (
+                <div key={post.id} style={{ padding: '10px 12px', borderRadius: 10, background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', border: `1px solid ${t.border}`, borderLeft: `3px solid ${tc}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                    <TI size={10} style={{ color: tc }} />
+                    <span style={{ fontSize: 10, color: t.textMuted }}>{post.scheduled_date ? format(new Date(post.scheduled_date), 'h:mm a') : 'Draft'}</span>
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_DOT[post.status] || '#94A3B8' }} />
+                    <Badge variant={STATUS_VAR[post.status] || 'default'} style={{ fontSize: 9 }}>{post.status}</Badge>
+                  </div>
+                  {post.caption && <p style={{ fontSize: 11, color: t.textSecondary, lineHeight: 1.5, margin: '0 0 8px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{post.caption}</p>}
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
+                    {(post.status === 'draft' || post.status === 'scheduled' || post.status === 'failed') && (
+                      <button onClick={() => { handlePublishNow(post); setExpandedDay(null); }} disabled={publishingPost === post.id}
+                        style={{ padding: '3px 9px', borderRadius: 6, fontSize: 10, fontWeight: 600, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', color: '#22C55E', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <IpCheck size={10} strokeWidth={3} /> Publish
+                      </button>
+                    )}
+                    <button onClick={() => { handleDeletePost(post.id); setExpandedDay(null); }} disabled={deletingPost === post.id}
+                      style={{ padding: '3px 9px', borderRadius: 6, fontSize: 10, fontWeight: 600, background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <IpDelete size={10} /> Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Kebab menu dropdown ── */}
+      {kebabMenu && (
+        <div onClick={e => e.stopPropagation()} style={{ position: 'fixed', left: kebabMenu.x, top: kebabMenu.y, width: 150, zIndex: 9999, background: t.isDark ? 'rgba(12,12,20,0.97)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(28px) saturate(200%)', WebkitBackdropFilter: 'blur(28px) saturate(200%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, boxShadow: '0 8px 28px rgba(0,0,0,0.22)', padding: '4px', animation: 'calPreviewIn 100ms ease' }}>
+          {[
+            { label: 'Edit', icon: IpEdit, action: (post) => { openPreview(post.id, 'edit'); setKebabMenu(null); }, show: (post) => post.status === 'draft' || post.status === 'scheduled' },
+            { label: 'Clone', icon: IpCopy, action: (post) => handleClone(post), show: () => true },
+            { label: 'Delete', icon: IpDelete, action: (post) => { handleListDelete(post.id); setKebabMenu(null); }, show: () => true, danger: true },
+          ].map(item => {
+            const post = listDisplayPosts.find(p => p.id === kebabMenu.postId);
+            if (!post || (item.show && !item.show(post))) return null;
+            const Icon = item.icon;
+            return (
+              <button key={item.label} onClick={e => { e.stopPropagation(); item.action(post); }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 7, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: item.danger ? '#EF4444' : t.text, textAlign: 'left' }}
+                onMouseEnter={e => e.currentTarget.style.background = item.danger ? 'rgba(239,68,68,0.08)' : t.cardHover}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <Icon size={13} /> {item.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Confirm + Preview modals ── */}
+      {confirmModal && <ConfirmModal {...confirmModal} onCancel={() => setConfirmModal(null)} />}
+      {previewPostId && listDisplayPosts.find(p => p.id === previewPostId) && (
+        <PostPreviewModal
+          post={listDisplayPosts.find(p => p.id === previewPostId)}
+          allPosts={listDisplayPosts}
+          defaultMode={previewDefaultMode}
+          onClose={() => { setPreviewPostId(null); setPreviewDefaultMode('view'); }}
+          onNavigate={id => { setPreviewDefaultMode('view'); setPreviewPostId(id); }}
+          onUpdate={updated => setListPosts(prev => prev.map(p => p.id === updated.id ? updated : p))}
+          onDelete={id => { setListPosts(prev => prev.filter(p => p.id !== id)); setPreviewPostId(null); }}
+        />
+      )}
+
       {/* ── Auto-plan my month modal ── */}
       {planMonthModal && (
         <div
@@ -1207,7 +1734,7 @@ export default function Calendar() {
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 24px' }}>
               {planMonthSlots.map((slot, i) => {
                 const CATEGORY_COLORS = { educational: '#60A5FA', social_proof: '#A78BFA', promotional: '#FB923C' };
-                const TYPE_COLORS = { static: '#60A5FA', photo: '#A78BFA', carousel: '#F472B6' };
+                const TYPE_COLORS = { static: '#60A5FA', photo: '#06B6D4', carousel: '#F472B6', video: '#FF9F0A' };
                 const catColor = CATEGORY_COLORS[slot.category] || t.primary;
                 return (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '72px 1fr', gap: 14, padding: '12px 0', borderBottom: `1px solid ${t.border}`, alignItems: 'flex-start' }}>
