@@ -123,6 +123,7 @@ export default function Calendar() {
 
   // List view effects
   useEffect(() => { if (mounted && pageView === 'list') loadListPosts(); }, [pageView, listFilter]);
+  useEffect(() => { if (router.query.view === 'list') setPageView('list'); }, [router.query.view]);
   useEffect(() => {
     if (!mounted || pageView !== 'list') return;
     const tid = setTimeout(() => loadListPosts(), 300);
@@ -971,7 +972,7 @@ export default function Calendar() {
                         onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOverDay(null); }}
                         onDrop={(e) => { e.preventDefault(); handleDropOnDay(day); }}
                         style={{
-                          minHeight: isMobile ? 52 : 88,
+                          minHeight: isMobile ? 60 : 140,
                           padding: isMobile ? '3px 2px' : 6,
                           borderRadius: isMobile ? 7 : 10,
                           cursor: 'pointer',
@@ -1031,42 +1032,43 @@ export default function Calendar() {
                             ))}
                           </div>
                         ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            {dayPosts.slice(0, 2).map(post => {
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {dayPosts.slice(0, 1).map(post => {
                               const typeColor = TYPE_COLOR[post.content_type] || t.primary;
                               const TypeIcon  = TYPE_ICON[post.content_type] || IpDrafts;
                               const caption   = post.caption || '';
+                              const postPlatformsArr = parsePlatforms(post.platforms);
+                              const timeStr = post.scheduled_date ? format(new Date(post.scheduled_date), 'h:mm a') : 'Draft';
                               return (
-                                <div
-                                  key={post.id}
-                                  title={caption}
-                                  draggable="true"
+                                <div key={post.id} draggable="true"
                                   onDragStart={(e) => { e.stopPropagation(); setDraggingPost(post.id); }}
                                   onDragEnd={() => { setDraggingPost(null); setDragOverDay(null); }}
                                   onMouseEnter={(e) => { e.stopPropagation(); handlePostHover(post, e); }}
                                   onMouseLeave={(e) => { e.stopPropagation(); setHoveredPost(null); }}
-                                  style={{
-                                    fontSize: 10, padding: '3px 5px', borderRadius: 6,
-                                    background: `${typeColor}18`,
-                                    borderLeft: `3px solid ${typeColor}`,
-                                    color: typeColor,
-                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                    display: 'flex', alignItems: 'center', gap: 3,
-                                    cursor: 'grab',
-                                    opacity: draggingPost === post.id ? 0.35 : 1,
-                                    transition: 'opacity 150ms',
-                                  }}
+                                  onClick={(e) => { e.stopPropagation(); setSelectedDay(day); }}
+                                  style={{ borderRadius: 7, overflow: 'hidden', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'}`, background: t.isDark ? 'rgba(255,255,255,0.04)' : '#fff', opacity: draggingPost === post.id ? 0.35 : 1, cursor: 'grab', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
                                 >
-                                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_DOT[post.status] || '#94A3B8', flexShrink: 0 }} />
-                                  <TypeIcon size={8} />
-                                  <span>{caption ? caption.slice(0, 20) : format(new Date(post.scheduled_date), 'h:mm a')}</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 6px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, color: t.textMuted, fontWeight: 600, minWidth: 0, overflow: 'hidden' }}>
+                                      <TypeIcon size={9} style={{ color: typeColor, flexShrink: 0 }} />
+                                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{timeStr}</span>
+                                    </div>
+                                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_DOT[post.status] || '#94A3B8', flexShrink: 0, marginLeft: 4 }} />
+                                  </div>
+                                  {caption && <div style={{ fontSize: 10, color: t.textSecondary, padding: '3px 6px', lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{caption}</div>}
+                                  {post.media_url && <img src={post.media_url} alt="" loading="lazy" style={{ width: '100%', height: 46, objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display = 'none'; }} />}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 5px 4px', overflow: 'hidden' }}>
+                                    {postPlatformsArr.slice(0, 2).map(pid => { const pm = PLATFORM_ICONS[pid]; if (!pm) return null; const PI = pm.icon; return <PI key={pid} size={9} style={{ color: pm.color }} />; })}
+                                    {postPlatformsArr.length > 2 && <span style={{ fontSize: 8, color: t.textMuted, fontWeight: 700 }}>+{postPlatformsArr.length - 2}</span>}
+                                    <span style={{ fontSize: 8, marginLeft: 'auto', padding: '1px 4px', borderRadius: 4, background: (STATUS_DOT[post.status] || '#94A3B8') + '22', color: STATUS_DOT[post.status] || '#94A3B8', fontWeight: 700, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{post.status}</span>
+                                  </div>
                                 </div>
                               );
                             })}
-                            {dayPosts.length > 2 && (
+                            {dayPosts.length > 1 && (
                               <button onClick={e => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setExpandedDay({ day, posts: dayPosts, x: rect.right + 8, y: rect.top }); }}
                                 style={{ fontSize: 10, color: t.primary, background: 'none', border: 'none', cursor: 'pointer', paddingLeft: 4, textAlign: 'left', fontWeight: 600 }}>
-                                +{dayPosts.length - 2} more ▾
+                                See {dayPosts.length - 1} more ▾
                               </button>
                             )}
                             {/* Content calendar plan indicator */}
@@ -1481,78 +1483,90 @@ export default function Calendar() {
               })}
             </div>
           ) : (
-            /* List view */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {listDisplayPosts.map(post => {
+            /* List view — GHL-style table */
+            <div style={{ background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, overflow: 'hidden' }}>
+              {/* Table header */}
+              <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 72px 130px 100px 110px 140px 44px', padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)', alignItems: 'center', gap: 8 }}>
+                <div><input type="checkbox" checked={listDisplayPosts.length > 0 && listSelectedIds.length === listDisplayPosts.length} onChange={() => listSelectedIds.length === listDisplayPosts.length ? setListSelectedIds([]) : setListSelectedIds(listDisplayPosts.map(p => p.id))} style={{ cursor: 'pointer', accentColor: '#7C5CFC' }} /></div>
+                {['Caption', 'Media', 'Status', 'Type', 'Date', 'Social', ''].map((h, i) => (
+                  <div key={i} style={{ fontSize: 11, fontWeight: 600, color: t.textMuted }}>{h}</div>
+                ))}
+              </div>
+              {/* Table rows */}
+              {listDisplayPosts.map((post, rowIdx) => {
                 const TypeIcon = TYPE_ICON[post.content_type] || IpDrafts;
                 const typeColor = TYPE_COLOR[post.content_type] || t.primary;
                 const postPlatforms = parsePlatforms(post.platforms);
                 const isHovered = hoveredCard === post.id;
-                const isDraft = post.status === 'draft';
-                const isScheduled = post.status === 'scheduled';
                 const dotColor = STATUS_DOT[post.status] || '#94A3B8';
                 const isSelected = listSelectedIds.includes(post.id);
                 const isKebabOpen = kebabMenu?.postId === post.id;
                 return (
-                  <div key={post.id} onClick={() => listSelectedIds.length > 0 ? toggleListSelect(post.id) : openPreview(post.id, 'view')}
+                  <div key={post.id}
+                    onClick={() => listSelectedIds.length > 0 ? toggleListSelect(post.id) : openPreview(post.id, 'view')}
                     onMouseEnter={() => setHoveredCard(post.id)} onMouseLeave={() => setHoveredCard(null)}
-                    style={{ display: 'flex', gap: 0, background: isSelected ? (t.isDark ? 'rgba(124,92,252,0.1)' : 'rgba(124,92,252,0.06)') : t.isDark ? (isHovered ? 'rgba(20,20,32,0.88)' : 'rgba(15,15,24,0.72)') : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `${isSelected ? 2 : 1}px solid ${isSelected ? t.primary : isHovered ? 'rgba(124,92,252,0.4)' : t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 14, overflow: 'hidden', cursor: 'pointer', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)', transform: isHovered && !isSelected ? 'translateY(-3px)' : 'none', boxShadow: isSelected ? '0 0 0 3px rgba(124,92,252,0.15)' : isHovered ? '0 12px 36px rgba(0,0,0,0.3)' : t.shadowSm }}>
-                    {/* Left accent */}
-                    <div style={{ width: 4, background: typeColor, flexShrink: 0 }} />
-                    {/* Thumbnail */}
-                    <div style={{ width: 96, height: 96, flexShrink: 0, margin: '16px 0 16px 16px', borderRadius: 10, overflow: 'hidden', background: t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                      {post.media_url ? <img src={post.media_url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.target.style.display = 'none')} /> : <TypeIcon size={30} style={{ color: typeColor, opacity: 0.45 }} />}
-                      <div style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 8, fontWeight: 800, background: 'rgba(0,0,0,0.65)', color: '#fff', borderRadius: 4, padding: '2px 5px', textTransform: 'uppercase' }}>{TYPE_LABEL[post.content_type] || 'POST'}</div>
-                      <div onClick={(e) => toggleListSelect(post.id, e)} style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: '50%', background: isSelected ? '#7C5CFC' : 'rgba(0,0,0,0.45)', border: `2px solid ${isSelected ? '#7C5CFC' : 'rgba(255,255,255,0.7)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: listSelectedIds.length > 0 || isHovered ? 1 : 0, transition: 'opacity 150ms', zIndex: 1 }}>
-                        {isSelected && <IpCheck size={9} color="#fff" strokeWidth={3} />}
-                      </div>
+                    style={{ display: 'grid', gridTemplateColumns: '44px 1fr 72px 130px 100px 110px 140px 44px', padding: '10px 16px', borderBottom: rowIdx < listDisplayPosts.length - 1 ? `1px solid ${t.border}` : 'none', background: isSelected ? (t.isDark ? 'rgba(124,92,252,0.1)' : 'rgba(124,92,252,0.05)') : isHovered ? t.cardHover : 'transparent', cursor: 'pointer', alignItems: 'center', gap: 8, transition: 'background 150ms' }}>
+                    {/* Checkbox */}
+                    <div onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={isSelected} onChange={e => toggleListSelect(post.id, e)} style={{ cursor: 'pointer', accentColor: '#7C5CFC' }} />
                     </div>
-                    {/* Content */}
-                    <div style={{ flex: 1, padding: '14px 12px 14px 16px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: dotColor }}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
-                          {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
-                        </span>
-                        {post.source === 'ai_generated' && <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 9, background: t.primaryBg, color: t.primary, border: `1px solid ${t.primaryBorder}`, fontWeight: 600 }}>AI</span>}
-                        {postPlatforms.length > 0 && (
-                          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                            {postPlatforms.map(pid => { const pm = PLATFORM_ICONS[pid]; if (!pm) return null; const PI = pm.icon; return <PI key={pid} size={14} style={{ color: pm.color }} title={pid} />; })}
+                    {/* Caption */}
+                    <div style={{ fontSize: 12, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                      {post.caption || <span style={{ color: t.textMuted, fontStyle: 'italic' }}>No caption</span>}
+                    </div>
+                    {/* Media */}
+                    <div>
+                      {post.media_url
+                        ? <img src={post.media_url} alt="" loading="lazy" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 7, display: 'block' }} onError={e => { e.target.style.display = 'none'; }} />
+                        : <div style={{ width: 44, height: 44, borderRadius: 7, background: `${typeColor}18`, border: `1px solid ${typeColor}33`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><TypeIcon size={18} style={{ color: typeColor, opacity: 0.6 }} /></div>
+                      }
+                    </div>
+                    {/* Status */}
+                    <div>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: dotColor }}>
+                        <IpSchedule size={11} />
+                        {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
+                      </span>
+                    </div>
+                    {/* Type */}
+                    <div>
+                      <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: t.input, border: `1px solid ${t.border}`, color: t.textMuted, whiteSpace: 'nowrap', display: 'inline-block' }}>
+                        {TYPE_LABEL[post.content_type] || post.content_type}
+                      </span>
+                    </div>
+                    {/* Date */}
+                    <div style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>
+                      {post.scheduled_date ? format(new Date(post.scheduled_date), 'dd MMM yyyy') : format(new Date(post.created_at), 'dd MMM yyyy')}
+                    </div>
+                    {/* Social — overlapping circles */}
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      {postPlatforms.slice(0, 3).map((pid, idx) => {
+                        const pm = PLATFORM_ICONS[pid];
+                        if (!pm) return null;
+                        const PI = pm.icon;
+                        return (
+                          <div key={pid} title={pid} style={{ width: 24, height: 24, borderRadius: '50%', background: pm.color + '22', border: `2px solid ${t.isDark ? '#0f0f18' : '#fff'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: idx > 0 ? -7 : 0, position: 'relative', zIndex: 3 - idx }}>
+                            <PI size={12} style={{ color: pm.color }} />
                           </div>
-                        )}
-                        <span style={{ fontSize: 11, color: t.textMuted, marginLeft: 'auto', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <CalendarIcon size={10} />
-                          {post.scheduled_date ? format(new Date(post.scheduled_date), 'MMM d, yyyy · h:mm a') : format(new Date(post.created_at), 'MMM d, yyyy')}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.55, margin: '0 0 8px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                        {post.caption || <span style={{ color: t.textMuted, fontStyle: 'italic' }}>No caption</span>}
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: t.textMuted, flexWrap: 'wrap' }}>
-                        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
-                          {post.status === 'posted' && (
-                            <button onClick={() => router.push(`/analytics/posts/${post.id}`)} style={{ padding: '5px 11px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 7, fontSize: 11, fontWeight: 600, color: t.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <IpAnalytics size={11} /> Analytics
-                            </button>
-                          )}
-                          {isDraft && (
-                            <button onClick={() => handleListPublishNow(post)} disabled={listPublishingPost === post.id}
-                              style={{ padding: '5px 11px', background: 'rgba(34,197,94,0.10)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 7, fontSize: 11, fontWeight: 600, color: '#22C55E', cursor: listPublishingPost === post.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: listPublishingPost === post.id ? 0.6 : 1 }}>
-                              <IpCheck size={11} strokeWidth={3} /> {listPublishingPost === post.id ? '…' : 'Publish Now'}
-                            </button>
-                          )}
-                          {/* Kebab menu */}
-                          <div style={{ position: 'relative' }}>
-                            <button onClick={e => {
-                              e.stopPropagation();
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setKebabMenu(isKebabOpen ? null : { postId: post.id, x: rect.right - 140, y: rect.bottom + 4 });
-                            }} style={{ width: 30, height: 30, borderRadius: 7, background: isKebabOpen ? t.primaryBg : t.input, border: `1px solid ${isKebabOpen ? t.primaryBorder : t.border}`, color: isKebabOpen ? t.primary : t.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>
-                              ⋮
-                            </button>
-                          </div>
+                        );
+                      })}
+                      {postPlatforms.length > 3 && (
+                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: t.input, border: `2px solid ${t.isDark ? '#0f0f18' : '#fff'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: -7, fontSize: 9, color: t.textMuted, fontWeight: 700 }}>
+                          +{postPlatforms.length - 3}
                         </div>
-                      </div>
+                      )}
+                    </div>
+                    {/* Kebab */}
+                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'center' }}>
+                      <button onClick={e => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setKebabMenu(isKebabOpen ? null : { postId: post.id, x: rect.right - 150, y: rect.bottom + 4 });
+                      }} style={{ width: 30, height: 30, borderRadius: 7, background: isKebabOpen ? t.primaryBg : 'transparent', border: `1px solid ${isKebabOpen ? t.primaryBorder : 'transparent'}`, color: isKebabOpen ? t.primary : t.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, transition: 'all 150ms' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.border; }}
+                        onMouseLeave={e => { if (!isKebabOpen) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; } }}>
+                        ⋮
+                      </button>
                     </div>
                   </div>
                 );
@@ -1674,6 +1688,7 @@ export default function Calendar() {
           {[
             { label: 'Edit', icon: IpEdit, action: (post) => { openPreview(post.id, 'edit'); setKebabMenu(null); }, show: (post) => post.status === 'draft' || post.status === 'scheduled' },
             { label: 'Clone', icon: IpCopy, action: (post) => handleClone(post), show: () => true },
+            { label: 'Publish Now', icon: IpCheck, action: (post) => { handleListPublishNow(post); setKebabMenu(null); }, show: (post) => post.status === 'draft' || post.status === 'scheduled' },
             { label: 'Delete', icon: IpDelete, action: (post) => { handleListDelete(post.id); setKebabMenu(null); }, show: () => true, danger: true },
           ].map(item => {
             const post = listDisplayPosts.find(p => p.id === kebabMenu.postId);

@@ -3,6 +3,6 @@ import { useRouter } from 'next/router';
 
 export default function History() {
   const router = useRouter();
-  useEffect(() => { router.replace('/calendar'); }, []);
+  useEffect(() => { router.replace('/calendar?view=list'); }, []);
   return null;
 }
