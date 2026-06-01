@@ -589,14 +589,6 @@ export default function Calendar() {
                 ≡
               </button>
             </div>
-            {pageView === 'calendar' && <>
-              <Button variant="secondary" onClick={handlePlanMonth} disabled={planMonthLoading} style={{ background: 'rgba(124,92,252,0.08)', borderColor: 'rgba(124,92,252,0.3)' }}>
-                <IpSparkle size={13} color="url(#brand-gradient)" /> {planMonthLoading ? 'Planning...' : 'Auto-plan month'}
-              </Button>
-              <Button variant="secondary" onClick={() => { setBulkMode(m => !m); setBulkDays([]); setBulkPreview(null); }} style={{ background: bulkMode ? 'rgba(124,92,252,0.15)' : undefined, borderColor: bulkMode ? 'rgba(124,92,252,0.5)' : undefined }}>
-                <CalendarIcon size={13} /> Plan my week
-              </Button>
-            </>}
             <Button variant="secondary" onClick={() => router.push('/wizard')}><IpSparkle size={13} /> Post Wizard</Button>
             <Button variant="primary"   onClick={() => router.push('/upload')}><IpPlus size={14} strokeWidth={2.5} /> Upload</Button>
           </div>
