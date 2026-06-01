@@ -830,10 +830,9 @@ export default function InboxPage() {
                   </div>
                   {/* Add / View Contact */}
                   {savedContact ? (
-                    <a href="/contacts"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 6, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', color: '#16a34a', fontSize: 12, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                      <IpCheck size={12} /> In Contacts
-                    </a>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 10px', borderRadius: 6, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', color: '#16a34a', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      <IpCheck size={12} /> Saved
+                    </span>
                   ) : (
                     <button
                       onClick={handleSaveContact}

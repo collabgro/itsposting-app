@@ -15,9 +15,9 @@ import { ConfirmModal } from './ui';
 import { ItsPostingLogo } from './ItsPostingLogo';
 
 const ROLE_PERMISSIONS = {
-  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:true, inbox:true, contacts:true, knowledge_base:true, settings:true },
-  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:false, inbox:true, contacts:false, knowledge_base:false, settings:false },
-  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, geo_audit:false, inbox:false, contacts:false, knowledge_base:false, settings:false },
+  manager: { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:true, inbox:true, knowledge_base:true, settings:true },
+  editor:  { wizard:true, upload:true, calendar:true, history:true, media:true, studio:true, analytics:true, geo_audit:false, inbox:true, knowledge_base:false, settings:false },
+  viewer:  { wizard:false, upload:false, calendar:true, history:true, media:false, studio:false, analytics:true, geo_audit:false, inbox:false, knowledge_base:false, settings:false },
 };
 
 const MODULE_ROUTES = {
@@ -30,7 +30,6 @@ const MODULE_ROUTES = {
   analytics:      ['/analytics'],
   geo_audit:      ['/geo-audit'],
   inbox:          ['/inbox'],
-  contacts:       ['/contacts'],
   knowledge_base: ['/knowledge-base'],
   settings:       ['/settings'],
   billing:        ['__never__'],
@@ -58,7 +57,6 @@ const NAV_ITEMS = [
 
   { isDivider: true, label: 'Engage' },
   { name: 'Inbox',         href: '/inbox',          icon: IpInbox,        badgeKey: 'dmUnread' },
-  { name: 'Contacts',      href: '/contacts',       icon: IpTeam },
 
   { isDivider: true, label: 'Account' },
   { name: 'Knowledge Base', href: '/knowledge-base', icon: IpBusiness },
