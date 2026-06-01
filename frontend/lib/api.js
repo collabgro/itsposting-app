@@ -1,5 +1,127 @@
 import axios from 'axios';
 
+// ─── Client-side GET cache ────────────────────────────────────────────────────
+// Stale-while-revalidate: serve cached data instantly (even if stale), then
+// silently refresh in the background. In-flight deduplication: if two callers
+// request the same URL simultaneously, only one network request is made.
+const _cache    = new Map(); // key → { res, ts }
+const _inflight = new Map(); // key → Promise — prevents duplicate parallel requests
+let   _gen      = 0;         // incremented on every mutation — guards against in-flight GETs recaching stale data
+
+// Per-prefix TTLs (ms). Longer = more stable data. Shorter = frequently updated.
+const _TTL = {
+  '/api/auth/verify':              60_000,  // 1 min  — user profile rarely changes mid-session
+  '/api/customers/profile':        60_000,
+  '/api/customers/social-accounts':30_000,
+  '/api/workspaces':               90_000,  // 1.5 min — workspace list is stable
+  '/api/suggestions/count':        60_000,
+  '/api/suggestions':              60_000,
+  '/api/dms':                      20_000,  // 20s — unread count should be fairly fresh
+  '/api/posts/upcoming':           20_000,
+  '/api/posts/pending-approval':   30_000,
+  '/api/posts/analytics':          90_000,
+  '/api/posts':                    15_000,  // 15s — posts list changes more often
+  '/api/analytics':                90_000,
+  '/api/intelligence':            120_000,  // 2 min — Claude-generated, expensive
+  '/api/geo/score':               120_000,
+  '/api/billing':                  60_000,
+  '/api/media/quota':              60_000,
+  '/api/notifications':            30_000,
+  '/api/calendar':                 20_000,
+  '/api/knowledge':                90_000,
+  '/api/templates':               120_000,
+};
+
+// Paths that should never be cached (OAuth, blobs, real-time)
+const _SKIP = [
+  '/api/social/connect-url',
+  '/api/social/locations',
+  '/api/billing/checkout-link',
+  '/api/billing/buy-credits',
+  '/api/wizard/video-poll',
+  '/api/admin/export',
+  '/api/admin/llm/export',
+];
+
+function _getTTL(url) {
+  for (const [prefix, ms] of Object.entries(_TTL)) {
+    if (url.startsWith(prefix)) return ms;
+  }
+  return 45_000; // default 45s for anything else
+}
+
+function _shouldSkip(url) {
+  return _SKIP.some(p => url.includes(p));
+}
+
+function _cacheKey(url, params) {
+  const p = params && Object.keys(params).length
+    ? '?' + new URLSearchParams(params).toString()
+    : '';
+  return url + p;
+}
+
+// Wrap api.get — stale-while-revalidate + in-flight deduplication
+function _wrapGet(rawGet) {
+  return function(url, config = {}) {
+    if (_shouldSkip(url) || config.__noCache) return rawGet(url, config);
+    const key = _cacheKey(url, config.params);
+    const hit = _cache.get(key);
+    const now = Date.now();
+
+    if (hit) {
+      if (now - hit.ts < _getTTL(url)) {
+        // Fresh — return immediately, no network call
+        return Promise.resolve(hit.res);
+      }
+      // Stale — return immediately AND kick off a background refresh
+      if (!_inflight.has(key)) {
+        const snapGen = _gen; // capture generation so a mutation can invalidate us
+        const bg = rawGet(url, config)
+          .then(res => { if (_gen === snapGen) _cache.set(key, { res, ts: Date.now() }); return res; })
+          .catch(() => {}) // background failures are silent
+          .finally(() => _inflight.delete(key));
+        _inflight.set(key, bg);
+      }
+      return Promise.resolve(hit.res);
+    }
+
+    // Cache miss — deduplicate: if another caller is already fetching this,
+    // share its promise rather than firing a second request
+    if (_inflight.has(key)) return _inflight.get(key);
+    const snapGen = _gen;
+    const p = rawGet(url, config)
+      .then(res => { if (_gen === snapGen) _cache.set(key, { res, ts: Date.now() }); return res; })
+      .catch(err => { throw err; })
+      .finally(() => _inflight.delete(key));
+    _inflight.set(key, p);
+    return p;
+  };
+}
+
+// Auto-bust cache on any mutation — wipes entries whose key starts with the
+// base resource path (e.g. POST /api/posts busts all /api/posts* cache entries).
+// Also increments _gen so any in-flight GETs that started before this mutation
+// will NOT repopulate the cache when they eventually complete.
+function _bustOnMutation(rawFn) {
+  return function(url, ...args) {
+    _gen++;
+    const base = '/' + url.split('/').slice(1, 3).join('/'); // e.g. /api/posts
+    for (const k of _cache.keys()) {
+      if (k.startsWith(base)) _cache.delete(k);
+    }
+    return rawFn(url, ...args);
+  };
+}
+
+// Export so pages can manually invalidate if needed (e.g. after credit deduction)
+export function bustCache(prefix) {
+  if (!prefix) { _cache.clear(); return; }
+  for (const k of _cache.keys()) {
+    if (k.startsWith(prefix)) _cache.delete(k);
+  }
+}
+
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || '',
   headers: { 'Content-Type': 'application/json' },
@@ -13,6 +135,13 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Apply caching wrappers after the interceptors are registered
+api.get    = _wrapGet(api.get.bind(api));
+api.post   = _bustOnMutation(api.post.bind(api));
+api.patch  = _bustOnMutation(api.patch.bind(api));
+api.put    = _bustOnMutation(api.put.bind(api));
+api.delete = _bustOnMutation(api.delete.bind(api));
 
 api.interceptors.response.use(
   (response) => response,
@@ -95,6 +224,7 @@ export const scraperAPI = {
   scrape: (url) => api.post('/api/scraper/scrape', { url }),
   getData: () => api.get('/api/scraper/data'),
   clearData: () => api.delete('/api/scraper/data'),
+  getOG: (url) => api.get('/api/scraper/og', { params: { url } }),
 };
 
 export const postsAPI = {
@@ -153,6 +283,7 @@ export const wizardAPI = {
   planMonth: (data) => api.post('/api/wizard/plan-month', data),
   downloadImage: (data) => api.post('/api/wizard/download-image', data, { responseType: 'blob' }),
   pollVideo: (postId) => api.get(`/api/wizard/video-poll/${postId}`),
+  feedback: (data) => api.post('/api/wizard/feedback', data),
 };
 
 export const uploadAPI = {
@@ -269,6 +400,20 @@ export const adminAPI = {
   updateLLMExperiment: (id, data) => api.patch(`/api/admin/llm/experiments/${id}`, data),
   getLLMCuratedExamples: (params) => api.get('/api/admin/llm/curated', { params }),
   addLLMCuratedExample: (data) => api.post('/api/admin/llm/curated', data),
+  deleteLLMCuratedExample: (id) => api.delete(`/api/admin/llm/curated/${id}`),
+  exportLLMTrainingData: (params) => api.get('/api/admin/llm/export', { params, responseType: 'blob' }),
+  registerLLMModel: (data) => api.post('/api/admin/llm/models', data),
+  updateLLMModel: (id, data) => api.patch(`/api/admin/llm/models/${id}`, data),
+  rateLLMExample: (id, qualityScore) => api.patch(`/api/admin/llm/training-data/${id}/quality`, { qualityScore }),
+  deleteLLMExample: (id) => api.delete(`/api/admin/llm/training-data/${id}`),
+  getLLMQualityStats: (params) => api.get('/api/admin/llm/quality-stats', { params }),
+  importLLMImages: (data) => api.post('/api/admin/llm/import-images', data),
+  exportImageDataset: (params) => api.get('/api/admin/llm/export-image-dataset', { params, responseType: 'blob' }),
+  getImageDataset: (params) => api.get('/api/admin/llm/image-dataset', { params }),
+  updateImageLabel: (id, data) => api.patch(`/api/admin/llm/image-dataset/${id}`, data),
+  bulkLabelImages: (data) => api.post('/api/admin/llm/image-dataset/bulk-label', data),
+  deleteImageDataset: (id) => api.delete(`/api/admin/llm/image-dataset/${id}`),
+  bulkDeleteImages: (data) => api.post('/api/admin/llm/image-dataset/bulk-delete', data),
   // Referral management
   listReferrals: (params) => api.get('/api/admin/referrals', { params }),
   releaseReferral: (id) => api.post(`/api/admin/referrals/${id}/release`),
@@ -421,12 +566,14 @@ export const ideasAPI = {
 };
 
 export const calendarPlansAPI = {
-  list:       (start, end)          => api.get('/api/calendar-plans', { params: { start, end } }),
-  create:     (data)                => api.post('/api/calendar-plans', data),
-  update:     (id, data)            => api.patch(`/api/calendar-plans/${id}`, data),
-  remove:     (id)                  => api.delete(`/api/calendar-plans/${id}`),
-  aiFill:     (opts)                => api.post('/api/calendar-plans/ai-fill', opts),
-  getContext: (id)                  => api.post(`/api/calendar-plans/${id}/generate`),
+  list:        (start, end)  => api.get('/api/calendar-plans', { params: { start, end } }),
+  create:      (data)        => api.post('/api/calendar-plans', data),
+  update:      (id, data)    => api.patch(`/api/calendar-plans/${id}`, data),
+  remove:      (id)          => api.delete(`/api/calendar-plans/${id}`),
+  aiFill:      (opts)        => api.post('/api/calendar-plans/ai-fill', opts),
+  aiGenerate:  (opts)        => api.post('/api/calendar-plans/ai-generate', opts, { timeout: 90000 }),
+  bulkSave:    (plans)       => api.post('/api/calendar-plans/bulk-save', { plans }),
+  getContext:  (id)          => api.post(`/api/calendar-plans/${id}/generate`),
 };
 
 export const referralsAPI = {

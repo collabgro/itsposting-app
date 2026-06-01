@@ -23,13 +23,13 @@ const CONTENT_TYPES = [
 
 // ── Step 2: Content Theme (Trigger) ──────────────────────────────────────────
 const CONTENT_THEMES = [
-  { id: 'just_finished_job',  icon: 'job_finished',   label: 'Just finished a job',    desc: 'Show off a completed project' },
+  { id: 'custom',             icon: 'custom',         label: 'My own idea',             desc: 'You know what to post — tell PostCore' },
+  { id: 'just_finished_job',  icon: 'job_finished',   label: 'Just finished a job',     desc: 'Show off a completed project' },
   { id: 'share_tip',          icon: 'share_tip',      label: 'Want to share a tip',     desc: 'Teach your audience something' },
   { id: 'got_review',         icon: 'got_review',     label: 'Got a great review',      desc: 'Showcase customer love' },
   { id: 'running_promo',      icon: 'promotion',      label: 'Running a promotion',     desc: 'Announce an offer or deal' },
   { id: 'seasonal',           icon: 'seasonal',       label: 'Seasonal content',        desc: null },
   { id: 'community',          icon: 'community',      label: 'Community / local event', desc: 'Connect with your neighborhood' },
-  { id: 'faq',                icon: 'faq',            label: 'FAQ or myth-busting',     desc: 'Answer what customers always ask' },
   { id: 'team_spotlight',     icon: 'team_spotlight', label: 'Team spotlight',          desc: 'Put a face to your business' },
 ];
 
@@ -158,8 +158,99 @@ const FORMAT_TYPE_FILTER = {
   static:   ['ig-45', 'fb-landscape', 'li-post', 'gb-45', 'fb-square'],
 };
 
-// Canva-style device-frame mockup
-function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md', contentType }) {
+// ── Real Pexels trade-business photos (CDN URLs — no key needed to display) ──
+const FORMAT_SAMPLE = {
+  'ig-45':        { photoId: 8488035  },  // plumber at work — portrait 4:5
+  'ig-story':     { photoId: 37623615 },  // roofing — tall portrait 9:16
+  'ig-reel':      { photoId: 6471913  },  // HVAC tech — tall portrait
+  'ig-square':    { photoId: 16734519 },  // house painter — square
+  'fb-landscape': { photoId: 4756489  },  // home renovation — landscape
+  'fb-story':     { photoId: 33694016 },  // electrician — tall portrait
+  'fb-square':    { photoId: 9354300  },  // landscaping — square
+  'li-post':      { photoId: 7461108  },  // construction team — square
+  'li-video':     { photoId: 4956920  },  // construction site — portrait
+  'tt-video':     { photoId: 5463576  },  // HVAC technician — tall portrait
+  'tt-story':     { photoId: 37704251 },  // roofing crew — tall portrait
+  'gb-45':        { photoId: 9679179  },  // electrician — portrait 4:5
+};
+const FORMAT_SAMPLE_DEFAULT = { photoId: 1029635 }; // generic plumbing fallback
+
+// ── Sample captions for Text Post mockups — plain text, like a real social post
+const PLATFORM_SAMPLE_CAPTIONS = {
+  instagram: {
+    name: "Mike's Plumbing",
+    handle: '@mikesplumbing',
+    // paragraphs separated by '' (blank line)
+    lines: [
+      "5 signs your pipes need attention RIGHT NOW 🔧",
+      '',
+      "Low pressure? Discolored water? These aren't small warnings — they're red flags.",
+      '',
+      "#plumbing #homerepair #localplumber",
+    ],
+    tagIdx: 4,
+  },
+  facebook: {
+    name: "Mike's Plumbing",
+    handle: "Mike's Plumbing",
+    lines: [
+      "Most burst pipes give warning signs first.",
+      '',
+      "Low pressure, higher bills, or discolored water — call us before it becomes an emergency.",
+      '',
+      "What's your biggest plumbing fear? 👇",
+    ],
+    tagIdx: null,
+  },
+  linkedin: {
+    name: "Mike's Plumbing Co.",
+    handle: "Mike's Plumbing",
+    lines: [
+      "How a $200 inspection saved a client $4,000 👷",
+      '',
+      "A routine check caught a hairline crack before it burst. Preventive maintenance is always the smart call.",
+      '',
+      "#plumbing #homeservices #preventivemaintenance",
+    ],
+    tagIdx: 4,
+  },
+  tiktok: {
+    name: "Mike's Plumbing",
+    handle: '@mikesplumbing',
+    lines: [
+      "POV: You ignored that slow drip 💧",
+      '',
+      "3,000 gallons wasted per year. Here's how to fix it in 10 minutes — no tools needed.",
+      '',
+      "#plumbing #diytips #homehacks #fyp",
+    ],
+    tagIdx: 4,
+  },
+  google_business: {
+    name: "Mike's Plumbing",
+    handle: "Mike's Plumbing",
+    lines: [
+      "Serving Dallas homeowners since 2008.",
+      '',
+      "Fast, reliable repairs with same-day service. Call (214) 555-0182 — licensed & insured.",
+    ],
+    tagIdx: null,
+  },
+};
+
+// ── Realistic device-frame mockup with Pexels photos ─────────────────────────
+function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md', contentType, formatId }) {
+  const [imgError, setImgError] = useState(false);
+
+  const platform = formatId
+    ? formatId.startsWith('fb') ? 'facebook'
+    : formatId.startsWith('ig') ? 'instagram'
+    : formatId.startsWith('li') ? 'linkedin'
+    : formatId.startsWith('tt') ? 'tiktok'
+    : formatId.startsWith('gb') ? 'google_business'
+    : 'instagram'
+    : 'instagram';
+
   const maxH = size === 'lg' ? 96 : 76;
   const maxW = size === 'lg' ? 136 : 108;
   const ratio = width / height;
@@ -167,13 +258,23 @@ function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md',
   if (ratio > maxW / maxH) { cW = maxW; cH = Math.round(maxW / ratio); }
   else { cH = maxH; cW = Math.round(maxH * ratio); }
 
-  const isPortrait = height >= width * 1.3;
-  const badgeSize = size === 'lg' ? 18 : 15;
+  // Static text posts: phone frame for any portrait-or-square format (4:5, 1:1)
+  // Other content types: only tall formats (9:16 stories/reels) get phone frame
+  const isPortrait = contentType === 'static'
+    ? height >= width * 1.0
+    : height >= width * 1.3;
+  const badgeSize = size === 'lg' ? 14 : 11;
 
+  const sample = FORMAT_SAMPLE[formatId] || FORMAT_SAMPLE_DEFAULT;
+  const pxW = Math.round(cW * 3);
+  const pxH = Math.round(cH * 3);
+  const photoUrl = `https://images.pexels.com/photos/${sample.photoId}/pexels-photo-${sample.photoId}.jpeg?auto=compress&cs=tinysrgb&w=${pxW}&h=${pxH}&fit=crop`;
+
+  // ── Content-type overlay (video play button / carousel dots) ─────────────
   const ContentOverlay = ({ W, H }) => {
     if (contentType === 'video') {
       const isReel = H / W >= 1.6;
-      const cx = W / 2, cy = H * (isReel ? 0.48 : 0.45);
+      const cx = W / 2, cy = H * (isReel ? 0.46 : 0.44);
       const r = Math.min(W, H) * 0.14;
       const tx = cx + r * 0.35, ty = cy;
       const pt = `${cx - r * 0.5},${cy - r * 0.65} ${tx + r * 0.5},${ty} ${cx - r * 0.5},${cy + r * 0.65}`;
@@ -181,34 +282,112 @@ function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md',
         const segW = (W - 12) / 3;
         return (
           <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }} fill="none">
-            <rect x={6}             y={7} width={segW - 2} height={2} rx="1" fill="rgba(255,255,255,0.55)" />
-            <rect x={6 + segW}      y={7} width={segW - 2} height={2} rx="1" fill="rgba(255,255,255,0.90)" />
-            <rect x={6 + segW * 2}  y={7} width={segW - 2} height={2} rx="1" fill="rgba(255,255,255,0.55)" />
-            <rect x={8} y={H - 14} width={W * 0.55} height={3} rx="1.5" fill="rgba(255,255,255,0.55)" />
-            <rect x={8} y={H - 9}  width={W * 0.35} height={2} rx="1"   fill="rgba(255,255,255,0.35)" />
-            <circle cx={cx} cy={cy} r={r * 1.5} fill="rgba(0,0,0,0.28)" />
-            <polygon points={pt} fill="rgba(255,255,255,0.92)" />
+            <rect x={6}            y={6} width={segW - 2} height={2} rx="1" fill="rgba(255,255,255,0.55)" />
+            <rect x={6 + segW}     y={6} width={segW - 2} height={2} rx="1" fill="rgba(255,255,255,0.92)" />
+            <rect x={6 + segW * 2} y={6} width={segW - 2} height={2} rx="1" fill="rgba(255,255,255,0.55)" />
+            <circle cx={cx} cy={cy} r={r * 1.5} fill="rgba(0,0,0,0.35)" />
+            <polygon points={pt} fill="rgba(255,255,255,0.95)" />
           </svg>
         );
       }
       return (
         <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }} fill="none">
-          <circle cx={cx} cy={cy} r={r * 1.5} fill="rgba(0,0,0,0.28)" />
-          <polygon points={pt} fill="rgba(255,255,255,0.92)" />
+          <circle cx={cx} cy={cy} r={r * 1.5} fill="rgba(0,0,0,0.35)" />
+          <polygon points={pt} fill="rgba(255,255,255,0.95)" />
         </svg>
       );
     }
     if (contentType === 'carousel') {
-      const dotY = H * 0.88, spacing = 6, dotR = 2.5;
+      const dotY = H - 7, spacing = 5.5, dotR = 2;
       return (
         <svg width={W} height={H} style={{ position: 'absolute', inset: 0 }} fill="none">
-          <circle cx={W / 2 - spacing} cy={dotY} r={dotR} fill="rgba(255,255,255,0.45)" />
-          <circle cx={W / 2}            cy={dotY} r={dotR} fill="rgba(255,255,255,0.95)" />
-          <circle cx={W / 2 + spacing} cy={dotY} r={dotR} fill="rgba(255,255,255,0.45)" />
+          <circle cx={W / 2 - spacing} cy={dotY} r={dotR} fill="rgba(255,255,255,0.42)" />
+          <circle cx={W / 2}           cy={dotY} r={dotR * 1.15} fill="rgba(255,255,255,0.96)" />
+          <circle cx={W / 2 + spacing} cy={dotY} r={dotR} fill="rgba(255,255,255,0.42)" />
         </svg>
       );
     }
     return null;
+  };
+
+  // ── Photo fill — real image + social-media-style overlays ────────────────
+  const PhotoScreen = ({ W, H }) => (
+    <div style={{ position: 'absolute', inset: 0 }}>
+      {!imgError ? (
+        <img
+          src={photoUrl}
+          alt=""
+          onError={() => setImgError(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      ) : (
+        <div style={{ width: '100%', height: '100%', background: `linear-gradient(160deg, ${platformColor}55, ${platformColor}28)` }} />
+      )}
+      {/* Bottom dark gradient for readability */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, transparent 30%, rgba(0,0,0,0.72) 72%)' }} />
+      {/* Header: avatar dot + handle bar */}
+      <div style={{ position: 'absolute', top: 5, left: 6, display: 'flex', alignItems: 'center', gap: 3 }}>
+        <div style={{ width: 7, height: 7, borderRadius: '50%', background: platformColor, border: '1.5px solid rgba(255,255,255,0.88)', flexShrink: 0 }} />
+        <div style={{ height: 2, borderRadius: 1, background: 'rgba(255,255,255,0.82)', width: Math.round(W * 0.42) }} />
+      </div>
+      {/* Caption text bars */}
+      <div style={{ position: 'absolute', bottom: 9, left: 6, right: 6 }}>
+        <div style={{ height: 2.5, borderRadius: 1.5, background: 'rgba(255,255,255,0.94)', marginBottom: 3, width: '88%' }} />
+        <div style={{ height: 2, borderRadius: 1, background: 'rgba(255,255,255,0.62)', width: '65%' }} />
+      </div>
+      {/* Engagement row: heart + comment */}
+      <div style={{ position: 'absolute', bottom: 2, left: 6, display: 'flex', alignItems: 'center', gap: 3 }}>
+        <div style={{ width: 5, height: 4.5, borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%', background: 'rgba(255,72,72,0.88)' }} />
+        <div style={{ height: 1.5, borderRadius: 1, background: 'rgba(255,255,255,0.52)', width: 10 }} />
+        <div style={{ width: 5, height: 4.5, borderRadius: '2px 2px 0 2px', border: '1px solid rgba(255,255,255,0.60)', background: 'transparent' }} />
+        <div style={{ height: 1.5, borderRadius: 1, background: 'rgba(255,255,255,0.52)', width: 7 }} />
+      </div>
+      <ContentOverlay W={W} H={H} />
+    </div>
+  );
+
+  // ── Text-card: looks like a real social text post (Twitter/feed style) ───────
+  const TextCard = ({ W, H }) => {
+    const caption = PLATFORM_SAMPLE_CAPTIONS[platform] || PLATFORM_SAMPLE_CAPTIONS.instagram;
+    const SCALE = 0.38;
+    const VIRT = Math.round(W / SCALE);
+    const virtH = Math.round(H / SCALE);
+    const isWide = W > H * 1.1;
+    // Landscape: show fewer lines
+    const visibleLines = isWide ? caption.lines.slice(0, 3) : caption.lines;
+    return (
+      <div style={{ width: W, height: H, overflow: 'hidden', position: 'relative', background: '#0d0d18' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, width: VIRT, height: virtH, transform: `scale(${SCALE})`, transformOrigin: 'top left', padding: '14px 14px 12px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+          {/* Spacer matching removed header height */}
+          <div style={{ height: 44 }} />
+          {/* Body — all lines same weight, blank lines = paragraph break */}
+          <div style={{ flex: 1 }}>
+            {visibleLines.map((line, i) => (
+              line === ''
+                ? <div key={i} style={{ height: 8 }} />
+                : <div key={i} style={{ fontSize: 12, lineHeight: 1.6, fontFamily: 'system-ui,-apple-system,sans-serif', color: i === caption.tagIdx ? `${platformColor}dd` : 'rgba(255,255,255,0.82)', wordBreak: 'break-word' }}>{line}</div>
+            ))}
+          </div>
+          {/* Engagement row — clean SVG icons, no emoji */}
+          {!isWide && (
+            <div style={{ display: 'flex', gap: 18, marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width="13" height="12" viewBox="0 0 13 12" fill="none"><path d="M11 1H2a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2l2.5 2.5L9 9h2a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1Z" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2"/></svg>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'system-ui' }}>12</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width="13" height="12" viewBox="0 0 13 12" fill="none"><path d="M6.5 1.5C4 1.5 2 3.3 2 5.5c0 2 1.7 3.6 4 4a1 1 0 0 1 .5.9v.6L9 9.2A6 6 0 0 0 11 5.5c0-2.2-2-4-4.5-4Z" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2"/></svg>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'system-ui' }}>47</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width="13" height="12" viewBox="0 0 13 12" fill="none"><path d="M2 6h9M8 3l3 3-3 3" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: 'system-ui' }}>Share</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   if (isPortrait) {
@@ -216,47 +395,20 @@ function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md',
     const phoneW = cW + bx * 2, phoneH = cH + bTop + bBot;
     return (
       <div style={{ position: 'relative', width: phoneW, height: phoneH, flexShrink: 0 }}>
-        {/* Phone shell SVG */}
+        {/* Phone shell */}
         <svg width={phoneW} height={phoneH} viewBox={`0 0 ${phoneW} ${phoneH}`} style={{ position: 'absolute', inset: 0 }} fill="none">
-          <rect x="0.75" y="0.75" width={phoneW - 1.5} height={phoneH - 1.5} rx="11" fill="#F5F5F5" stroke="#D0D0D0" strokeWidth="1.5"/>
-          <circle cx={bx + 5} cy={7} r="1" fill="#C0C0C0"/>
-          <circle cx={bx + 9} cy={7} r="1" fill="#C0C0C0"/>
-          <rect x={phoneW / 2 - 12} y={phoneH - 7} width="24" height="2.5" rx="1.25" fill="#C8C8C8"/>
+          <rect x="0.75" y="0.75" width={phoneW - 1.5} height={phoneH - 1.5} rx="11" fill="#1A1A2E" stroke="#3A3A5C" strokeWidth="1.5"/>
+          <circle cx={bx + 5} cy={7} r="1" fill="#555577"/>
+          <circle cx={bx + 9} cy={7} r="1" fill="#555577"/>
+          <rect x={phoneW / 2 - 12} y={phoneH - 7} width="24" height="2.5" rx="1.25" fill="#444466"/>
         </svg>
-        {/* Screen content */}
-        <div style={{
-          position: 'absolute', top: bTop, left: bx, width: cW, height: cH,
-          borderRadius: 3, overflow: 'hidden',
-        }}>
-          {contentType === 'static' ? (
-            <div style={{ height: '100%', background: `linear-gradient(160deg, ${platformColor}40, ${platformColor}20)`, padding: '6px 5px', display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              <div style={{ height: 3.5, background: `${platformColor}cc`, borderRadius: 2, width: '80%' }} />
-              <div style={{ height: 3.5, background: `${platformColor}cc`, borderRadius: 2, width: '68%' }} />
-              <div style={{ marginTop: 2, height: 2, background: `${platformColor}75`, borderRadius: 2, width: '95%' }} />
-              <div style={{ height: 2, background: `${platformColor}75`, borderRadius: 2, width: '88%' }} />
-              <div style={{ height: 2, background: `${platformColor}75`, borderRadius: 2, width: '73%' }} />
-              <div style={{ marginTop: 2, height: 2, background: `${platformColor}50`, borderRadius: 2, width: '90%' }} />
-              <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '82%' }} />
-              <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '60%' }} />
-            </div>
-          ) : (
-            <>
-              {/* Image area ~60% */}
-              <div style={{ height: '60%', background: `linear-gradient(160deg, ${platformColor}60, ${platformColor}35)`, position: 'relative' }}>
-                <div style={{ height: '100%', background: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${platformColor}12 8px, ${platformColor}12 9px)` }} />
-                <ContentOverlay W={cW} H={cH * 0.6} />
-              </div>
-              {/* Caption area */}
-              <div style={{ flex: 1, background: `${platformColor}14`, padding: '5px 6px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <div style={{ height: 2.5, background: `${platformColor}80`, borderRadius: 2, width: '70%' }} />
-                <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '50%' }} />
-              </div>
-            </>
-          )}
+        {/* Screen */}
+        <div style={{ position: 'absolute', top: bTop, left: bx, width: cW, height: cH, borderRadius: 3, overflow: 'hidden' }}>
+          {contentType === 'static' ? <TextCard W={cW} H={cH} /> : <PhotoScreen W={cW} H={cH} />}
         </div>
         {/* Platform badge */}
         {PlatformIcon && (
-          <div style={{ position: 'absolute', top: bTop + 4, left: bx + 4, borderRadius: 3, lineHeight: 0, boxShadow: '0 1px 5px rgba(0,0,0,0.28)' }}>
+          <div style={{ position: 'absolute', top: bTop + 4, left: bx + 4, borderRadius: 3, lineHeight: 0, boxShadow: '0 1px 6px rgba(0,0,0,0.45)' }}>
             <PlatformIcon size={badgeSize} />
           </div>
         )}
@@ -264,39 +416,30 @@ function FormatMockup({ width, height, platformColor, PlatformIcon, size = 'md',
     );
   }
 
-  // Landscape or square — framed content rect (no phone shell)
+  // Landscape or square — browser/laptop chrome frame
+  const chromH = size === 'lg' ? 11 : 9;
+  const totalH = cH + chromH;
   return (
-    <div style={{ position: 'relative', width: cW, height: cH, flexShrink: 0 }}>
-      <div style={{ position: 'absolute', inset: 0, borderRadius: 7, border: '1.5px solid #D0D0D0', background: '#F5F5F5', overflow: 'hidden' }}>
-        {contentType === 'static' ? (
-          <div style={{ height: '100%', background: `linear-gradient(135deg, ${platformColor}40, ${platformColor}20)`, padding: '6px 5px', display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            <div style={{ height: 3.5, background: `${platformColor}cc`, borderRadius: 2, width: '80%' }} />
-            <div style={{ height: 3.5, background: `${platformColor}cc`, borderRadius: 2, width: '68%' }} />
-            <div style={{ marginTop: 2, height: 2, background: `${platformColor}75`, borderRadius: 2, width: '95%' }} />
-            <div style={{ height: 2, background: `${platformColor}75`, borderRadius: 2, width: '88%' }} />
-            <div style={{ height: 2, background: `${platformColor}75`, borderRadius: 2, width: '73%' }} />
-            <div style={{ marginTop: 2, height: 2, background: `${platformColor}50`, borderRadius: 2, width: '90%' }} />
-            <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '82%' }} />
-            <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '60%' }} />
-          </div>
-        ) : (
-          <>
-            {/* Image area ~58% */}
-            <div style={{ height: '58%', background: `linear-gradient(135deg, ${platformColor}60, ${platformColor}35)`, position: 'relative' }}>
-              <div style={{ height: '100%', background: `repeating-linear-gradient(45deg, transparent, transparent 8px, ${platformColor}12 8px, ${platformColor}12 9px)` }} />
-              <ContentOverlay W={cW} H={cH * 0.58} />
-            </div>
-            {/* Caption lines */}
-            <div style={{ padding: '5px 7px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <div style={{ height: 2.5, background: `${platformColor}80`, borderRadius: 2, width: '68%' }} />
-              <div style={{ height: 2, background: `${platformColor}50`, borderRadius: 2, width: '48%' }} />
-            </div>
-          </>
-        )}
+    <div style={{ position: 'relative', width: cW, height: totalH, flexShrink: 0 }}>
+      {/* Outer shell */}
+      <svg width={cW} height={totalH} viewBox={`0 0 ${cW} ${totalH}`} style={{ position: 'absolute', inset: 0 }} fill="none">
+        <rect x="0.75" y="0.75" width={cW - 1.5} height={totalH - 1.5} rx="8" fill="#14141F" stroke="#32324A" strokeWidth="1.5"/>
+        <line x1="0.75" y1={chromH} x2={cW - 0.75} y2={chromH} stroke="#2A2A3E" strokeWidth="1"/>
+      </svg>
+      {/* Browser chrome bar */}
+      <div style={{ position: 'absolute', top: 1, left: 1, width: cW - 2, height: chromH - 1, display: 'flex', alignItems: 'center', gap: 3, paddingLeft: 6, paddingRight: 6 }}>
+        <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#FF5F57', flexShrink: 0 }} />
+        <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#FEBC2E', flexShrink: 0 }} />
+        <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#28C840', flexShrink: 0 }} />
+        <div style={{ flex: 1, height: size === 'lg' ? 4 : 3, borderRadius: 2, background: 'rgba(255,255,255,0.09)', marginLeft: 4 }} />
+      </div>
+      {/* Screen */}
+      <div style={{ position: 'absolute', top: chromH, left: 1, width: cW - 2, height: cH, overflow: 'hidden', borderRadius: '0 0 7px 7px' }}>
+        {contentType === 'static' ? <TextCard W={cW - 2} H={cH} /> : <PhotoScreen W={cW - 2} H={cH} />}
       </div>
       {/* Platform badge */}
       {PlatformIcon && (
-        <div style={{ position: 'absolute', top: 6, left: 6, borderRadius: 3, lineHeight: 0, boxShadow: '0 1px 5px rgba(0,0,0,0.28)' }}>
+        <div style={{ position: 'absolute', top: chromH + 4, left: 7, borderRadius: 3, lineHeight: 0, boxShadow: '0 1px 6px rgba(0,0,0,0.45)' }}>
           <PlatformIcon size={badgeSize} />
         </div>
       )}
@@ -320,13 +463,13 @@ function getSeasonalDesc() {
 function buildDetailsObject(contentType, detailsText) {
   if (!detailsText) return {};
   const map = {
+    custom:            { custom_topic: detailsText },
     just_finished_job: { job_description: detailsText },
     share_tip:         { tip_topic: detailsText },
     got_review:        { review_text: detailsText },
     running_promo:     { promo_offer: detailsText },
     seasonal:          { seasonal_angle: detailsText },
     community:         { community_event: detailsText },
-    faq:               { question: detailsText },
     team_spotlight:    { spotlight_subject: detailsText },
   };
   return map[contentType] || { job_description: detailsText };
@@ -373,6 +516,7 @@ export default function Wizard() {
   const [industry, setIndustry] = useState('');
   const [city, setCity] = useState('');
   const [profileTimezone, setProfileTimezone] = useState('');
+  const [seasonalDesc, setSeasonalDesc] = useState(getSeasonalDesc());
   const [copiedId, setCopiedId] = useState(null);
   const [selectedVariation, setSelectedVariation] = useState('A');
 
@@ -423,9 +567,20 @@ export default function Wizard() {
     customerAPI.getProfile()
       .then(r => {
         const d = r.data;
-        setIndustry(d.industry || '');
+        const ind = d.industry || '';
+        setIndustry(ind);
         setCity(d.city || d.location || '');
         setProfileTimezone(d.timezone || '');
+        // Fetch industry-specific seasonal description from wizard steps endpoint
+        if (ind) {
+          api.get(`/api/wizard/steps/${ind}/just_finished_job`)
+            .then(sr => {
+              const step2 = sr.data?.steps?.[1];
+              const seasonalOpt = step2?.options?.find(o => o.value === 'seasonal');
+              if (seasonalOpt?.description) setSeasonalDesc(seasonalOpt.description);
+            })
+            .catch(() => {});
+        }
       })
       .catch(() => {});
 
@@ -746,7 +901,7 @@ export default function Wizard() {
         calendarPlansAPI.update(calendarPlanId, { post_id: genRes.postId, status: 'briefed' }).catch(() => {});
       }
     } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
+      setError(err.response?.data?.error || err.message || 'Something went wrong. Please try again.');
       setStep(6); // stay on platform step so the error banner is visible
     }
   };
@@ -769,13 +924,14 @@ export default function Wizard() {
     try {
       const rawPlatform = results.platform;
       const platforms = rawPlatform === 'all'
-        ? ['facebook', 'instagram', 'google_business']
+        ? ALL_PLATFORM_IDS
         : rawPlatform ? [rawPlatform] : [];
 
-      // Record chosen variation before publishing
+      // Record chosen variation before publishing + send training feedback
       try {
         await apiPatch(`/api/posts/${results.postId}`, { chosenVariation: selectedVariation });
       } catch {}
+      wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, mediaKept: !!results.mediaUrl, wasPublished: true }).catch(() => {});
 
       if (platforms.length > 0 || selectedWizardAccountIds.length > 0) {
         const pubRes = await api.post('/api/social/publish', {
@@ -816,7 +972,7 @@ export default function Wizard() {
       try {
         const rawPlatform = results.platform;
         const platforms = rawPlatform === 'all'
-          ? ['facebook', 'instagram', 'google_business']
+          ? ALL_PLATFORM_IDS
           : rawPlatform ? [rawPlatform] : ['facebook'];
         const conflictRes = await postsAPI.checkConflicts(scheduleDate, platforms, results.postId);
         const conflicts = conflictRes.data?.conflicts || [];
@@ -830,6 +986,7 @@ export default function Wizard() {
     setActionLoading(true);
     try {
       await apiPatch(`/api/posts/${results.postId}`, { status: 'scheduled', scheduledDate: scheduleDate, chosenVariation: selectedVariation });
+      wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, mediaKept: !!results.mediaUrl, wasPublished: false }).catch(() => {});
       setShowScheduleModal(false);
       setScheduleConflicts([]);
       showToast('success', 'Post scheduled!');
@@ -854,6 +1011,8 @@ export default function Wizard() {
         },
       }));
       setIsEditing(false);
+      // Signal to PostCore Brain: customer edited this caption (quality signal)
+      wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, wasEdited: true }).catch(() => {});
       showToast('success', 'Caption saved!');
     } catch (err) {
       showToast('error', err.message || 'Failed to save');
@@ -1112,6 +1271,14 @@ export default function Wizard() {
             photo:    'Portrait formats stop the scroll better than landscape',
             static:   'Different platforms reward different sizes',
           }[contentType] || 'Pick the platform size that fits your post';
+
+          const TEXT_POST_TAGLINES = {
+            instagram:       'Caption style',
+            facebook:        'Caption style',
+            linkedin:        'Caption style',
+            google_business: 'Caption style',
+            tiktok:          'Tweet style',
+          };
           const fmtIconMap = { facebook: IpFacebook, instagram: IpInstagram, linkedin: IpLinkedIn, tiktok: IpTikTok, google_business: IpGoogle };
           const tabIconMap = { Facebook: IpFacebook, Instagram: IpInstagram, LinkedIn: IpLinkedIn, TikTok: IpTikTok, Google: IpGoogle };
 
@@ -1150,11 +1317,16 @@ export default function Wizard() {
                     <IpCheck size={10} color="#fff" strokeWidth={3} />
                   </div>
                 )}
-                <FormatMockup width={fmt.width} height={fmt.height} platformColor={pColor} PlatformIcon={PIcon} size={size} contentType={ct} />
+                {/* Fixed-height mockup container keeps all cards in a row vertically aligned */}
+                <div style={{ height: size === 'lg' ? 130 : 102, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <FormatMockup width={fmt.width} height={fmt.height} platformColor={pColor} PlatformIcon={PIcon} size={size} contentType={ct} formatId={fmt.id} />
+                </div>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: size === 'lg' ? 13 : 11, fontWeight: 700, color: isSelected ? pColor : t.text, lineHeight: 1.3, marginBottom: 3 }}>{fmt.label}</div>
-                  <div style={{ fontSize: 10, color: t.textMuted, fontWeight: 500 }}>{fmt.sublabel}</div>
-                  {(isHovered || isSelected) && (
+                  <div style={{ fontSize: 10, color: t.textMuted, fontWeight: 500 }}>
+                    {ct === 'static' ? (TEXT_POST_TAGLINES[fmt.platform] || fmt.sublabel) : fmt.sublabel}
+                  </div>
+                  {(isHovered || isSelected) && ct !== 'static' && (
                     <div style={{ fontSize: 10, color: `${pColor}cc`, marginTop: 3, fontWeight: 600 }}>{fmt.width}×{fmt.height}</div>
                   )}
                 </div>
@@ -1274,7 +1446,7 @@ export default function Wizard() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 32 }}>
               {CONTENT_THEMES.map((item) => {
                 const selected = theme === item.id;
-                const desc = item.id === 'seasonal' ? getSeasonalDesc() : item.desc;
+                const desc = item.id === 'seasonal' ? seasonalDesc : item.desc;
                 return (
                   <ThemeCard key={item.id} selected={selected} onClick={() => setTheme(item.id)} t={t}>
                     <div style={{ marginBottom: 10 }}><Icon name={item.icon} size={32} color={selected ? 'url(#brand-gradient)' : undefined} /></div>
@@ -1501,7 +1673,7 @@ export default function Wizard() {
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: t.text, marginBottom: 10, letterSpacing: '-0.02em' }}>Crafting your posts...</div>
               <div style={{ fontSize: 14, color: t.primary, minHeight: 24, fontWeight: 500, transition: 'opacity 400ms ease', animation: 'wiz-fade-in 400ms ease' }}>
-                {((LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry))[loadingMsgIdx] || ''}
+                {((LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry, city, videoType))[loadingMsgIdx] || ''}
               </div>
             </div>
 
@@ -1517,7 +1689,7 @@ export default function Wizard() {
               <div style={{
                 height: '100%', borderRadius: 3,
                 background: 'linear-gradient(90deg, #7C5CFC, #9B7BFF)',
-                width: `${Math.min(((loadingMsgIdx + 1) / ((LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry).length)) * 100, 95)}%`,
+                width: `${Math.min(((loadingMsgIdx + 1) / ((LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry, city, videoType).length)) * 100, 95)}%`,
                 transition: 'width 600ms cubic-bezier(0.16,1,0.3,1)',
                 boxShadow: '0 0 8px rgba(124,92,252,0.5)',
               }} />
@@ -1737,15 +1909,29 @@ export default function Wizard() {
                 {/* Regenerate image button */}
                 {results.postId && results.contentTypeSelection !== 'video' && results.contentTypeSelection !== 'static' && (
                   <button
-                    onClick={() => {
-                      sessionStorage.setItem('regenPost', JSON.stringify({ postId: results.postId, imagePrompt: results.imagePrompt }));
-                      showToast('success', 'Use "Regenerate Image" after the page refreshes');
+                    onClick={async () => {
+                      if (actionLoading) return;
+                      setActionLoading(true);
+                      try {
+                        const res = await api.post('/api/wizard/regenerate-image', {
+                          postId: results.postId,
+                          imagePrompt: results.imagePrompt || '',
+                        });
+                        setResults(r => ({ ...r, mediaUrl: res.data.mediaUrl }));
+                        showToast('success', 'New image generated!');
+                        window.dispatchEvent(new Event('creditRefresh'));
+                      } catch (e) {
+                        showToast('error', e.response?.data?.error || 'Image regeneration failed');
+                      } finally {
+                        setActionLoading(false);
+                      }
                     }}
-                    style={{ width: '100%', padding: '9px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                    onMouseEnter={(e) => e.currentTarget.style.borderColor = t.primaryBorder}
+                    disabled={actionLoading}
+                    style={{ width: '100%', padding: '9px 14px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: actionLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: actionLoading ? 0.6 : 1 }}
+                    onMouseEnter={(e) => { if (!actionLoading) e.currentTarget.style.borderColor = t.primaryBorder; }}
                     onMouseLeave={(e) => e.currentTarget.style.borderColor = t.border}
                   >
-                    <IpRefresh size={13} /> Regenerate Image
+                    <IpRefresh size={13} /> {actionLoading ? 'Generating...' : 'Regenerate Image'}
                   </button>
                 )}
               </div>}
@@ -1762,7 +1948,7 @@ export default function Wizard() {
                     return (
                       <div
                         key={label}
-                        onClick={() => { if (!isEditing) { setSelectedVariation(label); setIsEditing(false); setShowApplySetDropdown(false); setShowAddToSetDropdown(false); } }}
+                        onClick={() => { if (!isEditing) { setSelectedVariation(label); setIsEditing(false); setShowApplySetDropdown(false); setShowAddToSetDropdown(false); if (results?.postId) wizardAPI.feedback({ postId: results.postId, variationSelected: label }).catch(() => {}); } }}
                         style={{
                           background: isSelected
                             ? t.isDark ? 'rgba(15,15,24,0.82)' : t.card
@@ -2479,13 +2665,13 @@ function VariationCard({ label, variation, t, copiedId, onCopy, onUse, selected,
 
 function getDetailsPlaceholder(theme) {
   const map = {
+    custom:            "Tell PostCore your idea — e.g. 'I want to post about why we switched to eco-friendly products' or 'Remind people we cover the Westside area' — anything goes.",
     just_finished_job: 'e.g. Just finished a full bathroom renovation in Springfield. Replaced tiles, new vanity, added rainfall shower. Customer was thrilled...',
     share_tip:         'e.g. Tip about what NOT to flush down the drain — we see this cause blockages every week...',
     got_review:        'e.g. Customer Maria left us a 5-star review saying we saved her from a burst pipe at 11pm on a Friday...',
     running_promo:     'e.g. 20% off all AC tune-ups booked before June 15. Normally $129, now $99...',
     seasonal:          "e.g. With summer coming, we're seeing a lot of AC systems failing that haven't been serviced. Here's what to check...",
     community:         "e.g. We're sponsoring the Riverside Little League team again this year — so proud to support local kids...",
-    faq:               'e.g. FAQ: "Can I use chemical drain cleaners?" — our honest answer as plumbers is almost always NO, here\'s why...',
     team_spotlight:    "e.g. Meet Mike, our lead HVAC tech who has been with us for 11 years. He's seen it all and is certified on all major brands...",
   };
   return map[theme] || 'Describe what happened, any specific details, customer name, neighborhood, or anything PostCore should know...';

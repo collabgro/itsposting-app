@@ -1117,7 +1117,7 @@ module.exports = (pool) => {
   // GET /api/admin/llm/overview
   router.get('/llm/overview', authenticate, adminOnly, async (req, res) => {
     try {
-      const [countRes, modelRes, expRes, recentRes] = await Promise.all([
+      const [countRes, modelRes, expRes, recentRes, imgRes, vidRes] = await Promise.all([
         pool.query(`SELECT COUNT(*) AS total,
           COUNT(CASE WHEN variation_selected IS NOT NULL THEN 1 END) AS with_selection,
           COUNT(CASE WHEN post_reach IS NOT NULL THEN 1 END) AS with_reach,
@@ -1129,12 +1129,34 @@ module.exports = (pool) => {
           FROM post_training_data
           WHERE input_payload->>'industry' IS NOT NULL
           GROUP BY input_payload->>'industry' ORDER BY count DESC`).catch(() => ({ rows: [] })),
+        pool.query(`SELECT COUNT(*) AS total,
+          COUNT(CASE WHEN was_kept = true THEN 1 END) AS kept,
+          COUNT(CASE WHEN was_kept = false THEN 1 END) AS regenerated,
+          COUNT(CASE WHEN was_kept IS NOT NULL THEN 1 END) AS with_feedback,
+          ROUND(AVG(generation_time_ms) / 1000.0, 1) AS avg_gen_secs,
+          json_agg(DISTINCT provider) FILTER (WHERE provider IS NOT NULL) AS providers
+          FROM image_training_data`).catch(() => ({ rows: [{ total: 0, kept: 0, regenerated: 0, with_feedback: 0, avg_gen_secs: null, providers: null }] })),
+        pool.query(`SELECT COUNT(*) AS total,
+          COUNT(CASE WHEN was_kept = true THEN 1 END) AS kept,
+          COUNT(CASE WHEN was_kept = false THEN 1 END) AS discarded,
+          COUNT(CASE WHEN was_kept IS NOT NULL THEN 1 END) AS with_feedback,
+          ROUND(AVG(generation_time_ms) / 1000.0, 0) AS avg_gen_secs,
+          json_agg(DISTINCT provider) FILTER (WHERE provider IS NOT NULL) AS providers
+          FROM video_training_data`).catch(() => ({ rows: [{ total: 0, kept: 0, discarded: 0, with_feedback: 0, avg_gen_secs: null, providers: null }] })),
       ]);
       const stats = countRes.rows[0];
-      const total = parseInt(stats.total) || 0;
+      const imgStats = imgRes.rows[0];
+      const vidStats = vidRes.rows[0];
+      const captionTotal = parseInt(stats.total) || 0;
+      const imageTotal = parseInt(imgStats.total) || 0;
+      const videoTotal = parseInt(vidStats.total) || 0;
+      const total = captionTotal + imageTotal + videoTotal;
       const threshold = 10000;
       res.json({
         trainingExamples: total,
+        captionExamples: captionTotal,
+        imageExamples: imageTotal,
+        videoExamples: videoTotal,
         withSelection: parseInt(stats.with_selection) || 0,
         withReach: parseInt(stats.with_reach) || 0,
         avgQuality: stats.avg_quality ? parseFloat(stats.avg_quality) : null,
@@ -1145,6 +1167,24 @@ module.exports = (pool) => {
         experiments: expRes.rows,
         activeModel: modelRes.rows.find(m => m.status === 'production') || null,
         claudeTrafficPct: 100 - (modelRes.rows.filter(m => m.status === 'production').reduce((s, m) => s + m.traffic_pct, 0)),
+        imageStats: {
+          total: imageTotal,
+          kept: parseInt(imgStats.kept) || 0,
+          regenerated: parseInt(imgStats.regenerated) || 0,
+          withFeedback: parseInt(imgStats.with_feedback) || 0,
+          keepRate: imgStats.with_feedback > 0 ? Math.round((imgStats.kept / imgStats.with_feedback) * 100) : null,
+          avgGenSecs: imgStats.avg_gen_secs ? parseFloat(imgStats.avg_gen_secs) : null,
+          providers: imgStats.providers || [],
+        },
+        videoStats: {
+          total: videoTotal,
+          kept: parseInt(vidStats.kept) || 0,
+          discarded: parseInt(vidStats.discarded) || 0,
+          withFeedback: parseInt(vidStats.with_feedback) || 0,
+          keepRate: vidStats.with_feedback > 0 ? Math.round((vidStats.kept / vidStats.with_feedback) * 100) : null,
+          avgGenSecs: vidStats.avg_gen_secs ? parseFloat(vidStats.avg_gen_secs) : null,
+          providers: vidStats.providers || [],
+        },
       });
     } catch (err) {
       console.error('[Admin LLM] overview error:', err.message);
@@ -1271,6 +1311,781 @@ module.exports = (pool) => {
     } catch (err) {
       console.error('[Admin LLM] add curated error:', err.message);
       res.status(500).json({ error: 'Failed to add curated example' });
+    }
+  });
+
+  // ── PostCore Brain — Extended Admin Training Controls ────────────────────
+
+  // GET /api/admin/llm/export — download all training data as JSONL for fine-tuning
+  router.get('/llm/export', authenticate, adminOnly, async (req, res) => {
+    try {
+      const minQuality   = parseFloat(req.query.minQuality || '0');
+      const onlySelected = req.query.onlySelected === 'true';
+      const industry     = req.query.industry || null;
+      const limitParam   = Math.min(parseInt(req.query.limit || '999999'), 999999);
+
+      const conditions = ['output_payload IS NOT NULL'];
+      const params = [];
+      if (minQuality > 0) { params.push(minQuality); conditions.push(`(quality_score IS NULL OR quality_score >= $${params.length})`); }
+      if (onlySelected)   { conditions.push('variation_selected IS NOT NULL'); }
+      if (industry)       { params.push(industry); conditions.push(`input_payload->>'industry' = $${params.length}`); }
+      params.push(limitParam);
+
+      const rows = await pool.query(
+        `SELECT id, input_payload, output_payload, variation_selected,
+                was_edited, was_published, quality_score, post_reach, post_engagement
+         FROM post_training_data
+         WHERE ${conditions.join(' AND ')}
+         ORDER BY CASE WHEN quality_score IS NOT NULL THEN 0 ELSE 1 END,
+                  quality_score DESC NULLS LAST, created_at DESC
+         LIMIT $${params.length}`,
+        params
+      );
+
+      const SYSTEM = `You are PostCore, ItsPosting's AI content advisor for local service businesses. Generate exactly 3 social media caption variations (A, B, C). Each must start with a hook, reference the business location naturally, end with an engagement question, and match the requested tone. Respond with valid JSON only.`;
+
+      // Build weighted JSONL (high-signal examples duplicated up to 5×)
+      const lines = [];
+      for (const row of rows.rows) {
+        const inp = row.input_payload || {};
+        const out = row.output_payload || {};
+        const userMsg = [
+          `Industry: ${inp.industry || 'general_contractor'}`,
+          `Business: ${inp.businessName || 'Local Business'}, ${inp.location || 'Local Area'}`,
+          `Month: ${inp.month || new Date().getMonth() + 1}`,
+          `Content type: ${inp.contentType || 'photo'}`,
+          `Trigger: ${inp.wizardTrigger || 'finished_job'}`,
+          `Tone: ${inp.tone || 'professional'}`,
+          `Platform: ${inp.platform || 'facebook'}`,
+          inp.details ? `Details: ${inp.details}` : null,
+        ].filter(Boolean).join('\n');
+
+        // Weight: curator gold = 5×, selected+unpublished-edit = 3×, selected = 2×, rest = 1×
+        let weight = 1;
+        if (row.quality_score >= 4.5) weight = 5;
+        else if (row.quality_score >= 3.5) weight = 2;
+        if (row.variation_selected && row.was_edited === false) weight = Math.max(weight, 3);
+        else if (row.variation_selected) weight = Math.max(weight, 2);
+        if (row.was_published) weight = Math.min(weight * 1.5, 5);
+        weight = Math.min(5, Math.round(weight));
+
+        const entry = JSON.stringify({
+          conversations: [
+            { from: 'system', value: SYSTEM },
+            { from: 'human',  value: userMsg },
+            { from: 'gpt',    value: JSON.stringify({ variation_a: out.variation_a || {}, variation_b: out.variation_b || {}, variation_c: out.variation_c || {} }) },
+          ],
+        });
+        for (let i = 0; i < weight; i++) lines.push(entry);
+      }
+
+      // Shuffle
+      for (let i = lines.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [lines[i], lines[j]] = [lines[j], lines[i]];
+      }
+
+      const filename = `postcore-training-${new Date().toISOString().split('T')[0]}.jsonl`;
+      res.setHeader('Content-Type', 'application/jsonl');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(lines.join('\n'));
+    } catch (err) {
+      console.error('[Admin LLM] export error:', err.message);
+      res.status(500).json({ error: 'Export failed' });
+    }
+  });
+
+  // POST /api/admin/llm/models — register a newly trained model version
+  router.post('/llm/models', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { versionName, baseModel, modality, weightsUrl, trainingExamples,
+              evalBleu, evalHumanScore, notes, inferenceEndpoint } = req.body;
+      if (!versionName || !baseModel) return res.status(400).json({ error: 'versionName and baseModel required' });
+
+      const { rows: [model] } = await pool.query(
+        `INSERT INTO llm_model_versions
+           (version_name, base_model, modality, weights_url, training_examples,
+            eval_score, eval_human_score, status, traffic_pct, notes, trained_at, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'staging',0,$8,NOW(),NOW()) RETURNING *`,
+        [versionName, baseModel, modality || 'text', weightsUrl || inferenceEndpoint || null,
+         trainingExamples || null, evalBleu || null, evalHumanScore || null, notes || null]
+      );
+      await audit.log(req.admin.id, req.admin.email, 'llm_model_register', 'llm_model_versions', model.id, { versionName, baseModel }, req);
+      res.json({ model });
+    } catch (err) {
+      console.error('[Admin LLM] register model error:', err.message);
+      res.status(500).json({ error: 'Failed to register model' });
+    }
+  });
+
+  // PATCH /api/admin/llm/models/:id — deploy, rollback, retire, set traffic %
+  router.patch('/llm/models/:id', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { action, trafficPct, notes, inferenceEndpoint } = req.body;
+      const id = parseInt(req.params.id);
+
+      let statusVal, trafficVal, promotedAt;
+      if (action === 'deploy') {
+        statusVal  = 'production';
+        trafficVal = Math.min(100, Math.max(1, parseInt(trafficPct) || 5));
+        promotedAt = 'NOW()';
+      } else if (action === 'staging') {
+        statusVal  = 'staging';
+        trafficVal = 0;
+      } else if (action === 'rollback' || action === 'retire') {
+        statusVal  = 'retired';
+        trafficVal = 0;
+      } else if (action === 'set_traffic') {
+        trafficVal = Math.min(100, Math.max(0, parseInt(trafficPct) || 0));
+      }
+
+      const { rows: [model] } = await pool.query(
+        `UPDATE llm_model_versions SET
+           status      = COALESCE($1, status),
+           traffic_pct = COALESCE($2, traffic_pct),
+           notes       = COALESCE($3, notes),
+           weights_url = COALESCE($4, weights_url),
+           promoted_at = CASE WHEN $5 THEN NOW() ELSE promoted_at END
+         WHERE id = $6 RETURNING *`,
+        [statusVal || null, trafficVal ?? null, notes || null,
+         inferenceEndpoint || null, action === 'deploy', id]
+      );
+      if (!model) return res.status(404).json({ error: 'Model not found' });
+      await audit.log(req.admin.id, req.admin.email, `llm_model_${action || 'update'}`, 'llm_model_versions', id, { action, trafficPct }, req);
+      res.json({ model });
+    } catch (err) {
+      console.error('[Admin LLM] update model error:', err.message);
+      res.status(500).json({ error: 'Failed to update model' });
+    }
+  });
+
+  // PATCH /api/admin/llm/training-data/:id/quality — admin rates an individual example
+  router.patch('/llm/training-data/:id/quality', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { qualityScore } = req.body;
+      const score = parseFloat(qualityScore);
+      if (isNaN(score) || score < 1 || score > 5) return res.status(400).json({ error: 'qualityScore must be 1–5' });
+      const { rows: [ex] } = await pool.query(
+        `UPDATE post_training_data SET quality_score = $1 WHERE id = $2 RETURNING id, quality_score`,
+        [score, req.params.id]
+      );
+      if (!ex) return res.status(404).json({ error: 'Example not found' });
+      res.json({ id: ex.id, qualityScore: ex.quality_score });
+    } catch (err) {
+      console.error('[Admin LLM] rate example error:', err.message);
+      res.status(500).json({ error: 'Failed to rate example' });
+    }
+  });
+
+  // DELETE /api/admin/llm/training-data/:id — remove a low-quality example
+  router.delete('/llm/training-data/:id', authenticate, adminOnly, async (req, res) => {
+    try {
+      await pool.query(`DELETE FROM post_training_data WHERE id = $1`, [req.params.id]);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[Admin LLM] delete example error:', err.message);
+      res.status(500).json({ error: 'Failed to delete example' });
+    }
+  });
+
+  // DELETE /api/admin/llm/curated/:id — remove a curated example
+  router.delete('/llm/curated/:id', authenticate, adminOnly, async (req, res) => {
+    try {
+      await pool.query(`DELETE FROM llm_curated_examples WHERE id = $1`, [req.params.id]);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[Admin LLM] delete curated error:', err.message);
+      res.status(500).json({ error: 'Failed to delete curated example' });
+    }
+  });
+
+  // GET /api/admin/llm/quality-stats — real quality metrics computed from training data
+  router.get('/llm/quality-stats', authenticate, adminOnly, async (req, res) => {
+    try {
+      const days = Math.min(parseInt(req.query.days || '30'), 90);
+      const [generalRes, selectionRes, sourceRes, reachRes] = await Promise.all([
+        pool.query(`
+          SELECT
+            COUNT(*) AS total,
+            COUNT(CASE WHEN variation_selected IS NOT NULL THEN 1 END) AS with_selection,
+            COUNT(CASE WHEN was_edited = true THEN 1 END) AS edited_count,
+            COUNT(CASE WHEN was_published = true THEN 1 END) AS published_count,
+            ROUND(
+              COUNT(CASE WHEN was_edited = true THEN 1 END)::numeric /
+              NULLIF(COUNT(CASE WHEN variation_selected IS NOT NULL THEN 1 END), 0) * 100, 1
+            ) AS edit_rate_pct,
+            ROUND(
+              COUNT(CASE WHEN input_payload->>'source' = 'refresh' THEN 1 END)::numeric /
+              NULLIF(COUNT(*), 0) * 100, 1
+            ) AS regen_rate_pct
+          FROM post_training_data
+          WHERE created_at > NOW() - ($1 || ' days')::INTERVAL
+        `, [days]).catch(() => ({ rows: [{}] })),
+
+        pool.query(`
+          SELECT variation_selected, COUNT(*) AS count
+          FROM post_training_data
+          WHERE variation_selected IS NOT NULL
+            AND created_at > NOW() - ($1 || ' days')::INTERVAL
+          GROUP BY variation_selected
+          ORDER BY variation_selected
+        `, [days]).catch(() => ({ rows: [] })),
+
+        pool.query(`
+          SELECT
+            COALESCE(input_payload->>'source', 'wizard') AS source,
+            COUNT(*) AS count
+          FROM post_training_data
+          WHERE created_at > NOW() - ($1 || ' days')::INTERVAL
+          GROUP BY source ORDER BY count DESC
+        `, [days]).catch(() => ({ rows: [] })),
+
+        pool.query(`
+          SELECT
+            ROUND(AVG(post_reach), 0) AS avg_reach,
+            ROUND(AVG(post_engagement), 0) AS avg_engagement,
+            COUNT(CASE WHEN post_reach IS NOT NULL THEN 1 END) AS with_reach
+          FROM post_training_data
+          WHERE created_at > NOW() - ($1 || ' days')::INTERVAL
+        `, [days]).catch(() => ({ rows: [{}] })),
+      ]);
+
+      const g = generalRes.rows[0] || {};
+      res.json({
+        days,
+        total:           parseInt(g.total) || 0,
+        withSelection:   parseInt(g.with_selection) || 0,
+        editedCount:     parseInt(g.edited_count) || 0,
+        publishedCount:  parseInt(g.published_count) || 0,
+        editRatePct:     parseFloat(g.edit_rate_pct) || 0,
+        regenRatePct:    parseFloat(g.regen_rate_pct) || 0,
+        selectionBreakdown: selectionRes.rows,
+        bySource:        sourceRes.rows,
+        avgReach:        parseInt(reachRes.rows[0]?.avg_reach) || 0,
+        avgEngagement:   parseInt(reachRes.rows[0]?.avg_engagement) || 0,
+        withReach:       parseInt(reachRes.rows[0]?.with_reach) || 0,
+      });
+    } catch (err) {
+      console.error('[Admin LLM] quality-stats error:', err.message);
+      res.status(500).json({ error: 'Failed to load quality stats' });
+    }
+  });
+
+  // ── PostCore Brain — Image Dataset Import & Export ───────────────────────
+
+  // POST /api/admin/llm/import-images
+  // Accepts a batch of image URLs, auto-labels each with Claude Vision,
+  // and stores results in image_training_data. Processes 3 images at a time.
+  //
+  // Body:
+  //   urls          string[]   — publicly accessible image URLs (Cloudinary, etc.)
+  //   industry      string     — force this industry, or omit for auto-detect
+  //   contentType   string     — force this content type, or omit for auto-detect
+  //   customCaption string     — if provided, skip Vision and use this caption for all
+  router.post('/llm/import-images', authenticate, adminOnly, async (req, res) => {
+    try {
+      const Anthropic = require('@anthropic-ai/sdk');
+      const { urls, industry, contentType, customCaption } = req.body;
+
+      if (!Array.isArray(urls) || urls.length === 0) {
+        return res.status(400).json({ error: 'urls array required' });
+      }
+      if (urls.length > 500) {
+        return res.status(400).json({ error: 'Max 500 URLs per batch. Split into multiple requests.' });
+      }
+
+      // Basic URL validation — must be http/https, no internal IPs
+      const INTERNAL_IP = /^https?:\/\/(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i;
+      const validUrls = urls
+        .map(u => String(u).trim())
+        .filter(u => /^https?:\/\//i.test(u) && !INTERNAL_IP.test(u));
+
+      if (validUrls.length === 0) {
+        return res.status(400).json({ error: 'No valid public HTTP/HTTPS URLs provided' });
+      }
+
+      const anthropic = process.env.ANTHROPIC_API_KEY
+        ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+        : null;
+
+      const INDUSTRIES_18 = [
+        'plumbing','hvac','roofing','electrical','landscaping','concrete',
+        'painting','pest_control','general_contractor','cleaning',
+        'tree_service','pressure_washing','pool_spa','handyman',
+        'flooring','junk_removal','solar','gutter_cleaning',
+      ];
+
+      const LABEL_PROMPT = `You are a professional AI training data annotator specializing in local service business imagery for FLUX.1-schnell LoRA fine-tuning.
+
+Your job: extract MAXIMUM detail from each image so the model learns to generate images that look EXACTLY like real trade business content — not generic stock photos.
+
+Analyze this image and return ONLY a valid JSON object with ALL of these fields:
+
+{
+  "caption": "A rich 100–200 word FLUX.1-schnell training caption. Structure it as comma-separated descriptive phrases covering ALL of: (1) shot type [wide establishing shot / medium shot / close-up / detail macro / split before-after / overhead aerial], (2) subject detail [worker gender/approximate age, exact clothing — color, brand logos visible, PPE like hard hat/safety vest/gloves/boots, tool or equipment in hand], (3) precise action [crouching under sink tightening compression fitting / applying shingles with pneumatic nailer / routing new romex through wall cavity], (4) setting [residential suburban ranch home exterior / commercial kitchen with stainless steel / unfinished basement with exposed joists / backyard stamped concrete patio], (5) lighting [harsh midday sun casting hard shadows / soft overcast diffused natural light / warm incandescent under-cabinet lighting / cool fluorescent shop lighting / golden hour warm backlight], (6) composition [rule-of-thirds framing / centered symmetrical / diagonal leading lines / shallow depth-of-field bokeh background], (7) mood/authenticity [authentic candid worksite documentation / staged professional portfolio shot / satisfied customer testimonial moment], (8) color palette [dominant colors], (9) trade-specific visible details [name specific materials, tools, brands if readable — copper sweat fitting / PEX manifold / Bryant condenser unit / Owens Corning Duration shingles / Behr paint / Milwaukee M18 drill]. Write present tense. Never start with 'A photo of'.",
+  "industry": "ONE of exactly: plumbing, hvac, roofing, electrical, landscaping, concrete, painting, pest_control, general_contractor, cleaning, tree_service, pressure_washing, pool_spa, handyman, flooring, junk_removal, solar, gutter_cleaning",
+  "contentType": "ONE of exactly: before_after, job_complete, crew_at_work, team_shot, detail_shot, equipment, seasonal, testimonial, promotional",
+  "qualityScore": "Decimal 1.0–5.0 using this rubric: 5.0=sharp professional DSLR/mirrorless, perfect exposure, compelling composition, authentic trade content, no distractions; 4.5=professional quality with one minor flaw (slight overexposure, minor background clutter); 4.0=good quality smartphone shot, well-lit, clear subject; 3.5=acceptable but issues (soft focus, dim lighting, cluttered background, partially relevant); 3.0=marginal — usable but significant problems; 2.0=poor (very blurry, severely over/underexposed, mostly irrelevant content); 1.0=reject (stock photo watermark, heavy text overlay blocking content, wrong industry, NSFW, screenshot of app/website)",
+  "hasPerson": true or false — is at least one human worker or customer visible in the frame?,
+  "hasTextOverlay": true or false — are there text overlays, watermarks, logos, captions, or phone numbers overlaid on the image? (these contaminate training),
+  "isBranded": true or false — are branded company colors, uniforms, vehicle wraps, or logos clearly visible?,
+  "compositionType": "ONE of: wide_shot, medium_shot, close_up, macro_detail, before_after_split, aerial_overhead, portrait",
+  "lightingType": "ONE of: natural_daylight, golden_hour, overcast_diffused, indoor_incandescent, indoor_fluorescent, mixed_natural_artificial, flash_artificial",
+  "tags": ["array", "of", "5-12", "specific", "keywords", "visible", "in", "image", "eg", "copper-pipe", "PEX-manifold", "safety-harness", "knee-pads", "concrete-trowel"]
+}
+
+CRITICAL RULES:
+- The caption is the most important field. A vague caption produces generic images. A specific caption produces authentic trade images.
+- Never say "A photo of" — start directly with the shot type or subject.
+- If text overlays or watermarks are present (hasTextOverlay: true), set qualityScore to maximum 2.5 — overlays corrupt training.
+- If the image is clearly stock photography (overly perfect, diverse multicultural crew, unrealistically clean), set qualityScore to maximum 2.0.
+- Authentic, slightly imperfect real worksite photos often score HIGHER than polished stock.
+
+No markdown. No explanation. JSON only.`;
+
+      const results   = [];
+      const errors    = [];
+      const CONCURRENCY = 3;
+
+      // Process in batches of CONCURRENCY
+      for (let i = 0; i < validUrls.length; i += CONCURRENCY) {
+        const batch = validUrls.slice(i, i + CONCURRENCY);
+
+        await Promise.all(batch.map(async (url) => {
+          try {
+            let caption       = customCaption || null;
+            let detectedInd   = industry || null;
+            let detectedType  = contentType || null;
+            let qualityScore  = null;
+            const visionMeta  = {};
+
+            // If no custom caption, use Claude Vision to label
+            if (!caption && anthropic) {
+              const response = await anthropic.messages.create({
+                model: 'claude-sonnet-4-6',
+                max_tokens: 900,
+                messages: [{
+                  role: 'user',
+                  content: [
+                    { type: 'image', source: { type: 'url', url } },
+                    { type: 'text', text: LABEL_PROMPT },
+                  ],
+                }],
+              });
+
+              const raw     = response.content[0]?.text || '';
+              const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+              const parsed  = JSON.parse(cleaned);
+
+              caption       = parsed.caption || '';
+              detectedInd   = industry || (INDUSTRIES_18.includes(parsed.industry) ? parsed.industry : 'general_contractor');
+              detectedType  = contentType || parsed.contentType || 'job_complete';
+              qualityScore  = parseFloat(parsed.qualityScore) || null;
+
+              // Store rich metadata from Vision
+              Object.assign(visionMeta, {
+                hasPerson:       parsed.hasPerson       ?? null,
+                hasTextOverlay:  parsed.hasTextOverlay  ?? null,
+                isBranded:       parsed.isBranded       ?? null,
+                compositionType: parsed.compositionType || null,
+                lightingType:    parsed.lightingType    || null,
+                tags:            Array.isArray(parsed.tags) ? parsed.tags.slice(0, 15) : [],
+              });
+            }
+
+            // Skip if no caption (Vision failed and no custom caption)
+            if (!caption) { errors.push({ url, error: 'No caption generated' }); return; }
+
+            // Auto-reject images with text overlays (they corrupt LoRA training)
+            if (visionMeta.hasTextOverlay === true && !customCaption) {
+              console.log(`[LLM Import] Skipping ${url.substring(0, 50)} — text overlay detected`);
+              errors.push({ url, error: 'Skipped: text overlay/watermark detected — would corrupt training' });
+              return;
+            }
+
+            await pool.query(
+              `INSERT INTO image_training_data
+                 (post_id, customer_id, input_prompt, output_url, provider, industry, content_type,
+                  quality_score, model_used, has_person, has_text_overlay, is_branded,
+                  composition_type, lighting_type, tags, metadata, created_at)
+               VALUES (NULL, NULL, $1, $2, 'import', $3, $4, $5, 'claude-vision-import',
+                       $6, $7, $8, $9, $10, $11, $12, NOW())
+               ON CONFLICT DO NOTHING`,
+              [
+                caption, url, detectedInd, detectedType, qualityScore,
+                visionMeta.hasPerson      ?? null,
+                visionMeta.hasTextOverlay ?? null,
+                visionMeta.isBranded      ?? null,
+                visionMeta.compositionType || null,
+                visionMeta.lightingType   || null,
+                visionMeta.tags?.length   ? visionMeta.tags : null,
+                Object.keys(visionMeta).length ? JSON.stringify(visionMeta) : null,
+              ]
+            );
+
+            results.push({ url, caption: caption.substring(0, 100) + '…', industry: detectedInd, contentType: detectedType, qualityScore, hasPerson: visionMeta.hasPerson });
+          } catch (imgErr) {
+            errors.push({ url, error: imgErr.message });
+          }
+        }));
+
+        // Small pause between batches to respect rate limits
+        if (i + CONCURRENCY < validUrls.length) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+
+      await audit.log(req.admin.id, req.admin.email, 'llm_image_import', 'image_training_data', null,
+        { imported: results.length, errors: errors.length, industry: industry || 'auto' }, req);
+
+      res.json({
+        imported: results.length,
+        errors:   errors.length,
+        results,
+        errorDetails: errors.slice(0, 20), // cap error details
+      });
+    } catch (err) {
+      console.error('[Admin LLM] import-images error:', err.message);
+      res.status(500).json({ error: 'Image import failed: ' + err.message });
+    }
+  });
+
+  // GET /api/admin/llm/image-dataset — paginated, filterable view of all labeled images
+  router.get('/llm/image-dataset', authenticate, adminOnly, async (req, res) => {
+    try {
+      const page        = Math.max(1, parseInt(req.query.page  || '1'));
+      const limit       = Math.min(50, parseInt(req.query.limit || '24'));
+      const offset      = (page - 1) * limit;
+      const industry    = req.query.industry    || null;
+      const contentType = req.query.contentType || null;
+      const minQuality  = parseFloat(req.query.minQuality || '0');
+      const search      = req.query.search ? `%${req.query.search}%` : null;
+
+      const conditions = ["output_url IS NOT NULL AND output_url != ''"];
+      const params     = [];
+
+      if (industry)    { params.push(industry);    conditions.push(`industry = $${params.length}`); }
+      if (contentType) { params.push(contentType); conditions.push(`content_type = $${params.length}`); }
+      if (minQuality > 0) { params.push(minQuality); conditions.push(`(quality_score IS NULL OR quality_score >= $${params.length})`); }
+      if (search)      { params.push(search);      conditions.push(`input_prompt ILIKE $${params.length}`); }
+
+      const whereClause = conditions.join(' AND ');
+
+      const [dataRes, countRes, statsRes] = await Promise.all([
+        pool.query(
+          `SELECT id, output_url AS url, input_prompt AS caption, industry, content_type,
+                  quality_score, provider, model_used, was_kept, post_reach,
+                  has_person, has_text_overlay, is_branded, composition_type, lighting_type, tags,
+                  created_at
+           FROM image_training_data
+           WHERE ${whereClause}
+           ORDER BY quality_score DESC NULLS LAST, created_at DESC
+           LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+          [...params, limit, offset]
+        ),
+        pool.query(
+          `SELECT COUNT(*) FROM image_training_data WHERE ${whereClause}`,
+          params
+        ),
+        pool.query(
+          `SELECT industry, content_type, COUNT(*) AS count
+           FROM image_training_data
+           WHERE output_url IS NOT NULL
+           GROUP BY industry, content_type
+           ORDER BY count DESC`
+        ).catch(() => ({ rows: [] })),
+      ]);
+
+      res.json({
+        images:  dataRes.rows,
+        total:   parseInt(countRes.rows[0].count),
+        page, limit,
+        stats:   statsRes.rows,
+      });
+    } catch (err) {
+      console.error('[Admin LLM] image-dataset list error:', err.message);
+      res.status(500).json({ error: 'Failed to load image dataset' });
+    }
+  });
+
+  // PATCH /api/admin/llm/image-dataset/:id — edit labels on a single image
+  router.patch('/llm/image-dataset/:id', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { industry, contentType, caption, qualityScore } = req.body;
+      const id = parseInt(req.params.id);
+
+      const { rows: [img] } = await pool.query(
+        `UPDATE image_training_data SET
+           industry     = COALESCE($1, industry),
+           content_type = COALESCE($2, content_type),
+           input_prompt = COALESCE($3, input_prompt),
+           quality_score = COALESCE($4, quality_score)
+         WHERE id = $5
+         RETURNING id, output_url AS url, input_prompt AS caption,
+                   industry, content_type, quality_score`,
+        [industry || null, contentType || null,
+         caption   || null, qualityScore != null ? parseFloat(qualityScore) : null, id]
+      );
+      if (!img) return res.status(404).json({ error: 'Image not found' });
+      res.json({ image: img });
+    } catch (err) {
+      console.error('[Admin LLM] image-dataset patch error:', err.message);
+      res.status(500).json({ error: 'Failed to update image' });
+    }
+  });
+
+  // POST /api/admin/llm/image-dataset/bulk-label — update labels on multiple images at once
+  router.post('/llm/image-dataset/bulk-label', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { ids, industry, contentType, qualityScore } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'ids array required' });
+      }
+      if (ids.length > 200) {
+        return res.status(400).json({ error: 'Max 200 images per bulk update' });
+      }
+      if (!industry && !contentType && qualityScore == null) {
+        return res.status(400).json({ error: 'At least one of industry, contentType, qualityScore required' });
+      }
+
+      const safeIds = ids.map(id => parseInt(id)).filter(id => !isNaN(id));
+      const setParts = [];
+      const params   = [];
+
+      if (industry)          { params.push(industry);                  setParts.push(`industry = $${params.length}`);      }
+      if (contentType)       { params.push(contentType);               setParts.push(`content_type = $${params.length}`);  }
+      if (qualityScore != null) { params.push(parseFloat(qualityScore)); setParts.push(`quality_score = $${params.length}`); }
+
+      params.push(safeIds);
+      const result = await pool.query(
+        `UPDATE image_training_data SET ${setParts.join(', ')}
+         WHERE id = ANY($${params.length}) RETURNING id`,
+        params
+      );
+
+      await audit.log(req.admin.id, req.admin.email, 'llm_image_bulk_label', 'image_training_data', null,
+        { count: result.rows.length, industry, contentType, qualityScore }, req);
+
+      res.json({ updated: result.rows.length });
+    } catch (err) {
+      console.error('[Admin LLM] bulk-label error:', err.message);
+      res.status(500).json({ error: 'Bulk label failed' });
+    }
+  });
+
+  // DELETE /api/admin/llm/image-dataset/:id — remove a single bad image from training set
+  router.delete('/llm/image-dataset/:id', authenticate, adminOnly, async (req, res) => {
+    try {
+      await pool.query(`DELETE FROM image_training_data WHERE id = $1`, [req.params.id]);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[Admin LLM] image-dataset delete error:', err.message);
+      res.status(500).json({ error: 'Failed to delete image' });
+    }
+  });
+
+  // POST /api/admin/llm/image-dataset/bulk-delete — delete multiple images at once
+  router.post('/llm/image-dataset/bulk-delete', authenticate, adminOnly, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids required' });
+      const safeIds = ids.map(id => parseInt(id)).filter(id => !isNaN(id));
+      const result  = await pool.query(
+        `DELETE FROM image_training_data WHERE id = ANY($1) RETURNING id`,
+        [safeIds]
+      );
+      res.json({ deleted: result.rows.length });
+    } catch (err) {
+      console.error('[Admin LLM] bulk-delete error:', err.message);
+      res.status(500).json({ error: 'Bulk delete failed' });
+    }
+  });
+
+  // GET /api/admin/llm/export-image-dataset
+  // Exports image_training_data as a JSONL file (URL + caption + metadata)
+  // plus a self-contained Python download script that organises files into
+  // the folder structure expected by FLUX.1-schnell / SDXL LoRA training tools.
+  router.get('/llm/export-image-dataset', authenticate, adminOnly, async (req, res) => {
+    try {
+      const industry   = req.query.industry || null;
+      const minQuality = parseFloat(req.query.minQuality || '0');
+      const format     = req.query.format || 'jsonl'; // 'jsonl' | 'script'
+
+      const conditions = ['output_url IS NOT NULL', "provider != 'video'"];
+      const params = [];
+      if (industry)       { params.push(industry);    conditions.push(`industry = $${params.length}`); }
+      if (minQuality > 0) { params.push(minQuality);  conditions.push(`(quality_score IS NULL OR quality_score >= $${params.length})`); }
+
+      const result = await pool.query(
+        `SELECT output_url AS url, input_prompt AS caption, industry, content_type, quality_score,
+                has_person, is_branded, composition_type, lighting_type, tags
+         FROM image_training_data
+         WHERE ${conditions.join(' AND ')}
+           AND (has_text_overlay IS NULL OR has_text_overlay = false)
+         ORDER BY quality_score DESC NULLS LAST, created_at DESC`,
+        params
+      );
+
+      if (format === 'script') {
+        // Return a ready-to-run Python download script
+        const industryFilter = industry ? `['${industry}']` : 'None  # all industries';
+        const script = `#!/usr/bin/env python3
+"""
+PostCore Brain — Image Dataset Downloader
+Generated: ${new Date().toISOString()}
+Total images: ${result.rows.length}
+
+Usage:
+  pip install requests Pillow
+  python download_dataset.py
+
+Output structure:
+  training_data/
+  ├── plumbing/
+  │   ├── 001.jpg
+  │   ├── 001.txt   ← caption file (FLUX.1 / SDXL LoRA format)
+  │   ├── 002.jpg
+  │   └── ...
+  ├── hvac/
+  └── ...
+
+After downloading, upload the training_data/ folder to:
+  - Kaggle dataset (for free T4 GPU training)
+  - RunPod storage (for A100 training)
+  - Vast.ai volume (for cheap GPU training)
+"""
+
+import os
+import json
+import requests
+from pathlib import Path
+from PIL import Image
+from io import BytesIO
+
+# ── Dataset ──────────────────────────────────────────────────────────────────
+
+DATASET = ${JSON.stringify(result.rows.map(r => ({
+  url:         r.url,
+  caption:     r.caption,
+  industry:    r.industry || 'general_contractor',
+  contentType: r.content_type || 'job_complete',
+  quality:     r.quality_score ? parseFloat(r.quality_score) : null,
+})), null, 2)}
+
+# ── Config ───────────────────────────────────────────────────────────────────
+
+OUTPUT_DIR     = Path("training_data")
+TARGET_SIZE    = (1024, 1024)    # resize all images to 1024×1024 for LoRA training
+MIN_QUALITY    = 3.0             # skip images rated below this (None = include all)
+INDUSTRY_FILTER = ${industryFilter}
+
+# ── Download ──────────────────────────────────────────────────────────────────
+
+def download_and_save(item, idx, industry_dir):
+    url     = item["url"]
+    caption = item["caption"]
+
+    try:
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+
+        img = Image.open(BytesIO(resp.content)).convert("RGB")
+        img = img.resize(TARGET_SIZE, Image.LANCZOS)
+
+        img_path = industry_dir / f"{idx:04d}.jpg"
+        txt_path = industry_dir / f"{idx:04d}.txt"
+
+        img.save(img_path, "JPEG", quality=90)
+
+        # Build rich caption: main caption + tag suffix for FLUX.1-schnell
+        # Tag suffix boosts training signal for specific visual attributes
+        tag_parts = []
+        if item.get("tags"):
+            tag_parts.append(", ".join(item["tags"]))
+        if item.get("compositionType"):
+            tag_parts.append(item["compositionType"].replace("_", " "))
+        if item.get("lightingType"):
+            tag_parts.append(item["lightingType"].replace("_", " ") + " lighting")
+        if item.get("isBranded"):
+            tag_parts.append("branded uniform")
+        if item.get("hasPerson"):
+            tag_parts.append("professional tradesperson visible")
+
+        full_caption = caption
+        if tag_parts:
+            full_caption = caption.rstrip(".") + ", " + ", ".join(tag_parts)
+
+        txt_path.write_text(full_caption, encoding="utf-8")
+
+        return True
+    except Exception as e:
+        print(f"  SKIP {url[:60]}: {e}")
+        return False
+
+
+def main():
+    total = ok = skipped = 0
+
+    for item in DATASET:
+        # Filters
+        if INDUSTRY_FILTER and item["industry"] not in INDUSTRY_FILTER:
+            continue
+        if MIN_QUALITY and item["quality"] and item["quality"] < MIN_QUALITY:
+            skipped += 1
+            continue
+
+        industry_dir = OUTPUT_DIR / item["industry"]
+        industry_dir.mkdir(parents=True, exist_ok=True)
+
+        # Count existing files in this folder for sequential naming
+        existing = len(list(industry_dir.glob("*.jpg")))
+
+        success = download_and_save(item, existing + 1, industry_dir)
+        ok    += int(success)
+        skipped += int(not success)
+        total += 1
+
+        if total % 25 == 0:
+            print(f"  {ok}/{total} downloaded…")
+
+    print(f"\\nDone. {ok} images saved, {skipped} skipped.")
+    print(f"Training data ready at: {OUTPUT_DIR.absolute()}")
+
+    # Print per-industry summary
+    print("\\nPer-industry breakdown:")
+    for ind_dir in sorted(OUTPUT_DIR.iterdir()):
+        count = len(list(ind_dir.glob("*.jpg")))
+        print(f"  {ind_dir.name:<25} {count} images")
+
+if __name__ == "__main__":
+    main()
+`;
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Disposition', `attachment; filename="download_dataset.py"`);
+        return res.send(script);
+      }
+
+      // Default: JSONL export — full rich metadata for LoRA training
+      const lines = result.rows.map(r => JSON.stringify({
+        url:             r.url,
+        caption:         r.caption,
+        industry:        r.industry        || 'general_contractor',
+        contentType:     r.content_type    || 'job_complete',
+        quality:         r.quality_score   ? parseFloat(r.quality_score) : null,
+        hasPerson:       r.has_person      ?? null,
+        isBranded:       r.is_branded      ?? null,
+        compositionType: r.composition_type || null,
+        lightingType:    r.lighting_type   || null,
+        tags:            r.tags            || [],
+      }));
+
+      const filename = `postcore-image-dataset-${new Date().toISOString().split('T')[0]}.jsonl`;
+      res.setHeader('Content-Type', 'application/jsonl');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(lines.join('\n'));
+    } catch (err) {
+      console.error('[Admin LLM] export-image-dataset error:', err.message);
+      res.status(500).json({ error: 'Export failed' });
     }
   });
 

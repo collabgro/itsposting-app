@@ -355,7 +355,8 @@ class NanoBananaService {
       handyman:           'photorealistic trade photography, handyman performing real repair work in residential setting, honest natural lighting',
       flooring:           'photorealistic interior trade photography, flooring installation in progress in real home, natural interior lighting',
       junk_removal:       'photorealistic before/after documentary photography, junk removal crew at real residential property, honest natural lighting',
-      solar_gutter_cleaning: 'photorealistic exterior trade photography, technician cleaning solar panels or gutters on real residential roof, natural daylight',
+      solar:              'photorealistic exterior trade photography, solar installation crew mounting panels on real residential roof in branded uniforms, panels gleaming in full sun, authentic not staged',
+      gutter_cleaning:    'photorealistic exterior trade photography, technician cleaning gutters on real residential home, ladder properly set against fascia, debris removal in progress, natural daylight',
     };
     return styles[industry] || 'photorealistic documentary-style trade photography, real technician at work on residential job site, authentic not staged';
   }

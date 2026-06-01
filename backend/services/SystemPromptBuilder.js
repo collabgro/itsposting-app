@@ -78,10 +78,20 @@ class SystemPromptBuilder {
     const c = this.customer;
     const services = this._extractServices();
 
-    let ctx = `=== BUSINESS CONTEXT ===
-You are writing social media content for:
+    const industryLabel = sanitizeField(c.industry, 60) || 'home services';
+
+    let ctx = `=== WHO YOU ARE ===
+You are PostCore — a dual expert who combines:
+- 20+ years of hands-on experience working IN the ${industryLabel} trade (you know every technique, material, tool, seasonal challenge, and homeowner fear from the inside)
+- 30+ years of social media strategy, copywriting, and content design (you know exactly what hooks stop the scroll, what stories drive comments, what formats convert followers into customers)
+
+You write for LOCAL SERVICE BUSINESSES. Your posts must sound like they were written by the actual business owner — a real tradesperson who knows their craft, loves their community, and speaks plainly. Never corporate. Never generic. Never AI-sounding.
+
+The test for every post: could a homeowner read this and think "this was written by a real plumber / roofer / HVAC tech who knows their stuff and cares about their customers"? If not, rewrite it until it passes that test.
+
+=== BUSINESS CONTEXT ===
 Business name: ${sanitizeField(c.business_name, 100) || 'a local service business'}
-Industry: ${sanitizeField(c.industry, 60) || 'home services'}
+Industry: ${industryLabel}
 Location: ${sanitizeField(c.location, 100) || 'local area'}
 Brand tone: ${sanitizeField(c.tone, 80) || 'professional and approachable'}
 Visual style: ${sanitizeField(c.visual_style, 80) || 'modern and clean'}`;
@@ -128,9 +138,8 @@ You have deep knowledge of this industry. Use this to make every post feel speci
     }
 
     if (k.customerPainPoints?.length > 0) {
-      const selected = k.customerPainPoints.slice(0, 4);
-      expertise += `\n\nReal customer pain points to reference naturally (use their exact language):`;
-      selected.forEach(p => { expertise += `\n- "${p}"`; });
+      expertise += `\n\nReal customer pain points — this is how your audience ACTUALLY feels and talks. Reference their language verbatim, don't paraphrase:`;
+      k.customerPainPoints.slice(0, 6).forEach(p => { expertise += `\n- "${p}"`; });
     }
 
     // Trade terminology — makes copy sound like a real professional wrote it
@@ -140,17 +149,35 @@ You have deep knowledge of this industry. Use this to make every post feel speci
       expertise += `\nUse 2-3 of these per post where they fit naturally. Never force them.`;
     }
 
-    // Content angle — match to wizard trigger if one is provided
+    // Content angle — match to wizard trigger by type (works for ALL industries)
     if (k.contentAngles?.length > 0 && this.wizardTrigger) {
-      const triggerAngleMap = {
-        share_tip: ['water_bill_detective', 'flushable_wipes_myth', 'water_quality', 'diy_warning', 'emergency_prevention'],
-        finished_job: ['job_reveal', 'team_story'],
-        got_review: ['team_story'],
-        faq: ['tankless_debate', 'water_heater_age', 'water_bill_detective'],
-        seasonal: ['emergency_prevention', 'slab_leak_warning'],
+      // Maps trigger → the angle types that perform best for it.
+      // Using type (not angle ID) so this works across every industry in industryKnowledge.js.
+      // Covers all angle types found across all 17 industries in the knowledge base.
+      const triggerTypeMap = {
+        share_tip:     ['educational', 'safety_warning', 'safety_educational', 'engagement'],
+        finished_job:  ['before_after', 'job_reveal', 'customer_story', 'behind_scenes', 'process_transparency', 'project_showcase', 'capability_showcase', 'service_showcase'],
+        got_review:    ['team_story', 'social_proof', 'customer_story', 'emotional_educational'],
+        faq:           ['faq', 'educational', 'engagement'],
+        seasonal:      ['seasonal_warning', 'seasonal', 'seasonal_urgency', 'seasonal_event', 'safety_warning', 'educational', 'targeted_urgent'],
+        community:     ['community', 'educational', 'values_content', 'b2b_targeting'],
+        team_spotlight: ['team_spotlight', 'team_story', 'behind_scenes'],
+        behind_scenes: ['behind_scenes', 'process_transparency', 'process_video', 'service_showcase', 'team_story', 'team_spotlight'],
+        promotion:     ['promotional', 'social_proof', 'values_content', 'capability_showcase', 'targeted_urgent', 'b2b_targeting', 'educational'],
       };
-      const relevantAngles = triggerAngleMap[this.wizardTrigger] || [];
-      const matchedAngle = k.contentAngles.find(a => relevantAngles.includes(a.angle));
+      const engagementOrder = { very_high: 0, high: 1, medium_high: 2, medium: 3 };
+      const relevantTypes = triggerTypeMap[this.wizardTrigger] || null;
+      let matchedAngle;
+      if (relevantTypes) {
+        // Pick the highest-engagement angle matching this trigger's content types
+        matchedAngle = k.contentAngles
+          .filter(a => relevantTypes.includes(a.type))
+          .sort((a, b) => (engagementOrder[a.engagementLevel] ?? 99) - (engagementOrder[b.engagementLevel] ?? 99))[0];
+      } else {
+        // custom or unknown trigger: use the overall highest-engagement angle for this industry
+        matchedAngle = k.contentAngles.slice()
+          .sort((a, b) => (engagementOrder[a.engagementLevel] ?? 99) - (engagementOrder[b.engagementLevel] ?? 99))[0];
+      }
       if (matchedAngle) {
         expertise += `\n\nHigh-performing content angle for this post type:`;
         expertise += `\n- Hook: "${matchedAngle.hook}"`;
@@ -172,16 +199,24 @@ You have deep knowledge of this industry. Use this to make every post feel speci
 
     if (k.hookFormulas?.length > 0) {
       const loc = this.customer.location || 'your city';
-      expertise += `\n\nProven hook formulas — use a DIFFERENT one for each variation:`;
-      k.hookFormulas.slice(0, 5).forEach((h, i) => {
+      expertise += `\n\nProven hook formulas for this industry — use a DIFFERENT one for each variation (A, B, C must each have a completely different opening energy):`;
+      k.hookFormulas.slice(0, 6).forEach((h, i) => {
         expertise += `\n${i + 1}. "${h.replace(/\[city\]/g, loc)}"`;
       });
+      expertise += `\nAdapt these hooks to the specific details provided — don't copy them word for word.`;
     }
 
     if (k.ctaVariations?.length > 0) {
       const loc = this.customer.location || 'your city';
       expertise += `\n\nEffective CTAs for this industry:`;
       k.ctaVariations.slice(0, 4).forEach(cta => { expertise += `\n- ${cta.replace(/\[city\]/g, loc)}`; });
+    }
+
+    if (k.contentThemes?.length > 0) {
+      expertise += `\n\nContent formats that consistently perform BEST for this industry (lean toward these):`;
+      k.contentThemes.forEach(theme => {
+        expertise += `\n- ${theme.replace(/_/g, ' ')}`;
+      });
     }
 
     return expertise;
@@ -295,6 +330,12 @@ Generate 3 separate, fully-written variations — one per platform:
   // ── Section 4: Content Type Rules ────────────────────────────────────────
   _section4_contentTypeRules() {
     const triggerRules = {
+      custom: `Content trigger: CUSTOM / FREE-FORM IDEA
+The business owner has their own specific idea for this post — it does NOT fit a standard template.
+Structure: Interpret their idea → craft the best possible hook → deliver the message → end with engagement question
+IMPORTANT: Honour the intent of their idea exactly. Do not substitute a generic template.
+Tone: match the tone they selected; make it sound genuinely human and local`,
+
       finished_job: `Content trigger: FINISHED A JOB
 Structure: Situation → What was done → The result → Customer outcome → CTA
 Include: Job type, location (from answers), any unique detail
@@ -356,12 +397,20 @@ Spoken language: natural, not scripted-sounding — conversational`,
     let rules = `=== CONTENT TYPE RULES ===
 ${triggerRule ? triggerRule + '\n\n' : ''}${contentTypeRules[this.contentType] || contentTypeRules.photo}`;
 
-    // Inject real FAQ pairs when the trigger is FAQ content
+    // Inject FAQ pairs — always inject for context; inject more when trigger is FAQ
     const k = this.knowledge;
-    if ((this.wizardTrigger === 'faq' || this.contentType === 'static') && k.faqPairs?.length > 0) {
-      rules += `\n\nReal FAQ pairs from this industry (use one as the basis for the post, or let the customer's question override):`;
-      k.faqPairs.slice(0, 4).forEach(pair => {
-        rules += `\nQ: ${pair.q}\nA: ${pair.a}\n`;
+    if (k.faqPairs?.length > 0) {
+      const isFaqTrigger = this.wizardTrigger === 'faq' || this.contentType === 'static';
+      const count = isFaqTrigger ? 4 : 2;
+      const label = isFaqTrigger
+        ? 'Real customer questions from this industry (use one as the basis, or let the customer\'s own question override):'
+        : 'Top customer questions in this industry (use this as context to make the post sharper and more useful):';
+      rules += `\n\n${label}`;
+      k.faqPairs.slice(0, count).forEach(pair => {
+        // Handle both {q, a} and legacy {question, answer} formats
+        const q = pair.q || pair.question;
+        const a = pair.a || pair.answer;
+        if (q && a) rules += `\nQ: ${q}\nA: ${a}\n`;
       });
     }
 
@@ -380,19 +429,23 @@ ${triggerRule ? triggerRule + '\n\n' : ''}${contentTypeRules[this.contentType] |
   _section5_brandVoice() {
     const c = this.customer;
     const effectiveTone = this.wizardTone || c.tone || 'professional and approachable';
-    let voice = `=== BRAND VOICE ===
-Tone: ${effectiveTone}
-Writing style: ${c.visual_style === 'bold' ? 'punchy and direct' : c.visual_style === 'minimal' ? 'clean and concise' : 'warm and conversational'}
+    let voice = `=== BRAND VOICE & WRITING STANDARDS ===
+Tone for this post: ${effectiveTone}
+Writing style: ${c.visual_style === 'bold' ? 'punchy and direct — short sentences, sharp impact' : c.visual_style === 'minimal' ? 'clean and concise — no filler, every word earns its place' : 'warm and conversational — like a neighbor who happens to be the best in the trade'}
 
-PostCore voice rules (non-negotiable):
-- Write like a trusted local expert, not a corporate marketing team
-- Never use: "delve", "synergy", "leverage", "utilize", "optimize"
-- Plain language a tradesperson would use and be proud of
-- The business owner should read it and think "that sounds exactly like me"
-- Every post ends with an engagement question — this is non-negotiable`;
+PostCore writing rules (non-negotiable):
+- Sound like a real tradesperson, not a marketing department. Use the language of the job site.
+- Specificity beats generality every single time. "We replaced 18 feet of galvanized pipe with PEX" beats "We completed a plumbing repair."
+- Show the work. Real details create credibility. Vague claims destroy it.
+- Address the homeowner directly. They are scared, frustrated, or excited. Meet them where they are.
+- NEVER use: "delve", "synergy", "leverage", "utilize", "optimize", "comprehensive", "streamlined", "transform your", "unlock", "empower"
+- NEVER start with "Are you looking for..." or "As a [industry] professional..." — these are dead giveaways of AI-generated content
+- NEVER use exclamation marks more than once per post
+- Every post ends with a single, specific engagement question — not a generic "What do you think?" but something that makes the reader check their own home or remember a real experience
+- The business owner should read it and say: "This sounds exactly like me talking to a customer I actually like"`;
 
     if (this.wizardTone) {
-      voice += `\nIMPORTANT: The customer specifically selected "${this.wizardTone}" as the tone for THIS post — this overrides their default profile tone. Make the tone shift noticeable and intentional.`;
+      voice += `\n\nTone override: The customer selected "${this.wizardTone}" for this post — this overrides their profile default. Make the shift unmistakably intentional in the writing energy.`;
     }
 
     if (c.past_post_examples?.length > 0) {
@@ -499,20 +552,22 @@ CRITICAL JSON SAFETY RULES (violations cause parse errors):
 
     if (this.wizardTrigger) {
       const triggerLabels = {
-        finished_job: 'They just finished a job',
-        share_tip: 'They want to share a helpful tip',
-        got_review: 'They received a great customer review',
-        promotion: 'They are running a promotion or special offer',
-        seasonal: `Seasonal content for ${this._getMonthName(this.currentMonth)}`,
-        faq: 'They want to answer a common customer question',
+        custom:        'They have their own specific idea for this post (see "Post idea" below)',
+        finished_job:  'They just finished a job',
+        share_tip:     'They want to share a helpful tip',
+        got_review:    'They received a great customer review',
+        promotion:     'They are running a promotion or special offer',
+        seasonal:      `Seasonal content for ${this._getMonthName(this.currentMonth)}`,
+        faq:           'They want to answer a common customer question',
         behind_scenes: 'Behind-the-scenes look at their work',
-        community: 'Community or local event content',
+        community:     'Community or local event content',
       };
       prompt += `\nContent type: ${triggerLabels[this.wizardTrigger] || this.wizardTrigger}`;
     }
 
     if (Object.keys(answers).length > 0) {
       prompt += '\n\nSpecific details provided by the business owner:';
+      if (answers.custom_topic) prompt += `\n- Post idea (honour this exactly): ${answers.custom_topic}`;
       if (answers.location) prompt += `\n- Location / neighbourhood: ${answers.location}`;
       if (answers.job_description) prompt += `\n- Job description: ${answers.job_description}`;
       if (answers.neighborhood) prompt += `\n- Neighbourhood: ${answers.neighborhood}`;

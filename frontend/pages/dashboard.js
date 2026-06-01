@@ -133,7 +133,7 @@ export default function Dashboard() {
     loadWeekPlans();
 
     Promise.all([
-      postsAPI.getAll({ limit: 100 }),
+      postsAPI.getAll({ limit: 50 }),
       postsAPI.getUpcoming(),
       intelligenceAPI.getMetrics().catch(() => ({ data: null })),
       intelligenceAPI.getBriefing().catch(() => ({ data: null })),

@@ -7,16 +7,24 @@
   padding: 0;
 }
 
+
 html {
   scroll-behavior: smooth;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent any element from causing page-level horizontal scroll */
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 html, body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   letter-spacing: -0.011em;
+  /* Hard-clamp: nothing escapes the viewport width */
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
   background: #05050A;
   background-image:
     radial-gradient(ellipse at 85% 0%, rgba(124,92,252,0.09) 0%, transparent 55%),

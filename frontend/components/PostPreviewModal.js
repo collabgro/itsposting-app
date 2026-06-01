@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '../lib/theme';
-import { postsAPI } from '../lib/api';
+import { postsAPI, socialAPI } from '../lib/api';
 import { format } from 'date-fns';
 import { IpClose } from './icons';
 import {
@@ -17,8 +17,15 @@ function parsePlatforms(raw) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function PostPreviewModal({ post, allPosts, onClose, onNavigate, onUpdate, onDelete, defaultMode = 'view' }) {
+export default function PostPreviewModal({ post, allPosts, onClose, onNavigate, onUpdate, onDelete, defaultMode = 'view', socialAccounts: socialAccountsProp = [] }) {
   const { t } = useTheme();
+  const [fetchedAccounts, setFetchedAccounts] = useState([]);
+  const socialAccounts = socialAccountsProp.length > 0 ? socialAccountsProp : fetchedAccounts;
+
+  useEffect(() => {
+    if (socialAccountsProp.length > 0) return;
+    socialAPI.getAccounts().then(r => setFetchedAccounts(r.data || [])).catch(() => {});
+  }, []);
 
   const platforms     = parsePlatforms(post?.platforms);
   const tabPlatforms  = PLATFORM_ORDER.filter(p => platforms.includes(p));
@@ -101,6 +108,15 @@ export default function PostPreviewModal({ post, allPosts, onClose, onNavigate, 
     : 'Draft';
 
   const ActiveMockup = MOCKUP_MAP[activePlatform] || FacebookMockup;
+  const getProfileForPlatform = (pid) => {
+    const acc = socialAccounts.find(a => a.platform === pid);
+    if (!acc) return null;
+    return {
+      name: acc.account_name || null,
+      handle: acc.account_username || acc.account_name?.toLowerCase().replace(/[^a-z0-9._]/g, '') || null,
+      picture: acc.profile_image_url || null,
+    };
+  };
 
   const navBtnStyle = (enabled) => ({
     padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: enabled ? 'pointer' : 'default',
@@ -146,7 +162,7 @@ export default function PostPreviewModal({ post, allPosts, onClose, onNavigate, 
 
           {/* Mockup preview */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '28px 24px', background: t.background || '#0A0A0F' }}>
-            <ActiveMockup post={post} caption={post.caption || ''} />
+            <ActiveMockup post={post} caption={post.caption || ''} profile={getProfileForPlatform(activePlatform)} />
           </div>
 
           {/* Bottom actions */}
@@ -291,7 +307,7 @@ export default function PostPreviewModal({ post, allPosts, onClose, onNavigate, 
                 </div>
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', background: t.background || '#0A0A0F' }}>
-                <ActiveMockup post={post} caption={editCaption} />
+                <ActiveMockup post={post} caption={editCaption} profile={getProfileForPlatform(activePlatform)} />
               </div>
             </div>
           </div>

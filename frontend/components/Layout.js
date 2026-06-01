@@ -49,7 +49,6 @@ const NAV_ITEMS = [
 
   { isDivider: true, label: 'Manage' },
   { name: 'Calendar',      href: '/calendar',       icon: IpCalendar },
-  { name: 'Post History',  href: '/calendar?view=list', icon: IpDrafts },
   { name: 'Media Library', href: '/media',          icon: IpMediaLibrary },
 
   { isDivider: true, label: 'Insights' },

@@ -59,7 +59,7 @@ const pool = new Pool({
     !process.env.DATABASE_URL.includes('127.0.0.1')
     ? { rejectUnauthorized: false, ciphers: 'DEFAULT:@SECLEVEL=0' }
     : false,
-  max: 20,
+  max: 30,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
 });
@@ -457,6 +457,16 @@ console.log('══════════════════════�
       UNIQUE(customer_id, generated_date)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_post_ideas_customer_date ON post_ideas(customer_id, generated_date)`,
+    // Shared industry-level ideas cache — one row per (industry, date), shared across all customers
+    `CREATE TABLE IF NOT EXISTS shared_industry_ideas (
+      id             SERIAL PRIMARY KEY,
+      industry       VARCHAR(100) NOT NULL,
+      ideas          JSONB NOT NULL DEFAULT '[]',
+      generated_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      created_at     TIMESTAMP DEFAULT NOW(),
+      UNIQUE(industry, generated_date)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_shared_industry_ideas_industry_date ON shared_industry_ideas(industry, generated_date)`,
     // ItsPosting curated canvas templates (industry-specific, admin-managed)
     `CREATE TABLE IF NOT EXISTS canvas_templates (
       id             SERIAL PRIMARY KEY,
@@ -850,6 +860,106 @@ console.log('══════════════════════�
     // but we index it here so the UPDATE is fast:
     `CREATE INDEX IF NOT EXISTS idx_customers_id_status
        ON customers(id) WHERE status = 'active'`,
+
+    // PostCore Brain — image metadata columns for rich Vision-extracted attributes
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS metadata JSONB`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS has_person BOOLEAN`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS has_text_overlay BOOLEAN`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS is_branded BOOLEAN`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS composition_type VARCHAR(50)`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS lighting_type VARCHAR(50)`,
+    `ALTER TABLE image_training_data ADD COLUMN IF NOT EXISTS tags TEXT[]`,
+    `CREATE INDEX IF NOT EXISTS idx_image_training_has_person
+       ON image_training_data(has_person, industry) WHERE has_person = true`,
+    `CREATE INDEX IF NOT EXISTS idx_image_training_quality_industry
+       ON image_training_data(industry, quality_score DESC NULLS LAST) WHERE quality_score >= 4`,
+
+    // ── PostCore Brain Phase 2 — image + video training data collection ──
+    // Captures every image generation event so PostCore Brain can learn
+    // which prompts produce images customers keep vs regenerate.
+    `CREATE TABLE IF NOT EXISTS image_training_data (
+      id                  SERIAL PRIMARY KEY,
+      post_id             INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+      customer_id         INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      input_prompt        TEXT NOT NULL,
+      enhanced_prompt     TEXT,
+      output_url          TEXT,
+      provider            VARCHAR(50),
+      industry            VARCHAR(100),
+      content_type        VARCHAR(50),
+      was_kept            BOOLEAN,
+      was_published       BOOLEAN DEFAULT FALSE,
+      post_reach          INTEGER,
+      post_engagement     INTEGER,
+      quality_score       NUMERIC(3,1),
+      generation_time_ms  INTEGER,
+      model_used          VARCHAR(100),
+      created_at          TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_image_training_post
+       ON image_training_data(post_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_image_training_provider
+       ON image_training_data(provider, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_image_training_kept
+       ON image_training_data(was_kept, provider, created_at DESC)
+       WHERE was_kept IS NOT NULL`,
+
+    // Captures every video generation event: which provider ran, script used,
+    // key frame prompt, and whether the customer kept the result.
+    `CREATE TABLE IF NOT EXISTS video_training_data (
+      id                  SERIAL PRIMARY KEY,
+      post_id             INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+      customer_id         INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      script              TEXT NOT NULL,
+      key_frame_prompt    TEXT,
+      key_frame_url       TEXT,
+      output_url          TEXT,
+      provider            VARCHAR(50),
+      video_type          VARCHAR(20),
+      aspect_ratio        VARCHAR(10),
+      duration_seconds    INTEGER,
+      industry            VARCHAR(100),
+      content_type        VARCHAR(50),
+      was_kept            BOOLEAN,
+      was_published       BOOLEAN DEFAULT FALSE,
+      post_reach          INTEGER,
+      post_engagement     INTEGER,
+      quality_score       NUMERIC(3,1),
+      generation_time_ms  INTEGER,
+      model_used          VARCHAR(100),
+      created_at          TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_video_training_post
+       ON video_training_data(post_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_video_training_provider
+       ON video_training_data(provider, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_video_training_kept
+       ON video_training_data(was_kept, provider, created_at DESC)
+       WHERE was_kept IS NOT NULL`,
+
+    // Backfill: add customer_id to post_training_data for per-customer quality analysis
+    `ALTER TABLE post_training_data ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE`,
+    `ALTER TABLE post_training_data ADD COLUMN IF NOT EXISTS was_published BOOLEAN DEFAULT FALSE`,
+    `CREATE INDEX IF NOT EXISTS idx_post_training_customer
+       ON post_training_data(customer_id, created_at DESC)`,
+
+    // ── Speed optimisation — covering index for the main posts list query ──
+    // Every page that lists posts runs: WHERE customer_id=$1 ORDER BY scheduled_date DESC NULLS LAST, created_at DESC
+    // The existing single-column idx_posts_customer_id forces a full sort after the scan.
+    // This covering index lets Postgres satisfy the ORDER BY directly from the index.
+    `CREATE INDEX IF NOT EXISTS idx_posts_customer_sched_created
+       ON posts(customer_id, scheduled_date DESC NULLS LAST, created_at DESC)`,
+    // Upcoming posts query: customer + status + date range — avoids heap fetch for status filter
+    `CREATE INDEX IF NOT EXISTS idx_posts_upcoming_status
+       ON posts(customer_id, status, scheduled_date ASC)
+       WHERE status IN ('scheduled', 'draft') AND scheduled_date IS NOT NULL`,
+    // Advanced post options — FB/IG format selection, collaborators, media optimization
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS fb_post_format VARCHAR(20) DEFAULT 'feed'`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS ig_post_format VARCHAR(20) DEFAULT 'feed'`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS ig_collaborator VARCHAR(255)`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS optimize_media BOOLEAN DEFAULT true`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS fb_text_background VARCHAR(50)`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS follow_up_comment TEXT`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }

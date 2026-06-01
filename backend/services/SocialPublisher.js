@@ -122,42 +122,127 @@ class SocialPublisher {
 
   // ─── Platform implementations ─────────────────────────────────────────────
 
+  _isVideoUrl(url) {
+    return /\.(mp4|mov|avi|wmv|flv|webm|mkv)(\?|$)/i.test(url || '');
+  }
+
+  // Posts an automated first comment right after publish (GHL "Follow up comment" parity).
+  // Uses same Graph API endpoint for both FB and IG. Never throws — comment failure
+  // must not invalidate the main post.
+  async _postFollowUpComment(postId, token, comment) {
+    if (!comment?.trim() || !postId) return;
+    try {
+      await axios.post(
+        `https://graph.facebook.com/v18.0/${postId}/comments`,
+        { message: comment.trim(), access_token: token },
+        { timeout: 15000 }
+      );
+      console.log(`[SocialPublisher] Follow-up comment posted on ${postId}`);
+    } catch (err) {
+      console.warn('[SocialPublisher] Follow-up comment failed:', err.response?.data?.error?.message || err.message);
+    }
+  }
+
   async postToFacebook(account, post) {
     const pageId = account.account_id;
     const token  = account.access_token;
     if (!pageId) throw new Error('Facebook Page ID not stored — reconnect the account');
 
-    const caption = this.buildCaption(post, 'facebook');
+    const caption  = this.buildCaption(post, 'facebook');
+    const format   = post.fb_post_format || 'feed';
+    const isVideo  = this._isVideoUrl(post.media_url);
+
+    const _fbErr = (err) => {
+      const fbMsg    = err.response?.data?.error?.message;
+      const fbCode   = err.response?.data?.error?.code;
+      const fbSub    = err.response?.data?.error?.error_subcode;
+      if (fbMsg) throw new Error(`Facebook API: ${fbMsg}${fbCode ? ` (code ${fbCode}${fbSub ? '/' + fbSub : ''})` : ''}`);
+      throw err;
+    };
 
     try {
+      // ── Facebook Reel ──────────────────────────────────────────────────────
+      if (format === 'reel') {
+        if (!post.media_url || !isVideo) {
+          // Reel requires a video — fall back to photo/feed post
+          console.warn('[SocialPublisher] FB Reel requested but no video URL — falling back to feed post');
+        } else {
+          const reelRes = await axios.post(
+            `https://graph.facebook.com/v18.0/${pageId}/videos`,
+            { file_url: post.media_url, description: caption, published: true, video_type: 'REEL', access_token: token },
+            { timeout: 90000 }
+          );
+          const reelId = reelRes.data.id;
+          await this._postFollowUpComment(reelId, token, post.follow_up_comment);
+          return reelId;
+        }
+      }
+
+      // ── Facebook Story ─────────────────────────────────────────────────────
+      // Stories don't support comments — skip follow-up comment
+      if (format === 'story') {
+        if (!post.media_url) {
+          console.warn('[SocialPublisher] FB Story requested but no media URL — falling back to feed post');
+        } else if (isVideo) {
+          // Video story: upload non-published video then publish as story
+          const videoUpRes = await axios.post(
+            `https://graph.facebook.com/v18.0/${pageId}/videos`,
+            { file_url: post.media_url, published: false, access_token: token },
+            { timeout: 90000 }
+          );
+          const videoId = videoUpRes.data.id;
+          const storyRes = await axios.post(
+            `https://graph.facebook.com/v18.0/${pageId}/video_stories`,
+            { video_id: videoId, access_token: token },
+            { timeout: 30000 }
+          );
+          return storyRes.data.id || videoId;
+        } else {
+          // Photo story: upload non-published photo then publish as story
+          const photoUpRes = await axios.post(
+            `https://graph.facebook.com/v18.0/${pageId}/photos`,
+            { url: post.media_url, published: false, access_token: token },
+            { timeout: 30000 }
+          );
+          const photoId = photoUpRes.data.id;
+          const storyRes = await axios.post(
+            `https://graph.facebook.com/v18.0/${pageId}/photo_stories`,
+            { photo_id: photoId, access_token: token },
+            { timeout: 30000 }
+          );
+          return storyRes.data.id || photoId;
+        }
+      }
+
+      // ── Facebook Feed (default) ────────────────────────────────────────────
+      if (post.media_url && isVideo) {
+        const videoBody = { file_url: post.media_url, description: caption, published: true, access_token: token };
+        if (post.location_id) videoBody.place = post.location_id;
+        const res = await axios.post(`https://graph.facebook.com/v18.0/${pageId}/videos`, videoBody, { timeout: 90000 });
+        const videoPostId = res.data.id;
+        await this._postFollowUpComment(videoPostId, token, post.follow_up_comment);
+        return videoPostId;
+      }
+
       if (post.media_url) {
         const photoBody = { url: post.media_url, caption, access_token: token };
         if (post.location_id) photoBody.place = post.location_id;
-        const res = await axios.post(
-          `https://graph.facebook.com/v18.0/${pageId}/photos`,
-          photoBody,
-          { timeout: 30000 }
-        );
-        return res.data.id;
+        if (post.fb_text_background) photoBody.text_format_metadata = JSON.stringify({ bg_color: post.fb_text_background });
+        const res = await axios.post(`https://graph.facebook.com/v18.0/${pageId}/photos`, photoBody, { timeout: 30000 });
+        const photoPostId = res.data.id;
+        await this._postFollowUpComment(photoPostId, token, post.follow_up_comment);
+        return photoPostId;
       }
 
       const feedBody = { message: caption, access_token: token };
       if (post.location_id) feedBody.place = post.location_id;
-      const res = await axios.post(
-        `https://graph.facebook.com/v18.0/${pageId}/feed`,
-        feedBody,
-        { timeout: 30000 }
-      );
-      return res.data.id;
+      if (post.fb_text_background) feedBody.formatting = 'MARKDOWN'; // cosmetic only
+      const res = await axios.post(`https://graph.facebook.com/v18.0/${pageId}/feed`, feedBody, { timeout: 30000 });
+      const feedPostId = res.data.id;
+      await this._postFollowUpComment(feedPostId, token, post.follow_up_comment);
+      return feedPostId;
     } catch (err) {
-      const fbMsg = err.response?.data?.error?.message;
-      const fbCode = err.response?.data?.error?.code;
-      const fbSubcode = err.response?.data?.error?.error_subcode;
-      if (fbMsg) {
-        const detail = fbCode ? ` (code ${fbCode}${fbSubcode ? '/' + fbSubcode : ''})` : '';
-        throw new Error(`Facebook API: ${fbMsg}${detail}`);
-      }
-      throw err;
+      _fbErr(err);
     }
   }
 
@@ -167,12 +252,60 @@ class SocialPublisher {
     if (!igUserId) throw new Error('Instagram Business Account ID not stored — reconnect the account');
     if (!post.media_url) throw new Error('Instagram requires an image or video URL');
 
-    const caption = this.buildCaption(post, 'instagram');
+    const caption  = this.buildCaption(post, 'instagram');
+    const format   = post.ig_post_format || 'feed';
+    const isVideo  = this._isVideoUrl(post.media_url);
+
+    const _igErr = (err) => {
+      if (err.message?.startsWith('Instagram')) throw err;
+      const fbMsg  = err.response?.data?.error?.message;
+      const fbCode = err.response?.data?.error?.code;
+      if (fbMsg) throw new Error(`Instagram API: ${fbMsg}${fbCode ? ` (code ${fbCode})` : ''}`);
+      throw err;
+    };
 
     try {
+      let containerBody;
+
+      if (format === 'reel') {
+        if (!isVideo) {
+          console.warn('[SocialPublisher] IG Reel requested but no video URL — falling back to feed image post');
+          containerBody = { image_url: post.media_url, caption, access_token: token };
+        } else {
+          containerBody = {
+            video_url: post.media_url,
+            media_type: 'REELS',
+            caption,
+            share_to_feed: true,
+            access_token: token,
+          };
+        }
+      } else if (format === 'story') {
+        // Stories don't support captions
+        if (isVideo) {
+          containerBody = { video_url: post.media_url, media_type: 'STORIES', access_token: token };
+        } else {
+          containerBody = { image_url: post.media_url, media_type: 'STORIES', access_token: token };
+        }
+      } else {
+        // Feed (default)
+        if (isVideo) {
+          containerBody = { video_url: post.media_url, media_type: 'VIDEO', caption, access_token: token };
+        } else {
+          containerBody = { image_url: post.media_url, caption, access_token: token };
+        }
+      }
+
+      // Location (Feed only — not supported for Stories/Reels)
+      if (post.location_id && format === 'feed') containerBody.location_id = post.location_id;
+
+      // Collaborators (Feed only, image only — Instagram API limitation)
+      if (post.ig_collaborator && format === 'feed' && !isVideo) {
+        const handle = post.ig_collaborator.replace(/^@/, '').trim();
+        if (handle) containerBody.collaborators = [handle];
+      }
+
       // Step 1 — create media container
-      const containerBody = { image_url: post.media_url, caption, access_token: token };
-      if (post.location_id) containerBody.location_id = post.location_id;
       const containerRes = await axios.post(
         `https://graph.facebook.com/v18.0/${igUserId}/media`,
         containerBody,
@@ -180,8 +313,9 @@ class SocialPublisher {
       );
       const creationId = containerRes.data.id;
 
-      // Step 2 — wait for container to be ready
-      await this._waitForIgContainer(igUserId, creationId, token);
+      // Step 2 — wait for container to be ready (longer for video/reels)
+      const maxWait = (format === 'reel' || isVideo) ? 90000 : 45000;
+      await this._waitForIgContainer(igUserId, creationId, token, maxWait);
 
       // Step 3 — publish
       const publishRes = await axios.post(
@@ -189,13 +323,16 @@ class SocialPublisher {
         { creation_id: creationId, access_token: token },
         { timeout: 30000 }
       );
-      return publishRes.data.id;
+      const mediaId = publishRes.data.id;
+
+      // Stories don't support comments
+      if (format !== 'story') {
+        await this._postFollowUpComment(mediaId, token, post.follow_up_comment);
+      }
+
+      return mediaId;
     } catch (err) {
-      if (err.message.startsWith('Instagram')) throw err; // our own errors
-      const fbMsg = err.response?.data?.error?.message;
-      const fbCode = err.response?.data?.error?.code;
-      if (fbMsg) throw new Error(`Instagram API: ${fbMsg}${fbCode ? ` (code ${fbCode})` : ''}`);
-      throw err;
+      _igErr(err);
     }
   }
 

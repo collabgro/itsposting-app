@@ -9,7 +9,7 @@ import Layout from '../components/Layout';
 import ImageEditor from '../components/ImageEditor';
 import { Card, Button, Input, Textarea, SectionHeader, Skeleton, EmptyState } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { mediaAPI, uploadAPI, socialAPI, analyticsAPI } from '../lib/api';
+import { mediaAPI, uploadAPI, socialAPI, analyticsAPI, scraperAPI } from '../lib/api';
 import {
   CHAR_LIMITS, PLATFORM_META, MOCKUP_MAP,
 } from '../components/PostMockups';
@@ -125,7 +125,6 @@ export default function Upload() {
   const emojiPickerRef = useRef(null);
   const emojiPortalRef = useRef(null);
   const bgPickerRef = useRef(null);
-  const linkInputRef = useRef(null);
   const libraryFileInputRef = useRef(null);
   const [followUpEnabled, setFollowUpEnabled] = useState(false);
   const [followUpComment, setFollowUpComment] = useState('');
@@ -137,8 +136,16 @@ export default function Upload() {
   const [igPostFormat, setIgPostFormat] = useState('feed');
   const [igCollaborator, setIgCollaborator] = useState('');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [showLinkInput, setShowLinkInput] = useState(false);
-  const [linkInputVal, setLinkInputVal] = useState('');
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkName, setLinkName] = useState('');
+  const [linkTargetUrl, setLinkTargetUrl] = useState('');
+  const [linkUtmCampaign, setLinkUtmCampaign] = useState('');
+  const [linkUtmSource, setLinkUtmSource] = useState('social');
+  const [linkUtmMedium, setLinkUtmMedium] = useState('');
+  const [linkCustomParams, setLinkCustomParams] = useState([]);
+  const [linkPreviewUrl, setLinkPreviewUrl] = useState(null);
+  const [linkPreviewData, setLinkPreviewData] = useState(null);
+  const [linkPreviewDismissed, setLinkPreviewDismissed] = useState(false);
   const [fbBgColor, setFbBgColor] = useState(null);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [showLocationPopup, setShowLocationPopup] = useState(false);
@@ -279,11 +286,22 @@ export default function Upload() {
     return () => document.removeEventListener('mousedown', handler);
   }, [showBgPicker]);
 
+  // Detect first URL in caption → fetch OG preview
   useEffect(() => {
-    if (!showLinkInput) return;
-    const t2 = setTimeout(() => linkInputRef.current?.focus(), 50);
-    return () => clearTimeout(t2);
-  }, [showLinkInput]);
+    const urlMatch = caption.match(/https?:\/\/[^\s"'<>]{6,}/);
+    const detected = urlMatch ? urlMatch[0] : null;
+    if (!detected || detected === linkPreviewUrl) return;
+    if (linkPreviewDismissed && detected === linkPreviewUrl) return;
+    setLinkPreviewUrl(detected);
+    setLinkPreviewData(null);
+    setLinkPreviewDismissed(false);
+    const tid = setTimeout(() => {
+      scraperAPI.getOG(detected)
+        .then(r => { if (r.data?.title || r.data?.description || r.data?.image) setLinkPreviewData(r.data); })
+        .catch(() => {});
+    }, 600);
+    return () => clearTimeout(tid);
+  }, [caption]);
 
   useEffect(() => {
     if (editDropdownIdx === null) return;
@@ -624,7 +642,7 @@ export default function Upload() {
           setScheduleDate(''); setMessage({ type: '', text: '' });
           setFbBgColor(null); setIgCollaborator('');
           if (scheduleMode === 'draft' || scheduleMode === 'approval') {
-            router.push('/history');
+            router.push('/calendar?view=list');
           } else {
             router.push('/calendar');
           }
@@ -1185,32 +1203,14 @@ export default function Upload() {
                           >
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
                           </button>
-                          {/* Link — inline input */}
-                          <div style={{ position: 'relative', flexShrink: 0 }}>
-                            <button type="button" title="Link Shortener"
-                              onClick={() => setShowLinkInput(v => !v)}
-                              style={{ ...tbBtn(), background: showLinkInput ? (t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)') : 'none' }}
-                              onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
-                            >
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                            </button>
-                            {showLinkInput && (
-                              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 600, background: t.isDark ? 'rgba(12,12,22,0.98)' : t.card, backdropFilter: 'blur(20px)', border: `1px solid ${t.border}`, borderRadius: 10, padding: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.22)', width: 280, display: 'flex', gap: 6 }}>
-                                <input
-                                  ref={linkInputRef}
-                                  value={linkInputVal}
-                                  onChange={e => setLinkInputVal(e.target.value)}
-                                  onKeyDown={e => { if (e.key === 'Enter') { const url = linkInputVal.trim(); if (url) { insertIntoCaption(` ${url.startsWith('http') ? url : 'https://'+url}`); } setShowLinkInput(false); setLinkInputVal(''); } if (e.key === 'Escape') { setShowLinkInput(false); setLinkInputVal(''); } }}
-                                  placeholder="https://example.com"
-                                  style={{ flex: 1, padding: '6px 10px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 7, color: t.text, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
-                                />
-                                <button type="button"
-                                  onClick={() => { const url = linkInputVal.trim(); if (url) insertIntoCaption(` ${url.startsWith('http') ? url : 'https://'+url}`); setShowLinkInput(false); setLinkInputVal(''); }}
-                                  style={{ padding: '6px 12px', background: t.primary, border: 'none', borderRadius: 7, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                                >Insert</button>
-                              </div>
-                            )}
-                          </div>
+                          {/* Link Shortener — opens UTM builder modal */}
+                          <button type="button" title="Link Shortener"
+                            onClick={() => { setLinkName(''); setLinkTargetUrl(''); setLinkUtmCampaign(''); setLinkUtmSource('social'); setLinkUtmMedium(''); setLinkCustomParams([]); setShowLinkModal(true); }}
+                            style={{ ...tbBtn(), background: showLinkModal ? (t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)') : 'none' }}
+                            onMouseEnter={e => tbHover(e,true)} onMouseLeave={e => tbHover(e,false)}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                          </button>
                           {/* Add Location — inline popup */}
                           <div style={{ position: 'relative', flexShrink: 0 }} ref={locationPopupRef}>
                             <button type="button" title="Add Location"
@@ -1295,6 +1295,23 @@ export default function Upload() {
                     {overLimitPlatforms.length > 0 && (
                       <div style={{ marginTop: 8, padding: '7px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 7, fontSize: 12, color: t.error }}>
                         Too long for: {overLimitPlatforms.map(p => `${PLATFORM_META[p]?.label || p} (${caption.length.toLocaleString()} / ${CHAR_LIMITS[p].toLocaleString()})`).join(' · ')}
+                      </div>
+                    )}
+
+                    {/* URL preview card — auto-detects first URL in caption */}
+                    {linkPreviewUrl && !linkPreviewDismissed && linkPreviewData && (
+                      <div style={{ marginTop: 10, display: 'flex', gap: 0, border: `1px solid ${t.border}`, borderRadius: 10, overflow: 'hidden', background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+                        {linkPreviewData.image && (
+                          <img src={linkPreviewData.image} alt="" style={{ width: 72, height: 72, objectFit: 'cover', flexShrink: 0 }} onError={e => e.target.style.display = 'none'} />
+                        )}
+                        <div style={{ flex: 1, padding: '9px 12px', minWidth: 0 }}>
+                          {linkPreviewData.title && <div style={{ fontSize: 13, fontWeight: 700, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>{linkPreviewData.title}</div>}
+                          <div style={{ fontSize: 11, color: t.primary, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{linkPreviewUrl}</div>
+                          {linkPreviewData.description && <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{linkPreviewData.description}</div>}
+                        </div>
+                        <button type="button" onClick={() => setLinkPreviewDismissed(true)} style={{ width: 28, height: 28, background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, alignSelf: 'flex-start', margin: 4 }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                       </div>
                     )}
 
@@ -1730,7 +1747,7 @@ export default function Upload() {
       )}
 
       {/* ─── Fixed bottom action bar — GHL style, right-aligned ─── */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 300, background: t.isDark ? 'rgba(10,10,20,0.96)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderTop: `1px solid ${t.border}`, padding: isMobile ? '10px 16px' : '12px 32px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: isMobile ? 8 : 10, boxShadow: '0 -4px 24px rgba(0,0,0,0.08)' }}>
+      <div style={{ position: 'fixed', bottom: 0, left: isMobile ? 0 : 240, right: 0, zIndex: 300, background: t.isDark ? 'rgba(10,10,20,0.96)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderTop: `1px solid ${t.border}`, padding: isMobile ? '10px 16px' : '12px 32px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: isMobile ? 8 : 10, boxShadow: '0 -4px 24px rgba(0,0,0,0.08)' }}>
 
         {/* Cancel — hidden on mobile */}
         {!isMobile && (
@@ -1969,6 +1986,163 @@ export default function Upload() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Link Shortener / UTM Builder Modal ─── */}
+      {showLinkModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setShowLinkModal(false)}>
+          <div style={{ background: t.isDark ? 'rgba(12,12,22,0.98)' : '#fff', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', border: `1px solid ${t.border}`, borderRadius: 18, width: '100%', maxWidth: 560, boxShadow: '0 32px 80px rgba(0,0,0,0.45)', overflow: 'hidden' }}
+            onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px', borderBottom: `1px solid ${t.border}` }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: t.isDark ? 'rgba(255,255,255,0.07)' : t.input, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t.textSecondary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>Insert Shortened Link</div>
+              </div>
+              <button type="button" onClick={() => setShowLinkModal(false)} style={{ width: 30, height: 30, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.textMuted }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Name + Target URL */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                    Name of the Link <span style={{ color: '#EF4444' }}>*</span>
+                    <span title="A friendly label to identify this link (not shown in the post)" style={{ width: 14, height: 14, borderRadius: '50%', background: t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontSize: 9, color: t.textMuted }}>i</span>
+                  </label>
+                  <input value={linkName} onChange={e => setLinkName(e.target.value)} placeholder="e.g. summer_promo"
+                    style={{ width: '100%', padding: '8px 11px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                    onFocus={e => e.target.style.borderColor = t.primary} onBlur={e => e.target.style.borderColor = t.border} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textSecondary, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                    Target URL <span style={{ color: '#EF4444' }}>*</span>
+                    <span title="The destination URL that the shortened link will redirect to" style={{ width: 14, height: 14, borderRadius: '50%', background: t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', fontSize: 9, color: t.textMuted }}>i</span>
+                  </label>
+                  <div style={{ display: 'flex', border: `1.5px solid ${t.border}`, borderRadius: 8, overflow: 'hidden', background: t.input }}>
+                    <span style={{ padding: '8px 10px', background: t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', borderRight: `1px solid ${t.border}`, fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center' }}>https://</span>
+                    <input value={linkTargetUrl} onChange={e => setLinkTargetUrl(e.target.value)} placeholder="mysite.com/page"
+                      style={{ flex: 1, padding: '8px 10px', background: 'transparent', border: 'none', color: t.text, fontSize: 13, outline: 'none', fontFamily: 'inherit', minWidth: 0 }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* UTM Tracking section */}
+              <div style={{ background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', border: `1px solid ${t.border}`, borderRadius: 12, padding: '14px 16px' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 14 }}>Tracking Details</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11, fontWeight: 600, color: t.primary, marginBottom: 8, paddingBottom: 6, borderBottom: `1px solid ${t.border}` }}>
+                  <span>UTM Parameter</span><span>UTM Parameter Value</span>
+                </div>
+
+                {/* utm_campaign */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'center', marginBottom: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.primary, fontWeight: 600 }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={t.primary} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    UTM Campaign (utm_campaign) <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input value={linkUtmCampaign} onChange={e => setLinkUtmCampaign(e.target.value)} placeholder="e.g. summer_sale"
+                    style={{ padding: '7px 10px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 7, color: t.text, fontSize: 12, outline: 'none', fontFamily: 'inherit' }}
+                    onFocus={e => e.target.style.borderColor = t.primary} onBlur={e => e.target.style.borderColor = t.border} />
+                </div>
+
+                {/* utm_source */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'center', marginBottom: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.primary, fontWeight: 600 }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={t.primary} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    UTM Source (utm_source)
+                  </label>
+                  <input value={linkUtmSource} onChange={e => setLinkUtmSource(e.target.value)} placeholder="social"
+                    style={{ padding: '7px 10px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 7, color: t.text, fontSize: 12, outline: 'none', fontFamily: 'inherit' }}
+                    onFocus={e => e.target.style.borderColor = t.primary} onBlur={e => e.target.style.borderColor = t.border} />
+                </div>
+
+                {/* utm_medium */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'center', marginBottom: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: t.primary, fontWeight: 600 }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={t.primary} strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    UTM Medium (utm_medium)
+                  </label>
+                  <input value={linkUtmMedium} onChange={e => setLinkUtmMedium(e.target.value)} placeholder="e.g. facebook, google"
+                    style={{ padding: '7px 10px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 7, color: t.text, fontSize: 12, outline: 'none', fontFamily: 'inherit' }}
+                    onFocus={e => e.target.style.borderColor = t.primary} onBlur={e => e.target.style.borderColor = t.border} />
+                </div>
+
+                {/* Custom params */}
+                {linkCustomParams.map((param, idx) => (
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'center', marginBottom: 10 }}>
+                    <input value={param.key} onChange={e => setLinkCustomParams(prev => prev.map((p, i) => i === idx ? { ...p, key: e.target.value } : p))} placeholder="Parameter name"
+                      style={{ padding: '7px 10px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 7, color: t.text, fontSize: 12, outline: 'none', fontFamily: 'inherit' }} />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input value={param.value} onChange={e => setLinkCustomParams(prev => prev.map((p, i) => i === idx ? { ...p, value: e.target.value } : p))} placeholder="Value"
+                        style={{ flex: 1, padding: '7px 10px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 7, color: t.text, fontSize: 12, outline: 'none', fontFamily: 'inherit' }} />
+                      <button type="button" onClick={() => setLinkCustomParams(prev => prev.filter((_, i) => i !== idx))}
+                        style={{ width: 30, height: 32, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 7, cursor: 'pointer', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <button type="button" onClick={() => setLinkCustomParams(prev => [...prev, { key: '', value: '' }])}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: t.primary, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '4px 0', marginTop: 4 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add Custom UTM Parameter
+                </button>
+              </div>
+
+              {/* Preview of built URL */}
+              {(linkTargetUrl || linkUtmCampaign) && (
+                <div style={{ padding: '8px 12px', background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', borderRadius: 8, border: `1px solid ${t.border}` }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Generated URL preview</div>
+                  <div style={{ fontSize: 11, color: t.textSecondary, wordBreak: 'break-all', lineHeight: 1.5, fontFamily: 'monospace' }}>
+                    {(() => {
+                      const base = linkTargetUrl ? (linkTargetUrl.startsWith('http') ? linkTargetUrl : `https://${linkTargetUrl}`) : 'https://yoursite.com';
+                      const params = new URLSearchParams();
+                      if (linkUtmCampaign) params.set('utm_campaign', linkUtmCampaign);
+                      if (linkUtmSource) params.set('utm_source', linkUtmSource);
+                      if (linkUtmMedium) params.set('utm_medium', linkUtmMedium);
+                      linkCustomParams.forEach(p => { if (p.key && p.value) params.set(p.key, p.value); });
+                      const qs = params.toString();
+                      return qs ? `${base}?${qs}` : base;
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '14px 24px', borderTop: `1px solid ${t.border}` }}>
+              <button type="button" onClick={() => setShowLinkModal(false)}
+                style={{ padding: '9px 20px', borderRadius: 9, border: `1.5px solid ${t.border}`, background: 'transparent', color: t.textSecondary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button type="button"
+                disabled={!linkTargetUrl.trim() || !linkUtmCampaign.trim()}
+                onClick={() => {
+                  const base = linkTargetUrl.trim().startsWith('http') ? linkTargetUrl.trim() : `https://${linkTargetUrl.trim()}`;
+                  const params = new URLSearchParams();
+                  if (linkUtmCampaign) params.set('utm_campaign', linkUtmCampaign);
+                  if (linkUtmSource) params.set('utm_source', linkUtmSource);
+                  if (linkUtmMedium) params.set('utm_medium', linkUtmMedium);
+                  linkCustomParams.forEach(p => { if (p.key && p.value) params.set(p.key, p.value); });
+                  const qs = params.toString();
+                  const finalUrl = qs ? `${base}?${qs}` : base;
+                  insertIntoCaption(` ${finalUrl}`);
+                  setShowLinkModal(false);
+                }}
+                style={{ padding: '9px 22px', borderRadius: 9, border: 'none', background: (!linkTargetUrl.trim() || !linkUtmCampaign.trim()) ? 'rgba(124,92,252,0.4)' : '#7C5CFC', color: '#fff', fontSize: 13, fontWeight: 700, cursor: (!linkTargetUrl.trim() || !linkUtmCampaign.trim()) ? 'not-allowed' : 'pointer', boxShadow: '0 4px 14px rgba(124,92,252,0.3)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                Generate and Insert Link
+              </button>
+            </div>
           </div>
         </div>
       )}

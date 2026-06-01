@@ -1,4 +1,6 @@
 const express = require('express');
+const axios = require('axios');
+const cheerio = require('cheerio');
 const { authenticate } = require('../middleware/auth');
 const ScraperService = require('../services/ScraperService');
 
@@ -97,6 +99,40 @@ module.exports = (pool) => {
       res.json({ hasData: true, website: data.website, scrapedAt: data.scraped_at, services: data.website_services, about: data.website_about, fullData: data.scraped_data });
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/scraper/og?url=X — lightweight OG metadata fetch for link preview cards
+  router.get('/og', authenticate, async (req, res) => {
+    const { url } = req.query;
+    if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Invalid URL' });
+    // SSRF blocklist
+    try {
+      const { hostname } = new URL(url);
+      const blocked = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname);
+      if (blocked) return res.status(400).json({ error: 'Private URLs not allowed' });
+    } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+
+    try {
+      const resp = await axios.get(url, {
+        timeout: 6000,
+        maxRedirects: 3,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ItsPostingBot/1.0)' },
+        responseType: 'text',
+      });
+      const $ = cheerio.load(resp.data);
+      const getMeta = (prop) =>
+        $(`meta[property="${prop}"]`).attr('content') ||
+        $(`meta[name="${prop}"]`).attr('content') || null;
+
+      const title = getMeta('og:title') || $('title').first().text().trim().slice(0, 120) || null;
+      const description = getMeta('og:description') || getMeta('description') || null;
+      const image = getMeta('og:image') || null;
+      const siteName = getMeta('og:site_name') || null;
+
+      res.json({ url, title, description: description?.slice(0, 200) || null, image, siteName });
+    } catch (err) {
+      res.status(200).json({ url, title: null, description: null, image: null, siteName: null });
     }
   });
 

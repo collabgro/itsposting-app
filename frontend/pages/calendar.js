@@ -600,9 +600,9 @@ export default function Calendar() {
         {/* ── Filter bar ── */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0 }}>
           {/* Platform */}
-          <div style={{ display: 'flex', gap: 3, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 10, padding: 3, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
+          <div style={{ display: 'flex', gap: 3, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 11, padding: 4, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
             <button onClick={() => setPlatformFilter('all')}
-              style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+              style={{ padding: '6px 13px', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
                 background: platformFilter === 'all' ? t.primaryBg : 'transparent',
                 color: platformFilter === 'all' ? t.primary : t.textMuted,
                 border: platformFilter === 'all' ? `1px solid ${t.primaryBorder}` : '1px solid transparent' }}>
@@ -616,19 +616,19 @@ export default function Calendar() {
               { id: 'google_business', Icon: IpGoogle,    color: '#4285F4', label: 'Google Business' },
             ].map(({ id, Icon, color, label }) => (
               <button key={id} onClick={() => setPlatformFilter(id)} title={label}
-                style={{ width: 30, height: 30, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                style={{ width: 34, height: 34, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                   background: platformFilter === id ? `${color}18` : 'transparent',
                   border: platformFilter === id ? `1px solid ${color}55` : '1px solid transparent',
                   color: platformFilter === id ? color : t.textMuted }}>
-                <Icon size={13} />
+                <Icon size={15} />
               </button>
             ))}
           </div>
 
-          <div style={{ width: 1, height: 20, background: t.border, flexShrink: 0 }} />
+          <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0 }} />
 
           {/* Status */}
-          <div style={{ display: 'flex', gap: 3, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 10, padding: 3, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
+          <div style={{ display: 'flex', gap: 3, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 11, padding: 4, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
             {[
               { id: 'all',       label: 'All'       },
               { id: 'scheduled', label: 'Scheduled' },
@@ -636,7 +636,7 @@ export default function Calendar() {
               { id: 'posted',    label: 'Posted'    },
             ].map(opt => (
               <button key={opt.id} onClick={() => setStatusFilter(opt.id)}
-                style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+                style={{ padding: '6px 13px', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
                   background: statusFilter === opt.id ? t.primaryBg : 'transparent',
                   color: statusFilter === opt.id ? t.primary : t.textMuted,
                   border: statusFilter === opt.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent' }}>
@@ -645,10 +645,10 @@ export default function Calendar() {
             ))}
           </div>
 
-          <div style={{ width: 1, height: 20, background: t.border, flexShrink: 0 }} />
+          <div style={{ width: 1, height: 22, background: t.border, flexShrink: 0 }} />
 
           {/* Post Type filter */}
-          <div style={{ display: 'flex', gap: 3, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 10, padding: 3, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
+          <div style={{ display: 'flex', gap: 3, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 11, padding: 4, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
             {[
               { id: 'all', label: 'All types', color: null },
               { id: 'static', label: 'Text', color: '#60A5FA' },
@@ -657,7 +657,7 @@ export default function Calendar() {
               { id: 'video', label: 'Video', color: '#FF9F0A' },
             ].map(opt => (
               <button key={opt.id} onClick={() => setContentTypeFilter(opt.id)}
-                style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+                style={{ padding: '6px 13px', borderRadius: 7, fontSize: 12, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
                   background: contentTypeFilter === opt.id ? (opt.color ? `${opt.color}18` : t.primaryBg) : 'transparent',
                   color: contentTypeFilter === opt.id ? (opt.color || t.primary) : t.textMuted,
                   border: contentTypeFilter === opt.id ? `1px solid ${opt.color ? `${opt.color}55` : t.primaryBorder}` : '1px solid transparent' }}>
@@ -668,7 +668,7 @@ export default function Calendar() {
 
           {(platformFilter !== 'all' || statusFilter !== 'all' || contentTypeFilter !== 'all') && (
             <button onClick={() => { setPlatformFilter('all'); setStatusFilter('all'); setContentTypeFilter('all'); }}
-              style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '5px 8px', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+              style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 8px', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
               Clear
             </button>
           )}
@@ -1330,98 +1330,110 @@ export default function Calendar() {
 
         {/* ── LIST VIEW ── */}
         {pageView === 'list' && <>
-          {/* Search bar */}
-          <div style={{ position: 'relative', marginBottom: 12 }}>
-            <IpSearch size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: t.textMuted, pointerEvents: 'none' }} />
-            <input type="text" placeholder="Search your posts…" value={listSearch} onChange={e => setListSearch(e.target.value)}
-              style={{ width: '100%', paddingLeft: 38, paddingRight: 14, paddingTop: 11, paddingBottom: 11, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, borderRadius: 12, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.8'})` }} />
+          {/* Row 1: Search + List/Grid toggle */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <IpSearch size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: t.textMuted, pointerEvents: 'none' }} />
+              <input type="text" placeholder="Search your posts…" value={listSearch} onChange={e => setListSearch(e.target.value)}
+                style={{ width: '100%', paddingLeft: 38, paddingRight: 14, paddingTop: 10, paddingBottom: 10, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, borderRadius: 10, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box', boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.03' : '0.8'})` }} />
+            </div>
+            <div style={{ display: 'flex', padding: 3, gap: 2, background: t.isDark ? 'rgba(255,255,255,0.04)' : t.input, border: `1px solid ${t.border}`, borderRadius: 9, flexShrink: 0 }}>
+              {[{ id: 'list', label: '≡ List' }, { id: 'grid', label: '⊞ Grid' }].map(v => (
+                <button key={v.id} onClick={() => setListViewMode(v.id)}
+                  style={{ padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: listViewMode === v.id ? t.primaryBg : 'transparent', color: listViewMode === v.id ? t.primary : t.textMuted, border: listViewMode === v.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent', transition: 'all 150ms' }}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Filter row */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* Platform pills */}
-            <div style={{ display: 'flex', gap: 5, overflowX: 'auto', scrollbarWidth: 'none' }}>
+          {/* Row 2: Status tabs + count + select all */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 3, padding: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 11, boxShadow: `inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.9'})` }}>
+              {[{ id: 'all', label: 'All' }, { id: 'posted', label: 'Published' }, { id: 'scheduled', label: 'Scheduled' }, { id: 'draft', label: 'Drafts' }, { id: 'failed', label: 'Failed' }].map(f => (
+                <button key={f.id} onClick={() => setListFilter(f.id)}
+                  style={{ padding: '7px 15px', borderRadius: 7, fontSize: 13, fontWeight: listFilter === f.id ? 700 : 500, color: listFilter === f.id ? t.primary : t.textMuted, background: listFilter === f.id ? t.primaryBg : 'transparent', border: listFilter === f.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent', cursor: 'pointer', display: 'flex', gap: 5, alignItems: 'center', whiteSpace: 'nowrap' }}>
+                  {f.label}
+                  {f.id === 'all' && <span style={{ fontSize: 11, padding: '1px 7px', background: t.isDark ? 'rgba(255,255,255,0.08)' : t.input, borderRadius: 20, color: t.textMuted, fontWeight: 600 }}>{listTotal}</span>}
+                </button>
+              ))}
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+              {!listLoading && listDisplayPosts.length > 0 && (
+                <button onClick={() => listSelectedIds.length === listDisplayPosts.length ? setListSelectedIds([]) : setListSelectedIds(listDisplayPosts.map(p => p.id))}
+                  style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, background: t.input, border: `1px solid ${t.border}`, borderRadius: 7, padding: '6px 13px', cursor: 'pointer' }}>
+                  {listSelectedIds.length === listDisplayPosts.length ? 'Deselect all' : 'Select all'}
+                </button>
+              )}
+              {listSelectedIds.length > 0 && (
+                <button onClick={() => setListSelectedIds([])}
+                  style={{ fontSize: 12, fontWeight: 600, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 7, padding: '6px 13px', cursor: 'pointer' }}>
+                  {listSelectedIds.length} selected — clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Row 3: Platform + Content type + Date range — all in one row */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Platform */}
+            <div style={{ display: 'flex', gap: 3, padding: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 10 }}>
               {[
                 { id: 'all', label: 'All' },
-                { id: 'facebook', label: 'Facebook', Icon: IpFacebook, color: '#1877F2' },
-                { id: 'instagram', label: 'Instagram', Icon: IpInstagram, color: '#E1306C' },
-                { id: 'tiktok', label: 'TikTok', Icon: IpTikTok, color: '#000000' },
-                { id: 'linkedin', label: 'LinkedIn', Icon: IpLinkedIn, color: '#0A66C2' },
-                { id: 'google_business', label: 'Google Business', Icon: IpGoogle, color: '#4285F4' },
+                { id: 'facebook', Icon: IpFacebook, color: '#1877F2', label: 'Facebook' },
+                { id: 'instagram', Icon: IpInstagram, color: '#E1306C', label: 'Instagram' },
+                { id: 'tiktok', Icon: IpTikTok, color: '#010101', label: 'TikTok' },
+                { id: 'linkedin', Icon: IpLinkedIn, color: '#0A66C2', label: 'LinkedIn' },
+                { id: 'google_business', Icon: IpGoogle, color: '#4285F4', label: 'Google' },
               ].map(pf => {
                 const isActive = listPlatformFilter === pf.id;
                 const col = pf.color || t.primary;
                 return (
-                  <button key={pf.id} onClick={() => setListPlatformFilter(pf.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, whiteSpace: 'nowrap', fontSize: 12, fontWeight: isActive ? 700 : 500, border: `1px solid ${isActive ? col + '55' : t.border}`, background: isActive ? col + '18' : t.card, color: isActive ? col : t.textMuted, cursor: 'pointer', flexShrink: 0 }}>
-                    {pf.Icon && <pf.Icon size={12} />}{pf.label}
+                  <button key={pf.id} onClick={() => setListPlatformFilter(pf.id)} title={pf.label}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: pf.Icon ? '0' : '6px 13px', width: pf.Icon ? 34 : 'auto', height: pf.Icon ? 34 : 'auto', borderRadius: 7, fontSize: 12, fontWeight: isActive ? 700 : 500, border: isActive ? `1px solid ${col}55` : '1px solid transparent', background: isActive ? col + '18' : 'transparent', color: isActive ? col : t.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    {pf.Icon ? <pf.Icon size={15} /> : pf.label}
                   </button>
                 );
               })}
             </div>
+
             <div style={{ width: 1, height: 20, background: t.border, flexShrink: 0 }} />
-            {/* Date range */}
-            <div style={{ display: 'flex', gap: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 9, padding: 3, flexShrink: 0 }}>
-              {[{ id: 'all', label: 'All time' }, { id: '7d', label: 'Last 7d' }, { id: '30d', label: 'Last 30d' }, { id: 'month', label: 'This month' }].map(opt => (
-                <button key={opt.id} onClick={() => setListDateRange(opt.id)}
-                  style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, border: listDateRange === opt.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent', background: listDateRange === opt.id ? t.primaryBg : 'transparent', color: listDateRange === opt.id ? t.primary : t.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+
             {/* Content type */}
-            <div style={{ display: 'flex', gap: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 9, padding: 3, flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 3, padding: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 10 }}>
               {[{ id: 'all', label: 'All types' }, { id: 'photo', label: 'Photo', color: '#06B6D4' }, { id: 'video', label: 'Video', color: '#FF9F0A' }, { id: 'carousel', label: 'Carousel', color: '#F472B6' }, { id: 'static', label: 'Text', color: '#60A5FA' }].map(opt => (
                 <button key={opt.id} onClick={() => setListContentType(opt.id)}
-                  style={{ padding: '5px 11px', borderRadius: 6, fontSize: 11, fontWeight: 500, border: listContentType === opt.id ? `1px solid ${(opt.color || t.primary) + '55'}` : '1px solid transparent', background: listContentType === opt.id ? (opt.color ? opt.color + '18' : t.primaryBg) : 'transparent', color: listContentType === opt.id ? (opt.color || t.primary) : t.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  style={{ padding: '6px 13px', borderRadius: 7, fontSize: 12, fontWeight: 500, border: listContentType === opt.id ? `1px solid ${(opt.color || t.primary) + '55'}` : '1px solid transparent', background: listContentType === opt.id ? (opt.color ? opt.color + '18' : t.primaryBg) : 'transparent', color: listContentType === opt.id ? (opt.color || t.primary) : t.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                   {opt.label}
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* Status tabs */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 16, padding: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 12, flexWrap: 'wrap', width: 'fit-content', boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.9'})` }}>
-            {[{ id: 'all', label: 'All' }, { id: 'posted', label: 'Published' }, { id: 'scheduled', label: 'Scheduled' }, { id: 'draft', label: 'Drafts' }, { id: 'failed', label: 'Failed' }].map(f => (
-              <button key={f.id} onClick={() => setListFilter(f.id)}
-                style={{ padding: '6px 14px', borderRadius: 7, fontSize: 12, fontWeight: 500, color: listFilter === f.id ? t.text : t.textMuted, background: listFilter === f.id ? t.primaryBg : 'transparent', border: listFilter === f.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent', cursor: 'pointer', display: 'flex', gap: 6, alignItems: 'center' }}>
-                {f.label}{f.id === 'all' && <span style={{ fontSize: 11, padding: '0 5px', background: t.input, borderRadius: 9, color: t.textMuted }}>{listTotal}</span>}
-              </button>
-            ))}
-          </div>
+            <div style={{ width: 1, height: 20, background: t.border, flexShrink: 0 }} />
 
-          {/* Result count + view controls */}
-          {!listLoading && (
-            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span>{listDisplayPosts.length} post{listDisplayPosts.length !== 1 ? 's' : ''}</span>
-              {(listPlatformFilter !== 'all' || listContentType !== 'all' || listDateRange !== 'all' || listSearch) && (
-                <button onClick={() => { setListPlatformFilter('all'); setListContentType('all'); setListDateRange('all'); setListSearch(''); }}
-                  style={{ fontSize: 11, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontWeight: 600 }}>Clear filters</button>
-              )}
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-                {listSelectedIds.length > 0 && (
-                  <button onClick={() => setListSelectedIds([])}
-                    style={{ fontSize: 11, fontWeight: 600, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 7, padding: '4px 10px', cursor: 'pointer' }}>
-                    {listSelectedIds.length} selected — clear
-                  </button>
-                )}
-                {listDisplayPosts.length > 0 && (
-                  <button onClick={() => listSelectedIds.length === listDisplayPosts.length ? setListSelectedIds([]) : setListSelectedIds(listDisplayPosts.map(p => p.id))}
-                    style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, background: t.input, border: `1px solid ${t.border}`, borderRadius: 7, padding: '4px 10px', cursor: 'pointer' }}>
-                    {listSelectedIds.length === listDisplayPosts.length ? 'Deselect all' : 'Select all'}
-                  </button>
-                )}
-                <div style={{ display: 'flex', padding: 3, gap: 2, background: t.isDark ? 'rgba(255,255,255,0.04)' : t.input, border: `1px solid ${t.border}`, borderRadius: 9 }}>
-                  {[{ id: 'list', label: '≡ List' }, { id: 'grid', label: '⊞ Grid' }].map(v => (
-                    <button key={v.id} onClick={() => setListViewMode(v.id)}
-                      style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: listViewMode === v.id ? t.primaryBg : 'transparent', color: listViewMode === v.id ? t.primary : t.textMuted, border: listViewMode === v.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent', transition: 'all 150ms' }}>
-                      {v.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* Date range */}
+            <div style={{ display: 'flex', gap: 3, padding: 4, background: t.isDark ? 'rgba(15,15,24,0.78)' : t.card, border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 10 }}>
+              {[{ id: 'all', label: 'All time' }, { id: '7d', label: '7d' }, { id: '30d', label: '30d' }, { id: 'month', label: 'This month' }].map(opt => (
+                <button key={opt.id} onClick={() => setListDateRange(opt.id)}
+                  style={{ padding: '6px 13px', borderRadius: 7, fontSize: 12, fontWeight: 500, border: listDateRange === opt.id ? `1px solid ${t.primaryBorder}` : '1px solid transparent', background: listDateRange === opt.id ? t.primaryBg : 'transparent', color: listDateRange === opt.id ? t.primary : t.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {opt.label}
+                </button>
+              ))}
             </div>
-          )}
+
+            {(listPlatformFilter !== 'all' || listContentType !== 'all' || listDateRange !== 'all' || listSearch) && (
+              <button onClick={() => { setListPlatformFilter('all'); setListContentType('all'); setListDateRange('all'); setListSearch(''); }}
+                style={{ fontSize: 12, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 7, padding: '6px 13px', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                Clear
+              </button>
+            )}
+
+            {!listLoading && (
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: t.textMuted, fontWeight: 500 }}>
+                {listDisplayPosts.length} post{listDisplayPosts.length !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
 
           {/* Post list / grid */}
           {listLoadError ? (

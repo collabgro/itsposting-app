@@ -217,6 +217,40 @@ class MetricsSyncService {
       );
 
       await client.query('COMMIT');
+
+      // ── Sync reach back to PostCore Brain training tables (fire-and-forget) ──
+      // Zero customer impact — runs after the transaction completes.
+      const _reach = reach;
+      const _engagement = likes + comments + shares;
+      const _postId = postId;
+      const _pool = this.pool;
+      setImmediate(async () => {
+        try {
+          await Promise.all([
+            _pool.query(
+              `UPDATE post_training_data
+               SET post_reach = $1, post_engagement = $2
+               WHERE post_id = $3 AND (post_reach IS NULL OR post_reach < $1)`,
+              [_reach, _engagement, _postId]
+            ),
+            _pool.query(
+              `UPDATE image_training_data
+               SET post_reach = $1, post_engagement = $2
+               WHERE post_id = $3 AND (post_reach IS NULL OR post_reach < $1)`,
+              [_reach, _engagement, _postId]
+            ),
+            _pool.query(
+              `UPDATE video_training_data
+               SET post_reach = $1, post_engagement = $2
+               WHERE post_id = $3 AND (post_reach IS NULL OR post_reach < $1)`,
+              [_reach, _engagement, _postId]
+            ),
+          ]);
+        } catch (syncErr) {
+          console.warn('[MetricsSync] training table reach sync failed:', syncErr.message);
+        }
+      });
+
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

@@ -314,10 +314,32 @@ module.exports = (pool) => {
       );
 
       const newTotal = parseInt(likes) + parseInt(comments) + parseInt(shares);
+      const reachInt = parseInt(reach) || 0;
       await pool.query(
         'UPDATE posts SET engagement = $1::jsonb, performance_score = $2, last_metrics_sync = NOW() WHERE id = $3 AND customer_id = $4',
-        [JSON.stringify({ likes, comments, shares }), newTotal, req.params.id, req.customerId]
+        [JSON.stringify({ likes, comments, shares, reach: reachInt }), newTotal, req.params.id, req.customerId]
       );
+
+      // Fire-and-forget: sync reach back to PostCore Brain training tables
+      const _postId = req.params.id;
+      setImmediate(async () => {
+        try {
+          await Promise.all([
+            pool.query(
+              `UPDATE post_training_data SET post_reach=$1, post_engagement=$2 WHERE post_id=$3 AND (post_reach IS NULL OR post_reach < $1)`,
+              [reachInt || newTotal, newTotal, _postId]
+            ),
+            pool.query(
+              `UPDATE image_training_data SET post_reach=$1, post_engagement=$2 WHERE post_id=$3 AND (post_reach IS NULL OR post_reach < $1)`,
+              [reachInt || newTotal, newTotal, _postId]
+            ),
+            pool.query(
+              `UPDATE video_training_data SET post_reach=$1, post_engagement=$2 WHERE post_id=$3 AND (post_reach IS NULL OR post_reach < $1)`,
+              [reachInt || newTotal, newTotal, _postId]
+            ),
+          ]);
+        } catch {}
+      });
 
       res.json({ success: true });
     } catch (err) {

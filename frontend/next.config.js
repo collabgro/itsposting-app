@@ -34,7 +34,7 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false,
   eslint: { ignoreDuringBuilds: true },
   poweredByHeader: false,
   outputFileTracingRoot: path.join(__dirname, '..'),

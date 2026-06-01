@@ -25,6 +25,22 @@ const CAT_ICONS = {
   'promotional':'📣', 'team':'👥',
 };
 
+// Rounded-rect path helper (avoids ctx.roundRect which is unavailable in older Safari)
+function rrect(ctx, x, y, w, h, r) {
+  if (r <= 0) { ctx.rect(x, y, w, h); return; }
+  r = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
 export default function TemplatesPage() {
   const router = useRouter();
   const { t } = useTheme();
@@ -72,7 +88,7 @@ export default function TemplatesPage() {
     finally { setCreationsLoading(false); }
   };
 
-  // Canvas-side thumbnail generation (skeletons while loading)
+  // Canvas-side thumbnail generation — renders actual template layout
   const canvasRef = useRef(null);
   useEffect(() => {
     if (!curatedTemplates.length) return;
@@ -81,28 +97,135 @@ export default function TemplatesPage() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    canvas.width = 200; canvas.height = 250;
+    const TW = 200, TH = 250;
+    canvas.width = TW; canvas.height = TH;
     const newThumbs = {};
+
     needsThumbs.forEach(tmpl => {
-      const bg = tmpl.canvas_json?.pages?.[0]?.bgColor || '#1a1a2e';
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, 200, 250);
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      ctx.font = 'bold 28px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(CAT_ICONS[tmpl.category] || '✦', 100, 100);
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      const words = (tmpl.name || '').split(' ');
-      let line = ''; let y = 130;
-      words.forEach(w => {
-        const test = line + w + ' ';
-        if (ctx.measureText(test).width > 170 && line) { ctx.fillText(line, 100, y); line = w + ' '; y += 16; }
-        else { line = test; }
+      ctx.clearRect(0, 0, TW, TH);
+
+      const page  = tmpl.canvas_json?.pages?.[0] || {};
+      const srcW  = tmpl.canvas_width  || 1080;
+      const srcH  = tmpl.canvas_height || 1350;
+      // Cover-scale: fill TW×TH, clip overflow
+      const scale = Math.max(TW / srcW, TH / srcH);
+      const drawW = srcW * scale;
+      const drawH = srcH * scale;
+      const offX  = (TW - drawW) / 2;
+      const offY  = (TH - drawH) / 2;
+
+      const bgType = page.bgType || 'color';
+      const bgHex  = page.bgColor || '#1a1a2e';
+      const bgGrad = page.bgGradient;
+
+      // Clip to canvas bounds
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(offX, offY, drawW, drawH);
+      ctx.clip();
+
+      // ── Background ──────────────────────────────────────────
+      if (bgType === 'gradient' && bgGrad?.c1 && bgGrad?.c2) {
+        const angle = ((bgGrad.angle || 135) * Math.PI) / 180;
+        const cx = offX + drawW / 2, cy = offY + drawH / 2;
+        const grd = ctx.createLinearGradient(
+          cx - Math.cos(angle) * drawW / 2, cy - Math.sin(angle) * drawH / 2,
+          cx + Math.cos(angle) * drawW / 2, cy + Math.sin(angle) * drawH / 2,
+        );
+        grd.addColorStop(0, bgGrad.c1);
+        if (bgGrad.midColor) grd.addColorStop(0.5, bgGrad.midColor);
+        grd.addColorStop(1, bgGrad.c2);
+        ctx.fillStyle = grd;
+      } else {
+        ctx.fillStyle = bgHex;
+      }
+      ctx.fillRect(offX, offY, drawW, drawH);
+
+      // ── Elements ─────────────────────────────────────────────
+      (page.elements || []).forEach(el => {
+        if (el.hidden) return;
+        const op = el.opacity ?? 1;
+        if (op <= 0) return;
+
+        const ex = offX + (el.x || 0) * scale;
+        const ey = offY + (el.y || 0) * scale;
+        const ew = (el.width  || 100) * scale;
+        const eh = (el.height ||  40) * scale;
+
+        ctx.save();
+        ctx.globalAlpha = op;
+
+        // Rotation around element centre
+        if (el.rotation) {
+          ctx.translate(ex + ew / 2, ey + eh / 2);
+          ctx.rotate((el.rotation * Math.PI) / 180);
+          ctx.translate(-(ex + ew / 2), -(ey + eh / 2));
+        }
+
+        if (el.type === 'rect') {
+          const cr = (el.cornerRadius || 0) * scale;
+          ctx.beginPath();
+          rrect(ctx, ex, ey, ew, eh, cr);
+          ctx.fillStyle = el.fill || 'transparent';
+          if (el.fill) ctx.fill();
+          if (el.stroke && el.strokeWidth) {
+            ctx.strokeStyle = el.stroke;
+            ctx.lineWidth = el.strokeWidth * scale;
+            ctx.stroke();
+          }
+
+        } else if (el.type === 'circle') {
+          const rx = ew / 2, ry = eh / 2;
+          ctx.beginPath();
+          ctx.ellipse(ex + rx, ey + ry, rx, ry, 0, 0, Math.PI * 2);
+          ctx.fillStyle = el.fill || 'transparent';
+          if (el.fill) ctx.fill();
+
+        } else if (el.type === 'text' && el.text) {
+          const fw = parseInt(el.fontWeight) || 400;
+          const isBold = fw >= 600;
+          const isItalic = (el.fontStyle || '').includes('italic');
+          const fs = Math.max(4, (el.fontSize || 16) * scale);
+          ctx.font = `${isBold ? 'bold ' : ''}${isItalic ? 'italic ' : ''}${fs}px sans-serif`;
+          ctx.fillStyle = el.fill || '#fff';
+          ctx.textBaseline = 'top';
+          ctx.textAlign = el.align || 'left';
+          const textX = el.align === 'center' ? ex + ew / 2
+                       : el.align === 'right'  ? ex + ew
+                       : ex;
+          const lineH = fs * (el.lineHeight || 1.2);
+          // Simple line-wrap within element width
+          const words2 = String(el.text).split(' ');
+          let curLine = '';
+          let ty = ey;
+          words2.forEach(word => {
+            const test = curLine + word + ' ';
+            if (ew > 0 && ctx.measureText(test).width > ew && curLine) {
+              ctx.fillText(curLine.trim(), textX, ty);
+              curLine = word + ' ';
+              ty += lineH;
+            } else {
+              curLine = test;
+            }
+          });
+          ctx.fillText(curLine.trim(), textX, ty);
+
+        } else if (el.type === 'image') {
+          // Image placeholder — tinted block so the layout is still visible
+          ctx.fillStyle = 'rgba(128,128,128,0.18)';
+          ctx.beginPath();
+          rrect(ctx, ex, ey, ew, eh, 4 * scale);
+          ctx.fill();
+        }
+
+        ctx.restore();
       });
-      ctx.fillText(line, 100, y);
-      newThumbs[tmpl.id] = canvas.toDataURL('image/png');
+
+      ctx.restore(); // end clip
+
+      newThumbs[tmpl.id] = canvas.toDataURL('image/jpeg', 0.9);
     });
+
     setTemplateThumbs(prev => ({ ...prev, ...newThumbs }));
   }, [curatedTemplates]);
 
@@ -213,7 +336,19 @@ export default function TemplatesPage() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, paddingBottom: 60 }}>
               {curatedTemplates.map(tmpl => {
                 const thumbSrc = tmpl.thumbnail_url || templatePexelsThumbs[tmpl.id] || templateThumbs[tmpl.id];
-                const bgColor = tmpl.canvas_json?.pages?.[0]?.bgColor || '#1a1a2e';
+                const page    = tmpl.canvas_json?.pages?.[0] || {};
+                const bgColor = page.bgColor || '#1a1a2e';
+                const bgGrad  = page.bgGradient;
+                // luminance-aware contrast for JSX fallback
+                const hex3 = bgColor.replace('#', '');
+                const fr = parseInt(hex3.substring(0, 2), 16) || 26;
+                const fg = parseInt(hex3.substring(2, 4), 16) || 26;
+                const fb = parseInt(hex3.substring(4, 6), 16) || 46;
+                const fbLum = (0.299 * fr + 0.587 * fg + 0.114 * fb) / 255;
+                const fbTextClr = fbLum < 0.5 ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.75)';
+                const fbBg = page.bgType === 'gradient' && bgGrad?.c1 && bgGrad?.c2
+                  ? `linear-gradient(${bgGrad.angle || 135}deg, ${bgGrad.c1}, ${bgGrad.c2})`
+                  : bgColor;
                 return (
                   <div
                     key={tmpl.id}
@@ -224,9 +359,9 @@ export default function TemplatesPage() {
                     <div style={{ aspectRatio: '4/5', background: t.input, position: 'relative', overflow: 'hidden' }}>
                       {thumbSrc
                         ? <img src={thumbSrc} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        : <div style={{ width: '100%', height: '100%', background: bgColor, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16 }}>
+                        : <div style={{ width: '100%', height: '100%', background: fbBg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16 }}>
                             <span style={{ fontSize: 28 }}>{CAT_ICONS[tmpl.category] || '✦'}</span>
-                            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', textAlign: 'center', fontWeight: 700, lineHeight: 1.4 }}>{tmpl.name}</span>
+                            <span style={{ fontSize: 10, color: fbTextClr, textAlign: 'center', fontWeight: 700, lineHeight: 1.4 }}>{tmpl.name}</span>
                           </div>
                       }
                       <div className="tmpl-hover" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.62)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 150ms', gap: 10, flexDirection: 'column', backdropFilter: 'blur(2px)' }}>
@@ -272,7 +407,7 @@ export default function TemplatesPage() {
               icon={IpPhotoStudio}
               title="No designs yet"
               subtitle="Click 'New Design' above to create your first branded graphic"
-              action={{ label: 'New Design', onClick: () => setShowSizePicker(true) }}
+              action={<button onClick={() => setShowSizePicker(true)} style={{ padding: '10px 24px', background: '#7C5CFC', color: '#fff', border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(124,92,252,0.35)' }}>New Design</button>}
             />
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, paddingBottom: 60 }}>

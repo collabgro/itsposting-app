@@ -271,19 +271,19 @@ function getWizardSteps(industry, contentType) {
     subtitle: 'Pick what best describes what you want to post about',
     type: 'cards',
     options: [
-      { value: 'just_finished_job', label: 'Just finished a job', emoji: '🔨', description: 'Show off your latest work' },
-      { value: 'share_tip', label: 'Share a tip', emoji: '💡', description: 'Educate and build trust' },
-      { value: 'got_review', label: 'Got a great review', emoji: '⭐', description: 'Share the love from a customer' },
-      { value: 'running_promo', label: 'Running a promotion', emoji: '📅', description: 'Announce a special offer' },
+      { value: 'custom',            label: 'My own idea',              emoji: '✏️', description: 'You know what to post — tell PostCore' },
+      { value: 'just_finished_job', label: 'Just finished a job',      emoji: '🔨', description: 'Show off your latest work' },
+      { value: 'share_tip',         label: 'Share a tip',              emoji: '💡', description: 'Educate and build trust' },
+      { value: 'got_review',        label: 'Got a great review',       emoji: '⭐', description: 'Share the love from a customer' },
+      { value: 'running_promo',     label: 'Running a promotion',      emoji: '📅', description: 'Announce a special offer' },
       {
         value: 'seasonal',
         label: `${currentMonthName} seasonal post`,
         emoji: '🌤️',
         description: seasonal.urgencyTopic || 'Timely, seasonal content for this month',
       },
-      { value: 'community', label: 'Community or local event', emoji: '🏘️', description: 'Connect with your local area' },
-      { value: 'faq', label: 'FAQ or myth-busting', emoji: '❓', description: 'Answer a common question' },
-      { value: 'team_spotlight', label: 'Team spotlight', emoji: '🎉', description: 'Introduce your team or celebrate a milestone' },
+      { value: 'community',     label: 'Community or local event', emoji: '🏘️', description: 'Connect with your local area' },
+      { value: 'team_spotlight', label: 'Team spotlight',          emoji: '🎉', description: 'Introduce your team or celebrate a milestone' },
     ],
   };
 
@@ -365,6 +365,15 @@ function getWizardSteps(industry, contentType) {
       fields: [
         { id: 'community_event', label: 'What is happening?', placeholder: 'e.g. Sponsoring the local little league, Donating to the food bank, Local festival this weekend...', type: 'textarea', required: false },
         { id: 'why_it_matters', label: 'Why does it matter to you? (optional)', placeholder: 'e.g. We have been in this community for 20 years and believe in giving back...', type: 'text', required: false },
+      ],
+    },
+    custom: {
+      id: 'details',
+      title: 'Tell PostCore your idea',
+      subtitle: 'Describe what you want to post about — the more detail you give, the better the result',
+      type: 'form',
+      fields: [
+        { id: 'custom_topic', label: "What's on your mind?", placeholder: "e.g. 'I want to post about why we switched to eco-friendly products' or 'Remind people we now cover the Westside area' — anything goes.", type: 'textarea', required: false },
       ],
     },
     faq: {
@@ -682,14 +691,15 @@ module.exports = (pool) => {
 
       // Map wizard content types to SystemPromptBuilder triggers
       const triggerMap = {
+        custom:           'custom',
         just_finished_job: 'finished_job',
-        share_tip: 'share_tip',
-        got_review: 'got_review',
-        running_promo: 'promotion',
-        seasonal: 'seasonal',
-        community: 'community',
-        faq: 'faq',
-        team_spotlight: 'behind_scenes',
+        share_tip:        'share_tip',
+        got_review:       'got_review',
+        running_promo:    'promotion',
+        seasonal:         'seasonal',
+        community:        'community',
+        faq:              'faq',
+        team_spotlight:   'behind_scenes',
       };
 
       let businessKnowledge = [];
@@ -837,21 +847,25 @@ module.exports = (pool) => {
       }
 
       // Transform SystemPromptBuilder format (variation_a) to wizard format (variations.A)
+      // Include per-variation hashtags so the frontend can show them on each card
       const transformedVariations = {
         A: {
           caption: parsed.variation_a?.caption || '',
           engagementQuestion: parsed.variation_a?.engagementQuestion || '',
           hookType: parsed.variation_a?.hookFormulaUsed || 'question',
+          hashtags: parsed.variation_a?.hashtags || [],
         },
         B: {
           caption: parsed.variation_b?.caption || '',
           engagementQuestion: parsed.variation_b?.engagementQuestion || '',
           hookType: parsed.variation_b?.hookFormulaUsed || 'story',
+          hashtags: parsed.variation_b?.hashtags || parsed.variation_a?.hashtags || [],
         },
         C: {
           caption: parsed.variation_c?.caption || '',
           engagementQuestion: parsed.variation_c?.engagementQuestion || '',
           hookType: parsed.variation_c?.hookFormulaUsed || 'tip',
+          hashtags: parsed.variation_c?.hashtags || parsed.variation_a?.hashtags || [],
         },
       };
 
@@ -903,10 +917,26 @@ module.exports = (pool) => {
             const slideList = parsed.carouselSlides || parsed.variation_a?.slides || [];
             const slideResults = [];
             for (const slide of slideList) {
+              const slidePrompt = slide.description || imagePromptForGen;
+              const slideStart = Date.now();
               try {
-                const slideResult = await nanoBanana.generateFromPrompt(session.customer, slide.description || imagePromptForGen, { aspectRatio: '1:1' });
+                const slideResult = await nanoBanana.generateFromPrompt(session.customer, slidePrompt, { aspectRatio: '1:1' });
                 await validateMedia(slideResult.url);
                 slideResults.push({ ...slide, imageUrl: slideResult.url });
+                // Log each carousel slide image — fire-and-forget
+                const _slideUrl = slideResult.url;
+                const _slideMs  = Date.now() - slideStart;
+                const _slideModel = slideResult.model || 'gemini-2.5-flash-image';
+                setImmediate(async () => {
+                  pool.query(
+                    `INSERT INTO image_training_data
+                       (post_id, customer_id, input_prompt, output_url, provider, industry,
+                        content_type, model_used, generation_time_ms, created_at)
+                     VALUES (NULL,$1,$2,$3,'nanobanana',$4,'carousel',$5,$6,NOW())`,
+                    [session.customerId, slidePrompt, _slideUrl,
+                     session.customer.industry, _slideModel, _slideMs]
+                  ).catch(e => console.warn('[Wizard] carousel slide training insert failed:', e.message));
+                });
               } catch (slideErr) {
                 console.warn(`[Wizard] Slide ${slide.slideNumber} image failed:`, slideErr.message);
                 slideResults.push({ ...slide, imageUrl: null });
@@ -916,6 +946,7 @@ module.exports = (pool) => {
             mediaVariants = { slides: slideResults };
           } else {
             // Photo — try once, retry once on failure
+            const imgGenStart = Date.now();
             let imageResult;
             try {
               imageResult = await attemptImageGen(imagePromptForGen);
@@ -923,6 +954,7 @@ module.exports = (pool) => {
               console.warn('[Wizard] Image gen attempt 1 failed, retrying:', firstErr.message);
               imageResult = await attemptImageGen(imagePromptForGen);
             }
+            const imgGenMs = Date.now() - imgGenStart;
             mediaUrl = imageResult.url;
             if (ImageResizer) {
               try {
@@ -937,6 +969,27 @@ module.exports = (pool) => {
                 mediaVariants = {};
               }
             }
+            // ── Image training data (fire-and-forget) ──────────────────────────
+            const _imgPrompt = imagePromptForGen;
+            const _imgUrl = mediaUrl;
+            const _imgProvider = imageResult.model?.includes('midjourney') ? 'midjourney' : 'nanobanana';
+            const _imgModel = imageResult.model || 'gemini-2.5-flash-image';
+            const _imgMs = imgGenMs;
+            setImmediate(async () => {
+              try {
+                await pool.query(
+                  `INSERT INTO image_training_data
+                     (post_id, customer_id, input_prompt, output_url, provider, industry,
+                      content_type, model_used, generation_time_ms, created_at)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+                   ON CONFLICT DO NOTHING`,
+                  [null, session.customerId, _imgPrompt, _imgUrl, _imgProvider,
+                   session.customer.industry, answers.contentTypeSelection, _imgModel, _imgMs]
+                );
+              } catch (e) {
+                console.warn('[Wizard] image_training_data insert failed:', e.message);
+              }
+            });
           }
         } catch (imgErr) {
           console.error('[Wizard] Image generation failed after retries:', imgErr.message, imgErr.stack?.split('\n')[1]);
@@ -1053,11 +1106,12 @@ module.exports = (pool) => {
           try {
             await pool.query(
               `INSERT INTO post_training_data
-                 (post_id, input_payload, output_payload, model_used, created_at)
-               VALUES ($1, $2, $3, 'claude-sonnet-4-6', NOW())
+                 (post_id, customer_id, input_payload, output_payload, model_used, created_at)
+               VALUES ($1, $2, $3, $4, 'claude-sonnet-4-6', NOW())
                ON CONFLICT DO NOTHING`,
               [
                 savedPostId,
+                session.customerId,
                 JSON.stringify({
                   industry:      session.customer.industry,
                   contentType:   answers.contentTypeSelection,
@@ -1090,6 +1144,18 @@ module.exports = (pool) => {
                 }),
               ]
             );
+            // Backfill post_id into image_training_data row inserted at image-gen time (was null then)
+            if (mediaUrl) {
+              await pool.query(
+                `UPDATE image_training_data SET post_id = $1
+                 WHERE id = (
+                   SELECT id FROM image_training_data
+                   WHERE customer_id = $2 AND output_url = $3 AND post_id IS NULL
+                   ORDER BY created_at DESC LIMIT 1
+                 )`,
+                [savedPostId, session.customerId, mediaUrl]
+              ).catch(() => {});
+            }
           } catch (tdErr) {
             console.warn('[Wizard] Training data insert failed:', tdErr.message);
           }
@@ -1124,12 +1190,14 @@ module.exports = (pool) => {
             const videoSvc = new VideoService();
             console.log(`[Wizard BG] Starting video generation for post ${bgPostId} (type: ${bgVideoType})`);
 
+            const videoGenStart = Date.now();
             const videoResult = await videoSvc.generate(bgCustomer, bgScript, {
               videoType: bgVideoType,
               imagePrompt: bgImagePrompt,
               aspectRatio: bgAspectRatio,
               durationSeconds: 7,
             });
+            const videoGenMs = Date.now() - videoGenStart;
 
             if (videoResult?.url) {
               await pool.query(
@@ -1137,6 +1205,20 @@ module.exports = (pool) => {
                 [videoResult.url, videoResult.provider, bgPostId]
               );
               console.log(`[Wizard BG] Video ready for post ${bgPostId}: ${videoResult.url.substring(0, 60)}`);
+              // ── Video training data (fire-and-forget) ──────────────────────
+              pool.query(
+                `INSERT INTO video_training_data
+                   (post_id, customer_id, script, key_frame_prompt, key_frame_url, output_url,
+                    provider, video_type, aspect_ratio, duration_seconds, industry,
+                    content_type, model_used, generation_time_ms, created_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
+                 ON CONFLICT DO NOTHING`,
+                [bgPostId, bgCustomer.id, bgScript, bgImagePrompt || null,
+                 videoResult.keyFrameUrl || null, videoResult.url,
+                 videoResult.provider || bgVideoType, bgVideoType, bgAspectRatio, 7,
+                 bgCustomer.industry, 'video', videoResult.model || videoResult.provider || null,
+                 videoGenMs]
+              ).catch(e => console.warn('[Wizard BG] video_training_data insert failed:', e.message));
             } else {
               await pool.query(`UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`, [bgPostId]);
               console.error('[Wizard BG] VideoService returned no URL for post', bgPostId);
@@ -1454,7 +1536,7 @@ module.exports = (pool) => {
       }
 
       // Extract from variation_a (SystemPromptBuilder format)
-      res.json({
+      const quickResult = {
         success: true,
         caption: parsed.variation_a?.caption || '',
         hashtags: parsed.variation_a?.hashtags || [],
@@ -1462,7 +1544,44 @@ module.exports = (pool) => {
         engagementQuestion: parsed.variation_a?.engagementQuestion || '',
         platform,
         tone,
+      };
+
+      // ── Training data (fire-and-forget) ───────────────────────────────────
+      setImmediate(async () => {
+        try {
+          await pool.query(
+            `INSERT INTO post_training_data
+               (post_id, customer_id, input_payload, output_payload, model_used, created_at)
+             VALUES (NULL, $1, $2, $3, 'claude-sonnet-4-6', NOW())`,
+            [
+              req.customerId,
+              JSON.stringify({
+                source:       'quick_post',
+                industry:     customer.industry,
+                contentType:  'photo',
+                tone,
+                platform,
+                details:      description.trim(),
+                businessName: customer.business_name,
+                location:     customer.location,
+                month:        new Date().getMonth() + 1,
+              }),
+              JSON.stringify({
+                variation_a: {
+                  caption:            quickResult.caption,
+                  hashtags:           quickResult.hashtags,
+                  engagementQuestion: quickResult.engagementQuestion,
+                  imagePrompt:        quickResult.imagePrompt,
+                },
+              }),
+            ]
+          );
+        } catch (e) {
+          console.warn('[Wizard/quick] Training data insert failed:', e.message);
+        }
       });
+
+      res.json(quickResult);
     } catch (err) {
       console.error('[Wizard] Quick post error:', err);
       res.status(500).json({ error: 'Quick post generation failed. Please try again.' });
@@ -1531,7 +1650,44 @@ module.exports = (pool) => {
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
-      res.json({ success: true, caption: parsed.caption });
+      const refreshedCaption = parsed.caption || '';
+
+      // ── Training data — refresh is a high-value negative signal ───────────
+      // Means: the original caption didn't satisfy the customer.
+      // angle = WHY it failed (too long, not local enough, not funny, etc.)
+      setImmediate(async () => {
+        try {
+          await pool.query(
+            `INSERT INTO post_training_data
+               (post_id, customer_id, input_payload, output_payload, model_used, created_at)
+             VALUES (NULL, $1, $2, $3, 'claude-sonnet-4-6', NOW())`,
+            [
+              req.customerId,
+              JSON.stringify({
+                source:          'refresh',
+                industry:        customer.industry,
+                platform:        platform || 'facebook',
+                tone:            tone || 'professional',
+                originalCaption: safeCaption,
+                refreshAngle:    angle || 'generic',
+                businessName:    customer.business_name,
+                location:        customer.location,
+                month:           new Date().getMonth() + 1,
+              }),
+              JSON.stringify({
+                variation_a: { caption: refreshedCaption },
+                // Negative signal: original was rejected — quality_score intentionally low
+                _rejected_original: safeCaption,
+                _refresh_angle:     angle,
+              }),
+            ]
+          );
+        } catch (e) {
+          console.warn('[Wizard/refresh] Training data insert failed:', e.message);
+        }
+      });
+
+      res.json({ success: true, caption: refreshedCaption });
     } catch (err) {
       console.error('[Wizard] Refresh error:', err);
       res.status(500).json({ error: 'Refresh failed. Please try again.' });
@@ -2030,6 +2186,70 @@ Rules:
     } catch (err) {
       console.error('[Wizard/download-image]', err.message);
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/wizard/feedback — capture customer choice signals for PostCore Brain training
+  // Called from the frontend when customer selects a variation or keeps/regenerates media.
+  // Fire this immediately on user action — never wait for it on the critical path.
+  router.post('/feedback', authenticate, async (req, res) => {
+    try {
+      const customerId = req.customerId;
+      const { postId, variationSelected, wasEdited, mediaKept, wasPublished } = req.body;
+
+      if (!postId) return res.status(400).json({ error: 'postId required' });
+
+      // Verify the post belongs to this customer (IDOR protection)
+      const ownerCheck = await pool.query(
+        `SELECT id FROM posts WHERE id = $1 AND customer_id = $2`,
+        [postId, customerId]
+      );
+      if (ownerCheck.rows.length === 0) {
+        return res.status(403).json({ error: 'Not authorized' });
+      }
+
+      // Update caption training signal
+      if (variationSelected || wasEdited !== undefined || wasPublished !== undefined) {
+        await pool.query(
+          `UPDATE post_training_data SET
+             variation_selected = COALESCE($1, variation_selected),
+             was_edited         = COALESCE($2, was_edited),
+             was_published      = COALESCE($3, was_published)
+           WHERE post_id = $4`,
+          [variationSelected || null,
+           wasEdited !== undefined ? wasEdited : null,
+           wasPublished !== undefined ? wasPublished : null,
+           postId]
+        );
+      }
+
+      // Update image training signal — mark the most recent image for this post
+      if (mediaKept !== undefined) {
+        await pool.query(
+          `UPDATE image_training_data SET
+             was_kept      = $1,
+             was_published = COALESCE($2, was_published)
+           WHERE post_id = $3`,
+          [mediaKept,
+           wasPublished !== undefined ? wasPublished : null,
+           postId]
+        );
+        // Also update video training data
+        await pool.query(
+          `UPDATE video_training_data SET
+             was_kept      = $1,
+             was_published = COALESCE($2, was_published)
+           WHERE post_id = $3`,
+          [mediaKept,
+           wasPublished !== undefined ? wasPublished : null,
+           postId]
+        );
+      }
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[Wizard] feedback error:', err.message);
+      res.status(500).json({ error: 'Failed to save feedback' });
     }
   });
 

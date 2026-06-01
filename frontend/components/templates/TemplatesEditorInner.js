@@ -13,7 +13,7 @@ import {
   IpCopy, IpDelete, IpLock, IpUnlock,
   IpSparkle, IpPalette, IpEdit, IpFolderOpen,
   IpTextCard, IpPublish, IpPhoto, IpVideo,
-  IpPlus, IpChevronDown, IpSearch, IpTeam,
+  IpPlus, IpChevronDown, IpChevronLeft, IpChevronRight, IpSearch, IpTeam,
 } from '../../components/icons';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -39,9 +39,11 @@ const IcoUndo      = ({ size = 16 }) => <_Ico size={size}><path d="M3 7v6h6"/><p
 const IcoRedo      = ({ size = 16 }) => <_Ico size={size}><path d="M21 7v6h-6"/><path d="M21 13A9 9 0 1 1 18.5 6"/></_Ico>;
 const IcoTemplates = ({ size = 20 }) => <_Ico size={size}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></_Ico>;
 const IcoLayers    = ({ size = 20 }) => <_Ico size={size}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></_Ico>;
-const IcoBringFwd  = ({ size = 15 }) => <_Ico size={size}><rect x="3" y="8" width="13" height="13" rx="2"/><path d="M8 8V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3"/></_Ico>;
-const IcoSendBack  = ({ size = 15 }) => <_Ico size={size}><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M5 15H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/></_Ico>;
-const IcoDuplicate = ({ size = 15 }) => <_Ico size={size}><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v1"/></_Ico>;
+const IcoBringFwd   = ({ size = 15 }) => <_Ico size={size}><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></_Ico>;
+const IcoSendBack   = ({ size = 15 }) => <_Ico size={size}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></_Ico>;
+const IcoBringFront = ({ size = 15 }) => <_Ico size={size}><line x1="3" y1="3" x2="21" y2="3"/><line x1="12" y1="21" x2="12" y2="7"/><polyline points="5 11 12 4 19 11"/></_Ico>;
+const IcoSendToBack = ({ size = 15 }) => <_Ico size={size}><line x1="12" y1="3" x2="12" y2="17"/><polyline points="5 13 12 20 19 13"/><line x1="3" y1="21" x2="21" y2="21"/></_Ico>;
+const IcoDuplicate = ({ size = 15 }) => <_Ico size={size}><rect x="2" y="8" width="13" height="13" rx="2"/><line x1="18" y1="3" x2="22" y2="3"/><line x1="20" y1="1" x2="20" y2="5"/></_Ico>;
 const IcoFit       = ({ size = 13 }) => <_Ico size={size}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></_Ico>;
 const IcoRuler     = ({ size = 13 }) => <_Ico size={size}><rect x="2" y="7" width="20" height="10" rx="1"/><line x1="7" y1="12" x2="7" y2="7"/><line x1="11" y1="10" x2="11" y2="7"/><line x1="15" y1="12" x2="15" y2="7"/><line x1="19" y1="10" x2="19" y2="7"/></_Ico>;
 const IcoGrid      = ({ size = 13 }) => <_Ico size={size}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></_Ico>;
@@ -454,14 +456,14 @@ const QUICK_ACTIONS = [
   { id: 'circle',   icon: '○',  label: 'Add circle',      sub: 'Insert a circle shape',    shortcut: 'C'       },
   { id: 'line',     icon: '╱',  label: 'Add line',        sub: 'Insert a line shape'                          },
   { id: 'undo',     icon: '⟲',  label: 'Undo',            sub: 'Undo last action',          shortcut: 'Ctrl+Z'  },
-  { id: 'redo',     icon: '⟳',  label: 'Redo',            sub: 'Redo last undone action',   shortcut: 'Ctrl+Y'  },
+  { id: 'redo',     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>, label: 'Redo', sub: 'Redo last undone action', shortcut: 'Ctrl+Y' },
   { id: 'duplicate',    icon: '⊞',  label: 'Duplicate',        sub: 'Duplicate selected element',   shortcut: 'Ctrl+D'      },
   { id: 'pasteinplace', icon: '⧉',  label: 'Paste in place',  sub: 'Paste at original position',   shortcut: 'Ctrl+⇧V'    },
-  { id: 'delete',       icon: '🗑', label: 'Delete',           sub: 'Delete selected element',      shortcut: 'Del'         },
+  { id: 'delete',       icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2v2"/></svg>, label: 'Delete',           sub: 'Delete selected element',      shortcut: 'Del'         },
   { id: 'newpage',  icon: '+',  label: 'Add new page',    sub: 'Insert a blank page after this one'            },
-  { id: 'download', icon: '⬇', label: 'Download PNG',    sub: 'Export canvas as PNG'                         },
-  { id: 'zoomin',   icon: '🔍', label: 'Zoom in',         sub: 'Increase canvas zoom',      shortcut: 'Ctrl++'  },
-  { id: 'zoomout',  icon: '🔎', label: 'Zoom out',        sub: 'Decrease canvas zoom',      shortcut: 'Ctrl+–'  },
+  { id: 'download', icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21,15v4a2,2,0,0,1-2,2H5a2,2,0,0,1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>, label: 'Download PNG',    sub: 'Export canvas as PNG'                         },
+  { id: 'zoomin',   icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>, label: 'Zoom in',         sub: 'Increase canvas zoom',      shortcut: 'Ctrl++'  },
+  { id: 'zoomout',  icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>, label: 'Zoom out',        sub: 'Decrease canvas zoom',      shortcut: 'Ctrl+–'  },
   { id: 'zoomfit',  icon: '⤢',  label: 'Fit to screen',  sub: 'Reset zoom to fit canvas',  shortcut: 'Ctrl+0'  },
   { id: 'selectall',icon: '⊡',  label: 'Select all',     sub: 'Select all unlocked elements', shortcut: 'Ctrl+A' },
   { id: 'showgrid', icon: '⊞',  label: 'Toggle grid',    sub: 'Show/hide dot grid overlay',   shortcut: 'G'      },
@@ -1026,7 +1028,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
     visible: !hidden && el.visible !== false,
     onClick: (e) => !locked && onSelect(el.id, e),
     onTap: (e) => !locked && onSelect(el.id, e),
-    onMouseEnter: e => { if (!locked && onHoverIn) { onHoverIn(el.id); const s = e.target.getStage(); if (s) s.container().style.cursor = locked ? 'not-allowed' : 'pointer'; } },
+    onMouseEnter: e => { if (!locked && onHoverIn) { onHoverIn(el.id); const s = e.target.getStage(); if (s) s.container().style.cursor = locked ? 'not-allowed' : (el.type === 'text' ? 'text' : 'pointer'); } },
     onMouseLeave: e => { if (onHoverOut) { onHoverOut(); const s = e.target.getStage(); if (s) s.container().style.cursor = ''; } },
     onDragStart: e => { setIsDragging(true); const s = e.target.getStage(); if (s) s.container().style.cursor = 'grabbing'; if (onHoverOut) onHoverOut(); },
     onDragMove: handleDragMove,
@@ -1172,7 +1174,27 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
         onDblTap={() => onDblClick(el.id)}
       />
     );
-    if (!el.textBg?.enabled) return textNode;
+    // Hover indicator — thin border box, only when hovered and not already selected
+    // (selected state is handled by the Konva Transformer; don't double-render)
+    const textHoverRect = (isHovered && !locked && !isSelected) ? (
+      <Rect
+        x={el.x || 0}
+        y={el.y || 0}
+        width={el.width || 400}
+        height={measuredH || (el.fontSize || 36) * 1.5}
+        rotation={el.rotation || 0}
+        fill="transparent"
+        stroke="rgba(108,99,255,0.6)"
+        strokeWidth={1.5}
+        cornerRadius={2}
+        listening={false}
+        perfectDrawEnabled={false}
+      />
+    ) : null;
+
+    if (!el.textBg?.enabled) {
+      return textHoverRect ? <>{textHoverRect}{textNode}</> : textNode;
+    }
     return (
       <>
         <Rect
@@ -1187,6 +1209,7 @@ function ContentNode({ el, isSelected, isHovered, onSelect, onChange, stageW, st
           listening={false}
           visible={!hidden && el.visible !== false}
         />
+        {textHoverRect}
         {textNode}
       </>
     );
@@ -4061,13 +4084,14 @@ function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageSc
     <>
       <Transformer
         ref={trRef}
-        borderStroke={t.primary}
+        borderStroke="rgba(108,99,255,0.85)"
         borderStrokeWidth={1.5 / stageScale}
-        anchorSize={10 / stageScale}
-        anchorCornerRadius={2 / stageScale}
-        anchorStroke="rgba(30,30,30,0.55)"
+        anchorSize={8 / stageScale}
+        anchorCornerRadius={4 / stageScale}
+        anchorStroke="rgba(108,99,255,0.55)"
         anchorFill="#ffffff"
         anchorStrokeWidth={1.5 / stageScale}
+        rotateEnabled={!isText}
         rotateAnchorOffset={28 / stageScale}
         rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
         rotationSnapTolerance={5}
@@ -4076,6 +4100,40 @@ function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageSc
           : ['top-left', 'top-right', 'bottom-left', 'bottom-right',
              'top-center', 'bottom-center', 'middle-left', 'middle-right']
         }
+        anchorStyleFunc={(anchor) => {
+          const ss = stageScale;
+          if (anchor.hasName('rotater')) {
+            // Explicit small circle — prevents Konva default from rendering oversized
+            const d = 10 / ss;
+            anchor.width(d);
+            anchor.height(d);
+            anchor.offsetX(d / 2);
+            anchor.offsetY(d / 2);
+            anchor.cornerRadius(d / 2);
+            anchor.stroke('rgba(108,99,255,0.7)');
+            anchor.strokeWidth(1.5 / ss);
+            return;
+          }
+          if (anchor.hasName('top-center') || anchor.hasName('bottom-center')) {
+            anchor.width(16 / ss);
+            anchor.height(5 / ss);
+            anchor.offsetX(8 / ss);
+            anchor.offsetY(2.5 / ss);
+            anchor.cornerRadius(2.5 / ss);
+            return;
+          }
+          if (anchor.hasName('middle-left') || anchor.hasName('middle-right')) {
+            anchor.width(5 / ss);
+            anchor.height(16 / ss);
+            anchor.offsetX(2.5 / ss);
+            anchor.offsetY(8 / ss);
+            anchor.cornerRadius(2.5 / ss);
+            return;
+          }
+          // Corner anchors — circles
+          const r = anchor.width() / 2;
+          anchor.cornerRadius(r);
+        }}
         boundBoxFunc={(oldBox, newBox) => (newBox.width < 5 || newBox.height < 5 ? oldBox : newBox)}
         onTransform={e => {
           const node = e.target;
@@ -4125,7 +4183,7 @@ export default function TemplatesEditorInner() {
   const [selectionRect, setSelectionRect] = useState(null);   // rubber-band rect
   const [editingTextId, setEditingTextId] = useState(null);
   const [textareaValue, setTextareaValue] = useState('');
-  const [textareaPos, setTextareaPos] = useState({ x: 0, y: 0, w: 0 });
+  const [textareaPos, setTextareaPos] = useState({ x: 0, y: 0, w: 0, rotation: 0 });
 
   // History
   const [history, setHistory] = useState([]);
@@ -4238,6 +4296,9 @@ export default function TemplatesEditorInner() {
   const [draggingGuide, setDraggingGuide] = useState(null); // { axis:'h'|'v', pos:number } canvas px
   const [liveBounds, setLiveBounds] = useState(null); // { x,y,w,h } shown while dragging/resizing
   const canvasWrapperRef = useRef(null);
+  const extDragRef = useRef(null);          // {startClientX, startClientY} for cross-boundary marquee
+  const selectionOverlayRef = useRef(null); // DOM overlay div shown during cross-boundary drag
+  const wasExternalDragRef = useRef(false); // prevents Stage onClick from clearing cross-boundary selection
   const replaceImgId  = useRef(null);  // id of image element being replaced (null = use selectedId)
   // Top bar dropdowns
   const [titleEditing, setTitleEditing] = useState(false);
@@ -4261,8 +4322,8 @@ export default function TemplatesEditorInner() {
   const pinchRef = useRef({ active: false, startDist: 0, startZoom: 1 });
 
   // UI
-  const [activeLeftTool, setActiveLeftTool] = useState('templates');
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [activeLeftTool, setActiveLeftTool] = useState(null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [positionTab, setPositionTab] = useState('arrange');
   const [ratioLocked, setRatioLocked] = useState(false);
   const [elemSearch, setElemSearch] = useState('');
@@ -4346,7 +4407,6 @@ export default function TemplatesEditorInner() {
     } else {
       setSelectedIds([id]);
       setSelectedId(id);
-      if (isMobile) setMobilePropsOpen(true);
     }
   }
 
@@ -4376,6 +4436,7 @@ export default function TemplatesEditorInner() {
 
   // Canvas display scale
   const containerRef = useRef(null);
+  const extDragStateRef = useRef({ pages: [], activePage: 0, stageScale: 1 }); // always-current snapshot for cross-boundary marquee
   const replaceFileRef = useRef(null);
   const uploadFileRef = useRef(null);
   const [stageScale, setStageScale] = useState(1);
@@ -4387,6 +4448,9 @@ export default function TemplatesEditorInner() {
   const trLayerRef = useRef(null);
   const spaceDownRef = useRef(false);
   const panOriginRef = useRef(null);
+
+  // Keep extDragStateRef current without stale closures in the window-level effect
+  extDragStateRef.current = { pages, activePage, stageScale, canvasSizeW: canvasSize.w, canvasSizeH: canvasSize.h };
 
   // ── Display scale ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -5098,6 +5162,91 @@ export default function TemplatesEditorInner() {
     window.addEventListener('mouseup', cancel);
     return () => window.removeEventListener('mouseup', cancel);
   }, []);
+
+  // ── Cross-boundary marquee: drag starts in dark area outside canvas ───────
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!extDragRef.current) return;
+      const overlay = selectionOverlayRef.current;
+      const container = containerRef.current;
+      if (!overlay || !container) return;
+      const cr = container.getBoundingClientRect();
+      const { startClientX, startClientY } = extDragRef.current;
+      const left = Math.min(startClientX, e.clientX) - cr.left + container.scrollLeft;
+      const top  = Math.min(startClientY, e.clientY) - cr.top  + container.scrollTop;
+      const w = Math.abs(e.clientX - startClientX);
+      const h = Math.abs(e.clientY - startClientY);
+      if (w > 3 || h > 3) {
+        overlay.style.display = 'block';
+        overlay.style.left   = left + 'px';
+        overlay.style.top    = top  + 'px';
+        overlay.style.width  = w    + 'px';
+        overlay.style.height = h    + 'px';
+      }
+    };
+    const onUp = (e) => {
+      if (!extDragRef.current) return;
+      const overlay = selectionOverlayRef.current;
+      if (overlay) overlay.style.display = 'none';
+      const { startClientX, startClientY } = extDragRef.current;
+      extDragRef.current = null;
+      wasExternalDragRef.current = false; // always reset — Stage onClick may or may not fire
+      const dragDist = Math.abs(e.clientX - startClientX) + Math.abs(e.clientY - startClientY);
+      if (dragDist > 5 && canvasWrapperRef.current) {
+        const { pages: pg, activePage: ap, stageScale: ss, canvasSizeW, canvasSizeH } = extDragStateRef.current;
+        const canvasRect = canvasWrapperRef.current.getBoundingClientRect();
+        // Convert viewport px → Konva coordinate:
+        // canvas_pixel = css_px * (canvasSizeW / canvasRect.width)
+        // konva_coord  = canvas_pixel / stageScale
+        const cssW = canvasRect.width  || 1;
+        const cssH = canvasRect.height || 1;
+        const scaleX = (canvasSizeW || 1080) / cssW / ss;
+        const scaleY = (canvasSizeH || 1350) / cssH / ss;
+        const csx = (Math.min(startClientX, e.clientX) - canvasRect.left) * scaleX;
+        const csy = (Math.min(startClientY, e.clientY) - canvasRect.top)  * scaleY;
+        const csw = Math.abs(e.clientX - startClientX) * scaleX;
+        const csh = Math.abs(e.clientY - startClientY) * scaleY;
+        const page = pg[ap];
+        if (page) {
+          const lockedIds = new Set(page.lockedIds || []);
+          const hiddenIds = new Set(page.hiddenIds || []);
+          const hit = page.elements.filter(el => {
+            if (lockedIds.has(el.id) || hiddenIds.has(el.id)) return false;
+            const ex = el.x || 0, ey = el.y || 0;
+            let ew, eh;
+            if (el.type === 'text' || el.type === 'neontext' || el.type === 'gradtext' || el.type === 'highlight') {
+              ew = (el.width > 0) ? el.width : Math.max(80, (el.fontSize || 20) * (el.text || 'text').length * 0.55);
+              if (el.height > 0) {
+                eh = el.height;
+              } else {
+                const fs = el.fontSize || 20;
+                const lh = (el.lineHeight || 1.25) * fs;
+                const charsPerLine = Math.max(1, ew / (fs * 0.55));
+                const lines = (el.text || '').split('\n').reduce((acc, seg) => acc + Math.max(1, Math.ceil((seg.length || 1) / charsPerLine)), 0);
+                eh = lh * Math.max(1, lines) + fs * 0.5;
+              }
+            } else {
+              ew = el.width > 0 ? el.width : (el.radius ? el.radius * 2 : 100);
+              eh = el.height > 0 ? el.height : (el.radius ? el.radius * 2 : 60);
+            }
+            return ex < csx + csw && ex + ew > csx && ey < csy + csh && ey + eh > csy;
+          });
+          if (hit.length > 0) {
+            // setTimeout ensures this fires AFTER any Konva stage onClick that might call clearSelection
+            const ids = hit.map(el => el.id);
+            const lastId = hit[hit.length - 1].id;
+            setTimeout(() => { setSelectedIds(ids); setSelectedId(lastId); }, 0);
+          }
+        }
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []); // intentionally empty — uses refs for live values
 
   // ── Preview capture ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -6274,23 +6423,27 @@ export default function TemplatesEditorInner() {
       return;
     }
     if (el.type !== 'text') return;
-    const stage = stageRef.current;
-    if (!stage) return;
-    const node = stage.findOne(`#${id}`);
-    if (!node) return;
-    const absPos = node.getAbsolutePosition();
-    setTextareaPos({ x: absPos.x * stageScale, y: absPos.y * stageScale, w: (el.width || 400) * stageScale, fontSize: (el.fontSize || 36) * stageScale });
+    // Use el.x/el.y (canvas coords) directly — avoids ambiguity with getAbsolutePosition scaling
+    setTextareaPos({
+      x: (el.x || 0) * stageScale,
+      y: (el.y || 0) * stageScale,
+      w: (el.width || 400) * stageScale,
+      fontSize: (el.fontSize || 36) * stageScale,
+      rotation: el.rotation || 0,
+    });
     setTextareaValue(el.text || '');
     setEditingTextId(id);
     patchElements(prev => prev.map(e => e.id === id ? { ...e, visible: false } : e));
+    // Set stage cursor to text while editing
+    if (stageRef.current) stageRef.current.container().style.cursor = 'text';
   }
-
 
   function commitTextEdit() {
     if (!editingTextId) return;
     pushHistory();
     patchElements(prev => prev.map(e => e.id === editingTextId ? { ...e, text: textareaValue, visible: true } : e));
     setEditingTextId(null);
+    if (stageRef.current) stageRef.current.container().style.cursor = '';
   }
 
   // ── Background helpers ─────────────────────────────────────────────────────
@@ -6657,7 +6810,7 @@ export default function TemplatesEditorInner() {
         if (data?.improved) {
           pushHistory();
           updateElement({ ...el, text: data.improved });
-          setAiMagicResult({ type: 'improve', content: '✓ Text improved!' });
+          setAiMagicResult({ type: 'improve', content: 'Text improved!' });
         }
       } else if (action === 'caption') {
         const textEls = elements.filter(e => e.type === 'text').map(e => e.text).join(' ').slice(0, 200);
@@ -6671,7 +6824,7 @@ export default function TemplatesEditorInner() {
         if (data?.result) {
           pushHistory();
           updateElement({ ...el, src: data.result });
-          setAiMagicResult({ type: 'bg_remove', content: '✓ Background removed!' });
+          setAiMagicResult({ type: 'bg_remove', content: 'Background removed!' });
         }
       } else if (action === 'color') {
         const { data } = await studioAPI.rewriteText({ text: `Suggest 3 complementary hex color codes for a ${brandProfile?.industry || 'local business'} brand with primary color ${brandProfile?.brand_colors?.primary || '#7C5CFC'}. Return JSON: {"colors":["#hex1","#hex2","#hex3"]}`, platform: 'general', mode: 'colors' });
@@ -6739,7 +6892,7 @@ export default function TemplatesEditorInner() {
       `}</style>
 
       {/* ── Top toolbar (Canva-style) ── */}
-      <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,0.15)', background: 'linear-gradient(to right, #00C4CC, #7C5CFC)', flexShrink: 0, zIndex: 10 }}>
+      <div style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,0.12)', background: 'linear-gradient(to right, #1E0B6E, #4B2FCF, #7C5CFC)', flexShrink: 0, zIndex: 10 }}>
 
         {/* ── Left zone ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
@@ -6756,16 +6909,10 @@ export default function TemplatesEditorInner() {
           </button>
 
           {/* ItsPosting Studio brand mark */}
-          <div style={{
-            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-            background: 'linear-gradient(135deg, #00C4CC 0%, #7C5CFC 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px',
-            userSelect: 'none', cursor: 'default',
-          }}>IP</div>
+          <img src="/fav-icon.png" alt="ItsPosting" style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, objectFit: 'contain', userSelect: 'none' }} />
 
-          {/* File dropdown */}
-          <div style={{ position: 'relative' }}>
+          {/* File dropdown — hidden on mobile */}
+          {!isMobile && <div style={{ position: 'relative' }}>
             {showFileMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowFileMenu(false)} />}
             <button onClick={() => { setShowFileMenu(m => !m); setShowResizeMenu(false); setShowDownloadMenu(false); }}
               style={{ height: 32, padding: '0 10px', border: `1px solid ${showFileMenu ? 'rgba(255,255,255,0.4)' : 'transparent'}`, borderRadius: 8, background: showFileMenu ? 'rgba(255,255,255,0.2)' : 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
@@ -6780,7 +6927,9 @@ export default function TemplatesEditorInner() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
                     <span style={{ fontWeight: 600, fontSize: 14, maxWidth: 210, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: t.text }}>{titleForSave || 'Untitled design'}</span>
                     <button onMouseDown={e => { e.preventDefault(); setTitleEditing(true); setShowFileMenu(false); }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 14, padding: '2px 4px', borderRadius: 4 }}>✏</button>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: '2px 4px', borderRadius: 4, display: 'flex', alignItems: 'center' }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
                   </div>
                   <div style={{ fontSize: 11, color: t.textMuted }}>{canvasSize.w}×{canvasSize.h}px</div>
                 </div>
@@ -6823,9 +6972,10 @@ export default function TemplatesEditorInner() {
               </div>
             )}
           </div>
+          }
 
-          {/* Resize/canvas-size dropdown */}
-          <div style={{ position: 'relative' }}>
+          {/* Resize/canvas-size dropdown — hidden on mobile */}
+          {!isMobile && <div style={{ position: 'relative' }}>
             {showResizeMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setShowResizeMenu(false)} />}
             <button onClick={() => { setShowResizeMenu(m => !m); setShowFileMenu(false); setShowDownloadMenu(false); }}
               style={{ height: 32, padding: '0 10px', border: `1px solid ${showResizeMenu ? 'rgba(255,255,255,0.4)' : 'transparent'}`, borderRadius: 8, background: showResizeMenu ? 'rgba(255,255,255,0.2)' : 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, maxWidth: 160, overflow: 'hidden', transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
@@ -6909,67 +7059,47 @@ export default function TemplatesEditorInner() {
                   </div>
                 )}
                 {[
-                  { label: 'Custom size',   color: '#6366f1', emoji: '⊡' },
-                  { label: 'Social media',  color: '#ef4444', emoji: '♥' },
-                  { label: 'Presentations', color: '#f97316', emoji: '📊' },
-                  { label: 'Videos',        color: '#ef4444', emoji: '▶' },
-                  { label: 'Website',       color: '#3b82f6', emoji: '🌐' },
-                  { label: 'Whiteboard',    color: '#22c55e', emoji: '◻' },
+                  { label: 'Custom size',   color: '#6366f1', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg> },
+                  { label: 'Social media',  color: '#ef4444', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.4 5.6 3.9 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg> },
+                  { label: 'Presentations', color: '#f97316', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
+                  { label: 'Videos',        color: '#ef4444', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> },
+                  { label: 'Website',       color: '#3b82f6', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> },
+                  { label: 'Whiteboard',    color: '#22c55e', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/></svg> },
                 ].map(c => (
                   <button key={c.label} style={{ width: '100%', padding: '9px 16px', border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', gap: 10, color: t.text, fontSize: 13, cursor: 'pointer', transition: 'background 100ms' }}
                     onMouseEnter={e => e.currentTarget.style.background = t.input}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <span style={{ color: c.color, fontSize: 14, flexShrink: 0, width: 18, textAlign: 'center' }}>{c.emoji}</span>
+                    <span style={{ color: c.color, flexShrink: 0, display: 'flex', alignItems: 'center', width: 18 }}>{c.icon}</span>
                     <span style={{ flex: 1, textAlign: 'left' }}>{c.label}</span>
-                    <span style={{ color: t.textMuted }}>›</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: t.textMuted }}><polyline points="9 18 15 12 9 6"/></svg>
                   </button>
                 ))}
               </div>
             )}
           </div>
+          }
 
-          {/* ── "✏ Editing ▾" mode dropdown ── */}
-          <div style={{ position: 'relative' }}>
-            {editModeOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 149 }} onClick={() => setEditModeOpen(false)} />}
-            <button onClick={() => { setEditModeOpen(o => !o); setShowFileMenu(false); setShowResizeMenu(false); setShowDownloadMenu(false); }}
-              style={{ height: 32, padding: '0 10px', border: `1px solid ${editModeOpen ? 'rgba(255,255,255,0.4)' : 'transparent'}`, borderRadius: 8, background: editModeOpen ? 'rgba(255,255,255,0.2)' : 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}
-              onMouseEnter={e => { if (!editModeOpen) { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; } }}
-              onMouseLeave={e => { if (!editModeOpen) { e.currentTarget.style.background = 'transparent'; } }}>
-              ✏ Editing <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 1 }}>▾</span>
-            </button>
-            {editModeOpen && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 340, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 150, padding: '6px 0', animation: 'dropdownIn 150ms ease forwards' }}>
-                {[
-                  { id: 'editing',    label: 'Editing',    sub: 'Make changes',
-                    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
-                  { id: 'commenting', label: 'Commenting', sub: 'Add feedback',
-                    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
-                  { id: 'viewing',    label: 'Viewing',    sub: 'Read-only',
-                    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> },
-                ].map(m => (
-                  <button key={m.id} onClick={() => { setEditMode(m.id); setEditModeOpen(false); }}
-                    style={{ width: '100%', height: 62, padding: '0 16px', border: 'none', background: editMode === m.id ? t.primaryBg : 'transparent', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', fontSize: 13, color: t.text, textAlign: 'left', transition: 'background 100ms' }}
-                    onMouseEnter={e => { if (editMode !== m.id) e.currentTarget.style.background = t.input; }}
-                    onMouseLeave={e => { if (editMode !== m.id) e.currentTarget.style.background = 'transparent'; }}>
-                    <span style={{ color: editMode === m.id ? t.primary : t.textMuted, flexShrink: 0 }}>{m.icon}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: editMode === m.id ? t.primary : t.text }}>{m.label}</div>
-                      <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>{m.sub}</div>
-                    </div>
-                    {editMode === m.id && <span style={{ color: t.primary, fontSize: 16, flexShrink: 0 }}>✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* ── Editing badge — hidden on mobile */}
+          {!isMobile && (
+            <div style={{ height: 32, padding: '0 10px', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 8, background: 'rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, letterSpacing: '-0.01em', flexShrink: 0 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Editing
+            </div>
+          )}
 
-          {/* ── Video mode toggle ── */}
-          <button onClick={() => { setIsVideoMode(v => !v); setIsPlaying(false); setVideoPlayhead(0); clearInterval(playIntervalRef.current); }}
+          {/* ── Video mode toggle ── hidden on mobile */}
+          {!isMobile && <button onClick={() => { setIsVideoMode(v => !v); setIsPlaying(false); setVideoPlayhead(0); clearInterval(playIntervalRef.current); }}
             onMouseEnter={e => { showTip(e, isVideoMode ? 'Switch to Image mode' : 'Edit as Video'); if (!isVideoMode) { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; } }} onMouseLeave={e => { hideTip(); if (!isVideoMode) { e.currentTarget.style.background = 'transparent'; } }}
             style={{ height: 32, padding: '0 11px', border: `1px solid ${isVideoMode ? 'rgba(255,255,255,0.4)' : 'transparent'}`, borderRadius: 8, background: isVideoMode ? 'rgba(255,255,255,0.2)' : 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', flexShrink: 0, letterSpacing: '-0.01em' }}>
-            {isVideoMode ? '◻ Image' : '▶ Video'}
+            {isVideoMode
+              ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Image</>
+              : <><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> Video</>
+            }
           </button>
 
+          }
+
+          {!isMobile && <>
           {/* ── Separator ── */}
           <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.25)', flexShrink: 0, margin: '0 2px' }} />
 
@@ -6988,6 +7118,8 @@ export default function TemplatesEditorInner() {
             style={{ width: 34, height: 34, border: 'none', borderRadius: 8, background: 'transparent', color: historyIndex >= history.length - 1 ? 'rgba(255,255,255,0.35)' : '#fff', cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 100ms', flexShrink: 0 }}>
             <IcoRedo size={17} />
           </button>
+
+          </>}
 
           {/* Theme toggle — left zone so it doesn't crowd the right-side admin badges */}
           <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.25)', flexShrink: 0, margin: '0 2px' }} />
@@ -7030,36 +7162,40 @@ export default function TemplatesEditorInner() {
           {/* Save status indicator */}
           {saveStatus === 'saving' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
-              <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>⟳</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 1 1-9-9"/></svg>
               Saving…
             </div>
           )}
           {saveStatus === 'saved' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
-              ✓ Saved
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M20 6L9 17l-5-5"/></svg>
+              Saved
             </div>
           )}
           {saveStatus === 'error' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#FFD0D0', fontWeight: 500 }}>
-              ⚠ Save failed
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Save failed
             </div>
           )}
 
           {/* Template status: admin save indicator */}
           {tmplSaveStatus === 'saving' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>
-              <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite' }}>⟳</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 1 1-9-9"/></svg>
               Updating…
             </div>
           )}
           {tmplSaveStatus === 'saved' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.9)', fontWeight: 500 }}>
-              ✓ Template updated
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M20 6L9 17l-5-5"/></svg>
+              Template updated
             </div>
           )}
           {tmplSaveStatus === 'error' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#FFD0D0', fontWeight: 500 }}>
-              ⚠ Update failed
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Update failed
             </div>
           )}
 
@@ -7070,7 +7206,8 @@ export default function TemplatesEditorInner() {
               background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
               borderRadius: 7, fontSize: 11, color: '#fff', fontWeight: 500, flexShrink: 0,
             }}>
-              ✦ Using template
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              Using template
             </div>
           )}
 
@@ -7081,32 +7218,35 @@ export default function TemplatesEditorInner() {
               background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
               borderRadius: 7, fontSize: 11, color: '#fff', fontWeight: 600, flexShrink: 0,
             }}>
-              ✏ Admin
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Admin
             </div>
           )}
 
-          {/* Keyboard shortcuts help */}
-          <button onClick={() => setShowShortcutsOverlay(true)}
+          {/* Keyboard shortcuts help — hidden on mobile */}
+          {!isMobile && <button onClick={() => setShowShortcutsOverlay(true)}
             title="Keyboard shortcuts (?)"
             onMouseEnter={e => { showTip(e, 'Keyboard shortcuts', '?'); e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
             style={{ width: 30, height: 30, border: '1px solid rgba(255,255,255,0.22)', borderRadius: '50%', background: 'transparent', color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 120ms ease' }}>
             ?
-          </button>
+          </button>}
 
-          {/* Magic Resize */}
-          <button onClick={() => setShowMagicResize(true)}
-            title="Magic Resize — copy design to other formats"
-            onMouseEnter={e => { showTip(e, 'Magic Resize'); e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; }}
-            style={{ height: 30, padding: '0 10px', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 8, background: 'transparent', color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}>
-            ⊡ Resize
-          </button>
+          {/* Resize — hidden on mobile */}
+          {!isMobile && <button onClick={() => setShowMagicResize(true)}
+            title="Resize — copy design to other formats"
+            onMouseEnter={e => { showTip(e, 'Resize to other formats'); e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; }}
+            style={{ height: 30, padding: '0 10px', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 8, background: 'transparent', color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            Resize
+          </button>}
 
-          {/* Preview */}
+          {/* Preview — hidden on mobile */}
+          {!isMobile &&
           <button onClick={() => setPreviewOpen(true)}
             onMouseEnter={e => { showTip(e, 'Preview', 'P'); e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
             style={{ height: 32, padding: '0 12px', border: '1px solid transparent', borderRadius: 8, background: 'transparent', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 120ms ease', letterSpacing: '-0.01em' }}>
             <IpEye size={15} /> Preview
-          </button>
+          </button>}
 
           {/* Admin: Update Template CTA */}
           {editingTemplateId && isAdmin && (
@@ -7121,7 +7261,10 @@ export default function TemplatesEditorInner() {
                 cursor: tmplSaving ? 'not-allowed' : 'pointer', flexShrink: 0,
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
-              {tmplSaving ? '⟳ Updating…' : '✓ Update Template'}
+              {tmplSaving
+                ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-9-9"/></svg> Updating…</>
+                : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Update Template</>
+              }
             </button>
           )}
 
@@ -7130,15 +7273,9 @@ export default function TemplatesEditorInner() {
             disabled={saving}
             onMouseEnter={e => { showTip(e, 'Save & post to social media'); e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25)'; }} onMouseLeave={e => { hideTip(); e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.15)'; }}
             style={{ height: 36, padding: '0 18px', borderRadius: 8, background: '#fff', color: '#7C5CFC', border: 'none', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.15)', transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', letterSpacing: '-0.01em', opacity: saving ? 0.7 : 1 }}>
-            {saving ? '⟳ Saving…' : 'Post'}
+            {saving ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-9-9"/></svg> Saving…</> : 'Post'}
           </button>
 
-          {/* Share */}
-          <button onClick={() => { setShareOpen(o => !o); setShowFileMenu(false); setShowResizeMenu(false); setShowDownloadMenu(false); setEditModeOpen(false); }}
-            onMouseEnter={e => { showTip(e, 'Share design'); if (!shareOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; }} onMouseLeave={e => { hideTip(); if (!shareOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
-            style={{ height: 36, padding: '0 18px', borderRadius: 8, background: shareOpen ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 120ms ease', letterSpacing: '-0.01em' }}>
-            Share
-          </button>
 
           {/* Download dropdown */}
           <div style={{ position: 'relative' }}>
@@ -7191,9 +7328,9 @@ export default function TemplatesEditorInner() {
         </div>
       </div>
 
-      {/* ── Contextual action bar (Canva-style) ── */}
+      {/* ── Contextual action bar (Canva-style) — hidden on mobile ── */}
       <div onClick={() => { setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); setShowAnimatePanel(false); setShowAdjustPanel(false); setShowSpacingPanel(false); setShowCropPanel(false); setShowFilterPanel(false); setShowEmojiPanel(false); setShowEffectsPanel(false); setShowMorePanel(false); }}
-        style={{ height: (selectedId || selectedIds.length > 0) ? 48 : 30, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.sidebar, flexShrink: 0, zIndex: 9, position: 'relative', transition: 'height 180ms cubic-bezier(0.16,1,0.3,1)' }}>
+        style={{ height: isMobile ? 0 : (selectedId || selectedIds.length > 0) ? 48 : 30, display: isMobile ? 'none' : 'flex', alignItems: 'center', padding: '0 12px', borderBottom: `1px solid ${t.border}`, background: t.sidebar, flexShrink: 0, zIndex: 9, position: 'relative', transition: 'height 180ms cubic-bezier(0.16,1,0.3,1)', overflow: 'hidden' }}>
         {!selectedId && selectedIds.length === 0 && (
           <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontSize: 11, color: t.textDisabled, letterSpacing: '0.04em' }}>Select an element to edit</span>
@@ -7290,7 +7427,10 @@ export default function TemplatesEditorInner() {
               <D />
               <Btn label={<><IpDelete size={14} /> Delete all</>} danger onClick={() => { pushHistory(); const s = new Set(selectedIds); patchElements(prev => prev.filter(e => !s.has(e.id))); clearSelection(); }} />
               <div style={{ flex: 1 }} />
-              <button onClick={clearSelection} style={{ height: 30, padding: '0 8px', border: 'none', borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer' }}>✕ Deselect</button>
+              <button onClick={clearSelection} style={{ height: 30, padding: '0 8px', border: 'none', borderRadius: 6, background: 'transparent', color: t.textMuted, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Deselect
+              </button>
             </>
           );
         })()}
@@ -7613,22 +7753,30 @@ export default function TemplatesEditorInner() {
                     <div style={{ padding: '6px 0' }}>
                       {[
                         {
-                          id: 'caption', icon: '📝', label: 'Write Caption',
+                          id: 'caption',
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+                          label: 'Write Caption',
                           desc: 'Generate a social post caption from this design',
                           show: true,
                         },
                         {
-                          id: 'improve', icon: '✨', label: 'Improve Text',
+                          id: 'improve',
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
+                          label: 'Improve Text',
                           desc: 'Make the selected text more engaging',
                           show: !!(selectedEl?.type === 'text'),
                         },
                         {
-                          id: 'bg_remove', icon: '🪄', label: 'Remove Background',
+                          id: 'bg_remove',
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><line x1="8.46" y1="8.46" x2="15.54" y2="15.54"/></svg>,
+                          label: 'Remove Background',
                           desc: 'AI-remove the background from selected image',
                           show: !!(selectedEl?.type === 'image'),
                         },
                         {
-                          id: 'color', icon: '🎨', label: 'Suggest Colors',
+                          id: 'color',
+                          icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>,
+                          label: 'Suggest Colors',
                           desc: 'AI-suggest colors that match your brand',
                           show: true,
                         },
@@ -7640,7 +7788,7 @@ export default function TemplatesEditorInner() {
                           onMouseEnter={e => { if (!aiMagicLoading) e.currentTarget.style.background = t.input; }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
                           <span style={{ fontSize: 16, lineHeight: '20px', flexShrink: 0 }}>
-                            {aiMagicLoading === action.id ? <span style={{ display: 'inline-block', animation: 'spin 0.8s linear infinite', fontSize: 14 }}>⟳</span> : action.icon}
+                            {aiMagicLoading === action.id ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', display: 'inline-block' }}><path d="M21 12a9 9 0 1 1-9-9"/></svg> : action.icon}
                           </span>
                           <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{action.label}</div>
@@ -7669,7 +7817,7 @@ export default function TemplatesEditorInner() {
                           <div style={{ fontSize: 12, color: aiMagicResult.type === 'error' ? '#ef4444' : '#22c55e', lineHeight: 1.5 }}>
                             {aiMagicResult.type === 'caption' ? (
                               <>
-                                <div style={{ color: '#22c55e', fontWeight: 600, marginBottom: 3 }}>✓ Caption written to sidebar</div>
+                                <div style={{ color: '#22c55e', fontWeight: 600, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Caption written to sidebar</div>
                                 <div style={{ color: t.textMuted, fontStyle: 'italic' }}>{aiMagicResult.content}</div>
                               </>
                             ) : aiMagicResult.content}
@@ -7862,15 +8010,21 @@ export default function TemplatesEditorInner() {
                         <span style={{ fontSize: 13, fontWeight: 500, color: t.text }}>Curve text</span>
                         <button onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: selectedEl.textCurve ? undefined : 200 }); }}
                           style={{ padding: '4px 10px', borderRadius: 8, border: `1px solid ${selectedEl.textCurve ? t.primaryBorder : t.border}`, background: selectedEl.textCurve ? t.primaryBg : 'transparent', color: selectedEl.textCurve ? t.primary : t.textSecondary, fontSize: 12, cursor: 'pointer', fontWeight: 500, transition: 'all 120ms ease' }}>
-                          {selectedEl.textCurve ? '✕ Remove' : '⌒ Add'}
+                          {selectedEl.textCurve
+                            ? <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Remove</>
+                            : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</>
+                          }
                         </button>
                       </div>
                       {selectedEl.textCurve && (
                         <div style={{ paddingLeft: 4, marginBottom: 14 }}>
                           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                            {[['⌒', 'Up', 1], ['⌣', 'Down', -1]].map(([icon, label, dir]) => (
+                            {[
+                              { label: 'Up',   dir: 1,  icon: <svg width="16" height="10" viewBox="0 0 32 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M2 14 Q16 2 30 14"/></svg> },
+                              { label: 'Down', dir: -1, icon: <svg width="16" height="10" viewBox="0 0 32 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M2 2 Q16 14 30 2"/></svg> },
+                            ].map(({ label, dir, icon }) => (
                               <button key={dir} onClick={() => { pushHistory(); updateElement({ ...selectedEl, textCurve: dir * Math.abs(selectedEl.textCurve || 200) }); }}
-                                style={{ flex: 1, padding: '5px 0', borderRadius: 8, border: `1px solid ${(selectedEl.textCurve > 0 ? 1 : -1) === dir ? t.primaryBorder : t.border}`, background: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? t.primaryBg : t.input, color: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? t.primary : t.textSecondary, fontSize: 14, cursor: 'pointer', transition: 'all 120ms ease' }}>
+                                style={{ flex: 1, padding: '5px 0', borderRadius: 8, border: `1px solid ${(selectedEl.textCurve > 0 ? 1 : -1) === dir ? t.primaryBorder : t.border}`, background: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? t.primaryBg : t.input, color: (selectedEl.textCurve > 0 ? 1 : -1) === dir ? t.primary : t.textSecondary, fontSize: 12, cursor: 'pointer', transition: 'all 120ms ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                                 {icon} {label}
                               </button>
                             ))}
@@ -7999,10 +8153,10 @@ export default function TemplatesEditorInner() {
                 ))}
               </>}
               <D />
-              <Btn label={<><IcoBringFwd size={14} /> Fwd</>}   active={false} onClick={() => bringForward()} />
-              <Btn label={<><IcoSendBack size={14} /> Back</>}  active={false} onClick={() => sendBackward()} />
-              <Btn label="Front" active={false} onClick={() => bringToFront()} />
-              <Btn label="Back"  active={false} onClick={() => sendToBack()} />
+              <Btn label={<><IcoBringFront size={14} /> Front</>} active={false} onClick={() => bringToFront()} title="Bring to front (Shift+])" />
+              <Btn label={<><IcoBringFwd size={14} /> Fwd</>}   active={false} onClick={() => bringForward()}  title="Bring forward (])" />
+              <Btn label={<><IcoSendBack size={14} /> Back</>}  active={false} onClick={() => sendBackward()}  title="Send backward ([)" />
+              <Btn label={<><IcoSendToBack size={14} /> Last</>} active={false} onClick={() => sendToBack()}   title="Send to back (Shift+[)" />
               <D />
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Opacity</span>
               <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity??1}
@@ -8244,7 +8398,10 @@ export default function TemplatesEditorInner() {
                 disabled={bgRemoveLoading}
                 title="Remove background (AI model runs in browser — first use downloads ~5MB model)"
                 style={{ height: 32, padding: '0 10px', border: `1px solid ${t.border}`, borderRadius: 7, background: t.input, color: t.text, fontSize: 12, cursor: bgRemoveLoading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, opacity: bgRemoveLoading ? 0.6 : 1 }}>
-                {bgRemoveLoading ? `✂ ${bgProgress || 'Removing…'}` : '✂ Remove BG'}
+                {bgRemoveLoading
+                  ? <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-9-9"/></svg> {bgProgress || 'Removing…'}</>
+                  : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><line x1="8.46" y1="8.46" x2="15.54" y2="15.54"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg> Remove BG</>
+                }
               </button>
               {/* Extract Elements — auto-detects all objects/text/background via Claude vision */}
               <button
@@ -9294,7 +9451,7 @@ export default function TemplatesEditorInner() {
               </>}
               {selectedEl.type === 'chart' && <>
                 <D />
-                {[['bar','📊 Bar'],['pie','🥧 Pie']].map(([ct, lbl]) => (
+                {[['bar','Bar'],['pie','Pie']].map(([ct, lbl]) => (
                   <button key={ct} onClick={() => { pushHistory(); updateElement({...selectedEl, chartType: ct}); }}
                     style={{ height:28, padding:'0 9px', borderRadius:6, border:`1px solid ${(selectedEl.chartType||'bar')===ct?t.primaryBorder:t.border}`, background:(selectedEl.chartType||'bar')===ct?t.primaryBg:'transparent', color:(selectedEl.chartType||'bar')===ct?t.primary:t.textSecondary, fontSize:12, cursor:'pointer', flexShrink:0, transition:'all 120ms ease' }}>
                     {lbl}
@@ -9378,10 +9535,10 @@ export default function TemplatesEditorInner() {
                 )}
               </div>
               <D />
-              <Btn label={<><IcoBringFwd size={14} /> Fwd</>}   active={false} onClick={() => bringForward()} />
-              <Btn label={<><IcoSendBack size={14} /> Back</>}  active={false} onClick={() => sendBackward()} />
-              <Btn label="Front" active={false} onClick={() => bringToFront()} />
-              <Btn label="Back"  active={false} onClick={() => sendToBack()} />
+              <Btn label={<><IcoBringFront size={14} /> Front</>} active={false} onClick={() => bringToFront()} title="Bring to front (Shift+])" />
+              <Btn label={<><IcoBringFwd size={14} /> Fwd</>}   active={false} onClick={() => bringForward()}  title="Bring forward (])" />
+              <Btn label={<><IcoSendBack size={14} /> Back</>}  active={false} onClick={() => sendBackward()}  title="Send backward ([)" />
+              <Btn label={<><IcoSendToBack size={14} /> Last</>} active={false} onClick={() => sendToBack()}   title="Send to back (Shift+[)" />
               <D />
               <span style={{ fontSize:11, color:t.textMuted, whiteSpace:'nowrap', flexShrink:0 }}>Opacity</span>
               <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity??1}
@@ -9647,13 +9804,46 @@ export default function TemplatesEditorInner() {
           width: (panelOpen && activeLeftTool !== 'tools') ? 300 : 0,
           overflow: 'hidden',
           transition: 'width 180ms cubic-bezier(0.16,1,0.3,1)',
-          borderRight: panelOpen ? `1px solid ${t.border}` : 'none',
+          borderRight: panelOpen && activeLeftTool !== 'tools' ? `1px solid ${t.border}` : 'none',
           background: t.sidebar,
           position: 'relative',
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
         }}>
+          {/* Collapse arrow pinned to the right edge of the open panel */}
+          {panelOpen && activeLeftTool !== 'tools' && (
+            <button
+              onClick={() => setPanelOpen(false)}
+              title="Collapse panel"
+              style={{
+                position: 'absolute', right: -14, top: '50%',
+                transform: 'translateY(-50%)',
+                width: 28, height: 28, borderRadius: '50%',
+                background: t.card,
+                border: `1px solid ${t.border}`,
+                cursor: 'pointer', color: t.textMuted,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 30,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                transition: 'color 120ms, background 120ms, box-shadow 120ms, border-color 120ms',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = t.primary;
+                e.currentTarget.style.background = t.isDark ? 'rgba(108,99,255,0.12)' : 'rgba(108,99,255,0.08)';
+                e.currentTarget.style.borderColor = t.primary;
+                e.currentTarget.style.boxShadow = '0 2px 12px rgba(108,99,255,0.25)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = t.textMuted;
+                e.currentTarget.style.background = t.card;
+                e.currentTarget.style.borderColor = t.border;
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.18)';
+              }}
+            >
+              <IpChevronLeft size={13} />
+            </button>
+          )}
           {/* Tool content — rendered only when flyout is open */}
           {panelOpen && (
           <div key={activeLeftTool} style={{ flex: 1, overflowY: 'auto', padding: '16px', minWidth: 300, animation: 'panel-in 180ms cubic-bezier(0.16,1,0.3,1) forwards' }}>
@@ -9685,7 +9875,7 @@ export default function TemplatesEditorInner() {
                     { id: 'team',         label: 'Team' },
                     { id: 'announcement', label: 'News' },
                   ];
-                  const CAT_ICONS = { 'all':'✦', 'before-after':'◑', 'social-proof':'★', 'seasonal':'📅', 'showcase':'📸', 'educational':'💡', 'promotional':'🎁', 'team':'👥', 'announcement':'📢' };
+                  const CAT_ICONS = {}; // no icons — text-only category chips
                   const filtered = templateCategory === 'all' ? curatedTemplates : curatedTemplates.filter(tmpl => tmpl.category === templateCategory);
                   return (
                     <div style={{ marginBottom: 20 }}>
@@ -9740,7 +9930,7 @@ export default function TemplatesEditorInner() {
                                     ? <img src={thumbSrc} alt={tmpl.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     : (
                                       <div style={{ width: '100%', height: '100%', background: tmpl.canvas_json?.pages?.[0]?.bgColor || '#1a1a2e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 8 }}>
-                                        <span style={{ fontSize: 20 }}>{CAT_ICONS[tmpl.category] || '✦'}</span>
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
                                         <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.7)', textAlign: 'center', lineHeight: 1.3, fontWeight: 600 }}>{tmpl.name}</span>
                                       </div>
                                     );
@@ -9794,7 +9984,7 @@ export default function TemplatesEditorInner() {
                       </div>
                     ) : savedDesigns.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: '20px 0', color: t.textMuted }}>
-                        <div style={{ fontSize: 32, marginBottom: 8 }}>✦</div>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 8, opacity: 0.35 }}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
                         <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>No saved designs yet</div>
                         <div style={{ fontSize: 11 }}>Save this design to see it here</div>
                       </div>
@@ -9899,7 +10089,7 @@ export default function TemplatesEditorInner() {
                               <button key={g.label} title={g.label}
                                 onClick={() => { pushHistory(); patchPage({ bgType: 'gradient', bgGradient: { c1: g.c1, c2: g.c2, angle: g.angle, type: g.type || 'linear' } }); }}
                                 style={{ height: 32, borderRadius: 7, border: `2px solid ${isActive ? t.primary : 'transparent'}`, background: bgCss, cursor: 'pointer', padding: 0, transition: 'border-color 120ms ease', position: 'relative', overflow: 'hidden' }}>
-                                {isActive && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 700 }}>✓</div>}
+                                {isActive && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>}
                               </button>
                             );
                           })}
@@ -10483,7 +10673,7 @@ export default function TemplatesEditorInner() {
                       </div>
                     ) : pexelsPhotos.length === 0 ? (
                       <div style={{ textAlign: 'center', color: t.textMuted, padding: '30px 0', fontSize: 12 }}>
-                        <div style={{ fontSize: 28, marginBottom: 8 }}>📸</div>
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 8, opacity: 0.4 }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
                         <div style={{ fontWeight: 600, marginBottom: 4 }}>No results</div>
                         <div>Try a different search term</div>
                       </div>
@@ -10610,7 +10800,7 @@ export default function TemplatesEditorInner() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: t.text, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 10 }}>👑</span> Background Remover
+                          <span style={{ fontSize: 9, fontWeight: 800, background: 'linear-gradient(135deg,#f59e0b,#f97316)', color: '#fff', padding: '1px 4px', borderRadius: 3, letterSpacing: '0.02em' }}>PRO</span> Background Remover
                         </div>
                         <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2, lineHeight: 1.4 }}>Remove the background of your image</div>
                       </div>
@@ -12222,7 +12412,7 @@ export default function TemplatesEditorInner() {
             {activeLeftTool === 'magic' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: t.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: t.primary }}>✦</span> Magic Media
+                  <span style={{ color: t.primary, display: 'flex', alignItems: 'center' }}><IpSparkle size={14} /></span> Magic Media
                 </div>
                 <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5 }}>
                   Turn your text into stunning images and videos with AI
@@ -12249,26 +12439,41 @@ export default function TemplatesEditorInner() {
           )}
         </div>
 
-        {/* Collapse handle — sibling of flyout, outside overflow:hidden — hidden on mobile */}
+        {/* Collapse handle — sits on the seam between panel and canvas — hidden on mobile */}
         <div style={{ position: 'relative', width: 0, flexShrink: 0, overflow: 'visible', zIndex: 20, display: isMobile ? 'none' : undefined }}>
           <button
             onClick={() => setPanelOpen(o => !o)}
-            title={panelOpen ? 'Collapse panel' : 'Expand panel'}
+            title={panelOpen ? 'Collapse panel (⌘\\)' : 'Open panel (⌘\\)'}
             style={{
               position: 'absolute', left: 0, top: '50%',
               transform: 'translateY(-50%)',
-              width: 14, height: 44,
-              background: t.card, border: `1px solid ${t.border}`,
+              width: 16, height: 64,
+              background: t.card,
+              border: `1px solid ${t.border}`,
               borderLeft: 'none',
-              borderRadius: '0 6px 6px 0', cursor: 'pointer',
+              borderRadius: '0 8px 8px 0',
+              cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: t.textMuted, fontSize: 10, transition: 'background 100ms, color 100ms',
-              boxShadow: '2px 0 4px rgba(0,0,0,0.07)',
+              color: t.textMuted,
+              transition: 'background 140ms ease, color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, width 140ms ease',
+              boxShadow: '3px 0 8px rgba(0,0,0,0.10)',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = t.text; }}
-            onMouseLeave={e => { e.currentTarget.style.background = t.card; e.currentTarget.style.color = t.textMuted; }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = t.isDark ? 'rgba(108,99,255,0.14)' : 'rgba(108,99,255,0.08)';
+              e.currentTarget.style.color = t.primary;
+              e.currentTarget.style.borderColor = 'rgba(108,99,255,0.4)';
+              e.currentTarget.style.boxShadow = '3px 0 12px rgba(108,99,255,0.2)';
+              e.currentTarget.style.width = '20px';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = t.card;
+              e.currentTarget.style.color = t.textMuted;
+              e.currentTarget.style.borderColor = t.border;
+              e.currentTarget.style.boxShadow = '3px 0 8px rgba(0,0,0,0.10)';
+              e.currentTarget.style.width = '16px';
+            }}
           >
-            {panelOpen ? '‹' : '›'}
+            {panelOpen ? <IpChevronLeft size={11} /> : <IpChevronRight size={11} />}
           </button>
         </div>
 
@@ -12298,7 +12503,23 @@ export default function TemplatesEditorInner() {
           }
         `}</style>
         <div ref={containerRef}
-          style={{ flex: 1, overflow: 'auto', background: t.isDark ? '#111113' : '#EAEAEF', padding: '48px 56px', position: 'relative' }}>
+          style={{ flex: 1, overflow: 'auto', background: t.isDark ? '#111113' : '#EAEAEF', padding: isMobile ? `16px 12px ${selectedEl ? 148 : 84}px` : '48px 56px', position: 'relative' }}
+          onMouseDown={e => {
+            if (canvasWrapperRef.current && !canvasWrapperRef.current.contains(e.target)) {
+              clearSelection();
+              // Start cross-boundary marquee drag (left button, not on interactive elements)
+              if (e.button === 0 && !e.target.closest('button, input, [role="button"]')) {
+                extDragRef.current = { startClientX: e.clientX, startClientY: e.clientY };
+                wasExternalDragRef.current = true;
+              }
+            }
+          }}>
+          {/* Cross-boundary marquee selection overlay */}
+          <div ref={selectionOverlayRef} style={{
+            display: 'none', position: 'absolute', pointerEvents: 'none', zIndex: 200,
+            border: '1.5px dashed #6366f1', background: 'rgba(99,102,241,0.07)',
+            borderRadius: 2,
+          }} />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
             {pages.map((page, pageIdx) => {
               const isActive = pageIdx === activePage;
@@ -12332,14 +12553,6 @@ export default function TemplatesEditorInner() {
                       onClick={() => { setActivePage(pageIdx); setSelectedId(null); }}
                       style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: isActive ? t.text : t.textMuted, fontSize: 11, minWidth: 0 }}
                     />
-                    {/* Ask PostCore branded action */}
-                    <button
-                      onClick={() => { setActivePage(pageIdx); handleToolClick('magic'); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 4, height: 20, padding: '0 7px', border: 'none', borderRadius: 10, background: 'linear-gradient(135deg, #00C4CC, #7C5CFC)', cursor: 'pointer', flexShrink: 0 }}
-                      title="Ask PostCore AI">
-                      <IpSparkle size={9} color="#fff" />
-                      <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>Ask PostCore</span>
-                    </button>
                     {/* Controls — show on hover of parent row */}
                     {[
                       { title: 'Move up',    icon: <IcoChevUpSm size={11} />,   action: () => movePageUp(pageIdx),   disabled: pageIdx === 0 },
@@ -12413,6 +12626,8 @@ export default function TemplatesEditorInner() {
                       style={{ display: 'block', width: stageDisplayW, height: stageDisplayH }}
                       onClick={isActive ? (e => {
                         if (e.target === e.target.getStage()) {
+                          // Skip if a cross-boundary drag just ended — onUp will set selection via setTimeout
+                          if (wasExternalDragRef.current) { wasExternalDragRef.current = false; return; }
                           clearSelection();
                           setShowShadowPanel(false);
                           setShowOutlinePanel(false);
@@ -12475,9 +12690,22 @@ export default function TemplatesEditorInner() {
                           const hit = pageElements.filter(el => {
                             if (pageLockedIds.has(el.id) || pageHiddenIds.has(el.id)) return false;
                             const ex = el.x || 0, ey = el.y || 0;
-                            // Use width/height for rects/images, fall back to font-size-based estimate for text
-                            const ew = el.width  || (el.fontSize ? el.fontSize * (el.text || '').length * 0.6 : 100);
-                            const eh = el.height || (el.fontSize ? el.fontSize * 1.4 : 60);
+                            let ew, eh;
+                            if (el.type === 'text' || el.type === 'neontext' || el.type === 'gradtext' || el.type === 'highlight') {
+                              ew = (el.width > 0) ? el.width : Math.max(80, (el.fontSize || 20) * (el.text || 'text').length * 0.55);
+                              if (el.height > 0) {
+                                eh = el.height;
+                              } else {
+                                const fs = el.fontSize || 20;
+                                const lh = (el.lineHeight || 1.25) * fs;
+                                const charsPerLine = Math.max(1, ew / (fs * 0.55));
+                                const lines = (el.text || '').split('\n').reduce((acc, seg) => acc + Math.max(1, Math.ceil((seg.length || 1) / charsPerLine)), 0);
+                                eh = lh * Math.max(1, lines) + fs * 0.5;
+                              }
+                            } else {
+                              ew = el.width > 0 ? el.width : (el.radius ? el.radius * 2 : 100);
+                              eh = el.height > 0 ? el.height : (el.radius ? el.radius * 2 : 60);
+                            }
                             return ex < sr.x + sr.w && ex + ew > sr.x && ey < sr.y + sr.h && ey + eh > sr.y;
                           });
                           if (hit.length > 0) {
@@ -12524,7 +12752,7 @@ export default function TemplatesEditorInner() {
                                     ? [0, g.c1, g.midStop??0.5, g.midColor, 1, g.c2]
                                     : [0, g.c1, 1, g.c2],
                                 })}
-                                onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined}
+                                onClick={isActive ? () => { clearSelection(); } : undefined}
                               />
                             );
                           })()
@@ -12533,12 +12761,12 @@ export default function TemplatesEditorInner() {
                         ) : pageBgType === 'color' ? (
                           <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill={pageBgColor}
                             name="canvas-bg"
-                            onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined} />
+                            onClick={isActive ? () => { clearSelection(); } : undefined} />
                         ) : pageBgImageUrl ? (
                           <BgImage url={pageBgImageUrl} filter={pageBgFilter} brightness={pageBgBrightness} contrast={pageBgContrast} saturation={pageBgSaturation}
                             stageW={canvasSize.w} stageH={canvasSize.h}
-                            onClick={isActive ? () => { setSelectedId('__bg__'); setSelectedIds([]); } : undefined}
-                            isSelected={isActive && selectedId === '__bg__'} />
+                            onClick={isActive ? () => { clearSelection(); } : undefined}
+                            isSelected={false} />
                         ) : (
                           <Rect x={0} y={0} width={canvasSize.w} height={canvasSize.h} fill="#1a1a22" name="canvas-bg" />
                         )}
@@ -12737,7 +12965,6 @@ export default function TemplatesEditorInner() {
                           value={textareaValue}
                           onChange={e => {
                             setTextareaValue(e.target.value);
-                            // Auto-grow
                             e.target.style.height = 'auto';
                             e.target.style.height = e.target.scrollHeight + 'px';
                           }}
@@ -12749,19 +12976,29 @@ export default function TemplatesEditorInner() {
                           onKeyDown={e => { if (e.key === 'Escape') commitTextEdit(); }}
                           style={{
                             position: 'absolute',
-                            left: textareaPos.x, top: textareaPos.y,
+                            left: textareaPos.x,
+                            top: textareaPos.y,
                             width: textareaPos.w,
                             fontSize: textareaPos.fontSize,
                             fontFamily: editEl?.fontFamily || 'Inter',
                             fontWeight: editEl?.fontStyle?.includes('bold') || editEl?.fontStyle === 'bold' ? 'bold' : (editEl?.fontWeight || 'normal'),
                             fontStyle: editEl?.fontStyle?.includes('italic') ? 'italic' : 'normal',
-                            textAlign: editEl?.align || 'left',
+                            textAlign: editEl?.align || 'center',
                             color: editEl?.fill || '#ffffff',
-                            background: 'rgba(0,0,0,0.35)',
-                            border: `2px solid ${t.primary}`,
-                            borderRadius: 4, padding: '4px 6px', outline: 'none', resize: 'none',
-                            overflow: 'hidden', zIndex: 100, lineHeight: 1.3, minHeight: 40,
-                            letterSpacing: editEl?.letterSpacing ? `${editEl.letterSpacing}px` : undefined,
+                            background: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            padding: 0,
+                            margin: 0,
+                            resize: 'none',
+                            overflow: 'hidden',
+                            zIndex: 100,
+                            lineHeight: editEl?.lineHeight ?? 1.2,
+                            minHeight: (editEl?.fontSize || 36) * stageScale,
+                            letterSpacing: editEl?.letterSpacing ? `${editEl.letterSpacing * stageScale}px` : undefined,
+                            transformOrigin: '0 0',
+                            transform: textareaPos.rotation ? `rotate(${textareaPos.rotation}deg)` : undefined,
+                            caretColor: editEl?.fill || '#ffffff',
                           }}
                         />
                       );
@@ -12822,44 +13059,21 @@ export default function TemplatesEditorInner() {
                         clearSelection();
                       };
 
+                      // Canva-style toolbar: lock | duplicate | trash | "..."
                       const BTNS = [
-                        // Rotate — first item like Canva
-                        ...(!isMulti ? [{
-                          icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>,
-                          title: 'Rotate -15°',
-                          fn: () => { pushHistory(); patchElements(prev => prev.map(e => e.id === selectedId ? { ...e, rotation: (((e.rotation || 0) - 15) % 360 + 360) % 360 } : e)); },
-                        }] : []),
-                        { sep: true },
-                        // Ask PostCore — branded gradient pill (like Canva's "Ask Canva")
-                        { label: 'Ask PostCore', icon: <IpSparkle size={13} />, title: 'Ask PostCore AI', fn: () => { handleToolClick('magic'); }, branded: true },
-                        { sep: true },
-                        // Edit / copy style (paintbrush wand icon)
-                        ...(!isMulti ? [{ icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>, title: styleClipboard ? 'Style copied — click element to paste' : 'Copy style', fn: copyStyle }] : []),
-                        // Link
-                        ...(!isMulti ? [{ icon: <IcoChain size={14} />, title: 'Add link', fn: () => {} }] : []),
-                        { sep: true },
-                        // Group/Ungroup for multi-select
-                        ...(isMulti
-                          ? [{ label: 'Group', icon: <IpTeam size={13} />, title: 'Group (Ctrl+G)', fn: groupSelected }]
-                          : isGroup
-                          ? [{ label: 'Ungroup', icon: <IpTeam size={13} />, title: 'Ungroup (Ctrl+Shift+G)', fn: ungroupSelected }]
-                          : []),
-                        ...(isMulti || isGroup ? [{ sep: true }] : []),
+                        // Group/Ungroup — only when relevant
+                        ...(isMulti ? [{ label: 'Group', icon: <IpTeam size={13} />, title: 'Group (Ctrl+G)', fn: groupSelected }, { sep: true }] : []),
+                        ...(isGroup ? [{ label: 'Ungroup', icon: <IpTeam size={13} />, title: 'Ungroup (Ctrl+Shift+G)', fn: ungroupSelected }, { sep: true }] : []),
+                        // Lock/Unlock
+                        { icon: isLocked ? <IpLock size={14} /> : <IpUnlock size={14} />, title: isLocked ? 'Unlock (Alt+Shift+L)' : 'Lock (Alt+Shift+L)', fn: () => toggleLocked(selectedId) },
                         // Duplicate
                         { icon: <IcoDuplicate size={14} />, title: 'Duplicate (Ctrl+D)', fn: dupEl },
-                        ...(!isMulti ? [
-                          // Copy
-                          { icon: <IpCopy size={14} />, title: 'Copy (Ctrl+C)', fn: () => setClipboard(JSON.parse(JSON.stringify(el))) },
-                          { sep: true },
-                          // Arrange
-                          { icon: <IcoBringFwd size={14} />, title: 'Bring forward (Ctrl+])', fn: () => bringForward(selectedId) },
-                          { icon: <IcoSendBack size={14} />, title: 'Send backward (Ctrl+[)', fn: () => sendBackward(selectedId) },
-                          { sep: true },
-                          // Lock
-                          { icon: isLocked ? <IpLock size={14} /> : <IpUnlock size={14} />, title: isLocked ? 'Unlock' : 'Lock', fn: () => toggleLocked(selectedId) },
-                        ] : []),
                         { sep: true },
+                        // Delete
                         { icon: <IpDelete size={14} />, title: 'Delete (Del)', fn: delEls, danger: true },
+                        { sep: true },
+                        // More — opens properties drawer on mobile, context menu on desktop
+                        { icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>, title: 'More options', fn: (e) => { if (isMobile) { setMobilePropsOpen(v => !v); setMobilePanelOpen(false); return; } const r = e.currentTarget.getBoundingClientRect(); setCtxMenu({ x: r.left, y: r.bottom + 4, elementId: selectedId }); } },
                       ];
 
                       return (
@@ -12869,12 +13083,12 @@ export default function TemplatesEditorInner() {
                           style={{
                             position: 'absolute', left: cx, top: toolbarY,
                             transform: 'translateX(-50%)',
-                            background: t.isDark ? 'rgba(12,12,14,0.88)' : 'rgba(255,255,255,0.88)',
+                            background: t.isDark ? 'rgba(12,12,14,0.92)' : 'rgba(255,255,255,0.92)',
                             border: t.isDark ? '1px solid rgba(255,255,255,0.10)' : '1px solid rgba(0,0,0,0.08)',
                             borderRadius: 32,
-                            boxShadow: t.isDark ? '0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)',
+                            boxShadow: t.isDark ? '0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12)',
                             display: 'flex', alignItems: 'center',
-                            padding: '4px 8px', gap: 2,
+                            padding: isMobile ? '4px 10px' : '4px 8px', gap: isMobile ? 4 : 2,
                             zIndex: 200, whiteSpace: 'nowrap',
                             animation: 'ftb-in 150ms cubic-bezier(0.34,1.56,0.64,1) forwards',
                             backdropFilter: 'blur(20px) saturate(180%)',
@@ -12886,94 +13100,24 @@ export default function TemplatesEditorInner() {
                             ) : b.label ? (
                               <button
                                 key={i}
-                                onMouseDown={e => { e.stopPropagation(); b.fn(); }}
-                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.opacity = '0.85'; }}
-                                onMouseLeave={e => { hideTip(); e.currentTarget.style.opacity = '1'; }}
-                                style={{ height: 30, padding: '0 12px', border: 'none', borderRadius: 20, background: b.branded ? 'linear-gradient(135deg, #00C4CC, #7C5CFC)' : b.ai ? 'rgba(124,92,252,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5, color: b.branded ? '#fff' : b.ai ? t.primary : t.text, transition: 'opacity 80ms', flexShrink: 0, letterSpacing: '-0.01em', boxShadow: b.branded ? '0 2px 8px rgba(0,196,204,0.35)' : 'none' }}>
+                                onPointerDown={e => { e.stopPropagation(); b.fn(e); }}
+                                onMouseEnter={e => { if (!isMobile) { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); } e.currentTarget.style.opacity = '0.85'; }}
+                                onMouseLeave={e => { if (!isMobile) hideTip(); e.currentTarget.style.opacity = '1'; }}
+                                style={{ height: isMobile ? 38 : 30, padding: '0 12px', border: 'none', borderRadius: 20, background: b.branded ? 'linear-gradient(135deg, #00C4CC, #7C5CFC)' : b.ai ? 'rgba(124,92,252,0.08)' : 'transparent', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5, color: b.branded ? '#fff' : b.ai ? t.primary : t.text, transition: 'opacity 80ms', flexShrink: 0, letterSpacing: '-0.01em', boxShadow: b.branded ? '0 2px 8px rgba(0,196,204,0.35)' : 'none' }}>
                                 {b.icon}{b.label}
                               </button>
                             ) : (
                               <button
                                 key={i}
-                                onMouseDown={e => { e.stopPropagation(); b.fn(); }}
-                                onMouseEnter={e => { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.danger ? (t.isDark ? 'rgba(248,113,113,0.15)' : 'rgba(239,68,68,0.08)') : (t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'); }}
-                                onMouseLeave={e => { hideTip(); e.currentTarget.style.background = 'transparent'; }}
-                                style={{ width: 32, height: 32, border: 'none', borderRadius: 8, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: b.danger ? t.error : t.text, transition: 'background 80ms', flexShrink: 0 }}>
+                                onPointerDown={e => { e.stopPropagation(); b.fn(e); }}
+                                onMouseEnter={e => { if (!isMobile) { const p = parseTipTitle(b.title); showTip(e, p.text, p.shortcut); e.currentTarget.style.background = b.danger ? (t.isDark ? 'rgba(248,113,113,0.15)' : 'rgba(239,68,68,0.08)') : (t.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'); } }}
+                                onMouseLeave={e => { if (!isMobile) { hideTip(); e.currentTarget.style.background = 'transparent'; } }}
+                                style={{ width: isMobile ? 42 : 32, height: isMobile ? 42 : 32, border: 'none', borderRadius: 8, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: b.danger ? t.error : t.text, transition: 'background 80ms', flexShrink: 0 }}>
                                 {b.icon}
                               </button>
                             )
                           )}
                         </div>
-                        {/* Below-element handles: ↻ Rotate + ✚ Add (Canva style — centered below element) */}
-                        {!isMulti && (
-                          <>
-                            {/* Rotation handle — left circle, centered below element */}
-                            <div
-                              title="Rotate (drag · Shift = snap 45°)"
-                              style={{
-                                position: 'absolute',
-                                left: cx - 36,
-                                top: by2 * stageScale + 12,
-                                width: 30, height: 30, borderRadius: '50%',
-                                background: t.isDark ? 'rgba(28,28,36,0.92)' : 'rgba(255,255,255,0.95)',
-                                border: t.isDark ? '1px solid rgba(255,255,255,0.18)' : '1px solid #D1D1D6',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.16), 0 0 0 0.5px rgba(0,0,0,0.06)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: 'crosshair', zIndex: 201,
-                                color: t.isDark ? '#bbb' : '#4A4A4A',
-                                userSelect: 'none', backdropFilter: 'blur(10px)',
-                                transition: 'transform 150ms cubic-bezier(0.34,1.56,0.64,1)',
-                              }}
-                              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.12)'}
-                              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                              onMouseDown={e => {
-                                e.stopPropagation();
-                                const elId = activeEls[0]?.id;
-                                if (!elId) return;
-                                const elCenterX = (bx1 + bw / 2) * stageScale;
-                                const elCenterY = (by1 + bh / 2) * stageScale;
-                                const onMove = ev => {
-                                  const wrapperRect = canvasWrapperRef.current?.getBoundingClientRect();
-                                  if (!wrapperRect) return;
-                                  const mx = ev.clientX - wrapperRect.left;
-                                  const my = ev.clientY - wrapperRect.top;
-                                  const raw = Math.atan2(my - elCenterY, mx - elCenterX) * (180 / Math.PI) + 90;
-                                  const snapped = ev.shiftKey ? Math.round(raw / 45) * 45 : Math.round(raw);
-                                  patchElements(prev => prev.map(el => el.id === elId ? { ...el, rotation: snapped } : el));
-                                };
-                                const onUp = () => {
-                                  pushHistory();
-                                  window.removeEventListener('mousemove', onMove);
-                                  window.removeEventListener('mouseup', onUp);
-                                };
-                                window.addEventListener('mousemove', onMove);
-                                window.addEventListener('mouseup', onUp);
-                              }}>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                            </div>
-                            {/* Add/connect handle — right circle, centered below element */}
-                            <div
-                              title="Add connected element"
-                              style={{
-                                position: 'absolute',
-                                left: cx + 6,
-                                top: by2 * stageScale + 12,
-                                width: 30, height: 30, borderRadius: '50%',
-                                background: t.isDark ? 'rgba(28,28,36,0.92)' : 'rgba(255,255,255,0.95)',
-                                border: t.isDark ? '1px solid rgba(255,255,255,0.18)' : '1px solid #D1D1D6',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.16), 0 0 0 0.5px rgba(0,0,0,0.06)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: 'pointer', zIndex: 201,
-                                color: t.isDark ? '#bbb' : '#4A4A4A',
-                                userSelect: 'none', backdropFilter: 'blur(10px)',
-                                transition: 'transform 150ms cubic-bezier(0.34,1.56,0.64,1)',
-                              }}
-                              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.12)'}
-                              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                            </div>
-                          </>
-                        )}
                         </>
                       );
                     })()}
@@ -13130,19 +13274,8 @@ export default function TemplatesEditorInner() {
           </div>
         )}
 
-        {/* ── Right panel — hidden on mobile (shown as bottom drawer instead) ── */}
-        <div style={{ width: isMobile ? 0 : 264, borderLeft: isMobile ? 'none' : `1px solid ${t.border}`, background: t.sidebar, display: isMobile ? 'none' : 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
-          {/* Tabs */}
-          <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}`, flexShrink: 0, height: 44 }}>
-            {['properties', 'layers', 'caption'].map(tab => (
-              <button key={tab} onClick={() => setRightTab(tab)}
-                style={{ flex: 1, padding: '0 0 0', border: 'none', background: 'transparent', color: rightTab === tab ? t.primary : t.textMuted, fontSize: 12, fontWeight: rightTab === tab ? 600 : 500, cursor: 'pointer', borderBottom: rightTab === tab ? `2px solid ${t.primary}` : '2px solid transparent', textTransform: 'capitalize', transition: 'color 150ms ease, border-color 150ms ease' }}>
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+        {false && /* Right panel removed — Caption lives in Post modal, Layers in left sidebar */
+        <div style={{ display: 'none' }}>
 
             {/* PROPERTIES TAB */}
             {rightTab === 'properties' && (() => {
@@ -13157,7 +13290,9 @@ export default function TemplatesEditorInner() {
                 <>
                   {!selectedId && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 48, paddingBottom: 24, gap: 8, opacity: 0.6 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, border: `1.5px dashed ${t.borderStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✦</div>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, border: `1.5px dashed ${t.borderStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      </div>
                       <div style={{ fontSize: 12, fontWeight: 500, color: t.textMuted, textAlign: 'center', lineHeight: 1.5 }}>Select an element<br/>to view properties</div>
                     </div>
                   )}
@@ -13559,7 +13694,38 @@ export default function TemplatesEditorInner() {
                   const isActive = selectedId === el.id;
                   const isLocked = lockedIds.has(el.id);
                   const isHidden = hiddenIds.has(el.id);
-                  const typeIcon = el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : el.type === 'circle' ? '●' : el.type === 'triangle' ? '▲' : el.type === 'star' ? '★' : el.type === 'arrow' ? '→' : el.type === 'line' ? '─' : el.type === 'draw' ? '✏' : el.type === 'shape' ? (el.shapeKind === 'heart' ? '♥' : el.shapeKind === 'cross' ? '✚' : el.shapeKind?.startsWith('speech') ? '💬' : '⬠') : el.type === 'progressbar' ? '▬' : el.type === 'chart' ? '📊' : el.type === 'table' ? '⊞' : el.type === 'countdown' ? '⏱' : el.type === 'rating' ? '★' : el.type === 'quote' ? '❝' : el.type === 'badge' ? '🏷' : el.type === 'divider' ? '─' : el.type === 'socialstats' ? '📈' : el.type === 'callout' ? '💡' : el.type === 'coupon' ? '🎟' : el.type === 'gradtext' ? '🌈' : el.type === 'neontext' ? '✨' : el.type === 'sticker' ? '🔥' : el.type === 'highlight' ? '🖊' : el.type === 'polaroid' ? '📷' : el.type === 'mappin' ? '📍' : el.type === 'speechbubble' ? '💬' : el.type === 'ribbon' ? '🎀' : el.type === 'steplist' ? '📋' : el.type === 'pattern' ? '⊞' : el.type === 'qrcode' ? '▣' : el.type === 'glasspane' ? '◫' : el.type === 'testimonial' ? '⭐' : el.type === 'beforeafter' ? '⟺' : el.type === 'gradrect' ? '▨' : el.type === 'counter' ? '🔢' : el.type === 'iconshape' ? '✓' : el.type === 'pricetag' ? '💲' : el.type === 'htimeline' ? '⟶' : el.type === 'watermark' ? '◉' : el.type === 'comparison' ? '⫸' : '■';
+                  const typeIcon = (() => {
+                    const s = { width: 11, height: 11, flexShrink: 0 };
+                    switch (el.type) {
+                      case 'text': case 'gradtext': case 'neontext': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="4,7 4,4 20,4 20,7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>;
+                      case 'image': case 'polaroid': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>;
+                      case 'circle': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/></svg>;
+                      case 'rect': case 'glasspane': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="14" rx="1"/></svg>;
+                      case 'triangle': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><polygon points="12,3 22,21 2,21"/></svg>;
+                      case 'line': case 'divider': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="3" y1="12" x2="21" y2="12"/></svg>;
+                      case 'arrow': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12,5 19,12 12,19"/></svg>;
+                      case 'draw': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>;
+                      case 'chart': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
+                      case 'table': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>;
+                      case 'quote': case 'testimonial': case 'speechbubble': case 'callout': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+                      case 'sticker': case 'iconshape': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>;
+                      case 'qrcode': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>;
+                      case 'progressbar': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="9" width="20" height="6" rx="3"/></svg>;
+                      case 'countdown': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>;
+                      case 'mappin': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>;
+                      case 'socialstats': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>;
+                      case 'comparison': case 'beforeafter': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="4" width="20" height="16" rx="1"/><line x1="12" y1="4" x2="12" y2="20"/></svg>;
+                      case 'badge': case 'coupon': case 'pricetag': case 'ribbon': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>;
+                      case 'pattern': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>;
+                      case 'steplist': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1.5"/><circle cx="4" cy="12" r="1.5"/><circle cx="4" cy="18" r="1.5"/></svg>;
+                      case 'htimeline': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2" y1="12" x2="22" y2="12"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/></svg>;
+                      case 'watermark': case 'highlight': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
+                      case 'counter': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h3l3-9 6 18 3-9h3"/></svg>;
+                      case 'gradrect': case 'shape': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="3"/></svg>;
+                      case 'rating': return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>;
+                      default: return <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>;
+                    }
+                  })();
                   const label = el.type === 'text' ? (el.text || 'Text').slice(0, 18) : el.type.charAt(0).toUpperCase() + el.type.slice(1);
                   return (
                     <div key={el.id}
@@ -13568,19 +13734,29 @@ export default function TemplatesEditorInner() {
                       onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = t.cardHover; }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
                       <button onClick={e => { e.stopPropagation(); toggleHidden(el.id); }} title={isHidden ? 'Show' : 'Hide'}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 13, padding: 0, flexShrink: 0 }}>
-                        {isHidden ? '👁‍🗨' : '👁'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                        {isHidden
+                          ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                          : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        }
                       </button>
                       <button onClick={e => { e.stopPropagation(); toggleLocked(el.id); }} title={isLocked ? 'Unlock' : 'Lock'}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: isLocked ? t.primary : t.textMuted, fontSize: 12, padding: 0, flexShrink: 0 }}>
-                        {isLocked ? '🔒' : '🔓'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: isLocked ? t.primary : t.textMuted, padding: 0, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                        {isLocked
+                          ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                          : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                        }
                       </button>
-                      <span style={{ fontSize: 11, flexShrink: 0 }}>{typeIcon}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0, color: isActive ? t.primary : t.textMuted }}>{typeIcon}</span>
                       <span style={{ flex: 1, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isActive ? t.primary : t.text }}>{label}</span>
                       <button onClick={e => { e.stopPropagation(); bringForward(el.id); }} title="Move Up"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 13, padding: '0 2px', flexShrink: 0 }}>↑</button>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: '0 2px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5,12 12,5 19,12"/></svg>
+                      </button>
                       <button onClick={e => { e.stopPropagation(); sendBackward(el.id); }} title="Move Down"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 13, padding: '0 2px', flexShrink: 0 }}>↓</button>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: '0 2px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19,12 12,19 5,12"/></svg>
+                      </button>
                     </div>
                   );
                 })}
@@ -13631,7 +13807,7 @@ export default function TemplatesEditorInner() {
             )}
 
           </div>
-        </div>
+        }
       </div>
 
       {/* ── Video Timeline (slides in when isVideoMode) ── */}
@@ -13767,12 +13943,17 @@ export default function TemplatesEditorInner() {
               {/* Rewind */}
               <button onClick={() => { clearInterval(playIntervalRef.current); setIsPlaying(false); setVideoPlayhead(0); setActivePage(0); }}
                 title="Rewind to start"
-                style={{ width: 28, height: 28, border: `1px solid ${t.border}`, borderRadius: 6, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>⏮</button>
+                style={{ width: 28, height: 28, border: `1px solid ${t.border}`, borderRadius: 6, background: t.input, color: t.text, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4" opacity=".5"/><rect x="5" y="4" width="3" height="16"/></svg>
+              </button>
               {/* Play / Pause */}
               <button onClick={togglePlay}
                 title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
-                style={{ width: 34, height: 30, border: 'none', borderRadius: 6, background: t.primary, color: '#fff', fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
-                {isPlaying ? '⏸' : '▶'}
+                style={{ width: 34, height: 30, border: 'none', borderRadius: 6, background: t.primary, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {isPlaying
+                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  : <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+                }
               </button>
               {/* Time */}
               <span style={{ fontSize: 11, color: t.textMuted, fontFamily: 'monospace', minWidth: 88, flexShrink: 0 }}>
@@ -14271,87 +14452,6 @@ export default function TemplatesEditorInner() {
         );
       })()}
 
-      {/* ── Floating element toolbar ── */}
-      {floatingBar && selectedId && !ctxMenu && !editingTextId && (() => {
-        const el = elements.find(e => e.id === selectedId);
-        if (!el) return null;
-        const isLocked = lockedIds.has(selectedId);
-        const tbW = 264;
-        const left = Math.max(8, Math.min(window.innerWidth - tbW - 8, floatingBar.left + floatingBar.width / 2 - tbW / 2));
-        const top  = Math.max(8, floatingBar.top - 50);
-        return (
-          <div style={{
-            position: 'fixed', left, top, zIndex: 1002,
-            background: t.card, border: `1px solid ${t.border}`,
-            borderRadius: 10, boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-            display: 'flex', alignItems: 'center', gap: 0, padding: '3px 4px',
-            userSelect: 'none', pointerEvents: 'auto',
-          }}>
-            {/* Ask PostCore */}
-            <button
-              onMouseDown={e => { e.preventDefault(); handleToolClick && handleToolClick('magic'); }}
-              style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:7, background:'linear-gradient(135deg,#00C4CC,#7C5CFC)', border:'none', cursor:'pointer', height:30, flexShrink:0 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="#fff"><path d="M12 2l2.4 7.4L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg>
-              <span style={{ fontSize:11, fontWeight:700, color:'#fff', whiteSpace:'nowrap' }}>Ask PostCore</span>
-            </button>
-            <div style={{ width:1, height:22, background:t.border, margin:'0 3px', flexShrink:0 }}/>
-            {/* Duplicate */}
-            <button title="Duplicate (Ctrl+D)"
-              onMouseDown={e => {
-                e.preventDefault();
-                const d = { ...JSON.parse(JSON.stringify(el)), id: `el_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, x: el.x + 20, y: el.y + 20 };
-                pushHistory(); patchElements(prev => [...prev, d]); setSelectedId(d.id);
-              }}
-              style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', borderRadius:6, cursor:'pointer', color:t.textMuted }}
-              onMouseEnter={e => { e.currentTarget.style.background=t.input; }}
-              onMouseLeave={e => { e.currentTarget.style.background='none'; }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-            </button>
-            {/* Lock */}
-            <button title={isLocked ? 'Unlock' : 'Lock'}
-              onMouseDown={e => { e.preventDefault(); toggleLocked(selectedId); }}
-              style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', borderRadius:6, cursor:'pointer', color: isLocked ? '#FFB800' : t.textMuted }}
-              onMouseEnter={e => { e.currentTarget.style.background=t.input; }}
-              onMouseLeave={e => { e.currentTarget.style.background='none'; }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2"/>
-                {isLocked
-                  ? <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                  : <path d="M7 11V7a5 5 0 0 1 9.9-1" opacity=".4"/>}
-              </svg>
-            </button>
-            {/* Delete */}
-            <button title="Delete"
-              onMouseDown={e => {
-                e.preventDefault();
-                pushHistory(); patchElements(prev => prev.filter(e => e.id !== selectedId)); setSelectedId(null); setFloatingBar(null);
-              }}
-              style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', borderRadius:6, cursor:'pointer', color:'#ef4444' }}
-              onMouseEnter={e => { e.currentTarget.style.background='rgba(239,68,68,0.1)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background='none'; }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-              </svg>
-            </button>
-            <div style={{ width:1, height:22, background:t.border, margin:'0 3px', flexShrink:0 }}/>
-            {/* More (opens context menu) */}
-            <button title="More options"
-              onMouseDown={e => {
-                e.preventDefault();
-                setCtxMenu({ x: left + tbW / 2, y: top + 50, elementId: selectedId });
-              }}
-              style={{ width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center', background:'none', border:'none', borderRadius:6, cursor:'pointer', color:t.textMuted }}
-              onMouseEnter={e => { e.currentTarget.style.background=t.input; }}
-              onMouseLeave={e => { e.currentTarget.style.background='none'; }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-              </svg>
-            </button>
-          </div>
-        );
-      })()}
 
       {/* ── Right-click context menu ── */}
       {ctxMenu && (() => {
@@ -14438,20 +14538,20 @@ export default function TemplatesEditorInner() {
               borderRadius: 10,
               boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
               zIndex: 1000, overflow: 'hidden',
-              padding: '4px 0',
+              padding: '3px 0',
               animation: 'contextIn 100ms ease forwards',
             }}>
               {ITEMS.map((item, i) =>
                 item.sep ? (
-                  <div key={i} style={{ height: 1, background: t.border, margin: '4px 0' }} />
+                  <div key={i} style={{ height: 1, background: t.border, margin: '2px 0' }} />
                 ) : (
                   <button key={i}
                     onMouseDown={e => { e.stopPropagation(); item.fn(); close(); }}
                     style={{
                       width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '7px 14px', border: 'none', background: 'transparent',
+                      padding: '5px 12px', border: 'none', background: 'transparent',
                       color: item.danger ? t.error : t.text,
-                      fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                      fontSize: 12, cursor: 'pointer', textAlign: 'left',
                       transition: 'background 60ms',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.background = item.danger ? t.errorBg : t.input; }}
@@ -14486,7 +14586,9 @@ export default function TemplatesEditorInner() {
 
             {postSuccess ? (
               <div style={{ textAlign: 'center', padding: '32px 28px 0' }}>
-                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#22c55e,#16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 28 }}>✓</div>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#22c55e,#16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: t.text, marginBottom: 8 }}>
                   {postScheduleMode === 'schedule' ? 'Scheduled!' : postScheduleMode === 'draft' ? 'Saved as Draft' : 'Posted!'}
                 </div>
@@ -14547,7 +14649,7 @@ export default function TemplatesEditorInner() {
                             <div style={{ fontSize: 11, color: t.textMuted, textTransform: 'capitalize' }}>{acct.platform.replace('_', ' ')}</div>
                           </div>
                           <div style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${active ? color : t.border}`, background: active ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            {active && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                            {active && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
                           </div>
                         </button>
                       );
@@ -14689,79 +14791,6 @@ export default function TemplatesEditorInner() {
         </div>
       )}
 
-      {/* ── Share panel ── */}
-      {shareOpen && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 299 }} onClick={() => setShareOpen(false)} />
-          <div style={{ position: 'fixed', top: 56, right: 0, width: 380, height: 'calc(100vh - 56px)', background: t.card, borderLeft: `1px solid ${t.border}`, zIndex: 300, padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', animation: 'slideInRight 200ms ease forwards' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 700, fontSize: 18, color: t.text }}>Share design</span>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: t.textMuted }}>📊 0 visitors</span>
-                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 16 }}>⚙</button>
-                <button onClick={() => setShareOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 20, lineHeight: 1 }}>×</button>
-              </div>
-            </div>
-            {/* People with access */}
-            <div>
-              <div style={{ fontWeight: 500, marginBottom: 8, fontSize: 14, color: t.text }}>People with access</div>
-              <input placeholder="Add people, groups or teams" style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-            </div>
-            {/* Access level */}
-            <div>
-              <div style={{ fontWeight: 500, marginBottom: 8, fontSize: 14, color: t.text }}>Access level</div>
-              <select style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, outline: 'none' }}>
-                <option>Only you can access</option>
-                <option>Anyone with the link can view</option>
-                <option>Anyone with the link can edit</option>
-              </select>
-            </div>
-            {/* Copy link */}
-            <button onClick={() => { navigator.clipboard?.writeText(window.location.href); }}
-              style={{ background: t.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 600, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              🔗 Copy link
-            </button>
-            {/* Custom link */}
-            <button style={{ background: 'none', border: `1px solid ${t.border}`, borderRadius: 8, padding: '10px', color: t.text, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              + Create custom link <span style={{ fontSize: 12 }}>👑</span>
-            </button>
-            {/* Divider */}
-            <div style={{ borderTop: `1px solid ${t.border}` }} />
-            {/* Action grid — 48px circles */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-              {[
-                { label: 'Download',      bg: '#F2F2F7', action: () => { downloadCanvas('image/png', 'png', 1); setShareOpen(false); },
-                  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> },
-                { label: 'Present',       bg: t.primary, action: () => { setPreviewOpen(true); setShareOpen(false); },
-                  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> },
-                { label: 'Public',        bg: '#F2F2F7', action: () => {},
-                  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> },
-                { label: 'Template link', bg: '#F2F2F7', pro: true, action: () => {},
-                  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> },
-              ].map(o => (
-                <div key={o.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, position: 'relative' }}>
-                  <button onClick={o.action}
-                    style={{ width: 48, height: 48, borderRadius: '50%', background: o.bg, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 150ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 150ms ease', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.1)'; }}>
-                    {o.icon}
-                    {o.pro && <span style={{ position: 'absolute', top: -2, right: -2, fontSize: 10 }}>👑</span>}
-                  </button>
-                  <span style={{ fontSize: 11, color: t.textMuted, textAlign: 'center', lineHeight: 1.2 }}>{o.label}</span>
-                </div>
-              ))}
-            </div>
-            {/* Save button */}
-            <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 8 }}>
-              <button onClick={() => { handleSave(); setShareOpen(false); }} disabled={saving}
-                style={{ width: '100%', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 8, padding: '10px', color: t.text, fontSize: 13, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
-                {saving ? 'Saving…' : '💾 Save design'}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
 
       {/* ── Find & Replace panel ── */}
       {showFindReplace && (
@@ -14808,62 +14837,130 @@ export default function TemplatesEditorInner() {
         </>
       )}
 
-      {/* ── Preview modal ── */}
+      {/* ── Preview — full-screen immersive presentation mode ── */}
       {previewOpen && (
         <div
-          onClick={() => { setPreviewOpen(false); setPresentPlaying(false); }}
-          style={{ position:'fixed', inset:0, zIndex:3000, background:'rgba(0,0,0,0.92)', display:'flex', alignItems:'center', justifyContent:'center' }}
+          style={{ position:'fixed', inset:0, zIndex:3000, background:'#0d0d0d', display:'flex', flexDirection:'column', userSelect:'none' }}
+          onKeyDown={e => {
+            if (e.key === 'Escape') { setPreviewOpen(false); setPresentPlaying(false); }
+            if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); setActivePage(i => Math.min(i + 1, pages.length - 1)); }
+            if (e.key === 'ArrowLeft') setActivePage(i => Math.max(i - 1, 0));
+          }}
+          tabIndex={0}
         >
-          {/* Close */}
-          <button onClick={() => { setPreviewOpen(false); setPresentPlaying(false); }}
-            style={{ position:'absolute', top:16, right:16, background:'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:38, height:38, borderRadius:'50%', cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>
-            ✕
-          </button>
+          {/* ── Top bar: minimal ── */}
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:52, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 20px', zIndex:10, background:'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%)', pointerEvents:'none' }}>
+            {/* Design title */}
+            <span style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,0.7)', letterSpacing:'-0.01em', pointerEvents:'none' }}>
+              {titleForSave || 'Preview'}
+            </span>
+            {/* Close */}
+            <button
+              onClick={() => { setPreviewOpen(false); setPresentPlaying(false); }}
+              title="Close preview (Esc)"
+              style={{ pointerEvents:'all', width:36, height:36, borderRadius:9, background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.85)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'background 120ms ease', backdropFilter:'blur(8px)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
 
-          {/* Page counter + auto-play controls */}
-          <div style={{ position:'absolute', top:14, left:'50%', transform:'translateX(-50%)', display:'flex', alignItems:'center', gap:8 }} onClick={e => e.stopPropagation()}>
-            {pages.length > 1 && (
-              <div style={{ background:'rgba(255,255,255,0.12)', borderRadius:20, padding:'4px 14px', color:'#fff', fontSize:13 }}>
-                {activePage + 1} / {pages.length}
-              </div>
+          {/* ── Canvas area: fills all space between top/bottom bars ── */}
+          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden' }}
+            onClick={() => pages.length > 1 && setActivePage(i => Math.min(i + 1, pages.length - 1))}>
+            {/* Left nav */}
+            {pages.length > 1 && activePage > 0 && (
+              <button onClick={e => { e.stopPropagation(); setActivePage(i => i - 1); }}
+                style={{ position:'absolute', left:16, top:'50%', transform:'translateY(-50%)', width:44, height:44, borderRadius:'50%', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.15)', color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(8px)', transition:'background 120ms ease', zIndex:5 }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.22)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
             )}
-            {pages.length > 1 && (
-              <>
-                <button onClick={() => setPresentPlaying(p => !p)}
-                  title={presentPlaying ? 'Pause' : 'Auto-play slides'}
-                  style={{ background: presentPlaying ? '#7C5CFC' : 'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:32, height:32, borderRadius:'50%', cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  {presentPlaying ? '⏸' : '▶'}
-                </button>
-                <select value={presentInterval} onChange={e => setPresentInterval(+e.target.value)}
-                  style={{ background:'rgba(255,255,255,0.12)', border:'none', color:'#fff', borderRadius:16, padding:'4px 8px', fontSize:12, cursor:'pointer', outline:'none' }}>
-                  {[2,3,5,8,10].map(s => <option key={s} value={s} style={{ background:'#1e1e28' }}>{s}s</option>)}
-                </select>
-              </>
+
+            {/* Design image — fills viewport height minus the two bars */}
+            {previewUrl
+              ? <img key={previewUrl + activePage} src={previewUrl}
+                  style={{ height:'calc(100vh - 104px)', maxWidth:'calc(100vw - 80px)', width:'auto', display:'block', borderRadius:4, boxShadow:'0 32px 80px rgba(0,0,0,0.8), 0 8px 24px rgba(0,0,0,0.6)', animation:'preview-fade 180ms cubic-bezier(0.2,0,0,1) forwards', cursor: pages.length > 1 ? 'pointer' : 'default' }} />
+              : <div style={{ color:'rgba(255,255,255,0.35)', fontSize:13, display:'flex', alignItems:'center', gap:8 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation:'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-9-9"/></svg>
+                  Rendering…
+                </div>
+            }
+
+            {/* Right nav */}
+            {pages.length > 1 && activePage < pages.length - 1 && (
+              <button onClick={e => { e.stopPropagation(); setActivePage(i => i + 1); }}
+                style={{ position:'absolute', right:16, top:'50%', transform:'translateY(-50%)', width:44, height:44, borderRadius:'50%', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.15)', color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(8px)', transition:'background 120ms ease', zIndex:5 }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.22)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
             )}
           </div>
 
-          {/* Canvas image */}
-          {previewUrl
-            ? <img key={previewUrl} src={previewUrl} onClick={e => e.stopPropagation()}
-                style={{ maxWidth:'85vw', maxHeight:'85vh', objectFit:'contain', borderRadius:6, boxShadow:'0 20px 60px rgba(0,0,0,0.5)', animation:'preview-fade 220ms cubic-bezier(0.2,0,0,1) forwards' }} />
-            : <div style={{ color:'rgba(255,255,255,0.4)', fontSize:14 }}>Rendering…</div>
-          }
+          {/* ── Bottom control bar ── */}
+          <div style={{ position:'absolute', bottom:0, left:0, right:0, height:52, background:'rgba(0,0,0,0.72)', borderTop:'1px solid rgba(255,255,255,0.08)', backdropFilter:'blur(20px)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 20px', zIndex:10 }}
+            onClick={e => e.stopPropagation()}>
 
-          {/* Left arrow */}
-          {pages.length > 1 && activePage > 0 && (
-            <button onClick={e => { e.stopPropagation(); setActivePage(i => i - 1); }}
-              style={{ position:'absolute', left:16, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:44, height:44, borderRadius:'50%', cursor:'pointer', fontSize:22, display:'flex', alignItems:'center', justifyContent:'center' }}>
-              ‹
-            </button>
-          )}
+            {/* Left: slide nav */}
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <button onClick={() => setActivePage(i => Math.max(i - 1, 0))} disabled={activePage === 0}
+                style={{ width:30, height:30, borderRadius:7, background:'transparent', border:'none', color: activePage === 0 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)', cursor: activePage === 0 ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'color 100ms' }}
+                onMouseEnter={e => { if (activePage > 0) e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = activePage === 0 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)'; }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <span style={{ fontSize:13, color:'rgba(255,255,255,0.75)', fontWeight:500, minWidth:42, textAlign:'center', letterSpacing:'-0.01em' }}>
+                {activePage + 1} / {pages.length}
+              </span>
+              <button onClick={() => setActivePage(i => Math.min(i + 1, pages.length - 1))} disabled={activePage === pages.length - 1}
+                style={{ width:30, height:30, borderRadius:7, background:'transparent', border:'none', color: activePage === pages.length - 1 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)', cursor: activePage === pages.length - 1 ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', transition:'color 100ms' }}
+                onMouseEnter={e => { if (activePage < pages.length - 1) e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = activePage === pages.length - 1 ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)'; }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
 
-          {/* Right arrow */}
-          {pages.length > 1 && activePage < pages.length - 1 && (
-            <button onClick={e => { e.stopPropagation(); setActivePage(i => i + 1); }}
-              style={{ position:'absolute', right:16, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.12)', border:'none', color:'#fff', width:44, height:44, borderRadius:'50%', cursor:'pointer', fontSize:22, display:'flex', alignItems:'center', justifyContent:'center' }}>
-              ›
-            </button>
-          )}
+            {/* Center: progress dots (up to 10 slides) */}
+            {pages.length > 1 && pages.length <= 10 && (
+              <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                {pages.map((_, i) => (
+                  <button key={i} onClick={() => setActivePage(i)}
+                    style={{ width: i === activePage ? 20 : 6, height:6, borderRadius:3, background: i === activePage ? '#7C5CFC' : 'rgba(255,255,255,0.3)', border:'none', cursor:'pointer', padding:0, transition:'all 200ms cubic-bezier(0.34,1.56,0.64,1)' }} />
+                ))}
+              </div>
+            )}
+
+            {/* Right: auto-play + exit */}
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              {pages.length > 1 && (
+                <>
+                  <button onClick={() => setPresentPlaying(p => !p)}
+                    title={presentPlaying ? 'Pause auto-play' : 'Auto-play slides'}
+                    style={{ height:30, padding:'0 10px', borderRadius:7, background: presentPlaying ? 'rgba(124,92,252,0.25)' : 'transparent', border:`1px solid ${presentPlaying ? 'rgba(124,92,252,0.5)' : 'rgba(255,255,255,0.15)'}`, color: presentPlaying ? '#C4B5FD' : 'rgba(255,255,255,0.7)', cursor:'pointer', display:'flex', alignItems:'center', gap:6, fontSize:11, fontWeight:500, transition:'all 120ms ease' }}>
+                    {presentPlaying
+                      ? <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                      : <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+                    }
+                    {presentPlaying ? 'Pause' : 'Auto-play'}
+                  </button>
+                  <select value={presentInterval} onChange={e => setPresentInterval(+e.target.value)}
+                    style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.7)', borderRadius:7, padding:'4px 8px', fontSize:11, cursor:'pointer', outline:'none', height:30 }}>
+                    {[2,3,5,8,10].map(s => <option key={s} value={s} style={{ background:'#1a1a28' }}>{s}s</option>)}
+                  </select>
+                  <div style={{ width:1, height:20, background:'rgba(255,255,255,0.12)' }} />
+                </>
+              )}
+              <button onClick={() => { setPreviewOpen(false); setPresentPlaying(false); }}
+                style={{ height:30, padding:'0 12px', borderRadius:7, background:'transparent', border:'1px solid rgba(255,255,255,0.15)', color:'rgba(255,255,255,0.7)', cursor:'pointer', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:5, transition:'all 120ms ease' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                Exit
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -14872,8 +14969,13 @@ export default function TemplatesEditorInner() {
         <div onClick={() => setShowMagicResize(false)} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(14,14,22,0.97)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '28px 32px', maxWidth: 440, width: '100%', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#E8E8F2', letterSpacing: '-0.03em' }}>⊡ Magic Resize</p>
-              <button onClick={() => setShowMagicResize(false)} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#9090A8', width: 30, height: 30, borderRadius: 7, cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#E8E8F2', letterSpacing: '-0.03em', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                Resize
+              </p>
+              <button onClick={() => setShowMagicResize(false)} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#9090A8', width: 30, height: 30, borderRadius: 7, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
             <p style={{ margin: '0 0 20px', fontSize: 12, color: '#6B6B88', lineHeight: 1.5 }}>
               Your current design (<strong style={{ color: '#A0A0C0' }}>{canvasSize.label}</strong>) will be proportionally scaled into new pages for each selected format. Adjust any elements that need fine-tuning after.
@@ -14897,8 +14999,9 @@ export default function TemplatesEditorInner() {
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setShowMagicResize(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 9, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: '#9090A8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
               <button onClick={runMagicResize} disabled={!CANVAS_SIZES.filter(s => s.id !== canvasSizeId).some(s => magicResizeSelected[s.id])}
-                style={{ flex: 2, padding: '10px 0', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'opacity 120ms', opacity: CANVAS_SIZES.filter(s => s.id !== canvasSizeId).some(s => magicResizeSelected[s.id]) ? 1 : 0.4 }}>
-                ⊡ Create Resized Versions
+                style={{ flex: 2, padding: '10px 0', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'opacity 120ms', opacity: CANVAS_SIZES.filter(s => s.id !== canvasSizeId).some(s => magicResizeSelected[s.id]) ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                Create Resized Versions
               </button>
             </div>
           </div>
@@ -14920,7 +15023,9 @@ export default function TemplatesEditorInner() {
                 <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#E8E8F2', letterSpacing: '-0.03em' }}>Keyboard Shortcuts</p>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: '#6B6B88' }}>Press <kbd style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11, fontFamily: 'monospace' }}>?</kbd> or <kbd style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', fontSize: 11, fontFamily: 'monospace' }}>Esc</kbd> to close</p>
               </div>
-              <button onClick={() => setShowShortcutsOverlay(false)} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#9090A8', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+              <button onClick={() => setShowShortcutsOverlay(false)} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#9090A8', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
             {[
               { group: 'Selection & Canvas', items: [
@@ -14985,103 +15090,275 @@ export default function TemplatesEditorInner() {
         </div>
       )}
 
-      {/* ── Mobile FAB — opens tool panel as bottom sheet ── */}
+      {/* ── Mobile bottom navigation bar — always visible, replaces FAB ── */}
       {isMobile && (
-        <button
-          onClick={() => { setMobilePanelOpen(o => !o); setMobilePropsOpen(false); }}
-          aria-label={mobilePanelOpen ? 'Close tools' : 'Open tools'}
-          style={{
-            position: 'fixed', right: 20, bottom: mobilePropsOpen ? 310 : 80,
-            width: 52, height: 52, borderRadius: '50%',
-            background: mobilePanelOpen ? '#5B3FF0' : 'linear-gradient(135deg, #00C4CC, #7C5CFC)',
-            border: 'none', cursor: 'pointer', color: '#fff', fontSize: 22,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(124,92,252,0.45)',
-            zIndex: 200, transition: 'bottom 250ms ease, background 150ms',
-          }}
-        >
-          {mobilePanelOpen ? '×' : '+'}
-        </button>
+        <div style={{
+          position: 'fixed', left: 0, right: 0, bottom: 0,
+          height: 'calc(60px + env(safe-area-inset-bottom))',
+          background: t.sidebar,
+          borderTop: `1px solid ${t.border}`,
+          display: 'flex', alignItems: 'stretch', zIndex: 200,
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.12)',
+        }}>
+          {[
+            { id: 'templates', label: 'Templates', icon: <IcoTemplates size={22} /> },
+            { id: 'text',      label: 'Text',      icon: <IpTextCard size={22} />   },
+            { id: 'elements',  label: 'Elements',  icon: <IpSparkle size={22} />    },
+            { id: 'uploads',   label: 'Uploads',   icon: <IpPublish size={22} />    },
+            { id: 'layers',    label: 'Layers',    icon: <IcoLayers size={22} />    },
+          ].map(tool => {
+            const isAct = activeLeftTool === tool.id && mobilePanelOpen;
+            return (
+              <button key={tool.id}
+                onClick={() => {
+                  if (isAct) { setMobilePanelOpen(false); setActiveLeftTool(null); }
+                  else { setActiveLeftTool(tool.id); setMobilePanelOpen(true); setMobilePropsOpen(false); }
+                }}
+                style={{
+                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  justifyContent: 'center', gap: 3, border: 'none', background: 'transparent',
+                  color: isAct ? t.primary : t.textMuted, cursor: 'pointer',
+                  fontSize: 10, fontWeight: isAct ? 700 : 400, transition: 'color 120ms',
+                  position: 'relative',
+                }}>
+                {isAct && <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 32, height: 2, borderRadius: '0 0 2px 2px', background: t.primary }} />}
+                {tool.icon}
+                {tool.label}
+              </button>
+            );
+          })}
+        </div>
       )}
 
-      {/* ── Mobile tool panel — bottom sheet triggered by FAB ── */}
+      {/* ── Mobile contextual action bar — Canva-style — replaces bottom nav when element selected ── */}
+      {isMobile && selectedEl && !editingTextId && (
+        <div style={{
+          position: 'fixed', left: 0, right: 0,
+          bottom: 'calc(60px + env(safe-area-inset-bottom))',
+          height: 54,
+          background: t.isDark ? 'rgba(8,8,14,0.96)' : 'rgba(255,255,255,0.96)',
+          borderTop: `1px solid ${t.border}`,
+          backdropFilter: 'blur(20px) saturate(180%)',
+          zIndex: 198,
+          display: 'flex', alignItems: 'center',
+          overflowX: 'auto', overflowY: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          boxShadow: '0 -2px 16px rgba(0,0,0,0.14)',
+          gap: 0,
+        }}>
+          {/* Contextual tools based on element type */}
+          {(() => {
+            const isText  = ['text', 'neontext', 'gradtext'].includes(selectedEl.type);
+            const isImg   = selectedEl.type === 'image';
+            const isShape = ['rect', 'circle', 'triangle', 'star', 'shape', 'arrow'].includes(selectedEl.type);
+
+            const btnStyle = (active) => ({
+              flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', gap: 2, padding: '0 13px', height: '100%',
+              border: 'none', background: active ? t.primaryBg : 'transparent',
+              color: active ? t.primary : t.text, cursor: 'pointer', minWidth: 58,
+            });
+            const lblStyle = { fontSize: 9, fontWeight: 500, letterSpacing: '-0.01em', whiteSpace: 'nowrap' };
+
+            return (
+              <>
+                {/* Text-specific */}
+                {isText && (<>
+                  <button style={btnStyle(false)} onClick={() => startEditText(selectedEl.id)}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                    <span style={lblStyle}>Edit</span>
+                  </button>
+                  <button style={btnStyle((selectedEl.fontStyle||'').includes('bold'))} onClick={() => { const fs=selectedEl.fontStyle||'normal'; handleElementChange({...selectedEl,fontStyle:fs.includes('bold')?(fs.replace('bold','').replace('italic bold','italic').trim()||'normal'):(fs.includes('italic')?'bold italic':'bold')}); pushHistory(); }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>
+                    <span style={lblStyle}>Bold</span>
+                  </button>
+                  <button style={btnStyle((selectedEl.fontStyle||'').includes('italic'))} onClick={() => { const fs=selectedEl.fontStyle||'normal'; handleElementChange({...selectedEl,fontStyle:fs.includes('italic')?(fs.replace('italic','').replace('bold italic','bold').trim()||'normal'):(fs.includes('bold')?'bold italic':'italic')}); pushHistory(); }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>
+                    <span style={lblStyle}>Italic</span>
+                  </button>
+                  <button style={btnStyle(false)} onClick={() => { setMobilePropsOpen(true); setMobilePanelOpen(false); }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9" opacity=".15"/><circle cx="12" cy="12" r="4"/></svg>
+                    <span style={lblStyle}>Color</span>
+                  </button>
+                </>)}
+
+                {/* Image-specific */}
+                {isImg && (<>
+                  <button style={btnStyle(false)} onClick={() => replaceFileRef.current?.click()}>
+                    <IcoReplace size={18} />
+                    <span style={lblStyle}>Replace</span>
+                  </button>
+                  <button style={btnStyle(false)} onClick={() => handleElementChange({...selectedEl, scaleX: -(selectedEl.scaleX||1), flipH: !selectedEl.flipH})}>
+                    <IcoFlipH size={18} />
+                    <span style={lblStyle}>Flip H</span>
+                  </button>
+                </>)}
+
+                {/* Shape-specific */}
+                {isShape && (<>
+                  <button style={btnStyle(false)} onClick={() => { setMobilePropsOpen(true); setMobilePanelOpen(false); }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9" opacity=".15"/><circle cx="12" cy="12" r="4"/></svg>
+                    <span style={lblStyle}>Color</span>
+                  </button>
+                </>)}
+
+                {/* Universal */}
+                <button style={btnStyle(false)} onClick={() => { pushHistory(); patchElements(prev => { const idx=prev.findIndex(e=>e.id===selectedId); if(idx<prev.length-1){const n=[...prev];[n[idx],n[idx+1]]=[n[idx+1],n[idx]];return n;}return prev; }); }}>
+                  <IcoBringFwd size={18} />
+                  <span style={lblStyle}>Forward</span>
+                </button>
+                <button style={btnStyle(false)} onClick={() => { pushHistory(); patchElements(prev => { const idx=prev.findIndex(e=>e.id===selectedId); if(idx>0){const n=[...prev];[n[idx],n[idx-1]]=[n[idx-1],n[idx]];return n;}return prev; }); }}>
+                  <IcoSendBack size={18} />
+                  <span style={lblStyle}>Back</span>
+                </button>
+                <button style={btnStyle(mobilePropsOpen)} onClick={() => { setMobilePropsOpen(v => !v); setMobilePanelOpen(false); }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
+                  <span style={lblStyle}>Properties</span>
+                </button>
+
+                {/* Divider + Done */}
+                <div style={{ width: 1, height: 28, background: t.border, margin: '0 2px', flexShrink: 0 }} />
+                <button style={{ ...btnStyle(false), color: t.primary, minWidth: 52 }} onClick={() => clearSelection()}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 13l4 4L19 7"/></svg>
+                  <span style={{ ...lblStyle, fontWeight: 700 }}>Done</span>
+                </button>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ── Mobile tool panel — bottom sheet ── */}
       {isMobile && mobilePanelOpen && (
         <>
           <div
-            onClick={() => setMobilePanelOpen(false)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 190 }}
+            onClick={() => { setMobilePanelOpen(false); setActiveLeftTool(null); }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 195 }}
           />
           <div style={{
-            position: 'fixed', left: 0, right: 0, bottom: 0,
-            height: '55vh', background: t.sidebar, borderRadius: '20px 20px 0 0',
-            borderTop: `1px solid ${t.border}`, zIndex: 195,
+            position: 'fixed', left: 0, right: 0,
+            bottom: 'calc(60px + env(safe-area-inset-bottom))',
+            height: '62vh', background: t.sidebar, borderRadius: '20px 20px 0 0',
+            borderTop: `1px solid ${t.border}`, zIndex: 200,
             display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            animation: 'slideUpModal 250ms cubic-bezier(0.16,1,0.3,1) forwards',
+            animation: 'slideUpModal 240ms cubic-bezier(0.16,1,0.3,1) forwards',
+            boxShadow: '0 -8px 32px rgba(0,0,0,0.2)',
           }}>
             {/* Drag handle */}
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px', flexShrink: 0 }}>
               <div style={{ width: 36, height: 4, borderRadius: 2, background: t.border }} />
             </div>
-            {/* Tool icon row */}
-            <div style={{ display: 'flex', overflowX: 'auto', gap: 4, padding: '0 12px 12px', flexShrink: 0, scrollbarWidth: 'none' }}>
-              {[
-                { id: 'templates', icon: '⊞', label: 'Templates' },
-                { id: 'elements',  icon: '✦', label: 'Elements'  },
-                { id: 'text',      icon: 'T', label: 'Text'      },
-                { id: 'brand',     icon: '🎨', label: 'Brand'    },
-                { id: 'uploads',   icon: '↑', label: 'Uploads'   },
-                { id: 'background', icon: '🖼', label: 'BG'      },
-                { id: 'layers',    icon: '⊕', label: 'Layers'    },
-              ].map(tool => {
-                const isAct = activeLeftTool === tool.id;
-                return (
-                  <button key={tool.id}
-                    onClick={() => setActiveLeftTool(tool.id)}
-                    style={{
-                      flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                      padding: '8px 14px', borderRadius: 10, border: 'none',
-                      background: isAct ? t.primaryBg : t.input,
-                      color: isAct ? t.primary : t.textSecondary,
-                      fontSize: 11, fontWeight: isAct ? 600 : 400, cursor: 'pointer',
-                    }}>
-                    <span style={{ fontSize: 18 }}>{tool.icon}</span>
-                    {tool.label}
-                  </button>
-                );
-              })}
+            {/* Panel header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 10px', flexShrink: 0 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: t.text, textTransform: 'capitalize' }}>{activeLeftTool}</span>
+              <button onClick={() => { setMobilePanelOpen(false); setActiveLeftTool(null); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 20, lineHeight: 1, padding: 4 }}>×</button>
             </div>
             {/* Panel content */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
-              {/* Reuse the flyout content inline for the active tool — show compact version */}
-              <div style={{ fontSize: 12, color: t.textMuted, textAlign: 'center', paddingTop: 20 }}>
-                {activeLeftTool === 'text' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>Add Text</div>
-                    {[
-                      { label: 'Heading', fontSize: 48, fontWeight: 800 },
-                      { label: 'Subheading', fontSize: 32, fontWeight: 600 },
-                      { label: 'Body text', fontSize: 20, fontWeight: 400 },
-                      { label: 'Caption', fontSize: 14, fontWeight: 400 },
-                    ].map(({ label, fontSize, fontWeight }) => (
-                      <button key={label}
-                        onClick={() => {
-                          const id = `text_${Date.now()}`;
-                          pushHistory();
-                          patchElements(prev => [...prev, { id, type: 'text', text: label, x: canvasSize.w * 0.1, y: canvasSize.h * 0.4, fontSize, fontWeight, fill: '#ffffff', fontFamily: 'Inter', opacity: 1, rotation: 0 }]);
-                          setSelectedId(id);
-                          setMobilePanelOpen(false);
-                        }}
-                        style={{ width: '100%', padding: '12px 16px', border: `1px solid ${t.border}`, borderRadius: 10, background: t.input, color: t.text, fontSize, fontWeight, cursor: 'pointer', textAlign: 'left', fontFamily: 'Inter, sans-serif' }}>
-                        {label}
-                      </button>
+              {/* TEXT */}
+              {activeLeftTool === 'text' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    { label: 'Heading',    fontSize: 44, fontWeight: 800 },
+                    { label: 'Subheading', fontSize: 28, fontWeight: 600 },
+                    { label: 'Body text',  fontSize: 18, fontWeight: 400 },
+                    { label: 'Caption',    fontSize: 13, fontWeight: 400 },
+                  ].map(({ label, fontSize, fontWeight }) => (
+                    <button key={label}
+                      onClick={() => {
+                        const id = `text_${Date.now()}`;
+                        pushHistory();
+                        patchElements(prev => [...prev, { id, type: 'text', text: label, x: canvasSize.w * 0.1, y: canvasSize.h * 0.4, fontSize, fontWeight, fill: '#ffffff', fontFamily: 'Inter', opacity: 1, rotation: 0 }]);
+                        setSelectedId(id);
+                        setMobilePanelOpen(false);
+                        setActiveLeftTool(null);
+                      }}
+                      style={{ width: '100%', padding: '12px 14px', border: `1px solid ${t.border}`, borderRadius: 10, background: t.input, color: t.text, fontSize, fontWeight, cursor: 'pointer', textAlign: 'left', fontFamily: 'Inter, sans-serif' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* TEMPLATES */}
+              {activeLeftTool === 'templates' && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {(savedDesigns.length > 0 ? savedDesigns : []).map(tmpl => (
+                      <div key={tmpl.id}
+                        onClick={() => { loadDesignFromTemplate(tmpl); setMobilePanelOpen(false); setActiveLeftTool(null); }}
+                        style={{ borderRadius: 10, overflow: 'hidden', border: `1px solid ${t.border}`, cursor: 'pointer', background: t.input }}>
+                        {(templateThumbs[tmpl.id] || tmpl.thumbnail_url) ? (
+                          <img src={templateThumbs[tmpl.id] || tmpl.thumbnail_url} alt={tmpl.title} style={{ width: '100%', aspectRatio: '4/5', objectFit: 'cover', display: 'block' }} />
+                        ) : (
+                          <div style={{ width: '100%', aspectRatio: '4/5', background: t.cardHover, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>⊞</div>
+                        )}
+                        <div style={{ padding: '6px 8px', fontSize: 10, color: t.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tmpl.title || 'Template'}</div>
+                      </div>
                     ))}
+                    {savedDesigns.length === 0 && (
+                      <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 32, color: t.textMuted, fontSize: 13 }}>Loading templates…</div>
+                    )}
                   </div>
-                ) : (
-                  <div style={{ color: t.textMuted, fontSize: 13, marginTop: 12 }}>
-                    Open the full editor on desktop for all {activeLeftTool} options.
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
+              {/* ELEMENTS — quick shape buttons */}
+              {activeLeftTool === 'elements' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+                  {[
+                    { label: 'Rect',     action: () => { const id=`rect_${Date.now()}`; pushHistory(); patchElements(p=>[...p,{id,type:'rect',x:canvasSize.w*0.2,y:canvasSize.h*0.35,width:300,height:200,fill:'#6366f1',opacity:1,rotation:0}]); setSelectedId(id); setMobilePanelOpen(false); setActiveLeftTool(null); } },
+                    { label: 'Circle',   action: () => { const id=`circle_${Date.now()}`; pushHistory(); patchElements(p=>[...p,{id,type:'circle',x:canvasSize.w/2,y:canvasSize.h/2,width:200,height:200,fill:'#a855f7',opacity:1,rotation:0}]); setSelectedId(id); setMobilePanelOpen(false); setActiveLeftTool(null); } },
+                    { label: 'Line',     action: () => { const id=`arrow_${Date.now()}`; pushHistory(); patchElements(p=>[...p,{id,type:'arrow',points:[50,50,300,50],x:canvasSize.w*0.2,y:canvasSize.h*0.45,stroke:'#fff',strokeWidth:3,opacity:1,rotation:0}]); setSelectedId(id); setMobilePanelOpen(false); setActiveLeftTool(null); } },
+                    { label: 'Star',     action: () => { const id=`star_${Date.now()}`; pushHistory(); patchElements(p=>[...p,{id,type:'star',x:canvasSize.w/2,y:canvasSize.h/2,width:160,height:160,fill:'#f59e0b',numPoints:5,innerRadius:40,outerRadius:80,opacity:1,rotation:0}]); setSelectedId(id); setMobilePanelOpen(false); setActiveLeftTool(null); } },
+                  ].map(({ label, action }) => (
+                    <button key={label} onClick={action}
+                      style={{ padding: '14px 0', border: `1px solid ${t.border}`, borderRadius: 10, background: t.input, color: t.text, fontSize: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 20 }}>{ label==='Rect'?'▭':label==='Circle'?'○':label==='Line'?'─':'★' }</span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* UPLOADS */}
+              {activeLeftTool === 'uploads' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <label style={{ display: 'block', width: '100%', padding: '16px', border: `2px dashed ${t.border}`, borderRadius: 12, background: t.input, textAlign: 'center', cursor: 'pointer' }}>
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file || !replaceFileRef.current) return;
+                      replaceFileRef.current.files = e.target.files;
+                      replaceFileRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                      setMobilePanelOpen(false);
+                      setActiveLeftTool(null);
+                    }} />
+                    <div style={{ fontSize: 28, marginBottom: 6 }}>📷</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>Upload image</div>
+                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>JPG, PNG, GIF, WebP</div>
+                  </label>
+                </div>
+              )}
+              {/* LAYERS */}
+              {activeLeftTool === 'layers' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {elements.length === 0 && (
+                    <div style={{ textAlign: 'center', color: t.textMuted, fontSize: 13, padding: 24 }}>No elements yet</div>
+                  )}
+                  {[...elements].reverse().map(el => {
+                    const isAct2 = selectedId === el.id;
+                    const typeLabel = el.type === 'text' ? (el.text || 'Text').slice(0, 16) : el.type;
+                    return (
+                      <button key={el.id}
+                        onClick={() => { setSelectedId(el.id); setMobilePanelOpen(false); setActiveLeftTool(null); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, border: `1px solid ${isAct2 ? t.primaryBorder : 'transparent'}`, background: isAct2 ? t.primaryBg : t.input, color: isAct2 ? t.primary : t.text, cursor: 'pointer', textAlign: 'left' }}>
+                        <span style={{ fontSize: 14 }}>{el.type === 'text' ? 'T' : el.type === 'image' ? '🖼' : '■'}</span>
+                        <span style={{ flex: 1, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{typeLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -15092,18 +15369,20 @@ export default function TemplatesEditorInner() {
         <>
           <div
             onClick={() => setMobilePropsOpen(false)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 190 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 197 }}
           />
           <div style={{
-            position: 'fixed', left: 0, right: 0, bottom: 0,
-            maxHeight: '60vh', background: t.sidebar, borderRadius: '20px 20px 0 0',
-            borderTop: `1px solid ${t.border}`, zIndex: 195,
+            position: 'fixed', left: 0, right: 0,
+            bottom: 'calc(114px + env(safe-area-inset-bottom))',
+            maxHeight: '65vh', background: t.sidebar, borderRadius: '20px 20px 0 0',
+            borderTop: `1px solid ${t.border}`, zIndex: 199,
             display: 'flex', flexDirection: 'column', overflow: 'hidden',
             animation: 'slideUpModal 250ms cubic-bezier(0.16,1,0.3,1) forwards',
+            boxShadow: '0 -8px 32px rgba(0,0,0,0.2)',
           }}>
-            {/* Drag handle + close */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 8px', flexShrink: 0 }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: t.border, margin: '0 auto' }} />
+            {/* Drag handle */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 16px 4px', flexShrink: 0 }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: t.border }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px 10px', flexShrink: 0, borderBottom: `1px solid ${t.border}` }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
@@ -15123,32 +15402,54 @@ export default function TemplatesEditorInner() {
             <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
               {/* Quick properties for common element types */}
               {(selectedEl.type === 'text' || selectedEl.type === 'neontext' || selectedEl.type === 'gradtext') && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Text content */}
                   <div>
                     <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Text</label>
                     <textarea
                       value={selectedEl.text || ''}
-                      onChange={e => handleElementChange({ ...selectedEl, text: e.target.value })}
+                      onChange={e => { handleElementChange({ ...selectedEl, text: e.target.value }); }}
+                      onBlur={() => pushHistory()}
                       rows={3}
-                      style={{ width: '100%', padding: '8px 10px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 14, resize: 'none', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                      style={{ width: '100%', padding: '10px 12px', border: `1px solid ${t.border}`, borderRadius: 10, background: t.input, color: t.text, fontSize: 15, resize: 'none', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.4 }}
                     />
                   </div>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  {/* Font size + color */}
+                  <div style={{ display: 'flex', gap: 10 }}>
                     <div style={{ flex: 1 }}>
                       <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Size</label>
-                      <input type="number" value={selectedEl.fontSize || 24} min={8} max={200}
+                      <input type="number" value={selectedEl.fontSize || 24} min={8} max={400}
                         onChange={e => handleElementChange({ ...selectedEl, fontSize: +e.target.value })}
                         onBlur={() => pushHistory()}
-                        style={{ width: '100%', padding: '8px 10px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                        style={{ width: '100%', padding: '10px 12px', border: `1px solid ${t.border}`, borderRadius: 10, background: t.input, color: t.text, fontSize: 15, outline: 'none', boxSizing: 'border-box' }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Color</label>
                       <input type="color" value={selectedEl.fill || '#ffffff'}
                         onChange={e => handleElementChange({ ...selectedEl, fill: e.target.value })}
                         onBlur={() => pushHistory()}
-                        style={{ width: '100%', height: 38, padding: 2, border: `1px solid ${t.border}`, borderRadius: 8, cursor: 'pointer', background: 'none' }} />
+                        style={{ width: '100%', height: 42, padding: 2, border: `1px solid ${t.border}`, borderRadius: 10, cursor: 'pointer', background: 'none' }} />
                     </div>
                   </div>
+                  {/* Bold / Italic / Align row */}
+                  <div>
+                    <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 7 }}>Style & Alignment</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[
+                        { label: 'B', title: 'Bold', active: (selectedEl.fontStyle || '').includes('bold'), fn: () => { const fs = selectedEl.fontStyle || 'normal'; const nb = fs.includes('bold') ? fs.replace('bold','').replace('italic bold','italic').trim() || 'normal' : (fs.includes('italic') ? 'bold italic' : 'bold'); handleElementChange({ ...selectedEl, fontStyle: nb }); pushHistory(); } },
+                        { label: 'I', title: 'Italic', active: (selectedEl.fontStyle || '').includes('italic'), style: { fontStyle: 'italic' }, fn: () => { const fs = selectedEl.fontStyle || 'normal'; const ni = fs.includes('italic') ? fs.replace('italic','').replace('bold italic','bold').trim() || 'normal' : (fs.includes('bold') ? 'bold italic' : 'italic'); handleElementChange({ ...selectedEl, fontStyle: ni }); pushHistory(); } },
+                        { label: '≡', title: 'Align left', active: (selectedEl.align || 'center') === 'left', fn: () => { handleElementChange({ ...selectedEl, align: 'left' }); pushHistory(); } },
+                        { label: '≡', title: 'Align center', active: (selectedEl.align || 'center') === 'center', fn: () => { handleElementChange({ ...selectedEl, align: 'center' }); pushHistory(); } },
+                        { label: '≡', title: 'Align right', active: (selectedEl.align || 'center') === 'right', fn: () => { handleElementChange({ ...selectedEl, align: 'right' }); pushHistory(); } },
+                      ].map((btn, i) => (
+                        <button key={i} title={btn.title} onClick={btn.fn}
+                          style={{ flex: 1, height: 42, border: `1px solid ${btn.active ? t.primary : t.border}`, borderRadius: 10, background: btn.active ? t.primaryBg : t.input, color: btn.active ? t.primary : t.text, fontSize: i === 0 ? 16 : i === 1 ? 15 : 12, fontWeight: i === 0 ? 800 : 400, fontStyle: i === 1 ? 'italic' : 'normal', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {btn.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Opacity */}
                   <div>
                     <label style={{ fontSize: 11, color: t.textMuted, display: 'block', marginBottom: 5 }}>Opacity</label>
                     <input type="range" min={0} max={1} step={0.05} value={selectedEl.opacity ?? 1}

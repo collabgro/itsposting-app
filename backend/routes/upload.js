@@ -187,7 +187,12 @@ module.exports = (pool) => {
   router.post('/post', authenticate, async (req, res) => {
     const client = await pool.connect();
     try {
-      const { contentType, mediaUrl, mediaUrls, caption, hashtags, platforms, accountIds, platform_captions, location_id, location_name, scheduledDate, timezone, publishNow, status: requestedStatus } = req.body;
+      const {
+        contentType, mediaUrl, mediaUrls, caption, hashtags, platforms, accountIds,
+        platform_captions, location_id, location_name, scheduledDate, timezone, publishNow,
+        status: requestedStatus,
+        fbPostFormat, igPostFormat, igCollaborator, optimizeMedia, fbTextBackground, followUpComment,
+      } = req.body;
       if (!contentType || !caption) return res.status(400).json({ error: 'contentType and caption required' });
       if (contentType !== 'carousel' && contentType !== 'static' && !mediaUrl) return res.status(400).json({ error: 'mediaUrl required' });
       if (contentType === 'carousel' && (!mediaUrls || mediaUrls.length < 2))
@@ -216,8 +221,9 @@ module.exports = (pool) => {
       const postResult = await client.query(
         `INSERT INTO posts (customer_id, content_type, caption, hashtags, media_url, media_urls,
           platforms, scheduled_date, scheduled_timezone, status, source, uploaded_by_user, credits_used,
-          generation_method, platform_captions, location_id, location_name)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+          generation_method, platform_captions, location_id, location_name,
+          fb_post_format, ig_post_format, ig_collaborator, optimize_media, fb_text_background, follow_up_comment)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING *`,
         [
           req.customerId, contentType, caption, JSON.stringify(hashtags || []),
           contentType !== 'carousel' ? mediaUrl : (mediaUrls?.[0] || null),
@@ -226,6 +232,11 @@ module.exports = (pool) => {
           resolvedTz, status, 'manual_upload', true, 0, 'manual_upload',
           platform_captions ? JSON.stringify(platform_captions) : null,
           location_id || null, location_name || null,
+          fbPostFormat || 'feed', igPostFormat || 'feed',
+          igCollaborator?.trim() || null,
+          optimizeMedia !== false,
+          fbTextBackground || null,
+          followUpComment?.trim() || null,
         ]
       );
       const post = postResult.rows[0];

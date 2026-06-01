@@ -154,11 +154,18 @@ class VideoService {
       handyman:           'handyman completing precise repair work in residential home, before/after detail reveal, natural lighting',
       flooring:           'flooring team laying hardwood planks row by row, wide room shot, natural interior light, satisfying installation progress',
       junk_removal:       'junk removal crew clearing overloaded garage, dramatic before to empty clean space transformation, fast-cut documentary style',
-      solar_gutter_cleaning: 'technician cleaning solar panels on residential roof, dirty to clean reveal, natural daylight, roof perspective',
+      solar:              'solar installation crew mounting panels on residential roof, staggered installation in progress, panel rows expanding across roof, natural full-sun lighting, drone perspective revealing growing system',
+      gutter_cleaning:    'technician cleaning gutters on residential home, ladder against fascia, debris removal in progress, water flowing clear from downspout, natural daylight slow reveal',
     };
 
     const style = cinemaStyles[industry] || `local service professional working at residential job site, documentary cinematic style`;
-    const prompt = [scene, style, seasonalNote].filter(Boolean).join('. ');
+
+    // Enrich from industryKnowledge imageVisuals — makes Veo prompt specific to this trade
+    const moodNote = iv.moodAndLighting || '';
+    const paletteNote = iv.colorPalette ? `natural color palette: ${iv.colorPalette}` : '';
+    const keyElement = iv.keyElements?.[0] || '';
+
+    const prompt = [scene, style, keyElement, moodNote, paletteNote, seasonalNote].filter(Boolean).join('. ');
     const finalPrompt = `${prompt}. Authentic documentary style. No text overlays. ${aspectRatioCue(customer)}.`.substring(0, 480);
 
     console.log(`[VideoService] Veo prompt for ${industry} (${finalPrompt.length} chars)`);
@@ -177,6 +184,9 @@ class VideoService {
    */
   _buildRunwayPrompt(customer, script, imagePrompt) {
     const industry = customer.industry || 'general_contractor';
+    const iv = (industryKnowledge[industry] || {}).imageVisuals || {};
+    const season = this._getCurrentSeason();
+    const seasonalNote = iv.seasonalVisuals?.[season] ? ` ${iv.seasonalVisuals[season]}.` : '';
 
     const motionDescriptions = {
       plumbing:           "Plumber's hands continue tightening pipe fitting with slight wrist rotation. Copper pipe reflects warm headlamp light. Subtle steam near torch area. Camera drifts slowly forward. Natural ambient motion. Authentic documentary feel.",
@@ -195,11 +205,12 @@ class VideoService {
       handyman:           'Handyman continues precise repair work. Tool makes small adjustment. Component settles perfectly into place. Camera slowly pushes in on the detail being fixed.',
       flooring:           'Flooring installer continues clicking planks into place. Row by row the floor expands. Camera slowly pulls back to reveal more of the finished floor. Natural light steady.',
       junk_removal:       'Team members continue loading items into truck. Space gradually clears. Before/after contrast visible in frame. Camera slowly reveals empty clean space emerging.',
-      solar_gutter_cleaning: 'Technician continues cleaning solar panel with squeegee. Dirty grime gives way to clean shining glass. Camera slowly pans along the panel row. Natural daylight reflects off clean surface.',
+      solar:              'Installer continues securing solar panel onto mounting rail. Racking clicks into alignment. Crew member hands off next panel. Camera slowly pans along growing row of installed panels. Full sun glints off clean glass surface.',
+      gutter_cleaning:    'Technician continues scooping debris from gutter trough. Organic matter drops away. Water flows freely toward downspout. Camera tracks along the gutter line from clogged to clear. Natural outdoor daylight.',
     };
 
     const motion = motionDescriptions[industry] || 'Technician continues working methodically. Subtle natural motion. Camera drifts gently. Authentic documentary feel.';
-    return motion.substring(0, 512);
+    return (motion + seasonalNote).substring(0, 512);
   }
 
   /**
@@ -229,7 +240,8 @@ class VideoService {
       handyman:           `Satisfying repair fix by local handyman in ${loc}. Problem solved cleanly and quickly. Real job footage. Trusted local service.`,
       flooring:           `Beautiful flooring transformation in ${loc}. Before vs after room reveal. Local flooring crew real installation footage.`,
       junk_removal:       `Most satisfying junk removal in ${loc}. Before packed garage vs after completely empty clean space. Local crew real results.`,
-      solar_gutter_cleaning: `Solar and gutter cleaning in ${loc}. Before dirty panels vs after clean and efficient. Local service real results.`,
+      solar:              `Solar panel installation by local crew in ${loc}. Property gaining energy independence. Real installation footage. System going live reveal.`,
+      gutter_cleaning:    `Satisfying gutter cleaning in ${loc}. Before clogged debris vs after clean flowing gutters and downspout. Local crew real results.`,
     };
 
     const prompt = socialStyles[industry] || `Local service transformation in ${loc}. Professional result. Real job footage. Trusted community business.`;

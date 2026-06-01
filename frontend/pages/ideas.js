@@ -263,6 +263,8 @@ export default function PostIdeas() {
         const wait = err.response.data?.nextRefreshIn;
         setRefreshCooldown(wait || 60);
         showToast(err.response.data?.error || 'Try again in an hour', 'error');
+      } else if (err.response?.status === 402) {
+        showToast('Not enough credits to refresh. Top up your plan to continue.', 'error');
       } else {
         setError('Failed to load ideas. Please try again.');
       }
@@ -323,6 +325,7 @@ export default function PostIdeas() {
         <button
           onClick={handleRefresh}
           disabled={refreshing || !!refreshCooldown}
+          title="Generates a fresh set of ideas using AI — costs 1 credit"
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 16px', borderRadius: 9,
@@ -335,7 +338,12 @@ export default function PostIdeas() {
           }}
         >
           <IpRefresh size={14} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
-          {refreshing ? 'Refreshing...' : refreshCooldown ? `Next refresh in ${refreshCooldown}m` : 'Refresh Ideas'}
+          {refreshing
+            ? 'Refreshing...'
+            : refreshCooldown
+            ? `Next refresh in ${refreshCooldown}m`
+            : <><span>Refresh Ideas</span><span style={{ fontSize: 11, fontWeight: 500, opacity: 0.85, background: 'rgba(255,255,255,0.18)', borderRadius: 4, padding: '1px 5px', marginLeft: 2 }}>1 credit</span></>
+          }
         </button>
       }
     >

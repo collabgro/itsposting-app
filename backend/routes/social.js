@@ -125,7 +125,7 @@ module.exports = (pool) => {
     const baseUrl = getBaseUrl(req);
     const state = createOAuthState(req.customerId);
 
-    const fbScope = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_messaging', 'instagram_basic', 'instagram_content_publish', 'instagram_manage_messages', 'instagram_manage_insights', 'read_insights', 'pages_read_user_content', 'public_profile', 'business_management'].join(',');
+    const fbScope = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'pages_manage_engagement', 'pages_messaging', 'instagram_basic', 'instagram_content_publish', 'instagram_manage_messages', 'instagram_manage_insights', 'instagram_manage_comments', 'read_insights', 'pages_read_user_content', 'public_profile', 'business_management'].join(',');
     const googleScope = ['https://www.googleapis.com/auth/business.manage', 'https://www.googleapis.com/auth/userinfo.profile'].join(' ');
 
     // auth_type=rerequest forces Facebook to always show the full permission
@@ -166,11 +166,13 @@ module.exports = (pool) => {
       'pages_show_list',
       'pages_read_engagement',
       'pages_manage_posts',
+      'pages_manage_engagement',
       'pages_messaging',
       'instagram_basic',
       'instagram_content_publish',
       'instagram_manage_messages',
       'instagram_manage_insights',
+      'instagram_manage_comments',
       'read_insights',
       'pages_read_user_content',
       'public_profile',
@@ -353,17 +355,26 @@ module.exports = (pool) => {
           if (igAccount?.id && !seenIgIds.has(igAccount.id)) {
             seenIgIds.add(igAccount.id);
             const igUsername = igAccount.username || igAccount.name || igAccount.id;
+            // Fetch IG profile picture
+            let igProfilePic = null;
+            try {
+              const igPicRes = await axios.get(`https://graph.facebook.com/v21.0/${igAccount.id}`, {
+                params: { fields: 'profile_picture_url', access_token: page.access_token },
+              });
+              igProfilePic = igPicRes.data?.profile_picture_url || null;
+            } catch { /* leave null */ }
             await pool.query(
               `INSERT INTO social_accounts
-                 (customer_id, platform, access_token, token_expires_at, account_id, account_username, account_name, enabled, auto_post)
-               VALUES ($1, 'instagram', $2, $3, $4, $5, $6, true, true)
+                 (customer_id, platform, access_token, token_expires_at, account_id, account_username, account_name, profile_image_url, enabled, auto_post)
+               VALUES ($1, 'instagram', $2, $3, $4, $5, $6, $7, true, true)
                ON CONFLICT (customer_id, platform, account_id) DO UPDATE SET
                  access_token = EXCLUDED.access_token,
                  token_expires_at = EXCLUDED.token_expires_at,
                  account_username = EXCLUDED.account_username,
                  account_name = EXCLUDED.account_name,
+                 profile_image_url = COALESCE(EXCLUDED.profile_image_url, social_accounts.profile_image_url),
                  updated_at = NOW()`,
-              [customerId, page.access_token, expiresAt, igAccount.id, igUsername, igAccount.name || igUsername]
+              [customerId, page.access_token, expiresAt, igAccount.id, igUsername, igAccount.name || igUsername, igProfilePic]
             );
             instagramConnected = true;
             console.log(`[Social/FB]   stored instagram="${igUsername}" (${igAccount.id}) via page "${page.name}"`);

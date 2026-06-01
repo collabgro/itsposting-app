@@ -16,6 +16,7 @@ const ICON_MAP = {
   video: Video,
 
   // Wizard "What's happening" cards
+  custom: Pencil,
   job_finished: Hammer,
   share_tip: Lightbulb,
   got_review: Star,

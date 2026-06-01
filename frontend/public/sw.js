@@ -1,4 +1,4 @@
-const CACHE_NAME = 'itsposting-v1';
+const CACHE_NAME = 'itsposting-v2';
 
 const SHELL_ASSETS = [
   '/',
@@ -41,23 +41,26 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For navigation requests (page loads): network-first, fallback to cache
+  // For navigation requests (page loads): network-first, offline fallback only.
+  // Do NOT store in cache — Next.js embeds content-hashed chunk URLs into the HTML;
+  // a stale cached HTML page will reference old chunk hashes that no longer exist
+  // after a rebuild, causing React to fail to load (blank screen on normal refresh).
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('/dashboard')))
+      fetch(request).catch(() => caches.match('/dashboard'))
     );
     return;
   }
 
-  // For static assets: cache-first
+  // Skip /_next/static/ — these are content-addressed by Next.js and handled by
+  // the browser's HTTP cache. Caching them in the SW causes blank screens when
+  // the HTML references new hashes but the SW serves old files.
+  if (url.pathname.startsWith('/_next/')) {
+    return;
+  }
+
+  // For other static assets (icons, images): cache-first
   if (
-    url.pathname.startsWith('/_next/static/') ||
     url.pathname.endsWith('.png') ||
     url.pathname.endsWith('.jpg') ||
     url.pathname.endsWith('.svg') ||
