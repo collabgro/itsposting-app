@@ -10,6 +10,7 @@ import Icon from '../components/Icon';
 import Layout from '../components/Layout';
 import { setMascotMood, triggerMilestone } from '../components/PostCoreMascot';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import api, { customerAPI, socialAPI, analyticsAPI, postsAPI, templatesAPI, wizardAPI, calendarPlansAPI } from '../lib/api';
 import { CHAR_LIMITS } from '../components/PostMockups';
 
@@ -23,7 +24,7 @@ const CONTENT_TYPES = [
 
 // ── Step 2: Content Theme (Trigger) ──────────────────────────────────────────
 const CONTENT_THEMES = [
-  { id: 'custom',             icon: 'custom',         label: 'My own idea',             desc: 'You know what to post — tell PostCore' },
+  { id: 'custom',             icon: 'custom',         label: 'My own idea',             desc: 'You know what to post — describe it below' },
   { id: 'just_finished_job',  icon: 'job_finished',   label: 'Just finished a job',     desc: 'Show off a completed project' },
   { id: 'share_tip',          icon: 'share_tip',      label: 'Want to share a tip',     desc: 'Teach your audience something' },
   { id: 'got_review',         icon: 'got_review',     label: 'Got a great review',      desc: 'Showcase customer love' },
@@ -495,6 +496,7 @@ async function apiGet(path) {
 export default function Wizard() {
   const router = useRouter();
   const { t } = useTheme();
+  const { aiName, appName } = useBranding();
 
   const isOnboarding = router.query.onboarding === 'true';
 
@@ -1058,7 +1060,7 @@ export default function Wizard() {
   const stepLabels = ['Content type', 'Format', "What's happening?", "What's the vibe?", 'Any details?', 'Where to post?'];
 
   return (
-    <Layout title="Post Wizard" subtitle="Guided content creation — powered by PostCore">
+    <Layout title="Post Wizard" subtitle={`Guided content creation — powered by ${aiName}`}>
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
         <style>{`
           @keyframes wizCardPop  { 0%{transform:translateY(-5px) scale(1.04)} 30%{transform:translateY(-7px) scale(1.06)} 100%{transform:translateY(-5px) scale(1.04)} }
@@ -1074,7 +1076,7 @@ export default function Wizard() {
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 4 }}>Welcome! Let's create your first post.</div>
-              <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>PostCore will write 3 ready-to-use variations tailored to your industry. Just answer a few quick questions — it takes under 60 seconds.</div>
+              <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>{aiName} will write 3 ready-to-use variations tailored to your industry. Just answer a few quick questions — it takes under 60 seconds.</div>
             </div>
           </div>
         )}
@@ -1526,7 +1528,7 @@ export default function Wizard() {
         ───────────────────────────────────────────────────────────────────── */}
         {step === 5 && (
           <div className="step-enter">
-            <StepHeading t={t} icon="edit" title="Add any details" sub="Optional — but the more context you give PostCore, the better the posts" />
+            <StepHeading t={t} icon="edit" title="Add any details" sub={`Optional — but the more context you give ${aiName}, the better the posts`} />
 
             {/* Summary pills */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24, padding: '14px 16px', background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.06)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid rgba(124,92,252,0.2)`, borderRadius: 12, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}>
@@ -1536,7 +1538,7 @@ export default function Wizard() {
 
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: t.textSecondary, marginBottom: 8 }}>
-                Context for PostCore
+                Context for {aiName}
               </label>
               <textarea
                 value={details}
@@ -1553,7 +1555,7 @@ export default function Wizard() {
                 onBlur={(e) => (e.currentTarget.style.borderColor = t.border)}
               />
               <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6 }}>
-                {details.length}/500 characters · PostCore will generate 3 variations from this
+                {details.length}/500 characters · {aiName} will generate 3 variations from this
               </div>
             </div>
 
@@ -1581,7 +1583,7 @@ export default function Wizard() {
         ───────────────────────────────────────────────────────────────────── */}
         {step === 6 && (
           <div className="step-enter">
-            <StepHeading t={t} icon="all_platforms" title="Where are we posting?" sub="Select one or more platforms — PostCore adapts the caption for each" />
+            <StepHeading t={t} icon="all_platforms" title="Where are we posting?" sub={`Select one or more platforms — ${aiName} adapts the caption for each`} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 16 }}>
               {PLATFORMS.map((item) => {
                 const selected = item.id === 'all'
@@ -1721,7 +1723,7 @@ export default function Wizard() {
 
             <div style={{ marginBottom: 28, textAlign: 'center', animation: 'fadeIn 400ms cubic-bezier(0.16,1,0.3,1)' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '6px 14px', borderRadius: 20, background: t.isDark ? 'rgba(124,92,252,0.12)' : 'rgba(124,92,252,0.08)', border: '1px solid rgba(124,92,252,0.25)', fontSize: 12, fontWeight: 700, color: t.primary, letterSpacing: '0.04em' }}>
-                <IpSparkle size={12} color={t.primary} /> PostCore generated 3 variations
+                <IpSparkle size={12} color={t.primary} /> {aiName} generated 3 variations
               </div>
               <div style={{ fontSize: 26, fontWeight: 800, color: t.text, marginBottom: 6, letterSpacing: '-0.03em' }}>Your posts are ready</div>
               <div style={{ fontSize: 14, color: t.textMuted }}>Pick whichever sounds most like you — then post or schedule</div>
@@ -2213,7 +2215,7 @@ export default function Wizard() {
                       <button onClick={() => setSmartScheduleDismissed(true)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 14, lineHeight: 1, padding: 2 }}>×</button>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                         <IpSparkle size={12} color={t.primary} />
-                        <span style={{ fontSize: 11, fontWeight: 700, color: t.primary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>PostCore recommends</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: t.primary, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{aiName} recommends</span>
                       </div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2 }}>{bt.label}</div>
                       <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 10 }}>{bt.reason}</div>
@@ -2451,10 +2453,10 @@ export default function Wizard() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>With ItsPosting watermark</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: t.text }}>With {appName} watermark</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: '#34C759', background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.25)', borderRadius: 6, padding: '2px 8px' }}>+5 free credits</span>
                 </div>
-                <div style={{ fontSize: 12, color: t.textMuted }}>Adds "Made with ItsPosting" in the corner. One-time bonus — share your work, earn credits.</div>
+                <div style={{ fontSize: 12, color: t.textMuted }}>Adds "Made with {appName}" in the corner. One-time bonus — share your work, earn credits.</div>
               </button>
 
               {/* Clean option */}
@@ -2665,7 +2667,7 @@ function VariationCard({ label, variation, t, copiedId, onCopy, onUse, selected,
 
 function getDetailsPlaceholder(theme) {
   const map = {
-    custom:            "Tell PostCore your idea — e.g. 'I want to post about why we switched to eco-friendly products' or 'Remind people we cover the Westside area' — anything goes.",
+    custom:            "Describe your idea — e.g. 'I want to post about why we switched to eco-friendly products' or 'Remind people we cover the Westside area' — anything goes.",
     just_finished_job: 'e.g. Just finished a full bathroom renovation in Springfield. Replaced tiles, new vanity, added rainfall shower. Customer was thrilled...',
     share_tip:         'e.g. Tip about what NOT to flush down the drain — we see this cause blockages every week...',
     got_review:        'e.g. Customer Maria left us a 5-star review saying we saved her from a burst pipe at 11pm on a Friday...',
@@ -2674,5 +2676,5 @@ function getDetailsPlaceholder(theme) {
     community:         "e.g. We're sponsoring the Riverside Little League team again this year — so proud to support local kids...",
     team_spotlight:    "e.g. Meet Mike, our lead HVAC tech who has been with us for 11 years. He's seen it all and is certified on all major brands...",
   };
-  return map[theme] || 'Describe what happened, any specific details, customer name, neighborhood, or anything PostCore should know...';
+  return map[theme] || 'Describe what happened, any specific details, customer name, neighborhood, or anything your AI advisor should know...';
 }

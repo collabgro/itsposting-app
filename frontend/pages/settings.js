@@ -2338,31 +2338,53 @@ export default function Settings() {
                   <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Used for active nav items and accent buttons. Must be a valid hex color.</div>
                 </div>
 
-                {/* Branded Login URL */}
-                {profile?.public_handle && (
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Branded Login URL</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <code style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.primary, fontSize: 12, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {typeof window !== 'undefined' ? window.location.origin : 'https://app.itsposting.com'}/login?a={profile.public_handle}
-                      </code>
-                      <button
-                        type="button"
-                        onClick={() => { const url = `${window.location.origin}/login?a=${profile.public_handle}`; navigator.clipboard?.writeText(url); }}
-                        style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-                      >
-                        Copy
-                      </button>
+                {/* Branded Login URL — handle settable inline */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Branded Login URL</label>
+                  {profile?.public_handle ? (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <code style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: wlForm.primaryColor || t.primary, fontSize: 12, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {typeof window !== 'undefined' ? window.location.origin : 'https://app.itsposting.com'}/login?a={profile.public_handle}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => { const url = `${window.location.origin}/login?a=${profile.public_handle}`; navigator.clipboard?.writeText(url); }}
+                          style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Share this with your clients — they'll see your branding on the login page.</div>
+                    </>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 8 }}>Set a unique URL slug for your branded login page:</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, overflow: 'hidden', paddingLeft: 10 }}>
+                          <span style={{ fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap', fontFamily: 'monospace', flexShrink: 0 }}>?a=</span>
+                          <input
+                            type="text"
+                            value={handleInput}
+                            onChange={e => { setHandleInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')); setHandleError(''); }}
+                            placeholder="your-agency-slug"
+                            maxLength={50}
+                            style={{ flex: 1, padding: '10px 8px', background: 'transparent', border: 'none', color: t.text, fontSize: 13, outline: 'none', fontFamily: 'monospace' }}
+                          />
+                        </div>
+                        <button
+                          onClick={saveHandle}
+                          disabled={handleSaving || !handleInput.trim()}
+                          style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: wlForm.primaryColor || t.primary, color: '#fff', fontSize: 12, fontWeight: 700, cursor: handleSaving || !handleInput.trim() ? 'not-allowed' : 'pointer', opacity: handleSaving || !handleInput.trim() ? 0.6 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                          {handleSaving ? 'Saving…' : 'Set Slug'}
+                        </button>
+                      </div>
+                      {handleError && <div style={{ marginTop: 5, fontSize: 11, color: '#ef4444' }}>{handleError}</div>}
+                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 5 }}>Once set, your branded URL is: <code style={{ fontFamily: 'monospace', color: wlForm.primaryColor || t.primary }}>/login?a=your-slug</code></div>
                     </div>
-                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Share this URL with your clients — they'll see your logo and brand colors on the login page.</div>
-                  </div>
-                )}
-                {!profile?.public_handle && (
-                  <div style={{ padding: '10px 12px', background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `1px solid ${t.border}`, borderRadius: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: t.text, marginBottom: 3 }}>Branded Login URL</div>
-                    <div style={{ fontSize: 11, color: t.textMuted }}>Set a public handle in your profile settings to get a branded login URL for your clients.</div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Custom Domain */}
                 <div>
@@ -2408,7 +2430,7 @@ export default function Settings() {
                   <button
                     onClick={handleSaveWhiteLabel}
                     disabled={wlSaving}
-                    style={{ padding: '10px 24px', background: `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: wlSaving ? 'not-allowed' : 'pointer', opacity: wlSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 7 }}
+                    style={{ padding: '10px 24px', background: wlForm.primaryColor ? `linear-gradient(135deg,${wlForm.primaryColor},${wlForm.primaryColor}cc)` : `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: wlSaving ? 'not-allowed' : 'pointer', opacity: wlSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 7 }}
                   >
                     <IpSave size={14} />
                     {wlSaving ? 'Saving...' : 'Save White-Label Settings'}

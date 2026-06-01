@@ -10,6 +10,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, Badge, Skeleton, Select, EmptyState, ErrorCard, useToast, ConfirmModal } from '../components/ui';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { postsAPI, socialAPI, wizardAPI, calendarPlansAPI } from '../lib/api';
 import PostPreviewModal from '../components/PostPreviewModal';
 import {
@@ -41,6 +42,7 @@ function parsePlatforms(raw) {
 export default function Calendar() {
   const router = useRouter();
   const { t }  = useTheme();
+  const { aiName } = useBranding();
   const [mounted, setMounted]           = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [posts, setPosts]               = useState([]);
@@ -734,7 +736,7 @@ export default function Calendar() {
             <div style={{ background: t.isDark ? 'rgba(12,12,20,0.97)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(32px) saturate(200%)', WebkitBackdropFilter: 'blur(32px) saturate(200%)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 680, maxHeight: '85vh', overflowY: 'auto', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}>
               <div style={{ fontSize: 17, fontWeight: 800, color: t.text, marginBottom: 6 }}>Review your week</div>
               <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>
-                PostCore generated {bulkPreview.preview.length} posts — 1 credit each = {bulkPreview.preview.length} credits total
+                {aiName} generated {bulkPreview.preview.length} posts — 1 credit each = {bulkPreview.preview.length} credits total
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
                 {bulkPreview.preview.map((item, i) => (
@@ -1737,7 +1739,7 @@ export default function Calendar() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                     <IpSparkle size={18} color="url(#brand-gradient)" />
-                    <span style={{ fontSize: 17, fontWeight: 800, color: t.text }}>PostCore planned {planMonthName} for you</span>
+                    <span style={{ fontSize: 17, fontWeight: 800, color: t.text }}>{aiName} planned {planMonthName} for you</span>
                   </div>
                   <p style={{ margin: 0, fontSize: 13, color: t.textMuted }}>{planMonthSlots.length} posts · 70% educational, 20% social proof, 10% promotional</p>
                 </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { suggestionsAPI } from '../lib/api';
 import SuggestionCard from './SuggestionCard';
 import { IpSparkle, IpRefresh, IpChevronDown, IpChevronUp } from './icons';
@@ -8,6 +9,7 @@ import { IpSparkle, IpRefresh, IpChevronDown, IpChevronUp } from './icons';
 // onCustomizePost(caption) — open ContentCreatorModal with caption, let user pick type
 export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
   const { t } = useTheme();
+  const { aiName } = useBranding();
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -103,7 +105,7 @@ export default function PostCoreBanner({ onUsePost, onCustomizePost }) {
             <IpSparkle size={16} color="#fff" strokeWidth={2.5} />
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Today from PostCore</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: t.text }}>Today from {aiName}</div>
             <div style={{ fontSize: 12, color: t.textMuted }}>
               {loading || generating
                 ? 'Analysing your account...'
