@@ -171,20 +171,25 @@ module.exports = (pool) => {
       if (customer.parent_customer_id || req.parentCustomerId) {
         const ownerIdToUse = customer.parent_customer_id || req.parentCustomerId;
         const parentRow = await pool.query(
-          `SELECT credits_balance, free_geo_audit_used, is_admin FROM customers WHERE id = $1`,
+          `SELECT credits_balance, free_geo_audit_used, is_admin, white_label_config FROM customers WHERE id = $1`,
           [ownerIdToUse]
         );
         if (parentRow.rows.length) {
-          customer.credits_balance     = parentRow.rows[0].credits_balance;
-          customer.free_geo_audit_used = parentRow.rows[0].free_geo_audit_used;
-          customer.is_admin            = customer.is_admin || parentRow.rows[0].is_admin;
+          const p = parentRow.rows[0];
+          customer.credits_balance     = p.credits_balance;
+          customer.free_geo_audit_used = p.free_geo_audit_used;
+          customer.is_admin            = customer.is_admin || p.is_admin;
           customer.is_sub_account      = !!customer.parent_customer_id;
           customer.is_member           = !customer.parent_customer_id && !!req.parentCustomerId;
+          // Inherit parent agency branding so sub-accounts see the white-label UI
+          if (p.white_label_config && Object.keys(p.white_label_config).length) {
+            customer.white_label_config = p.white_label_config;
+          }
         }
       } else if (req.ownerId) {
         // Invited member (Type B) operating in workspace context — pull credits from workspace owner
         const [ownerRow, memberRoleRow] = await Promise.all([
-          pool.query(`SELECT credits_balance, free_geo_audit_used FROM customers WHERE id = $1`, [req.ownerId]),
+          pool.query(`SELECT credits_balance, free_geo_audit_used, white_label_config FROM customers WHERE id = $1`, [req.ownerId]),
           req.workspaceId
             ? pool.query(
                 `SELECT role, permissions FROM workspace_members WHERE member_id = $1 AND workspace_id = $2 AND revoked_at IS NULL LIMIT 1`,
@@ -193,13 +198,18 @@ module.exports = (pool) => {
             : Promise.resolve({ rows: [] }),
         ]);
         if (ownerRow.rows.length) {
+          const owner = ownerRow.rows[0];
           const memberRow = memberRoleRow.rows[0];
-          customer.credits_balance      = ownerRow.rows[0].credits_balance;
-          customer.free_geo_audit_used  = ownerRow.rows[0].free_geo_audit_used;
+          customer.credits_balance      = owner.credits_balance;
+          customer.free_geo_audit_used  = owner.free_geo_audit_used;
           customer.is_member            = true;
           customer.workspace_id         = req.workspaceId || null;
           customer.workspace_role       = memberRow?.role || 'editor';
           customer.workspace_permissions = memberRow?.permissions || null;
+          // Inherit workspace owner's agency branding
+          if (owner.white_label_config && Object.keys(owner.white_label_config).length) {
+            customer.white_label_config = owner.white_label_config;
+          }
         }
       }
 

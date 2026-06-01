@@ -11,6 +11,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, SectionHeader, EmptyState, Spinner, Skeleton, ErrorCard, AnimatedNumber, ProgressRing, PulseIndicator } from '../components/ui';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, calendarPlansAPI } from '../lib/api';
 import { format } from 'date-fns';
 import PostPreviewModal from '../components/PostPreviewModal';
@@ -89,6 +90,7 @@ function computeDailyHint(daysSinceLastPost, month, hour) {
 export default function Dashboard() {
   const router = useRouter();
   const { t }  = useTheme();
+  const { aiName } = useBranding();
 
   const [mounted,        setMounted]        = useState(false);
   const [allPosts,       setAllPosts]       = useState([]);
@@ -299,7 +301,7 @@ export default function Dashboard() {
                 </div>
                 <div style={{ fontSize: 19, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>Welcome — let's make your first post</div>
               </div>
-              <div style={{ fontSize: 13, color: t.textMuted, maxWidth: 480, lineHeight: 1.6 }}>You have 10 free credits. A photo post takes under 2 minutes — pick what happened today and PostCore will write the caption and create the image.</div>
+              <div style={{ fontSize: 13, color: t.textMuted, maxWidth: 480, lineHeight: 1.6 }}>You have 10 free credits. A photo post takes under 2 minutes — pick what happened today and {aiName} will write the caption and create the image.</div>
             </div>
             <Button shimmer variant="primary" onClick={() => router.push('/quick-post')} style={{ position: 'relative', zIndex: 1, whiteSpace: 'nowrap', padding: '13px 26px', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
               <IpSparkle size={14} color="#fff" /> Make your first post
@@ -416,7 +418,7 @@ export default function Dashboard() {
           }}>
             <IpSparkle size={15} color={dailyHint.color} style={{ flexShrink: 0 }} />
             <div style={{ flex: 1, fontSize: 13, color: t.text, lineHeight: 1.5 }}>
-              <span style={{ fontWeight: 700, color: dailyHint.color }}>PostCore: </span>
+              <span style={{ fontWeight: 700, color: dailyHint.color }}>{aiName}: </span>
               {dailyHint.text}
             </div>
             <button
@@ -999,7 +1001,7 @@ function ContentHealthBar({ data, t, router }) {
       </div>
       {recommendation && (
         <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.55 }}>
-          <span style={{ color: t.primary, fontWeight: 700 }}>PostCore: </span>{recommendation}
+          <span style={{ color: t.primary, fontWeight: 700 }}>{aiName}: </span>{recommendation}
         </div>
       )}
     </div>
@@ -1043,7 +1045,7 @@ function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
     {
       id: 'knowledge_base',
       label: 'Add 3 entries to your Knowledge Base',
-      sub: 'Services, FAQs, pricing — PostCore uses this',
+      sub: `Services, FAQs, pricing — ${aiName} uses this`,
       done: typeof window !== 'undefined' && !!localStorage.getItem('ip_kb_done'),
       action: () => router.push('/knowledge-base'),
       cta: 'Add now',
@@ -1226,20 +1228,20 @@ function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
   );
 }
 
-const TOUR_STEPS = [
+const TOUR_STEPS = (aiName = 'PostCore') => [
   {
     iconBg: 'rgba(124,92,252,0.15)',
     iconColor: '#7C5CFC',
     Icon: IpSparkle,
-    title: 'Meet PostCore, your AI advisor',
-    body: 'PostCore learns your trade, your season, and your location — then writes social posts that actually sound like you. No blank boxes, no guessing what to say.',
+    title: `Meet ${aiName}, your AI advisor`,
+    body: `${aiName} learns your trade, your season, and your location — then writes social posts that actually sound like you. No blank boxes, no guessing what to say.`,
   },
   {
     iconBg: 'rgba(196,75,184,0.15)',
     iconColor: '#9B7FFF',
     Icon: IpPlus,
     title: 'Generate a post in 60 seconds',
-    body: 'Tap the + button any time. PostCore asks 3 quick questions and returns 3 ready-to-use variations with images. Tap one, post it. Done.',
+    body: `Tap the + button any time. ${aiName} asks 3 quick questions and returns 3 ready-to-use variations with images. Tap one, post it. Done.`,
   },
   {
     iconBg: 'rgba(59,130,246,0.15)',
@@ -1259,14 +1261,16 @@ const TOUR_STEPS = [
 
 function DashboardTour({ onClose, router }) {
   const { t } = useTheme();
+  const { aiName } = useBranding();
   const [step, setStep] = useState(0);
+  const tourSteps = TOUR_STEPS(aiName);
 
   function dismiss() { onClose(); }
-  function next() { if (step < TOUR_STEPS.length - 1) setStep(s => s + 1); }
+  function next() { if (step < tourSteps.length - 1) setStep(s => s + 1); }
   function goCreate() { onClose(); router.push('/wizard?onboarding=true'); }
 
-  const { iconBg, iconColor, Icon, title, body } = TOUR_STEPS[step];
-  const isLast = step === TOUR_STEPS.length - 1;
+  const { iconBg, iconColor, Icon, title, body } = tourSteps[step];
+  const isLast = step === tourSteps.length - 1;
 
   return (
     <div style={{
@@ -1282,7 +1286,7 @@ function DashboardTour({ onClose, router }) {
       }}>
         {/* Step dots */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 32 }}>
-          {TOUR_STEPS.map((_, i) => (
+          {tourSteps.map((_, i) => (
             <div key={i} style={{
               height: 3, flex: i === step ? 2 : 1, borderRadius: 3,
               background: i <= step

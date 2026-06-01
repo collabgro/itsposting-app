@@ -76,7 +76,9 @@ class EmailWorker {
       if (template_name && (!html || !subject)) {
         const data = template_data || {};
         const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-        const rendered = this.emailService.renderTemplate(template_name, parsed);
+        // platformName stored in template_data allows agency-branded emails
+        const { platformName, ...templateVars } = parsed;
+        const rendered = this.emailService.renderTemplate(template_name, templateVars, { platformName });
         subject = rendered.subject;
         html = rendered.html;
         text = rendered.text;

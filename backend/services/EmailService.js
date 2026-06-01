@@ -30,10 +30,10 @@ class EmailService {
 
   // ─── Public send method ───────────────────────────────────────────────────
 
-  async send({ to, subject, html, text }) {
+  async send({ to, subject, html, text, fromName }) {
     if (!to || !subject) throw new Error('to and subject are required');
 
-    const payload = { from: `${FROM_NAME} <${FROM_EMAIL}>`, to, subject, html, text };
+    const payload = { from: `${fromName || FROM_NAME} <${FROM_EMAIL}>`, to, subject, html, text };
 
     switch (this.provider) {
       case 'sendgrid':   return this._sendViaSendGrid(payload);
@@ -45,13 +45,14 @@ class EmailService {
 
   // ─── Template renderer ────────────────────────────────────────────────────
 
-  renderTemplate(templateName, data = {}) {
+  renderTemplate(templateName, data = {}, { platformName } = {}) {
     const tpl = TEMPLATES[templateName];
     if (!tpl) throw new Error(`Unknown email template: ${templateName}`);
+    const mergedData = { platformName: platformName || FROM_NAME, ...data };
     return {
-      subject: this._interpolate(tpl.subject, data),
-      html: this._wrapHtml(this._interpolate(tpl.html, data), tpl.subject),
-      text: this._interpolate(tpl.text, data),
+      subject: this._interpolate(tpl.subject, mergedData),
+      html: this._wrapHtml(this._interpolate(tpl.html, mergedData), tpl.subject, platformName),
+      text: this._interpolate(tpl.text, mergedData),
     };
   }
 
@@ -59,7 +60,8 @@ class EmailService {
     return str.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? '');
   }
 
-  _wrapHtml(body, title) {
+  _wrapHtml(body, title, platformName) {
+    const brand = platformName || FROM_NAME;
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -88,13 +90,13 @@ class EmailService {
 <body>
   <div class="container">
     <div class="header">
-      <h1>Its Posting</h1>
+      <h1>${brand}</h1>
       <p>AI Social Media Automation</p>
     </div>
     <div class="body">${body}</div>
     <div class="footer">
-      You received this email because of activity on your Its Posting account.<br />
-      &copy; ${new Date().getFullYear()} Its Posting. All rights reserved.
+      You received this email because of activity on your ${brand} account.<br />
+      &copy; ${new Date().getFullYear()} ${brand}. All rights reserved.
     </div>
   </div>
 </body>
@@ -315,6 +317,41 @@ const TEMPLATES = {
       <a href="{{dashboardUrl}}" class="btn">Open Dashboard</a>
     `,
     text: `{{greeting}}\n\n{{weekSummary}}\n\nWhat's Working:\n{{whatWorking}}\n\nThis Week's Opportunity:\n{{opportunity}}\n\n{{closingNote}}\n\nDashboard: {{dashboardUrl}}`,
+  },
+
+  referral_released: {
+    subject: 'You earned {{credits}} credits — your referral just upgraded!',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>Great news! Someone you referred to Its Posting just upgraded to a paid plan. <span class="tag tag-success">+{{credits}} credits added</span></p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Credits earned</td>
+            <td style="text-align:right;font-size:16px;font-weight:800;color:#22C55E;font-family:monospace;">+{{credits}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">New balance</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;font-family:monospace;">{{newBalance}} credits</td>
+          </tr>
+        </table>
+      </div>
+      <p>Keep sharing your referral link — there's no limit to how many businesses you can refer.</p>
+      <a href="{{referralUrl}}" class="btn">View referral stats →</a>
+    `,
+    text: `Hi {{businessName}},\n\nYou earned {{credits}} credits! Someone you referred just upgraded to a paid plan.\n\nNew balance: {{newBalance}} credits.\n\nView your referral stats: {{referralUrl}}`,
+  },
+
+  referral_rejected: {
+    subject: 'A referral reward has been reviewed',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>A referral credit award associated with your account has been reviewed by our team and was not approved.</p>
+      {{reasonBlock}}
+      <p>If you believe this was a mistake, please reply to this email or contact our support team and we'll look into it right away.</p>
+      <a href="{{billingUrl}}" class="btn">View referral stats</a>
+    `,
+    text: `Hi {{businessName}},\n\nA referral credit award on your account was reviewed and not approved.\n\n{{reasonText}}\n\nIf you believe this is a mistake, please contact support.`,
   },
 };
 

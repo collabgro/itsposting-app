@@ -53,13 +53,17 @@ module.exports = (pool) => {
       const profile = result.rows[0];
       if (profile.parent_customer_id) {
         const parentRow = await pool.query(
-          `SELECT credits_balance, free_geo_audit_used FROM customers WHERE id = $1`,
+          `SELECT credits_balance, free_geo_audit_used, white_label_config FROM customers WHERE id = $1`,
           [profile.parent_customer_id]
         );
         if (parentRow.rows.length) {
-          profile.credits_balance = parentRow.rows[0].credits_balance;
-          profile.free_geo_audit_used = parentRow.rows[0].free_geo_audit_used;
-          profile.is_sub_account = true;
+          const p = parentRow.rows[0];
+          profile.credits_balance     = p.credits_balance;
+          profile.free_geo_audit_used = p.free_geo_audit_used;
+          profile.is_sub_account      = true;
+          if (p.white_label_config && Object.keys(p.white_label_config).length) {
+            profile.white_label_config = p.white_label_config;
+          }
         }
       }
       res.json(profile);

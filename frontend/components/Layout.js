@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import Head from 'next/head';
+import { useBranding } from '../lib/branding';
 import {
   IpDashboard, IpWizard, IpSparkle, IpCreatePost, IpCalendar, IpDrafts,
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
@@ -228,6 +230,7 @@ export default function Layout({ children, title, subtitle, action }) {
 
   const wlConfig = user?.white_label_config || {};
   const wlPrimary = wlConfig.primaryColor || t.primary;
+  const { appName, aiName } = useBranding();
 
   // Always show Workspaces nav — members need it to manage their memberships
   const baseNavItems = NAV_ITEMS;
@@ -245,7 +248,7 @@ export default function Layout({ children, title, subtitle, action }) {
         { name: 'Email Queue',     href: '/admin/email-queue', icon: IpMail,      isAdmin: true },
         { name: 'Audit Log',       href: '/admin/audit',       icon: IpAdmin,     isAdmin: true },
         { name: 'Templates',       href: '/admin/templates',    icon: IpPhotoStudio, isAdmin: true },
-        { name: 'PostCore Brain',  href: '/admin/llm',          icon: IpSparkle,     isAdmin: true },
+        { name: `${aiName} Brain`,  href: '/admin/llm',          icon: IpSparkle,     isAdmin: true },
       ]
     : baseNavItems;
 
@@ -267,6 +270,9 @@ export default function Layout({ children, title, subtitle, action }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: t.bg, color: t.text }}>
+      <Head>
+        <title>{title ? `${title} — ${appName}` : appName}</title>
+      </Head>
       {mobileNavOpen && isMobile && (
         <div onClick={() => setMobileNavOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)', zIndex: 59 }} />
       )}

@@ -469,7 +469,7 @@ export default function Settings() {
 
   // White-label (Agency plan)
   const [wlConfig, setWlConfig] = useState({});
-  const [wlForm, setWlForm] = useState({ agencyName: '', logo: '', primaryColor: '', hidePoweredBy: false, customDomain: '' });
+  const [wlForm, setWlForm] = useState({ agencyName: '', aiAdvisorName: '', logo: '', primaryColor: '', hidePoweredBy: false, customDomain: '' });
   const [wlSaving, setWlSaving] = useState(false);
   const [wlMsg, setWlMsg] = useState('');
   const [wlLogoUploading, setWlLogoUploading] = useState(false);
@@ -688,6 +688,7 @@ export default function Settings() {
       setWlConfig(cfg);
       setWlForm({
         agencyName:    cfg.agencyName    || '',
+        aiAdvisorName: cfg.aiAdvisorName || '',
         logo:          cfg.logo          || '',
         primaryColor:  cfg.primaryColor  || '',
         hidePoweredBy: cfg.hidePoweredBy || false,
@@ -2276,6 +2277,20 @@ export default function Settings() {
                     style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   />
                   <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Shown in the sidebar instead of "ItsPosting".</div>
+                </div>
+
+                {/* AI Advisor Name */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>AI Advisor Name</label>
+                  <input
+                    type="text"
+                    value={wlForm.aiAdvisorName}
+                    onChange={e => setWlForm(f => ({ ...f, aiAdvisorName: e.target.value }))}
+                    placeholder="e.g. Max (default: PostCore)"
+                    maxLength={40}
+                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Your branded name for the AI advisor (shown to all sub-accounts).</div>
                 </div>
 
                 {/* Agency Logo */}

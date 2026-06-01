@@ -26,6 +26,32 @@ class EmailQueue {
     }
   }
 
+  /**
+   * Resolve the platform/agency name to use in emails for a given customer.
+   * If the customer belongs to an agency owner (parent with white_label_config),
+   * returns their agencyName. Falls back to 'ItsPosting'.
+   */
+  async _resolveAgencyName(customerId) {
+    try {
+      const res = await this.pool.query(
+        `SELECT
+           c.white_label_config,
+           p.white_label_config AS parent_wl_config
+         FROM customers c
+         LEFT JOIN customers p ON p.id = c.parent_customer_id AND p.plan = 'agency'
+         WHERE c.id = $1`,
+        [customerId]
+      );
+      if (!res.rows.length) return null;
+      const row = res.rows[0];
+      // Sub-account: use parent's agency name
+      const wl = row.parent_wl_config || row.white_label_config || {};
+      return wl.agencyName || null;
+    } catch {
+      return null;
+    }
+  }
+
   // ─── Notification helpers ──────────────────────────────────────────────────
 
   /** Called when an admin suspends an account */
@@ -72,8 +98,10 @@ class EmailQueue {
 
   /** Called after a successful Whop payment / plan activation */
   async notifyPaymentConfirmed(customer, planName, credits) {
+    const platformName = await this._resolveAgencyName(customer.id);
     await this.queue(customer.email, 'payment_confirmed', {
       businessName: customer.business_name || customer.email,
+      platformName: platformName || undefined,
       planName,
       credits,
       loginUrl: `${APP_URL}/login`,
@@ -82,8 +110,10 @@ class EmailQueue {
 
   /** Called on new account registration */
   async notifyWelcome(customer) {
+    const platformName = await this._resolveAgencyName(customer.id);
     await this.queue(customer.email, 'welcome', {
       businessName: customer.business_name || customer.email,
+      platformName: platformName || undefined,
       credits: customer.credits_balance ?? 10,
       loginUrl: `${APP_URL}/login`,
     });
@@ -91,8 +121,10 @@ class EmailQueue {
 
   /** Called when AutoPostScheduler successfully publishes a post */
   async notifyPostPublished(customer, platform) {
+    const platformName = await this._resolveAgencyName(customer.id);
     await this.queue(customer.email, 'post_published', {
       businessName: customer.business_name || customer.email,
+      platformName: platformName || undefined,
       platform: platform ? platform.replace(/_/g, ' ') : 'social media',
       analyticsUrl: `${APP_URL}/analytics`,
     });
@@ -120,6 +152,28 @@ class EmailQueue {
       opportunity: opportunity ? `${opportunity.observation} ${opportunity.action}` : 'Create a seasonal post this week.',
       closingNote: briefingData?.closingNote || 'Every post puts your business in front of local customers.',
       dashboardUrl: `${APP_URL}/dashboard`,
+    });
+  }
+
+  /** Called when admin releases a referral award */
+  async notifyReferralReleased(customer, credits, newBalance) {
+    await this.queue(customer.email, 'referral_released', {
+      businessName: customer.business_name || customer.email,
+      credits,
+      newBalance,
+      referralUrl: `${APP_URL}/billing?tab=referral`,
+    });
+  }
+
+  /** Called when admin rejects a referral award */
+  async notifyReferralRejected(customer, reason) {
+    await this.queue(customer.email, 'referral_rejected', {
+      businessName: customer.business_name || customer.email,
+      reasonBlock: reason
+        ? `<div class="box"><p style="margin:0;font-size:13px;color:#A0A0B0;">Reason provided:</p><p style="margin:8px 0 0;font-size:14px;color:#E2E2E8;">${reason}</p></div>`
+        : '',
+      reasonText: reason ? `Reason: ${reason}` : '',
+      billingUrl: `${APP_URL}/billing?tab=referral`,
     });
   }
 
