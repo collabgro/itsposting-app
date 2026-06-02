@@ -16,11 +16,10 @@ import { CHAR_LIMITS } from '../components/PostMockups';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
 const CONTENT_TYPES = [
-  { id: 'static',       icon: 'text_post',    label: 'Text Post',     desc: 'Text-only post, no image', credits: 1 },
-  { id: 'photo',        icon: 'photo_post',   label: 'Photo Post',    desc: 'AI photo for your trade', credits: 3 },
-  { id: 'branded_card', icon: 'branded_card', label: 'Branded Card',  desc: 'Canva-style graphic with your brand colors', credits: 3 },
-  { id: 'carousel',     icon: 'carousel',     label: 'Carousel',      desc: 'Multiple slides in one post', credits: 5 },
-  { id: 'video',        icon: 'video',        label: 'Video',         desc: 'AI-generated video content', credits: 10 },
+  { id: 'static',   icon: 'text_post',  label: 'Text Post',  desc: 'Text-only post, no image', credits: 1 },
+  { id: 'photo',    icon: 'photo_post', label: 'Photo Post', desc: 'AI-generated image with caption', credits: 3 },
+  { id: 'carousel', icon: 'carousel',   label: 'Carousel',   desc: 'Multiple slides in one post', credits: 5 },
+  { id: 'video',    icon: 'video',      label: 'Video',      desc: 'AI-generated video content', credits: 10 },
 ];
 
 // ── Step 2: Content Theme (Trigger) ──────────────────────────────────────────
@@ -77,12 +76,6 @@ const LOADING_MESSAGES = {
     'Creating slide images...',
     'Assembling your carousel...',
     'Almost done...',
-  ],
-  branded_card: (ind, city) => [
-    `Reading your brand colors and business details...`,
-    'Writing bold card copy...',
-    'Generating 3 branded card layouts...',
-    'Almost ready...',
   ],
   video: (ind, city, vType) => [
     `Reading what works for ${ind || 'your industry'} businesses${city ? ` in ${city}` : ''}...`,
@@ -145,11 +138,6 @@ const RECOMMENDED_FORMATS = {
     { id: 'ig-45',     platform: 'instagram', label: 'Instagram Post',  sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
     { id: 'li-post',   platform: 'linkedin',  label: 'LinkedIn Post',   sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
     { id: 'fb-square', platform: 'facebook',  label: 'Facebook Square', sublabel: '1080 × 1080 · 1:1',  width: 1080, height: 1080 },
-  ],
-  branded_card: [
-    { id: 'ig-45',     platform: 'instagram',       label: 'Instagram Post',       sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
-    { id: 'fb-square', platform: 'facebook',        label: 'Facebook Square',      sublabel: '1080 × 1080 · 1:1',  width: 1080, height: 1080 },
-    { id: 'li-post',   platform: 'linkedin',        label: 'LinkedIn Post',        sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
   ],
   video: [
     { id: 'tt-video',  platform: 'tiktok',    label: 'TikTok Video',    sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },

@@ -266,11 +266,10 @@ function getWizardSteps(industry, contentType) {
     subtitle: 'Choose the format that works best for your post',
     type: 'cards',
     options: [
-      { value: 'static',       label: 'Text Post',     emoji: '📄', description: 'Text-only post, no image', cost: 1 },
-      { value: 'photo',        label: 'Photo Post',    emoji: '📸', description: 'AI photo for your trade', cost: 3 },
-      { value: 'branded_card', label: 'Branded Card',  emoji: '🎨', description: 'Canva-style graphic with your brand colors', cost: 3 },
-      { value: 'carousel',     label: 'Carousel',      emoji: '🖼️', description: 'Multiple images in one post', cost: 5 },
-      { value: 'video',        label: 'Video',         emoji: '🎥', description: 'AI-generated video with voiceover', cost: 10 },
+      { value: 'static',   label: 'Text Post',  emoji: '📄', description: 'Text-only post, no image', cost: 1 },
+      { value: 'photo',    label: 'Photo Post', emoji: '📸', description: 'AI-generated image with caption', cost: 3 },
+      { value: 'carousel', label: 'Carousel',   emoji: '🖼️', description: 'Multiple images in one post', cost: 5 },
+      { value: 'video',    label: 'Video',      emoji: '🎥', description: 'AI-generated video with voiceover', cost: 10 },
     ],
   };
 

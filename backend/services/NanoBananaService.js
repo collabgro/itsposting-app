@@ -306,17 +306,18 @@ class NanoBananaService {
       parts.push(`seasonal context (${season}): ${seasonalVisual}`);
     }
 
-    // 5. Brand color — if customer has one, incorporate into technician workwear
+    // 5. Brand colors — from /settings?tab=branding, used for workwear + accent tones
     const brandColors = (() => {
       if (!customer.brand_colors) return null;
-      const c = customer.brand_colors;
-      if (typeof c === 'string' && c.trim()) return c.trim();
-      if (Array.isArray(c) && c.length > 0) return c[0];
-      if (c.primary) return c.primary;
-      return null;
+      try {
+        const c = typeof customer.brand_colors === 'string'
+          ? JSON.parse(customer.brand_colors)
+          : customer.brand_colors;
+        return c?.primary || (typeof c === 'string' ? c : null);
+      } catch { return null; }
     })();
     if (brandColors) {
-      parts.push(`technician wearing branded workwear with ${brandColors} as the primary color`);
+      parts.push(`technician wearing branded workwear and vehicle in ${brandColors}, brand color ${brandColors} visible as accent in the scene`);
     }
 
     // 6. Visual style — adapted to feel authentic to trades (not corporate polished)
