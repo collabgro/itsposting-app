@@ -37,7 +37,7 @@ export default function EmailQueuePage() {
     boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
   };
   const [mounted, setMounted] = useState(false);
-  const [data, setData] = useState({ emails: [], stats: {}, total: 0 });
+  const [data, setData] = useState({ emails: [], stats: {}, total: 0, provider: '' });
   const [filterStatus, setFilterStatus] = useState('');
   const [filterTemplate, setFilterTemplate] = useState('');
   const [filterRecipient, setFilterRecipient] = useState('');
@@ -165,11 +165,13 @@ export default function EmailQueuePage() {
         <IpMail size={16} style={{ color: t.primary, flexShrink: 0 }} />
         <div>
           <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
-            Email provider: <span style={{ color: t.primary, textTransform: 'capitalize' }}>{process.env.NEXT_PUBLIC_EMAIL_PROVIDER || 'Log-only (no emails sent)'}</span>
+            Email provider: <span style={{ color: data.provider && data.provider !== 'log' ? '#22C55E' : t.primary, textTransform: 'capitalize' }}>{data.provider || 'log'}</span>
           </span>
-          <span style={{ fontSize: 12, color: t.textMuted, display: 'block', marginTop: 2 }}>
-            To activate real delivery, set <code style={{ color: t.primary, fontSize: 11 }}>EMAIL_PROVIDER</code> to <code style={{ color: t.textMuted, fontSize: 11 }}>sendgrid</code>, <code style={{ color: t.textMuted, fontSize: 11 }}>resend</code>, or <code style={{ color: t.textMuted, fontSize: 11 }}>smtp</code> and add the matching credentials.
-          </span>
+          {(!data.provider || data.provider === 'log') && (
+            <span style={{ fontSize: 12, color: t.textMuted, display: 'block', marginTop: 2 }}>
+              To activate real delivery, set <code style={{ color: t.primary, fontSize: 11 }}>EMAIL_PROVIDER</code> to <code style={{ color: t.textMuted, fontSize: 11 }}>sendgrid</code>, <code style={{ color: t.textMuted, fontSize: 11 }}>resend</code>, or <code style={{ color: t.textMuted, fontSize: 11 }}>smtp</code> and add the matching credentials.
+            </span>
+          )}
         </div>
       </div>
 

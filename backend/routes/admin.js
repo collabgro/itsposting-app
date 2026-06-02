@@ -593,6 +593,7 @@ module.exports = (pool) => {
         stats: stats.rows[0],
         limit: parseInt(limit),
         offset: parseInt(offset),
+        provider: process.env.EMAIL_PROVIDER || (process.env.RESEND_API_KEY ? 'resend' : 'log'),
       });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
@@ -2230,6 +2231,14 @@ if __name__ == "__main__":
         { referrer_id: award.referrer_customer_id, credits: award.credits }, req);
 
       res.json({ success: true, credits_awarded: award.credits });
+
+      // Notify referrer — fire-and-forget, never blocks the response
+      pool.query('SELECT email, business_name FROM customers WHERE id = $1', [award.referrer_customer_id])
+        .then(async row => {
+          if (!row.rows.length) return;
+          emailQueue.notifyReferralReleased(row.rows[0], award.credits, newBalance).catch(() => {});
+          notif.referralReleased(award.referrer_customer_id, award.credits, newBalance);
+        }).catch(e => console.warn('[Referral] notify release error:', e.message));
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
       console.error('[Admin referrals] release error:', err.message);
@@ -2270,8 +2279,351 @@ if __name__ == "__main__":
         { reason: reason || null }, req);
 
       res.json({ success: true });
+
+      // Notify referrer — fire-and-forget
+      const award = awardRes.rows[0];
+      pool.query('SELECT email, business_name FROM customers WHERE id = $1', [award.referrer_customer_id])
+        .then(async row => {
+          if (!row.rows.length) return;
+          emailQueue.notifyReferralRejected(row.rows[0], reason || null).catch(() => {});
+          notif.referralRejected(award.referrer_customer_id);
+        }).catch(e => console.warn('[Referral] notify reject error:', e.message));
     } catch (err) {
       console.error('[Admin referrals] reject error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/admin/referrals/release-all
+   * Release ALL pending referral awards atomically, one per transaction.
+   * Must be defined BEFORE /:id/release to avoid route collision.
+   */
+  router.post('/referrals/release-all', async (req, res) => {
+    try {
+      const pending = await pool.query(
+        `SELECT ra.id, ra.referrer_customer_id, ra.referred_customer_id, ra.credits
+         FROM referral_awards ra
+         WHERE ra.status = 'pending'
+         ORDER BY ra.created_at ASC`
+      );
+
+      if (!pending.rows.length) {
+        return res.json({ success: true, released: 0 });
+      }
+
+      let released = 0;
+      for (const award of pending.rows) {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+
+          // Re-check still pending and lock
+          const check = await client.query(
+            'SELECT id FROM referral_awards WHERE id = $1 AND status = $2 FOR UPDATE',
+            [award.id, 'pending']
+          );
+          if (!check.rows.length) { await client.query('ROLLBACK'); continue; }
+
+          const balRes = await client.query(
+            'SELECT credits_balance FROM customers WHERE id = $1 FOR UPDATE',
+            [award.referrer_customer_id]
+          );
+          if (!balRes.rows.length) { await client.query('ROLLBACK'); continue; }
+
+          const newBalance = (parseInt(balRes.rows[0].credits_balance) || 0) + award.credits;
+
+          await client.query(
+            `UPDATE customers
+             SET credits_balance = $1,
+                 referral_credits_earned = COALESCE(referral_credits_earned, 0) + $2
+             WHERE id = $3`,
+            [newBalance, award.credits, award.referrer_customer_id]
+          );
+          await client.query(
+            `INSERT INTO credit_transactions
+               (customer_id, transaction_type, amount, balance_after, description)
+             VALUES ($1, 'referral_reward', $2, $3, $4)`,
+            [award.referrer_customer_id, award.credits, newBalance,
+              'Referral reward released (bulk) — referred customer upgraded to paid plan']
+          );
+          await client.query(
+            `UPDATE referral_awards
+             SET status='released', released_at=NOW(), released_by_admin_id=$1
+             WHERE id=$2`,
+            [req.customerId, award.id]
+          );
+
+          await client.query('COMMIT');
+          released++;
+
+          // Notify referrer — fire-and-forget per award
+          const capturedAward = award;
+          const capturedBalance = newBalance;
+          pool.query('SELECT email, business_name FROM customers WHERE id = $1', [capturedAward.referrer_customer_id])
+            .then(async row => {
+              if (!row.rows.length) return;
+              emailQueue.notifyReferralReleased(row.rows[0], capturedAward.credits, capturedBalance).catch(() => {});
+              notif.referralReleased(capturedAward.referrer_customer_id, capturedAward.credits, capturedBalance);
+            }).catch(() => {});
+        } catch (err) {
+          await client.query('ROLLBACK').catch(() => {});
+          console.error(`[Admin bulk referral] award ${award.id} error:`, err.message);
+        } finally {
+          client.release();
+        }
+      }
+
+      await audit.log(req.admin.id, req.admin.email, 'referral_bulk_release', 'referral_awards', null,
+        { released, total: pending.rows.length }, req);
+
+      res.json({ success: true, released });
+    } catch (err) {
+      console.error('[Admin bulk referral] error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Service Requests ────────────────────────────────────────────────────────
+
+  // GET /api/admin/service-requests
+  router.get('/service-requests', async (req, res) => {
+    try {
+      const { type, status, search, limit: rawLimit = 50, offset: rawOffset = 0 } = req.query;
+      const limit  = Math.min(parseInt(rawLimit)  || 50, 100);
+      const offset = Math.max(parseInt(rawOffset) || 0,  0);
+
+      const conditions = ['1=1'];
+      const params = [];
+      let p = 1;
+
+      if (type)   { conditions.push(`sr.type = $${p++}`);   params.push(type); }
+      if (status) { conditions.push(`sr.status = $${p++}`); params.push(status); }
+      if (search) {
+        conditions.push(`(c.business_name ILIKE $${p} OR c.email ILIKE $${p})`);
+        params.push(`%${search}%`); p++;
+      }
+
+      const where = conditions.join(' AND ');
+      const countRes = await pool.query(
+        `SELECT COUNT(*) FROM service_requests sr
+         JOIN customers c ON c.id = sr.customer_id
+         WHERE ${where}`,
+        params
+      );
+
+      params.push(limit, offset);
+      const dataRes = await pool.query(
+        `SELECT sr.id, sr.type, sr.status, sr.request_data, sr.admin_notes,
+                sr.resolved_by, sr.resolved_at, sr.created_at, sr.updated_at,
+                c.id AS customer_id, c.business_name, c.email, c.plan
+         FROM service_requests sr
+         JOIN customers c ON c.id = sr.customer_id
+         WHERE ${where}
+         ORDER BY
+           CASE sr.status WHEN 'pending' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,
+           sr.created_at DESC
+         LIMIT $${p} OFFSET $${p + 1}`,
+        params
+      );
+
+      res.json({
+        requests: dataRes.rows,
+        total: parseInt(countRes.rows[0].count),
+        pendingCount: parseInt(countRes.rows[0].count), // caller can re-query with status=pending
+      });
+    } catch (err) {
+      console.error('[Admin] GET /service-requests:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /api/admin/service-requests/count — lightweight pending count for nav badge
+  router.get('/service-requests/count', async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT COUNT(*) FROM service_requests WHERE status IN ('pending','in_progress')`
+      );
+      res.json({ count: parseInt(result.rows[0].count) });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // PATCH /api/admin/service-requests/:id — update status / add notes
+  router.patch('/service-requests/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, admin_notes } = req.body;
+
+      const VALID_STATUSES = ['pending', 'in_progress', 'resolved', 'rejected'];
+      if (status && !VALID_STATUSES.includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      const sets = ['updated_at = NOW()'];
+      const params = [];
+      let p = 1;
+      if (status)      { sets.push(`status = $${p++}`);      params.push(status); }
+      if (admin_notes !== undefined) { sets.push(`admin_notes = $${p++}`); params.push(String(admin_notes).substring(0, 500)); }
+      if (status === 'resolved' || status === 'rejected') {
+        sets.push(`resolved_by = $${p++}`); params.push(req.admin.email);
+        sets.push(`resolved_at = NOW()`);
+      }
+      params.push(id);
+
+      const { rows: [updated] } = await pool.query(
+        `UPDATE service_requests SET ${sets.join(', ')} WHERE id = $${p}
+         RETURNING id, type, status, admin_notes, customer_id`,
+        params
+      );
+      if (!updated) return res.status(404).json({ error: 'Request not found' });
+
+      // Notify customer if resolved/rejected
+      if (status === 'resolved' || status === 'rejected') {
+        try {
+          const customerRow = await pool.query(
+            'SELECT email, business_name FROM customers WHERE id = $1',
+            [updated.customer_id]
+          );
+          if (customerRow.rows[0]) {
+            const customer = customerRow.rows[0];
+            const handler = status === 'resolved'
+              ? emailQueue.notifyServiceRequestResolved.bind(emailQueue)
+              : emailQueue.notifyServiceRequestRejected.bind(emailQueue);
+            await handler(customer, { type: updated.type }, admin_notes || '');
+          }
+        } catch (emailErr) {
+          console.error('[Admin] service-request notify error:', emailErr.message);
+        }
+      }
+
+      await audit.log(req.admin.id, req.admin.email, 'service_request_update', 'service_requests', id,
+        { status, admin_notes }, req);
+      res.json({ success: true, request: updated });
+    } catch (err) {
+      console.error('[Admin] PATCH /service-requests/:id:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/admin/service-requests/:id/contact — email or in-app notify
+  router.post('/service-requests/:id/contact', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { channel, message } = req.body;
+      if (!['email', 'notification'].includes(channel)) {
+        return res.status(400).json({ error: 'channel must be email or notification' });
+      }
+      if (!message || String(message).trim().length < 3) {
+        return res.status(400).json({ error: 'message is required' });
+      }
+
+      const reqRow = await pool.query(
+        `SELECT sr.customer_id, c.email, c.business_name
+         FROM service_requests sr JOIN customers c ON c.id = sr.customer_id
+         WHERE sr.id = $1`,
+        [id]
+      );
+      if (!reqRow.rows.length) return res.status(404).json({ error: 'Request not found' });
+      const { customer_id, email, business_name } = reqRow.rows[0];
+
+      if (channel === 'email') {
+        await emailQueue.notifyServiceRequestMessage(
+          { email, business_name },
+          String(message).substring(0, 2000)
+        );
+      } else {
+        await notif.create(customer_id, 'admin_message', 'Message from ItsPosting team', String(message).substring(0, 500));
+      }
+
+      await audit.log(req.admin.id, req.admin.email, 'service_request_contact', 'service_requests', id,
+        { channel, messageLength: message.length }, req);
+      res.json({ success: true });
+    } catch (err) {
+      console.error('[Admin] POST /service-requests/:id/contact:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/admin/service-requests/:id/approve — one-click approve
+  router.post('/service-requests/:id/approve', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const reqRow = await pool.query(
+        `SELECT sr.*, c.email, c.business_name, c.credits_balance
+         FROM service_requests sr JOIN customers c ON c.id = sr.customer_id
+         WHERE sr.id = $1 AND sr.status IN ('pending','in_progress')`,
+        [id]
+      );
+      if (!reqRow.rows.length) return res.status(404).json({ error: 'Request not found or already resolved' });
+
+      const { type, request_data, customer_id, email, business_name, credits_balance } = reqRow.rows[0];
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        if (type === 'credit_purchase') {
+          const credits = request_data?.credits;
+          if (!credits || credits <= 0) throw new Error('Invalid credit amount in request');
+          const newBalance = (credits_balance || 0) + credits;
+          await client.query(
+            `UPDATE customers SET credits_balance = $1, updated_at = NOW() WHERE id = $2`,
+            [newBalance, customer_id]
+          );
+          await client.query(
+            `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+             VALUES ($1, 'purchase', $2, $3, $4)`,
+            [customer_id, credits, newBalance, `Admin approved credit purchase: ${credits} credits ($${request_data?.price})`]
+          );
+        } else if (type === 'agency_plan') {
+          await client.query(
+            `UPDATE customers SET plan = 'agency', status = 'active',
+             credits_balance = GREATEST(credits_balance, 200), updated_at = NOW()
+             WHERE id = $1`,
+            [customer_id]
+          );
+          await client.query(
+            `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
+             VALUES ($1, 'bonus', 200, GREATEST(credits_balance, 200), 'Agency plan activated by admin')`,
+            [customer_id]
+          );
+        }
+
+        await client.query(
+          `UPDATE service_requests SET status = 'resolved', resolved_by = $1, resolved_at = NOW(), updated_at = NOW()
+           WHERE id = $2`,
+          [req.admin.email, id]
+        );
+
+        await client.query('COMMIT');
+      } catch (dbErr) {
+        await client.query('ROLLBACK');
+        throw dbErr;
+      } finally {
+        client.release();
+      }
+
+      // Notify customer (fire-and-forget)
+      try {
+        const reqObj = { type, request_data };
+        await emailQueue.notifyServiceRequestResolved(
+          { email, business_name },
+          reqObj,
+          type === 'credit_purchase'
+            ? `${request_data?.credits} credits have been added to your account.`
+            : 'Your account has been upgraded to the Agency plan.'
+        );
+      } catch (emailErr) {
+        console.error('[Admin] approve email error:', emailErr.message);
+      }
+
+      await audit.log(req.admin.id, req.admin.email, 'service_request_approve', 'service_requests', id,
+        { type, request_data }, req);
+      res.json({ success: true });
+    } catch (err) {
+      console.error('[Admin] POST /service-requests/:id/approve:', err.message);
       res.status(500).json({ error: err.message });
     }
   });
