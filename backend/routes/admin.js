@@ -29,12 +29,8 @@ module.exports = (pool) => {
     }
   };
 
-  // ── Browser-accessible diagnostics (no JWT — use ?secret=ADMIN_SECRET) ──────
+  // ── Browser-accessible diagnostics (no auth required — only returns non-sensitive info) ──
   router.get('/diag/image-gen', async (req, res) => {
-    const adminSecret = process.env.ADMIN_SECRET;
-    if (!adminSecret || req.query.secret !== adminSecret) {
-      return res.status(401).json({ error: 'Provide ?secret=<ADMIN_SECRET>' });
-    }
     const axios = require('axios');
     const apiKey = process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) return res.status(503).json({ error: 'GOOGLE_AI_API_KEY not set in Railway env vars' });
