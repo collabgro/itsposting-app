@@ -893,7 +893,7 @@ export default function Wizard() {
 
       const genRes = await apiPost('/api/wizard/generate', { wizardId });
       setResults(genRes);
-      setSelectedVariation('A');
+      setSelectedVariation(genRes.recommended || 'A');
       setStep('results');
       setMascotMood('excited', 'Here are your 3 variations — pick the one you love!');
       window.dispatchEvent(new Event('creditRefresh'));
@@ -929,9 +929,11 @@ export default function Wizard() {
         ? ALL_PLATFORM_IDS
         : rawPlatform ? [rawPlatform] : [];
 
-      // Record chosen variation before publishing + send training feedback
+      // Record chosen variation + update media_url to the selected card template before publishing
       try {
-        await apiPatch(`/api/posts/${results.postId}`, { chosenVariation: selectedVariation });
+        const patchData = { chosenVariation: selectedVariation };
+        if (results.photoCardUrls?.[selectedVariation]) patchData.mediaUrl = results.photoCardUrls[selectedVariation];
+        await apiPatch(`/api/posts/${results.postId}`, patchData);
       } catch {}
       wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, mediaKept: !!results.mediaUrl, wasPublished: true }).catch(() => {});
 
@@ -987,7 +989,9 @@ export default function Wizard() {
     }
     setActionLoading(true);
     try {
-      await apiPatch(`/api/posts/${results.postId}`, { status: 'scheduled', scheduledDate: scheduleDate, chosenVariation: selectedVariation });
+      const schedulePatch = { status: 'scheduled', scheduledDate: scheduleDate, chosenVariation: selectedVariation };
+      if (results.photoCardUrls?.[selectedVariation]) schedulePatch.mediaUrl = results.photoCardUrls[selectedVariation];
+      await apiPatch(`/api/posts/${results.postId}`, schedulePatch);
       wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, mediaKept: !!results.mediaUrl, wasPublished: false }).catch(() => {});
       setShowScheduleModal(false);
       setScheduleConflicts([]);
