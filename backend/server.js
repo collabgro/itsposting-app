@@ -2982,8 +2982,8 @@ app.use(compression());
 // Auth routes get a tighter limit to resist credential stuffing (10 failures/15min).
 // Generation routes are capped at 50/hour to protect AI API costs.
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, message: 'Too many requests, please try again later.', standardHeaders: true, legacyHeaders: false });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: 'Too many authentication attempts. Try again in 15 minutes.', skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
-const passwordResetLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, message: 'Too many password reset attempts. Try again in 1 hour.', standardHeaders: true, legacyHeaders: false });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many authentication attempts. Try again in 15 minutes.' }, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
+const passwordResetLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many password reset attempts. Try again in 1 hour.' }, standardHeaders: true, legacyHeaders: false });
 const generationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 50, message: { error: 'Generation limit reached — wait an hour or upgrade your plan' }, standardHeaders: true, legacyHeaders: false });
 const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Too many uploads — please slow down.' }, standardHeaders: true, legacyHeaders: false });
 const geoLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many AI Visibility checks — wait an hour before running another.' }, standardHeaders: true, legacyHeaders: false });
