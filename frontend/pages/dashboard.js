@@ -62,7 +62,7 @@ const MONTH_HINTS = {
   12: "December — year-end appreciation and holiday greetings build loyalty.",
 };
 
-function computeDailyHint(daysSinceLastPost, month, hour) {
+function computeDailyHint(daysSinceLastPost, month, hour, aiName = 'PostCore') {
   if (daysSinceLastPost !== null && daysSinceLastPost >= 4) {
     return {
       text: `You haven't posted in ${daysSinceLastPost} days. Reach drops 40% after 5 days of silence.`,
@@ -80,7 +80,7 @@ function computeDailyHint(daysSinceLastPost, month, hour) {
     };
   }
   return {
-    text: MONTH_HINTS[month] || 'PostCore is ready when you are.',
+    text: MONTH_HINTS[month] || aiName + ' is ready when you are.',
     cta: 'Create a post →',
     path: '/wizard',
     color: '#7C5CFC',
@@ -244,7 +244,7 @@ export default function Dashboard() {
     .sort((a, b) => new Date(b.scheduled_date || b.created_at) - new Date(a.scheduled_date || a.created_at));
   const lastPostedAt = postedSorted[0]?.scheduled_date || postedSorted[0]?.created_at;
   const daysSinceLastPost = lastPostedAt ? Math.floor((Date.now() - new Date(lastPostedAt)) / 86400000) : null;
-  const dailyHint = (!isMonday && !loading) ? computeDailyHint(daysSinceLastPost, today.getMonth() + 1, today.getHours()) : null;
+  const dailyHint = (!isMonday && !loading) ? computeDailyHint(daysSinceLastPost, today.getMonth() + 1, today.getHours(), aiName) : null;
 
   const postsThisMonth = allPosts.filter(p => {
     const dt = new Date(p.scheduled_date || p.created_at);
@@ -379,7 +379,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2, lineHeight: 1.4 }}>{bd.weekSummary}</div>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(2, bd.sections?.length || 1)}, 1fr)`, gap: 10, position: 'relative', zIndex: 1 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.min(2, bd.sections?.length || 1)}, 1fr)`, gap: 10, position: 'relative', zIndex: 1 }}>
               {(bd.sections || []).slice(0, 2).map((s, i) => (
                 <div key={i} style={{
                   padding: '13px 15px',
@@ -407,8 +407,10 @@ export default function Dashboard() {
         {/* ── 1b. Daily PostCore Hint (Tue-Sun) ── */}
         {dailyHint && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '11px 18px', marginBottom: 20, borderRadius: 14,
+            display: 'flex', alignItems: isMobile ? 'flex-start' : 'center',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? 8 : 12,
+            padding: isMobile ? '12px 16px' : '11px 18px', marginBottom: 20, borderRadius: 14,
             background: t.isDark ? 'rgba(255,255,255,0.03)' : t.card,
             backdropFilter: 'blur(16px) saturate(160%)',
             WebkitBackdropFilter: 'blur(16px) saturate(160%)',
@@ -416,14 +418,16 @@ export default function Dashboard() {
             borderLeft: `3px solid ${dailyHint.color}`,
             boxShadow: `0 2px 16px ${dailyHint.color}12, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
           }}>
-            <IpSparkle size={15} color={dailyHint.color} style={{ flexShrink: 0 }} />
-            <div style={{ flex: 1, fontSize: 13, color: t.text, lineHeight: 1.5 }}>
-              <span style={{ fontWeight: 700, color: dailyHint.color }}>{aiName}: </span>
-              {dailyHint.text}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <IpSparkle size={15} color={dailyHint.color} style={{ flexShrink: 0 }} />
+              <div style={{ fontSize: 13, color: t.text, lineHeight: 1.5 }}>
+                <span style={{ fontWeight: 700, color: dailyHint.color }}>{aiName}: </span>
+                {dailyHint.text}
+              </div>
             </div>
             <button
               onClick={() => router.push(dailyHint.path)}
-              style={{ fontSize: 12, fontWeight: 700, color: dailyHint.color, background: `${dailyHint.color}12`, border: `1px solid ${dailyHint.color}28`, borderRadius: 8, padding: '5px 12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'background 120ms' }}
+              style={{ fontSize: 12, fontWeight: 700, color: dailyHint.color, background: `${dailyHint.color}12`, border: `1px solid ${dailyHint.color}28`, borderRadius: 8, padding: '5px 12px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'background 120ms', alignSelf: isMobile ? 'flex-start' : 'center' }}
               onMouseEnter={e => e.currentTarget.style.background = `${dailyHint.color}22`}
               onMouseLeave={e => e.currentTarget.style.background = `${dailyHint.color}12`}
             >
@@ -767,7 +771,7 @@ export default function Dashboard() {
           boxShadow: '0 12px 36px rgba(0,0,0,0.28), 0 0 0 1px rgba(34,197,94,0.12)',
           display: 'flex', alignItems: 'center', gap: 12,
           fontSize: 13, color: t.text,
-          maxWidth: 440, whiteSpace: 'nowrap',
+          width: 'calc(100vw - 32px)', maxWidth: 440,
           animation: 'perfToastIn 280ms cubic-bezier(0.34,1.56,0.64,1)',
         }}>
           <span style={{ fontSize: 20, flexShrink: 0 }}>🎉</span>
@@ -926,6 +930,7 @@ const TARGET_MIX = [
 ];
 
 function ContentHealthBar({ data, t, router }) {
+  const { aiName } = useBranding();
   if (!data) return null;
   const { mix, recommendation, gaps } = data;
   const total = Object.values(mix).reduce((s, v) => s + v, 0);
@@ -959,7 +964,7 @@ function ContentHealthBar({ data, t, router }) {
             </div>
           ))}
         </div>
-        <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic', lineHeight: 1.5 }}>Post a few times and PostCore will track whether your content mix is on target.</div>
+        <div style={{ fontSize: 12, color: t.textMuted, fontStyle: 'italic', lineHeight: 1.5 }}>Post a few times and {aiName} will track whether your content mix is on target.</div>
       </div>
     );
   }
@@ -1014,6 +1019,7 @@ function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
   const [celebrating, setCelebrating] = useState(false);
   const [exiting,     setExiting]     = useState(false);
   const mountedRef  = useRef(false);
+  const { aiName } = useBranding();
 
   const postedCount = allPosts.filter(p => p.status === 'posted').length;
 
@@ -1117,7 +1123,7 @@ function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
           You&apos;re all set!
         </div>
         <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5, marginBottom: 16 }}>
-          PostCore is ready to grow your business.<br />
+          {aiName} is ready to grow your business.<br />
           <span style={{ color: '#9B7FFF', fontWeight: 600 }}>10 bonus credits</span> have been added to your account.
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
