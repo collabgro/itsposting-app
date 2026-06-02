@@ -633,7 +633,7 @@ module.exports = (pool) => {
       results.steps.push({ step: 'db_insert', ok: true, id: insertRes.rows[0].id });
     } catch (err) {
       results.steps.push({ step: 'db_insert', ok: false, error: err.message });
-      return res.status(500).json({ ...results, fatal: 'email_queue INSERT failed — table may be missing or schema mismatch' });
+      return res.json({ ...results, fatal: 'email_queue INSERT failed — table may be missing or schema mismatch' });
     }
 
     // Step 2: try sending directly via Resend right now (don't wait for worker)

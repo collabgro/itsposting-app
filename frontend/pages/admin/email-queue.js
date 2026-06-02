@@ -109,7 +109,9 @@ export default function EmailQueuePage() {
       }
       load(0);
     } catch (err) {
-      const detail = err.response?.data?.fatal || err.response?.data?.error || err.message;
+      const steps = err.response?.data?.steps || [];
+      const dbErr = steps.find(s => s.step === 'db_insert')?.error;
+      const detail = dbErr || err.response?.data?.fatal || err.response?.data?.error || err.message;
       showMsg('error', `❌ ${detail}`);
     } finally {
       setTestLoading(false);
