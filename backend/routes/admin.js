@@ -862,6 +862,59 @@ module.exports = (pool) => {
     } catch (err) { res.status(500).json({ status: 'error', error: err.message }); }
   });
 
+  // POST /api/admin/test-image-gen — diagnose NanoBanana failures
+  router.post('/test-image-gen', async (req, res) => {
+    const axios = require('axios');
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'GOOGLE_AI_API_KEY not set in Railway env vars' });
+
+    const modelsToTry = [
+      { name: 'gemini-2.5-flash-image', api: 'v1' },
+      { name: 'gemini-3.1-flash-image', api: 'v1' },
+      { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1' },
+      { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1beta' },
+      { name: 'gemini-2.0-flash-exp-image-generation', api: 'v1beta' },
+    ];
+
+    const results = [];
+    for (const { name, api } of modelsToTry) {
+      try {
+        const t0 = Date.now();
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/${api}/models/${name}:generateContent`,
+          { contents: [{ parts: [{ text: 'A simple red circle on a white background.' }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } },
+          { headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, timeout: 30000 }
+        );
+        const candidates = response.data?.candidates || [];
+        let gotImage = false;
+        for (const c of candidates) {
+          for (const p of (c.content?.parts || [])) { if (p.inlineData?.data) { gotImage = true; break; } }
+        }
+        results.push({ model: name, api, status: 'ok', gotImage, finishReason: candidates[0]?.finishReason, ms: Date.now() - t0 });
+        if (gotImage) break;
+      } catch (err) {
+        results.push({ model: name, api, status: 'error', httpStatus: err.response?.status, error: err.response?.data?.error?.message || err.message });
+      }
+    }
+    res.json({ keyPrefix: apiKey.substring(0, 8) + '…', results });
+  });
+
+  // POST /api/admin/test-veo — diagnose Veo video generation
+  router.post('/test-veo', async (req, res) => {
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'GOOGLE_AI_API_KEY not set in Railway env vars' });
+    if (process.env.VEO_ENABLED !== 'true') return res.status(400).json({ error: 'VEO_ENABLED is not set to true — set it in Railway env vars to enable Veo' });
+
+    const VeoService = require('../services/VeoService');
+    const veo = new VeoService();
+    try {
+      const result = await veo.generate('A plumber fixing a pipe in a kitchen, 5-second clip.', null, { aspectRatio: '16:9' });
+      res.json({ success: true, model: result.model, url: result.url });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // ── Stock Photo Library (admin-managed) ─────────────────────────────────────
 
   const stockUpload = multer({

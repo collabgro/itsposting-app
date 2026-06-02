@@ -14,11 +14,19 @@
 const axios = require('axios');
 const cloudinary = require('cloudinary').v2;
 
+// Models in priority order — preview models first, stable fallbacks last
+const VEO_MODELS = [
+  'veo-3.1-fast-generate-preview',
+  'veo-3.1-generate-preview',
+  'veo-3.0-fast-generate-001',
+  'veo-3.0-generate-001',
+  'veo-2.0-generate-001',
+];
+
 class VeoService {
   constructor() {
     this.apiKey = process.env.GOOGLE_AI_API_KEY;
     this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-    this.model = 'veo-3.1-fast-generate-preview';
     this.enabled = process.env.VEO_ENABLED === 'true';
 
     if (process.env.CLOUDINARY_CLOUD_NAME) {
@@ -39,7 +47,7 @@ class VeoService {
    * @param {string} prompt - Video description / spoken script
    * @param {string|null} imageUrl - Optional NanoBanana key frame image (image-to-video)
    * @param {Object} options - { aspectRatio: '9:16', durationSeconds: 7 }
-   * @returns {{ url, type: 'video', model: 'veo-3.1-fast', provider: 'veo' }}
+   * @returns {{ url, type: 'video', model, provider: 'veo' }}
    */
   async generate(prompt, imageUrl = null, options = {}) {
     if (!this.isAvailable()) {
@@ -47,85 +55,91 @@ class VeoService {
     }
 
     const aspectRatio = options.aspectRatio || '9:16';
-    const durationSeconds = options.durationSeconds || 7;
-
-    console.log(`[Veo] Submitting video job — aspect: ${aspectRatio}, duration: ${durationSeconds}s`);
-
-    // Build request body
-    const requestBody = {
-      model: this.model,
-      prompt: { text: prompt },
-      generationConfig: {
-        durationSeconds,
-        aspectRatio,
-        numberOfVideos: 1,
-      },
-    };
 
     // Attach key frame image if provided (image-to-video mode)
+    let imageBase64 = null;
     if (imageUrl) {
       try {
-        const imageBase64 = await this._fetchImageAsBase64(imageUrl);
-        requestBody.image = {
-          imageBytes: imageBase64,
-          mimeType: 'image/png',
-        };
+        imageBase64 = await this._fetchImageAsBase64(imageUrl);
         console.log('[Veo] Key frame image attached for image-to-video generation');
       } catch (imgErr) {
         console.warn('[Veo] Could not attach key frame image, using text-to-video fallback:', imgErr.message);
       }
     }
 
-    // Submit generation job — returns a long-running operation
-    let operationName;
-    try {
-      const response = await axios.post(
-        `${this.baseUrl}/models/${this.model}:generateVideo`,
-        requestBody,
-        {
-          headers: { 'Content-Type': 'application/json' },
-          params: { key: this.apiKey },
-          timeout: 30000, // 30s just to submit — actual generation happens async
-        }
-      );
-      operationName = response.data?.name;
-      if (!operationName) {
-        throw new Error('Veo API returned no operation name');
+    // Try each model in priority order — 404 = not available for this key, skip
+    let lastError;
+    for (const model of VEO_MODELS) {
+      console.log(`[Veo] Trying model: ${model}, aspect: ${aspectRatio}`);
+
+      // Build request body — Vertex AI-style instances/parameters format
+      const instance = { prompt };
+      if (imageBase64) {
+        instance.image = { bytesBase64Encoded: imageBase64, mimeType: 'image/jpeg' };
       }
-      console.log('[Veo] Job submitted, operation:', operationName);
-    } catch (submitErr) {
-      const detail = submitErr.response?.data?.error?.message || submitErr.message;
-      throw new Error(`Veo job submission failed: ${detail}`);
+      const requestBody = {
+        instances: [instance],
+        parameters: { aspectRatio, sampleCount: 1 },
+      };
+
+      // Submit generation job — returns a long-running operation
+      let operationName;
+      try {
+        const response = await axios.post(
+          `${this.baseUrl}/models/${model}:predictLongRunning`,
+          requestBody,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': this.apiKey,
+            },
+            timeout: 30000,
+          }
+        );
+        operationName = response.data?.name;
+        if (!operationName) {
+          throw new Error('Veo API returned no operation name');
+        }
+        console.log(`[Veo] Job submitted with ${model}, operation:`, operationName);
+      } catch (submitErr) {
+        const status = submitErr.response?.status;
+        const detail = submitErr.response?.data?.error?.message || submitErr.message;
+        if (status === 404) {
+          console.warn(`[Veo] Model ${model} not available (404), trying next`);
+          lastError = new Error(`${model}: not available`);
+          continue;
+        }
+        throw new Error(`Veo job submission failed (${model}): ${detail}`);
+      }
+
+      // Poll until done — success means we return immediately
+      const videoUri = await this._waitForOperation(operationName);
+      const cloudinaryUrl = await this._uploadToCloudinary(videoUri);
+      return {
+        url: cloudinaryUrl,
+        type: 'video',
+        model,
+        provider: 'veo',
+      };
     }
 
-    // Poll until done
-    const videoUri = await this._waitForOperation(operationName);
-
-    // Upload to Cloudinary for permanent storage
-    const cloudinaryUrl = await this._uploadToCloudinary(videoUri);
-
-    return {
-      url: cloudinaryUrl,
-      type: 'video',
-      model: 'veo-3.1-fast',
-      provider: 'veo',
-    };
+    throw lastError || new Error('All Veo models failed — check GOOGLE_AI_API_KEY and VEO_ENABLED in Railway env vars');
   }
 
   /**
    * Poll a long-running Veo operation until it completes.
    * @param {string} operationName - Full operation path from the generate response
-   * @param {number} maxAttempts - Max polling attempts (8s each = ~200s max)
+   * @param {number} maxAttempts - Max polling attempts (10s each = ~250s max)
    */
   async _waitForOperation(operationName, maxAttempts = 25) {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      await this._sleep(8000);
+      await this._sleep(10000); // docs recommend 10s polling interval
 
       try {
         const response = await axios.get(
           `${this.baseUrl}/${operationName}`,
           {
-            params: { key: this.apiKey },
+            headers: { 'x-goog-api-key': this.apiKey },
             timeout: 15000,
           }
         );
@@ -138,14 +152,14 @@ class VeoService {
         }
 
         if (data.done) {
-          // Extract video URI from completed operation
+          // Extract video URI — try both response shapes
           const videoUri =
+            data.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri ||
             data.response?.generatedSamples?.[0]?.video?.uri ||
-            data.response?.videos?.[0]?.uri ||
-            data.response?.candidates?.[0]?.video?.uri;
+            data.response?.videos?.[0]?.uri;
 
           if (!videoUri) {
-            throw new Error('Veo completed but returned no video URI');
+            throw new Error(`Veo completed but returned no video URI. Response keys: ${Object.keys(data.response || {}).join(', ')}`);
           }
 
           console.log('[Veo] Video generation complete:', videoUri.substring(0, 80));
@@ -159,7 +173,7 @@ class VeoService {
       }
     }
 
-    throw new Error(`Veo generation timed out after ${maxAttempts * 8}s`);
+    throw new Error(`Veo generation timed out after ${maxAttempts * 10}s`);
   }
 
   /**

@@ -185,25 +185,30 @@ class NanoBananaService {
   async generateImage(prompt) {
     const axios = require('axios');
 
-    // Models that actually support image generation output via REST API
+    // Models in priority order — newer models first, legacy fallbacks last
     const modelsToTry = [
-      'gemini-2.0-flash-preview-image-generation',
-      'gemini-2.0-flash-exp-image-generation',
+      { name: 'gemini-2.5-flash-image', api: 'v1' },
+      { name: 'gemini-3.1-flash-image', api: 'v1' },
+      { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1' },
+      { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1beta' },
+      { name: 'gemini-2.0-flash-exp-image-generation', api: 'v1beta' },
     ];
 
     let lastError;
-    for (const modelName of modelsToTry) {
+    for (const { name: modelName, api } of modelsToTry) {
       try {
         const response = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
+          `https://generativelanguage.googleapis.com/${api}/models/${modelName}:generateContent`,
           {
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseModalities: ['IMAGE'] },
+            generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
           },
           {
-            headers: { 'Content-Type': 'application/json' },
-            params: { key: this.apiKey },
-            timeout: 45000,
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': this.apiKey,
+            },
+            timeout: 60000,
           }
         );
 
@@ -212,23 +217,30 @@ class NanoBananaService {
           const parts = candidate.content?.parts || [];
           for (const part of parts) {
             if (part.inlineData?.data) {
-              console.log(`[NanoBanana] ✓ Image generated with model: ${modelName}`);
+              console.log(`[NanoBanana] ✓ Image generated with model: ${modelName} (${api})`);
               return part.inlineData.data;
             }
           }
         }
 
         const finishReason = candidates[0]?.finishReason;
-        console.warn(`[NanoBanana] ${modelName} returned no image. finishReason: ${finishReason}`);
+        console.warn(`[NanaBanana] ${modelName} (${api}) returned no image. finishReason: ${finishReason}, candidateCount: ${candidates.length}`);
         lastError = new Error(`${modelName}: no image data (finishReason: ${finishReason || 'unknown'})`);
       } catch (err) {
+        const status = err.response?.status;
         const detail = err.response?.data?.error?.message || err.message;
-        console.warn(`[NanoBanana] ${modelName} failed (${err.response?.status || 'network'}):`, detail);
+        // 404 = model not available for this key — skip silently to next
+        if (status === 404) {
+          console.warn(`[NanoBanana] ${modelName} (${api}) not available (404), trying next`);
+          lastError = new Error(`${modelName}: model not available`);
+          continue;
+        }
+        console.warn(`[NanoBanana] ${modelName} (${api}) failed (${status || 'network'}): ${detail}`);
         lastError = new Error(`${modelName}: ${detail}`);
       }
     }
 
-    throw lastError || new Error('All image generation models failed');
+    throw lastError || new Error('All image generation models failed — check GOOGLE_AI_API_KEY in Railway env vars');
   }
 
   /**
