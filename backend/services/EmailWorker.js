@@ -22,7 +22,7 @@ class EmailWorker {
   start() {
     if (this.running) return;
     this.running = true;
-    console.log(`[EmailWorker] Started — polling every ${POLL_INTERVAL_MS / 1000}s (provider: ${process.env.EMAIL_PROVIDER || 'log'})`);
+    console.log(`[EmailWorker] Started — polling every ${POLL_INTERVAL_MS / 1000}s (provider: ${this.emailService.provider})`);
     this._poll();
     this.timer = setInterval(() => this._poll(), POLL_INTERVAL_MS);
   }

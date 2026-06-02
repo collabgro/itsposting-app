@@ -1,6 +1,7 @@
 import '../styles/globals.css';
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import { ThemeProvider, useTheme } from '../lib/theme';
 import { ToastProvider } from '../components/ui';
 import AppLoader from '../components/AppLoader';
@@ -124,8 +125,11 @@ function GlobalToast() {
   );
 }
 
+const AUTH_PAGES = ['/login', '/signup', '/forgot-password', '/reset-password', '/accept-invite', '/select-account', '/welcome'];
+
 function InstallBanner() {
   const { t }  = useTheme();
+  const router = useRouter();
   const [prompt,  setPrompt]  = useState(null);
   const [visible, setVisible] = useState(false);
 
@@ -151,7 +155,7 @@ function InstallBanner() {
     setVisible(false);
   };
 
-  if (!visible) return null;
+  if (!visible || AUTH_PAGES.includes(router.pathname)) return null;
 
   const isSmall = typeof window !== 'undefined' && window.innerWidth < 768;
   return (

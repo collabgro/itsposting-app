@@ -81,10 +81,10 @@ export default function ForgotPassword() {
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
           <h1 style={{ margin: '14px 0 6px', fontSize: 26, fontWeight: 800, color: t.text, letterSpacing: '-0.04em' }}>
-            Reset password
+            {sent ? 'Email sent' : 'Reset password'}
           </h1>
           <p style={{ margin: 0, fontSize: 14, color: t.textMuted, letterSpacing: '-0.01em' }}>
-            {sent ? "Check your inbox" : "We'll email you a secure reset link"}
+            {sent ? 'Check your inbox' : "We'll email you a secure reset link"}
           </p>
         </div>
 

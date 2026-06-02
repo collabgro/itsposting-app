@@ -20,7 +20,7 @@ function resolveProvider() {
 
 const PROVIDER = resolveProvider();
 const FROM_NAME  = process.env.EMAIL_FROM_NAME    || 'ItsPosting';
-const FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS || 'noreply@app.itsposting.com';
+const FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS || 'noreply@itsposting.com';
 
 class EmailService {
   constructor() {
@@ -125,11 +125,11 @@ class EmailService {
   }
 
   async _sendViaResend({ from, to, subject, html, text }) {
-    // npm install resend  (add to package.json when activating)
     const { Resend } = require('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const result = await resend.emails.send({ from, to, subject, html, text });
-    return { success: true, provider: 'resend', id: result.id };
+    const { data, error } = await resend.emails.send({ from, to, subject, html, text });
+    if (error) throw new Error(`Resend: ${error.message || JSON.stringify(error)}`);
+    return { success: true, provider: 'resend', id: data?.id };
   }
 
   async _sendViaSmtp({ from, to, subject, html, text }) {
@@ -352,6 +352,134 @@ const TEMPLATES = {
       <a href="{{billingUrl}}" class="btn">View referral stats</a>
     `,
     text: `Hi {{businessName}},\n\nA referral credit award on your account was reviewed and not approved.\n\n{{reasonText}}\n\nIf you believe this is a mistake, please contact support.`,
+  },
+
+  service_request_received: {
+    subject: 'We received your request — {{requestLabel}}',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>We received your request and our team will review it shortly.</p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Request type</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{requestLabel}}</td>
+          </tr>
+          {{#if requestDetail}}
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Details</td>
+            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{requestDetail}}</td>
+          </tr>
+          {{/if}}
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Estimated response</td>
+            <td style="text-align:right;font-size:13px;font-weight:600;color:#22C55E;">Within 24 hours</td>
+          </tr>
+        </table>
+      </div>
+      <p>You don't need to do anything else. We'll email you once your request has been processed.</p>
+      <a href="{{billingUrl}}" class="btn">View billing</a>
+    `,
+    text: `Hi {{businessName}},\n\nWe received your {{requestLabel}} request. Our team will process it within 24 hours.\n\nDetails: {{requestDetail}}\n\nWe'll email you once it's done.`,
+  },
+
+  service_request_admin_alert: {
+    subject: '[ItsPosting] New service request — {{requestLabel}} from {{businessName}}',
+    html: `
+      <p>A new service request has been submitted and requires your review.</p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Customer</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{businessName}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Email</td>
+            <td style="text-align:right;font-size:13px;color:#7C5CFC;">{{customerEmail}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Request type</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{requestLabel}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Details</td>
+            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{requestDetail}}</td>
+          </tr>
+        </table>
+      </div>
+      {{#if customerMessage}}
+      <div class="box">
+        <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.05em;">Customer note</p>
+        <p style="margin:0;font-size:13px;color:#E2E2E8;">{{customerMessage}}</p>
+      </div>
+      {{/if}}
+      <a href="{{adminUrl}}" class="btn">Review in admin panel →</a>
+    `,
+    text: `New service request:\n\nCustomer: {{businessName}} ({{customerEmail}})\nType: {{requestLabel}}\nDetails: {{requestDetail}}\nNote: {{customerMessage}}\n\nReview: {{adminUrl}}`,
+  },
+
+  service_request_resolved: {
+    subject: 'Your request has been processed — {{requestLabel}}',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>Your request has been <span class="tag tag-success">Processed</span> by our team.</p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Request type</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{requestLabel}}</td>
+          </tr>
+          {{#if adminNotes}}
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Message from team</td>
+            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{adminNotes}}</td>
+          </tr>
+          {{/if}}
+        </table>
+      </div>
+      <p>Log in to see the changes applied to your account.</p>
+      <a href="{{billingUrl}}" class="btn">View account</a>
+    `,
+    text: `Hi {{businessName}},\n\nYour {{requestLabel}} request has been processed.\n\n{{adminNotes}}\n\nLog in to see the changes: {{billingUrl}}`,
+  },
+
+  service_request_rejected: {
+    subject: 'Update on your request — {{requestLabel}}',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>We reviewed your request and were unable to process it at this time.</p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Request type</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{requestLabel}}</td>
+          </tr>
+          {{#if adminNotes}}
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Reason</td>
+            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{adminNotes}}</td>
+          </tr>
+          {{/if}}
+        </table>
+      </div>
+      <p>If you have any questions or would like to try again, please reply to this email and our team will be happy to help.</p>
+      <a href="{{billingUrl}}" class="btn">Contact support</a>
+    `,
+    text: `Hi {{businessName}},\n\nYour {{requestLabel}} request could not be processed at this time.\n\nReason: {{adminNotes}}\n\nReply to this email if you have questions.`,
+  },
+
+  service_request_message: {
+    subject: 'Message from the ItsPosting team',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>You have a message from our team regarding your account:</p>
+      <div class="box">
+        <p style="margin:0;font-size:14px;color:#E2E2E8;line-height:1.7;">{{message}}</p>
+      </div>
+      <p>Reply to this email if you'd like to respond.</p>
+      <a href="{{billingUrl}}" class="btn">View your account</a>
+    `,
+    text: `Hi {{businessName}},\n\nMessage from the ItsPosting team:\n\n{{message}}\n\nReply to this email to respond.`,
   },
 };
 
