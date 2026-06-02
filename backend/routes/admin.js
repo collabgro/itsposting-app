@@ -35,48 +35,65 @@ module.exports = (pool) => {
     const apiKey = process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) return res.status(503).json({ error: 'GOOGLE_AI_API_KEY not set in Railway env vars' });
 
-    const modelsToTry = [
-      { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1beta' },
-      { name: 'gemini-2.0-flash-exp-image-generation',     api: 'v1beta' },
-      { name: 'gemini-2.5-flash-preview-05-20',            api: 'v1beta' },
-      { name: 'imagen-3.0-generate-002',                   api: 'v1' },
-    ];
+    // Step 1: list ALL models available for this key so we know what to call
+    let availableModels = [];
+    try {
+      const listResp = await axios.get('https://generativelanguage.googleapis.com/v1beta/models', {
+        headers: { 'x-goog-api-key': apiKey },
+        params: { key: apiKey, pageSize: 200 },
+        timeout: 15000,
+      });
+      availableModels = (listResp.data?.models || []).map(m => m.name);
+    } catch (listErr) {
+      return res.json({
+        keyPrefix: apiKey.substring(0, 8) + '…',
+        listModelsError: listErr.response?.data?.error?.message || listErr.message,
+        availableModels: [],
+      });
+    }
 
+    // Step 2: filter for image-capable models
+    const imageModels = availableModels.filter(n =>
+      n.includes('image') || n.includes('imagen') || n.includes('flash')
+    );
+
+    // Step 3: try each image-capable model with generateContent + IMAGE modality
     const results = [];
-    for (const { name, api } of modelsToTry) {
-      // imagen-3.0 uses a different request shape
-      const isImagen = name.startsWith('imagen');
-      const body = isImagen
-        ? { instances: [{ prompt: 'A simple red circle on a white background.' }], parameters: { sampleCount: 1 } }
-        : { contents: [{ parts: [{ text: 'A simple red circle on a white background.' }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } };
-      const endpoint = isImagen
-        ? `https://generativelanguage.googleapis.com/${api}/models/${name}:predict`
-        : `https://generativelanguage.googleapis.com/${api}/models/${name}:generateContent`;
-      try {
-        const t0 = Date.now();
-        const response = await axios.post(endpoint, body, {
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-          params: { key: apiKey },
-          timeout: 30000,
-        });
-        const candidates = response.data?.candidates || response.data?.predictions || [];
-        let gotImage = false;
-        if (isImagen) {
-          gotImage = candidates.some(p => p.bytesBase64Encoded);
-        } else {
+    for (const fullName of imageModels.slice(0, 8)) {
+      const shortName = fullName.replace('models/', '');
+      for (const api of ['v1beta', 'v1']) {
+        try {
+          const t0 = Date.now();
+          const response = await axios.post(
+            `https://generativelanguage.googleapis.com/${api}/models/${shortName}:generateContent`,
+            { contents: [{ parts: [{ text: 'A simple red circle on a white background.' }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } },
+            { headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, params: { key: apiKey }, timeout: 30000 }
+          );
+          const candidates = response.data?.candidates || [];
+          let gotImage = false;
           for (const c of candidates) {
             for (const p of (c.content?.parts || [])) { if (p.inlineData?.data) { gotImage = true; break; } }
           }
+          results.push({ model: shortName, api, status: 'ok', gotImage, ms: Date.now() - t0 });
+          if (gotImage) return res.json({ keyPrefix: apiKey.substring(0, 8) + '…', winner: { model: shortName, api }, availableImageModels: imageModels, results });
+          break;
+        } catch (err) {
+          const httpStatus = err.response?.status;
+          const error = err.response?.data?.error?.message || err.message;
+          results.push({ model: shortName, api, status: 'error', httpStatus, error });
+          if (httpStatus === 404) break; // model doesn't support this endpoint, skip v1 too
         }
-        results.push({ model: name, api, status: 'ok', gotImage, ms: Date.now() - t0 });
-        if (gotImage) return res.json({ keyPrefix: apiKey.substring(0, 8) + '…', winner: { model: name, api }, results });
-      } catch (err) {
-        const httpStatus = err.response?.status;
-        const error = err.response?.data?.error?.message || err.message;
-        results.push({ model: name, api, status: 'error', httpStatus, error });
       }
     }
-    res.json({ keyPrefix: apiKey.substring(0, 8) + '…', winner: null, message: 'All models failed', results });
+
+    res.json({
+      keyPrefix: apiKey.substring(0, 8) + '…',
+      winner: null,
+      message: 'No image-generating model found for this key',
+      availableImageModels: imageModels,
+      allAvailableModels: availableModels,
+      results,
+    });
   });
 
   router.use(authenticate, adminOnly);
