@@ -13,7 +13,7 @@ const SIZES = {
 function IconMark({ size, noShadow = false, theme = 'dark' }) {
   const glowFilter = theme === 'light'
     ? 'drop-shadow(0 2px 8px rgba(168,85,247,0.2)) drop-shadow(0 1px 3px rgba(0,0,0,0.1))'
-    : 'drop-shadow(0 6px 22px rgba(168,85,247,0.55)) drop-shadow(0 2px 8px rgba(236,72,153,0.32)) drop-shadow(0 1px 2px rgba(0,0,0,0.28))';
+    : 'drop-shadow(0 3px 10px rgba(168,85,247,0.22)) drop-shadow(0 1px 4px rgba(236,72,153,0.10)) drop-shadow(0 1px 2px rgba(0,0,0,0.20))';
   return (
     <img
       src="/fav-icon.png"

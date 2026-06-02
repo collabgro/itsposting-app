@@ -169,7 +169,7 @@ module.exports = (pool) => {
                 brand_colors, visual_style, tone, avatar_id, voice_id, preferred_image_provider,
                 is_admin, role, suspended, parent_customer_id, free_geo_audit_used,
                 workspace_role, workspace_permissions,
-                white_label_config, logo_url, avatar_url, tagline,
+                white_label_config, logo_url, favicon_url, avatar_url, tagline,
                 posting_streak, total_posts_this_month, timezone
          FROM customers WHERE id = $1`,
         [req.customerId]
@@ -189,10 +189,19 @@ module.exports = (pool) => {
       // carry parentCustomerId for up to 30 days after the legacy column is cleared.
       if (customer.parent_customer_id || req.parentCustomerId) {
         const ownerIdToUse = customer.parent_customer_id || req.parentCustomerId;
-        const parentRow = await pool.query(
-          `SELECT credits_balance, free_geo_audit_used, is_admin, white_label_config FROM customers WHERE id = $1`,
-          [ownerIdToUse]
-        );
+        const [parentRow, flagsRow] = await Promise.all([
+          pool.query(
+            `SELECT credits_balance, free_geo_audit_used, is_admin, white_label_config FROM customers WHERE id = $1`,
+            [ownerIdToUse]
+          ),
+          pool.query(
+            `SELECT ap.feature_flags
+             FROM workspace_plan_assignments wpa
+             JOIN agency_plans ap ON ap.id = wpa.agency_plan_id
+             WHERE wpa.workspace_id = $1 AND wpa.agency_id = $2 LIMIT 1`,
+            [req.customerId, ownerIdToUse]
+          ),
+        ]);
         if (parentRow.rows.length) {
           const p = parentRow.rows[0];
           customer.credits_balance     = p.credits_balance;
@@ -204,6 +213,10 @@ module.exports = (pool) => {
           if (p.white_label_config && Object.keys(p.white_label_config).length) {
             customer.white_label_config = p.white_label_config;
           }
+        }
+        // Apply feature flags from the assigned agency plan (if any)
+        if (flagsRow.rows[0]?.feature_flags) {
+          customer.feature_flags = flagsRow.rows[0].feature_flags;
         }
       } else if (req.ownerId) {
         // Invited member (Type B) operating in workspace context — pull credits from workspace owner

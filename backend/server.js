@@ -1,9 +1,22 @@
 require('dotenv').config();
+
+// ── Sentry — must be initialised before any other require ────────────────────
+const Sentry = require('@sentry/node');
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV || 'development',
+  tracesSampleRate: 0.1,
+  enabled: !!process.env.SENTRY_DSN,
+  integrations: [Sentry.httpIntegration(), Sentry.expressIntegration()],
+});
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const { RedisStore } = require('rate-limit-redis');
+const Redis = require('ioredis');
 const { Pool } = require('pg');
 
 const authRoutes = require('./routes/auth');
@@ -69,6 +82,26 @@ pool.query('SELECT NOW()', (err, res) => {
   if (err) console.error('❌ Database connection error:', err.message);
   else console.log('✅ Database connected at', res.rows[0].now);
 });
+
+// ── Redis — optional; rate limiters fall back to memory if not configured ────
+const redisClient = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL, {
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1,
+      connectTimeout: 3000,
+    })
+  : null;
+
+if (redisClient) {
+  redisClient.on('connect', () => console.log('✅ Redis connected — rate limiters using shared store'));
+  redisClient.on('error', (e) => console.warn('⚠️  Redis error (falling back to memory limiter):', e.message));
+}
+
+function makeRateLimitStore() {
+  if (!redisClient) return undefined;
+  return new RedisStore({ sendCommand: (...args) => redisClient.call(...args) });
+}
 
 // Give authenticate middleware access to pool for token revocation checks
 const { setPool: setAuthPool } = require('./middleware/auth');
@@ -3013,16 +3046,16 @@ app.use(compression());
 // General API: 1000 req/15min per IP — prevents scraping while not blocking active users.
 // Auth routes get a tighter limit to resist credential stuffing (10 failures/15min).
 // Generation routes are capped at 50/hour to protect AI API costs.
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, message: 'Too many requests, please try again later.', standardHeaders: true, legacyHeaders: false });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Too many authentication attempts. Try again in 15 minutes.' }, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
-const passwordResetLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many password reset attempts. Try again in 1 hour.' }, standardHeaders: true, legacyHeaders: false });
-const generationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 50, message: { error: 'Generation limit reached — wait an hour or upgrade your plan' }, standardHeaders: true, legacyHeaders: false });
-const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Too many uploads — please slow down.' }, standardHeaders: true, legacyHeaders: false });
-const geoLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many AI Visibility checks — wait an hour before running another.' }, standardHeaders: true, legacyHeaders: false });
-const inviteLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: { error: 'Too many invites sent — wait an hour.' }, standardHeaders: true, legacyHeaders: false });
-const publishLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, message: { error: 'Too many publish attempts — please slow down.' }, standardHeaders: true, legacyHeaders: false });
-const studioLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 30, message: { error: 'Studio generation limit reached — wait an hour.' }, standardHeaders: true, legacyHeaders: false });
-const adminBroadcastLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Broadcast rate limit — max 5 per hour.' }, standardHeaders: true, legacyHeaders: false });
+const apiLimiter          = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, store: makeRateLimitStore(), message: 'Too many requests, please try again later.', standardHeaders: true, legacyHeaders: false });
+const authLimiter         = rateLimit({ windowMs: 15 * 60 * 1000, max: 10,   store: makeRateLimitStore(), message: { error: 'Too many authentication attempts. Try again in 15 minutes.' }, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false });
+const passwordResetLimiter= rateLimit({ windowMs: 60 * 60 * 1000, max: 5,    store: makeRateLimitStore(), message: { error: 'Too many password reset attempts. Try again in 1 hour.' }, standardHeaders: true, legacyHeaders: false });
+const generationLimiter   = rateLimit({ windowMs: 60 * 60 * 1000, max: 50,   store: makeRateLimitStore(), message: { error: 'Generation limit reached — wait an hour or upgrade your plan' }, standardHeaders: true, legacyHeaders: false });
+const uploadLimiter       = rateLimit({ windowMs: 60 * 1000,       max: 30,   store: makeRateLimitStore(), message: { error: 'Too many uploads — please slow down.' }, standardHeaders: true, legacyHeaders: false });
+const geoLimiter          = rateLimit({ windowMs: 60 * 60 * 1000, max: 5,    store: makeRateLimitStore(), message: { error: 'Too many AI Visibility checks — wait an hour before running another.' }, standardHeaders: true, legacyHeaders: false });
+const inviteLimiter       = rateLimit({ windowMs: 60 * 60 * 1000, max: 10,   store: makeRateLimitStore(), message: { error: 'Too many invites sent — wait an hour.' }, standardHeaders: true, legacyHeaders: false });
+const publishLimiter      = rateLimit({ windowMs: 60 * 1000,       max: 20,   store: makeRateLimitStore(), message: { error: 'Too many publish attempts — please slow down.' }, standardHeaders: true, legacyHeaders: false });
+const studioLimiter       = rateLimit({ windowMs: 60 * 60 * 1000, max: 30,   store: makeRateLimitStore(), message: { error: 'Studio generation limit reached — wait an hour.' }, standardHeaders: true, legacyHeaders: false });
+const adminBroadcastLimiter=rateLimit({ windowMs: 60 * 60 * 1000, max: 5,    store: makeRateLimitStore(), message: { error: 'Broadcast rate limit — max 5 per hour.' }, standardHeaders: true, legacyHeaders: false });
 
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
@@ -3138,10 +3171,14 @@ app.get('/', (req, res) => {
 });
 
 app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
+
+// Sentry error handler — must come before the generic error handler
+Sentry.setupExpressErrorHandler(app);
+
 app.use((err, req, res, next) => {
   const errorId = Math.random().toString(36).substring(7);
   console.error(JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', errorId, message: err.message, method: req.method, path: req.path, userId: req.customerId || null, ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }) }));
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error', errorId });
 });
 
 async function runTrialExpiry() {
@@ -3182,6 +3219,51 @@ scheduler.start();
 
 const emailWorker = new EmailWorker(pool);
 emailWorker.start();
+
+// ── Agency: Monthly credit cycle reset + low-credit alert ─────────────────────
+// Runs 00:05 on the 1st of each month — resets credits_used_this_cycle for all
+// workspace_plan_assignments, then notifies agency owners of clients near budget.
+cron.schedule('5 0 1 * *', async () => {
+  console.log('[Agency] Monthly credit cycle reset starting...');
+  try {
+    await pool.query(
+      `UPDATE workspace_plan_assignments
+          SET credits_used_this_cycle = 0,
+              cycle_reset_at = date_trunc('month', NOW()) + INTERVAL '1 month'
+        WHERE cycle_reset_at <= NOW()`
+    );
+    console.log('[Agency] Credit cycles reset');
+  } catch (e) { console.error('[Agency] Credit reset failed:', e.message); }
+});
+
+// Runs 09:00 daily — notify agency owners when any client workspace hits 80% of budget
+cron.schedule('0 9 * * *', async () => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT wpa.agency_id, wpa.workspace_id, wpa.monthly_credit_budget, wpa.credits_used_this_cycle,
+              c.business_name
+       FROM workspace_plan_assignments wpa
+       JOIN customers c ON c.id = wpa.workspace_id
+       WHERE wpa.monthly_credit_budget IS NOT NULL
+         AND wpa.credits_used_this_cycle >= (wpa.monthly_credit_budget * 0.8)
+         AND NOT EXISTS (
+           SELECT 1 FROM notifications n
+           WHERE n.customer_id = wpa.agency_id
+             AND n.type = 'agency_credit_alert'
+             AND n.created_at >= date_trunc('month', NOW())
+             AND n.message LIKE '%' || c.business_name || '%'
+         )`
+    );
+    for (const row of rows) {
+      await pool.query(
+        `INSERT INTO notifications (customer_id, type, title, message, created_at)
+         VALUES ($1, 'agency_credit_alert', 'Client nearing credit limit', $2, NOW())`,
+        [row.agency_id, `${row.business_name} has used ${row.credits_used_this_cycle} of ${row.monthly_credit_budget} credits this month.`]
+      ).catch(() => {});
+    }
+    if (rows.length > 0) console.log(`[Agency] Sent ${rows.length} credit alert notification(s)`);
+  } catch (e) { console.error('[Agency] Credit alert cron failed:', e.message); }
+});
 
 const suggestionsEngine = new SuggestionsEngine(pool);
 cron.schedule('0 8 * * *', async () => {

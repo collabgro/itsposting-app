@@ -603,18 +603,23 @@ export const competitorAPI = {
 };
 
 export const agencyAPI = {
-  getOverview:   ()         => api.get('/api/agency/overview'),
-  getClients:    ()         => api.get('/api/agency/clients'),
-  getClient:     (id)       => api.get(`/api/agency/clients/${id}`),
-  createClient:  (data)     => api.post('/api/agency/clients', data),
-  updateClient:  (id, data) => api.patch(`/api/agency/clients/${id}`, data),
-  archiveClient: (id)       => api.delete(`/api/agency/clients/${id}`),
-  getPlans:      ()         => api.get('/api/agency/plans'),
-  createPlan:    (data)     => api.post('/api/agency/plans', data),
-  updatePlan:    (id, data) => api.patch(`/api/agency/plans/${id}`, data),
-  assignPlan:    (clientId, planId) => api.post(`/api/agency/clients/${clientId}/assign-plan`, { planId }),
-  addCredits:    (clientId, data)   => api.post(`/api/agency/clients/${clientId}/credits`, data),
-  getCreditHistory: ()      => api.get('/api/agency/credits/history'),
+  getOverview:      ()              => api.get('/api/agency/overview'),
+  getClients:       (limit = 50, offset = 0) => api.get('/api/agency/clients', { params: { limit, offset } }),
+  getClient:        (id)            => api.get(`/api/agency/clients/${id}`),
+  createClient:     (data)          => api.post('/api/agency/clients', data),
+  updateClient:     (id, data)      => api.patch(`/api/agency/clients/${id}`, data),
+  archiveClient:    (id)            => api.delete(`/api/agency/clients/${id}`),
+  getPlans:         ()              => api.get('/api/agency/plans'),
+  createPlan:       (data)          => api.post('/api/agency/plans', data),
+  updatePlan:       (id, data)      => api.patch(`/api/agency/plans/${id}`, data),
+  assignPlan:       (clientId, planId) => api.post(`/api/agency/clients/${clientId}/assign-plan`, { planId }),
+  addCredits:       (clientId, data)   => api.post(`/api/agency/clients/${clientId}/credits`, data),
+  getCreditHistory: ()              => api.get('/api/agency/credits/history'),
+  impersonate:      (clientId)      => api.post(`/api/agency/clients/${clientId}/impersonate`),
+  broadcast:        (data)          => api.post('/api/agency/broadcast', data),
+  getAnalytics:     ()              => api.get('/api/agency/analytics'),
+  saveEmailConfig:  (data)          => api.post('/api/agency/email/save-config', data),
+  testEmail:        ()              => api.post('/api/agency/email/test'),
 };
 
 export default api;

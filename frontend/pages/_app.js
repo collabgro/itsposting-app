@@ -1,5 +1,6 @@
 import '../styles/globals.css';
 import React, { useEffect, useState } from 'react';
+import * as Sentry from '@sentry/nextjs';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { ThemeProvider, useTheme } from '../lib/theme';
@@ -11,7 +12,10 @@ import { notificationsAPI } from '../lib/api';
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
   static getDerivedStateFromError(error) { return { hasError: true, error }; }
-  componentDidCatch(error, info) { console.error('[ErrorBoundary]', error, info); }
+  componentDidCatch(error, info) {
+    console.error('[ErrorBoundary]', error, info);
+    Sentry.captureException(error, { extra: info });
+  }
   render() {
     if (!this.state.hasError) return this.props.children;
     return (

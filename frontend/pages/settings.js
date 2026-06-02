@@ -4,13 +4,14 @@ import {
   IpSave, IpCredits, IpPalette, IpGlobe, IpDelete, IpClose, IpWarning,
   IpBusiness, IpShare, IpCheck, IpFacebook, IpInstagram,
   IpGoogle, IpSparkle, IpSchedule, IpLinkedIn, IpTikTok, IpBell,
-  IpPlus, IpEdit, IpUser,
+  IpPlus, IpEdit, IpUser, IpCopy, IpLink, IpMail, IpLock, IpSettings,
+  IpTeam, IpHash, IpSend,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Button, Input, Badge, SectionHeader, Spinner, ConfirmModal, Select } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { useBranding } from '../lib/branding';
-import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI, authAPI, publicAPI, postsAPI } from '../lib/api';
+import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI, authAPI, publicAPI, postsAPI, agencyAPI } from '../lib/api';
 import { useAuthStore } from '../lib/store';
 import IntegrationSetupWizard from '../components/IntegrationSetupWizard';
 
@@ -104,6 +105,16 @@ const TONES = [
   { id: 'friendly', name: 'Friendly' },
   { id: 'expert', name: 'Expert' },
   { id: 'casual', name: 'Casual' },
+];
+
+const SETTINGS_TABS = [
+  { id: 'general',      label: 'General',       icon: IpBusiness  },
+  { id: 'branding',     label: 'Branding',       icon: IpPalette   },
+  { id: 'social',       label: 'Social',         icon: IpShare     },
+  { id: 'scheduling',   label: 'Scheduling',     icon: IpSchedule  },
+  { id: 'notifications',label: 'Notifications',  icon: IpBell      },
+  { id: 'developer',    label: 'Developer',      icon: IpSettings  },
+  { id: 'white-label',  label: 'White-Label',    icon: IpSparkle,  agencyOnly: true },
 ];
 
 const PLATFORM_CONFIG = {
@@ -485,6 +496,226 @@ function AvatarUploader({ profile, t, onUpload }) {
   );
 }
 
+function AgencyEmailConfig({ t, wlConfig }) {
+  const PROVIDERS = [
+    { value: 'mailgun', label: 'Mailgun', desc: 'Best deliverability' },
+    { value: 'resend',  label: 'Resend',  desc: 'Modern REST API'    },
+    { value: 'smtp',    label: 'SMTP',    desc: 'Any mail server'    },
+  ];
+
+  const savedProvider = wlConfig?.emailProvider;
+
+  const [provider, setProvider]   = useState(wlConfig?.emailProvider || 'mailgun');
+  const [apiKey, setApiKey]       = useState(''); // write-only — never pre-fill
+  const [domain, setDomain]       = useState(wlConfig?.emailDomain || '');
+  const [fromEmail, setFromEmail] = useState(wlConfig?.emailFrom || '');
+  const [fromName, setFromName]   = useState(wlConfig?.emailFromName || '');
+  const [smtpHost, setSmtpHost]   = useState(wlConfig?.smtpHost || '');
+  const [smtpPort, setSmtpPort]   = useState(wlConfig?.smtpPort || '587');
+  const [smtpUser, setSmtpUser]   = useState(wlConfig?.smtpUser || '');
+  const [smtpPass, setSmtpPass]   = useState(''); // write-only — never pre-fill
+  const [saving, setSaving]       = useState(false);
+  const [testing, setTesting]     = useState(false);
+  const [msg, setMsg]             = useState('');
+
+  // Re-sync when wlConfig updates (e.g. on initial load)
+  const prevConfigRef = useRef(null);
+  useEffect(() => {
+    if (!wlConfig || prevConfigRef.current === wlConfig) return;
+    prevConfigRef.current = wlConfig;
+    if (wlConfig.emailProvider) setProvider(wlConfig.emailProvider);
+    if (wlConfig.emailDomain)   setDomain(wlConfig.emailDomain);
+    if (wlConfig.emailFrom)     setFromEmail(wlConfig.emailFrom);
+    if (wlConfig.emailFromName) setFromName(wlConfig.emailFromName);
+    if (wlConfig.smtpHost)      setSmtpHost(wlConfig.smtpHost);
+    if (wlConfig.smtpPort)      setSmtpPort(wlConfig.smtpPort);
+    if (wlConfig.smtpUser)      setSmtpUser(wlConfig.smtpUser);
+  }, [wlConfig]);
+
+  const inputS = {
+    width: '100%', padding: '10px 12px',
+    background: t.input, border: `1px solid ${t.border}`,
+    borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box',
+  };
+  const labelS = { fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 };
+
+  async function save() {
+    setSaving(true); setMsg('');
+    try {
+      const payload = { emailProvider: provider, emailDomain: domain, emailFrom: fromEmail, emailFromName: fromName };
+      if (apiKey) payload.emailApiKey = apiKey;
+      if (provider === 'smtp') {
+        payload.smtpHost = smtpHost;
+        payload.smtpPort = smtpPort;
+        payload.smtpUser = smtpUser;
+        if (smtpPass) payload.smtpPass = smtpPass;
+      }
+      await agencyAPI.saveEmailConfig(payload);
+      setMsg('saved');
+      setApiKey('');
+      setSmtpPass('');
+    } catch (e) {
+      setMsg(e.response?.data?.error || e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function test() {
+    setTesting(true); setMsg('');
+    try {
+      const { data } = await agencyAPI.testEmail();
+      setMsg(`Test email sent to ${data.sentTo || 'your email'}!`);
+    } catch (e) {
+      setMsg(e.response?.data?.error || e.message);
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+      {/* Current status */}
+      {savedProvider && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: 'rgba(48,209,88,0.1)', border: '1px solid rgba(48,209,88,0.3)', borderRadius: 20, width: 'fit-content' }}>
+          <IpCheck size={11} color="#30D158" />
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#30D158' }}>
+            {PROVIDERS.find(p => p.value === savedProvider)?.label || savedProvider} configured
+          </span>
+        </div>
+      )}
+
+      {/* Provider tab buttons */}
+      <div>
+        <label style={labelS}>Email Provider</label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {PROVIDERS.map(p => (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => setProvider(p.value)}
+              style={{
+                padding: '8px 14px', borderRadius: 8, border: `1.5px solid ${provider === p.value ? t.primary : t.border}`,
+                background: provider === p.value ? `${t.primary}15` : t.input,
+                color: provider === p.value ? t.primary : t.textMuted,
+                fontSize: 12, fontWeight: provider === p.value ? 700 : 500, cursor: 'pointer',
+                transition: 'all 150ms',
+              }}
+            >
+              {p.label}
+              <div style={{ fontSize: 10, color: provider === p.value ? `${t.primary}aa` : t.textMuted, marginTop: 1 }}>{p.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* API Key (Mailgun/Resend) */}
+      {provider !== 'smtp' && (
+        <div>
+          <label style={labelS}>API Key</label>
+          <div style={{ position: 'relative' }}>
+            <input
+              style={{ ...inputS, paddingRight: 40 }}
+              type="password"
+              value={apiKey}
+              onChange={e => setApiKey(e.target.value)}
+              placeholder={savedProvider === provider ? '••••••••  (leave blank to keep existing)' : 'Paste your API key'}
+            />
+            <IpLock size={14} color={t.textMuted} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }} />
+          </div>
+          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Stored encrypted. Never shown after saving.</div>
+        </div>
+      )}
+
+      {/* Sending Domain (Mailgun/Resend) */}
+      {(provider === 'mailgun' || provider === 'resend') && (
+        <div>
+          <label style={labelS}>Sending Domain</label>
+          <input style={inputS} value={domain} onChange={e => setDomain(e.target.value)} placeholder="mail.youragency.com" />
+          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>
+            {provider === 'mailgun' ? 'Verify this domain in your Mailgun dashboard first.' : 'Must be verified in Resend.'}
+          </div>
+        </div>
+      )}
+
+      {/* SMTP fields */}
+      {provider === 'smtp' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 10 }}>
+            <div>
+              <label style={labelS}>SMTP Host</label>
+              <input style={inputS} value={smtpHost} onChange={e => setSmtpHost(e.target.value)} placeholder="smtp.youragency.com" />
+            </div>
+            <div>
+              <label style={labelS}>Port</label>
+              <input style={inputS} value={smtpPort} onChange={e => setSmtpPort(e.target.value)} placeholder="587" />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelS}>SMTP Username</label>
+              <input style={inputS} value={smtpUser} onChange={e => setSmtpUser(e.target.value)} placeholder="user@youragency.com" />
+            </div>
+            <div>
+              <label style={labelS}>SMTP Password</label>
+              <input
+                style={inputS}
+                type="password"
+                value={smtpPass}
+                onChange={e => setSmtpPass(e.target.value)}
+                placeholder={savedProvider === 'smtp' ? '•••••• (leave blank to keep)' : 'Password'}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* From address */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div>
+          <label style={labelS}>From Email</label>
+          <input style={inputS} value={fromEmail} onChange={e => setFromEmail(e.target.value)} placeholder="hello@youragency.com" />
+        </div>
+        <div>
+          <label style={labelS}>From Name</label>
+          <input style={inputS} value={fromName} onChange={e => setFromName(e.target.value)} placeholder="Your Agency" />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', paddingTop: 4 }}>
+        <button
+          onClick={save}
+          disabled={saving}
+          style={{ padding: '9px 18px', background: t.primary, color: '#fff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <IpSave size={13} color="#fff" />
+          {saving ? 'Saving…' : 'Save Email Config'}
+        </button>
+        <button
+          onClick={test}
+          disabled={testing || !savedProvider}
+          title={!savedProvider ? 'Save config first' : undefined}
+          style={{ padding: '9px 16px', background: t.input, color: t.textSecondary, border: `1px solid ${t.border}`, borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: testing || !savedProvider ? 'not-allowed' : 'pointer', opacity: testing || !savedProvider ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <IpSend size={13} />
+          {testing ? 'Sending…' : 'Send Test Email'}
+        </button>
+      </div>
+
+      {msg === 'saved' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#30D158', fontWeight: 600 }}>
+          <IpCheck size={13} color="#30D158" /> Email config saved successfully
+        </div>
+      )}
+      {msg && msg !== 'saved' && (
+        <div style={{ fontSize: 12, color: msg.startsWith('Test email') ? '#30D158' : t.error, fontWeight: 500 }}>{msg}</div>
+      )}
+    </div>
+  );
+}
+
 export default function Settings() {
   const router = useRouter();
   const { t, theme } = useTheme();
@@ -556,6 +787,10 @@ export default function Settings() {
   const [wlMsg, setWlMsg] = useState('');
   const [wlLogoUploading, setWlLogoUploading] = useState(false);
   const wlLogoInputRef = useRef(null);
+
+  // Tab navigation
+  const [activeTab, setActiveTab] = useState('general');
+  const [copiedUrl, setCopiedUrl] = useState(null); // key of which URL was just copied
 
   // Workspace context (invited members)
   const [workspaceUser, setWorkspaceUser] = useState(null);
@@ -699,6 +934,13 @@ export default function Settings() {
     };
   }, []);
 
+  // Sync active tab from URL query (?tab=white-label etc.)
+  useEffect(() => {
+    if (!router.isReady) return;
+    const tab = router.query.tab;
+    if (tab && SETTINGS_TABS.some(t => t.id === tab)) setActiveTab(tab);
+  }, [router.isReady, router.query.tab]);
+
   // Handle same-window OAuth redirect (fires when popup was blocked and user
   // was redirected back to /settings?connected=... in the main tab)
   useEffect(() => {
@@ -765,6 +1007,7 @@ export default function Settings() {
         setScrapedData(scrapedRes.data);
         setScraperUrl(scrapedRes.data.website || '');
       }
+      loadWhiteLabel(p);
     } catch {
       showToast('Failed to load settings', 'error');
       setLoadError(true);
@@ -774,14 +1017,14 @@ export default function Settings() {
     loadSocialAccounts();
     loadApiKeys();
     loadHashtagSets();
-    loadWhiteLabel();
   };
 
-  const loadWhiteLabel = async () => {
+  const loadWhiteLabel = async (loadedProfile) => {
     try {
       const res = await customerAPI.getWhiteLabel();
       const cfg = res.data?.config || {};
       setWlConfig(cfg);
+      const p = loadedProfile || profile;
       setWlForm({
         agencyName:    cfg.agencyName    || '',
         aiAdvisorName: cfg.aiAdvisorName || '',
@@ -789,8 +1032,10 @@ export default function Settings() {
         primaryColor:  cfg.primaryColor  || '',
         hidePoweredBy: cfg.hidePoweredBy || false,
         customDomain:  cfg.customDomain  || '',
-        publicHandle:  profile?.public_handle || '',
       });
+      if (p?.public_handle !== undefined) {
+        setHandleInput(p.public_handle || '');
+      }
     } catch {
       // not agency plan — silently ignore
     }
@@ -877,7 +1122,9 @@ export default function Settings() {
     setWlSaving(true);
     setWlMsg('');
     try {
-      const res = await customerAPI.updateWhiteLabel(wlForm);
+      // publicHandle is saved separately via saveHandle() — never include here
+      const { agencyName, aiAdvisorName, logo, primaryColor, hidePoweredBy, customDomain } = wlForm;
+      const res = await customerAPI.updateWhiteLabel({ agencyName, aiAdvisorName, logo, primaryColor, hidePoweredBy, customDomain });
       const config = res.data.config || {};
       setWlConfig(config);
       updateUser({ white_label_config: config });
@@ -1264,6 +1511,42 @@ export default function Settings() {
           );
         })()}
 
+        {/* ── Settings Tab Navigation ─────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '4px 2px' }}>
+          {SETTINGS_TABS.filter(tab => !tab.agencyOnly || profile?.plan === 'agency').map(tab => {
+            const active = activeTab === tab.id;
+            const TabIcon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  router.replace({ query: { tab: tab.id } }, undefined, { shallow: true });
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', borderRadius: 9,
+                  border: `1.5px solid ${active ? t.primary : (t.isDark ? 'rgba(255,255,255,0.08)' : t.border)}`,
+                  background: active ? `${t.primary}18` : 'transparent',
+                  color: active ? t.primary : t.textMuted,
+                  fontSize: 12, fontWeight: active ? 700 : 500,
+                  cursor: 'pointer', transition: 'all 150ms',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <TabIcon size={13} color={active ? t.primary : t.textMuted} />
+                {tab.label}
+                {tab.agencyOnly && (
+                  <span style={{ padding: '1px 5px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 4, letterSpacing: '0.04em' }}>AGENCY</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── GENERAL TAB ─────────────────────────────────────────────── */}
+        {activeTab === 'general' && (<>
+
         {/* ── Profile Header Card ─────────────────────────────────────── */}
         {profile && (() => {
           const plan = PLAN_CONFIG[profile.plan] || PLAN_CONFIG.trial;
@@ -1509,7 +1792,10 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Website Intelligence */}
+        </>)} {/* end general tab */}
+
+        {/* ── GENERAL + BRANDING: Website Intelligence always in general ── */}
+        {activeTab === 'general' && (
         <div style={gc}>
           <SectionHeader icon={IpGlobe} title="Website Intelligence" action={<Badge variant="success">FREE</Badge>} />
           <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16, marginTop: -12 }}>
@@ -1558,7 +1844,10 @@ export default function Settings() {
           )}
         </div>
 
-        {/* Branding */}
+        )} {/* end website intelligence */}
+
+        {/* ── BRANDING TAB ────────────────────────────────────────────── */}
+        {activeTab === 'branding' && (
         <div style={gc}>
           <SectionHeader icon={IpPalette} title="Branding" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -1619,7 +1908,10 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Timezone & Scheduling */}
+        )} {/* end branding card */}
+
+        {/* ── SCHEDULING TAB ──────────────────────────────────────────── */}
+        {activeTab === 'scheduling' && (
         <div style={gc}>
           <SectionHeader icon={IpSchedule} title="Timezone & Scheduling" />
           <p style={{ fontSize: 13, color: t.textMuted, marginBottom: 16, marginTop: -12 }}>
@@ -1661,7 +1953,10 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Connected Accounts */}
+        )} {/* end scheduling card */}
+
+        {/* ── SOCIAL TAB ──────────────────────────────────────────────── */}
+        {activeTab === 'social' && (<>
         <div style={gc}>
           <SectionHeader icon={IpShare} title="Connected Accounts" subtitle="Connect social media accounts to enable publishing" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1792,6 +2087,10 @@ export default function Settings() {
             })}
           </div>
         </div>
+        </>)} {/* end social tab */}
+
+        {/* ── DEVELOPER TAB ───────────────────────────────────────────── */}
+        {activeTab === 'developer' && (<>
 
         {/* Developer API Keys */}
         {(() => {
@@ -2048,278 +2347,452 @@ export default function Settings() {
           );
         })()}
 
-        {/* ── WHITE-LABEL (AGENCY PLAN) ────────────────────────────────────── */}
-        {profile?.plan === 'agency' ? (
-          <div style={gc}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <IpPalette size={16} color={t.primary} />
-              <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>White-Label Branding</span>
-              <span style={{ padding: '2px 8px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 5, letterSpacing: '0.04em' }}>AGENCY</span>
+        </>)} {/* end developer tab */}
+
+        {/* ── WHITE-LABEL TAB ─────────────────────────────────────────── */}
+        {activeTab === 'white-label' && (<>
+
+        {profile?.plan !== 'agency' ? (
+          <div style={{ ...gc, padding: 28, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <IpPalette size={18} color={t.textMuted} />
+                <span style={{ fontSize: 17, fontWeight: 700, color: t.text }}>White-Label Branding</span>
+                <span style={{ padding: '2px 8px', background: t.input, color: t.textMuted, fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid ${t.border}` }}>AGENCY PLAN</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: t.textMuted, lineHeight: 1.6 }}>
+                Replace ItsPosting branding with your own logo, name, AI advisor name, and brand colors.
+                Clients see your brand — not ItsPosting. Includes a custom client signup portal and branded emails.
+              </p>
             </div>
-            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 24 }}>Replace ItsPosting branding with your agency's logo, name, and colors. Changes apply immediately for all your sub-accounts.</div>
+            <button
+              onClick={() => router.push('/billing')}
+              style={{ padding: '11px 22px', background: `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+            >
+              View Agency Plan →
+            </button>
+          </div>
+        ) : null}
 
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr auto', gap: 24, alignItems: 'start' }}>
-              {/* Form column */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {profile?.plan === 'agency' && (<>
 
+        {/* ── Card: Brand Identity ──────────────────────────────────────── */}
+        <div style={gc}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <IpPalette size={16} color={t.primary} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Brand Identity</span>
+            <span style={{ padding: '2px 8px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 5, letterSpacing: '0.05em' }}>AGENCY</span>
+          </div>
+          <p style={{ margin: '0 0 20px', fontSize: 13, color: t.textMuted }}>
+            Your brand tokens — applied instantly to all client sub-accounts.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 220px', gap: 28, alignItems: 'start' }}>
+
+            {/* Left: Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {/* Agency Name */}
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Agency Name</label>
-                  <input
-                    type="text"
+                  <Input
                     value={wlForm.agencyName}
                     onChange={e => setWlForm(f => ({ ...f, agencyName: e.target.value }))}
                     placeholder="e.g. Apex Digital Agency"
                     maxLength={80}
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   />
-                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Shown in the sidebar instead of "ItsPosting".</div>
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Replaces "ItsPosting" in the sidebar.</div>
                 </div>
 
                 {/* AI Advisor Name */}
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>AI Advisor Name</label>
-                  <input
-                    type="text"
+                  <Input
                     value={wlForm.aiAdvisorName}
                     onChange={e => setWlForm(f => ({ ...f, aiAdvisorName: e.target.value }))}
                     placeholder="e.g. Max (default: ItsPosting AI)"
                     maxLength={40}
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   />
-                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Your branded name for the AI advisor (shown to all sub-accounts).</div>
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Your branded name for the AI advisor.</div>
                 </div>
+              </div>
 
-                {/* Agency Logo */}
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Agency Logo</label>
-                  <input ref={wlLogoInputRef} type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" style={{ display: 'none' }} onChange={e => handleWlLogoUpload(e.target.files[0])} />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      type="url"
-                      value={wlForm.logo}
-                      onChange={e => setWlForm(f => ({ ...f, logo: e.target.value }))}
-                      placeholder="https://your-cdn.com/logo.png"
-                      style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none' }}
-                    />
-                    <button
-                      onClick={() => wlLogoInputRef.current?.click()}
-                      disabled={wlLogoUploading}
-                      style={{ padding: '10px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-                    >
-                      {wlLogoUploading ? 'Uploading...' : 'Upload'}
-                    </button>
-                  </div>
-                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>PNG, SVG or JPEG. Max 5MB. Displayed at 30px height in the sidebar.</div>
-                </div>
-
-                {/* Primary Color */}
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Primary Color</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <input
-                      type="color"
-                      value={wlForm.primaryColor || '#7C5CFC'}
-                      onChange={e => setWlForm(f => ({ ...f, primaryColor: e.target.value }))}
-                      style={{ width: 44, height: 44, padding: 2, borderRadius: 8, border: `1px solid ${t.border}`, background: 'transparent', cursor: 'pointer', flexShrink: 0 }}
-                    />
-                    <input
-                      type="text"
-                      value={wlForm.primaryColor}
-                      onChange={e => setWlForm(f => ({ ...f, primaryColor: e.target.value }))}
-                      placeholder="#7C5CFC"
-                      maxLength={7}
-                      style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, fontFamily: 'monospace', outline: 'none' }}
-                    />
-                  </div>
-                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Used for active nav items and accent buttons. Must be a valid hex color.</div>
-                </div>
-
-                {/* Branded Login URL — handle settable inline */}
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Branded Login URL</label>
-                  {profile?.public_handle ? (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <code style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: wlForm.primaryColor || t.primary, fontSize: 12, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {typeof window !== 'undefined' ? window.location.origin : 'https://app.itsposting.com'}/login?a={profile.public_handle}
-                        </code>
-                        <button
-                          type="button"
-                          onClick={() => { const url = `${window.location.origin}/login?a=${profile.public_handle}`; navigator.clipboard?.writeText(url); }}
-                          style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-                        >
-                          Copy
-                        </button>
-                      </div>
-                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Share this with your clients — they'll see your branding on the login page.</div>
-                    </>
-                  ) : (
-                    <div>
-                      <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 8 }}>Set a unique URL slug for your branded login page:</div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, overflow: 'hidden', paddingLeft: 10 }}>
-                          <span style={{ fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap', fontFamily: 'monospace', flexShrink: 0 }}>?a=</span>
-                          <input
-                            type="text"
-                            value={handleInput}
-                            onChange={e => { setHandleInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')); setHandleError(''); }}
-                            placeholder="your-agency-slug"
-                            maxLength={50}
-                            style={{ flex: 1, padding: '10px 8px', background: 'transparent', border: 'none', color: t.text, fontSize: 13, outline: 'none', fontFamily: 'monospace' }}
-                          />
-                        </div>
-                        <button
-                          onClick={saveHandle}
-                          disabled={handleSaving || !handleInput.trim()}
-                          style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: wlForm.primaryColor || t.primary, color: '#fff', fontSize: 12, fontWeight: 700, cursor: handleSaving || !handleInput.trim() ? 'not-allowed' : 'pointer', opacity: handleSaving || !handleInput.trim() ? 0.6 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}
-                        >
-                          {handleSaving ? 'Saving…' : 'Set Slug'}
-                        </button>
-                      </div>
-                      {handleError && <div style={{ marginTop: 5, fontSize: 11, color: '#ef4444' }}>{handleError}</div>}
-                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 5 }}>Once set, your branded URL is: <code style={{ fontFamily: 'monospace', color: wlForm.primaryColor || t.primary }}>/login?a=your-slug</code></div>
+              {/* Agency Logo */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Agency Logo</label>
+                <input ref={wlLogoInputRef} type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp" style={{ display: 'none' }} onChange={e => handleWlLogoUpload(e.target.files[0])} />
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  {wlForm.logo && (
+                    <div style={{ width: 52, height: 52, borderRadius: 10, border: `1px solid ${t.border}`, background: t.input, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                      <img src={wlForm.logo} alt="logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
                     </div>
                   )}
-                </div>
-
-                {/* Client Self-Signup URL */}
-                {profile?.public_handle && (
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Client Signup URL</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <code style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: wlForm.primaryColor || t.primary, fontSize: 12, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {typeof window !== 'undefined' ? window.location.origin : 'https://app.itsposting.com'}/join/{profile.public_handle}
-                      </code>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <Input
+                        type="url"
+                        value={wlForm.logo}
+                        onChange={e => setWlForm(f => ({ ...f, logo: e.target.value }))}
+                        placeholder="https://cdn.youragency.com/logo.png"
+                        style={{ flex: 1 }}
+                      />
                       <button
-                        type="button"
-                        onClick={() => { const url = `${window.location.origin}/join/${profile.public_handle}`; navigator.clipboard?.writeText(url); showToast('Signup link copied!'); }}
-                        style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                        onClick={() => wlLogoInputRef.current?.click()}
+                        disabled={wlLogoUploading}
+                        style={{ padding: '10px 14px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.textSecondary, fontSize: 12, fontWeight: 600, cursor: wlLogoUploading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0, opacity: wlLogoUploading ? 0.7 : 1 }}
                       >
-                        Copy
+                        {wlLogoUploading ? 'Uploading...' : 'Upload'}
                       </button>
                     </div>
-                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Share this with new clients — they create their own branded account automatically.</div>
+                    <div style={{ fontSize: 11, color: t.textMuted }}>PNG, SVG, JPEG — displayed at 28px height in the sidebar.</div>
                   </div>
-                )}
-
-                {/* Custom Domain */}
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Custom Domain
-                    <span style={{ marginLeft: 6, padding: '1px 6px', background: t.input, color: t.textMuted, fontSize: 10, borderRadius: 4, fontWeight: 500, textTransform: 'none', letterSpacing: 'normal', border: `1px solid ${t.border}` }}>DNS setup required</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={wlForm.customDomain}
-                    onChange={e => setWlForm(f => ({ ...f, customDomain: e.target.value }))}
-                    placeholder="app.youragency.com"
-                    style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-                  />
-                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6, lineHeight: 1.55 }}>
-                    <strong style={{ color: t.textSecondary }}>Step 1:</strong> Add a CNAME record: <code style={{ background: t.input, padding: '1px 5px', borderRadius: 4, fontFamily: 'monospace', border: `1px solid ${t.border}` }}>app.youragency.com → app.itsposting.com</code><br />
-                    <strong style={{ color: t.textSecondary }}>Step 2:</strong> Enter your domain above and save.<br />
-                    <strong style={{ color: t.textSecondary }}>Step 3:</strong> <a href="mailto:support@itsposting.com?subject=Custom Domain Setup" style={{ color: t.primary, textDecoration: 'none' }}>Email support</a> with your domain to activate SSL.
-                    <br />Once active, clients visiting your domain will see your branding automatically.
-                  </div>
-                </div>
-
-                {/* Hide Powered By */}
-                <div
-                  onClick={() => setWlForm(f => ({ ...f, hidePoweredBy: !f.hidePoweredBy }))}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '13px 14px', borderRadius: 10, background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `1px solid ${wlForm.hidePoweredBy ? t.primaryBorder : (t.isDark ? 'rgba(255,255,255,0.05)' : t.border)}`, cursor: 'pointer', transition: 'border-color 150ms' }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 2 }}>Hide "Powered by ItsPosting"</div>
-                    <div style={{ fontSize: 11, color: t.textMuted }}>Remove the ItsPosting attribution from the sidebar footer.</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); setWlForm(f => ({ ...f, hidePoweredBy: !f.hidePoweredBy })); }}
-                    style={{ width: 44, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', padding: 3, background: wlForm.hidePoweredBy ? '#34C759' : (t.isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db'), transition: 'background 150ms', display: 'flex', alignItems: 'center', justifyContent: wlForm.hidePoweredBy ? 'flex-end' : 'flex-start', flexShrink: 0 }}
-                  >
-                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }} />
-                  </button>
-                </div>
-
-                {/* Save */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <button
-                    onClick={handleSaveWhiteLabel}
-                    disabled={wlSaving}
-                    style={{ padding: '10px 24px', background: wlForm.primaryColor ? `linear-gradient(135deg,${wlForm.primaryColor},${wlForm.primaryColor}cc)` : `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: wlSaving ? 'not-allowed' : 'pointer', opacity: wlSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 7 }}
-                  >
-                    <IpSave size={14} />
-                    {wlSaving ? 'Saving...' : 'Save White-Label Settings'}
-                  </button>
-                  {wlMsg === 'saved' && <span style={{ fontSize: 12, color: t.success, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}><IpCheck size={13} /> Saved</span>}
-                  {wlMsg && wlMsg !== 'saved' && <span style={{ fontSize: 12, color: t.error }}>{wlMsg}</span>}
                 </div>
               </div>
 
-              {/* Live Preview column */}
-              <div style={{ width: 200, flexShrink: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Sidebar Preview</div>
-                <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.isDark ? 'rgba(10,10,18,0.9)' : '#F7F7FA', boxShadow: t.shadow }}>
-                  {/* Mini sidebar header */}
-                  <div style={{ padding: '14px 12px 10px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
-                    {wlForm.logo ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <img src={wlForm.logo} alt="logo" style={{ height: 24, maxWidth: 80, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
-                        {wlForm.agencyName && <span style={{ fontSize: 12, fontWeight: 700, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wlForm.agencyName}</span>}
+              {/* Primary Color */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Primary Color</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <input
+                    type="color"
+                    value={wlForm.primaryColor || '#7C5CFC'}
+                    onChange={e => setWlForm(f => ({ ...f, primaryColor: e.target.value }))}
+                    style={{ width: 46, height: 42, padding: 3, borderRadius: 8, border: `1px solid ${t.border}`, background: 'transparent', cursor: 'pointer', flexShrink: 0 }}
+                  />
+                  <Input
+                    type="text"
+                    value={wlForm.primaryColor}
+                    onChange={e => setWlForm(f => ({ ...f, primaryColor: e.target.value }))}
+                    placeholder="#7C5CFC"
+                    maxLength={7}
+                    style={{ flex: 1, fontFamily: 'monospace', fontSize: 13 }}
+                  />
+                  {/* Quick presets */}
+                  {['#7C5CFC', '#0A84FF', '#30D158', '#FF6B35', '#EC4899'].map(c => (
+                    <button key={c} onClick={() => setWlForm(f => ({ ...f, primaryColor: c }))}
+                      style={{ width: 24, height: 24, borderRadius: 6, background: c, border: wlForm.primaryColor === c ? `2px solid ${t.text}` : '2px solid transparent', cursor: 'pointer', flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Used for nav highlights and buttons across the entire platform.</div>
+              </div>
+
+              {/* Hide Powered By */}
+              <div
+                onClick={() => setWlForm(f => ({ ...f, hidePoweredBy: !f.hidePoweredBy }))}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '13px 16px', borderRadius: 10, background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `1px solid ${wlForm.hidePoweredBy ? t.primaryBorder : (t.isDark ? 'rgba(255,255,255,0.05)' : t.border)}`, cursor: 'pointer', transition: 'border-color 150ms' }}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 2 }}>Hide "Powered by ItsPosting"</div>
+                  <div style={{ fontSize: 11, color: t.textMuted }}>Remove ItsPosting attribution from the sidebar footer.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setWlForm(f => ({ ...f, hidePoweredBy: !f.hidePoweredBy })); }}
+                  style={{ width: 44, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', padding: 3, background: wlForm.hidePoweredBy ? '#34C759' : (t.isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db'), transition: 'background 150ms', display: 'flex', alignItems: 'center', justifyContent: wlForm.hidePoweredBy ? 'flex-end' : 'flex-start', flexShrink: 0 }}
+                >
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }} />
+                </button>
+              </div>
+
+              {/* Save Brand Settings */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 4 }}>
+                <button
+                  onClick={handleSaveWhiteLabel}
+                  disabled={wlSaving}
+                  style={{ padding: '10px 22px', background: wlForm.primaryColor ? `linear-gradient(135deg,${wlForm.primaryColor},${wlForm.primaryColor}cc)` : `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: wlSaving ? 'not-allowed' : 'pointer', opacity: wlSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 7 }}
+                >
+                  <IpSave size={14} />
+                  {wlSaving ? 'Saving...' : 'Save Brand Settings'}
+                </button>
+                {wlMsg === 'saved' && (
+                  <span style={{ fontSize: 12, color: t.success, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                    <IpCheck size={13} /> Saved
+                  </span>
+                )}
+                {wlMsg && wlMsg !== 'saved' && <span style={{ fontSize: 12, color: t.error }}>{wlMsg}</span>}
+              </div>
+            </div>
+
+            {/* Right: Live Preview */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Live Preview</div>
+              <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.isDark ? '#0D0D14' : '#F5F5FA', boxShadow: t.shadow, minWidth: 200 }}>
+                {/* Sidebar header */}
+                <div style={{ padding: '14px 14px 10px', borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
+                  {wlForm.logo ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <img src={wlForm.logo} alt="logo" style={{ height: 26, maxWidth: 90, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+                      {wlForm.agencyName && <span style={{ fontSize: 12, fontWeight: 700, color: t.isDark ? '#fff' : '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wlForm.agencyName}</span>}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 26, height: 26, borderRadius: 7, background: wlForm.primaryColor || t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ color: '#fff', fontSize: 13, fontWeight: 800 }}>{(wlForm.agencyName || 'A').charAt(0)}</span>
                       </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <div style={{ width: 24, height: 24, borderRadius: 6, background: wlForm.primaryColor || t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ color: '#fff', fontSize: 12, fontWeight: 800 }}>{(wlForm.agencyName || 'A').charAt(0)}</span>
-                        </div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: t.text }}>{wlForm.agencyName || 'Your Agency'}</span>
-                      </div>
-                    )}
-                  </div>
-                  {/* Mini nav items */}
-                  <div style={{ padding: '8px 8px' }}>
-                    {['Dashboard', 'Post Wizard', 'Calendar', 'Analytics'].map((item, i) => (
-                      <div key={item} style={{ padding: '6px 8px', borderRadius: 7, marginBottom: 2, background: i === 0 ? `${wlForm.primaryColor || t.primary}18` : 'transparent', display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: i === 0 ? (wlForm.primaryColor || t.primary) : t.textMuted, opacity: i === 0 ? 1 : 0.4 }} />
-                        <span style={{ fontSize: 11, fontWeight: i === 0 ? 600 : 400, color: i === 0 ? (wlForm.primaryColor || t.primary) : t.textMuted }}>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Powered by footer */}
-                  {!wlForm.hidePoweredBy && (
-                    <div style={{ padding: '8px 12px', borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}` }}>
-                      <div style={{ fontSize: 9, color: t.textMuted, textAlign: 'center', opacity: 0.6 }}>Powered by ItsPosting</div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: t.isDark ? '#fff' : '#111' }}>{wlForm.agencyName || 'Your Agency'}</span>
                     </div>
                   )}
                 </div>
+                {/* Nav items */}
+                <div style={{ padding: '8px 8px 4px' }}>
+                  {['Dashboard', 'Post Wizard', 'Calendar', 'Analytics'].map((item, i) => (
+                    <div key={item} style={{ padding: '7px 10px', borderRadius: 8, marginBottom: 2, background: i === 0 ? `${wlForm.primaryColor || t.primary}20` : 'transparent', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: i === 0 ? (wlForm.primaryColor || t.primary) : (t.isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)') }} />
+                      <span style={{ fontSize: 11, fontWeight: i === 0 ? 700 : 400, color: i === 0 ? (wlForm.primaryColor || t.primary) : (t.isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)') }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* AI Advisor chip */}
+                <div style={{ margin: '6px 8px', padding: '7px 10px', borderRadius: 8, background: `${wlForm.primaryColor || t.primary}12`, border: `1px solid ${wlForm.primaryColor || t.primary}25`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IpSparkle size={11} color={wlForm.primaryColor || t.primary} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: wlForm.primaryColor || t.primary }}>
+                    {wlForm.aiAdvisorName || 'ItsPosting AI'}
+                  </span>
+                </div>
+                {/* Sample button */}
+                <div style={{ padding: '8px 10px 12px' }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 8, background: wlForm.primaryColor || t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <IpSparkle size={11} color="#fff" />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#fff' }}>Post Wizard</span>
+                  </div>
+                </div>
+                {/* Powered by */}
+                {!wlForm.hidePoweredBy && (
+                  <div style={{ padding: '6px 10px 10px', borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}` }}>
+                    <div style={{ fontSize: 9, color: t.isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)', textAlign: 'center' }}>Powered by ItsPosting</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        ) : (
-          <div style={{ ...gc, padding: 24, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <IpPalette size={16} color={t.textMuted} />
-                <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>White-Label Branding</span>
-                <span style={{ padding: '2px 8px', background: t.input, color: t.textMuted, fontSize: 10, fontWeight: 700, borderRadius: 5, border: `1px solid ${t.border}` }}>AGENCY PLAN</span>
+        </div>
+
+        {/* ── Card: Client Access ───────────────────────────────────────── */}
+        <div style={gc}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <IpLink size={16} color={t.primary} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Client Access</span>
+          </div>
+          <p style={{ margin: '0 0 20px', fontSize: 13, color: t.textMuted }}>
+            Your branded URL slug lets clients find your signup portal and branded login page.
+          </p>
+
+          {/* Handle setup */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Your URL Slug</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: t.input, border: `1px solid ${t.border}`, borderRadius: 9, overflow: 'hidden', paddingLeft: 12 }}>
+                <span style={{ fontSize: 12, color: t.textMuted, whiteSpace: 'nowrap', fontFamily: 'monospace', flexShrink: 0 }}>
+                  {typeof window !== 'undefined' ? window.location.origin : 'https://app.itsposting.com'}/join/
+                </span>
+                <input
+                  type="text"
+                  value={handleInput}
+                  onChange={e => { setHandleInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')); setHandleError(''); }}
+                  placeholder="your-agency"
+                  maxLength={50}
+                  style={{ flex: 1, padding: '10px 8px', background: 'transparent', border: 'none', color: t.text, fontSize: 13, outline: 'none', fontFamily: 'monospace', fontWeight: 600 }}
+                />
               </div>
-              <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>
-                Replace ItsPosting branding with your own logo, name, and colors — perfect for agencies managing clients.
-                Available on the Agency plan ($200/month, unlimited sub-accounts).
-              </div>
+              <button
+                onClick={saveHandle}
+                disabled={handleSaving || !handleInput.trim()}
+                style={{ padding: '10px 18px', borderRadius: 9, border: 'none', background: wlForm.primaryColor || t.primary, color: '#fff', fontSize: 13, fontWeight: 700, cursor: handleSaving || !handleInput.trim() ? 'not-allowed' : 'pointer', opacity: handleSaving || !handleInput.trim() ? 0.6 : 1, whiteSpace: 'nowrap', flexShrink: 0 }}
+              >
+                {handleSaving ? 'Saving…' : profile?.public_handle ? 'Update Slug' : 'Set Slug'}
+              </button>
             </div>
+            {handleError && <div style={{ marginTop: 6, fontSize: 12, color: t.error }}>{handleError}</div>}
+            <div style={{ marginTop: 5, fontSize: 11, color: t.textMuted }}>Letters, numbers, hyphens and underscores only. 3–50 characters.</div>
+          </div>
+
+          {/* URL display cards — shown once handle is set */}
+          {profile?.public_handle && (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+              {[
+                {
+                  icon: IpLock,
+                  title: 'Branded Login',
+                  url: `${typeof window !== 'undefined' ? window.location.origin : 'https://app.itsposting.com'}/login?a=${profile.public_handle}`,
+                  desc: 'For existing clients — shows your branding on the login page.',
+                  key: 'login',
+                },
+                {
+                  icon: IpSparkle,
+                  title: 'Client Signup Portal',
+                  url: `${typeof window !== 'undefined' ? window.location.origin : 'https://app.itsposting.com'}/join/${profile.public_handle}`,
+                  desc: 'Share with new clients — they self-register under your agency.',
+                  key: 'join',
+                },
+              ].map(({ icon: Icon, title, url, desc, key }) => (
+                <div key={key} style={{ padding: '14px 16px', borderRadius: 12, border: `1px solid ${t.border}`, background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: `${wlForm.primaryColor || t.primary}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon size={13} color={wlForm.primaryColor || t.primary} />
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: t.text }}>{title}</span>
+                    {copiedUrl === key && (
+                      <span style={{ marginLeft: 'auto', fontSize: 11, color: '#30D158', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <IpCheck size={11} color="#30D158" /> Copied!
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <code style={{ flex: 1, padding: '7px 10px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 7, color: wlForm.primaryColor || t.primary, fontSize: 11, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                      {url}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(url);
+                        setCopiedUrl(key);
+                        setTimeout(() => setCopiedUrl(null), 2000);
+                      }}
+                      style={{ padding: '7px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.card, color: t.textMuted, fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <IpCopy size={12} />
+                      Copy
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.5 }}>{desc}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!profile?.public_handle && (
+            <div style={{ padding: '12px 16px', borderRadius: 10, background: `${t.warning}10`, border: `1px solid ${t.warning}30` }}>
+              <div style={{ fontSize: 12, color: t.warning, fontWeight: 600 }}>Set your URL slug above to activate your signup portal and branded login URL.</div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Card: Custom Domain ───────────────────────────────────────── */}
+        <div style={gc}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <IpGlobe size={16} color={t.primary} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Custom Domain</span>
+            <span style={{ padding: '2px 8px', background: t.input, color: t.textMuted, fontSize: 10, fontWeight: 600, borderRadius: 5, border: `1px solid ${t.border}`, letterSpacing: '0.02em' }}>DNS setup required</span>
+          </div>
+          <p style={{ margin: '0 0 18px', fontSize: 13, color: t.textMuted }}>
+            Host the platform at your own domain — clients log in at <code style={{ fontSize: 12, fontFamily: 'monospace', color: t.primary }}>app.youragency.com</code>.
+          </p>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Custom Domain</label>
+            <Input
+              value={wlForm.customDomain}
+              onChange={e => setWlForm(f => ({ ...f, customDomain: e.target.value }))}
+              placeholder="app.youragency.com"
+            />
+          </div>
+
+          {/* DNS Steps */}
+          <div style={{ borderRadius: 10, border: `1px solid ${t.border}`, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 14px', background: t.isDark ? 'rgba(255,255,255,0.03)' : t.input, borderBottom: `1px solid ${t.border}`, fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+              Setup Instructions
+            </div>
+            {[
+              { step: 1, title: 'Add a CNAME DNS record', detail: <><code style={{ background: t.input, padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: 11 }}>app.youragency.com → app.itsposting.com</code></> },
+              { step: 2, title: 'Enter your domain above and save.' },
+              { step: 3, title: 'Contact support for SSL activation', detail: <><a href="mailto:support@itsposting.com?subject=Custom Domain Setup" style={{ color: t.primary, textDecoration: 'none', fontWeight: 600 }}>Email support@itsposting.com</a> with your domain — SSL provisioned within 24h.</> },
+            ].map(({ step, title, detail }) => (
+              <div key={step} style={{ display: 'flex', gap: 12, padding: '12px 14px', borderBottom: step < 3 ? `1px solid ${t.border}` : 'none' }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', background: `${t.primary}20`, border: `1px solid ${t.primary}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 11, fontWeight: 700, color: t.primary }}>
+                  {step}
+                </div>
+                <div style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.6, paddingTop: 2 }}>
+                  <strong style={{ color: t.text }}>{title}</strong>
+                  {detail && <><br />{detail}</>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
             <button
-              onClick={() => router.push('/billing')}
-              style={{ padding: '10px 20px', background: `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              onClick={handleSaveWhiteLabel}
+              disabled={wlSaving}
+              style={{ padding: '9px 18px', background: wlForm.primaryColor || t.primary, border: 'none', borderRadius: 9, color: '#fff', fontSize: 13, fontWeight: 700, cursor: wlSaving ? 'not-allowed' : 'pointer', opacity: wlSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              View Agency Plan
+              <IpSave size={13} />
+              {wlSaving ? 'Saving...' : 'Save Domain'}
             </button>
+            {wlConfig?.customDomain && (
+              <span style={{ fontSize: 12, color: t.textMuted }}>Currently: <code style={{ fontFamily: 'monospace', color: t.primary }}>{wlConfig.customDomain}</code></span>
+            )}
           </div>
-        )}
+        </div>
 
+        {/* ── Card: Email Sending ───────────────────────────────────────── */}
+        <div style={gc}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <IpMail size={16} color={t.primary} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: t.text }}>Email Sending</span>
+            {wlConfig?.emailProvider && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', background: 'rgba(48,209,88,0.1)', border: '1px solid rgba(48,209,88,0.3)', borderRadius: 12 }}>
+                <IpCheck size={10} color="#30D158" />
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#30D158' }}>
+                  {wlConfig.emailProvider === 'mailgun' ? 'Mailgun' : wlConfig.emailProvider === 'resend' ? 'Resend' : 'SMTP'} configured
+                </span>
+              </span>
+            )}
+          </div>
+          <p style={{ margin: '0 0 20px', fontSize: 13, color: t.textMuted }}>
+            Send transactional emails (welcome, password reset) to your clients from your own domain.
+          </p>
+          <AgencyEmailConfig t={t} wlConfig={wlConfig} />
+        </div>
 
-        {/* ── Danger Zone ─────────────────────────────────────────────── */}
+        </>)} {/* end agency plan check */}
+
+        </>)} {/* end white-label tab */}
+
+        {/* ── NOTIFICATIONS TAB ───────────────────────────────────────── */}
+        {activeTab === 'notifications' && (
+        <div style={gc}>
+          <SectionHeader icon={IpBell} title="Notification Preferences" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {NOTIF_GROUPS(aiName).map(group => (
+              <div key={group.label}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{group.label}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {group.items.map(item => (
+                    <div
+                      key={item.key}
+                      onClick={() => setNotifPrefs(p => ({ ...p, [item.key]: !p[item.key] }))}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 16px', borderRadius: 10, background: t.isDark ? 'rgba(255,255,255,0.02)' : t.input, border: `1px solid ${notifPrefs[item.key] ? t.primaryBorder : (t.isDark ? 'rgba(255,255,255,0.05)' : t.border)}`, cursor: 'pointer', transition: 'border-color 150ms' }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 2 }}>{item.title}</div>
+                        <div style={{ fontSize: 11, color: t.textMuted }}>{item.desc}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setNotifPrefs(p => ({ ...p, [item.key]: !p[item.key] })); }}
+                        style={{ width: 44, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', padding: 3, background: notifPrefs[item.key] ? '#34C759' : (t.isDark ? 'rgba(255,255,255,0.15)' : '#d1d5db'), transition: 'background 150ms', display: 'flex', alignItems: 'center', justifyContent: notifPrefs[item.key] ? 'flex-end' : 'flex-start', flexShrink: 0 }}
+                      >
+                        <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>
+            <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Preferences'}
+            </Button>
+          </div>
+        </div>
+        )} {/* end notifications tab */}
+
+        {/* ── DANGER ZONE (always shown or shown in account tab) ───── */}
+        {(activeTab === 'general' || activeTab === 'notifications') && (
         <div style={{ background: t.card, border: `1px solid ${t.errorBorder || 'rgba(239,68,68,0.4)'}`, borderRadius: 16, overflow: 'hidden' }}>
           <div style={{ padding: '16px 24px', borderBottom: `1px solid ${t.errorBorder || 'rgba(239,68,68,0.2)'}`, display: 'flex', alignItems: 'center', gap: 10 }}>
             <IpWarning size={16} color={t.error || '#ef4444'} />
@@ -2338,6 +2811,10 @@ export default function Settings() {
             </a>
           </div>
         </div>
+        )} {/* end danger zone */}
+
+        
+
 
       </div>
 

@@ -1,7 +1,8 @@
 const express = require('express');
 const bcrypt  = require('bcryptjs');
 const crypto  = require('crypto');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, generateToken } = require('../middleware/auth');
+const { encrypt, testAgencyEmail } = require('../services/AgencyEmailService');
 
 module.exports = (pool) => {
   const router = express.Router();
@@ -83,26 +84,42 @@ module.exports = (pool) => {
   router.get('/clients', async (req, res) => {
     try {
       const agencyId = req.customerId;
-      const { rows } = await pool.query(
-        `SELECT c.id, c.business_name, c.workspace_display_name, c.industry,
-                c.location, c.status, c.suspended, c.suspension_reason, c.created_at,
-                ap.id AS plan_id, ap.name AS plan_name, ap.credits_per_month,
-                wpa.monthly_credit_budget, wpa.credits_used_this_cycle, wpa.cycle_reset_at,
-                COALESCE((
-                  SELECT SUM(ABS(ct.amount))
-                  FROM credit_transactions ct
-                  WHERE ct.customer_id = c.id
-                    AND ct.transaction_type = 'deduction'
-                    AND ct.created_at >= date_trunc('month', NOW())
-                ), 0) AS credits_used_this_month
-         FROM customers c
-         LEFT JOIN workspace_plan_assignments wpa ON wpa.workspace_id = c.id
-         LEFT JOIN agency_plans ap ON ap.id = wpa.agency_plan_id
-         WHERE c.parent_customer_id = $1
-         ORDER BY c.created_at DESC`,
-        [agencyId]
-      );
-      res.json({ clients: rows });
+      const limit  = Math.min(parseInt(req.query.limit)  || 50, 100);
+      const offset = Math.max(parseInt(req.query.offset) || 0,  0);
+
+      const [dataR, countR] = await Promise.all([
+        pool.query(
+          `SELECT c.id, c.business_name, c.workspace_display_name, c.industry,
+                  c.location, c.status, c.suspended, c.suspension_reason, c.created_at,
+                  ap.id AS plan_id, ap.name AS plan_name, ap.credits_per_month,
+                  wpa.monthly_credit_budget, wpa.credits_used_this_cycle, wpa.cycle_reset_at,
+                  COALESCE((
+                    SELECT SUM(ABS(ct.amount))
+                    FROM credit_transactions ct
+                    WHERE ct.customer_id = c.id
+                      AND ct.transaction_type = 'deduction'
+                      AND ct.created_at >= date_trunc('month', NOW())
+                  ), 0) AS credits_used_this_month
+           FROM customers c
+           LEFT JOIN workspace_plan_assignments wpa ON wpa.workspace_id = c.id
+           LEFT JOIN agency_plans ap ON ap.id = wpa.agency_plan_id
+           WHERE c.parent_customer_id = $1
+           ORDER BY c.created_at DESC
+           LIMIT $2 OFFSET $3`,
+          [agencyId, limit, offset]
+        ),
+        pool.query(
+          `SELECT COUNT(*) AS total FROM customers WHERE parent_customer_id = $1`,
+          [agencyId]
+        ),
+      ]);
+
+      res.json({
+        clients: dataR.rows,
+        total:   parseInt(countR.rows[0].total),
+        limit,
+        offset,
+      });
     } catch (err) {
       console.error('[agency/clients]', err);
       res.status(500).json({ error: err.message });
@@ -272,16 +289,19 @@ module.exports = (pool) => {
   router.post('/plans', async (req, res) => {
     try {
       const agencyId = req.customerId;
-      const { name, creditsPerMonth, monthlyCapEnabled, priceMonthly, priceYearly } = req.body;
+      const { name, creditsPerMonth, monthlyCapEnabled, priceMonthly, priceYearly, featureFlags } = req.body;
 
       if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Plan name required.' });
       const credits = parseInt(creditsPerMonth);
       if (!credits || credits < 1) return res.status(400).json({ error: 'Credits per month must be at least 1.' });
 
+      const DEFAULT_FLAGS = { wizard: true, quick_post: true, calendar: true, analytics: true, geo_audit: false, inbox: false, competitor_intel: false, templates: true, media_library: true, api_keys: false };
+      const flags = featureFlags ? { ...DEFAULT_FLAGS, ...featureFlags } : DEFAULT_FLAGS;
+
       const { rows } = await pool.query(
-        `INSERT INTO agency_plans (agency_id, name, credits_per_month, monthly_cap_enabled, price_monthly, price_yearly)
-         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-        [agencyId, name.trim(), credits, !!monthlyCapEnabled, priceMonthly || null, priceYearly || null]
+        `INSERT INTO agency_plans (agency_id, name, credits_per_month, monthly_cap_enabled, price_monthly, price_yearly, feature_flags)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [agencyId, name.trim(), credits, !!monthlyCapEnabled, priceMonthly || null, priceYearly || null, JSON.stringify(flags)]
       );
 
       res.status(201).json({ plan: rows[0] });
@@ -296,7 +316,7 @@ module.exports = (pool) => {
     try {
       const agencyId = req.customerId;
       const planId   = parseInt(req.params.id);
-      const { name, creditsPerMonth, monthlyCapEnabled, priceMonthly, priceYearly, isActive } = req.body;
+      const { name, creditsPerMonth, monthlyCapEnabled, priceMonthly, priceYearly, isActive, featureFlags } = req.body;
 
       const sets = [];
       const vals = [];
@@ -308,6 +328,7 @@ module.exports = (pool) => {
       if (priceMonthly      !== undefined) { sets.push(`price_monthly = $${i++}`);       vals.push(priceMonthly || null); }
       if (priceYearly       !== undefined) { sets.push(`price_yearly = $${i++}`);        vals.push(priceYearly || null); }
       if (isActive          !== undefined) { sets.push(`is_active = $${i++}`);           vals.push(!!isActive); }
+      if (featureFlags      !== undefined) { sets.push(`feature_flags = $${i++}`);       vals.push(JSON.stringify(featureFlags)); }
 
       if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update.' });
       vals.push(planId, agencyId);
@@ -460,6 +481,161 @@ module.exports = (pool) => {
       res.json({ history: rows });
     } catch (err) {
       console.error('[agency/credits/history]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── GET /api/agency/analytics ──────────────────────────────────────────────
+  router.get('/analytics', async (req, res) => {
+    try {
+      const agencyId = req.customerId;
+
+      const { rows } = await pool.query(
+        `SELECT c.id, c.business_name, c.workspace_display_name, c.suspended,
+                COALESCE(SUM(ABS(ct.amount)) FILTER (WHERE ct.transaction_type = 'deduction'
+                  AND ct.created_at >= date_trunc('month', NOW())), 0) AS credits_used_this_month,
+                COUNT(DISTINCT p.id) FILTER (WHERE p.created_at >= date_trunc('month', NOW())) AS posts_this_month,
+                MAX(p.created_at) AS last_post_at,
+                wpa.monthly_credit_budget, ap.name AS plan_name
+         FROM customers c
+         LEFT JOIN credit_transactions ct ON ct.customer_id = c.id
+         LEFT JOIN posts p ON p.customer_id = c.id
+         LEFT JOIN workspace_plan_assignments wpa ON wpa.workspace_id = c.id
+         LEFT JOIN agency_plans ap ON ap.id = wpa.agency_plan_id
+         WHERE c.parent_customer_id = $1
+         GROUP BY c.id, wpa.monthly_credit_budget, ap.name
+         ORDER BY credits_used_this_month DESC`,
+        [agencyId]
+      );
+
+      // Clients at risk: 0 posts in 7 days, not suspended
+      const atRisk = rows.filter(r =>
+        !r.suspended &&
+        (!r.last_post_at || (Date.now() - new Date(r.last_post_at)) > 7 * 86400000)
+      );
+
+      const totalCreditsUsed = rows.reduce((s, r) => s + parseFloat(r.credits_used_this_month || 0), 0);
+      const totalPosts = rows.reduce((s, r) => s + parseInt(r.posts_this_month || 0), 0);
+
+      res.json({
+        clients: rows,
+        atRisk,
+        totalCreditsUsed,
+        totalPosts,
+        mostActive: rows[0] || null,
+      });
+    } catch (err) {
+      console.error('[agency/analytics]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/agency/clients/:id/impersonate ───────────────────────────────
+  router.post('/clients/:id/impersonate', async (req, res) => {
+    try {
+      const agencyId = req.customerId;
+      const clientId = parseInt(req.params.id);
+
+      const own = await pool.query(
+        `SELECT id, email, business_name FROM customers WHERE id = $1 AND parent_customer_id = $2`,
+        [clientId, agencyId]
+      );
+      if (!own.rows[0]) return res.status(404).json({ error: 'Client not found.' });
+
+      const client = own.rows[0];
+      // Short-lived token (2h) with parentCustomerId so billing still resolves to agency
+      const token = generateToken(client.id, client.email, { parentCustomerId: agencyId, isAgencyImpersonation: true });
+
+      res.json({ token, clientName: client.business_name });
+    } catch (err) {
+      console.error('[agency/impersonate]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/agency/email/save-config ─────────────────────────────────────
+  // Stores agency email provider settings encrypted in white_label_config
+  router.post('/email/save-config', async (req, res) => {
+    try {
+      const agencyId = req.customerId;
+      const { emailProvider, emailApiKey, emailDomain, emailFrom, emailFromName, smtpHost, smtpPort, smtpUser, smtpPass } = req.body;
+
+      if (!emailProvider || !['mailgun', 'resend', 'smtp'].includes(emailProvider)) {
+        return res.status(400).json({ error: 'Valid emailProvider required: mailgun, resend, or smtp.' });
+      }
+
+      const emailConfig = { emailProvider };
+      if (emailApiKey)    emailConfig.emailApiKey  = encrypt(emailApiKey);   // encrypt before storing
+      if (emailDomain)    emailConfig.emailDomain   = String(emailDomain).substring(0, 100);
+      if (emailFrom)      emailConfig.emailFrom     = String(emailFrom).substring(0, 100);
+      if (emailFromName)  emailConfig.emailFromName = String(emailFromName).substring(0, 80);
+      if (smtpHost)       emailConfig.smtpHost      = String(smtpHost).substring(0, 100);
+      if (smtpPort)       emailConfig.smtpPort      = parseInt(smtpPort) || 587;
+      if (smtpUser)       emailConfig.smtpUser      = String(smtpUser).substring(0, 100);
+      if (smtpPass)       emailConfig.smtpPass      = encrypt(smtpPass);
+
+      await pool.query(
+        `UPDATE customers
+            SET white_label_config = COALESCE(white_label_config, '{}'::jsonb) || $1::jsonb,
+                updated_at = NOW()
+          WHERE id = $2`,
+        [JSON.stringify(emailConfig), agencyId]
+      );
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[agency/email/save-config]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/agency/email/test ─────────────────────────────────────────────
+  router.post('/email/test', async (req, res) => {
+    try {
+      const agencyId = req.customerId;
+
+      const { rows } = await pool.query('SELECT email, white_label_config FROM customers WHERE id = $1', [agencyId]);
+      if (!rows[0]) return res.status(404).json({ error: 'Account not found.' });
+
+      const wl = rows[0].white_label_config || {};
+      if (!wl.emailProvider) return res.status(400).json({ error: 'No email provider configured.' });
+
+      await testAgencyEmail(wl, rows[0].email);
+      res.json({ ok: true, sentTo: rows[0].email });
+    } catch (err) {
+      console.error('[agency/email/test]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/agency/broadcast ─────────────────────────────────────────────
+  router.post('/broadcast', async (req, res) => {
+    try {
+      const agencyId = req.customerId;
+      const { title, message } = req.body;
+
+      if (!title?.trim() || !message?.trim()) {
+        return res.status(400).json({ error: 'Title and message are required.' });
+      }
+
+      const clientsR = await pool.query(
+        `SELECT id FROM customers WHERE parent_customer_id = $1 AND NOT COALESCE(suspended, false)`,
+        [agencyId]
+      );
+
+      if (clientsR.rows.length === 0) return res.json({ sent: 0 });
+
+      const inserts = clientsR.rows.map(c =>
+        pool.query(
+          `INSERT INTO notifications (customer_id, type, title, message) VALUES ($1, 'agency_broadcast', $2, $3)`,
+          [c.id, title.trim().substring(0, 255), message.trim()]
+        )
+      );
+      await Promise.all(inserts);
+
+      res.json({ sent: clientsR.rows.length });
+    } catch (err) {
+      console.error('[agency/broadcast]', err);
       res.status(500).json({ error: err.message });
     }
   });

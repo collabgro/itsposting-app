@@ -1,4 +1,5 @@
 const path = require('path');
+const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
 const isNetlify = process.env.NETLIFY === 'true';
@@ -72,4 +73,14 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = process.env.NEXT_PUBLIC_SENTRY_DSN
+  ? withSentryConfig(nextConfig, {
+      org:     process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent:  true,
+      widenClientFileUpload: true,
+      hideSourceMaps: true,
+      disableLogger: true,
+      automaticVercelMonitors: false,
+    })
+  : nextConfig;

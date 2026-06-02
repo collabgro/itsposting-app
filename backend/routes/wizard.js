@@ -2156,21 +2156,28 @@ Rules:
               [billingId, postId]
             );
             if (existing.rows.length === 0) {
-              await pool.query('BEGIN');
-              const balRes = await pool.query(
-                `UPDATE customers SET credits_balance = credits_balance + 5 WHERE id=$1 RETURNING credits_balance`,
-                [billingId]
-              );
-              const newBal = balRes.rows[0]?.credits_balance ?? 0;
-              await pool.query(
-                `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description, created_at)
-                  VALUES ($1, $2, 'watermark_download', 5, $3, 'Watermark download bonus', NOW())`,
-                [billingId, postId, newBal]
-              );
-              await pool.query('COMMIT');
+              const txClient = await pool.connect();
+              try {
+                await txClient.query('BEGIN');
+                const balRes = await txClient.query(
+                  `UPDATE customers SET credits_balance = credits_balance + 5 WHERE id=$1 RETURNING credits_balance`,
+                  [billingId]
+                );
+                const newBal = balRes.rows[0]?.credits_balance ?? 0;
+                await txClient.query(
+                  `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description, created_at)
+                    VALUES ($1, $2, 'watermark_download', 5, $3, 'Watermark download bonus', NOW())`,
+                  [billingId, postId, newBal]
+                );
+                await txClient.query('COMMIT');
+              } catch (txErr) {
+                await txClient.query('ROLLBACK').catch(() => {});
+                throw txErr;
+              } finally {
+                txClient.release();
+              }
             }
           } catch (creditErr) {
-            await pool.query('ROLLBACK').catch(() => {});
             console.warn('[Wizard/download] Credit award failed (non-fatal):', creditErr.message);
           }
         }

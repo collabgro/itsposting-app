@@ -6,6 +6,25 @@ import { agencyAPI } from '../../lib/api';
 import { IpPlus, IpClose, IpDelete, IpTeam, IpDollar } from '../../components/icons';
 import { Spinner, SectionHeader } from '../../components/ui';
 
+const DEFAULT_FLAGS = {
+  wizard: true, quick_post: true, calendar: true, analytics: true,
+  geo_audit: false, inbox: false, competitor_intel: false,
+  templates: true, media_library: true, api_keys: false,
+};
+
+const FLAG_LABELS = {
+  wizard:          'Post Wizard',
+  quick_post:      'Quick Post',
+  calendar:        'Calendar',
+  analytics:       'Analytics',
+  geo_audit:       'AI Visibility (GEO Audit)',
+  inbox:           'Inbox',
+  competitor_intel:'Competitor Intel',
+  templates:       'Templates',
+  media_library:   'Media Library',
+  api_keys:        'API Keys',
+};
+
 function PlanModal({ t, plan, onClose, onSaved }) {
   const isEdit = !!plan;
   const [form, setForm] = useState({
@@ -14,6 +33,7 @@ function PlanModal({ t, plan, onClose, onSaved }) {
     monthlyCapEnabled: plan?.monthly_cap_enabled || false,
     priceMonthly:      plan?.price_monthly     || '',
     priceYearly:       plan?.price_yearly      || '',
+    featureFlags:      { ...DEFAULT_FLAGS, ...(plan?.feature_flags || {}) },
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState('');
@@ -30,6 +50,7 @@ function PlanModal({ t, plan, onClose, onSaved }) {
       monthlyCapEnabled: !!form.monthlyCapEnabled,
       priceMonthly:     form.priceMonthly ? parseFloat(form.priceMonthly) : null,
       priceYearly:      form.priceYearly  ? parseFloat(form.priceYearly)  : null,
+      featureFlags:     form.featureFlags,
     };
     try {
       const { data } = isEdit
@@ -44,7 +65,7 @@ function PlanModal({ t, plan, onClose, onSaved }) {
   }
 
   const overlayStyle = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 };
-  const boxStyle     = { background: t.card, border: `1px solid ${t.border}`, borderRadius: 18, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 24px 60px rgba(0,0,0,0.3)' };
+  const boxStyle     = { background: t.card, border: `1px solid ${t.border}`, borderRadius: 18, padding: 28, width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' };
   const labelStyle   = { display: 'block', fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 };
   const inputStyle   = { width: '100%', padding: '10px 12px', background: t.bg, border: `1px solid ${t.border}`, borderRadius: 9, fontSize: 14, color: t.text, boxSizing: 'border-box' };
 
@@ -94,6 +115,24 @@ function PlanModal({ t, plan, onClose, onSaved }) {
             </div>
           </div>
           <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 18 }}>Prices are for your records only — billing your clients is handled separately.</div>
+
+          {/* Feature Flags */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={labelStyle}>Features Clients Can Access</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {Object.entries(FLAG_LABELS).map(([key, label]) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '7px 10px', borderRadius: 8, background: t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', fontSize: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!form.featureFlags[key]}
+                    onChange={e => setForm(f => ({ ...f, featureFlags: { ...f.featureFlags, [key]: e.target.checked } }))}
+                    style={{ width: 14, height: 14, flexShrink: 0 }}
+                  />
+                  <span style={{ color: t.text }}>{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
 
           {err && <div style={{ fontSize: 12, color: t.error, marginBottom: 12 }}>{err}</div>}
           <button type="submit" disabled={saving} style={{ width: '100%', padding: '12px 0', background: t.primary, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>

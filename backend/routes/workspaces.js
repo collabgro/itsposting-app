@@ -498,6 +498,7 @@ module.exports = (pool) => {
         `SELECT wm.id AS membership_id, wm.workspace_id, wm.owner_id,
                 wm.role, wm.permissions, wm.joined_at,
                 c.business_name, c.workspace_display_name, c.industry, c.location,
+                c.logo_url, c.favicon_url,
                 o.business_name AS owner_business_name
          FROM workspace_members wm
          JOIN customers c ON c.id = wm.workspace_id

@@ -298,9 +298,19 @@ export default function AgencyClients() {
                         </span>
                       </td>
                       <td style={{ padding: '13px 16px' }}>
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <button onClick={() => router.push(`/agency/clients/${c.id}`)} title="View detail" style={{ padding: '5px 10px', fontSize: 11, fontWeight: 600, background: t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', color: t.text, border: 'none', borderRadius: 7, cursor: 'pointer' }}>
                             View
+                          </button>
+                          <button onClick={async () => {
+                            try {
+                              const { data } = await agencyAPI.impersonate(c.id);
+                              localStorage.setItem('agency_backup_token', localStorage.getItem('token') || '');
+                              localStorage.setItem('token', data.token);
+                              window.location.href = '/dashboard';
+                            } catch (err) { alert(err.response?.data?.error || err.message); }
+                          }} title="Login as this client" style={{ padding: '5px 10px', fontSize: 11, fontWeight: 600, background: 'rgba(10,132,255,0.1)', color: '#0A84FF', border: 'none', borderRadius: 7, cursor: 'pointer' }}>
+                            Login As
                           </button>
                           <button onClick={() => setCreditClient(c)} title="Allocate credits" style={{ padding: '5px 10px', fontSize: 11, fontWeight: 600, background: 'rgba(124,92,252,0.1)', color: t.primary, border: 'none', borderRadius: 7, cursor: 'pointer' }}>
                             Credits

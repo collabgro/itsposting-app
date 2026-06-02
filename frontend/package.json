@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
+    "@sentry/nextjs": "^10.56.0",
     "autoprefixer": "^10.4.16",
     "axios": "^1.6.2",
     "date-fns": "^2.30.0",

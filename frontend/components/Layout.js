@@ -41,24 +41,24 @@ const NAV_ITEMS = [
   { name: 'Dashboard',     href: '/dashboard',      icon: IpDashboard },
 
   { isDivider: true, label: 'Create' },
-  { name: 'Quick Post',    href: '/quick-post',     icon: IpZap,          isQuickPost: true },
-  { name: 'Post Wizard',   href: '/wizard',         icon: IpWizard,       showSuggBadge: true },
-  { name: 'Templates',     href: '/templates',      icon: IpPhotoStudio },
+  { name: 'Quick Post',    href: '/quick-post',     icon: IpZap,          isQuickPost: true,  featureKey: 'quick_post' },
+  { name: 'Post Wizard',   href: '/wizard',         icon: IpWizard,       showSuggBadge: true, featureKey: 'wizard' },
+  { name: 'Templates',     href: '/templates',      icon: IpPhotoStudio,  featureKey: 'templates' },
   { name: 'Post Ideas',    href: '/ideas',          icon: IpTip },
   { name: 'Content Calendar', href: '/content-calendar', icon: IpSchedule },
   { name: 'Social Planner', href: '/upload',         icon: IpCreatePost },
 
   { isDivider: true, label: 'Manage' },
-  { name: 'Calendar',      href: '/calendar',       icon: IpCalendar },
-  { name: 'Media Library', href: '/media',          icon: IpMediaLibrary },
+  { name: 'Calendar',      href: '/calendar',       icon: IpCalendar,     featureKey: 'calendar' },
+  { name: 'Media Library', href: '/media',          icon: IpMediaLibrary, featureKey: 'media_library' },
 
   { isDivider: true, label: 'Insights' },
-  { name: 'Analytics',        href: '/analytics',         icon: IpAnalytics },
-  { name: 'AI Visibility',    href: '/geo-audit',         icon: IpSearch },
-  { name: 'Competitor Intel', href: '/competitor-intel',  icon: IpTrendingUp },
+  { name: 'Analytics',        href: '/analytics',         icon: IpAnalytics,   featureKey: 'analytics' },
+  { name: 'AI Visibility',    href: '/geo-audit',         icon: IpSearch,      featureKey: 'geo_audit' },
+  { name: 'Competitor Intel', href: '/competitor-intel',  icon: IpTrendingUp,  featureKey: 'competitor_intel' },
 
   { isDivider: true, label: 'Engage' },
-  { name: 'Inbox',         href: '/inbox',          icon: IpInbox,        badgeKey: 'dmUnread' },
+  { name: 'Inbox',         href: '/inbox',          icon: IpInbox,        badgeKey: 'dmUnread', featureKey: 'inbox' },
 
   { isDivider: true, label: 'Account' },
   { name: 'Knowledge Base', href: '/knowledge-base', icon: IpBusiness },
@@ -273,15 +273,20 @@ export default function Layout({ children, title, subtitle, action }) {
   const effectivePerms = (isSubAccount || isMember)
     ? (user.workspace_permissions || ROLE_PERMISSIONS[user.workspace_role || 'editor'])
     : null;
-  const visibleNavItems = !effectivePerms
-    ? navItems
-    : navItems.filter(item => {
-        if (item.isDivider || !item.href) return true;
-        const mod = Object.entries(MODULE_ROUTES).find(([, hrefs]) => hrefs.includes(item.href))?.[0];
-        if (!mod) return true;
-        if (mod === 'billing') return false;
-        return effectivePerms[mod] !== false;
-      });
+  const featureFlags = user?.feature_flags || null;
+  const visibleNavItems = navItems.filter(item => {
+    if (item.isDivider || !item.href) return true;
+    // Agency feature flags (for sub-accounts under agency plans)
+    if (featureFlags && item.featureKey && featureFlags[item.featureKey] === false) return false;
+    // Workspace role permissions (for sub-accounts and members)
+    if (effectivePerms) {
+      const mod = Object.entries(MODULE_ROUTES).find(([, hrefs]) => hrefs.includes(item.href))?.[0];
+      if (!mod) return true;
+      if (mod === 'billing') return false;
+      return effectivePerms[mod] !== false;
+    }
+    return true;
+  });
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: t.bg, color: t.text }}>
@@ -418,8 +423,10 @@ export default function Layout({ children, title, subtitle, action }) {
                       onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #FB923C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                        {(user.business_name || '?').charAt(0).toUpperCase()}
+                      <div style={{ width: 26, height: 26, borderRadius: 5, background: 'linear-gradient(135deg, #FB923C, #F97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                        {(user.favicon_url || user.logo_url)
+                          ? <img src={user.favicon_url || user.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : (user.business_name || '?').charAt(0).toUpperCase()}
                       </div>
                       <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.business_name || 'My Account'}</div>
@@ -920,7 +927,7 @@ export default function Layout({ children, title, subtitle, action }) {
           </div>
         )}
 
-        {/* IMPERSONATION BANNER */}
+        {/* ADMIN IMPERSONATION BANNER */}
         {impersonatingAs && (
           <div style={{
             background: '#F59E0B', color: '#000', padding: '10px 24px',
@@ -933,6 +940,30 @@ export default function Layout({ children, title, subtitle, action }) {
               style={{ padding: '5px 14px', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(0,0,0,0.25)', borderRadius: 6, color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
             >
               Exit View
+            </button>
+          </div>
+        )}
+
+        {/* AGENCY IMPERSONATION BANNER */}
+        {!impersonatingAs && typeof window !== 'undefined' && localStorage.getItem('agency_backup_token') && (
+          <div style={{
+            background: '#0A84FF', color: '#fff', padding: '10px 24px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            fontSize: 13, fontWeight: 600, position: 'sticky', top: 64, zIndex: 39,
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IpWarning size={14} /> Agency view: {user?.business_name} — changes are live
+            </span>
+            <button
+              onClick={() => {
+                const backup = localStorage.getItem('agency_backup_token');
+                if (backup) localStorage.setItem('token', backup);
+                localStorage.removeItem('agency_backup_token');
+                window.location.href = '/agency/clients';
+              }}
+              style={{ padding: '5px 14px', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 6, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Exit to Agency
             </button>
           </div>
         )}
