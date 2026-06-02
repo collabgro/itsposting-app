@@ -187,56 +187,69 @@ class NanoBananaService {
 
     // Models in priority order — newer models first, legacy fallbacks last
     const modelsToTry = [
-      { name: 'gemini-2.5-flash-image', api: 'v1' },
-      { name: 'gemini-3.1-flash-image', api: 'v1' },
+      { name: 'gemini-2.5-flash-image',                    api: 'v1' },
+      { name: 'gemini-3.1-flash-image',                    api: 'v1' },
       { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1' },
       { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1beta' },
-      { name: 'gemini-2.0-flash-exp-image-generation', api: 'v1beta' },
+      { name: 'gemini-2.0-flash-exp-image-generation',     api: 'v1beta' },
+    ];
+
+    // Try both modalities configs — some models require TEXT+IMAGE, others IMAGE only
+    const modalityConfigs = [
+      ['TEXT', 'IMAGE'],
+      ['IMAGE'],
     ];
 
     let lastError;
     for (const { name: modelName, api } of modelsToTry) {
-      try {
-        const response = await axios.post(
-          `https://generativelanguage.googleapis.com/${api}/models/${modelName}:generateContent`,
-          {
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': this.apiKey,
+      for (const responseModalities of modalityConfigs) {
+        try {
+          const response = await axios.post(
+            `https://generativelanguage.googleapis.com/${api}/models/${modelName}:generateContent`,
+            {
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { responseModalities },
             },
-            timeout: 60000,
-          }
-        );
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': this.apiKey,
+              },
+              // Also pass as query param — belt-and-suspenders for AI Studio keys
+              params: { key: this.apiKey },
+              timeout: 60000,
+            }
+          );
 
-        const candidates = response.data?.candidates || [];
-        for (const candidate of candidates) {
-          const parts = candidate.content?.parts || [];
-          for (const part of parts) {
-            if (part.inlineData?.data) {
-              console.log(`[NanoBanana] ✓ Image generated with model: ${modelName} (${api})`);
-              return part.inlineData.data;
+          const candidates = response.data?.candidates || [];
+          for (const candidate of candidates) {
+            const parts = candidate.content?.parts || [];
+            for (const part of parts) {
+              if (part.inlineData?.data) {
+                console.log(`[NanoBanana] ✓ Image generated — model: ${modelName} (${api}), modalities: ${responseModalities.join('+')}`);
+                return part.inlineData.data;
+              }
             }
           }
-        }
 
-        const finishReason = candidates[0]?.finishReason;
-        console.warn(`[NanaBanana] ${modelName} (${api}) returned no image. finishReason: ${finishReason}, candidateCount: ${candidates.length}`);
-        lastError = new Error(`${modelName}: no image data (finishReason: ${finishReason || 'unknown'})`);
-      } catch (err) {
-        const status = err.response?.status;
-        const detail = err.response?.data?.error?.message || err.message;
-        // 404 = model not available for this key — skip silently to next
-        if (status === 404) {
-          console.warn(`[NanoBanana] ${modelName} (${api}) not available (404), trying next`);
-          lastError = new Error(`${modelName}: model not available`);
-          continue;
+          const finishReason = candidates[0]?.finishReason;
+          console.warn(`[NanoBanana] ${modelName} (${api}) [${responseModalities}] returned no image. finishReason: ${finishReason}, candidateCount: ${candidates.length}`);
+          lastError = new Error(`${modelName}: no image (finishReason: ${finishReason || 'unknown'})`);
+          // If no image but no error — no point trying other modalities for this model
+          break;
+        } catch (err) {
+          const status = err.response?.status;
+          const detail = err.response?.data?.error?.message || err.message;
+          if (status === 404) {
+            console.warn(`[NanoBanana] ${modelName} (${api}) not found (404), skipping`);
+            lastError = new Error(`${modelName}: not available`);
+            break; // 404 means model doesn't exist — skip both modality configs
+          }
+          console.warn(`[NanoBanana] ${modelName} (${api}) [${responseModalities}] failed (${status || 'network'}): ${detail}`);
+          lastError = new Error(`${modelName}: ${detail}`);
+          // On auth/rate errors, no point trying different modalities — break inner loop
+          if (status === 403 || status === 429) break;
         }
-        console.warn(`[NanoBanana] ${modelName} (${api}) failed (${status || 'network'}): ${detail}`);
-        lastError = new Error(`${modelName}: ${detail}`);
       }
     }
 
