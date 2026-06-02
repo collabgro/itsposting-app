@@ -275,7 +275,7 @@ module.exports = function calendarPlansRoutes(pool) {
       ].filter(Boolean).join(' | ');
 
       // ── Build Claude prompt ──────────────────────────────────────────────
-      const prompt = `You are PostCore, ItsPosting's AI social media advisor for local service businesses.
+      const prompt = `You are ItsPosting AI, ItsPosting's AI social media advisor for local service businesses.
 
 BUSINESS PROFILE:
 - Name: ${customer.business_name}
@@ -360,7 +360,7 @@ Respond ONLY with a valid JSON array of exactly ${totalPosts} objects. No markdo
       } catch (parseErr) {
         console.error('[CalendarPlans] ai-generate parse error:', parseErr);
         console.error('[CalendarPlans] Raw AI response:', aiResponse.content[0].text.substring(0, 500));
-        return res.status(500).json({ error: 'PostCore had trouble formatting the plan. Please try again.' });
+        return res.status(500).json({ error: 'ItsPosting AI had trouble formatting the plan. Please try again.' });
       }
 
       // Validate + clean each plan
@@ -545,7 +545,7 @@ Respond ONLY with a valid JSON array of exactly ${totalPosts} objects. No markdo
       const startStr   = rangeStart.toISOString().split('T')[0];
       const endStr     = rangeEnd.toISOString().split('T')[0];
 
-      const prompt = `You are PostCore, ItsPosting's AI advisor for local service businesses.
+      const prompt = `You are ItsPosting AI, ItsPosting's AI advisor for local service businesses.
 
 Customer: ${customer.business_name} | Industry: ${customer.industry} | Location: ${customer.location || ''}
 Planning: ${startStr} to ${endStr} | Seasonal focus: ${seasonal.urgencyTopic || 'general service'}

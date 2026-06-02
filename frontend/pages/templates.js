@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { studioAPI, customerAPI } from '../lib/api';
 import { IpPhotoStudio, IpClose, IpVideo, IpSparkle, IpSearch, IpCopy, IpEdit, IpDelete } from '../components/icons';
 import { EmptyState } from '../components/ui';
@@ -70,6 +71,7 @@ function rrect(ctx, x, y, w, h, r) {
 export default function TemplatesPage() {
   const router = useRouter();
   const { t } = useTheme();
+  const { appName } = useBranding();
 
   const [curatedTemplates,     setCuratedTemplates]     = useState([]);
   const [curatedLoading,       setCuratedLoading]       = useState(false);
@@ -335,7 +337,7 @@ export default function TemplatesPage() {
       {/* ── Section tabs ── */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 28, background: t.input, padding: 4, borderRadius: 12, width: isMobile ? '100%' : 'fit-content', border: `1px solid ${t.border}` }}>
         {[
-          { id: 'templates',  label: 'ItsPosting Templates', icon: IpSparkle },
+          { id: 'templates',  label: `${appName} Templates`, icon: IpSparkle },
           { id: 'mydesigns',  label: 'My Designs',           icon: IpPhotoStudio },
         ].map(s => {
           const Icon = s.icon;
@@ -416,7 +418,7 @@ export default function TemplatesPage() {
             <div style={{ textAlign: 'center', padding: '80px 0', color: t.textMuted, border: `1px dashed ${t.border}`, borderRadius: 16 }}>
               <div style={{ fontSize: 44, marginBottom: 16 }}>🎨</div>
               <div style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 8 }}>Templates coming soon</div>
-              <div style={{ fontSize: 13, maxWidth: 320, margin: '0 auto', lineHeight: 1.6 }}>ItsPosting is building industry-specific templates for your business. Check back soon!</div>
+              <div style={{ fontSize: 13, maxWidth: 320, margin: '0 auto', lineHeight: 1.6 }}>{appName} is building industry-specific templates for your business. Check back soon!</div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, paddingBottom: 60 }}>

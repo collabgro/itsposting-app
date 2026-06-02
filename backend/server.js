@@ -40,6 +40,7 @@ const calendarPlansRoutes = require('./routes/calendarPlans');
 const referralsRoutes = require('./routes/referrals');
 const competitorRoutes = require('./routes/competitor');
 const publicRoutes = require('./routes/public');
+const agencyRoutes = require('./routes/agency');
 
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
@@ -1097,6 +1098,37 @@ console.log('══════════════════════�
     )`,
     `CREATE INDEX IF NOT EXISTS idx_service_requests_customer ON service_requests(customer_id)`,
     `CREATE INDEX IF NOT EXISTS idx_service_requests_status   ON service_requests(status, created_at DESC)`,
+
+    // ── Agency White-Label — custom plans + workspace assignments ──
+    `CREATE TABLE IF NOT EXISTS agency_plans (
+      id                  SERIAL PRIMARY KEY,
+      agency_id           INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      name                VARCHAR(100) NOT NULL,
+      credits_per_month   INTEGER NOT NULL DEFAULT 50,
+      monthly_cap_enabled BOOLEAN DEFAULT false,
+      price_monthly       DECIMAL(10,2),
+      price_yearly        DECIMAL(10,2),
+      is_active           BOOLEAN DEFAULT true,
+      created_at          TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_agency_plans_agency ON agency_plans(agency_id, is_active)`,
+    `CREATE TABLE IF NOT EXISTS workspace_plan_assignments (
+      id                    SERIAL PRIMARY KEY,
+      workspace_id          INTEGER NOT NULL UNIQUE REFERENCES customers(id) ON DELETE CASCADE,
+      agency_id             INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      agency_plan_id        INTEGER REFERENCES agency_plans(id) ON DELETE SET NULL,
+      monthly_credit_budget INTEGER,
+      credits_used_this_cycle INTEGER DEFAULT 0,
+      cycle_reset_at        TIMESTAMP,
+      created_at            TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_wpa_agency ON workspace_plan_assignments(agency_id)`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS agency_credit_markup DECIMAL(5,4) DEFAULT 0`,
+    // Agency client self-signup — public handle for branded signup URL
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS public_handle VARCHAR(50)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_public_handle ON customers(public_handle) WHERE public_handle IS NOT NULL`,
+    // Agency feature flags per plan
+    `ALTER TABLE agency_plans ADD COLUMN IF NOT EXISTS feature_flags JSONB DEFAULT '{"wizard":true,"quick_post":true,"calendar":true,"analytics":true,"geo_audit":false,"inbox":false,"competitor_intel":false,"templates":true,"media_library":true,"api_keys":false}'`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -3084,6 +3116,7 @@ app.use('/api/ideas', ideasRoutes(pool));
 app.use('/api/calendar-plans', calendarPlansRoutes(pool));
 app.use('/api/referrals', referralsRoutes(pool));
 app.use('/api/competitor', competitorRoutes(pool));
+app.use('/api/agency', agencyRoutes(pool));
 
 
 app.get('/health', async (req, res) => {

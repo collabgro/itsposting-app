@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpArrowLeft, IpPlus, IpPower, IpCheckCircle, IpBilling, IpHistory,
-  IpWarning, IpAdmin, IpEdit, IpClose, IpSave, IpTeam,
+  IpWarning, IpAdmin, IpEdit, IpClose, IpSave, IpTeam, IpComment, IpMail,
 } from '../../../components/icons';
 import Layout from '../../../components/Layout';
 import { Button, Badge, SectionHeader, EmptyState, Spinner, ConfirmModal } from '../../../components/ui';
@@ -31,6 +31,11 @@ export default function AdminCustomerDetail() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [serviceRequests, setServiceRequests] = useState([]);
+  const [reqActionId, setReqActionId] = useState(null); // id of request being actioned
+  const [reqActionType, setReqActionType] = useState(null); // 'email'|'notify'|'reject'
+  const [reqActionMsg, setReqActionMsg] = useState('');
+  const [reqActionLoading, setReqActionLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -45,6 +50,10 @@ export default function AdminCustomerDetail() {
     try {
       const res = await adminAPI.getCustomer(id);
       setData(res.data);
+      // Load service requests for this customer (non-fatal)
+      adminAPI.getServiceRequests({ limit: 20 })
+        .then(r => setServiceRequests((r.data.requests || []).filter(req => req.customer_id === parseInt(id))))
+        .catch(() => {});
     } catch (err) {
       if (err.response?.status === 403) router.replace('/dashboard');
       else if (err.response?.status === 404) router.replace('/admin/customers');
@@ -381,6 +390,106 @@ export default function AdminCustomerDetail() {
               <Badge variant={p.status === 'posted' ? 'success' : p.status === 'scheduled' ? 'warning' : 'default'}>{p.status}</Badge>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* SERVICE REQUESTS */}
+      {serviceRequests.length > 0 && (
+        <div style={{ ...gc, marginTop: 20 }}>
+          <SectionHeader icon={IpComment} title={`Service requests (${serviceRequests.length})`} />
+          {serviceRequests.map((req) => {
+            const isCredit = req.type === 'credit_purchase';
+            const detail = isCredit
+              ? `${req.request_data?.credits} credits — $${req.request_data?.price}`
+              : `Agency plan · ${req.request_data?.clients || '?'} clients`;
+            const statusColor = { pending: '#FB923C', in_progress: '#3B82F6', resolved: '#22c55e', rejected: '#ef4444' }[req.status] || '#FB923C';
+            const isOpen = reqActionId === req.id;
+            return (
+              <div key={req.id} style={{ borderBottom: `1px solid ${t.border}` }}>
+                <div style={{ padding: '12px 0', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>
+                      {isCredit ? 'Credit Purchase' : 'Agency Plan Application'}
+                      <span style={{ marginLeft: 8, fontSize: 11, color: statusColor, fontWeight: 700, textTransform: 'capitalize' }}>{req.status.replace('_', ' ')}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: t.textMuted }}>{detail} · {new Date(req.created_at).toLocaleString()}</div>
+                    {(req.request_data?.message || req.request_data?.useCase) && (
+                      <div style={{ fontSize: 11, color: t.textMuted, fontStyle: 'italic', marginTop: 2 }}>
+                        "{req.request_data.message || req.request_data.useCase}"
+                      </div>
+                    )}
+                  </div>
+                  {req.status !== 'resolved' && req.status !== 'rejected' && (
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Approve this request?')) return;
+                          try { await adminAPI.approveServiceRequest(req.id); showMsg('success', 'Approved!'); load(); } catch { showMsg('error', 'Failed'); }
+                        }}
+                        style={{ padding: '5px 12px', borderRadius: 7, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => { setReqActionId(isOpen && reqActionType === 'email' ? null : req.id); setReqActionType('email'); setReqActionMsg(''); }}
+                        style={{ padding: '5px 10px', borderRadius: 7, background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', border: `1px solid ${t.border}`, color: t.text, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <IpMail size={12} /> Email
+                      </button>
+                      <button
+                        onClick={() => { setReqActionId(isOpen && reqActionType === 'notify' ? null : req.id); setReqActionType('notify'); setReqActionMsg(''); }}
+                        style={{ padding: '5px 10px', borderRadius: 7, background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', border: `1px solid ${t.border}`, color: t.text, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <IpComment size={12} /> Notify
+                      </button>
+                      <button
+                        onClick={() => { setReqActionId(isOpen && reqActionType === 'reject' ? null : req.id); setReqActionType('reject'); setReqActionMsg(''); }}
+                        style={{ padding: '5px 10px', borderRadius: 7, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {isOpen && (
+                  <div style={{ padding: '10px 0 14px', paddingLeft: 20 }}>
+                    <textarea
+                      rows={2}
+                      placeholder={reqActionType === 'reject' ? 'Reason for rejection…' : 'Message to customer…'}
+                      value={reqActionMsg}
+                      onChange={e => setReqActionMsg(e.target.value)}
+                      style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 12, fontFamily: 'inherit', resize: 'none', outline: 'none', marginBottom: 8 }}
+                    />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        disabled={reqActionLoading}
+                        onClick={async () => {
+                          if (!reqActionMsg.trim()) return;
+                          setReqActionLoading(true);
+                          try {
+                            if (reqActionType === 'reject') {
+                              await adminAPI.updateServiceRequest(req.id, { status: 'rejected', admin_notes: reqActionMsg.trim() });
+                              showMsg('success', 'Rejected and customer notified.');
+                            } else {
+                              await adminAPI.contactServiceRequest(req.id, reqActionType, reqActionMsg.trim());
+                              showMsg('success', `${reqActionType === 'email' ? 'Email' : 'Notification'} sent.`);
+                            }
+                            setReqActionId(null); load();
+                          } catch { showMsg('error', 'Failed'); }
+                          finally { setReqActionLoading(false); }
+                        }}
+                        style={{ padding: '6px 14px', background: reqActionType === 'reject' ? '#ef4444' : '#7C5CFC', border: 'none', borderRadius: 7, color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        {reqActionLoading ? '…' : reqActionType === 'reject' ? 'Reject' : reqActionType === 'email' ? 'Send Email' : 'Send Notification'}
+                      </button>
+                      <button onClick={() => setReqActionId(null)} style={{ padding: '6px 12px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 7, color: t.textMuted, fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

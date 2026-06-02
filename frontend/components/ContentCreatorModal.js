@@ -8,6 +8,7 @@ import {
 import { contentAPI, postsAPI, analyticsAPI } from '../lib/api';
 import toast from 'react-hot-toast';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { Button, Spinner } from './ui';
 
 const CONTENT_TYPES = [
@@ -134,6 +135,7 @@ export default function ContentCreatorModal({
   initialPrompt = '', initialContentType = '',
 }) {
   const { t } = useTheme();
+  const { aiName } = useBranding();
 
   // Steps: 1=content type  2=format picker  3=prompt  4=generating  5=result
   const [step, setStep]           = useState(initialPrompt && initialContentType ? 3 : 1);
@@ -368,7 +370,7 @@ export default function ContentCreatorModal({
               {initialPrompt && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 8, marginBottom: 14, fontSize: 12, color: t.primary }}>
                   <IpSparkle size={13} style={{ flexShrink: 0 }} />
-                  <span><strong>PostCore draft loaded</strong> — edit the caption or generate something new</span>
+                  <span><strong>{aiName} draft loaded</strong> — edit the caption or generate something new</span>
                 </div>
               )}
               <button onClick={() => setStep(2)} style={{ fontSize: 12, color: t.primary, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 20, cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}>

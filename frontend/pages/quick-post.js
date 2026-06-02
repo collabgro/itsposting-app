@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import Layout from '../components/Layout';
 import Icon from '../components/Icon';
 import {
@@ -468,6 +469,7 @@ export default function QuickPost() {
   const router = useRouter();
   const { t, theme } = useTheme();
   const { showToast } = useToast();
+  const { aiName } = useBranding();
 
   const [mounted,       setMounted]       = useState(false);
   const [contentType,   setContentType]   = useState('static');
@@ -568,7 +570,7 @@ export default function QuickPost() {
       showToast('Post ready — choose a version below', 'success');
       window.dispatchEvent(new Event('creditRefresh'));
     } catch (err) {
-      setError(err.response?.data?.error || 'PostCore couldn\'t generate your post. Please try again.');
+      setError(err.response?.data?.error || `${aiName} couldn't generate your post. Please try again.`);
     } finally {
       setGenerating(false);
     }
@@ -787,7 +789,7 @@ export default function QuickPost() {
               <textarea
                 rows={3}
                 maxLength={200}
-                placeholder={selectedJob?.detailHint || 'Any extra context for PostCore...'}
+                placeholder={selectedJob?.detailHint || 'Any extra context for your AI advisor...'}
                 value={details}
                 onChange={e => setDetails(e.target.value)}
                 style={{ ...iStyle, padding: '12px 16px', fontSize: 14 }}

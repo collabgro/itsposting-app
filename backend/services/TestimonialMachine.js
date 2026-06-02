@@ -117,7 +117,7 @@ class TestimonialMachine {
       try {
         const ns = new NotificationService(client);
         ns.create(customer.id, 'system',
-          'PostCore created a testimonial post for you',
+          'ItsPosting AI created a testimonial post for you',
           `We turned a ${review.stars}-star review from ${review.name} into a draft post. Tap to review and publish it.`
         );
       } catch (notifErr) {

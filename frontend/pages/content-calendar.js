@@ -2,20 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { calendarPlansAPI, customerAPI } from '../lib/api';
 import {
   IpSparkle, IpClose, IpDelete, IpArrowRight, IpAnalytics,
   IpCalendar, IpChevronRight, IpArrowLeft, IpPlus,
+  IpPhoto, IpCarousel, IpVideo, IpTextCard,
 } from '../components/icons';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const CONTENT_TYPES = [
-  { value: 'photo_post', label: 'Photo',    color: '#3B82F6', icon: '📸' },
-  { value: 'carousel',   label: 'Carousel', color: '#7C5CFC', icon: '🎠' },
-  { value: 'video',      label: 'Video',    color: '#EF4444', icon: '🎥' },
-  { value: 'text_card',  label: 'Text',     color: '#22C55E', icon: '📝' },
-  { value: 'story',      label: 'Story',    color: '#F97316', icon: '⚡' },
+  { value: 'photo_post', label: 'Photo',    color: '#3B82F6', Icon: IpPhoto },
+  { value: 'carousel',   label: 'Carousel', color: '#7C5CFC', Icon: IpCarousel },
+  { value: 'video',      label: 'Video',    color: '#EF4444', Icon: IpVideo },
+  { value: 'text_card',  label: 'Text',     color: '#22C55E', Icon: IpTextCard },
+  { value: 'story',      label: 'Story',    color: '#F97316', Icon: IpSparkle },
 ];
 
 const STATUS_CFG = {
@@ -35,10 +37,10 @@ const PLATFORMS = [
 ];
 
 const POST_MIX_TYPES = [
-  { key: 'photo_post', label: 'Photo Posts',  icon: '📸', color: '#3B82F6', desc: 'Before/after, job showcase' },
-  { key: 'text_card',  label: 'Text Cards',   icon: '📝', color: '#22C55E', desc: 'Tips, FAQs, quick advice' },
-  { key: 'carousel',   label: 'Carousels',    icon: '🎠', color: '#7C5CFC', desc: 'Step-by-step, multiple tips' },
-  { key: 'video',      label: 'Video Posts',  icon: '🎥', color: '#EF4444', desc: 'Process reveals, walk-throughs' },
+  { key: 'photo_post', label: 'Photo Posts',  color: '#3B82F6', desc: 'Before/after, job showcase' },
+  { key: 'text_card',  label: 'Text Cards',   color: '#22C55E', desc: 'Tips, FAQs, quick advice' },
+  { key: 'carousel',   label: 'Carousels',    color: '#7C5CFC', desc: 'Step-by-step, multiple tips' },
+  { key: 'video',      label: 'Video Posts',  color: '#EF4444', desc: 'Process reveals, walk-throughs' },
 ];
 
 const CONTENT_ANGLE_CFG = {
@@ -60,7 +62,7 @@ const LOADING_MESSAGES = [
   'Adding local references for your area…',
   'Balancing the 70/20/10 content mix…',
   'Scheduling posts for maximum reach…',
-  'Running the PostCore quality check…',
+  'Running the AI quality check…',
   'Finalising your content plan…',
 ];
 
@@ -114,6 +116,14 @@ function parseNotes(notes) {
     if (parsed.caption) return parsed;
   } catch {}
   return { caption: notes || '', hashtags: [], engagement_question: '', content_angle: 'educational', hook: '' };
+}
+
+// Renders the branded SVG icon for a given content type value
+function ContentIcon({ type, size = 14, color }) {
+  const ct = CONTENT_TYPES.find(c => c.value === type);
+  if (!ct?.Icon) return null;
+  const Icon = ct.Icon;
+  return <Icon size={size} color={color || ct.color} style={{ flexShrink: 0 }} />;
 }
 
 // ─── MiniPlanChip ─────────────────────────────────────────────────────────────
@@ -295,6 +305,7 @@ function ContentMixBar({ plans, t }) {
 // ─── AI Fill Setup Modal ──────────────────────────────────────────────────────
 
 function AiFillModal({ t, theme, open, onClose, onGenerate, userCredits, periodLabel, view }) {
+  const { aiName } = useBranding();
   const [mix, setMix]           = useState({ photo_post: 2, text_card: 2, carousel: 1, video: 0 });
   const [platforms, setPlatforms] = useState(['facebook', 'instagram']);
 
@@ -351,10 +362,10 @@ function AiFillModal({ t, theme, open, onClose, onGenerate, userCredits, periodL
               Content Mix
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {POST_MIX_TYPES.map(({ key, label, icon, color, desc }) => (
+              {POST_MIX_TYPES.map(({ key, label, color, desc }) => (
                 <div key={key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'11px 14px', borderRadius:12, background: t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.025)', border:`1px solid ${mix[key] > 0 ? color + '33' : t.border}`, transition:'border 150ms' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:11 }}>
-                    <div style={{ width:36, height:36, borderRadius:10, background:`${color}18`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, flexShrink:0 }}>{icon}</div>
+                    <div style={{ width:36, height:36, borderRadius:10, background:`${color}18`, border:`1px solid ${color}30`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}><ContentIcon type={key} size={18} color={color} /></div>
                     <div>
                       <div style={{ fontSize:13, fontWeight:700, color:t.text }}>{label}</div>
                       <div style={{ fontSize:11, color:t.textMuted, marginTop:1 }}>{desc}</div>
@@ -398,7 +409,7 @@ function AiFillModal({ t, theme, open, onClose, onGenerate, userCredits, periodL
 
           {/* PostCore intelligence bullets */}
           <div style={{ padding:'14px 16px', borderRadius:12, background:'rgba(124,92,252,0.07)', border:'1px solid rgba(124,92,252,0.18)', marginBottom:4 }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'#9B7FFF', marginBottom:8 }}>PostCore will use:</div>
+            <div style={{ fontSize:12, fontWeight:700, color:'#9B7FFF', marginBottom:8 }}>{aiName} will use:</div>
             {[
               '✓ Seasonal intelligence for your industry this month',
               '✓ Industry-specific pain points & proven hook formulas',
@@ -461,6 +472,7 @@ function AiFillModal({ t, theme, open, onClose, onGenerate, userCredits, periodL
 // ─── Generating Overlay ───────────────────────────────────────────────────────
 
 function GeneratingOverlay({ t }) {
+  const { aiName } = useBranding();
   const [msgIdx, setMsgIdx] = useState(0);
   const [progress, setProgress] = useState(5);
 
@@ -480,7 +492,7 @@ function GeneratingOverlay({ t }) {
         <div style={{ width:60, height:60, borderRadius:18, background:'linear-gradient(135deg,#7C5CFC,#9B7FFF)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px', boxShadow:'0 8px 28px rgba(124,92,252,0.5)', animation:'postCorePulse 2s ease-in-out infinite' }}>
           <IpSparkle size={28} color="#fff" />
         </div>
-        <div style={{ fontSize:17, fontWeight:800, color:t.text, marginBottom:6 }}>PostCore is writing…</div>
+        <div style={{ fontSize:17, fontWeight:800, color:t.text, marginBottom:6 }}>{aiName} is writing…</div>
         <div style={{ fontSize:13, color:t.textMuted, marginBottom:28, minHeight:40, lineHeight:1.5, transition:'opacity 300ms' }}>
           {LOADING_MESSAGES[msgIdx]}
         </div>
@@ -567,7 +579,7 @@ function ReviewModal({ t, plans, onClose, onConfirm }) {
           <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:13, flexWrap:'wrap' }}>
             {ct && (
               <span style={{ padding:'3px 10px', borderRadius:20, background:`${ct.color}18`, border:`1px solid ${ct.color}33`, color:ct.color, fontSize:11, fontWeight:700, display:'flex', alignItems:'center', gap:4 }}>
-                {ct.icon} {ct.label}
+                <ContentIcon type={plan.content_type} size={11} color={ct.color} /> {ct.label}
               </span>
             )}
             <span style={{ padding:'3px 10px', borderRadius:20, background:angleCfg.bg, border:`1px solid ${angleCfg.color}33`, color:angleCfg.color, fontSize:11, fontWeight:700 }}>
@@ -593,8 +605,9 @@ function ReviewModal({ t, plans, onClose, onConfirm }) {
 
           {/* Hook highlight */}
           {plan.hook && (
-            <div style={{ padding:'8px 12px', borderRadius:9, background:'rgba(124,92,252,0.09)', border:'1px solid rgba(124,92,252,0.2)', marginBottom:11, fontSize:12, color:'#9B7FFF', fontWeight:600, lineHeight:1.5 }}>
-              🎯 Hook: "{plan.hook}"
+            <div style={{ padding:'8px 12px', borderRadius:9, background:'rgba(124,92,252,0.09)', border:'1px solid rgba(124,92,252,0.2)', marginBottom:11, fontSize:12, color:'#9B7FFF', fontWeight:600, lineHeight:1.5, display:'flex', alignItems:'flex-start', gap:6 }}>
+              <IpSparkle size={13} color="#9B7FFF" style={{ flexShrink:0, marginTop:1 }} />
+              <span>Hook: "{plan.hook}"</span>
             </div>
           )}
 
@@ -691,6 +704,7 @@ function ReviewModal({ t, plans, onClose, onConfirm }) {
 // ─── Plan Drawer ──────────────────────────────────────────────────────────────
 
 function PlanDrawer({ plan, defaultDate, onClose, onSave, onDelete, onGenerate, t, theme, isMobile }) {
+  const { aiName } = useBranding();
   const isNew = !plan?.id;
 
   // Parse AI-generated notes JSON so the caption field shows cleanly
@@ -775,8 +789,8 @@ function PlanDrawer({ plan, defaultDate, onClose, onSave, onDelete, onGenerate, 
             <label style={lbl}>Content Type</label>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
               {CONTENT_TYPES.map(ct => (
-                <button key={ct.value} onClick={() => set('content_type', ct.value)} style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:600, cursor:'pointer', border:`1px solid ${form.content_type === ct.value ? ct.color : t.isDark ? 'rgba(255,255,255,0.1)' : t.border}`, background: form.content_type === ct.value ? `${ct.color}22` : 'transparent', color: form.content_type === ct.value ? ct.color : t.textMuted, transition:'all 120ms' }}>
-                  {ct.icon} {ct.label}
+                <button key={ct.value} onClick={() => set('content_type', ct.value)} style={{ padding:'5px 12px', borderRadius:20, fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:5, border:`1px solid ${form.content_type === ct.value ? ct.color : t.isDark ? 'rgba(255,255,255,0.1)' : t.border}`, background: form.content_type === ct.value ? `${ct.color}22` : 'transparent', color: form.content_type === ct.value ? ct.color : t.textMuted, transition:'all 120ms' }}>
+                  <ContentIcon type={ct.value} size={12} color={form.content_type === ct.value ? ct.color : t.textMuted} /> {ct.label}
                 </button>
               ))}
             </div>
@@ -794,7 +808,7 @@ function PlanDrawer({ plan, defaultDate, onClose, onSave, onDelete, onGenerate, 
           <div style={{ marginBottom:16 }}>
             <label style={lbl}>Content Brief / Caption</label>
             <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
-              placeholder="What should this post be about? PostCore uses this when you generate."
+              placeholder="What should this post be about? Your AI advisor uses this when you generate."
               style={{ ...inp, height:100, resize:'vertical', lineHeight:1.6 }} maxLength={5000} />
           </div>
           {aiHashtags.length > 0 && (
@@ -827,7 +841,7 @@ function PlanDrawer({ plan, defaultDate, onClose, onSave, onDelete, onGenerate, 
           )}
           {!isNew && plan?.status !== 'published' && (
             <button onClick={handleGenerate} disabled={generating} style={{ width:'100%', padding:11, background:'linear-gradient(135deg,#7C5CFC,#9B7FFF)', border:'none', borderRadius:10, color:'#fff', fontSize:13, fontWeight:700, cursor:generating?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:6, boxShadow:'0 4px 16px rgba(124,92,252,0.4)', opacity:generating?0.7:1 }}>
-              <IpSparkle size={14} /> {generating ? 'Opening Wizard…' : 'Generate with PostCore →'}
+              <IpSparkle size={14} /> {generating ? 'Opening Wizard…' : `Generate with ${aiName} →`}
             </button>
           )}
           <div style={{ display:'flex', gap:8 }}>
@@ -855,6 +869,7 @@ function PlanDrawer({ plan, defaultDate, onClose, onSave, onDelete, onGenerate, 
 export default function ContentCalendarPage() {
   const router  = useRouter();
   const { theme, t } = useTheme();
+  const { aiName } = useBranding();
 
   const [view,       setView]       = useState('weekly');
   const [anchor,     setAnchor]     = useState(() => {
@@ -942,7 +957,7 @@ export default function ContentCalendarPage() {
       });
       const generated = res.data?.plans ?? [];
       if (!Array.isArray(generated) || generated.length === 0) {
-        showToast('PostCore returned no plans. Please try again.', 'error');
+        showToast(aiName + ' returned no plans. Please try again.', 'error');
         return;
       }
       setReviewPlans(generated);
@@ -1116,7 +1131,7 @@ export default function ContentCalendarPage() {
   const isEmpty = plans.length === 0 && !loading;
 
   return (
-    <Layout title="Content Calendar" subtitle="Plan your content — PostCore fills it for you">
+    <Layout title="Content Calendar" subtitle={`Plan your content — ${aiName} fills it for you`}>
 
       {/* Global keyframes */}
       <style>{`
@@ -1211,10 +1226,12 @@ export default function ContentCalendarPage() {
       ) : isEmpty ? (
         // Empty state
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'60px 20px', textAlign:'center' }}>
-          <div style={{ width:72, height:72, borderRadius:22, background:'linear-gradient(135deg,rgba(124,92,252,0.15),rgba(124,92,252,0.05))', border:'1.5px solid rgba(124,92,252,0.2)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:20, fontSize:32 }}>📅</div>
+          <div style={{ width:72, height:72, borderRadius:22, background:'linear-gradient(135deg,rgba(124,92,252,0.15),rgba(124,92,252,0.05))', border:'1.5px solid rgba(124,92,252,0.2)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:20 }}>
+            <IpCalendar size={32} color="rgba(124,92,252,0.6)" />
+          </div>
           <div style={{ fontSize:18, fontWeight:800, color:t.text, marginBottom:8 }}>Your {view === 'monthly' ? 'month' : view === 'weekly' ? 'week' : '10 days'} is open</div>
           <div style={{ fontSize:14, color:t.textMuted, maxWidth:340, lineHeight:1.6, marginBottom:28 }}>
-            Let PostCore fill it with perfectly timed, industry-specific content — just set your mix and go.
+            Let {aiName} fill it with perfectly timed, industry-specific content — just set your mix and go.
           </div>
           <button
             onClick={handleOpenFill}

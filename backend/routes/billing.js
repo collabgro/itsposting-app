@@ -86,7 +86,7 @@ module.exports = (pool) => {
               const newBalance = (customerResult.rows[0].credits_balance || 0) + creditPack.amount;
               await pool.query(`UPDATE customers SET credits_balance=$1, updated_at=NOW() WHERE id=$2`, [newBalance, customerId]);
               await pool.query(
-                `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description) VALUES ($1,'credit',$2,$3,$4)`,
+                `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description) VALUES ($1,'purchase',$2,$3,$4)`,
                 [customerId, creditPack.amount, newBalance, `Credit pack purchase: ${creditPack.amount} credits ($${creditPack.price})`]
               );
               console.log(`[Whop] Credit pack ${creditPack.id} granted to customer ${customerId}`);
@@ -285,6 +285,69 @@ module.exports = (pool) => {
     }
   });
 
+  // ── Service requests (credit purchase / agency plan interest) ───────────────
+  router.post('/service-request', authenticate, async (req, res) => {
+    try {
+      const { type, data = {} } = req.body;
+      if (!['credit_purchase', 'agency_plan'].includes(type)) {
+        return res.status(400).json({ error: 'Invalid request type' });
+      }
+
+      // Sanitise incoming data
+      const safeData = {};
+      if (type === 'credit_purchase') {
+        const credits = parseInt(data.credits);
+        if (!credits || credits < 10 || credits > 10000) {
+          return res.status(400).json({ error: 'Credits must be between 10 and 10,000' });
+        }
+        safeData.credits = credits;
+        safeData.price = Math.round(credits * 0.4 * 100) / 100;
+        safeData.message = String(data.message || '').substring(0, 300);
+      } else {
+        safeData.businessName = String(data.businessName || '').substring(0, 100);
+        safeData.clients = String(data.clients || '').substring(0, 20);
+        safeData.useCase = String(data.useCase || '').substring(0, 300);
+      }
+
+      // Check for existing pending request of same type to avoid duplicates
+      const existing = await pool.query(
+        `SELECT id FROM service_requests WHERE customer_id = $1 AND type = $2 AND status = 'pending'`,
+        [req.customerId, type]
+      );
+      if (existing.rows.length > 0) {
+        return res.json({ id: existing.rows[0].id, type, status: 'pending', duplicate: true });
+      }
+
+      const { rows: [request] } = await pool.query(
+        `INSERT INTO service_requests (customer_id, type, request_data)
+         VALUES ($1, $2, $3::jsonb)
+         RETURNING id, type, status, created_at`,
+        [req.customerId, type, JSON.stringify(safeData)]
+      );
+
+      // Notify customer + admin (fire-and-forget)
+      try {
+        const customerRow = await pool.query(
+          'SELECT email, business_name FROM customers WHERE id = $1',
+          [req.customerId]
+        );
+        if (customerRow.rows[0]) {
+          const customer = customerRow.rows[0];
+          await emailQueue.notifyServiceRequestReceived(customer, { type, request_data: safeData });
+          await emailQueue.notifyAdminNewRequest({ type, request_data: safeData }, customer);
+        }
+      } catch (emailErr) {
+        console.error('[Billing] service-request email error:', emailErr.message);
+      }
+
+      console.log(`[Billing] Service request created: type=${type} customer=${req.customerId}`);
+      res.json({ id: request.id, type: request.type, status: request.status });
+    } catch (err) {
+      console.error('[Billing] service-request error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Cancel subscription ──────────────────────────────────────────────────────
   router.post('/cancel', authenticate, async (req, res) => {
     try {
@@ -330,11 +393,12 @@ module.exports = (pool) => {
 
   router.get('/history', authenticate, async (req, res) => {
     try {
+      const billingId = getBillingCustomerId(req);
       const result = await pool.query(
         `SELECT id, transaction_type, amount, balance_after, description, created_at
          FROM credit_transactions WHERE customer_id = $1
          ORDER BY created_at DESC LIMIT 50`,
-        [req.customerId]
+        [billingId]
       );
       res.json(result.rows);
     } catch (err) { res.status(500).json({ error: err.message }); }

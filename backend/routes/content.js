@@ -43,10 +43,10 @@ module.exports = (pool) => {
       }
 
       const AI_MESSAGES = {
-        AI_AUTH_ERROR:       'PostCore is temporarily offline. Please try again in a moment.',
-        AI_OVERLOADED:       'PostCore is handling a lot of requests right now. Please try again in a few seconds.',
-        AI_RATE_LIMITED:     'PostCore is busy — please wait a moment and try again.',
-        AI_GENERATION_FAILED:'PostCore couldn\'t generate your post. Please try again.',
+        AI_AUTH_ERROR:       'ItsPosting AI is temporarily offline. Please try again in a moment.',
+        AI_OVERLOADED:       'ItsPosting AI is handling a lot of requests right now. Please try again in a few seconds.',
+        AI_RATE_LIMITED:     'ItsPosting AI is busy — please wait a moment and try again.',
+        AI_GENERATION_FAILED:'ItsPosting AI couldn\'t generate your post. Please try again.',
       };
       const friendly = AI_MESSAGES[error.message] || 'Something went wrong generating your post. Please try again.';
       res.status(500).json({ error: friendly });

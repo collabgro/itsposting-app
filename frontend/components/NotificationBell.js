@@ -99,7 +99,8 @@ export default function NotificationBell() {
       {/* DROPDOWN */}
       {open && (
         <div style={{
-          position: 'absolute', top: 44, right: 0, width: 340,
+          position: 'fixed', top: 60, right: 12,
+          width: 'min(340px, calc(100vw - 24px))',
           background: t.card, border: `1px solid ${t.border}`,
           borderRadius: 12, boxShadow: '0 16px 48px rgba(0,0,0,0.4)',
           zIndex: 1000, overflow: 'hidden',

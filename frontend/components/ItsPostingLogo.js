@@ -10,7 +10,10 @@ const SIZES = {
   '3xl': { box: 124, font: 64, gap: 26 },
 };
 
-function IconMark({ size, noShadow = false }) {
+function IconMark({ size, noShadow = false, theme = 'dark' }) {
+  const glowFilter = theme === 'light'
+    ? 'drop-shadow(0 2px 8px rgba(168,85,247,0.2)) drop-shadow(0 1px 3px rgba(0,0,0,0.1))'
+    : 'drop-shadow(0 6px 22px rgba(168,85,247,0.55)) drop-shadow(0 2px 8px rgba(236,72,153,0.32)) drop-shadow(0 1px 2px rgba(0,0,0,0.28))';
   return (
     <img
       src="/fav-icon.png"
@@ -21,9 +24,7 @@ function IconMark({ size, noShadow = false }) {
         flexShrink: 0,
         display: 'block',
         borderRadius: Math.round(size * 0.26),
-        filter: noShadow
-          ? undefined
-          : 'drop-shadow(0 6px 22px rgba(168,85,247,0.55)) drop-shadow(0 2px 8px rgba(236,72,153,0.32)) drop-shadow(0 1px 2px rgba(0,0,0,0.28))',
+        filter: noShadow ? undefined : glowFilter,
       }}
     />
   );
@@ -62,7 +63,7 @@ export function ItsPostingLogo({
       : { color: '#111827' }),
   };
 
-  const iconEl = <IconMark size={box} noShadow={noShadow} />;
+  const iconEl = <IconMark size={box} noShadow={noShadow} theme={theme} />;
 
   if (variant === 'icon') return iconEl;
 

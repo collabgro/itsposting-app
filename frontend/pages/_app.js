@@ -171,7 +171,7 @@ function InstallBanner() {
     }}>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Add ItsPosting to your home screen</div>
-        <div style={{ fontSize: 11, color: t.textMuted }}>Get daily PostCore suggestions as soon as you open your phone</div>
+        <div style={{ fontSize: 11, color: t.textMuted }}>Get daily ItsPosting AI suggestions as soon as you open your phone</div>
       </div>
       <button onClick={install} style={{ padding: '7px 14px', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
         Add

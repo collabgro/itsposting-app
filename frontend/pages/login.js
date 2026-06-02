@@ -7,7 +7,7 @@ import { ItsPostingLogo } from '../components/ItsPostingLogo';
 
 const QUOTES = [
   {
-    text: "First post got 847 views on Google Business. I'd never touched social media before — PostCore just handled it.",
+    text: "First post got 847 views on Google Business. I'd never touched social media before — the AI just handled it.",
     name: 'Mike R.',
     biz: "Mike's Plumbing · Chicago, IL",
     accent: '#9472FF',
@@ -25,7 +25,7 @@ const QUOTES = [
     accent: '#30D158',
   },
   {
-    text: "I'm a plumber, not a marketer. PostCore knows what month it is and exactly what to say.",
+    text: "I'm a plumber, not a marketer. It knows what month it is and exactly what to say.",
     name: 'Tom H.',
     biz: 'Hill Plumbing · Seattle, WA',
     accent: '#FBBF24',
@@ -265,7 +265,7 @@ export default function Login() {
                 maxWidth: 300,
                 letterSpacing: '-0.015em',
               }}>
-                PostCore knows your trade, your season, and your city.
+                ItsPosting AI knows your trade, your season, and your city.
                 First post in 60 seconds — no marketing experience needed.
               </p>
             )}

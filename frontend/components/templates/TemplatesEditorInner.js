@@ -6,6 +6,7 @@ import useImage from 'use-image';
 import Konva from 'konva';
 import QRCodeLib from 'qrcode';
 import { useTheme } from '../../lib/theme';
+import { useBranding } from '../../lib/branding';
 import { studioAPI, customerAPI, mediaAPI, socialAPI } from '../../lib/api';
 import { useToast } from '../../components/ui';
 import {
@@ -388,7 +389,7 @@ const COLOR_SCHEMES = [
   { name: 'Sand',       colors: ['#1C1208','#5C3D11','#B8860B','#F4D03F'] },
   { name: 'Arctic',     colors: ['#FFFFFF','#E0F4FF','#9EDBF9','#3BAFDA'] },
   { name: 'Slate',      colors: ['#1E293B','#334155','#64748B','#CBD5E1'] },
-  { name: 'ItsPosting', colors: [TEAL,'#7C5CFC','#FF7A00','#FFCE00'] },
+  { name: appName, colors: [TEAL,'#7C5CFC','#FF7A00','#FFCE00'] },
   { name: 'Minimal',    colors: ['#111111','#333333','#777777','#EEEEEE'] },
   { name: 'Coral',      colors: ['#1A0A08','#8B2500','#E85D04','#FFBA08'] },
 ];
@@ -4157,6 +4158,7 @@ function TransformerLayer({ selectedIds, elements, stageRef, snapGuides, stageSc
 
 export default function TemplatesEditorInner() {
   const { t, toggleTheme, theme } = useTheme();
+  const { aiName, appName } = useBranding();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -7728,7 +7730,7 @@ export default function TemplatesEditorInner() {
                   onMouseEnter={e => { if (!showAiMagic) { e.currentTarget.style.background = 'rgba(124,92,252,0.08)'; e.currentTarget.style.color = '#7C5CFC'; } }}
                   onMouseLeave={e => { if (!showAiMagic) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted; } }}
                 >
-                  <IpSparkle size={13} /> PostCore
+                  <IpSparkle size={13} /> {aiName}
                 </button>
                 {showAiMagic && aiMagicAnchor && createPortal(
                   <div style={{
@@ -7745,7 +7747,7 @@ export default function TemplatesEditorInner() {
                     <div style={{ padding: '12px 14px 8px', borderBottom: `1px solid ${t.border}`, background: 'linear-gradient(135deg, rgba(124,92,252,0.15) 0%, rgba(0,196,204,0.08) 100%)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <IpSparkle size={14} color="#7C5CFC" />
-                        <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>PostCore AI</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{aiName} AI</span>
                       </div>
                       <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>Your AI design assistant</div>
                     </div>
@@ -9880,7 +9882,7 @@ export default function TemplatesEditorInner() {
                   return (
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>ItsPosting Templates</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>{appName} Templates</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           {thumbGenProgress ? (
                             <div style={{ fontSize: 10, color: t.primary, fontWeight: 600 }}>{thumbGenProgress.current}/{thumbGenProgress.total}</div>
@@ -11984,7 +11986,7 @@ export default function TemplatesEditorInner() {
                           </div>
                         </div>
                         <button style={{ width: '100%', padding: '10px 0', borderRadius: 8, border: `1.5px solid ${t.primaryBorder}`, background: 'transparent', color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <IpSparkle size={14} /> PostCore Write
+                          <IpSparkle size={14} /> {aiName} Write
                         </button>
                       </div>
 

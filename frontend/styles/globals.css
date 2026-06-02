@@ -362,6 +362,9 @@ body[data-theme="light"] .glass-card {
   filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45)) drop-shadow(0 1px 1px rgba(0,0,0,0.3));
   transition: filter 200ms ease;
 }
+body[data-theme="light"] .icon-3d {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+}
 
 .icon-3d-active {
   filter:
@@ -369,6 +372,11 @@ body[data-theme="light"] .glass-card {
     drop-shadow(0 1px 2px rgba(124,92,252,0.3))
     drop-shadow(0 0 12px rgba(124,92,252,0.25));
   transition: filter 200ms ease;
+}
+body[data-theme="light"] .icon-3d-active {
+  filter:
+    drop-shadow(0 2px 5px rgba(124,92,252,0.22))
+    drop-shadow(0 0 8px rgba(124,92,252,0.12));
 }
 
 .icon-glow {
@@ -947,6 +955,17 @@ body[data-theme="light"] .glass-deep {
   .touch-target-sm { min-height: 36px !important; }
 }
 
+/* ── iOS font-size fix: prevent auto-zoom on input focus ─────────────── */
+/* iOS Safari zooms in when an input's font-size is < 16px. Override to
+   prevent that without disabling user-scalable in the viewport meta. */
+@supports (-webkit-overflow-scrolling: touch) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* Prevent callout on long-press for interactive elements */
 @media (hover: none) {
   button, a, img { -webkit-touch-callout: none; }
@@ -1151,3 +1170,149 @@ button, a {
   50%       { transform: scale(1.18); }
 }
 .badge-bounce { animation: badge-bounce 600ms ease 200ms both; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MOBILE LAYOUT UTILITIES (applied via JS className, not inline styles)
+══════════════════════════════════════════════════════════════════════════ */
+
+/* Two-column grid that stacks on mobile */
+.grid-2-mobile {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 480px) {
+  .grid-2-mobile { grid-template-columns: 1fr !important; }
+}
+
+/* Four-column grid → two on tablet → one on mobile */
+.grid-4-responsive {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .grid-4-responsive { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .grid-4-responsive { grid-template-columns: 1fr; gap: 8px; }
+}
+
+/* Three-column grid → one on mobile */
+.grid-3-responsive {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .grid-3-responsive { grid-template-columns: 1fr !important; }
+}
+@media (min-width: 641px) and (max-width: 900px) {
+  .grid-3-responsive { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Flex row that wraps to column on mobile */
+.flex-wrap-mobile {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+@media (max-width: 640px) {
+  .flex-wrap-mobile {
+    flex-wrap: wrap;
+  }
+  .flex-wrap-mobile > * {
+    flex: 1 1 100%;
+  }
+}
+
+/* Card grid with min 260px columns */
+.card-grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+@media (max-width: 360px) {
+  .card-grid-responsive { grid-template-columns: 1fr; }
+}
+
+/* Horizontal scroll pill row — used for filter chips */
+.chip-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.chip-scroll::-webkit-scrollbar { display: none; }
+.chip-scroll > * { flex-shrink: 0; }
+
+/* Two-panel layout: sidebar list + main content */
+.two-panel {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 0;
+  min-height: 0;
+}
+@media (max-width: 900px) {
+  .two-panel { grid-template-columns: 1fr; }
+}
+
+/* Mobile-only visible / hidden */
+.mobile-only { display: none !important; }
+.desktop-only { display: block; }
+@media (max-width: 768px) {
+  .mobile-only  { display: block !important; }
+  .desktop-only { display: none !important; }
+}
+
+/* Action button row: always horizontal, wraps gracefully */
+.action-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Page section card — consistent card spacing */
+.section-card {
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+@media (max-width: 640px) {
+  .section-card { padding: 16px; border-radius: 12px; margin-bottom: 14px; }
+}
+
+/* Prevent text overflow in flex/grid cells */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Full-bleed section on mobile */
+@media (max-width: 640px) {
+  .full-bleed-mobile {
+    margin-left: -14px !important;
+    margin-right: -14px !important;
+    border-radius: 0 !important;
+  }
+}
+
+/* Toast positioning: move above bottom nav on mobile */
+@media (max-width: 899px) {
+  .toast-container-mobile {
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    top: auto !important;
+    right: 12px !important;
+    left: 12px !important;
+  }
+  .toast-container-mobile > * {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: 100%;
+  }
+}

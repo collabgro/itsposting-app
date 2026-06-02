@@ -8,10 +8,21 @@ import { ItsPostingLogo } from './ItsPostingLogo';
  * wordmark underneath. Minimum 1.2s display, max 3.5s, then fades out.
  */
 
+// Read persisted Zustand store — available on returning visits before auth hook fires
+function getCachedBrand() {
+  if (typeof window === 'undefined') return { appName: 'ItsPosting', logo: null };
+  try {
+    const stored = JSON.parse(localStorage.getItem('postflow-auth') || '{}');
+    const wl = stored?.state?.user?.white_label_config || {};
+    return { appName: wl.agencyName || 'ItsPosting', logo: wl.logo || null };
+  } catch { return { appName: 'ItsPosting', logo: null }; }
+}
+
 export default function AppLoader({ ready }) {
   const [phase, setPhase] = useState('enter'); // 'enter' | 'idle' | 'exit' | 'gone'
   const minTimeRef = useRef(false);
   const readyRef = useRef(false);
+  const { appName, logo } = getCachedBrand();
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -40,7 +51,7 @@ export default function AppLoader({ ready }) {
 
   return (
     <div
-      aria-label="Loading ItsPosting"
+      aria-label={`Loading ${appName}`}
       aria-live="polite"
       style={{
         position: 'fixed',
@@ -60,7 +71,10 @@ export default function AppLoader({ ready }) {
       <div style={{
         animation: 'ipLoaderIconEnter 440ms cubic-bezier(0.34,1.4,0.64,1) both',
       }}>
-        <ItsPostingLogo variant="icon" size="3xl" theme="light" noShadow />
+        {logo
+          ? <img src={logo} alt={appName} style={{ height: 72, maxWidth: 220, objectFit: 'contain' }} />
+          : <ItsPostingLogo variant="icon" size="3xl" theme="light" noShadow />
+        }
       </div>
 
       {/* ── Thin indeterminate progress bar ── */}
@@ -98,7 +112,7 @@ export default function AppLoader({ ready }) {
           color: '#1a1a2e',
           fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
         }}>
-          ItsPosting
+          {appName}
         </span>
       </div>
 

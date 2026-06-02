@@ -43,15 +43,16 @@ export default function AdminReferrals() {
     boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})`,
   };
 
-  const [mounted, setMounted]       = useState(false);
-  const [loading, setLoading]       = useState(true);
-  const [awards, setAwards]         = useState([]);
-  const [summary, setSummary]       = useState({});
-  const [total, setTotal]           = useState(0);
+  const [mounted, setMounted]           = useState(false);
+  const [loading, setLoading]           = useState(true);
+  const [awards, setAwards]             = useState([]);
+  const [summary, setSummary]           = useState({});
+  const [total, setTotal]               = useState(0);
   const [filterStatus, setFilterStatus] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
-  const [toast, setToast]           = useState('');
-  const [rejectModal, setRejectModal] = useState(null);
+  const [releaseAllLoading, setReleaseAllLoading] = useState(false);
+  const [toast, setToast]               = useState('');
+  const [rejectModal, setRejectModal]   = useState(null);
   const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
@@ -94,6 +95,22 @@ export default function AdminReferrals() {
     }
   };
 
+  const handleReleaseAll = async () => {
+    const pendingCount = summary.pending?.count || 0;
+    if (!pendingCount) return;
+    if (!window.confirm(`Release all ${pendingCount} pending award${pendingCount !== 1 ? 's' : ''}? Credits will be added to referrers immediately and they will be notified.`)) return;
+    setReleaseAllLoading(true);
+    try {
+      const res = await adminAPI.releaseAllReferrals();
+      showToast(`Released ${res.data.released} award${res.data.released !== 1 ? 's' : ''} successfully`);
+      load();
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Failed to release all awards');
+    } finally {
+      setReleaseAllLoading(false);
+    }
+  };
+
   const handleRejectConfirm = async () => {
     if (!rejectModal) return;
     setActionLoading(`reject-${rejectModal.id}`);
@@ -131,12 +148,30 @@ export default function AdminReferrals() {
               Review and release pending referral credit awards
             </p>
           </div>
-          <button
-            onClick={load}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, color: t.text, cursor: 'pointer' }}
-          >
-            <IpRefresh size={14} /> Refresh
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(summary.pending?.count > 0) && (
+              <button
+                onClick={handleReleaseAll}
+                disabled={releaseAllLoading}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
+                  background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)',
+                  borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#10b981',
+                  cursor: releaseAllLoading ? 'not-allowed' : 'pointer',
+                  opacity: releaseAllLoading ? 0.6 : 1,
+                }}
+              >
+                {releaseAllLoading ? <Spinner size={13} /> : <IpCheckCircle size={14} />}
+                {releaseAllLoading ? 'Releasing…' : `Release All (${summary.pending.count})`}
+              </button>
+            )}
+            <button
+              onClick={load}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, color: t.text, cursor: 'pointer' }}
+            >
+              <IpRefresh size={14} /> Refresh
+            </button>
+          </div>
         </div>
 
         {/* Summary stat cards */}
@@ -231,7 +266,12 @@ export default function AdminReferrals() {
                   >
                     {/* Referrer */}
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{award.referrer_name}</div>
+                      <div
+                        style={{ fontSize: 13, fontWeight: 600, color: t.primary, cursor: 'pointer', textDecoration: 'underline', display: 'inline' }}
+                        onClick={() => router.push(`/admin/customers/${award.referrer_id}`)}
+                      >
+                        {award.referrer_name}
+                      </div>
                       <div style={{ fontSize: 11, color: t.textMuted }}>{award.referrer_email}</div>
                       <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>
                         Plan: <span style={{ color: t.text, fontWeight: 600 }}>{award.referrer_plan || 'trial'}</span>
@@ -240,7 +280,12 @@ export default function AdminReferrals() {
 
                     {/* Referred */}
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{award.referred_name}</div>
+                      <div
+                        style={{ fontSize: 13, fontWeight: 600, color: t.primary, cursor: 'pointer', textDecoration: 'underline', display: 'inline' }}
+                        onClick={() => router.push(`/admin/customers/${award.referred_id}`)}
+                      >
+                        {award.referred_name}
+                      </div>
                       <div style={{ fontSize: 11, color: t.textMuted }}>{award.referred_email}</div>
                       <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>
                         Plan: <span style={{ color: '#10b981', fontWeight: 700 }}>{award.referred_plan || '—'}</span>

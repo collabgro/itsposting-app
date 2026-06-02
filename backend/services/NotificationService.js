@@ -101,8 +101,24 @@ class NotificationService {
   newSuggestion(customerId) {
     this.create(
       customerId, TYPES.SYSTEM,
-      'PostCore has a suggestion for you',
+      'ItsPosting AI has a suggestion for you',
       'A new content idea is ready. Check your dashboard to use it.'
+    );
+  }
+
+  referralReleased(customerId, credits, newBalance) {
+    this.create(
+      customerId, TYPES.CREDITS,
+      `Referral reward: +${credits} credits`,
+      `Someone you referred just upgraded to a paid plan. Your new balance is ${newBalance} credits.`
+    );
+  }
+
+  referralRejected(customerId) {
+    this.create(
+      customerId, TYPES.CREDITS,
+      'Referral award not approved',
+      'A referral credit award on your account was reviewed and not approved. Contact support if you think this is a mistake.'
     );
   }
 }

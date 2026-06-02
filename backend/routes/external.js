@@ -208,7 +208,7 @@ module.exports = (pool) => {
         );
 
         // Build a concise system prompt
-        let systemPrompt = `You are PostCore, an AI social media expert for local service businesses.
+        let systemPrompt = `You are ItsPosting AI, an AI social media expert for local service businesses.
 Generate a single social media post caption for ${cust.business_name || 'a local business'} (${cust.industry || 'trades'} industry${cust.location ? `, based in ${cust.location}` : ''}).
 
 Platform: ${platform}

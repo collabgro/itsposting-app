@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import ItsPostingLogo from './ItsPostingLogo';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 
 // Full-page branded loading screen — replaces plain spinner on initial page load.
 // Usage: <LoadingScreen /> or <LoadingScreen message="Generating your post..." />
 export function LoadingScreen({ message = null, overlay = false }) {
   const { t } = useTheme();
+  const { appName, logo } = useBranding();
   const [dots, setDots] = useState('');
   const [shimmerX, setShimmerX] = useState(-100);
 
@@ -73,7 +75,10 @@ export function LoadingScreen({ message = null, overlay = false }) {
         <div style={{
           animation: 'ipLogoPulse 2.4s cubic-bezier(0.4,0,0.6,1) infinite',
         }}>
-          <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
+          {logo
+            ? <img src={logo} alt={appName} style={{ height: 64, maxWidth: 200, objectFit: 'contain' }} />
+            : <ItsPostingLogo size="xl" variant="icon" theme={t.isDark ? 'dark' : 'light'} />
+          }
         </div>
 
         {/* Wordmark */}
@@ -84,7 +89,7 @@ export function LoadingScreen({ message = null, overlay = false }) {
           color: t.text,
           fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
         }}>
-          ItsPosting
+          {appName}
         </div>
 
         {/* Progress shimmer bar */}

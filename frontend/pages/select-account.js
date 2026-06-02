@@ -305,6 +305,3 @@ function AccountRow({ id, type, name, subtitle, badge, gradient, logoUrl, credit
   );
 }
 
-export async function getServerSideProps() {
-  return { props: {} };
-}

@@ -405,7 +405,7 @@ export default function AdminLLM() {
 
   if (!mounted) return null;
   if (error) return (
-    <Layout title="PostCore Brain — Admin">
+    <Layout title="ItsPosting AI Brain — Admin">
       <div style={{ padding: 40, textAlign: 'center', fontSize: 14, color: t.error }}>{error}</div>
     </Layout>
   );
@@ -414,7 +414,7 @@ export default function AdminLLM() {
   const claudeTraffic = Math.max(0, 100 - totalProductionTraffic);
 
   return (
-    <Layout title="PostCore Brain — Admin">
+    <Layout title="ItsPosting AI Brain — Admin">
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 16px 40px' }}>
 
         {/* Header */}
@@ -425,7 +425,7 @@ export default function AdminLLM() {
                 <IpSparkle size={26} style={{ color: '#fff' }} />
               </div>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>PostCore Brain</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>ItsPosting AI Brain</div>
                 <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>Proprietary LLM — Admin only. Collects training data from every customer generation.</div>
               </div>
             </div>
@@ -1143,7 +1143,7 @@ export default function AdminLLM() {
         {tab === 'ab' && (
           <div style={gc}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <SectionHeader icon={IpAnalytics} title="A/B Experiments" subtitle="Compare PostCore Brain vs Claude on live wizard traffic" />
+              <SectionHeader icon={IpAnalytics} title="A/B Experiments" subtitle="Compare ItsPosting AI Brain vs Claude on live wizard traffic" />
               {models.length > 0 && (
                 <Button variant="primary" size="sm" onClick={() => { setNewExpForm(f => ({ ...f, modelVersionId: models[0]?.id?.toString() || '' })); setShowNewExp(true); }}>
                   New experiment
@@ -1386,14 +1386,14 @@ export default function AdminLLM() {
               <button onClick={() => setShowDeployModal(null)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer' }}><IpClose size={18} /></button>
             </div>
             <div style={{ padding: '12px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 10, marginBottom: 20, fontSize: 12, color: '#D97706' }}>
-              ⚠️ This routes live wizard traffic to PostCore Brain. Start low (5–10%) and monitor quality before scaling up.
+              ⚠️ This routes live wizard traffic to ItsPosting AI Brain. Start low (5–10%) and monitor quality before scaling up.
             </div>
             <form onSubmit={handleDeployModel} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Traffic % to PostCore Brain</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Traffic % to ItsPosting AI Brain</div>
                 <select value={deployForm.trafficPct} onChange={e => setDeployForm({ trafficPct: e.target.value })} style={inputStyle}>
                   {['5','10','20','30','50','75','100'].map(v => (
-                    <option key={v} value={v}>{v}% PostCore Brain · {100 - parseInt(v)}% Claude</option>
+                    <option key={v} value={v}>{v}% ItsPosting AI Brain · {100 - parseInt(v)}% Claude</option>
                   ))}
                 </select>
               </div>
@@ -1556,7 +1556,7 @@ export default function AdminLLM() {
               <button onClick={() => setShowNewExp(false)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer' }}><IpClose size={18} /></button>
             </div>
             <div style={{ padding: '12px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 10, marginBottom: 20, fontSize: 12, color: '#D97706' }}>
-              ⚠️ Routes live wizard traffic to PostCore Brain. Set traffic % low (5–10%) to start.
+              ⚠️ Routes live wizard traffic to ItsPosting AI Brain. Set traffic % low (5–10%) to start.
             </div>
             <form onSubmit={handleNewExperiment} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
@@ -1569,7 +1569,7 @@ export default function AdminLLM() {
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Traffic %</div>
                 <select value={newExpForm.trafficPct} onChange={e => setNewExpForm(f => ({ ...f, trafficPct: e.target.value }))} style={inputStyle}>
-                  {['5','10','20','50'].map(v => <option key={v} value={v}>{v}% PostCore · {100 - parseInt(v)}% Claude</option>)}
+                  {['5','10','20','50'].map(v => <option key={v} value={v}>{v}% ItsPosting AI · {100 - parseInt(v)}% Claude</option>)}
                 </select>
               </div>
               <div>

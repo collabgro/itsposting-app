@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import {
   IpRefresh, IpSparkle, IpFacebook, IpInstagram, IpGoogle, IpLinkedIn,
-  IpCheck, IpWarning,
+  IpCheck, IpWarning, IpFlame, IpCalendar, IpTip,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { ideasAPI, customerAPI } from '../lib/api';
 import { setMascotMood } from '../components/PostCoreMascot';
 
@@ -17,9 +18,9 @@ const CATEGORY_CONFIG = {
 };
 
 const URGENCY_CONFIG = {
-  high:   { label: 'Hot right now', emoji: '🔥' },
-  medium: { label: 'Good timing',   emoji: '📅' },
-  low:    { label: 'Evergreen',     emoji: '💡' },
+  high:   { label: 'Hot right now', Icon: IpFlame,    color: '#F59E0B' },
+  medium: { label: 'Good timing',   Icon: IpCalendar, color: '#3B82F6' },
+  low:    { label: 'Evergreen',     Icon: IpTip,      color: '#22C55E' },
 };
 
 const PLATFORM_ICONS = {
@@ -115,9 +116,10 @@ function IdeaCard({ idea, onUse, onCopyHook, copied, t }) {
         </span>
         <span style={{
           fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 20,
-          background: t.input, color: t.textSecondary,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          background: t.input, color: urg.color || t.textSecondary,
         }}>
-          {urg.emoji} {urg.label}
+          {urg.Icon && <urg.Icon size={11} color={urg.color} />} {urg.label}
         </span>
       </div>
 
@@ -223,6 +225,7 @@ function IdeaCard({ idea, onUse, onCopyHook, copied, t }) {
 export default function PostIdeas() {
   const router = useRouter();
   const { t } = useTheme();
+  const { aiName } = useBranding();
 
   const [ideas, setIdeas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -320,7 +323,7 @@ export default function PostIdeas() {
   return (
     <Layout
       title="Post Ideas"
-      subtitle={`PostCore researched what's trending in ${industryLabel} · ${today}`}
+      subtitle={`${aiName} researched what's trending in ${industryLabel} · ${today}`}
       action={
         <button
           onClick={handleRefresh}
@@ -377,7 +380,7 @@ export default function PostIdeas() {
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: t.text, marginBottom: 6 }}>
-                PostCore is researching your industry...
+                {aiName} is researching your industry...
               </div>
               <div style={{ fontSize: 13, color: t.textMuted }}>
                 Analysing trends and seasonal opportunities for {industryLabel} businesses
@@ -404,7 +407,7 @@ export default function PostIdeas() {
 
         {/* Skeleton loading (cached ideas loading) */}
         {loading && !showGenerating && !error && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(310px, 100%), 1fr))', gap: 16 }}>
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} t={t} />)}
           </div>
         )}
@@ -436,7 +439,7 @@ export default function PostIdeas() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(310px, 100%), 1fr))', gap: 16 }}>
               {ideas.map(idea => (
                 <IdeaCard
                   key={idea.id}
@@ -451,7 +454,7 @@ export default function PostIdeas() {
 
             {/* Footer note */}
             <div style={{ marginTop: 24, padding: '14px 18px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 12, fontSize: 12, color: t.textMuted, lineHeight: 1.6, boxShadow: `0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
-              <strong style={{ color: t.textSecondary }}>How PostCore picks these ideas:</strong> Each morning, PostCore analyses current seasonal trends, industry-specific customer pain points, and what's typically resonating in your niche for this time of year. Ideas refresh daily — you can also manually refresh once per hour.
+              <strong style={{ color: t.textSecondary }}>How {aiName} picks these ideas:</strong> Each morning, {aiName} analyses current seasonal trends, industry-specific customer pain points, and what's typically resonating in your niche for this time of year. Ideas refresh daily — you can also manually refresh once per hour.
             </div>
           </>
         )}

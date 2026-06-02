@@ -4,12 +4,13 @@ import {
   IpSave, IpCredits, IpPalette, IpGlobe, IpDelete, IpClose, IpWarning,
   IpBusiness, IpShare, IpCheck, IpFacebook, IpInstagram,
   IpGoogle, IpSparkle, IpSchedule, IpLinkedIn, IpTikTok, IpBell,
-  IpPlus, IpEdit,
+  IpPlus, IpEdit, IpUser,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Button, Input, Badge, SectionHeader, Spinner, ConfirmModal, Select } from '../components/ui';
 import { useTheme } from '../lib/theme';
-import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI, authAPI, publicAPI } from '../lib/api';
+import { useBranding } from '../lib/branding';
+import { customerAPI, contentAPI, socialAPI, scraperAPI, dmsAPI, apiKeysAPI, authAPI, publicAPI, postsAPI } from '../lib/api';
 import { useAuthStore } from '../lib/store';
 import IntegrationSetupWizard from '../components/IntegrationSetupWizard';
 
@@ -117,9 +118,9 @@ const PLATFORM_CONFIG = {
         { text: 'Go to ', link: { url: 'https://developers.facebook.com/apps/creation/', label: 'Facebook Developers' }, suffix: ' â†’ Create App â†’ Business type (required first step)' },
         { text: 'In your app, click Add Product â†’ Facebook Login â†’ Set Up' },
         { text: 'Go to ', link: { url: 'https://developers.facebook.com/tools/explorer/', label: 'Graph API Explorer' }, suffix: ' â†’ select your App â†’ Page Access Token' },
-        { text: 'Add permissions: pages_manage_posts, pages_read_engagement, pages_messaging â†’ Generate' },
+        { text: 'Add ALL permissions: pages_show_list, pages_manage_posts, pages_manage_engagement, pages_read_engagement, pages_read_user_content, pages_messaging, read_insights, public_profile, business_management â†’ Generate' },
         { text: 'Copy the Page Access Token and paste below' },
-        { text: 'Note: pages_manage_posts and pages_messaging (required for Inbox DMs) require Facebook App Review for non-developer accounts' },
+        { text: 'Note: pages_manage_posts, pages_manage_engagement, and pages_messaging (required for Inbox DMs) require Facebook App Review for non-developer accounts' },
       ],
       pageIdLabel: 'Page ID',
       pageIdHelp: 'Found in your Facebook Page settings â†’ About â†’ Page ID',
@@ -135,7 +136,7 @@ const PLATFORM_CONFIG = {
       steps: [
         { text: 'Go to ', link: { url: 'https://developers.facebook.com/tools/explorer', label: 'Facebook Graph API Explorer' } },
         { text: 'Select your App â†’ click "Generate Access Token"' },
-        { text: 'Enable instagram_basic, instagram_content_publish, and instagram_manage_messages permissions (instagram_manage_messages required for Inbox DMs)' },
+        { text: 'Add ALL permissions: instagram_basic, instagram_content_publish, instagram_manage_messages, instagram_manage_insights, instagram_manage_comments, pages_show_list, pages_read_engagement (instagram_manage_messages required for Inbox DMs)' },
         { text: 'Copy the Access Token and paste below' },
       ],
       pageIdLabel: 'Instagram Business Account ID',
@@ -152,7 +153,7 @@ const PLATFORM_CONFIG = {
       steps: [
         { text: 'Go to ', link: { url: 'https://developers.google.com/oauthplayground', label: 'Google OAuth Playground' } },
         { text: 'Find "Google My Business API v4" in the list' },
-        { text: 'Select: https://www.googleapis.com/auth/business.manage' },
+        { text: 'Select both scopes: https://www.googleapis.com/auth/business.manage and https://www.googleapis.com/auth/userinfo.profile' },
         { text: 'Click "Authorize APIs" and sign in with your Google account' },
         { text: 'Click "Exchange authorization code for tokens"' },
         { text: 'Copy the Access Token and paste below' },
@@ -175,7 +176,7 @@ const PLATFORM_CONFIG = {
         { text: 'Create an app at ', link: { url: 'https://www.linkedin.com/developers/apps/new', label: 'LinkedIn Developers' }, suffix: ' â€” requires a Company LinkedIn Page' },
         { text: 'In your app â†’ Products â†’ request "Share on LinkedIn" (posting) and "Messaging on LinkedIn" (for Inbox DMs) â€” submit justification for your scheduling use case' },
         { text: 'Once approved (2â€“8 weeks), generate an access token under the Auth tab' },
-        { text: 'Paste the access token (must include w_organization_social + w_messaging scopes) and your Company URN (urn:li:organization:XXXXXXXX) below' },
+        { text: 'Paste the access token (must include ALL scopes: openid, profile, email, w_member_social, w_organization_social, r_organization_social) and your Company URN (urn:li:organization:XXXXXXXX) below' },
       ],
       pageIdLabel: 'Company URN (e.g. urn:li:organization:12345678)',
       pageIdHelp: 'Find the numeric ID in your LinkedIn Company Page URL after /company/',
@@ -192,9 +193,9 @@ const PLATFORM_CONFIG = {
       steps: [
         { text: 'Register a TikTok developer account at ', link: { url: 'https://developers.tiktok.com/', label: 'developers.tiktok.com' } },
         { text: 'Create an app at ', link: { url: 'https://developers.tiktok.com/apps/', label: 'Manage Apps' }, suffix: ' â†’ Create App' },
-        { text: 'Under Scopes, request "Content Posting API" â€” describe your scheduling/management use case clearly' },
-        { text: 'TikTok review takes 2â€“6 weeks. Until approved + audited, all posts will be private-only.' },
-        { text: 'Once approved, generate a user access token with video.publish scope' },
+        { text: 'Under Scopes, request ALL four: “Content Posting API” (video.publish), “Video Upload” (video.upload), “Video List” (video.list), and “User Info Basic” (user.info.basic) â€” describe your scheduling/management use case clearly' },
+        { text: 'TikTok review takes 2â€”6 weeks. Until approved + audited, all posts will be private-only.' },
+        { text: 'Once approved, generate a user access token with all four scopes: video.publish, video.upload, video.list, user.info.basic' },
         { text: 'Paste the access token and your TikTok Open ID below' },
       ],
       pageIdLabel: 'TikTok Open ID (your account ID)',
@@ -222,8 +223,8 @@ const FACEBOOK_SOCIAL_WIZARD = {
     },
     {
       heading: 'Step 3 â€” Generate your Page Access Token',
-      subtext: '1. Click "Open Graph API Explorer" below and sign in\n2. Top-left: click the "Meta App" dropdown â†’ select your app\n3. Click "User or Page" dropdown â†’ change to "Page Access Token"\n4. A list of your pages appears â€” select your business page\n5. Click "+ Add a Permission" and add ALL of these one by one:\n   â€¢ pages_show_list\n   â€¢ pages_manage_posts\n   â€¢ pages_read_engagement\n   â€¢ pages_read_user_content\n   â€¢ pages_messaging\n   â€¢ read_insights\n6. Click "Generate Access Token" â†’ approve the popup\n7. Copy the long token that appears at the top',
-      callout: { platformName: 'Graph API Explorer', highlight: 'Page Access Token â†’ select your page â†’ add 6 permissions â†’ Generate', color: '#1877F2', note: 'Must add all 6 permissions before generating' },
+      subtext: '1. Click “Open Graph API Explorer” below and sign in\n2. Top-left: click the “Meta App” dropdown â†’ select your app\n3. Click “User or Page” dropdown â†’ change to “Page Access Token”\n4. A list of your pages appears â€” select your business page\n5. Click “+ Add a Permission” and add ALL of these one by one:\n   â€¢ pages_show_list\n   â€¢ pages_manage_posts\n   â€¢ pages_manage_engagement\n   â€¢ pages_read_engagement\n   â€¢ pages_read_user_content\n   â€¢ pages_messaging\n   â€¢ read_insights\n   â€¢ public_profile\n   â€¢ business_management\n6. Click “Generate Access Token” â†’ approve the popup\n7. Copy the long token that appears at the top',
+      callout: { platformName: 'Graph API Explorer', highlight: 'Page Access Token â†’ select your page â†’ add 9 permissions â†’ Generate', color: '#1877F2', note: 'Must add all 9 permissions before generating' },
       linkButton: { label: 'Open Graph API Explorer â†—', url: 'https://developers.facebook.com/tools/explorer/' },
     },
     {
@@ -251,8 +252,8 @@ const INSTAGRAM_SOCIAL_WIZARD = {
     },
     {
       heading: 'Step 2 â€” Generate your access token',
-      subtext: '1. Click "Open Graph API Explorer" below and sign in\n2. Click the "Meta App" dropdown â†’ select your Facebook Developer App\n   (Need an app? Connect Facebook first â€” it walks you through creating one)\n3. Click "+ Add a Permission" and add ALL 5 below:\n   â€¢ instagram_basic\n   â€¢ instagram_content_publish\n   â€¢ instagram_manage_messages\n   â€¢ instagram_manage_insights\n   â€¢ pages_read_engagement\n4. Click "Generate Access Token" â†’ approve the popup\n5. Copy the long token that appears at the top\n\nYour Instagram Business Account ID will auto-fill when you test.',
-      callout: { platformName: 'Graph API Explorer', highlight: 'Add 5 permissions â†’ Generate Access Token â†’ copy it', color: '#E1306C', note: 'Must add all 5 permissions before generating' },
+      subtext: '1. Click “Open Graph API Explorer” below and sign in\n2. Click the “Meta App” dropdown â†’ select your Facebook Developer App\n   (Need an app? Connect Facebook first â€” it walks you through creating one)\n3. Click “+ Add a Permission” and add ALL 7 below:\n   â€¢ instagram_basic\n   â€¢ instagram_content_publish\n   â€¢ instagram_manage_messages\n   â€¢ instagram_manage_insights\n   â€¢ instagram_manage_comments\n   â€¢ pages_show_list\n   â€¢ pages_read_engagement\n4. Click “Generate Access Token” â†’ approve the popup\n5. Copy the long token that appears at the top\n\nYour Instagram Business Account ID will auto-fill when you test.',
+      callout: { platformName: 'Graph API Explorer', highlight: 'Add 7 permissions â†’ Generate Access Token â†’ copy it', color: '#E1306C', note: 'Must add all 7 permissions before generating' },
       linkButton: { label: 'Open Graph API Explorer â†—', url: 'https://developers.facebook.com/tools/explorer/' },
     },
     {
@@ -263,7 +264,7 @@ const INSTAGRAM_SOCIAL_WIZARD = {
   ],
 };
 const INSTAGRAM_SOCIAL_FIELDS = [
-  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'EAAxxxxxxxx...', required: true, helpText: 'From Graph API Explorer with instagram_basic + instagram_content_publish + instagram_manage_messages + instagram_manage_insights + pages_read_engagement' },
+  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'EAAxxxxxxxx...', required: true, helpText: 'From Graph API Explorer with instagram_basic + instagram_content_publish + instagram_manage_messages + instagram_manage_insights + instagram_manage_comments + pages_show_list + pages_read_engagement' },
   { key: 'pageId', label: 'Instagram Business Account ID', type: 'text', placeholder: '17841400000000001', hint: 'optional â€” auto-filled on test', helpText: 'Auto-filled when you click Test connection' },
   { key: 'accountName', label: 'Display Name', type: 'text', placeholder: '@mikes.plumbing', hint: 'optional â€” auto-filled on test' },
 ];
@@ -279,7 +280,7 @@ const GOOGLE_SOCIAL_WIZARD = {
     },
     {
       heading: 'Step 2 â€” Get your access token',
-      subtext: '1. Click "Open OAuth Playground" below\n2. In the left panel under "Input your own scopes", paste this exactly:\n   https://www.googleapis.com/auth/business.manage\n3. Click "Authorize APIs" â†’ sign in with your Google account â†’ click "Allow"\n4. Click "Exchange authorization code for tokens"\n5. Copy the "Access token" value (starts with ya29...)\n\nImportant: copy the Access Token â€” NOT the Refresh Token.',
+      subtext: '1. Click “Open OAuth Playground” below\n2. In the left panel under “Input your own scopes”, paste both scopes separated by a space:\n   https://www.googleapis.com/auth/business.manage https://www.googleapis.com/auth/userinfo.profile\n3. Click “Authorize APIs” â†’ sign in with your Google account â†’ click “Allow”\n4. Click “Exchange authorization code for tokens”\n5. Copy the “Access token” value (starts with ya29...)\n\nImportant: copy the Access Token â€” NOT the Refresh Token.',
       callout: { platformName: 'OAuth Playground', highlight: 'Paste scope â†’ Authorize APIs â†’ Exchange â†’ copy Access Token', color: '#4285F4', note: 'Copy Access Token, NOT the Refresh Token' },
       linkButton: { label: 'Open OAuth Playground â†—', url: 'https://developers.google.com/oauthplayground' },
     },
@@ -321,7 +322,7 @@ const LINKEDIN_SOCIAL_WIZARD = {
     },
     {
       heading: 'Step 3 â€” Generate your access token',
-      subtext: '1. In your app, go to the "Auth" tab â†’ scroll to "OAuth 2.0 Tools"\n2. Under scopes, select all three:\n   â€¢ w_member_social (post as yourself)\n   â€¢ w_organization_social (post as your company page)\n   â€¢ r_organization_social (read company analytics)\n3. Click "Request access token" â†’ sign in â†’ authorize â†’ copy the token\n4. Find your Company URN: go to your LinkedIn Company Page, copy the number from the URL (after /company/) and format it as:\n   urn:li:organization:XXXXXXXX\n\nPaste both below.',
+      subtext: '1. In your app, go to the "Auth" tab â†’ scroll to "OAuth 2.0 Tools"\n2. Under scopes, select ALL six:\n   â€¢ openid (identity verification)\n   â€¢ profile (basic profile info)\n   â€¢ email (email address)\n   â€¢ w_member_social (post as yourself)\n   â€¢ w_organization_social (post as your company page)\n   â€¢ r_organization_social (read company analytics)\n3. Click "Request access token" â†’ sign in â†’ authorize â†’ copy the token\n4. Find your Company URN: go to your LinkedIn Company Page, copy the number from the URL (after /company/) and format it as:\n   urn:li:organization:XXXXXXXX\n\nPaste both below.',
       isCredentialSlide: true,
       warningNote: 'LinkedIn tokens expire after 60 days â€” reconnect when prompted. Community Management API approval is required before this step will work.',
     },
@@ -345,20 +346,20 @@ const TIKTOK_SOCIAL_WIZARD = {
     },
     {
       heading: 'Step 2 â€” Create your app and request scopes',
-      subtext: '1. In the developer portal, click "Manage Apps" â†’ "Create App"\n2. Choose "Web" as the platform type\n3. In the Scopes section, request all three:\n   â€¢ Content Posting API (direct publishing)\n   â€¢ Video Upload (draft uploads)\n   â€¢ User Info Basic (account info)\n4. In your app description, write:\n   "We schedule and publish social media posts for a local business"\n5. Click "Submit for Review"\n\nClear, honest descriptions are approved faster â€” vague ones get rejected.',
-      callout: { platformName: 'TikTok Developer Portal', highlight: 'Manage Apps â†’ Scopes â†’ request 3 scopes â†’ Submit', color: '#ff0050', note: 'Request all 3 scopes in one submission' },
+      subtext: '1. In the developer portal, click “Manage Apps” â†’ “Create App”\n2. Choose “Web” as the platform type\n3. In the Scopes section, request all four:\n   â€¢ Content Posting API (video.publish â€” direct publishing)\n   â€¢ Video Upload (video.upload â€” draft uploads)\n   â€¢ Video List (video.list â€” read posted videos)\n   â€¢ User Info Basic (user.info.basic â€” account info)\n4. In your app description, write:\n   “We schedule and publish social media posts for a local business”\n5. Click “Submit for Review”\n\nClear, honest descriptions are approved faster â€” vague ones get rejected.',
+      callout: { platformName: 'TikTok Developer Portal', highlight: 'Manage Apps â†’ Scopes â†’ request 4 scopes â†’ Submit', color: '#ff0050', note: 'Request all 4 scopes in one submission' },
       linkButton: { label: 'Open TikTok Apps â†—', url: 'https://developers.tiktok.com/apps/' },
     },
     {
       heading: 'Step 3 â€” Get your access token',
-      subtext: '1. After approval, go to your app â†’ "Manage" â†’ "Tokens"\n2. Click "Generate access token"\n3. Select the posting scopes â€” look for: video.publish (required), video.upload, user.info.basic\n4. Click "Authorize" â†’ sign in with your TikTok account â†’ copy the access token\n5. Your Open ID will also appear on the same screen â€” copy it too\n\nPaste both below.',
+      subtext: '1. After approval, go to your app â†’ “Manage” â†’ “Tokens”\n2. Click “Generate access token”\n3. Select ALL four scopes: video.publish, video.upload, video.list, user.info.basic\n4. Click “Authorize” â†’ sign in with your TikTok account â†’ copy the access token\n5. Your Open ID will also appear on the same screen â€” copy it too\n\nPaste both below.',
       isCredentialSlide: true,
       warningNote: 'Until your TikTok app passes audit, all posts will be private-only. Once approved, posts publish publicly. Scope names may vary slightly â€” check your app\'s Scopes section for exact names.',
     },
   ],
 };
 const TIKTOK_SOCIAL_FIELDS = [
-  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'act.example...', required: true, helpText: 'Generated after app approval â€” must have video.publish scope' },
+  { key: 'accessToken', label: 'Access Token', type: 'password', placeholder: 'act.example...', required: true, helpText: 'Generated after app approval â€” must have all four scopes: video.publish, video.upload, video.list, user.info.basic' },
   { key: 'pageId', label: 'Open ID', type: 'text', placeholder: 'MS4wLjABAAAA...', hint: 'optional â€” auto-filled on test', helpText: 'Your TikTok account identifier â€” found in TikTok for Business â†’ Account Settings' },
   { key: 'accountName', label: 'Display Name', type: 'text', placeholder: '@mikes.plumbing', hint: 'optional â€” auto-filled on test' },
 ];
@@ -380,11 +381,11 @@ const DEFAULT_NOTIF_PREFS = {
   new_dm_notifications: true,
 };
 
-const NOTIF_GROUPS = [
+const NOTIF_GROUPS = (aiName = 'ItsPosting AI') => [
   {
-    label: 'PostCore Insights',
+    label: `${aiName} Insights`,
     items: [
-      { key: 'weekly_briefing', title: 'Weekly PostCore briefing', desc: 'Monday morning summary — performance, opportunities, suggested posts' },
+      { key: 'weekly_briefing', title: `Weekly ${aiName} briefing`, desc: 'Monday morning summary — performance, opportunities, suggested posts' },
       { key: 'seasonal_reminders', title: 'Seasonal content reminders', desc: '"It\'s winter — frozen pipe season is here" before key months' },
     ],
   },
@@ -404,10 +405,91 @@ const NOTIF_GROUPS = [
   },
 ];
 
+const PLAN_CONFIG = {
+  trial:        { label: 'Trial',        color: '#8E8E93', bg: 'rgba(142,142,147,0.12)' },
+  starter:      { label: 'Starter',      color: '#30D158', bg: 'rgba(48,209,88,0.12)'   },
+  professional: { label: 'Professional', color: '#7C5CFC', bg: 'rgba(124,92,252,0.12)'  },
+  premium:      { label: 'Premium',      color: '#FF9F0A', bg: 'rgba(255,159,10,0.12)'  },
+  agency:       { label: 'Agency',       color: '#0A84FF', bg: 'rgba(10,132,255,0.12)'  },
+};
+
+function AvatarUploader({ profile, t, onUpload }) {
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  const initials = (profile.business_name || '??')
+    .split(' ')
+    .map(w => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('asset', file);
+      const res = await customerAPI.uploadAvatar(fd);
+      await customerAPI.updateProfile({ avatarUrl: res.data.url });
+      onUpload(res.data.url);
+    } catch (err) {
+      console.error('Avatar upload failed:', err);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  }
+
+  return (
+    <div style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
+      <div
+        onClick={() => !uploading && fileRef.current?.click()}
+        style={{
+          width: 80, height: 80, borderRadius: '50%',
+          background: profile.avatar_url
+            ? 'transparent'
+            : 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 50%, #EC4899 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 26, fontWeight: 700, color: '#fff',
+          cursor: 'pointer', overflow: 'hidden', flexShrink: 0,
+          border: `3px solid ${t.borderStrong || t.border}`,
+          boxShadow: '0 4px 16px rgba(124,92,252,0.3)',
+          transition: 'opacity 0.2s',
+        }}
+        title="Click to upload photo"
+      >
+        {uploading ? (
+          <div style={{ width: 22, height: 22, border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        ) : profile.avatar_url ? (
+          <img src={profile.avatar_url} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          initials
+        )}
+      </div>
+      <div
+        onClick={() => !uploading && fileRef.current?.click()}
+        style={{
+          position: 'absolute', bottom: 2, right: 2,
+          width: 22, height: 22, borderRadius: '50%',
+          background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', border: `2px solid ${t.bg || t.card}`,
+          boxShadow: '0 2px 6px rgba(124,92,252,0.5)',
+        }}
+      >
+        <IpEdit size={10} color="#fff" />
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+    </div>
+  );
+}
+
 export default function Settings() {
   const router = useRouter();
   const { t, theme } = useTheme();
   const updateUser = useAuthStore(s => s.updateUser);
+  const { aiName } = useBranding();
   const [profile, setProfile] = useState(null);
   const [providers, setProviders] = useState(null);
   const [socialAccounts, setSocialAccounts] = useState([]);
@@ -477,6 +559,11 @@ export default function Settings() {
 
   // Workspace context (invited members)
   const [workspaceUser, setWorkspaceUser] = useState(null);
+
+  // Profile / owner
+  const [postStats, setPostStats] = useState(null);
+  const [ownerFields, setOwnerFields] = useState({ owner_name: '', owner_phone: '', owner_email: '', marketing_opt_in: true });
+  const [ownerSaving, setOwnerSaving] = useState(false);
 
   // Hashtag Sets
   const [hashtagSets, setHashtagSets] = useState([]);
@@ -648,23 +735,32 @@ export default function Settings() {
 
   const loadData = async () => {
     try {
-      const [profileRes, providersRes, scrapedRes, dmsRes, verifyRes] = await Promise.all([
+      const [profileRes, providersRes, scrapedRes, dmsRes, verifyRes, statsRes] = await Promise.all([
         customerAPI.getProfile(),
         contentAPI.getProviders().catch(() => ({ data: {} })),
         scraperAPI.getData().catch(() => ({ data: { hasData: false } })),
         dmsAPI.getStats().catch(() => ({ data: null })),
         authAPI.verify().catch(() => ({ data: null })),
+        postsAPI.getAnalytics().catch(() => ({ data: null })),
       ]);
-      setProfile(profileRes.data);
+      const p = profileRes.data;
+      setProfile(p);
+      setOwnerFields({
+        owner_name:      p.owner_name      || '',
+        owner_phone:     p.owner_phone     || '',
+        owner_email:     p.owner_email     || '',
+        marketing_opt_in: p.marketing_opt_in !== false,
+      });
       if (verifyRes?.data?.is_member) setWorkspaceUser(verifyRes.data);
-      setTimezone(profileRes.data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
-      if (profileRes.data.content_preferences?.notifications) {
-        setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...profileRes.data.content_preferences.notifications });
+      setTimezone(p.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+      if (p.content_preferences?.notifications) {
+        setNotifPrefs({ ...DEFAULT_NOTIF_PREFS, ...p.content_preferences.notifications });
       }
-      setAutoTestimonial(profileRes.data.content_preferences?.auto_testimonial_enabled === 'true');
-      setHandleInput(profileRes.data.public_handle || '');
+      setAutoTestimonial(p.content_preferences?.auto_testimonial_enabled === 'true');
+      setHandleInput(p.public_handle || '');
       setProviders(providersRes.data);
       setDmsStats(dmsRes.data);
+      if (statsRes.data) setPostStats(statsRes.data);
       if (scrapedRes.data.hasData) {
         setScrapedData(scrapedRes.data);
         setScraperUrl(scrapedRes.data.website || '');
@@ -1015,6 +1111,7 @@ export default function Settings() {
     try {
       await customerAPI.updateProfile({
         businessName: profile.business_name,
+        tagline: profile.tagline,
         industry: profile.industry,
         location: profile.location,
         phone: profile.phone,
@@ -1034,6 +1131,24 @@ export default function Settings() {
       showToast('Failed to save', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveOwnerInfo = async () => {
+    setOwnerSaving(true);
+    try {
+      await customerAPI.updateProfile({
+        ownerName:      ownerFields.owner_name,
+        ownerPhone:     ownerFields.owner_phone,
+        ownerEmail:     ownerFields.owner_email,
+        marketingOptIn: ownerFields.marketing_opt_in,
+      });
+      setProfile(p => ({ ...p, ...ownerFields }));
+      showToast('Account owner saved!');
+    } catch {
+      showToast('Failed to save', 'error');
+    } finally {
+      setOwnerSaving(false);
     }
   };
 
@@ -1148,6 +1263,72 @@ export default function Settings() {
           );
         })()}
 
+        {/* ── Profile Header Card ─────────────────────────────────────── */}
+        {profile && (() => {
+          const plan = PLAN_CONFIG[profile.plan] || PLAN_CONFIG.trial;
+          const memberSince = profile.created_at
+            ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            : null;
+          const statsItems = [
+            { label: 'Posts this month', value: profile.total_posts_this_month ?? 0, color: t.primary },
+            { label: 'Posting streak',   value: profile.posting_streak ? `${profile.posting_streak}d` : '—', color: '#30D158' },
+            { label: 'Credits left',     value: profile.credits_balance ?? 0, color: '#FF9F0A' },
+            { label: 'Platforms',        value: `${socialAccounts.length} / 5`, color: '#0A84FF' },
+          ];
+          return (
+            <div style={{
+              ...gc,
+              background: t.isDark
+                ? 'linear-gradient(135deg, #0F0820 0%, #130D2A 60%, #0A0F22 100%)'
+                : 'linear-gradient(135deg, #EDE8FF 0%, #F5F0FF 60%, #E8EDFF 100%)',
+              border: `1px solid ${t.border}`,
+              padding: '24px 24px 20px',
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', top: -40, left: -40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,92,252,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', bottom: -30, right: 40, width: 130, height: 130, borderRadius: '50%', background: 'radial-gradient(circle, rgba(236,72,153,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+              {/* Avatar + name row */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18, marginBottom: 18, position: 'relative' }}>
+                <AvatarUploader
+                  profile={profile}
+                  t={t}
+                  onUpload={url => setProfile(p => ({ ...p, avatar_url: url }))}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: t.text, lineHeight: 1.2 }}>
+                      {profile.business_name || 'Your Business'}
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '3px 9px', borderRadius: 20, color: plan.color, background: plan.bg }}>
+                      {plan.label}
+                    </span>
+                  </div>
+                  {profile.tagline && (
+                    <p style={{ margin: '0 0 4px', fontSize: 13, color: t.textSecondary, fontStyle: 'italic' }}>"{profile.tagline}"</p>
+                  )}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 14px' }}>
+                    {profile.industry && <span style={{ fontSize: 12, color: t.primary, fontWeight: 600 }}>{profile.industry.replace('_', ' ')}</span>}
+                    {profile.location && <span style={{ fontSize: 12, color: t.textMuted }}>📍 {profile.location}</span>}
+                    {memberSince && <span style={{ fontSize: 12, color: t.textMuted }}>Member since {memberSince}</span>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats strip */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 8, position: 'relative' }}>
+                {statsItems.map(s => (
+                  <div key={s.label} style={{ background: t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.65)', borderRadius: 10, padding: '10px 12px', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}` }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                    <div style={{ fontSize: 10, color: t.textMuted, marginTop: 3, lineHeight: 1.3 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Profile Completeness Bar */}
         <div style={{
           ...gc,
@@ -1202,6 +1383,7 @@ export default function Settings() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
             {[
               { label: 'Business Name', key: 'business_name', type: 'text' },
+              { label: 'Tagline', key: 'tagline', type: 'text' },
               { label: 'Industry', key: 'industry', type: 'text' },
               { label: 'Location', key: 'location', type: 'text' },
               { label: 'Phone', key: 'phone', type: 'tel' },
@@ -1283,6 +1465,46 @@ export default function Settings() {
                 <div style={{ fontSize: 11, color: t.textMuted, marginTop: 6 }}>Square image, at least 64Ã—64px</div>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ── Account Owner ───────────────────────────────────────────────── */}
+        <div style={gc}>
+          <SectionHeader icon={IpUser} title="Account Owner" subtitle="Your personal contact details — private, never shown publicly" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginTop: 4 }}>
+            {[
+              { label: 'Your Name',       key: 'owner_name',  type: 'text',  placeholder: 'e.g. Mike Johnson' },
+              { label: 'Personal Phone',  key: 'owner_phone', type: 'tel',   placeholder: 'e.g. (555) 123-4567' },
+              { label: 'Personal Email',  key: 'owner_email', type: 'email', placeholder: 'e.g. mike@yourbusiness.com' },
+            ].map(({ label, key, type, placeholder }) => (
+              <div key={key}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>{label}</label>
+                <Input
+                  type={type}
+                  placeholder={placeholder}
+                  value={ownerFields[key] || ''}
+                  onChange={e => setOwnerFields(f => ({ ...f, [key]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input
+              type="checkbox"
+              id="mkt-opt-in"
+              checked={ownerFields.marketing_opt_in}
+              onChange={e => setOwnerFields(f => ({ ...f, marketing_opt_in: e.target.checked }))}
+              style={{ width: 16, height: 16, cursor: 'pointer', accentColor: t.primary }}
+            />
+            <label htmlFor="mkt-opt-in" style={{ fontSize: 13, color: t.textMuted, cursor: 'pointer' }}>
+              I agree to receive product updates and tips from ItsPosting
+            </label>
+          </div>
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Button variant="primary" size="sm" onClick={saveOwnerInfo} disabled={ownerSaving}>
+              {ownerSaving ? 'Saving...' : 'Save Owner Info'}
+            </Button>
+            <span style={{ fontSize: 12, color: t.textMuted }}>This information is private and used only to personalise your experience.</span>
           </div>
         </div>
 
@@ -1788,9 +2010,9 @@ export default function Settings() {
 
         {/* Notification Preferences */}
         <div style={gc}>
-          <SectionHeader icon={IpBell} title="Notification Preferences" subtitle="Choose which alerts and updates PostCore sends you" />
+          <SectionHeader icon={IpBell} title="Notification Preferences" subtitle={`Choose which alerts and updates ${aiName} sends you`} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {NOTIF_GROUPS.map(group => (
+            {NOTIF_GROUPS(aiName).map(group => (
               <div key={group.label}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>{group.label}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1953,7 +2175,7 @@ export default function Settings() {
 
         {/* Testimonial Machine */}
         <div style={gc}>
-          <SectionHeader icon={IpSparkle} title="Testimonial Machine" subtitle="PostCore automatically turns your best Google reviews into social media drafts every two weeks" />
+          <SectionHeader icon={IpSparkle} title="Testimonial Machine" subtitle={`${aiName} automatically turns your best Google reviews into social media drafts every two weeks`} />
           <div
             onClick={() => !testimonialSaving && handleToggleAutoTestimonial(!autoTestimonial)}
             style={{
@@ -1969,7 +2191,7 @@ export default function Settings() {
                 Auto-generate testimonial posts
               </div>
               <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.5 }}>
-                Every 2 weeks PostCore picks your best unposted Google review and creates a ready-to-approve draft. Requires a connected Google Business account.
+                Every 2 weeks {aiName} picks your best unposted Google review and creates a ready-to-approve draft. Requires a connected Google Business account.
               </div>
             </div>
             <button
@@ -2286,7 +2508,7 @@ export default function Settings() {
                     type="text"
                     value={wlForm.aiAdvisorName}
                     onChange={e => setWlForm(f => ({ ...f, aiAdvisorName: e.target.value }))}
-                    placeholder="e.g. Max (default: PostCore)"
+                    placeholder="e.g. Max (default: ItsPosting AI)"
                     maxLength={40}
                     style={{ width: '100%', padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                   />
@@ -2501,6 +2723,26 @@ export default function Settings() {
           </div>
         )}
 
+
+        {/* ── Danger Zone ─────────────────────────────────────────────── */}
+        <div style={{ background: t.card, border: `1px solid ${t.errorBorder || 'rgba(239,68,68,0.4)'}`, borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 24px', borderBottom: `1px solid ${t.errorBorder || 'rgba(239,68,68,0.2)'}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <IpWarning size={16} color={t.error || '#ef4444'} />
+            <span style={{ fontWeight: 700, fontSize: 15, color: t.error || '#ef4444' }}>Danger Zone</span>
+          </div>
+          <div style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: t.text, marginBottom: 4 }}>Delete Account</div>
+              <div style={{ fontSize: 13, color: t.textMuted }}>Permanently delete your account and all data. This cannot be undone.</div>
+            </div>
+            <a
+              href="mailto:support@itsposting.com?subject=Account%20Deletion%20Request"
+              style={{ flexShrink: 0, fontSize: 13, fontWeight: 600, color: t.error || '#ef4444', padding: '8px 16px', borderRadius: 10, border: `1.5px solid ${t.errorBorder || 'rgba(239,68,68,0.4)'}`, background: t.errorBg || 'rgba(239,68,68,0.06)', textDecoration: 'none', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
+            >
+              Contact Support →
+            </a>
+          </div>
+        </div>
 
       </div>
 

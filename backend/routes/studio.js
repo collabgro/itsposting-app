@@ -207,7 +207,7 @@ module.exports = (pool) => {
         [billingId]
       );
       if ((billing?.credits_balance || 0) < 1) {
-        return res.status(402).json({ error: 'You need at least 1 credit to use PostCore formatting. Please purchase more credits.' });
+        return res.status(402).json({ error: 'You need at least 1 credit to use ItsPosting AI formatting. Please purchase more credits.' });
       }
 
       // Load customer + photo context
@@ -226,7 +226,7 @@ module.exports = (pool) => {
         } catch {}
       }
 
-      const systemPrompt = `You are PostCore, the AI advisor for ItsPosting — a social media platform for local trade businesses.
+      const systemPrompt = `You are ItsPosting AI, the AI advisor for ItsPosting — a social media platform for local trade businesses.
 The customer wants to create a social media graphic using a stock photo.
 Your job is to format their request into clean, professional text overlay that goes ON TOP of the photo.
 
@@ -265,7 +265,7 @@ Return ONLY valid JSON (no markdown fences):
         const raw = message.content[0].text.replace(/```json|```/g, '').trim();
         parsed = JSON.parse(raw);
       } catch {
-        return res.status(500).json({ error: 'PostCore returned an unexpected response. Please try again.' });
+        return res.status(500).json({ error: 'ItsPosting AI returned an unexpected response. Please try again.' });
       }
 
       // Deduct 1 credit — atomic to prevent race condition going negative
@@ -279,7 +279,7 @@ Return ONLY valid JSON (no markdown fences):
       const newBalance = deductRes.rows[0].credits_balance;
       await pool.query(
         `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
-         VALUES ($1, 'debit', -1, $2, 'Photo Studio — PostCore text formatting')`,
+         VALUES ($1, 'debit', -1, $2, 'Photo Studio — ItsPosting AI text formatting')`,
         [billingId, newBalance]
       );
 

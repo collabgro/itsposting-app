@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { dmsAPI, receptionistAPI, authAPI } from '../lib/api';
 import {
   IpInbox, IpFacebook, IpInstagram, IpLinkedIn, IpTikTok, IpRefresh, IpSend, IpSparkle,
@@ -66,6 +67,7 @@ function WindowStatus({ conv, t }) {
 
 export default function InboxPage() {
   const { t } = useTheme();
+  const { aiName } = useBranding();
 
   const [conversations, setConversations] = useState([]);
   const [stats, setStats] = useState({ unreadCount: 0, openCount: 0, facebookCount: 0, instagramCount: 0, linkedinCount: 0, tiktokCount: 0, pendingApprovalCount: 0 });
@@ -889,7 +891,7 @@ export default function InboxPage() {
                           <div style={{ fontSize: 10, color: t.textMuted, marginTop: 3, textAlign: isOut ? 'right' : 'left', display: 'flex', alignItems: 'center', gap: 4, justifyContent: isOut ? 'flex-end' : 'flex-start' }}>
                             {isOut && msg.ai_handled && <span style={{ background: 'rgba(124,92,252,0.12)', color: t.primary, padding: '1px 4px', borderRadius: 3, fontWeight: 600 }}>AI</span>}
                             {isOut && !msg.ai_handled && msg.reply_type === 'auto_reply' && <span style={{ background: t.primaryBg, color: t.primary, padding: '1px 4px', borderRadius: 3 }}>Auto</span>}
-                            {isOut && !msg.ai_handled && msg.reply_type === 'ai_draft' && <span style={{ background: t.primaryBg, color: t.primary, padding: '1px 4px', borderRadius: 3 }}>PostCore</span>}
+                            {isOut && !msg.ai_handled && msg.reply_type === 'ai_draft' && <span style={{ background: t.primaryBg, color: t.primary, padding: '1px 4px', borderRadius: 3 }}>{aiName}</span>}
                             {timeAgo(msg.sent_at || msg.created_at)}
                           </div>
                         </div>
@@ -1013,7 +1015,7 @@ export default function InboxPage() {
                   <div style={{ marginBottom: 8, padding: '10px 12px', borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}` }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: t.primary, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <IpSparkle size={12} /> PostCore suggestion
+                        <IpSparkle size={12} /> {aiName} suggestion
                       </span>
                       <button onClick={() => setAiDraft(null)} style={{ border: 'none', background: 'none', color: t.textMuted, cursor: 'pointer' }}><IpClose size={14} /></button>
                     </div>
@@ -1056,7 +1058,7 @@ export default function InboxPage() {
                       <button
                         onClick={generateAiDraft}
                         disabled={aiLoading}
-                        title="Generate PostCore AI reply"
+                        title="Generate AI reply"
                         style={{ padding: '8px 10px', borderRadius: 8, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, color: t.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}
                       >
                         <IpSparkle size={14} />

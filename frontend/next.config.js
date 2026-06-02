@@ -37,7 +37,12 @@ const nextConfig = {
   reactStrictMode: false,
   eslint: { ignoreDuringBuilds: true },
   poweredByHeader: false,
+  compress: true,
   outputFileTracingRoot: path.join(__dirname, '..'),
+  compiler: {
+    // Strip all console.log / console.warn in production; keep console.error for visibility
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error'] } : false,
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'res.cloudinary.com' },

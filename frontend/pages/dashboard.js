@@ -62,7 +62,7 @@ const MONTH_HINTS = {
   12: "December — year-end appreciation and holiday greetings build loyalty.",
 };
 
-function computeDailyHint(daysSinceLastPost, month, hour, aiName = 'PostCore') {
+function computeDailyHint(daysSinceLastPost, month, hour, aiName = 'ItsPosting AI') {
   if (daysSinceLastPost !== null && daysSinceLastPost >= 4) {
     return {
       text: `You haven't posted in ${daysSinceLastPost} days. Reach drops 40% after 5 days of silence.`,
@@ -1234,7 +1234,7 @@ function ActivationChecklist({ allPosts, upcoming, geoScore, t, router }) {
   );
 }
 
-const TOUR_STEPS = (aiName = 'PostCore') => [
+const TOUR_STEPS = (aiName = 'ItsPosting AI') => [
   {
     iconBg: 'rgba(124,92,252,0.15)',
     iconColor: '#7C5CFC',

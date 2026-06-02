@@ -165,6 +165,68 @@ class EmailQueue {
     });
   }
 
+  /** Called when a service request (credit purchase / agency plan) is submitted */
+  async notifyServiceRequestReceived(customer, request) {
+    const label = request.type === 'credit_purchase' ? 'Credit Purchase Request' : 'Agency Plan Application';
+    const detail = request.type === 'credit_purchase'
+      ? `${request.request_data?.credits} credits ($${request.request_data?.price})`
+      : `${request.request_data?.clients || 'Not specified'} clients`;
+    await this.queue(customer.email, 'service_request_received', {
+      businessName: customer.business_name || customer.email,
+      requestLabel: label,
+      requestDetail: detail,
+      billingUrl: `${APP_URL}/billing`,
+    });
+  }
+
+  /** Called when a service request is submitted — alerts admin team */
+  async notifyAdminNewRequest(request, customer) {
+    const adminEmail = process.env.ADMIN_ALERT_EMAIL || process.env.EMAIL_FROM_ADDRESS || 'support@itsposting.com';
+    const label = request.type === 'credit_purchase' ? 'Credit Purchase Request' : 'Agency Plan Application';
+    const detail = request.type === 'credit_purchase'
+      ? `${request.request_data?.credits} credits ($${request.request_data?.price})`
+      : `${request.request_data?.clients || 'Not specified'} clients`;
+    await this.queue(adminEmail, 'service_request_admin_alert', {
+      businessName: customer.business_name || customer.email,
+      customerEmail: customer.email,
+      requestLabel: label,
+      requestDetail: detail,
+      customerMessage: request.request_data?.message || request.request_data?.useCase || '',
+      adminUrl: `${APP_URL.replace('app.', 'app.')}/admin/requests`,
+    });
+  }
+
+  /** Called when admin approves/resolves a service request */
+  async notifyServiceRequestResolved(customer, request, adminNotes) {
+    const label = request.type === 'credit_purchase' ? 'Credit Purchase Request' : 'Agency Plan Application';
+    await this.queue(customer.email, 'service_request_resolved', {
+      businessName: customer.business_name || customer.email,
+      requestLabel: label,
+      adminNotes: adminNotes || '',
+      billingUrl: `${APP_URL}/billing`,
+    });
+  }
+
+  /** Called when admin rejects a service request */
+  async notifyServiceRequestRejected(customer, request, adminNotes) {
+    const label = request.type === 'credit_purchase' ? 'Credit Purchase Request' : 'Agency Plan Application';
+    await this.queue(customer.email, 'service_request_rejected', {
+      businessName: customer.business_name || customer.email,
+      requestLabel: label,
+      adminNotes: adminNotes || '',
+      billingUrl: `${APP_URL}/billing`,
+    });
+  }
+
+  /** Called when admin sends a direct message to a customer from a service request */
+  async notifyServiceRequestMessage(customer, message) {
+    await this.queue(customer.email, 'service_request_message', {
+      businessName: customer.business_name || customer.email,
+      message,
+      billingUrl: `${APP_URL}/billing`,
+    });
+  }
+
   /** Called when admin rejects a referral award */
   async notifyReferralRejected(customer, reason) {
     await this.queue(customer.email, 'referral_rejected', {

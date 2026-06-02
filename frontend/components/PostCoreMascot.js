@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 
 export function setMascotMood(mood, message) {
   if (typeof window !== 'undefined')
@@ -119,17 +120,17 @@ const SEASONAL_MSGS = {
   12: "December — year-end appreciation posts build loyalty for next year.",
 };
 
-const MILESTONE_MSGS = {
+const MILESTONE_MSGS = (aiName = 'ItsPosting AI') => ({
   first_post:  "Your first post! You're officially on the map. Keep it going! 🎉",
   streak_3:    "3-day posting streak! Consistency is what beats the algorithm.",
   streak_7:    "7-day streak! That's one full week — your audience will notice.",
   streak_30:   "30-day streak! You're in the top 1% of consistent posters. Incredible!",
   posts_10:    "10 posts this month! Your local reach is growing every single week.",
-  posts_25:    "25 posts! PostCore is proud of you. Your business is showing up.",
+  posts_25:    `25 posts! ${aiName} is proud of you. Your business is showing up.`,
   posts_50:    "50 posts! You've built a real content presence. Local customers see you.",
   posts_100:   "100 posts! That's a full year of showing up. Your community knows you.",
   viral_post:  "🔥 That post is on fire! Your community loves this content!",
-};
+});
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 const PC_CSS = `
@@ -251,7 +252,9 @@ const PC_CSS = `
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function PostCoreMascot({ user, compact = false }) {
   const { t } = useTheme();
+  const { aiName } = useBranding();
   const router = useRouter();
+  const milestones = MILESTONE_MSGS(aiName);
   const mascotRef = useRef(null);
   const lastMoveRef = useRef(Date.now());
 
@@ -357,7 +360,7 @@ export default function PostCoreMascot({ user, compact = false }) {
     const streak = user.posting_streak || 0;
     const key = `ms_streak_${streak}`;
     if (sessionStorage.getItem(key)) return;
-    const msg = streak === 30 ? MILESTONE_MSGS.streak_30 : streak === 7 ? MILESTONE_MSGS.streak_7 : streak === 3 ? MILESTONE_MSGS.streak_3 : null;
+    const msg = streak === 30 ? milestones.streak_30 : streak === 7 ? milestones.streak_7 : streak === 3 ? milestones.streak_3 : null;
     if (msg) {
       sessionStorage.setItem(key, '1');
       setTimeout(() => {
@@ -375,7 +378,7 @@ export default function PostCoreMascot({ user, compact = false }) {
     if (total < 10) return;
     const key = `ms_posts_${total}`;
     if (sessionStorage.getItem(key)) return;
-    const msg = total >= 50 ? MILESTONE_MSGS.posts_50 : total >= 25 ? MILESTONE_MSGS.posts_25 : MILESTONE_MSGS.posts_10;
+    const msg = total >= 50 ? milestones.posts_50 : total >= 25 ? milestones.posts_25 : milestones.posts_10;
     sessionStorage.setItem(key, '1');
     setTimeout(() => {
       applyMood('celebrating'); setCustomMsg(msg);
@@ -388,8 +391,8 @@ export default function PostCoreMascot({ user, compact = false }) {
   useEffect(() => {
     const handler = (e) => {
       const { mood: m, message, milestone } = e.detail || {};
-      if (milestone && MILESTONE_MSGS[milestone]) {
-        const msg = MILESTONE_MSGS[milestone];
+      if (milestone && milestones[milestone]) {
+        const msg = milestones[milestone];
         if (milestone === 'viral_post') {
           applyMood('viral'); setCustomMsg(msg);
           setTimeout(() => applyMood('celebrating'), 5000);
@@ -497,7 +500,7 @@ export default function PostCoreMascot({ user, compact = false }) {
           WebkitBackdropFilter: 'blur(18px)',
           pointerEvents: 'none',
         }}>
-          <span style={{ color: t.primary, fontWeight: 700, display: 'block', marginBottom: 3, fontSize: 10, letterSpacing: '0.07em', textTransform: 'uppercase' }}>PostCore</span>
+          <span style={{ color: t.primary, fontWeight: 700, display: 'block', marginBottom: 3, fontSize: 10, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{aiName}</span>
           {tooltipMsg}
           <div style={{ position: 'absolute', left: -6, top: '50%', transform: 'translateY(-50%)', width: 6, height: 10, overflow: 'hidden' }}>
             <div style={{ width: 10, height: 10, background: t.isDark ? 'rgba(8,6,20,0.97)' : 'rgba(255,255,255,0.98)', border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.38)' : 'rgba(124,92,252,0.28)'}`, transform: 'rotate(45deg) translateX(-5px)' }} />
@@ -794,14 +797,14 @@ export default function PostCoreMascot({ user, compact = false }) {
         </svg>
       </div>
 
-      {/* "PostCore" label — sidebar non-compact only */}
+      {/* AI name label — sidebar non-compact only */}
       {!compact && (
         <div style={{
           fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
           color: t.isDark ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.20)',
           textTransform: 'uppercase', marginTop: 1, marginBottom: 4,
         }}>
-          PostCore
+          {aiName}
         </div>
       )}
     </div>

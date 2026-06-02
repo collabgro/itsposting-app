@@ -68,5 +68,49 @@ module.exports = (pool) => {
     }
   });
 
+  /**
+   * GET /api/referrals/my-referrals
+   * Returns the list of customers who signed up using this customer's referral code,
+   * including their plan status and associated award status.
+   */
+  router.get('/my-referrals', authenticate, async (req, res) => {
+    try {
+      const codeRow = await pool.query(
+        'SELECT referral_code FROM customers WHERE id = $1',
+        [req.customerId]
+      );
+      const code = codeRow.rows[0]?.referral_code;
+      if (!code) return res.json({ referrals: [] });
+
+      const result = await pool.query(
+        `SELECT
+           c.id,
+           c.business_name,
+           c.industry,
+           c.location,
+           c.plan,
+           c.created_at,
+           ra.id            AS award_id,
+           ra.status        AS award_status,
+           ra.credits       AS award_credits,
+           ra.released_at,
+           ra.created_at    AS award_created_at
+         FROM customers c
+         LEFT JOIN referral_awards ra
+           ON ra.referred_customer_id = c.id
+           AND ra.referrer_customer_id = $1
+         WHERE c.referred_by = $2
+         ORDER BY c.created_at DESC
+         LIMIT 50`,
+        [req.customerId, code]
+      );
+
+      res.json({ referrals: result.rows });
+    } catch (err) {
+      console.error('[referrals] my-referrals error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };

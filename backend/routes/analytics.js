@@ -521,11 +521,11 @@ module.exports = (pool) => {
         if (overallAvg > 0) {
           const ratio = chosenAvg / overallAvg;
           if (ratio >= 1.12) {
-            styleInsight = 'You tend to pick longer, more detailed captions. PostCore will generate those first.';
+            styleInsight = 'You tend to pick longer, more detailed captions. ItsPosting AI will generate those first.';
           } else if (ratio <= 0.88) {
-            styleInsight = 'You tend to pick shorter, punchier captions. PostCore will lead with those.';
+            styleInsight = 'You tend to pick shorter, punchier captions. ItsPosting AI will lead with those.';
           } else {
-            styleInsight = 'You pick evenly across all caption styles — PostCore keeps showing you variety.';
+            styleInsight = 'You pick evenly across all caption styles — ItsPosting AI keeps showing you variety.';
           }
         }
       } catch (styleErr) {

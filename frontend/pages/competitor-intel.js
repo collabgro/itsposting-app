@@ -8,6 +8,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, Skeleton, ErrorCard, useToast } from '../components/ui';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { competitorAPI } from '../lib/api';
 
 const MAX = 3;
@@ -57,6 +58,7 @@ function OpportunityCard({ opp, t, onUse }) {
 }
 
 function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyzing }) {
+  const { aiName } = useBranding();
   const analysis = comp.analysis;
 
   return (
@@ -192,7 +194,7 @@ function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyz
               border: `1px solid rgba(124,92,252,0.2)`,
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: t.primary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
-                PostCore's verdict
+                {aiName}'s verdict
               </div>
               <div style={{ fontSize: 13, color: t.text, lineHeight: 1.6 }}>{analysis.overallVerdict}</div>
             </div>
@@ -202,7 +204,7 @@ function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyz
 
       {!analysis && !analyzing && (
         <div style={{ padding: '14px 20px', fontSize: 13, color: t.textMuted }}>
-          Hit "Analyze" to let PostCore study this competitor and show you content opportunities.
+          Hit "Analyze" to let {aiName} study this competitor and show you content opportunities.
         </div>
       )}
 
@@ -210,7 +212,7 @@ function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyz
         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${t.primaryBorder}`, borderTopColor: t.primary, animation: 'spin 0.8s linear infinite' }} />
           <div style={{ fontSize: 13, color: t.textMuted, textAlign: 'center' }}>
-            Scraping their website and running PostCore analysis…<br />
+            Scraping their website and running {aiName} analysis…<br />
             <span style={{ fontSize: 11, color: t.textMuted }}>This takes 15–30 seconds</span>
           </div>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -223,6 +225,7 @@ function CompetitorCard({ comp, t, onDelete, onAnalyze, onUseOpportunity, analyz
 export default function CompetitorIntelPage() {
   const { t } = useTheme();
   const router = useRouter();
+  const { aiName } = useBranding();
   const { showToast } = useToast();
 
   const [competitors, setCompetitors] = useState([]);
@@ -323,7 +326,7 @@ export default function CompetitorIntelPage() {
         <IpSparkle size={16} color={t.primary} style={{ flexShrink: 0, marginTop: 1 }} />
         <div style={{ fontSize: 13, color: t.textSecondary, lineHeight: 1.6 }}>
           <strong style={{ color: t.text }}>How this works:</strong> Add up to {MAX} competitors by website URL.
-          PostCore scrapes their site and generates a strategic breakdown — strengths, gaps, and 3 content angles you can use to outcompete them.
+          {aiName} scrapes their site and generates a strategic breakdown — strengths, gaps, and 3 content angles you can use to outcompete them.
           Each analysis costs 1 credit.
         </div>
       </div>
@@ -338,8 +341,8 @@ export default function CompetitorIntelPage() {
         <IpWarning size={13} color={t.info} style={{ flexShrink: 0, marginTop: 2 }} />
         <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.7 }}>
           <span style={{ color: t.text, fontWeight: 600 }}>Good to know: </span>
-          PostCore reads the competitor's full website to build the analysis — including content hidden behind tabs, accordions, and dynamic sections.
-          Sites with Cloudflare or heavy bot protection may still limit what can be extracted; in those cases, PostCore analyses from the domain alone.
+          {aiName} reads the competitor's full website to build the analysis — including content hidden behind tabs, accordions, and dynamic sections.
+          Sites with Cloudflare or heavy bot protection may still limit what can be extracted; in those cases, {aiName} analyses from the domain alone.
           {' '}<span style={{ color: t.textMuted }}>Your credit is automatically refunded if the analysis fails entirely.</span>
         </div>
       </div>
@@ -419,7 +422,7 @@ export default function CompetitorIntelPage() {
           </div>
           <div style={{ fontSize: 18, fontWeight: 700, color: t.text, marginBottom: 8 }}>Know your competition</div>
           <div style={{ fontSize: 14, color: t.textMuted, maxWidth: 420, margin: '0 auto 20px', lineHeight: 1.6 }}>
-            Add a competitor's website and PostCore will analyze their positioning, find their content gaps, and show you 3 angles to win more local customers.
+            Add a competitor's website and {aiName} will analyze their positioning, find their content gaps, and show you 3 angles to win more local customers.
           </div>
           <Button variant="primary" onClick={() => setShowAdd(true)}>
             <IpPlus size={14} strokeWidth={2.5} /> Add Your First Competitor

@@ -228,7 +228,7 @@ async function generateIdeasForCustomer(customer) {
     ? faqPairs.map(f => `  Q: ${f.q}\n  A: ${f.a}`).join('\n').slice(0, 800)
     : '';
 
-  const systemPrompt = `You are PostCore, the world's best social media strategist for local trade businesses. Your ideas make business owners say "wow, that's exactly what I needed to post."
+  const systemPrompt = `You are ItsPosting AI, the world's best social media strategist for local trade businesses. Your ideas make business owners say "wow, that's exactly what I needed to post."
 
 BUSINESS PROFILE:
 - Name: ${businessName}
@@ -357,7 +357,7 @@ async function generateSharedIdeas(industry) {
   const anglesBlock = topAngles.map(a => `  • "${a.hook}"\n    WHY IT WORKS: ${a.why}`).join('\n');
   const faqBlock = faqPairs.map(f => `  Q: ${f.q}\n  A: ${f.a}`).join('\n').slice(0, 800);
 
-  const systemPrompt = `You are PostCore, the world's best social media strategist for local trade businesses. Your ideas make business owners say "wow, that's exactly what I needed to post."
+  const systemPrompt = `You are ItsPosting AI, the world's best social media strategist for local trade businesses. Your ideas make business owners say "wow, that's exactly what I needed to post."
 
 INDUSTRY: ${industryLabel}
 DATE: ${today}

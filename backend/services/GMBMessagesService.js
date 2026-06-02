@@ -43,7 +43,7 @@ class GMBMessagesService {
         messageId,
         representative: {
           representativeType: 'BOT',
-          displayName: 'PostCore AI',
+          displayName: 'ItsPosting AI',
         },
         text,
       },

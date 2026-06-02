@@ -4,10 +4,12 @@ import {
   IpTrendingUp, IpHeart, IpComment, IpShare, IpAnalytics, IpChevronRight,
   IpSchedule, IpSparkle, IpDrafts, IpPhoto as ImageIcon, IpCarousel, IpVideo,
   IpCalendar, IpInfo, IpCheck, IpRefresh, IpFacebook, IpInstagram,
+  IpFlame, IpZap,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Button, Badge, StatCard, SectionHeader, EmptyState, Spinner, SkeletonPage, ErrorCard } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
+import { useBranding } from '../../lib/branding';
 import { analyticsAPI } from '../../lib/api';
 import { format, addDays } from 'date-fns';
 
@@ -299,15 +301,15 @@ function EngagementTrendChart({ posts, t, gc, router }) {
           }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: t.text, marginBottom: 6 }}>{hoverDay.label}</div>
             {hoverPosts > 0 && (
-              <div style={{ fontSize: 11, color: '#F59E0B', marginBottom: 4 }}>
-                📅 {hoverPosts} post{hoverPosts > 1 ? 's' : ''} published
+              <div style={{ fontSize: 11, color: '#F59E0B', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <IpCalendar size={11} color="#F59E0B" /> {hoverPosts} post{hoverPosts > 1 ? 's' : ''} published
               </div>
             )}
             {hasEng ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div style={{ fontSize: 11, color: t.textMuted }}>❤️ Likes <span style={{ float: 'right', color: t.text, fontWeight: 700 }}>{hoverDetail?.likes || 0}</span></div>
-                <div style={{ fontSize: 11, color: t.textMuted }}>💬 Comments <span style={{ float: 'right', color: t.text, fontWeight: 700 }}>{hoverDetail?.comments || 0}</span></div>
-                <div style={{ fontSize: 11, color: t.textMuted }}>🔁 Shares <span style={{ float: 'right', color: t.text, fontWeight: 700 }}>{hoverDetail?.shares || 0}</span></div>
+                <div style={{ fontSize: 11, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}><IpHeart size={10} /> Likes <span style={{ marginLeft: 'auto', color: t.text, fontWeight: 700 }}>{hoverDetail?.likes || 0}</span></div>
+                <div style={{ fontSize: 11, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}><IpComment size={10} /> Comments <span style={{ marginLeft: 'auto', color: t.text, fontWeight: 700 }}>{hoverDetail?.comments || 0}</span></div>
+                <div style={{ fontSize: 11, color: t.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}><IpShare size={10} /> Shares <span style={{ marginLeft: 'auto', color: t.text, fontWeight: 700 }}>{hoverDetail?.shares || 0}</span></div>
               </div>
             ) : (
               <div style={{ fontSize: 11, color: t.textMuted }}>No engagement synced yet</div>
@@ -349,6 +351,7 @@ function EngagementTrendChart({ posts, t, gc, router }) {
 export default function Analytics() {
   const router = useRouter();
   const { t }  = useTheme();
+  const { aiName } = useBranding();
 
   const [mounted, setMounted]         = useState(false);
   const [loading, setLoading]         = useState(true);
@@ -688,8 +691,8 @@ export default function Analytics() {
               {streak !== null && streak.streak > 0 && (
                 <div style={{ ...gc, marginBottom: 24, borderLeft: `4px solid ${streak.isOnFire ? '#F59E0B' : streak.streak >= 3 ? '#22C55E' : t.primary}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{ width: 52, height: 52, borderRadius: 14, background: streak.isOnFire ? 'rgba(245,158,11,0.12)' : streak.streak >= 3 ? 'rgba(34,197,94,0.1)' : t.primaryBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>
-                      {streak.isOnFire ? '🔥' : streak.streak >= 3 ? '⚡' : '📅'}
+                    <div style={{ width: 52, height: 52, borderRadius: 14, background: streak.isOnFire ? 'rgba(245,158,11,0.12)' : streak.streak >= 3 ? 'rgba(34,197,94,0.1)' : t.primaryBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {streak.isOnFire ? <IpFlame size={28} color="#F59E0B" /> : streak.streak >= 3 ? <IpZap size={28} color="#22C55E" /> : <IpCalendar size={28} color={t.primary} />}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 16, fontWeight: 800, color: t.text }}>{streak.label} posting streak</div>
@@ -776,7 +779,7 @@ export default function Analytics() {
                       <IpSparkle size={18} color="url(#brand-gradient)" />
                     </div>
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>PostCore Learns Your Style</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>{aiName} Learns Your Style</div>
                       <div style={{ fontSize: 12, color: t.textMuted, marginTop: 1 }}>Based on {varStats.total} variation choice{varStats.total !== 1 ? 's' : ''}</div>
                     </div>
                   </div>

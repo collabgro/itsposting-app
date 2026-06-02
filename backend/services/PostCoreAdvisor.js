@@ -64,7 +64,7 @@ class PostCoreAdvisor {
       seasonal = k.seasonalContent?.[new Date().getMonth() + 1] || null;
     } catch { /* ignore */ }
 
-    const systemPrompt = `You are PostCore, the AI social media advisor for ItsPosting.
+    const systemPrompt = `You are ItsPosting AI, the AI social media advisor for ItsPosting.
 You help local service businesses grow through social media.
 Voice: knowledgeable, friendly, direct — like a trusted advisor talking to a tradesperson.
 Never use marketing jargon. Maximum 3 recommendations. Always explain WHY before WHAT.
@@ -154,8 +154,8 @@ Return this exact JSON structure:
       try {
         const ns = new NotificationService(this.pool);
         ns.create(customerId, 'system',
-          'Your weekly PostCore briefing is ready',
-          briefingData.weekSummary || 'PostCore has insights from last week and a plan for this week.'
+          'Your weekly ItsPosting AI briefing is ready',
+          briefingData.weekSummary || 'ItsPosting AI has insights from last week and a plan for this week.'
         );
       } catch (err) {
         console.error('[PostCoreAdvisor] Notification dispatch failed:', err.message);

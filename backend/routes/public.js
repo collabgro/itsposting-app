@@ -23,7 +23,7 @@ module.exports = (pool) => {
           return res.status(404).json({ error: 'No agency branding for this domain' });
         }
         const result = await pool.query(
-          `SELECT business_name, white_label_config
+          `SELECT id, business_name, white_label_config
            FROM customers
            WHERE white_label_config->>'customDomain' = $1
              AND plan = 'agency'
@@ -35,7 +35,7 @@ module.exports = (pool) => {
       } else if (handle) {
         const cleanHandle = String(handle).toLowerCase().replace(/[^a-z0-9_-]/g, '').substring(0, 50);
         const result = await pool.query(
-          `SELECT business_name, white_label_config
+          `SELECT id, business_name, white_label_config
            FROM customers
            WHERE public_handle = $1
              AND plan = 'agency'
@@ -49,9 +49,11 @@ module.exports = (pool) => {
       if (!row) return res.status(404).json({ error: 'No agency branding found' });
 
       const wl = row.white_label_config || {};
-      res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=300');
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
       res.json({
+        agencyId:      row.id,
         agencyName:    wl.agencyName    || row.business_name || null,
+        aiAdvisorName: wl.aiAdvisorName || 'ItsPosting AI',
         logo:          wl.logo          || null,
         primaryColor:  wl.primaryColor  || null,
         hidePoweredBy: wl.hidePoweredBy || false,

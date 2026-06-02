@@ -257,6 +257,3 @@ export default function AcceptInvite() {
   );
 }
 
-export async function getServerSideProps() {
-  return { props: {} };
-}

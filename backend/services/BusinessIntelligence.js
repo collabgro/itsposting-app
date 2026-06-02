@@ -175,7 +175,7 @@ class BusinessIntelligence {
     const healthScore    = Math.max(0, 100 - (gaps.length * 20));
     const recommendation = gaps.length === 0
       ? 'Great content balance — keep it up!'
-      : `PostCore: ${gaps[0]}`;
+      : `ItsPosting AI: ${gaps[0]}`;
 
     return { mix, healthScore, recommendation, gaps };
   }

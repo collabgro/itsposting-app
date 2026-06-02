@@ -7,6 +7,7 @@ import {
 import Layout from '../../components/Layout';
 import { Button, Badge, SectionHeader, EmptyState, Spinner, SkeletonPage } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
+import { useBranding } from '../../lib/branding';
 import { geoAPI } from '../../lib/api';
 
 const IMPACT_VARIANT = { high: 'success', medium: 'warning', low: 'default' };
@@ -60,6 +61,7 @@ export default function GeoAuditReport() {
   const router = useRouter();
   const { id } = router.query;
   const { t } = useTheme();
+  const { aiName } = useBranding();
   const [mounted, setMounted] = useState(false);
   const [audit, setAudit] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -408,7 +410,7 @@ export default function GeoAuditReport() {
         {/* ── 6. RECOMMENDATIONS ── */}
         {recommendations.length > 0 && (
           <div style={gc}>
-            <SectionHeader icon={IpSparkle} title="Your 5-Action Plan" subtitle="PostCore's recommendations based on exactly what was found in your audit" />
+            <SectionHeader icon={IpSparkle} title="Your 5-Action Plan" subtitle={`${aiName}'s recommendations based on exactly what was found in your audit`} />
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {recommendations.map((rec, i) => (
                 <div key={i} style={{ padding: 16, background: t.input, border: `1px solid ${t.border}`, borderLeft: `3px solid ${t.primary}`, borderRadius: 10 }}>
@@ -447,7 +449,7 @@ export default function GeoAuditReport() {
           <SectionHeader icon={IpTrendingUp} title="Track Your Progress" />
           <p style={{ margin: '12px 0 20px', fontSize: 13, color: t.textSecondary, lineHeight: 1.6 }}>
             Re-run this audit in 30 days after implementing the recommendations above.
-            PostCore will show you which AI searches now mention your business.
+            {aiName} will show you which AI searches now mention your business.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <Button onClick={() => router.push('/geo-audit')} variant="secondary">

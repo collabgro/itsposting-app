@@ -8,10 +8,10 @@ import {
   IpMediaLibrary, IpAnalytics, IpBilling, IpSettings, IpAdmin,
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon, IpLogout,
   IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpSearch,
-  IpPhotoStudio, IpWarning, IpSchedule, IpUser, IpVideo, IpCheck, IpTrendingUp,
+  IpPhotoStudio, IpWarning, IpSchedule, IpVideo, IpCheck, IpTrendingUp, IpTip, IpComment,
 } from './icons';
 import { useTheme } from '../lib/theme';
-import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI, postsAPI, intelligenceAPI, analyticsAPI, billingAPI, geoAPI, knowledgeAPI, customerAPI, mediaAPI } from '../lib/api';
+import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI, postsAPI, intelligenceAPI, analyticsAPI, billingAPI, geoAPI, knowledgeAPI, customerAPI, mediaAPI, adminAPI } from '../lib/api';
 import NotificationBell from './NotificationBell';
 import { ConfirmModal } from './ui';
 import { ItsPostingLogo } from './ItsPostingLogo';
@@ -44,9 +44,9 @@ const NAV_ITEMS = [
   { name: 'Quick Post',    href: '/quick-post',     icon: IpZap,          isQuickPost: true },
   { name: 'Post Wizard',   href: '/wizard',         icon: IpWizard,       showSuggBadge: true },
   { name: 'Templates',     href: '/templates',      icon: IpPhotoStudio },
-  { name: 'Post Ideas',    href: '/ideas',          icon: IpSparkle },
+  { name: 'Post Ideas',    href: '/ideas',          icon: IpTip },
   { name: 'Content Calendar', href: '/content-calendar', icon: IpSchedule },
-  { name: 'Upload',        href: '/upload',         icon: IpCreatePost },
+  { name: 'Social Planner', href: '/upload',         icon: IpCreatePost },
 
   { isDivider: true, label: 'Manage' },
   { name: 'Calendar',      href: '/calendar',       icon: IpCalendar },
@@ -65,7 +65,6 @@ const NAV_ITEMS = [
   { name: 'Workspaces',    href: '/workspaces',     icon: IpTeam,         isWorkspaceNav: true },
   { name: 'Refer & Earn',  href: '/billing?tab=referral', icon: IpZap },
   { name: 'Billing',       href: '/billing',        icon: IpBilling },
-  { name: 'Profile',       href: '/profile',        icon: IpUser },
   { name: 'Settings',      href: '/settings',       icon: IpSettings },
 ];
 
@@ -78,6 +77,7 @@ export default function Layout({ children, title, subtitle, action }) {
   const [dmUnread, setDmUnread] = useState(0);
   const [unseenSugg, setUnseenSugg] = useState(0);
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [hasToken, setHasToken] = useState(false);
   const [wsData, setWsData] = useState(null);
   const [myMemberships, setMyMemberships] = useState([]);
@@ -174,6 +174,8 @@ export default function Layout({ children, title, subtitle, action }) {
         if (wsResult.status === 'fulfilled' && wsResult.value.data) setWsData(wsResult.value.data);
         if (membershipsResult.status === 'fulfilled') setMyMemberships(membershipsResult.value.data?.memberships || []);
         if (approvalResult.status === 'fulfilled') setPendingApprovals(Array.isArray(approvalResult.value.data) ? approvalResult.value.data.length : 0);
+        // Load pending service requests count for admin badge (non-fatal)
+        adminAPI.getServiceRequestsCount().then(r => setPendingRequestsCount(r.data?.count || 0)).catch(() => {});
       })();
     }
     const refreshCredits = async () => {
@@ -235,22 +237,35 @@ export default function Layout({ children, title, subtitle, action }) {
   // Always show Workspaces nav — members need it to manage their memberships
   const baseNavItems = NAV_ITEMS;
 
-  // Nav items + conditionally add admin link for admins
-  const navItems = user?.is_admin
+  // Nav items + agency section (agency plan owners) + admin section (platform admins)
+  const isAgency = user?.plan === 'agency' && !user?.parent_customer_id && !user?.is_member;
+  const withAgency = isAgency
     ? [
         ...baseNavItems,
-        { isDivider: true, label: 'Admin' },
-        { name: 'Admin Portal',    href: '/admin',             icon: IpAdmin,     isAdmin: true },
-        { name: 'Customers',       href: '/admin/customers',   icon: IpTeam,      isAdmin: true },
-        { name: 'Post Moderation', href: '/admin/posts',       icon: IpDrafts,    isAdmin: true },
-        { name: 'Referrals',       href: '/admin/referrals',   icon: IpAnalytics, isAdmin: true },
-        { name: 'Broadcast',       href: '/admin/broadcast',   icon: IpMail,      isAdmin: true },
-        { name: 'Email Queue',     href: '/admin/email-queue', icon: IpMail,      isAdmin: true },
-        { name: 'Audit Log',       href: '/admin/audit',       icon: IpAdmin,     isAdmin: true },
-        { name: 'Templates',       href: '/admin/templates',    icon: IpPhotoStudio, isAdmin: true },
-        { name: `${aiName} Brain`,  href: '/admin/llm',          icon: IpSparkle,     isAdmin: true },
+        { isDivider: true, label: 'Agency' },
+        { name: 'Agency Overview', href: '/agency',         icon: IpSparkle,  isAgency: true },
+        { name: 'Clients',         href: '/agency/clients', icon: IpTeam,     isAgency: true },
+        { name: 'Client Plans',    href: '/agency/plans',   icon: IpBilling,  isAgency: true },
+        { name: 'Branding',        href: '/settings?tab=white-label', icon: IpSettings, isAgency: true },
       ]
     : baseNavItems;
+
+  const navItems = user?.is_admin
+    ? [
+        ...withAgency,
+        { isDivider: true, label: 'Admin' },
+        { name: 'Admin Portal',    href: '/admin',             icon: IpAdmin,       isAdmin: true },
+        { name: 'Customers',       href: '/admin/customers',   icon: IpTeam,        isAdmin: true },
+        { name: 'Requests',        href: '/admin/requests',    icon: IpComment,     isAdmin: true, badge: pendingRequestsCount > 0 ? pendingRequestsCount : null },
+        { name: 'Post Moderation', href: '/admin/posts',       icon: IpDrafts,      isAdmin: true },
+        { name: 'Referrals',       href: '/admin/referrals',   icon: IpAnalytics,   isAdmin: true },
+        { name: 'Broadcast',       href: '/admin/broadcast',   icon: IpMail,        isAdmin: true },
+        { name: 'Email Queue',     href: '/admin/email-queue', icon: IpMail,        isAdmin: true },
+        { name: 'Audit Log',       href: '/admin/audit',       icon: IpAdmin,       isAdmin: true },
+        { name: 'Templates',       href: '/admin/templates',   icon: IpPhotoStudio, isAdmin: true },
+        { name: `${aiName} Brain`, href: '/admin/llm',         icon: IpSparkle,     isAdmin: true },
+      ]
+    : withAgency;
 
   // Permission filter for sub-accounts (Type A) and invited members (Type B)
   const isSubAccount = !!user?.parent_customer_id;
@@ -311,6 +326,15 @@ export default function Layout({ children, title, subtitle, action }) {
                   </span>
                 )}
               </div>
+            ) : wlConfig.agencyName ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', flex: 1 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 7, background: wlPrimary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                  {wlConfig.agencyName.charAt(0).toUpperCase()}
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 700, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {wlConfig.agencyName}
+                </span>
+              </div>
             ) : (
               <ItsPostingLogo size="sm" variant="full" theme={t.isDark ? 'dark' : 'light'} />
             )
@@ -344,15 +368,25 @@ export default function Layout({ children, title, subtitle, action }) {
               onClick={() => setWsDropdownOpen((v) => !v)}
               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 10, background: t.isDark ? (wsDropdownOpen ? 'rgba(124,92,252,0.1)' : 'rgba(255,255,255,0.035)') : (wsDropdownOpen ? 'rgba(124,92,252,0.07)' : 'rgba(0,0,0,0.03)'), border: `1px solid ${wsDropdownOpen ? t.primaryBorder : (t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)')}`, cursor: 'pointer', transition: 'all 180ms cubic-bezier(0.34,1.56,0.64,1)' }}
             >
-              <div style={{ width: 32, height: 32, borderRadius: 6, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
-                {(user.favicon_url || user.logo_url)
-                  ? <img src={user.favicon_url || user.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : (user.business_name || 'W').charAt(0).toUpperCase()}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.business_name || 'Workspace'}</div>
-                <div style={{ fontSize: 11, color: t.textMuted }}>{wsData?.mainAccount && wsData.mainAccount.id !== user.id ? 'Workspace' : (user.industry || 'Main account')}</div>
-              </div>
+              {(() => {
+                const activeMem = user?.is_member ? myMemberships.find(m => m.workspace_id === user.workspace_id) : null;
+                const displayName = activeMem ? (activeMem.workspace_display_name || activeMem.business_name) : (user.business_name || 'Workspace');
+                const displaySub = activeMem ? `by ${activeMem.owner_business_name}` : (wsData?.mainAccount && wsData.mainAccount.id !== user.id ? 'Workspace' : (user.industry || 'Main account'));
+                const displayAvatar = activeMem ? (activeMem.favicon_url || activeMem.logo_url) : (user.favicon_url || user.logo_url);
+                return (
+                  <>
+                    <div style={{ width: 32, height: 32, borderRadius: 6, background: 'linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: '#fff', flexShrink: 0, overflow: 'hidden' }}>
+                      {displayAvatar
+                        ? <img src={displayAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : displayName.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: t.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
+                      <div style={{ fontSize: 11, color: t.textMuted }}>{displaySub}</div>
+                    </div>
+                  </>
+                );
+              })()}
               <IpChevronsUpDown size={14} color={t.textMuted} style={{ flexShrink: 0 }} />
             </div>
 
@@ -498,13 +532,13 @@ export default function Layout({ children, title, subtitle, action }) {
                 })()}
 
                 {/* ── External memberships (shared accounts from other owners) ── */}
-                {myMemberships.length > 0 && (
+                {myMemberships.filter(m => !(user?.is_member && m.workspace_id === user.workspace_id)).length > 0 && (
                   <>
                     <div style={{ height: 1, background: t.border, margin: '4px 0' }} />
                     <div style={{ padding: '6px 10px 4px', fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
                       Shared accounts
                     </div>
-                    {myMemberships.map((m) => {
+                    {myMemberships.filter(m => !(user?.is_member && m.workspace_id === user.workspace_id)).map((m) => {
                       const wsName = m.workspace_display_name || m.business_name;
                       const isActiveMembership = user?.workspace_id === m.workspace_id;
                       return (
@@ -668,6 +702,17 @@ export default function Layout({ children, title, subtitle, action }) {
                     {badges[item.badgeKey] > 99 ? '99+' : badges[item.badgeKey]}
                   </span>
                 )}
+                {item.badge != null && (
+                  <span style={{
+                    minWidth: 18, height: 18, borderRadius: 9, background: '#FB923C',
+                    color: '#fff', fontSize: 10, fontWeight: 700,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '0 4px', flexShrink: 0,
+                    boxShadow: '0 2px 6px rgba(251,146,60,0.45)',
+                  }}>
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
                 {item.isQuickPost && (
                   <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 5, background: 'rgba(124,92,252,0.15)', color: t.primary, border: `1px solid rgba(124,92,252,0.25)` }}>
                     30s
@@ -794,7 +839,7 @@ export default function Layout({ children, title, subtitle, action }) {
         )}
 
         {/* Powered by ItsPosting — shown in white-label mode unless hidden */}
-        {wlConfig.logo && !wlConfig.hidePoweredBy && (
+        {(wlConfig.agencyName || wlConfig.logo || wlConfig.primaryColor) && !wlConfig.hidePoweredBy && (
           <div style={{ padding: '8px 16px', flexShrink: 0, borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}` }}>
             <div style={{ fontSize: 10, color: t.textMuted, textAlign: 'center', opacity: 0.6 }}>
               Powered by <span style={{ fontWeight: 700, color: t.textMuted }}>ItsPosting</span>

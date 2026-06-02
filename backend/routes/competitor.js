@@ -200,7 +200,7 @@ My services: ${(customer.scraped_services || []).join(', ') || 'Not specified'}
 Tone preference: ${customer.tone || 'professional'}
 `;
 
-      const prompt = `You are PostCore, an AI social media advisor for local service businesses.
+      const prompt = `You are ItsPosting AI, an AI social media advisor for local service businesses.
 
 My customer's business:
 ${customerInfo}

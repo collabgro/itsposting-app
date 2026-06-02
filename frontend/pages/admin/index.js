@@ -3,11 +3,20 @@ import { useRouter } from 'next/router';
 import {
   IpTeam, IpTrendingUp, IpDollar, IpWarning, IpActivity,
   IpAdmin, IpChevronRight, IpAnalytics, IpCheckCircle, IpCloseCircle, IpCheck, IpPhotoStudio,
+  IpComment,
 } from '../../components/icons';
 import Layout from '../../components/Layout';
 import { Button, Badge, StatCard, SectionHeader, EmptyState, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
 import { adminAPI } from '../../lib/api';
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000) || 1}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  if (diff < 2_592_000_000) return `${Math.floor(diff / 86_400_000)}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -26,6 +35,8 @@ export default function AdminDashboard() {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -41,6 +52,13 @@ export default function AdminDashboard() {
       ]);
       setStats(statsRes.data);
       setHealth(healthRes.data);
+      // Load pending service requests (non-fatal)
+      adminAPI.getServiceRequests({ status: 'pending', limit: 3 })
+        .then(r => {
+          setPendingRequests(r.data.requests || []);
+          setPendingCount(r.data.total || 0);
+        })
+        .catch(() => {});
     } catch (err) {
       if (err.response?.status === 403) {
         setError('Admin access required. Redirecting...');
@@ -116,6 +134,19 @@ export default function AdminDashboard() {
         <StatCard label="Active subscribers" value={stats.users.active || 0} hint={`${stats.users.active_this_week || 0} active this week`} accent="success" />
         <StatCard label="MRR" value={`$${(stats.revenue.mrr || 0).toLocaleString()}`} hint={`$${(stats.revenue.arr || 0).toLocaleString()} ARR`} accent="success" />
         <StatCard label="Total posts" value={stats.posts.total_posts || 0} hint={`${stats.posts.today || 0} today`} accent="primary" />
+        <div
+          onClick={() => router.push('/admin/requests')}
+          style={{ ...gc, padding: '16px 20px', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
+          onMouseEnter={e => (e.currentTarget.style.background = t.cardHover)}
+          onMouseLeave={e => (e.currentTarget.style.background = '')}
+        >
+          {pendingCount > 0 && (
+            <div style={{ position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 6px rgba(239,68,68,0.6)' }} />
+          )}
+          <div style={{ fontSize: 12, color: t.textMuted, fontWeight: 600, marginBottom: 6 }}>Pending requests</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: pendingCount > 0 ? '#FB923C' : t.text, fontFamily: 'monospace' }}>{pendingCount}</div>
+          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>awaiting review</div>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 20 }}>
@@ -167,6 +198,45 @@ export default function AdminDashboard() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* PENDING SERVICE REQUESTS */}
+      <div style={{ ...gc, marginBottom: 20 }}>
+        <SectionHeader
+          icon={IpComment}
+          title="Pending requests"
+          action={<Button variant="ghost" size="sm" onClick={() => router.push('/admin/requests')}>View all <IpChevronRight size={12} /></Button>}
+        />
+        {pendingRequests.length === 0 ? (
+          <div style={{ padding: '20px 0', textAlign: 'center', color: t.textMuted, fontSize: 13 }}>No pending requests</div>
+        ) : (
+          pendingRequests.map(req => {
+            const isCredit = req.type === 'credit_purchase';
+            const detail = isCredit
+              ? `${req.request_data?.credits} credits — $${req.request_data?.price}`
+              : `Agency plan · ${req.request_data?.clients || '?'} clients`;
+            return (
+              <div
+                key={req.id}
+                onClick={() => router.push('/admin/requests')}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 8px', borderBottom: `1px solid ${t.border}`, cursor: 'pointer', borderRadius: 8, transition: 'background 120ms' }}
+                onMouseEnter={e => (e.currentTarget.style.background = t.cardHover)}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FB923C', flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{req.business_name}</div>
+                  <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>{detail}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Badge variant={isCredit ? 'primary' : 'warning'}>{isCredit ? 'Credits' : 'Agency'}</Badge>
+                  <span style={{ fontSize: 11, color: t.textMuted, whiteSpace: 'nowrap' }}>{timeAgo(req.created_at)}</span>
+                </div>
+                <IpChevronRight size={14} style={{ color: t.textMuted, flexShrink: 0 }} />
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* QUICK STATS ROW */}

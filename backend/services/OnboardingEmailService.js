@@ -97,7 +97,7 @@ function emailWrapper(bodyHtml, footerNote = '') {
       <div style="width:32px;height:32px;background:rgba(255,255,255,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px">📱</div>
       <div>
         <h1>ItsPosting</h1>
-        <p>AI Social Media · PostCore</p>
+        <p>AI Social Media · ItsPosting AI</p>
       </div>
     </div>
   </div>
@@ -230,10 +230,10 @@ class OnboardingEmailService {
 
     const html = emailWrapper(`
       <p class="hero">Good to have you, ${biz}. ${emoji}</p>
-      <p>PostCore has been briefed on your business. It knows you're in <strong>${industryLabel}</strong> and it already knows what local homeowners are searching for right now.</p>
+      <p>ItsPosting AI has been briefed on your business. It knows you're in <strong>${industryLabel}</strong> and it already knows what local homeowners are searching for right now.</p>
 
       <div class="box-purple">
-        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#A78BFA;text-transform:uppercase;letter-spacing:0.06em">PostCore's first suggestion for you</p>
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#A78BFA;text-transform:uppercase;letter-spacing:0.06em">ItsPosting AI's first suggestion for you</p>
         <p style="margin:0;font-size:15px;font-weight:600;color:#fff">"${seasonal?.urgencyTopic || 'Share what makes your business different'}"</p>
         <p style="margin:6px 0 0;font-size:12px;color:#888">This is the #1 topic local homeowners are looking for in ${MONTH_NAMES[month - 1]}.</p>
       </div>
@@ -244,14 +244,14 @@ class OnboardingEmailService {
         <div class="step-num">1</div>
         <div class="step-body">
           <p>Open the Post Wizard</p>
-          <span>Tap "Post Wizard" — PostCore guides you through 3 quick questions.</span>
+          <span>Tap "Post Wizard" — ItsPosting AI guides you through 3 quick questions.</span>
         </div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
         <div class="step-body">
           <p>Pick a content type</p>
-          <span>Photo, text card, carousel — PostCore writes the caption for you.</span>
+          <span>Photo, text card, carousel — ItsPosting AI writes the caption for you.</span>
         </div>
       </div>
       <div class="step">
@@ -281,7 +281,7 @@ class OnboardingEmailService {
       <p style="font-size:13px;color:#666">Need help? Just reply to this email — I read every one.</p>
     `, 'You received this because you just created an ItsPosting account.');
 
-    const text = `Welcome to ItsPosting, ${biz}!\n\nPostCore has been briefed on your ${industryLabel} business.\n\nYour first suggested post topic: "${seasonal?.urgencyTopic}"\n\nCreate your first post here: ${wizardUrl}\n\nYou have 10 free credits and 7 days to try everything.\n\nQuestions? Reply to this email.`;
+    const text = `Welcome to ItsPosting, ${biz}!\n\nItsPosting AI has been briefed on your ${industryLabel} business.\n\nYour first suggested post topic: "${seasonal?.urgencyTopic}"\n\nCreate your first post here: ${wizardUrl}\n\nYou have 10 free credits and 7 days to try everything.\n\nQuestions? Reply to this email.`;
 
     return { subject, html, text };
   }
@@ -293,26 +293,26 @@ class OnboardingEmailService {
     const hook = knowledge.hookFormulas?.[0] || 'Did you know most homeowners don\'t know about this?';
     const wizardUrl = `${APP_URL}/wizard`;
 
-    const subject = `PostCore has a post ready for you, ${biz}`;
+    const subject = `ItsPosting AI has a post ready for you, ${biz}`;
 
     const html = emailWrapper(`
-      <p class="hero">PostCore is ready to post for you.</p>
-      <p>It's ${MONTH_NAMES[month - 1]} — and based on what local homeowners are searching for right now, PostCore has a post idea ready for your business.</p>
+      <p class="hero">ItsPosting AI is ready to post for you.</p>
+      <p>It's ${MONTH_NAMES[month - 1]} — and based on what local homeowners are searching for right now, ItsPosting AI has a post idea ready for your business.</p>
 
       <div class="box-purple">
         <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#A78BFA;text-transform:uppercase;letter-spacing:0.06em">This week's recommended post</p>
         <p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#fff">${seasonal?.urgencyTopic || 'Share a recent job you completed'}</p>
-        <p style="margin:0;font-size:13px;color:#A0A0B0">Opening hook PostCore will use: <em style="color:#E2E2E8">"${hook}"</em></p>
+        <p style="margin:0;font-size:13px;color:#A0A0B0">Opening hook ItsPosting AI will use: <em style="color:#E2E2E8">"${hook}"</em></p>
       </div>
 
-      <p>PostCore writes the full caption, generates an image, and adapts it for Facebook, Instagram, and Google Business — automatically.</p>
+      <p>ItsPosting AI writes the full caption, generates an image, and adapts it for Facebook, Instagram, and Google Business — automatically.</p>
       <p>It takes about <strong>45 seconds</strong> from tap to scheduled.</p>
 
       <a href="${wizardUrl}" class="btn">Use this idea now →</a>
       <p style="font-size:13px;color:#555">This idea is time-sensitive — ${MONTH_NAMES[month - 1]} is the right moment for this topic.</p>
     `);
 
-    const text = `PostCore has a post idea ready for you.\n\nThis month's recommended topic: "${seasonal?.urgencyTopic}"\n\nCreate it here in 45 seconds: ${wizardUrl}`;
+    const text = `ItsPosting AI has a post idea ready for you.\n\nThis month's recommended topic: "${seasonal?.urgencyTopic}"\n\nCreate it here in 45 seconds: ${wizardUrl}`;
     return { subject, html, text };
   }
 
@@ -328,7 +328,7 @@ class OnboardingEmailService {
 
     const html = emailWrapper(`
       <p class="hero">Here's what's working in ${industryLabel} right now.</p>
-      <p>PostCore analyzed engagement data across ${industryLabel} businesses this ${MONTH_NAMES[month - 1]}. Here's what's getting the most reach locally:</p>
+      <p>ItsPosting AI analyzed engagement data across ${industryLabel} businesses this ${MONTH_NAMES[month - 1]}. Here's what's getting the most reach locally:</p>
 
       <div class="box">
         <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.06em">#1 Topic this month</p>
@@ -343,11 +343,11 @@ class OnboardingEmailService {
       ${ctaVariations.map(c => `<span class="chip chip-purple">${c}</span>`).join('')}
 
       <div class="divider"></div>
-      <p>PostCore uses all of this automatically when you generate a post. You never have to think about it.</p>
+      <p>ItsPosting AI uses all of this automatically when you generate a post. You never have to think about it.</p>
       <a href="${APP_URL}/wizard" class="btn">Generate a post with these insights →</a>
     `);
 
-    const text = `What's working in ${industryLabel} this ${MONTH_NAMES[month - 1]}:\n\n#1 topic: ${seasonal?.urgencyTopic}\n\nPostCore uses this data automatically. Generate a post here: ${APP_URL}/wizard`;
+    const text = `What's working in ${industryLabel} this ${MONTH_NAMES[month - 1]}:\n\n#1 topic: ${seasonal?.urgencyTopic}\n\nItsPosting AI uses this data automatically. Generate a post here: ${APP_URL}/wizard`;
     return { subject, html, text };
   }
 
@@ -360,14 +360,14 @@ class OnboardingEmailService {
 
     const html = emailWrapper(`
       <p class="hero">Creating content doesn't have to be hard.</p>
-      <p>PostCore noticed you haven't created your first post yet. That's completely fine — I want to make this as easy as possible.</p>
+      <p>ItsPosting AI noticed you haven't created your first post yet. That's completely fine — I want to make this as easy as possible.</p>
       <p>Here's the exact process. It takes <strong>under 2 minutes</strong>:</p>
 
       <div class="step">
         <div class="step-num">1</div>
         <div class="step-body">
           <p>Go to Post Wizard</p>
-          <span>No blank page. PostCore asks you 3 quick questions — that's it.</span>
+          <span>No blank page. ItsPosting AI asks you 3 quick questions — that's it.</span>
         </div>
       </div>
       <div class="step">
@@ -380,7 +380,7 @@ class OnboardingEmailService {
       <div class="step">
         <div class="step-num">3</div>
         <div class="step-body">
-          <p>PostCore writes 3 variations</p>
+          <p>ItsPosting AI writes 3 variations</p>
           <span>Pick the one you like. One tap publishes or schedules it.</span>
         </div>
       </div>
@@ -389,15 +389,15 @@ class OnboardingEmailService {
 
       <div class="box">
         <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#E2E2E8">Common questions:</p>
-        <p style="margin:0 0 12px;font-size:13px;color:#888"><strong style="color:#E2E2E8">Q: I don't know what to write.</strong><br/>A: You don't write anything. PostCore writes it. You just answer 3 questions about your business.</p>
-        <p style="margin:0 0 12px;font-size:13px;color:#888"><strong style="color:#E2E2E8">Q: I don't have photos.</strong><br/>A: PostCore generates an image for you automatically. Or you can upload your own (it's free).</p>
+        <p style="margin:0 0 12px;font-size:13px;color:#888"><strong style="color:#E2E2E8">Q: I don't know what to write.</strong><br/>A: You don't write anything. ItsPosting AI writes it. You just answer 3 questions about your business.</p>
+        <p style="margin:0 0 12px;font-size:13px;color:#888"><strong style="color:#E2E2E8">Q: I don't have photos.</strong><br/>A: ItsPosting AI generates an image for you automatically. Or you can upload your own (it's free).</p>
         <p style="margin:0;font-size:13px;color:#888"><strong style="color:#E2E2E8">Q: I don't have time.</strong><br/>A: The average post takes 47 seconds from open to scheduled. We timed it.</p>
       </div>
 
       <p style="font-size:13px;color:#555">Still stuck? Just reply to this email and tell me what's getting in the way. I'll help you through it personally.</p>
     `);
 
-    const text = `Creating content doesn't have to be hard, ${biz}.\n\nPostCore asks 3 questions — you pick answers from a list — it writes the caption and generates the image. Average time: 47 seconds.\n\nTry it here: ${wizardUrl}\n\nStill stuck? Reply and I'll help you personally.`;
+    const text = `Creating content doesn't have to be hard, ${biz}.\n\nItsPosting AI asks 3 questions — you pick answers from a list — it writes the caption and generates the image. Average time: 47 seconds.\n\nTry it here: ${wizardUrl}\n\nStill stuck? Reply and I'll help you personally.`;
     return { subject, html, text };
   }
 
@@ -535,7 +535,7 @@ class OnboardingEmailService {
     const estReach = posts * 650;
 
     const subject = posts > 0
-      ? `${biz}: your first month with PostCore — here's the scorecard`
+      ? `${biz}: your first month with ItsPosting AI — here's the scorecard`
       : `${biz}: here's what your first month could have looked like`;
 
     const html = emailWrapper(posts > 0 ? `

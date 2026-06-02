@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useTheme } from '../../lib/theme';
+import { useBranding } from '../../lib/branding';
 import { studioAPI, mediaAPI } from '../../lib/api';
 import {
   IpArrowLeft, IpSave, IpDownload, IpDelete, IpClose,
@@ -66,6 +67,7 @@ function emptyProject(aspectRatio = '9:16') {
 
 export default function VideoEditorInner() {
   const t = useTheme();
+  const { appName } = useBranding();
   const router = useRouter();
   const { id: editId, videoUrl } = router.query;
 
@@ -1590,7 +1592,7 @@ export default function VideoEditorInner() {
       <div style={s.toolbar}>
         <button onClick={() => router.push('/media?tab=studio')}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'rgba(255,255,255,0.08)', border: `1px solid ${t.border}`, borderRadius: 6, color: t.text, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
-          <IpArrowLeft size={14} /> ItsPosting
+          <IpArrowLeft size={14} /> {appName}
         </button>
 
         {/* Aspect ratio */}

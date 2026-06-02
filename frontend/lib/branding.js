@@ -11,7 +11,7 @@ import { useAuthStore } from './store';
 
 const DEFAULTS = {
   appName:      'ItsPosting',
-  aiName:       'PostCore',
+  aiName:       'ItsPosting AI',
   primaryColor: null,       // null = use theme default
   logo:         null,
   hidePoweredBy: false,

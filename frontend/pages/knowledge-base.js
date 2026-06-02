@@ -9,6 +9,7 @@ import {
 import Layout from '../components/Layout';
 import { Button, Input, Textarea, Spinner, Select } from '../components/ui';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { knowledgeAPI, receptionistAPI } from '../lib/api';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ function getQualityInfo(content) {
 export default function KnowledgeBase() {
   const router = useRouter();
   const { t } = useTheme();
+  const { aiName } = useBranding();
   const [activeTab, setActiveTab] = useState('all');
   const [mounted, setMounted] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -193,7 +195,7 @@ function AllTab({ t, refreshKey, onSwitchTab }) {
         </div>
         {quality.thin > 0 && (
           <div style={{ marginTop: 10, padding: '7px 10px', background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)', borderRadius: 8, fontSize: 11, color: t.textMuted }}>
-            <span style={{ color: '#ef4444', fontWeight: 700 }}>{quality.thin} {quality.thin === 1 ? 'entry is' : 'entries are'} too thin</span> — PostCore needs more detail to use them effectively. Click an entry to edit.
+            <span style={{ color: '#ef4444', fontWeight: 700 }}>{quality.thin} {quality.thin === 1 ? 'entry is' : 'entries are'} too thin</span> — your AI advisor needs more detail to use them effectively. Click an entry to edit.
           </div>
         )}
       </div>
@@ -593,7 +595,7 @@ function WebCrawlerTab({ t, refreshKey, onImportComplete }) {
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><IpGlobe size={40} color={t.textMuted} /></div>
             <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>No websites added yet</div>
-            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Add your website to train PostCore with your business content</div>
+            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Add your website to train your AI advisor with your business content</div>
             <Button variant="primary" onClick={() => setShowModal(true)}><IpPlus size={14} /> Add Website</Button>
           </div>
         </div>
@@ -1109,7 +1111,7 @@ function TablesTab({ t }) {
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><IpDollar size={40} color={t.textMuted} /></div>
             <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>No tables added yet</div>
-            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Add your service pricing so PostCore can share price ranges with customers.</div>
+            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Add your service pricing so your AI advisor can share price ranges with customers.</div>
             <Button variant="primary" onClick={addRow}><IpPlus size={14} /> Add Row</Button>
           </div>
         </div>
@@ -1251,7 +1253,7 @@ function RichTextTab({ t, refreshKey }) {
                 {q.tier === 'thin' ? 'Thin' : q.tier === 'brief' ? 'Brief' : q.label}
               </span>
               {isNew && (
-                <span title="PostCore hasn't used this yet — generate a post to put it to work" style={{ fontSize: 10, fontWeight: 600, color: '#8b5cf6', padding: '2px 7px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 10, flexShrink: 0, whiteSpace: 'nowrap', cursor: 'help' }}>
+                <span title="Your AI advisor hasn't used this yet — generate a post to put it to work" style={{ fontSize: 10, fontWeight: 600, color: '#8b5cf6', padding: '2px 7px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 10, flexShrink: 0, whiteSpace: 'nowrap', cursor: 'help' }}>
                   New
                 </span>
               )}
@@ -1402,7 +1404,7 @@ function FilesTab({ t, refreshKey, onRefresh }) {
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><IpFolderOpen size={40} color={t.textMuted} /></div>
             <div style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 8 }}>No files uploaded yet</div>
-            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Upload TXT or PDF files to give PostCore access to your documents.</div>
+            <div style={{ fontSize: 13, color: t.textMuted, marginBottom: 20 }}>Upload TXT or PDF files to give your AI advisor access to your documents.</div>
             <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
               {uploading ? <><Spinner size={12} /> Uploading…</> : <><IpPlus size={14} /> Upload from computer</>}
             </Button>
@@ -1477,7 +1479,7 @@ function TestBar({ t }) {
   const handleClose = () => { setIsOpen(false); setMessages([]); setQuery(''); };
 
   return (
-    <div style={{ position: 'fixed', bottom: 0, left: isMobile ? 0 : 240, right: 0, zIndex: 100, borderTop: `1px solid ${t.border}`, background: t.card, boxShadow: '0 -4px 20px rgba(0,0,0,0.08)' }}>
+    <div style={{ position: 'fixed', bottom: isMobile ? 60 : 0, left: isMobile ? 0 : 240, right: 0, zIndex: 100, borderTop: `1px solid ${t.border}`, background: t.card, boxShadow: '0 -4px 20px rgba(0,0,0,0.08)', paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : 0 }}>
 
       {/* Expanded message history panel */}
       {isOpen && (
@@ -1693,7 +1695,7 @@ function AiResponseTab({ t }) {
 
       {/* AI Handling */}
       {sectionHeader('AI Handling')}
-      <ToggleRow label="Enable AI Handling" sub="PostCore will auto-reply to incoming DMs" value={form.enabled} onChange={v => setForm(f => ({ ...f, enabled: v }))} t={t} />
+      <ToggleRow label="Enable AI Handling" sub="AI advisor will auto-reply to incoming DMs" value={form.enabled} onChange={v => setForm(f => ({ ...f, enabled: v }))} t={t} />
       <ToggleRow label="Auto-Reply" sub="Send replies automatically without approval" value={form.auto_handle} onChange={v => setForm(f => ({ ...f, auto_handle: v }))} t={t} />
 
       {/* Tone */}
@@ -1742,7 +1744,7 @@ function AiResponseTab({ t }) {
 
       {/* Escalation Keywords */}
       {sectionHeader('Escalation Keywords')}
-      <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 10 }}>PostCore stops auto-replying and alerts you when these words appear in a message.</div>
+      <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 10 }}>Auto-replies stop and you get alerted when these words appear in a message.</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
         {form.escalate_keywords.map(kw => (
           <span key={kw} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 20, fontSize: 12, color: '#ef4444' }}>

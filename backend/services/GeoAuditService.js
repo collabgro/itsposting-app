@@ -270,7 +270,7 @@ Text: ${text.substring(0, 600)}`,
       return `${name}: ${appeared ? 'appeared in searches' : 'NOT found in searches'}`;
     }).join(', ');
 
-    const prompt = `You are PostCore, the AI advisor for ItsPosting — a platform for local service businesses.
+    const prompt = `You are ItsPosting AI, the AI advisor for ItsPosting — a platform for local service businesses.
 Generate a GEO audit report for ${customer.business_name || 'this business'} (${customer.industry}, ${customer.location}).
 
 AUDIT DATA:
@@ -285,7 +285,7 @@ AUDIT DATA:
 QUERY RESULTS (Group A=brand visibility, B=competitive intel, C=trust criteria, D=platforms):
 ${gridSummary}
 
-PostCore voice rules: plain language a tradesperson understands, explain WHY before WHAT,
+ItsPosting AI voice rules: plain language a tradesperson understands, explain WHY before WHAT,
 maximum 5 recommendations, never say "leverage/synergy/optimize/utilize",
 each recommendation MUST reference a specific gap found above (not generic advice).
 

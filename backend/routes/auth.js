@@ -15,7 +15,7 @@ module.exports = (pool) => {
    */
   router.post('/register', async (req, res) => {
     try {
-      const { email, password, businessName, industry, location, parentRef, referredBy } = req.body;
+      const { email, password, businessName, industry, location, parentRef, referredBy, agencyHandle } = req.body;
 
       if (!email || !password || !businessName) {
         return res.status(400).json({ error: 'Missing required fields' });
@@ -50,7 +50,18 @@ module.exports = (pool) => {
       const passwordHash = await bcrypt.hash(password, 12);
 
       let parentCustomerId = null;
-      if (parentRef) {
+      let agencyBranding = null;
+      if (agencyHandle) {
+        const agencyCheck = await pool.query(
+          `SELECT id, white_label_config FROM customers WHERE public_handle = $1 AND plan = 'agency' AND NOT COALESCE(suspended, false)`,
+          [agencyHandle.toLowerCase().trim()]
+        );
+        if (!agencyCheck.rows[0]) {
+          return res.status(404).json({ error: 'Agency not found.' });
+        }
+        parentCustomerId = agencyCheck.rows[0].id;
+        agencyBranding = agencyCheck.rows[0].white_label_config || {};
+      } else if (parentRef) {
         const parentCheck = await pool.query('SELECT id FROM customers WHERE id = $1', [parseInt(parentRef, 10) || 0]);
         if (parentCheck.rows.length) parentCustomerId = parentCheck.rows[0].id;
       }
@@ -70,9 +81,14 @@ module.exports = (pool) => {
       );
 
       const customer = result.rows[0];
-      const token = generateToken(customer.id, customer.email);
+
+      // For agency-referred signups: JWT includes parentCustomerId so credit deductions hit the agency pool
+      const token = agencyHandle
+        ? generateToken(customer.id, customer.email, { parentCustomerId })
+        : generateToken(customer.id, customer.email);
 
       if (!parentCustomerId) {
+        // Only give free trial credits to direct (non-agency) signups
         await pool.query(
           `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)
            VALUES ($1, 'bonus', 10, 10, 'Welcome bonus - 10 free credits')`,
@@ -80,14 +96,17 @@ module.exports = (pool) => {
         );
       }
 
-      // Record this IP → customer registration (non-blocking, fail silently)
-      pool.query(
-        `INSERT INTO trial_ip_registrations (ip_address, customer_id) VALUES ($1, $2)`,
-        [clientIp, customer.id]
-      ).catch(err => console.warn('[Auth] Could not record trial IP:', err.message));
+      // Record this IP only for direct signups (agency clients bypass the IP rate limit)
+      if (!agencyHandle) {
+        pool.query(
+          `INSERT INTO trial_ip_registrations (ip_address, customer_id) VALUES ($1, $2)`,
+          [clientIp, customer.id]
+        ).catch(err => console.warn('[Auth] Could not record trial IP:', err.message));
+      }
 
-      // Send Day 0 onboarding email (non-blocking) — replaces generic welcome
-      onboardingEmail.sendDay0({ id: customer.id, email: customer.email, business_name: customer.business_name, industry: industry || 'general_contractor', credits_balance: 10 }).catch(() => {});
+      // Send Day 0 onboarding email (non-blocking)
+      const emailBrandingName = agencyBranding?.agencyName || null;
+      onboardingEmail.sendDay0({ id: customer.id, email: customer.email, business_name: customer.business_name, industry: industry || 'general_contractor', credits_balance: parentCustomerId ? 0 : 10, brandName: emailBrandingName }).catch(() => {});
 
       res.json({ customer, token });
     } catch (error) {

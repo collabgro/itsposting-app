@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import {
   IpCheck, IpCredits, IpSparkle, IpCrown, IpBilling, IpSchedule,
   IpTrendingUp, IpArrowUpRight, IpArrowDownRight, IpWarning, IpGift,
-  IpExternalLink, IpDollar, IpClose, IpMail,
+  IpExternalLink, IpDollar, IpClose, IpMail, IpCheckCircle,
 } from '../components/icons';
 import Layout from '../components/Layout';
 import { Button, Spinner, EmptyState, SkeletonPage, ErrorCard, Select, AnimatedNumber, ProgressRing, PulseIndicator } from '../components/ui';
@@ -45,6 +45,7 @@ export default function Billing() {
     monthly_allocation:  { label: 'Monthly credits',  color: t.primary,   dir: 1 },
     admin_grant:         { label: 'Admin grant',       color: t.success,   dir: 1 },
     admin_deduction:     { label: 'Admin deduction',   color: t.error,     dir: -1 },
+    referral_reward:     { label: 'Referral reward',   color: '#10b981',   dir: 1 },
     usage:               { label: 'Used',              color: t.textMuted, dir: -1 },
     debit:               { label: 'Post generated',    color: t.textMuted, dir: -1 },
     purchase:            { label: 'Purchase',          color: t.primary,   dir: 1 },
@@ -62,8 +63,6 @@ export default function Billing() {
   const [buyingPack, setBuyingPack] = useState(null); // credit pack id being purchased
   const [selectedPackId, setSelectedPackId] = useState('credits_100'); // Upwork-style dropdown selection
   const [customCreditsInput, setCustomCreditsInput] = useState('');
-  const [promoCode, setPromoCode] = useState('');
-  const [promoApplied, setPromoApplied] = useState(false);
   const [upgradeError, setUpgradeError] = useState('');
   const [creditMsg, setCreditMsg] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -74,6 +73,19 @@ export default function Billing() {
   const [referralData, setReferralData] = useState(null);
   const [referralLoading, setReferralLoading] = useState(false);
   const [referralCopied, setReferralCopied] = useState(false);
+  const [myReferrals, setMyReferrals] = useState([]);
+  const [myReferralsLoading, setMyReferralsLoading] = useState(false);
+  // Credit request form (custom amounts)
+  const [showCreditForm, setShowCreditForm] = useState(false);
+  const [creditFormNote, setCreditFormNote] = useState('');
+  const [creditFormSubmitting, setCreditFormSubmitting] = useState(false);
+  const [creditFormDone, setCreditFormDone] = useState(false);
+  // Agency plan application modal
+  const [showAgencyModal, setShowAgencyModal] = useState(false);
+  const [agencyClients, setAgencyClients] = useState('');
+  const [agencyUseCase, setAgencyUseCase] = useState('');
+  const [agencySubmitting, setAgencySubmitting] = useState(false);
+  const [agencyDone, setAgencyDone] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -91,7 +103,9 @@ export default function Billing() {
     if (router.query.tab === 'referral') {
       setActiveTab('referral');
       setReferralLoading(true);
+      setMyReferralsLoading(true);
       referralsAPI.getMyCode().then(r => setReferralData(r.data)).catch(() => {}).finally(() => setReferralLoading(false));
+      referralsAPI.getMyReferrals().then(r => setMyReferrals(r.data?.referrals || [])).catch(() => {}).finally(() => setMyReferralsLoading(false));
     }
   }, [router.isReady]);
 
@@ -156,13 +170,16 @@ export default function Billing() {
         setUpgradeError('Please enter an amount between 10 and 10,000 credits.');
         return;
       }
+      // Show service request form instead of email instruction
+      setShowCreditForm(true);
+      setCreditFormDone(false);
+      return;
     }
     setBuyingPack(pack.id);
     setCreditMsg('');
     setUpgradeError('');
     try {
-      const customAmt = pack.isCustom ? (parseInt(customCreditsInput) || 0) : undefined;
-      const { data } = await billingAPI.buyCredits(pack.id, customAmt);
+      const { data } = await billingAPI.buyCredits(pack.id);
       if (data.url) {
         window.location.href = data.url;
       } else if (data.message) {
@@ -174,6 +191,42 @@ export default function Billing() {
       setUpgradeError(err.response?.data?.error || 'Could not connect to billing. Please try again.');
     } finally {
       setBuyingPack(null);
+    }
+  };
+
+  const handleSubmitCreditRequest = async () => {
+    const amt = parseInt(customCreditsInput) || 0;
+    if (amt < 10 || amt > 10000) return;
+    const price = Math.round(amt * 0.4 * 100) / 100;
+    setCreditFormSubmitting(true);
+    try {
+      await billingAPI.createServiceRequest('credit_purchase', {
+        credits: amt,
+        price,
+        message: creditFormNote.trim(),
+      });
+      setCreditFormDone(true);
+    } catch (err) {
+      setUpgradeError(err.response?.data?.error || 'Failed to submit request. Please try again.');
+    } finally {
+      setCreditFormSubmitting(false);
+    }
+  };
+
+  const handleSubmitAgencyRequest = async () => {
+    if (!agencyClients) { setUpgradeError('Please select how many clients you manage.'); return; }
+    setAgencySubmitting(true);
+    setUpgradeError('');
+    try {
+      await billingAPI.createServiceRequest('agency_plan', {
+        clients: agencyClients,
+        useCase: agencyUseCase.trim(),
+      });
+      setAgencyDone(true);
+    } catch (err) {
+      setUpgradeError(err.response?.data?.error || 'Failed to submit application. Please try again.');
+    } finally {
+      setAgencySubmitting(false);
     }
   };
 
@@ -221,7 +274,7 @@ export default function Billing() {
 
   const isTrial = current?.currentPlan?.id === 'trial';
   const isCancelled = current?.status === 'cancelled';
-  const nonTrialPlans = plans.filter(p => p.id !== 'trial');
+  const nonTrialPlans = plans.filter(p => p.id !== 'trial' && p.id !== 'agency');
 
   const gc = {
     background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card,
@@ -361,7 +414,9 @@ export default function Billing() {
               setActiveTab(tab.id);
               if (tab.id === 'referral' && !referralData && !referralLoading) {
                 setReferralLoading(true);
+                setMyReferralsLoading(true);
                 referralsAPI.getMyCode().then(r => setReferralData(r.data)).catch(() => {}).finally(() => setReferralLoading(false));
+                referralsAPI.getMyReferrals().then(r => setMyReferrals(r.data?.referrals || [])).catch(() => {}).finally(() => setMyReferralsLoading(false));
               }
             }} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 150ms', background: activeTab === tab.id ? t.primary : 'transparent', color: activeTab === tab.id ? '#fff' : t.textMuted, boxShadow: activeTab === tab.id ? '0 2px 8px rgba(124,92,252,0.3)' : 'none' }}>
               <tab.icon size={14} /> {tab.label}
@@ -449,6 +504,90 @@ export default function Billing() {
                     <span style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.08em', color: t.text }}>{referralData.code}</span>
                     <span style={{ color: t.textMuted }}> — Include this in your referral link automatically</span>
                   </div>
+                </div>
+
+                {/* Your referrals list */}
+                <div style={{ ...gc, padding: 24, marginTop: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: t.text }}>
+                      Your referrals
+                      {myReferrals.length > 0 && (
+                        <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: t.primaryBg, color: t.primary }}>{myReferrals.length}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {myReferralsLoading ? (
+                    <div style={{ textAlign: 'center', padding: '24px 0' }}><Spinner size={24} /></div>
+                  ) : myReferrals.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '28px 0' }}>
+                      <IpGift size={28} style={{ color: t.textMuted, margin: '0 auto 10px', display: 'block' }} />
+                      <p style={{ color: t.textMuted, fontSize: 13, margin: 0 }}>No referrals yet — share your link above to earn free credits!</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Column headers */}
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 100px' : '1fr 110px 140px', gap: 12, padding: '0 4px 8px', borderBottom: `1px solid ${t.border}`, fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <span>Business</span>
+                        <span style={{ textAlign: 'right' }}>Plan</span>
+                        {!isMobile && <span style={{ textAlign: 'right' }}>Reward</span>}
+                      </div>
+                      {myReferrals.map(r => {
+                        const isPaid = r.plan && r.plan !== 'trial';
+                        const awardStatus = r.award_status;
+                        return (
+                          <div
+                            key={r.id}
+                            style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 100px' : '1fr 110px 140px', gap: 12, padding: '12px 4px', borderBottom: `1px solid ${t.border}`, alignItems: 'center' }}
+                          >
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{r.business_name || 'Business'}</div>
+                              {(r.industry || r.location) && (
+                                <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
+                                  {[r.industry, r.location].filter(Boolean).join(' · ')}
+                                </div>
+                              )}
+                              <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
+                                Joined {new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <span style={{
+                                display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                                background: isPaid ? 'rgba(16,185,129,0.12)' : 'rgba(100,116,139,0.12)',
+                                color: isPaid ? '#10b981' : t.textMuted,
+                                border: `1px solid ${isPaid ? 'rgba(16,185,129,0.25)' : t.border}`,
+                              }}>
+                                {isPaid ? (r.plan.charAt(0).toUpperCase() + r.plan.slice(1)) : 'Trial'}
+                              </span>
+                            </div>
+                            {!isMobile && (
+                              <div style={{ textAlign: 'right' }}>
+                                {!awardStatus && (
+                                  <span style={{ fontSize: 11, color: t.textMuted }}>Not upgraded yet</span>
+                                )}
+                                {awardStatus === 'pending' && (
+                                  <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>
+                                    +{r.award_credits} pending
+                                  </span>
+                                )}
+                                {awardStatus === 'released' && (
+                                  <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)' }}>
+                                    +{r.award_credits} earned
+                                  </span>
+                                )}
+                                {awardStatus === 'rejected' && (
+                                  <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
+                                    Not approved
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               </>
             ) : (
@@ -626,49 +765,59 @@ export default function Billing() {
           </div>
         )}
 
-        {/* ── AGENCY PLAN ─────────────────────────────────────────────── */}
+        {/* ── AGENCY PLAN — Coming Soon ──────────────────────────────── */}
         <div style={{
-          ...gc, padding: 24, marginBottom: 24,
-          background: t.isDark ? 'linear-gradient(135deg, rgba(124,92,252,0.12) 0%, rgba(15,15,24,0.9) 100%)' : 'linear-gradient(135deg, rgba(124,92,252,0.06) 0%, #fff 100%)',
-          border: `1px solid ${current?.currentPlan?.id === 'agency' ? 'rgba(124,92,252,0.6)' : (t.isDark ? 'rgba(124,92,252,0.3)' : 'rgba(124,92,252,0.2)')}`,
+          ...gc, padding: 24, marginBottom: 24, position: 'relative', overflow: 'hidden',
+          background: t.isDark ? 'linear-gradient(135deg, rgba(124,92,252,0.08) 0%, rgba(15,15,24,0.95) 100%)' : 'linear-gradient(135deg, rgba(124,92,252,0.04) 0%, #fafafa 100%)',
+          border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.2)' : 'rgba(124,92,252,0.15)'}`,
+          opacity: 0.9,
         }}>
+          {/* Coming Soon ribbon */}
+          <div style={{ position: 'absolute', top: 16, right: 16, padding: '4px 14px', background: 'linear-gradient(135deg, #FB923C, #F97316)', color: '#fff', fontSize: 10, fontWeight: 800, borderRadius: 9999, letterSpacing: '0.06em', textTransform: 'uppercase', boxShadow: '0 2px 8px rgba(249,115,22,0.35)' }}>
+            Coming Soon
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <IpCrown size={18} color="url(#brand-gradient)" />
                 <span style={{ fontSize: 17, fontWeight: 800, color: t.text }}>Agency Plan</span>
-                <span style={{ padding: '3px 10px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 9999, letterSpacing: '0.04em' }}>$200/mo</span>
-                {current?.currentPlan?.id === 'agency' && (
-                  <span style={{ padding: '3px 10px', background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontSize: 10, fontWeight: 700, borderRadius: 9999, border: '1px solid rgba(34,197,94,0.3)' }}>Current Plan</span>
-                )}
+                <span style={{ padding: '3px 10px', background: t.isDark ? 'rgba(124,92,252,0.2)' : 'rgba(124,92,252,0.1)', color: t.primary, fontSize: 10, fontWeight: 700, borderRadius: 9999, border: `1px solid ${t.primaryBorder}` }}>$200/mo</span>
               </div>
               <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 14px', lineHeight: 1.6 }}>
-                For marketing agencies managing multiple local business clients — white-label branding, unlimited sub-accounts, and full client isolation.
+                For marketing agencies managing multiple local business clients — white-label branding, unlimited sub-accounts, and full client isolation. Launching very soon.
               </p>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
                 {[
                   'Unlimited sub-accounts (one per client)',
                   'White-label: custom logo, name, and brand color',
-                  '"Powered by ItsPosting" can be hidden',
+                  'Custom AI advisor name (e.g. "Max" instead of ItsPosting AI)',
+                  'Hide "Powered by ItsPosting" branding',
                   'Custom domain support (app.youragency.com)',
-                  'Shared credit pool with role-based access',
+                  'Agency rebilling — set your own credit markup for clients',
                   'All Premium features included',
                 ].map((f, i) => (
                   <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: t.textSecondary }}>
-                    <IpCheck size={13} strokeWidth={3} style={{ color: t.success, flexShrink: 0, marginTop: 2 }} />
+                    <IpCheck size={13} strokeWidth={3} style={{ color: t.textMuted, flexShrink: 0, marginTop: 2 }} />
                     {f}
                   </li>
                 ))}
               </ul>
             </div>
-            {current?.currentPlan?.id !== 'agency' && (
-              <a
-                href="mailto:support@itsposting.com?subject=Agency Plan Inquiry"
-                style={{ padding: '11px 22px', background: `linear-gradient(135deg,${t.primary},#a855f7)`, border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', alignSelf: 'flex-start' }}
-              >
-                <IpMail size={14} /> Contact Us
-              </a>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignSelf: 'flex-start' }}>
+              {agencyDone ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#22c55e' }}>
+                  <IpCheckCircle size={15} /> Application received
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setShowAgencyModal(true); setUpgradeError(''); }}
+                  style={{ padding: '11px 22px', background: 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(124,92,252,0.35)' }}
+                >
+                  <IpSparkle size={14} /> Apply for Agency Plan
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -676,11 +825,13 @@ export default function Billing() {
         {(() => {
           const isCustom = selectedPackId === 'credits_custom';
           const customAmt = Math.max(0, parseInt(customCreditsInput) || 0);
-          const customPrice = customAmt > 0 ? Math.ceil(customAmt * 0.4) : 0;
+          // Exact cents — never round up, so 13 credits = $5.20, not $6
+          const customPrice = customAmt > 0 ? Math.round(customAmt * 0.4 * 100) / 100 : 0;
+          const fmtCustomPrice = customPrice % 1 === 0 ? `$${customPrice}` : `$${customPrice.toFixed(2)}`;
           const selPack = isCustom
             ? { id: 'credits_custom', amount: customAmt, price: customPrice, isCustom: true }
             : (CREDIT_PACKS.find(p => p.id === selectedPackId) || CREDIT_PACKS[3]);
-          const currentBal = current?.credits_balance ?? 0;
+          const currentBal = current?.creditsBalance ?? 0;
           const newBal = currentBal + selPack.amount;
           const expiryDate = new Date();
           expiryDate.setFullYear(expiryDate.getFullYear() + 1);
@@ -709,7 +860,7 @@ export default function Billing() {
                 <IpCredits size={16} color="url(#brand-gradient)" />
                 <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, margin: 0 }}>Buy More Credits</h3>
               </div>
-              <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 24px' }}>Top up your balance anytime — added instantly, never expire</p>
+              <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 24px' }}>Top up your balance anytime — added to your account instantly</p>
 
               {/* Current balance */}
               <div style={{ marginBottom: 20 }}>
@@ -734,11 +885,11 @@ export default function Billing() {
                   <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Enter number of credits (10 – 10,000)</div>
                   <div style={{ position: 'relative' }}>
                     <input
-                      type="number"
-                      min={10}
-                      max={10000}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={customCreditsInput}
-                      onChange={e => setCustomCreditsInput(e.target.value)}
+                      onChange={e => setCustomCreditsInput(e.target.value.replace(/\D/g, '').slice(0, 5))}
                       placeholder="e.g. 300"
                       style={{
                         width: '100%', boxSizing: 'border-box',
@@ -755,7 +906,7 @@ export default function Billing() {
                         position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
                         fontSize: 13, fontWeight: 700, color: t.primary,
                       }}>
-                        ${customPrice}
+                        {fmtCustomPrice}
                       </span>
                     )}
                   </div>
@@ -766,7 +917,7 @@ export default function Billing() {
                   )}
                   {customAmt >= 10 && customAmt <= 10000 && (
                     <div style={{ fontSize: 11, color: t.textMuted, marginTop: 5 }}>
-                      {customAmt} credits × $0.40 = <strong style={{ color: t.text }}>${customPrice}</strong>
+                      {customAmt} credits × $0.40 = <strong style={{ color: t.text }}>{fmtCustomPrice}</strong>
                     </div>
                   )}
                 </div>
@@ -778,7 +929,7 @@ export default function Billing() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
                     <span style={{ fontSize: 13, color: t.textMuted }}>Your account will be charged</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>
-                      {isCustom && customAmt > 0 ? `$${customPrice}` : `$${selPack.price}.00`} + Tax
+                      {isCustom && customAmt > 0 ? fmtCustomPrice : `$${selPack.price}.00`} + Tax
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '13px 18px', borderBottom: `1px solid ${t.border}` }}>
@@ -797,72 +948,112 @@ export default function Billing() {
                 </div>
               )}
 
-              {/* Promo code */}
-              <div style={{ maxWidth: 420, display: 'flex', gap: 8, marginBottom: 20 }}>
-                <input
-                  value={promoCode}
-                  onChange={e => setPromoCode(e.target.value.toUpperCase())}
-                  placeholder="Promo code"
-                  style={{
-                    flex: 1, padding: '10px 14px', background: t.input,
-                    border: `1.5px solid ${promoApplied ? t.success : t.border}`, borderRadius: 10,
-                    color: t.text, fontSize: 13, outline: 'none', transition: 'border-color 140ms',
-                  }}
-                  onFocus={e => (e.target.style.borderColor = t.primary)}
-                  onBlur={e => (e.target.style.borderColor = promoApplied ? t.success : t.border)}
-                />
-                <button
-                  onClick={() => { if (promoCode.trim()) setPromoApplied(true); }}
-                  style={{
-                    padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                    background: promoApplied ? t.success : t.primaryBg,
-                    color: promoApplied ? '#fff' : t.primary,
-                    border: `1.5px solid ${promoApplied ? t.success : t.primaryBorder}`,
-                    cursor: 'pointer', transition: 'all 120ms', whiteSpace: 'nowrap',
-                  }}
-                >
-                  {promoApplied ? '✓ Applied' : 'Apply'}
-                </button>
-              </div>
-
               {/* Buy button */}
-              <button
-                onClick={() => handleBuyCredits(selPack)}
-                disabled={!!buyingPack || !canBuy || (isCustom && customAmt === 0)}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  width: '100%', maxWidth: 420, padding: '14px',
-                  background: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? t.textMuted : 'linear-gradient(135deg,#7C5CFC,#9B7FFF)',
-                  color: '#fff', border: 'none', borderRadius: 12,
-                  fontSize: 15, fontWeight: 700,
-                  cursor: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? 'not-allowed' : 'pointer',
-                  boxShadow: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? 'none' : '0 4px 18px rgba(124,92,252,0.4)',
-                  transition: 'all 150ms',
-                  opacity: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? 0.5 : 1,
-                }}
-                onMouseEnter={e => { if (!buyingPack && canBuy && !(isCustom && customAmt === 0)) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(124,92,252,0.5)'; } }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = (buyingPack || !canBuy) ? 'none' : '0 4px 18px rgba(124,92,252,0.4)'; }}
-              >
-                <IpCredits size={15} />
-                {buyingPack
-                  ? 'Redirecting to checkout…'
-                  : isCustom && customAmt > 0
-                    ? `Buy ${customAmt} Credits — $${customPrice}`
-                    : !isCustom
-                      ? `Buy ${selPack.amount} Credits — $${selPack.price}`
-                      : 'Enter an amount above'
-                }
-              </button>
-
-              <p style={{ fontSize: 12, color: t.textMuted, maxWidth: 420, marginTop: 12, lineHeight: 1.6 }}>
-                Credits are added to your account instantly after payment. Unused credits never expire. Taxes may apply based on your location.
-              </p>
-
-              {creditMsg && (
-                <div style={{ marginTop: 12, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, fontSize: 12, color: t.textSecondary, lineHeight: 1.6, maxWidth: 420 }}>
-                  {creditMsg}
-                  <button onClick={() => setCreditMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={14} /></button>
+              {/* For custom amounts: show request form instead of buy button */}
+              {isCustom && customAmt >= 10 && customAmt <= 10000 ? (
+                <div style={{ maxWidth: 420 }}>
+                  {creditFormDone ? (
+                    <div style={{ padding: '18px 20px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 14, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <IpCheckCircle size={20} style={{ color: '#22c55e', flexShrink: 0, marginTop: 1 }} />
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 4 }}>Request submitted!</div>
+                        <div style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.6 }}>
+                          We'll add your {customAmt} credits within 24 hours and email you when it's done.
+                        </div>
+                      </div>
+                    </div>
+                  ) : showCreditForm ? (
+                    <div style={{ padding: '20px', background: t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.03)', border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.2)' : 'rgba(124,92,252,0.15)'}`, borderRadius: 14 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 4 }}>
+                        Request {customAmt} credits — {fmtCustomPrice}
+                      </div>
+                      <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 16, lineHeight: 1.6 }}>
+                        Our team processes custom credit requests within 24 hours and will email you once they're added.
+                      </div>
+                      <div style={{ marginBottom: 14 }}>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Optional note to our team
+                        </label>
+                        <textarea
+                          rows={2}
+                          maxLength={300}
+                          placeholder="e.g. Running a campaign next week, need these urgently"
+                          value={creditFormNote}
+                          onChange={e => setCreditFormNote(e.target.value)}
+                          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 10, color: t.text, fontSize: 13, fontFamily: 'inherit', resize: 'none', outline: 'none', lineHeight: 1.6 }}
+                          onFocus={e => (e.target.style.borderColor = '#7C5CFC')}
+                          onBlur={e => (e.target.style.borderColor = t.border)}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          onClick={handleSubmitCreditRequest}
+                          disabled={creditFormSubmitting}
+                          style={{ flex: 1, padding: '12px', background: creditFormSubmitting ? t.textMuted : 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: creditFormSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                        >
+                          <IpCredits size={14} />
+                          {creditFormSubmitting ? 'Submitting…' : 'Submit Request'}
+                        </button>
+                        <button
+                          onClick={() => setShowCreditForm(false)}
+                          style={{ padding: '12px 16px', background: 'transparent', border: `1px solid ${t.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: t.textMuted, cursor: 'pointer' }}
+                        >
+                          Back
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleBuyCredits(selPack)}
+                      disabled={!canBuy}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px', background: !canBuy ? t.textMuted : 'linear-gradient(135deg,#7C5CFC,#9B7FFF)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: !canBuy ? 'not-allowed' : 'pointer', boxShadow: !canBuy ? 'none' : '0 4px 18px rgba(124,92,252,0.4)', opacity: !canBuy ? 0.5 : 1, transition: 'all 150ms' }}
+                    >
+                      <IpCredits size={15} /> Request {customAmt} Credits — {fmtCustomPrice}
+                    </button>
+                  )}
+                  {!creditFormDone && !showCreditForm && (
+                    <p style={{ fontSize: 12, color: t.textMuted, marginTop: 10, lineHeight: 1.6 }}>
+                      Processed manually by our team within 24 hours.
+                    </p>
+                  )}
                 </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleBuyCredits(selPack)}
+                    disabled={!!buyingPack || !canBuy || (isCustom && customAmt === 0)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      width: '100%', maxWidth: 420, padding: '14px',
+                      background: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? t.textMuted : 'linear-gradient(135deg,#7C5CFC,#9B7FFF)',
+                      color: '#fff', border: 'none', borderRadius: 12,
+                      fontSize: 15, fontWeight: 700,
+                      cursor: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? 'not-allowed' : 'pointer',
+                      boxShadow: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? 'none' : '0 4px 18px rgba(124,92,252,0.4)',
+                      transition: 'all 150ms',
+                      opacity: (buyingPack || !canBuy || (isCustom && customAmt === 0)) ? 0.5 : 1,
+                    }}
+                    onMouseEnter={e => { if (!buyingPack && canBuy && !(isCustom && customAmt === 0)) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(124,92,252,0.5)'; } }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = (buyingPack || !canBuy) ? 'none' : '0 4px 18px rgba(124,92,252,0.4)'; }}
+                  >
+                    <IpCredits size={15} />
+                    {buyingPack
+                      ? 'Redirecting to checkout…'
+                      : !isCustom
+                        ? `Buy ${selPack.amount} Credits — $${selPack.price}`
+                        : 'Enter an amount above'
+                    }
+                  </button>
+                  <p style={{ fontSize: 12, color: t.textMuted, maxWidth: 420, marginTop: 12, lineHeight: 1.6 }}>
+                    Credits are added to your account instantly after payment. Taxes may apply based on your location.
+                  </p>
+                  {creditMsg && (
+                    <div style={{ marginTop: 12, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, fontSize: 12, color: t.textSecondary, lineHeight: 1.6, maxWidth: 420 }}>
+                      {creditMsg}
+                      <button onClick={() => setCreditMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={14} /></button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           );
@@ -935,6 +1126,88 @@ export default function Billing() {
         {/* END plans tab */}
 
       </div>
+
+      {/* ── Agency Plan Application Modal ────────────────────────── */}
+      {showAgencyModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: t.isDark ? 'rgba(12,12,20,0.97)' : 'rgba(255,255,255,0.98)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', borderRadius: 22, padding: 32, maxWidth: 480, width: '100%', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+            {agencyDone ? (
+              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(34,197,94,0.12)', border: '2px solid rgba(34,197,94,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <IpCheckCircle size={28} style={{ color: '#22c55e' }} />
+                </div>
+                <h3 style={{ fontSize: 20, fontWeight: 700, color: t.text, margin: '0 0 10px' }}>Application received!</h3>
+                <p style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.7, margin: '0 0 24px' }}>
+                  Our team will review your application and reach out within 24 hours to set up your Agency plan.
+                </p>
+                <Button onClick={() => setShowAgencyModal(false)} style={{ width: '100%', justifyContent: 'center' }}>Close</Button>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <IpCrown size={20} color="#7C5CFC" />
+                  <h3 style={{ fontSize: 20, fontWeight: 700, color: t.text, margin: 0 }}>Apply for Agency Plan</h3>
+                </div>
+                <p style={{ fontSize: 13, color: t.textMuted, margin: '0 0 24px', lineHeight: 1.6 }}>
+                  Tell us a little about your agency and we'll get you set up with white-label branding, unlimited sub-accounts, and more.
+                </p>
+
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 10 }}>
+                    How many clients do you manage?
+                  </label>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {['1–5', '6–15', '16–50', '50+'].map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => setAgencyClients(opt)}
+                        style={{ padding: '8px 18px', borderRadius: 9999, border: `2px solid ${agencyClients === opt ? '#7C5CFC' : t.border}`, background: agencyClients === opt ? 'rgba(124,92,252,0.12)' : 'transparent', color: agencyClients === opt ? '#7C5CFC' : t.textMuted, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 120ms' }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 24 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 8 }}>
+                    What will you use it for? <span style={{ fontWeight: 400, opacity: 0.7 }}>(optional)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    maxLength={300}
+                    placeholder="e.g. Managing social media for 10+ local HVAC and plumbing clients in the UK"
+                    value={agencyUseCase}
+                    onChange={e => setAgencyUseCase(e.target.value)}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', background: t.input, border: `1.5px solid ${t.border}`, borderRadius: 12, color: t.text, fontSize: 13, fontFamily: 'inherit', resize: 'none', outline: 'none', lineHeight: 1.6 }}
+                    onFocus={e => (e.target.style.borderColor = '#7C5CFC')}
+                    onBlur={e => (e.target.style.borderColor = t.border)}
+                  />
+                </div>
+
+                {upgradeError && (
+                  <div style={{ padding: '10px 14px', background: `${t.error}15`, border: `1px solid ${t.error}33`, borderRadius: 8, fontSize: 12, color: t.error, marginBottom: 16 }}>
+                    {upgradeError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <Button variant="secondary" onClick={() => setShowAgencyModal(false)} disabled={agencySubmitting} style={{ flex: 1, justifyContent: 'center' }}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSubmitAgencyRequest}
+                    disabled={agencySubmitting || !agencyClients}
+                    style={{ flex: 2, justifyContent: 'center', background: agencySubmitting || !agencyClients ? t.textMuted : 'linear-gradient(135deg,#7C5CFC,#9B7FFF)' }}
+                  >
+                    {agencySubmitting ? 'Submitting…' : 'Submit Application'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {showCancelModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>

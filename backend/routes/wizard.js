@@ -271,7 +271,7 @@ function getWizardSteps(industry, contentType) {
     subtitle: 'Pick what best describes what you want to post about',
     type: 'cards',
     options: [
-      { value: 'custom',            label: 'My own idea',              emoji: '✏️', description: 'You know what to post — tell PostCore' },
+      { value: 'custom',            label: 'My own idea',              emoji: '✏️', description: 'You know what to post — tell ItsPosting AI' },
       { value: 'just_finished_job', label: 'Just finished a job',      emoji: '🔨', description: 'Show off your latest work' },
       { value: 'share_tip',         label: 'Share a tip',              emoji: '💡', description: 'Educate and build trust' },
       { value: 'got_review',        label: 'Got a great review',       emoji: '⭐', description: 'Share the love from a customer' },
@@ -305,7 +305,7 @@ function getWizardSteps(industry, contentType) {
     just_finished_job: {
       id: 'details',
       title: 'Tell us about the job',
-      subtitle: 'Any details help PostCore write a more specific post (all optional)',
+      subtitle: 'Any details help ItsPosting AI write a more specific post (all optional)',
       type: 'form',
       fields: [
         { id: 'job_description', label: 'What did you do?', placeholder: 'e.g. Replaced a water heater, installed new HVAC system, stamped concrete driveway...', type: 'textarea', required: false },
@@ -317,7 +317,7 @@ function getWizardSteps(industry, contentType) {
     share_tip: {
       id: 'details',
       title: 'What tip do you want to share?',
-      subtitle: 'PostCore will turn this into an engaging educational post',
+      subtitle: 'ItsPosting AI will turn this into an engaging educational post',
       type: 'form',
       fields: [
         { id: 'tip_topic', label: 'Topic or tip idea', placeholder: knowledge.seasonalContent?.[currentMonth]?.tipTopic || 'e.g. How to check if your water heater needs replacing...', type: 'textarea', required: false },
@@ -327,7 +327,7 @@ function getWizardSteps(industry, contentType) {
     got_review: {
       id: 'details',
       title: 'Share the review',
-      subtitle: 'Paste the review and PostCore will craft the perfect social post around it',
+      subtitle: 'Paste the review and ItsPosting AI will craft the perfect social post around it',
       type: 'form',
       fields: [
         { id: 'review_text', label: 'The review (paste it here)', placeholder: 'e.g. "They showed up on time, fixed the issue in an hour, and the price was very fair. Would definitely call again!"', type: 'textarea', required: false },
@@ -338,7 +338,7 @@ function getWizardSteps(industry, contentType) {
     running_promo: {
       id: 'details',
       title: 'Tell us about your offer',
-      subtitle: 'PostCore will write a compelling promotion post',
+      subtitle: 'ItsPosting AI will write a compelling promotion post',
       type: 'form',
       fields: [
         { id: 'promo_offer', label: 'What is the offer?', placeholder: 'e.g. 10% off all drain cleaning, Free inspection with any repair, Buy one get one...', type: 'textarea', required: false },
@@ -349,10 +349,10 @@ function getWizardSteps(industry, contentType) {
     seasonal: {
       id: 'details',
       title: `Your ${currentMonthName} seasonal post`,
-      subtitle: seasonal.urgencyTopic ? `PostCore knows it's the time for: ${seasonal.urgencyTopic}` : 'PostCore will write timely, seasonal content',
+      subtitle: seasonal.urgencyTopic ? `ItsPosting AI knows it's the time for: ${seasonal.urgencyTopic}` : 'ItsPosting AI will write timely, seasonal content',
       type: 'form',
       fields: [
-        { id: 'seasonal_angle', label: 'Any specific angle? (optional)', placeholder: seasonal.promotionAngle || 'Leave blank and PostCore will choose the most relevant seasonal topic', type: 'textarea', required: false },
+        { id: 'seasonal_angle', label: 'Any specific angle? (optional)', placeholder: seasonal.promotionAngle || 'Leave blank and ItsPosting AI will choose the most relevant seasonal topic', type: 'textarea', required: false },
         { id: 'include_offer', label: 'Include a seasonal offer?', type: 'toggle', default: false },
         { id: 'seasonal_offer', label: 'What is the offer? (optional)', placeholder: seasonal.promotionAngle || 'e.g. 15% off winterization checks this month...', type: 'text', required: false, showIf: 'include_offer' },
       ],
@@ -369,7 +369,7 @@ function getWizardSteps(industry, contentType) {
     },
     custom: {
       id: 'details',
-      title: 'Tell PostCore your idea',
+      title: 'Tell ItsPosting AI your idea',
       subtitle: 'Describe what you want to post about — the more detail you give, the better the result',
       type: 'form',
       fields: [
@@ -401,7 +401,7 @@ function getWizardSteps(industry, contentType) {
   const step4 = {
     id: 'platform',
     title: 'Where are we posting?',
-    subtitle: 'PostCore will write differently for each platform',
+    subtitle: 'ItsPosting AI will write differently for each platform',
     type: 'platform_selector',
     options: [
       { value: 'facebook', label: 'Facebook', emoji: '📘', description: 'Conversational, longer, great for local reach' },
@@ -1639,7 +1639,7 @@ module.exports = (pool) => {
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 600,
-        system: `You are PostCore, rewriting social media posts for ${customer.business_name}, a ${customer.industry} business in ${customer.location}. Always sound human and authentic. Respond with ONLY valid JSON: { "caption": "rewritten post text" }`,
+        system: `You are ItsPosting AI, rewriting social media posts for ${customer.business_name}, a ${customer.industry} business in ${customer.location}. Always sound human and authentic. Respond with ONLY valid JSON: { "caption": "rewritten post text" }`,
         messages: [{
           role: 'user',
           content: `${instruction}\n\nOriginal post:\n${safeCaption}`,
@@ -2051,7 +2051,7 @@ One entry per post, in the same order as the dates listed.`;
       const MONTH_NAMES = ['January','February','March','April','May','June',
         'July','August','September','October','November','December'];
 
-      const systemPrompt = `You are PostCore, ItsPosting's AI content strategist for local service businesses.
+      const systemPrompt = `You are ItsPosting AI, ItsPosting's AI content strategist for local service businesses.
 Generate a 30-day content calendar for ${customer.business_name || 'this business'}, a ${customer.industry || 'general contractor'} business in ${customer.location || 'their area'}.
 
 Month: ${MONTH_NAMES[targetMonth - 1]} ${targetYear}

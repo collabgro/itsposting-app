@@ -10,7 +10,7 @@ const FEATURES = [
     iconBg: 'rgba(124,92,252,0.15)',
     iconColor: '#7C5CFC',
     title: 'AI-Written Posts',
-    body: 'PostCore generates captions and images tailored to your trade and current season. Sounds genuinely like you, not a robot.',
+    body: 'Your AI advisor generates captions and images tailored to your trade and current season. Sounds genuinely like you, not a robot.',
   },
   {
     Icon: IpCalendar,

@@ -433,7 +433,7 @@ class SuggestionsEngine {
     const seasonal  = knowledge.seasonalContent?.[month] || {};
     const ctx       = suggestion._promptContext || {};
 
-    const systemPrompt = `You are PostCore, ItsPosting's AI social media advisor.
+    const systemPrompt = `You are ItsPosting AI, ItsPosting's AI social media advisor.
 You write social media posts for ${customer.business_name || 'a local service business'}, a ${customer.industry || 'home service'} business in ${customer.location || 'the local area'}.
 Brand tone: ${customer.tone || 'professional'}.
 

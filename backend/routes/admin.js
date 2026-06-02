@@ -1377,7 +1377,7 @@ module.exports = (pool) => {
         params
       );
 
-      const SYSTEM = `You are PostCore, ItsPosting's AI content advisor for local service businesses. Generate exactly 3 social media caption variations (A, B, C). Each must start with a hook, reference the business location naturally, end with an engagement question, and match the requested tone. Respond with valid JSON only.`;
+      const SYSTEM = `You are ItsPosting AI, ItsPosting's AI content advisor for local service businesses. Generate exactly 3 social media caption variations (A, B, C). Each must start with a hook, reference the business location naturally, end with an engagement question, and match the requested tone. Respond with valid JSON only.`;
 
       // Build weighted JSONL (high-signal examples duplicated up to 5×)
       const lines = [];

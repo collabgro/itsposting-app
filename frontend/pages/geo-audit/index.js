@@ -6,6 +6,7 @@ import {
 import Layout from '../../components/Layout';
 import { Button, SectionHeader, Spinner } from '../../components/ui';
 import { useTheme } from '../../lib/theme';
+import { useBranding } from '../../lib/branding';
 import { geoAPI, authAPI, scraperAPI } from '../../lib/api';
 
 const LOADING_MESSAGES = [
@@ -15,7 +16,7 @@ const LOADING_MESSAGES = [
   'Analysing competitor mentions...',
   'Scanning for trust signals the AI looks for...',
   'Identifying which platforms the AI recommends...',
-  'PostCore is reading the results...',
+  'Your AI advisor is reading the results...',
   'Calculating your AI visibility score...',
 ];
 
@@ -43,6 +44,7 @@ function ScoreRing({ score, size, t }) {
 export default function GeoAuditPage() {
   const router = useRouter();
   const { t } = useTheme();
+  const { aiName } = useBranding();
   const [mounted, setMounted] = useState(false);
   const [scoreData, setScoreData] = useState(null);
   const [latestAudit, setLatestAudit] = useState(null);

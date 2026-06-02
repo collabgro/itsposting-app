@@ -602,4 +602,19 @@ export const competitorAPI = {
   analyze: (id)       => api.post(`/api/competitor/${id}/analyze`, {}, { timeout: 90000 }),
 };
 
+export const agencyAPI = {
+  getOverview:   ()         => api.get('/api/agency/overview'),
+  getClients:    ()         => api.get('/api/agency/clients'),
+  getClient:     (id)       => api.get(`/api/agency/clients/${id}`),
+  createClient:  (data)     => api.post('/api/agency/clients', data),
+  updateClient:  (id, data) => api.patch(`/api/agency/clients/${id}`, data),
+  archiveClient: (id)       => api.delete(`/api/agency/clients/${id}`),
+  getPlans:      ()         => api.get('/api/agency/plans'),
+  createPlan:    (data)     => api.post('/api/agency/plans', data),
+  updatePlan:    (id, data) => api.patch(`/api/agency/plans/${id}`, data),
+  assignPlan:    (clientId, planId) => api.post(`/api/agency/clients/${clientId}/assign-plan`, { planId }),
+  addCredits:    (clientId, data)   => api.post(`/api/agency/clients/${clientId}/credits`, data),
+  getCreditHistory: ()      => api.get('/api/agency/credits/history'),
+};
+
 export default api;

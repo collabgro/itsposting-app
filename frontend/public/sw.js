@@ -87,7 +87,7 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   event.waitUntil(
     self.registration.showNotification(data.title || 'ItsPosting', {
-      body: data.body || 'PostCore has a new suggestion for you.',
+      body: data.body || 'ItsPosting AI has a new suggestion for you.',
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       vibrate: [100, 50, 100],

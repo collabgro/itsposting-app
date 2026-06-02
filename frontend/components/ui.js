@@ -36,7 +36,7 @@ function ToastItem({ id, message, variant, onDismiss }) {
       boxShadow: t.isDark
         ? `0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)`
         : `0 8px 28px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,1)`,
-      minWidth: 270, maxWidth: 390,
+      minWidth: 'min(270px, calc(100vw - 24px))', maxWidth: 390,
       animation: 'toast-slide-in 220ms cubic-bezier(0.16,1,0.3,1)', pointerEvents: 'all',
     }}>
       <div style={{
@@ -72,8 +72,9 @@ function ToastContainer({ toasts, onDismiss }) {
       aria-live="polite"
       aria-atomic="false"
       style={{
-        position: 'fixed', top: 20, right: 20, zIndex: 9999,
+        position: 'fixed', top: 20, right: 12, zIndex: 9999,
         display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none',
+        maxWidth: 'calc(100vw - 24px)',
       }}
     >
       {toasts.map(toast => <ToastItem key={toast.id} {...toast} onDismiss={onDismiss} />)}

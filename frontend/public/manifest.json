@@ -28,7 +28,7 @@
     {
       "name": "Dashboard",
       "short_name": "Home",
-      "description": "Open PostCore dashboard",
+      "description": "Open ItsPosting AI dashboard",
       "url": "/dashboard",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },

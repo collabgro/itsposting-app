@@ -831,8 +831,8 @@ export default function Upload() {
 
   return (
     <Layout
-      title="Upload"
-      subtitle="Upload your own content"
+      title="Social Planner"
+      subtitle="Plan and publish your own content"
       action={
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button variant="secondary" onClick={() => router.push('/wizard')}>

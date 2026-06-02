@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import { useTheme } from '../lib/theme';
+import { useBranding } from '../lib/branding';
 import { IpSparkle, IpClose, IpArrowRight } from './icons';
 
 const TYPE_ACCENT = {
@@ -23,6 +24,7 @@ const TYPE_ACCENT = {
 
 export default function TodaySuggestionBanner({ suggestion, onDismiss, onView }) {
   const { t } = useTheme();
+  const { aiName } = useBranding();
   const [visible, setVisible] = useState(true);
 
   if (!suggestion || !visible) return null;
@@ -59,7 +61,7 @@ export default function TodaySuggestionBanner({ suggestion, onDismiss, onView })
       {/* Body */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: accent, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
-          PostCore · Today&apos;s suggestion
+          {aiName} · Today&apos;s suggestion
         </div>
         <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4, lineHeight: 1.3 }}>
           {suggestion.title}

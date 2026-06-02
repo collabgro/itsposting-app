@@ -248,7 +248,7 @@ const TEMPLATES = {
           </tr>
         </table>
       </div>
-      <p>Log in now and let PostCore get to work for your business.</p>
+      <p>Log in now and let ItsPosting AI get to work for your business.</p>
       <a href="{{loginUrl}}" class="btn">Log in to Its Posting</a>
       <p style="font-size:13px;color:#666;">Questions? Just reply to this email — we're here to help.</p>
     `,
@@ -277,7 +277,7 @@ const TEMPLATES = {
     html: `
       <p>Hi <strong>{{businessName}}</strong>,</p>
       <p>Your post was successfully published to <strong style="color:#22C55E;">{{platform}}</strong>. <span class="tag tag-success">Live</span></p>
-      <p>PostCore will track its performance over the next 24–48 hours and surface insights in your analytics dashboard.</p>
+      <p>ItsPosting AI will track its performance over the next 24–48 hours and surface insights in your analytics dashboard.</p>
       <a href="{{analyticsUrl}}" class="btn">View Analytics</a>
     `,
     text: `Hi {{businessName}},\n\nYour post is now live on {{platform}}.\n\nView analytics at: {{analyticsUrl}}`,
@@ -301,7 +301,7 @@ const TEMPLATES = {
   },
 
   postcore_briefing: {
-    subject: 'Your weekly PostCore briefing',
+    subject: 'Your weekly ItsPosting AI briefing',
     html: `
       <p style="font-size:16px;font-weight:600;color:#E2E2E8;">{{greeting}}</p>
       <p>{{weekSummary}}</p>

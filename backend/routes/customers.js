@@ -330,24 +330,56 @@ module.exports = (pool) => {
         return res.status(403).json({ error: 'White-label branding requires the Agency plan.' });
       }
 
-      const { agencyName, logo, primaryColor, hidePoweredBy, customDomain } = req.body;
+      const { agencyName, aiAdvisorName, logo, primaryColor, hidePoweredBy, customDomain, publicHandle } = req.body;
+
+      // Handle public_handle separately (it's a top-level column, not inside JSONB)
+      if (publicHandle !== undefined) {
+        const handle = String(publicHandle || '').toLowerCase().replace(/[^a-z0-9-]/g, '').substring(0, 30);
+        if (handle && handle.length < 3) {
+          return res.status(400).json({ error: 'Handle must be at least 3 characters.' });
+        }
+        if (handle) {
+          // Check uniqueness
+          const conflict = await pool.query(
+            'SELECT id FROM customers WHERE public_handle = $1 AND id != $2',
+            [handle, req.customerId]
+          );
+          if (conflict.rows.length) return res.status(409).json({ error: 'That handle is already taken. Choose another.' });
+        }
+        await pool.query(
+          'UPDATE customers SET public_handle = $1, updated_at = NOW() WHERE id = $2',
+          [handle || null, req.customerId]
+        );
+      }
 
       const config = {};
-      if (agencyName !== undefined)   config.agencyName   = String(agencyName || '').substring(0, 80);
-      if (logo !== undefined)         config.logo         = String(logo || '').substring(0, 500);
-      if (primaryColor !== undefined) config.primaryColor = /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : null;
+      if (agencyName !== undefined)    config.agencyName    = String(agencyName || '').substring(0, 80);
+      if (aiAdvisorName !== undefined) config.aiAdvisorName = String(aiAdvisorName || '').substring(0, 40);
+      if (logo !== undefined)          config.logo          = String(logo || '').substring(0, 500);
+      if (primaryColor !== undefined)  config.primaryColor  = /^#[0-9A-Fa-f]{6}$/.test(primaryColor) ? primaryColor : null;
       if (hidePoweredBy !== undefined) config.hidePoweredBy = Boolean(hidePoweredBy);
-      if (customDomain !== undefined) config.customDomain = String(customDomain || '').substring(0, 200).toLowerCase().replace(/[^a-z0-9.-]/g, '');
+      if (customDomain !== undefined)  config.customDomain  = String(customDomain || '').substring(0, 200).toLowerCase().replace(/[^a-z0-9.-]/g, '');
 
-      const result = await pool.query(
-        `UPDATE customers
-            SET white_label_config = COALESCE(white_label_config, '{}'::jsonb) || $1::jsonb,
-                updated_at = NOW()
-          WHERE id = $2
-          RETURNING white_label_config`,
-        [JSON.stringify(config), req.customerId]
-      );
-      res.json({ config: result.rows[0].white_label_config });
+      if (Object.keys(config).length === 0 && publicHandle === undefined) {
+        return res.status(400).json({ error: 'Nothing to update.' });
+      }
+
+      let wlConfig = {};
+      if (Object.keys(config).length > 0) {
+        const result = await pool.query(
+          `UPDATE customers
+              SET white_label_config = COALESCE(white_label_config, '{}'::jsonb) || $1::jsonb,
+                  updated_at = NOW()
+            WHERE id = $2
+            RETURNING white_label_config, public_handle`,
+          [JSON.stringify(config), req.customerId]
+        );
+        wlConfig = result.rows[0].white_label_config;
+      } else {
+        const result = await pool.query('SELECT white_label_config, public_handle FROM customers WHERE id = $1', [req.customerId]);
+        wlConfig = result.rows[0].white_label_config;
+      }
+      res.json({ config: wlConfig });
     } catch (err) {
       console.error('[white-label PATCH]', err.message);
       res.status(500).json({ error: err.message });
