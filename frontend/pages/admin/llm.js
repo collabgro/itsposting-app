@@ -18,6 +18,7 @@ const TABS = [
   { id: 'ab',        label: 'A/B Testing',      icon: IpAnalytics },
   { id: 'quality',   label: 'Quality Monitor',  icon: IpTrendingUp},
   { id: 'curated',   label: 'Curated Examples', icon: IpTeam      },
+  { id: 'guide',     label: 'Training Guide',   icon: IpCheck     },
 ];
 
 const THRESHOLD = 10000;
@@ -1311,6 +1312,326 @@ export default function AdminLLM() {
           </div>
         )}
       </div>
+
+      {/* ── TRAINING GUIDE ────────────────────────────────────────────────── */}
+      {tab === 'guide' && (() => {
+        const captionCount  = overview?.captionExamples  || 0;
+        const imageCount    = overview?.imageExamples    || 0;
+        const videoCount    = overview?.videoExamples    || 0;
+        const captionTarget = 10000;
+        const imageTarget   = 500;
+        const captionPct    = Math.min(100, Math.round(captionCount / captionTarget * 100));
+        const imagePct      = Math.min(100, Math.round(imageCount  / imageTarget  * 100));
+
+        const stepBox = (num, title, desc, code) => (
+          <div key={num} style={{ display: 'flex', gap: 14, marginBottom: 20 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#5B21B6,#7C5CFC)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 12, fontWeight: 800, color: '#fff', marginTop: 1 }}>{num}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{title}</div>
+              <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.6, marginBottom: code ? 10 : 0 }}>{desc}</div>
+              {code && (
+                <pre style={{ margin: 0, padding: '10px 14px', background: t.isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.06)', borderRadius: 8, fontSize: 11, color: t.isDark ? '#A78BFA' : '#5B21B6', overflowX: 'auto', lineHeight: 1.7, border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.2)' : 'rgba(124,92,252,0.15)'}`, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{code}</pre>
+              )}
+            </div>
+          </div>
+        );
+
+        const progressBar = (current, target, label, color) => (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: t.text }}>{label}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: current >= target ? '#10B981' : color }}>
+                {current.toLocaleString()} / {target.toLocaleString()} {current >= target ? '✅ Ready!' : ''}
+              </span>
+            </div>
+            <div style={{ height: 8, borderRadius: 6, background: t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${Math.min(100, Math.round(current / target * 100))}%`, borderRadius: 6, background: current >= target ? '#10B981' : `linear-gradient(90deg,${color},${color}bb)`, transition: 'width 600ms ease' }} />
+            </div>
+          </div>
+        );
+
+        return (
+          <div>
+            {/* Live progress */}
+            <div style={{ ...gc, background: t.isDark ? 'rgba(124,92,252,0.08)' : 'rgba(124,92,252,0.04)', border: '1px solid rgba(124,92,252,0.2)' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: t.text, marginBottom: 4 }}>Your Current Progress</div>
+              <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 20 }}>Data is collected automatically every time a customer uses the wizard. Check back here as you grow.</div>
+              {progressBar(captionCount + videoCount, captionTarget, 'Caption + Video Script examples (Path 1)', '#7C5CFC')}
+              {progressBar(imageCount, imageTarget, 'Labeled images (Path 2)', '#10B981')}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10, marginTop: 4 }}>
+                {[
+                  { label: 'Caption examples', value: captionCount.toLocaleString(), color: '#7C5CFC' },
+                  { label: 'Video script examples', value: videoCount.toLocaleString(), color: '#3B82F6' },
+                  { label: 'Labeled images', value: imageCount.toLocaleString(), color: '#10B981' },
+                  { label: 'Est. customers needed (Path 1)', value: '500–1,000', color: t.textMuted },
+                  { label: 'Est. customers needed (Path 2)', value: '~200', color: t.textMuted },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{ padding: '10px 12px', background: t.isDark ? 'rgba(255,255,255,0.03)' : t.input, borderRadius: 8, border: `1px solid ${t.border}` }}>
+                    <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 2 }}>{label}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color, letterSpacing: '-0.02em' }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div style={{ ...gc }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: t.text, marginBottom: 16 }}>Timeline Estimate</div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr>{['Milestone', 'When (active customers)', 'Action'].map(h => (
+                      <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: t.textMuted, fontWeight: 600, borderBottom: `1px solid ${t.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['500 labeled images collected', '~200 customers', '→ Start Path 2 (Image LoRA)'],
+                      ['Image LoRA trained + deployed', '~200 customers', '→ Set image traffic to 5%'],
+                      ['10,000 caption + video script examples', '~500–1,000 customers', '→ Start Path 1 (Text model)'],
+                      ['Caption model trained + deployed', '~500–1,000 customers', '→ Set text traffic to 5%'],
+                      ['A/B test passes (edit rate < 15%)', '~1,000+ customers', '→ Increase to 25–50% traffic'],
+                      ['Full rollout', 'When confident', '→ 100% on your model — Claude costs near zero'],
+                    ].map(([milestone, when, action]) => (
+                      <tr key={milestone} style={{ borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.04)' : t.border}` }}>
+                        <td style={{ padding: '10px 12px', color: t.text, fontWeight: 600 }}>{milestone}</td>
+                        <td style={{ padding: '10px 12px', color: '#10B981', fontWeight: 600 }}>{when}</td>
+                        <td style={{ padding: '10px 12px', color: t.primary, fontSize: 12 }}>{action}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Path 1 */}
+            <div style={{ ...gc }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <div style={{ padding: '4px 12px', borderRadius: 8, background: 'rgba(124,92,252,0.12)', border: '1px solid rgba(124,92,252,0.25)', fontSize: 11, fontWeight: 800, color: '#7C5CFC', letterSpacing: '0.05em' }}>PATH 1</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: t.text }}>Caption + Video Script Model (Text)</div>
+              </div>
+              <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 6 }}>Base: Llama 3.1 8B Instruct · Fine-tune with: QLoRA (rank 32, 3 epochs) · Target: replace Claude for caption generation</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: captionCount + videoCount >= captionTarget ? '#10B981' : '#D97706', marginBottom: 20 }}>
+                {captionCount + videoCount >= captionTarget ? '✅ You have enough data — start training!' : `⏳ ${(captionTarget - captionCount - videoCount).toLocaleString()} more examples needed before training`}
+              </div>
+
+              {stepBox(1, 'Export your training data',
+                'Go to the Training Data tab above → click "Export JSONL". This downloads all examples with quality_score ≥ 3 in the fine-tuning format. Tip: filter by quality_score ≥ 4 only for a cleaner dataset.',
+              )}
+              {stepBox(2, 'Create a Kaggle account and notebook',
+                'Go to kaggle.com → Sign up free → click "+ New Notebook" → Settings → Accelerator → GPU T4 x2 (free, 30hrs/week). Upload your JSONL as a Kaggle Dataset first: Datasets → New Dataset → upload the file.',
+              )}
+              {stepBox(3, 'Install dependencies in your notebook',
+                'Paste this in the first cell and run it:',
+                `!pip install -q transformers datasets trl bitsandbytes peft accelerate huggingface_hub`
+              )}
+              {stepBox(4, 'Run QLoRA fine-tuning',
+                'Paste this training script in your notebook. It uses 4-bit quantisation so Llama 3.1 8B fits on a T4 GPU:',
+                `from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from trl import SFTTrainer, SFTConfig
+from peft import LoraConfig
+from datasets import load_dataset
+import torch
+
+MODEL = "meta-llama/Llama-3.1-8B-Instruct"  # requires HF token
+DATASET = "/kaggle/input/your-dataset/postcore-training.jsonl"
+
+bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16)
+tokenizer = AutoTokenizer.from_pretrained(MODEL)
+model = AutoModelForCausalLM.from_pretrained(MODEL, quantization_config=bnb, device_map="auto")
+
+lora = LoraConfig(r=32, lora_alpha=64, target_modules=["q_proj","v_proj"], lora_dropout=0.05)
+dataset = load_dataset("json", data_files=DATASET, split="train")
+
+trainer = SFTTrainer(
+    model=model,
+    train_dataset=dataset,
+    peft_config=lora,
+    args=SFTConfig(
+        output_dir="./postcore-v1",
+        num_train_epochs=3,
+        per_device_train_batch_size=2,
+        gradient_accumulation_steps=4,
+        learning_rate=2e-4,
+        fp16=True,
+        logging_steps=50,
+        save_steps=200,
+    ),
+)
+trainer.train()
+trainer.save_model("./postcore-v1-final")`
+              )}
+              {stepBox(5, 'Push weights to Hugging Face (free private repo)',
+                'After training finishes (~4–6 hours), push the model to a private HF repo so Modal.com can load it:',
+                `from huggingface_hub import HfApi
+api = HfApi()
+# First: huggingface-cli login  (paste your HF token)
+api.create_repo("your-username/postcore-text-v1", private=True)
+trainer.model.push_to_hub("your-username/postcore-text-v1")
+tokenizer.push_to_hub("your-username/postcore-text-v1")
+print("Done — model at: https://huggingface.co/your-username/postcore-text-v1")`
+              )}
+              {stepBox(6, 'Deploy to Modal.com (inference endpoint)',
+                'Sign up at modal.com (free $30/month credits). Create a file called postcore_app.py on your local machine and deploy it:',
+                `# postcore_app.py
+import modal
+
+app = modal.App("postcore-text")
+image = modal.Image.debian_slim().pip_install("transformers","peft","accelerate","torch")
+
+@app.function(gpu="T4", image=image, secrets=[modal.Secret.from_name("huggingface-secret")])
+@modal.web_endpoint(method="POST")
+def generate(item: dict):
+    from transformers import AutoTokenizer, AutoModelForCausalLM
+    from peft import PeftModel
+    import torch, os
+
+    base = "meta-llama/Llama-3.1-8B-Instruct"
+    adapter = "your-username/postcore-text-v1"  # your HF repo
+    tok = AutoTokenizer.from_pretrained(base, token=os.environ["HF_TOKEN"])
+    mdl = AutoModelForCausalLM.from_pretrained(base, torch_dtype=torch.float16, device_map="auto", token=os.environ["HF_TOKEN"])
+    mdl = PeftModel.from_pretrained(mdl, adapter, token=os.environ["HF_TOKEN"])
+
+    prompt = item.get("prompt", "")
+    inputs = tok(prompt, return_tensors="pt").to("cuda")
+    out = mdl.generate(**inputs, max_new_tokens=512, temperature=0.8, do_sample=True)
+    return {"text": tok.decode(out[0], skip_special_tokens=True)}
+
+# In terminal: modal deploy postcore_app.py
+# Copy the printed endpoint URL — e.g. https://your-org--postcore-text.modal.run`
+              )}
+              {stepBox(7, 'Register here and start A/B testing',
+                'Come back to this page → Model Versions tab → click "Register Model" → paste the Modal.com endpoint URL → set modality to "text" → save. Then set traffic to 5% (meaning 5% of wizard generations use your model instead of Claude). Watch the Quality Monitor tab to compare edit rates and selection rates. If your model performs as well as Claude after 2–3 weeks → increase traffic to 25%, then 50%, then 100%.',
+              )}
+            </div>
+
+            {/* Path 2 */}
+            <div style={{ ...gc }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <div style={{ padding: '4px 12px', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', fontSize: 11, fontWeight: 800, color: '#10B981', letterSpacing: '0.05em' }}>PATH 2</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: t.text }}>Image Style LoRA (FLUX.1)</div>
+              </div>
+              <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 6 }}>Base: FLUX.1-schnell (open source, Apache 2.0) · Fine-tune: LoRA adapter on your labeled images · Target: ItsPosting-branded visual style for local trades</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: imageCount >= imageTarget ? '#10B981' : '#D97706', marginBottom: 20 }}>
+                {imageCount >= imageTarget ? '✅ You have enough images — start training!' : `⏳ ${Math.max(0, imageTarget - imageCount)} more labeled images needed. Import images in the Image Import tab.`}
+              </div>
+
+              {stepBox(1, 'Export images + captions',
+                'Go to the Image Import tab above → scroll to "Export for LoRA Training" → click "Download Python Script". This gives you a download_dataset.py file that downloads all your labeled images into the correct folder structure.',
+              )}
+              {stepBox(2, 'Download the images locally',
+                'Run the script on your local machine (not Kaggle — downloads to your disk first):',
+                `pip install requests Pillow
+python download_dataset.py
+# Creates: training_data/plumbing/before_after/image_001.jpg etc.
+# Also creates: training_data/captions.jsonl  (image path + caption pairs)`
+              )}
+              {stepBox(3, 'Upload to Kaggle as a Dataset',
+                'Go to kaggle.com → Datasets → New Dataset → drag your training_data/ folder → name it "postcore-image-dataset" → Create. This takes 5–10 minutes. Then create a new Notebook → GPU T4 → attach your dataset.',
+              )}
+              {stepBox(4, 'Install and run FLUX.1 LoRA training',
+                'Paste in your Kaggle notebook. Uses SimpleTuner which is the best free FLUX LoRA trainer:',
+                `!git clone https://github.com/bghira/SimpleTuner
+!cd SimpleTuner && pip install -q -r requirements.txt
+
+# config.json — paste this as a file in your notebook
+CONFIG = {
+  "model_type": "flux",
+  "pretrained_model_name_or_path": "black-forest-labs/FLUX.1-schnell",
+  "output_dir": "/kaggle/working/postcore-image-lora",
+  "dataset_name": "/kaggle/input/postcore-image-dataset/training_data",
+  "caption_column": "caption",          # from your captions.jsonl
+  "resolution": 1024,
+  "train_batch_size": 1,
+  "gradient_accumulation_steps": 4,
+  "num_train_epochs": 3,
+  "learning_rate": 1e-4,
+  "rank": 16,                            # LoRA rank
+  "mixed_precision": "bf16",
+  "save_every_n_steps": 250
+}
+
+import json
+with open("SimpleTuner/config/config.json","w") as f: json.dump(CONFIG, f)
+
+!cd SimpleTuner && python train.py --config_path config/config.json
+# Takes ~3–4 hours on T4. Output: postcore-image-lora/pytorch_lora_weights.safetensors`
+              )}
+              {stepBox(5, 'Deploy to Fal.ai',
+                'Fal.ai is the cheapest FLUX inference host (~$0.01–0.02/image). Sign up at fal.ai → API Keys → create key. Upload your LoRA:',
+                `pip install fal-client
+
+import fal_client, os
+os.environ["FAL_KEY"] = "your-fal-api-key"
+
+# Upload your .safetensors file to Fal storage
+result = fal_client.upload_file("postcore-image-lora/pytorch_lora_weights.safetensors")
+lora_url = result.url
+print("LoRA URL:", lora_url)
+
+# Test it works:
+out = fal_client.run(
+  "fal-ai/flux-lora",
+  arguments={
+    "prompt": "A plumber fixing a burst pipe under a kitchen sink, professional photo",
+    "loras": [{"path": lora_url, "scale": 0.9}],
+    "image_size": "portrait_4_3",
+    "num_inference_steps": 28,
+  }
+)
+print("Test image:", out["images"][0]["url"])`
+              )}
+              {stepBox(6, 'Register here and start A/B testing',
+                'Model Versions tab → Register Model → paste the Fal.ai model URL (e.g. fal-ai/flux-lora?lora=your-url) → modality: image → save. Set traffic to 5%. In the Image Import tab you\'ll start seeing "keep rate" data — if customers keep your LoRA images at the same rate as NanoBanana images, scale up.',
+              )}
+            </div>
+
+            {/* Path 3 — Video */}
+            <div style={{ ...gc }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                <div style={{ padding: '4px 12px', borderRadius: 8, background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.25)', fontSize: 11, fontWeight: 800, color: '#3B82F6', letterSpacing: '0.05em' }}>PATH 3</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: t.text }}>Video Model — Future</div>
+              </div>
+              <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 16 }}>You currently have {videoCount.toLocaleString()} video script examples being collected. Video scripts feed directly into Path 1 (same text model training). Full video LoRA fine-tuning is a separate future step.</div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ padding: '16px 18px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#10B981', marginBottom: 8 }}>✅ What's already working</div>
+                  <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.7 }}>
+                    Video scripts are included in Path 1 JSONL export automatically — your text model already learns the right tone and length for video narration scripts. No extra steps needed.
+                  </div>
+                </div>
+                <div style={{ padding: '16px 18px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#D97706', marginBottom: 8 }}>⏳ Full video LoRA — when ready</div>
+                  <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.7 }}>
+                    Requires 500+ labeled video clips + A100 80GB GPU (~$200–500/run). Base model: Wan 2.1 (open source). Data is being collected now. Train this when you have paying customer budget to cover the GPU cost.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Key reminders */}
+            <div style={{ ...gc, background: t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)', border: '1px solid rgba(124,92,252,0.2)' }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 14 }}>Important Reminders Before You Train</div>
+              {[
+                ['Always review before deploying', 'Never set traffic % until you\'ve manually tested 20–30 generations from the new model. Check: does it produce 3 distinct variations? Does it respect the industry and season? Does every post end with an engagement question?'],
+                ['Start at 5% traffic, not more', 'Your first deployment should always be 5%. Watch Quality Monitor for 2 weeks. If edit rate and selection rate match Claude\'s, increase to 25%. Never jump straight to 100%.'],
+                ['The model doesn\'t know new industries', 'Your fine-tuned model only knows what it saw in training data. If you add a new industry after training, those generations fall back to Claude automatically until you retrain.'],
+                ['Path 2 comes first', 'You\'ll hit 500 labeled images (Path 2 threshold) long before 10,000 caption examples (Path 1 threshold). Do Path 2 first. Each path is independent.'],
+                ['Keep your Kaggle checkpoints', 'After training, download the .safetensors file from Kaggle to your local machine before the notebook session expires. Kaggle sessions end after 9 hours of inactivity.'],
+              ].map(([title, body]) => (
+                <div key={title} style={{ display: 'flex', gap: 12, marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${t.isDark ? 'rgba(255,255,255,0.05)' : t.border}` }}>
+                  <span style={{ color: '#7C5CFC', fontWeight: 800, fontSize: 16, flexShrink: 0, marginTop: 1 }}>→</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 3 }}>{title}</div>
+                    <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.6 }}>{body}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── REGISTER MODEL MODAL ────────────────────────────────────────────── */}
       {showRegisterModel && (
