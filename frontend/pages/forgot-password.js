@@ -89,20 +89,17 @@ export default function ForgotPassword() {
         </div>
 
         {sent ? (
-          <div style={{ textAlign: 'center', padding: '24px 0 32px' }}>
+          <div style={{ textAlign: 'center', padding: '8px 0 32px' }}>
             <div style={{
               width: 64, height: 64, borderRadius: '50%',
               background: 'rgba(124,92,252,0.13)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 22px',
+              margin: '0 auto 20px',
             }}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9472FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                 <polyline points="22,6 12,13 2,6"/>
               </svg>
-            </div>
-            <div style={{ fontWeight: 800, fontSize: 18, color: t.text, marginBottom: 12, letterSpacing: '-0.03em' }}>
-              Email sent
             </div>
             <div style={{ fontSize: 14, color: t.textMuted, lineHeight: 1.65, maxWidth: 300, margin: '0 auto 28px' }}>
               If <strong style={{ color: t.text }}>{email}</strong> is registered, a reset link is on its way. Check your inbox and spam folder.
