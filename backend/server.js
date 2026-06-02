@@ -1081,6 +1081,22 @@ console.log('══════════════════════�
            updated_at = NOW()
      WHERE email = 'collabgroo@gmail.com'
        AND plan != 'agency'`,
+
+    // ── Service Requests — credit purchase + agency plan applications ──
+    `CREATE TABLE IF NOT EXISTS service_requests (
+      id            SERIAL PRIMARY KEY,
+      customer_id   INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      type          VARCHAR(50)  NOT NULL,
+      status        VARCHAR(50)  NOT NULL DEFAULT 'pending',
+      request_data  JSONB        DEFAULT '{}'::jsonb,
+      admin_notes   TEXT,
+      resolved_by   VARCHAR(255),
+      resolved_at   TIMESTAMP,
+      created_at    TIMESTAMP    DEFAULT NOW(),
+      updated_at    TIMESTAMP    DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_service_requests_customer ON service_requests(customer_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_service_requests_status   ON service_requests(status, created_at DESC)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -3342,6 +3358,17 @@ console.log('🕷️ Receptionist weekly re-crawl cron scheduled (Monday 8am UTC
 pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ').catch(() => {});
 pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(64)').catch(() => {});
 pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ').catch(() => {});
+
+// email_queue column migrations — the table may exist with an older schema that
+// only had subject/body_html/body_text. Add template columns if missing so that
+// EmailQueue.queue() inserts (which use template_name + template_data) don't fail.
+pool.query("ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS template_name VARCHAR(100)").catch(() => {});
+pool.query("ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS template_data JSONB DEFAULT '{}'::jsonb").catch(() => {});
+pool.query("ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'pending'").catch(() => {});
+pool.query("ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0").catch(() => {});
+pool.query("ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS last_error TEXT").catch(() => {});
+pool.query("ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ DEFAULT NOW()").catch(() => {});
+pool.query("ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ").catch(() => {});
 
 // Purge stale password reset tokens (expired > 1 hour ago) — runs at startup and daily
 async function purgeExpiredResetTokens() {
