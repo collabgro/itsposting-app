@@ -64,6 +64,14 @@ try {
   console.warn('[Wizard] industryKnowledge.js not found — some features will be limited');
 }
 
+let BrandedCardService;
+try {
+  BrandedCardService = require('../services/BrandedCardService');
+} catch {
+  BrandedCardService = null;
+  console.warn('[Wizard] BrandedCardService not found — branded card generation disabled');
+}
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Format → dimensions + media type map. Mirrors FORMAT_DATA in frontend/pages/wizard.js.
@@ -258,10 +266,11 @@ function getWizardSteps(industry, contentType) {
     subtitle: 'Choose the format that works best for your post',
     type: 'cards',
     options: [
-      { value: 'static', label: 'Static Post', emoji: '📄', description: 'Single image with caption', cost: 1 },
-      { value: 'photo', label: 'Photo Post', emoji: '📸', description: 'Single photo with caption', cost: 3 },
-      { value: 'carousel', label: 'Carousel', emoji: '📸📸📸', description: 'Multiple images in one post', cost: 5 },
-      { value: 'video', label: 'Video', emoji: '🎥', description: 'AI-generated video with voiceover', cost: 10 },
+      { value: 'static',       label: 'Text Post',     emoji: '📄', description: 'Text-only post, no image', cost: 1 },
+      { value: 'photo',        label: 'Photo Post',    emoji: '📸', description: 'AI photo for your trade', cost: 3 },
+      { value: 'branded_card', label: 'Branded Card',  emoji: '🎨', description: 'Canva-style graphic with your brand colors', cost: 3 },
+      { value: 'carousel',     label: 'Carousel',      emoji: '🖼️', description: 'Multiple images in one post', cost: 5 },
+      { value: 'video',        label: 'Video',         emoji: '🎥', description: 'AI-generated video with voiceover', cost: 10 },
     ],
   };
 
@@ -714,7 +723,7 @@ module.exports = (pool) => {
       }
 
       // ── Credit check — fail before any expensive API calls ──────────────────
-      const CREDIT_COSTS = { static: 1, photo: 3, carousel: 5, video: 10 };
+      const CREDIT_COSTS = { static: 1, photo: 3, branded_card: 3, carousel: 5, video: 10 };
       const creditCost = CREDIT_COSTS[answers.contentTypeSelection] ?? 1;
 
       debugStage = 'credit_check';
@@ -735,6 +744,174 @@ module.exports = (pool) => {
           error: `Not enough credits. This ${answers.contentTypeSelection} post costs ${creditCost} credit${creditCost !== 1 ? 's' : ''} but you only have ${freshCustomer.credits_balance}. Please upgrade your plan.`,
         });
       }
+
+      // ── Branded Card fast path (bypasses NanoBanana entirely) ───────────────
+      if (answers.contentTypeSelection === 'branded_card') {
+        if (!BrandedCardService || !ImageResizer) {
+          return res.status(503).json({ error: 'Branded card generation is not available on this server.' });
+        }
+
+        // Short Claude call — only needs card copy, not a full social post prompt
+        let cardParsed;
+        try {
+          const cardClaudeResp = await Promise.race([
+            anthropic.messages.create({
+              model: 'claude-sonnet-4-6',
+              max_tokens: 500,
+              messages: [{
+                role: 'user',
+                content: `You are writing text for a branded social media card for a local ${session.customer.industry || 'home services'} business.
+
+Business: ${session.customer.business_name || 'Local Business'}
+Location: ${session.customer.location || ''}
+Theme: ${answers.contentType || 'job finished'}
+Details: ${answers.details ? JSON.stringify(answers.details) : 'none'}
+Tone: ${answers.tone || 'professional'}
+
+Return ONLY valid JSON (no markdown):
+{
+  "headline": "Bold 5-8 word headline for the card (ALL CAPS works well)",
+  "subtext": "One supporting sentence, max 18 words",
+  "ctaText": "Call to action, max 5 words (e.g. Call Today, Free Quote, Book Now)",
+  "caption": "Full social media caption with relevant hashtags for the post",
+  "hashtags": ["tag1", "tag2", "tag3"]
+}`,
+              }],
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 30000)),
+          ]);
+
+          let rawText = '';
+          if (Array.isArray(cardClaudeResp.content)) {
+            rawText = cardClaudeResp.content.map(b => b.text || '').join('');
+          } else if (typeof cardClaudeResp.content === 'string') {
+            rawText = cardClaudeResp.content;
+          }
+          const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          const first = cleaned.indexOf('{');
+          const last  = cleaned.lastIndexOf('}');
+          cardParsed = JSON.parse(cleaned.substring(first, last + 1));
+        } catch (cardClaudeErr) {
+          console.error('[Wizard/BrandedCard] Claude call failed:', cardClaudeErr.message);
+          return res.status(502).json({ error: 'AI generation failed for branded card. Please try again.' });
+        }
+
+        const { headline = '', subtext = '', ctaText = '', caption = '', hashtags = [] } = cardParsed;
+
+        // Generate 3 card layouts in parallel
+        let bufferA, bufferB, bufferC;
+        try {
+          ({ bufferA, bufferB, bufferC } = await BrandedCardService.generateBrandedCards(
+            session.customer, headline, subtext, ctaText
+          ));
+        } catch (sharpErr) {
+          console.error('[Wizard/BrandedCard] Sharp generation failed:', sharpErr.message);
+          return res.status(500).json({ error: 'Card generation failed. Please try again.' });
+        }
+
+        // Upload all 3 to Cloudinary in parallel
+        let urlA, urlB, urlC;
+        try {
+          const ts = Date.now();
+          [urlA, urlB, urlC] = await Promise.all([
+            ImageResizer.uploadToCloudinary(bufferA, `itsposting/wizard/branded/${session.customerId}/${ts}-a`),
+            ImageResizer.uploadToCloudinary(bufferB, `itsposting/wizard/branded/${session.customerId}/${ts}-b`),
+            ImageResizer.uploadToCloudinary(bufferC, `itsposting/wizard/branded/${session.customerId}/${ts}-c`),
+          ]);
+        } catch (uploadErr) {
+          console.error('[Wizard/BrandedCard] Cloudinary upload failed:', uploadErr.message);
+          return res.status(500).json({ error: 'Card upload failed. Please try again.' });
+        }
+
+        const cardVariations = {
+          A: { caption, hashtags, hookType: 'full_overlay',  engagementQuestion: '' },
+          B: { caption, hashtags, hookType: 'bold_split',    engagementQuestion: '' },
+          C: { caption, hashtags, hookType: 'side_accent',   engagementQuestion: '' },
+        };
+        const brandedCardUrls = { A: urlA, B: urlB, C: urlC };
+
+        // Save post + variations to DB
+        let bcPostId = null;
+        try {
+          const bcPost = await pool.query(
+            `INSERT INTO posts (customer_id, content_type, caption, platform, platforms, status, generation_method, ai_model_used, media_url, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, 'draft', 'wizard', 'claude-sonnet-4-6', $6, NOW(), NOW())
+             RETURNING id`,
+            [
+              session.customerId,
+              'branded_card',
+              caption,
+              answers.platform === 'all' ? 'facebook' : answers.platform,
+              answers.platform === 'all' ? JSON.stringify(['facebook', 'instagram', 'google_business']) : JSON.stringify([answers.platform]),
+              urlA,
+            ]
+          );
+          bcPostId = bcPost.rows[0]?.id;
+
+          if (bcPostId) {
+            for (const [label, variation] of Object.entries(cardVariations)) {
+              await pool.query(
+                `INSERT INTO post_variations (post_id, variation_label, caption, hashtags, image_prompt, created_at)
+                 VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT DO NOTHING`,
+                [bcPostId, label, variation.caption, JSON.stringify(hashtags), null]
+              );
+            }
+            autoSaveToMediaLibrary(pool, session.customerId, urlA, 'branded_card').catch(() => {});
+          }
+        } catch (dbErr) {
+          console.warn('[Wizard/BrandedCard] DB save failed:', dbErr.message);
+        }
+
+        // Deduct credits
+        let bcCreditsRemaining = null;
+        if (bcPostId) {
+          try {
+            const deductResult = await pool.query(
+              `UPDATE customers SET credits_balance = credits_balance - $1, credits_used_this_month = credits_used_this_month + $1
+               WHERE id = $2 AND credits_balance >= $1 RETURNING credits_balance`,
+              [creditCost, billingId]
+            );
+            if (deductResult.rows.length > 0) {
+              bcCreditsRemaining = deductResult.rows[0].credits_balance;
+              try { await pool.query(`UPDATE posts SET credits_used = $1 WHERE id = $2`, [creditCost, bcPostId]); } catch {}
+              try {
+                await pool.query(
+                  `INSERT INTO credit_transactions (customer_id, post_id, transaction_type, amount, balance_after, description)
+                   VALUES ($1, $2, 'debit', $3, $4, $5)`,
+                  [billingId, bcPostId, -creditCost, bcCreditsRemaining, 'Generated branded card post via wizard']
+                );
+              } catch {}
+              if (bcCreditsRemaining < 10) {
+                const notifier = new NotificationService(pool);
+                notifier.lowCredits(billingId, bcCreditsRemaining);
+              }
+            } else {
+              try { await pool.query(`DELETE FROM posts WHERE id = $1`, [bcPostId]); } catch {}
+              return res.status(402).json({ error: 'Insufficient credits. Please refresh and try again.' });
+            }
+          } catch (creditErr) {
+            console.error('[Wizard/BrandedCard] Credit deduction failed:', creditErr.message);
+          }
+        }
+
+        return res.json({
+          success: true,
+          postId: bcPostId,
+          variations: cardVariations,
+          hashtags,
+          mediaUrl: urlA,
+          brandedCardUrls,
+          imageFailed: false,
+          videoRendering: false,
+          creditsUsed: creditCost,
+          creditsRemaining: bcCreditsRemaining,
+          contentType: answers.contentType,
+          contentTypeSelection: 'branded_card',
+          platform: answers.platform,
+          recommended: 'A',
+        });
+      }
+      // ── End branded card fast path ────────────────────────────────────────────
 
       debugStage = 'prompt_build';
       const builder = new SystemPromptBuilder(session.customer, {

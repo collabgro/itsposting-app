@@ -12,6 +12,7 @@ const ICON_MAP = {
   // Wizard content-type cards
   text_post: FileText,
   photo_post: Camera,
+  branded_card: Sparkles,
   carousel: Layers,
   video: Video,
 
