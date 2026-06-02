@@ -309,7 +309,7 @@ export const billingAPI = {
   getCheckoutLink: (plan, cycle) => api.get(`/api/billing/checkout-link?plan=${plan}&cycle=${cycle}`),
   buyCredits: (pack, amount) => api.get(`/api/billing/buy-credits?pack=${pack}${amount ? `&amount=${encodeURIComponent(amount)}` : ''}`),
   cancel: () => api.post('/api/billing/cancel'),
-  upgrade: (planId) => api.post('/api/billing/upgrade', { planId }),
+  createServiceRequest: (type, data) => api.post('/api/billing/service-request', { type, data }),
 };
 
 export const workspacesAPI = {
@@ -377,6 +377,7 @@ export const adminAPI = {
   getEmailQueue: (params) => api.get('/api/admin/email-queue', { params }),
   retryEmail: (id) => api.post(`/api/admin/email-queue/${id}/retry`),
   retryAllEmails: () => api.post('/api/admin/email-queue/retry-all'),
+  sendTestEmail: (to) => api.post('/api/admin/email-queue/test', { to }),
   listPosts: (params) => api.get('/api/admin/posts', { params }),
   deletePost: (id, reason) => api.delete(`/api/admin/posts/${id}`, { data: { reason } }),
   broadcast: (data) => api.post('/api/admin/broadcast', data),
@@ -417,9 +418,16 @@ export const adminAPI = {
   deleteImageDataset: (id) => api.delete(`/api/admin/llm/image-dataset/${id}`),
   bulkDeleteImages: (data) => api.post('/api/admin/llm/image-dataset/bulk-delete', data),
   // Referral management
-  listReferrals: (params) => api.get('/api/admin/referrals', { params }),
-  releaseReferral: (id) => api.post(`/api/admin/referrals/${id}/release`),
-  rejectReferral: (id, reason) => api.post(`/api/admin/referrals/${id}/reject`, { reason }),
+  listReferrals:      (params)       => api.get('/api/admin/referrals', { params }),
+  releaseReferral:    (id)           => api.post(`/api/admin/referrals/${id}/release`),
+  rejectReferral:     (id, reason)   => api.post(`/api/admin/referrals/${id}/reject`, { reason }),
+  releaseAllReferrals: ()            => api.post('/api/admin/referrals/release-all'),
+  // Service requests
+  getServiceRequests: (params) => api.get('/api/admin/service-requests', { params }),
+  getServiceRequestsCount: () => api.get('/api/admin/service-requests/count', { __noCache: true }),
+  updateServiceRequest: (id, data) => api.patch(`/api/admin/service-requests/${id}`, data),
+  contactServiceRequest: (id, channel, message) => api.post(`/api/admin/service-requests/${id}/contact`, { channel, message }),
+  approveServiceRequest: (id) => api.post(`/api/admin/service-requests/${id}/approve`),
 };
 
 export const analyticsAPI = {
@@ -582,7 +590,8 @@ export const calendarPlansAPI = {
 };
 
 export const referralsAPI = {
-  getMyCode: () => api.get('/api/referrals/my-code'),
+  getMyCode:       () => api.get('/api/referrals/my-code'),
+  getMyReferrals:  () => api.get('/api/referrals/my-referrals'),
 };
 
 export const competitorAPI = {

@@ -237,21 +237,29 @@ module.exports = (pool) => {
 
       // Always run the bcrypt hash on BOTH branches so response time is equalised
       // and attackers cannot enumerate registered emails via timing differences.
-      const [, bcryptDone] = await Promise.allSettled([
+      const [tokenResult, bcryptDone] = await Promise.allSettled([
         (async () => {
-          if (customer.rows.length > 0) {
-            const rawToken = crypto.randomBytes(32).toString('hex');
-            const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-            const expires = new Date(Date.now() + 60 * 60 * 1000);
-            await pool.query(
-              'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE email = $3',
-              [hashedToken, expires, email]
-            );
-            emailQueue.notifyPasswordReset(email, rawToken);
+          if (customer.rows.length === 0) {
+            console.log(`[ForgotPassword] No account found for submitted email`);
+            return;
           }
+          console.log(`[ForgotPassword] Account found (id=${customer.rows[0].id}), generating reset token`);
+          const rawToken = crypto.randomBytes(32).toString('hex');
+          const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+          const expires = new Date(Date.now() + 60 * 60 * 1000);
+          await pool.query(
+            'UPDATE customers SET password_reset_token = $1, password_reset_expires = $2 WHERE email = $3',
+            [hashedToken, expires, email]
+          );
+          console.log(`[ForgotPassword] Token stored, queuing reset email`);
+          await emailQueue.notifyPasswordReset(email, rawToken);
+          console.log(`[ForgotPassword] Reset email queued successfully for id=${customer.rows[0].id}`);
         })(),
         bcrypt.hash('timing-equalizer', 12),
       ]);
+      if (tokenResult.status === 'rejected') {
+        console.error('[ForgotPassword] Token flow failed:', tokenResult.reason?.message);
+      }
 
       res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
     } catch (err) {

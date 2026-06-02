@@ -616,6 +616,18 @@ module.exports = (pool) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  // POST /api/admin/email-queue/test — send a test email to verify Resend is working
+  router.post('/email-queue/test', async (req, res) => {
+    try {
+      const { to } = req.body;
+      if (!to) return res.status(400).json({ error: 'to email required' });
+      await emailQueue.queue(to, 'password_reset', {
+        resetUrl: 'https://app.itsposting.com/reset-password?token=test-email-check',
+      });
+      res.json({ success: true, message: `Test email queued for ${to}. Check email_queue for status within 30s.` });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   // ─── Post moderation ──────────────────────────────────────────────────────
 
   // GET /api/admin/posts

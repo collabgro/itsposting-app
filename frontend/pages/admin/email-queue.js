@@ -84,9 +84,26 @@ export default function EmailQueuePage() {
     if (mounted) load(page);
   }, [page, mounted]);
 
+  const [testEmail, setTestEmail] = useState('');
+  const [testLoading, setTestLoading] = useState(false);
+
   const showMsg = (type, text) => {
     setMessage({ type, text });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+  };
+
+  const handleTestEmail = async () => {
+    if (!testEmail.trim()) return;
+    setTestLoading(true);
+    try {
+      await adminAPI.sendTestEmail(testEmail.trim());
+      showMsg('success', `Test email queued for ${testEmail}. Refresh in 30s to check status.`);
+      setTimeout(() => load(0), 31000);
+    } catch (err) {
+      showMsg('error', err.response?.data?.error || 'Failed to queue test email');
+    } finally {
+      setTestLoading(false);
+    }
   };
 
   const handleRetry = async (id) => {
@@ -173,6 +190,24 @@ export default function EmailQueuePage() {
             </span>
           )}
         </div>
+      </div>
+
+      {/* TEST EMAIL */}
+      <div style={{ ...gc, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <IpSend size={15} style={{ color: t.textMuted, flexShrink: 0 }} />
+        <span style={{ fontSize: 13, fontWeight: 600, color: t.text, flexShrink: 0 }}>Send test email</span>
+        <input
+          type="email"
+          placeholder="your@email.com"
+          value={testEmail}
+          onChange={e => setTestEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleTestEmail()}
+          style={{ flex: 1, minWidth: 200, padding: '8px 12px', background: t.input, border: `1px solid ${t.borderStrong}`, borderRadius: 8, color: t.text, fontSize: 13, outline: 'none' }}
+        />
+        <Button variant="primary" onClick={handleTestEmail} disabled={testLoading || !testEmail.trim()}>
+          {testLoading ? 'Sending…' : 'Send test'}
+        </Button>
+        <span style={{ fontSize: 11, color: t.textMuted }}>Sends a password_reset template — appears in the log within 30s if Resend is working</span>
       </div>
 
       {/* STATS ROW */}
