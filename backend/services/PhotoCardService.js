@@ -281,9 +281,11 @@ async function buildTemplateB(resizedBuffer, headline, subtext, cta, businessNam
     });
   }
 
-  // Badge chip — straddles split boundary for visual drama
+  // Badge chip — straddles split boundary, positioned after the last content block
+  const bulletCount   = bullets ? bullets.length : Math.min(4, wrapText(subtext, 22).length);
+  const lastContentY  = bulletStartY + bulletCount * bulletLineH + 26;
   const badgeX = splitX - Math.floor(badgeW / 2);
-  const badgeY = Math.floor(H * 0.55);
+  const badgeY = Math.min(Math.floor(H * 0.62), Math.max(lastContentY + 44, Math.floor(H * 0.46)));
   parts.push(`<rect x="${badgeX}" y="${badgeY}" width="${badgeW}" height="52" rx="26" fill="#ffffff"/>`);
   parts.push(
     `<text x="${badgeX + badgeW / 2}" y="${badgeY + 26}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="800" letter-spacing="0.5" fill="${colors.primary}" text-anchor="middle" dominant-baseline="middle">${badgeText}</text>`
