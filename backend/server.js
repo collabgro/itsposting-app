@@ -3098,6 +3098,7 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/webhooks/')) return next();
   if (req.path.startsWith('/api/gmb')) return next();
   if (req.path.startsWith('/api/admin/test-')) return next();
+  if (req.path.startsWith('/api/admin/diag/')) return next();
   corsMiddleware(req, res, next);
 });
 // Webhooks must be registered BEFORE express.json() — they need raw body for HMAC verification
