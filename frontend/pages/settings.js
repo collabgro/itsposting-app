@@ -551,7 +551,7 @@ export default function Settings() {
 
   // White-label (Agency plan)
   const [wlConfig, setWlConfig] = useState({});
-  const [wlForm, setWlForm] = useState({ agencyName: '', aiAdvisorName: '', logo: '', primaryColor: '', hidePoweredBy: false, customDomain: '' });
+  const [wlForm, setWlForm] = useState({ agencyName: '', aiAdvisorName: '', logo: '', primaryColor: '', hidePoweredBy: false, customDomain: '', publicHandle: '' });
   const [wlSaving, setWlSaving] = useState(false);
   const [wlMsg, setWlMsg] = useState('');
   const [wlLogoUploading, setWlLogoUploading] = useState(false);
@@ -789,6 +789,7 @@ export default function Settings() {
         primaryColor:  cfg.primaryColor  || '',
         hidePoweredBy: cfg.hidePoweredBy || false,
         customDomain:  cfg.customDomain  || '',
+        publicHandle:  profile?.public_handle || '',
       });
     } catch {
       // not agency plan — silently ignore
@@ -1505,144 +1506,6 @@ export default function Settings() {
               {ownerSaving ? 'Saving...' : 'Save Owner Info'}
             </Button>
             <span style={{ fontSize: 12, color: t.textMuted }}>This information is private and used only to personalise your experience.</span>
-          </div>
-        </div>
-
-        {/* ── Public Profile ───────────────────────────────────────────────── */}
-        <div style={gc}>
-          <SectionHeader icon={IpGlobe} title="Public Profile" subtitle="Share a public page showcasing your business and recent posts" />
-          <div style={{ marginTop: 8 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: t.textSecondary, marginBottom: 6 }}>
-              Your public URL
-            </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, overflow: 'hidden' }}>
-              <span style={{ padding: '9px 12px', fontSize: 13, color: t.textMuted, background: t.surface, borderRight: `1px solid ${t.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                app.itsposting.com/p/
-              </span>
-              <input
-                type="text"
-                value={handleInput}
-                onChange={(e) => { setHandleInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')); setHandleError(''); }}
-                placeholder="your-handle"
-                maxLength={50}
-                style={{ flex: 1, padding: '9px 12px', background: 'transparent', border: 'none', outline: 'none', fontSize: 13, color: t.text, fontFamily: 'monospace' }}
-              />
-            </div>
-            {handleError && <div style={{ marginTop: 6, fontSize: 12, color: t.error || '#ef4444' }}>{handleError}</div>}
-            <div style={{ fontSize: 12, color: t.textMuted, marginTop: 6 }}>
-              3–50 characters. Letters, numbers, hyphens and underscores only.
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
-              <Button onClick={saveHandle} disabled={handleSaving} style={{ padding: '8px 18px' }}>
-                {handleSaving ? 'Saving…' : 'Save Handle'}
-              </Button>
-              {profile?.public_handle && (
-                <a
-                  href={`/p/${profile.public_handle}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: 13, color: t.primary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                >
-                  View public profile
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-                  </svg>
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Brand Kit ─────────────────────────────────────────────────────── */}
-        <div style={gc}>
-          <SectionHeader icon={IpPalette} title="Brand Kit" subtitle="Your brand identity — colors and fonts auto-populate every new design in the Studio" />
-          <div style={{ marginTop: 16 }}>
-            {/* Brand Colors */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Colors</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
-                {[
-                  { key: 'primary',    label: 'Primary',    placeholder: '#7C5CFC' },
-                  { key: 'secondary',  label: 'Secondary',  placeholder: '#00C4CC' },
-                  { key: 'accent',     label: 'Accent',     placeholder: '#FF7A00' },
-                  { key: 'background', label: 'Background', placeholder: '#FFFFFF' },
-                  { key: 'text',       label: 'Text',       placeholder: '#1A1A2E' },
-                  { key: 'extra',      label: 'Extra',      placeholder: '#F59E0B' },
-                ].map(({ key, label, placeholder }) => {
-                  const currentVal = (profile?.brand_colors || {})[key] || '';
-                  return (
-                    <div key={key}>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: t.textMuted, marginBottom: 5 }}>{label}</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ position: 'relative', flexShrink: 0 }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 6, background: currentVal || placeholder, border: `1.5px solid ${t.border}`, cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }} />
-                          <input
-                            type="color"
-                            value={currentVal || placeholder}
-                            onChange={(e) => setProfile(p => ({ ...p, brand_colors: { ...(p.brand_colors || {}), [key]: e.target.value } }))}
-                            style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none' }}
-                          />
-                        </div>
-                        <input
-                          type="text"
-                          value={currentVal}
-                          onChange={(e) => setProfile(p => ({ ...p, brand_colors: { ...(p.brand_colors || {}), [key]: e.target.value } }))}
-                          placeholder={placeholder}
-                          maxLength={7}
-                          style={{ flex: 1, padding: '6px 8px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 7, fontSize: 12, color: t.text, fontFamily: 'monospace', outline: 'none', minWidth: 0 }}
-                          onFocus={e => (e.target.style.borderColor = t.primary)}
-                          onBlur={e => (e.target.style.borderColor = t.border)}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Quick preview strip */}
-              {Object.values(profile?.brand_colors || {}).some(Boolean) && (
-                <div style={{ display: 'flex', gap: 4, marginTop: 12 }}>
-                  {['primary','secondary','accent','background','text','extra'].map(key => {
-                    const c = (profile?.brand_colors || {})[key];
-                    if (!c) return null;
-                    return <div key={key} title={`${key}: ${c}`} style={{ flex: 1, height: 6, borderRadius: 3, background: c, minWidth: 20 }} />;
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Brand Fonts */}
-            <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: t.textSecondary, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brand Fonts</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-                {[
-                  { key: 'headline', label: 'Headline Font', description: 'Used for titles and headings' },
-                  { key: 'body',     label: 'Body Font',     description: 'Used for captions and paragraphs' },
-                ].map(({ key, label, description }) => {
-                  const fonts = ['Inter','Roboto','Open Sans','Lato','Montserrat','Nunito','Poppins','Playfair Display','Merriweather','Oswald','Raleway','Bebas Neue','Anton','Dancing Script','Pacifico','Space Mono'];
-                  const currentFont = (profile?.brand_fonts || {})[key] || '';
-                  return (
-                    <div key={key}>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: t.textMuted, marginBottom: 5 }}>{label}</label>
-                      <Select
-                        value={currentFont}
-                        onChange={(e) => setProfile(p => ({ ...p, brand_fonts: { ...(p.brand_fonts || {}), [key]: e.target.value } }))}
-                        placeholder="Not set"
-                        options={fonts.map(f => ({ value: f, label: f }))}
-                      />
-                      {currentFont && (
-                        <div style={{ marginTop: 5, fontSize: 15, fontFamily: currentFont, color: t.text, letterSpacing: '0.01em' }}>
-                          {profile?.business_name || 'Your Business Name'}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3 }}>{description}</div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{ marginTop: 10, fontSize: 11, color: t.textMuted, padding: '8px 12px', background: t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)', border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.2)' : 'rgba(124,92,252,0.15)'}`, borderRadius: 8 }}>
-                Brand fonts appear at the top of the font picker in the Studio editor — every new design starts with your fonts pre-selected.
-              </div>
-            </div>
           </div>
         </div>
 
@@ -2607,6 +2470,26 @@ export default function Settings() {
                     </div>
                   )}
                 </div>
+
+                {/* Client Self-Signup URL */}
+                {profile?.public_handle && (
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Client Signup URL</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <code style={{ flex: 1, padding: '10px 12px', background: t.input, border: `1px solid ${t.border}`, borderRadius: 8, color: wlForm.primaryColor || t.primary, fontSize: 12, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {typeof window !== 'undefined' ? window.location.origin : 'https://app.itsposting.com'}/join/{profile.public_handle}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => { const url = `${window.location.origin}/join/${profile.public_handle}`; navigator.clipboard?.writeText(url); showToast('Signup link copied!'); }}
+                        style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${t.border}`, background: t.input, color: t.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: t.textMuted, marginTop: 4 }}>Share this with new clients — they create their own branded account automatically.</div>
+                  </div>
+                )}
 
                 {/* Custom Domain */}
                 <div>
