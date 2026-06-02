@@ -96,11 +96,21 @@ export default function EmailQueuePage() {
     if (!testEmail.trim()) return;
     setTestLoading(true);
     try {
-      await adminAPI.sendTestEmail(testEmail.trim());
-      showMsg('success', `Test email queued for ${testEmail}. Refresh in 30s to check status.`);
-      setTimeout(() => load(0), 31000);
+      const res = await adminAPI.sendTestEmail(testEmail.trim());
+      const { steps = [] } = res.data;
+      const dbStep = steps.find(s => s.step === 'db_insert');
+      const sendStep = steps.find(s => s.step === 'resend_direct');
+      if (dbStep?.ok && sendStep?.ok) {
+        showMsg('success', `✅ DB insert OK (id=${dbStep.id}) · ✅ Resend sent (${sendStep.provider}) — check inbox!`);
+      } else if (dbStep?.ok && !sendStep?.ok) {
+        showMsg('error', `✅ DB insert OK · ❌ Resend failed: ${sendStep?.error}`);
+      } else {
+        showMsg('error', `❌ DB insert failed: ${dbStep?.error || res.data.fatal}`);
+      }
+      load(0);
     } catch (err) {
-      showMsg('error', err.response?.data?.error || 'Failed to queue test email');
+      const detail = err.response?.data?.fatal || err.response?.data?.error || err.message;
+      showMsg('error', `❌ ${detail}`);
     } finally {
       setTestLoading(false);
     }

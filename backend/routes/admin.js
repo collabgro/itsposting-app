@@ -616,16 +616,38 @@ module.exports = (pool) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  // POST /api/admin/email-queue/test — send a test email to verify Resend is working
+  // POST /api/admin/email-queue/test — diagnose the full email pipeline
   router.post('/email-queue/test', async (req, res) => {
+    const { to } = req.body;
+    if (!to) return res.status(400).json({ error: 'to email required' });
+
+    const results = { to, steps: [] };
+
+    // Step 1: verify email_queue table exists and INSERT works
     try {
-      const { to } = req.body;
-      if (!to) return res.status(400).json({ error: 'to email required' });
-      await emailQueue.queue(to, 'password_reset', {
-        resetUrl: 'https://app.itsposting.com/reset-password?token=test-email-check',
-      });
-      res.json({ success: true, message: `Test email queued for ${to}. Check email_queue for status within 30s.` });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+      const insertRes = await pool.query(
+        `INSERT INTO email_queue (to_email, template_name, template_data, scheduled_at)
+         VALUES ($1, $2, $3::jsonb, NOW()) RETURNING id`,
+        [to, 'password_reset', JSON.stringify({ resetUrl: 'https://app.itsposting.com/reset-password?token=admin-test' })]
+      );
+      results.steps.push({ step: 'db_insert', ok: true, id: insertRes.rows[0].id });
+    } catch (err) {
+      results.steps.push({ step: 'db_insert', ok: false, error: err.message });
+      return res.status(500).json({ ...results, fatal: 'email_queue INSERT failed — table may be missing or schema mismatch' });
+    }
+
+    // Step 2: try sending directly via Resend right now (don't wait for worker)
+    try {
+      const EmailService = require('../services/EmailService');
+      const svc = new EmailService();
+      const rendered = svc.renderTemplate('password_reset', { resetUrl: 'https://app.itsposting.com/reset-password?token=admin-test' });
+      const result = await svc.send({ to, subject: rendered.subject, html: rendered.html, text: rendered.text });
+      results.steps.push({ step: 'resend_direct', ok: true, provider: svc.provider, id: result.id });
+    } catch (err) {
+      results.steps.push({ step: 'resend_direct', ok: false, error: err.message });
+    }
+
+    res.json({ ...results, message: 'Check steps array for details.' });
   });
 
   // ─── Post moderation ──────────────────────────────────────────────────────
