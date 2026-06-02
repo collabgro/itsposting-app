@@ -3092,11 +3092,12 @@ const corsMiddleware = cors({
   },
   credentials: true,
 });
-// OAuth callbacks and inbound webhooks are server-to-server requests — no Origin header, skip CORS
+// OAuth callbacks, inbound webhooks, and admin diagnostics skip CORS (no Origin header from server-to-server or direct browser nav)
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/social/callback/')) return next();
   if (req.path.startsWith('/api/webhooks/')) return next();
   if (req.path.startsWith('/api/gmb')) return next();
+  if (req.path.startsWith('/api/admin/test-')) return next();
   corsMiddleware(req, res, next);
 });
 // Webhooks must be registered BEFORE express.json() — they need raw body for HMAC verification

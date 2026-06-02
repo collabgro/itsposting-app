@@ -29,6 +29,60 @@ module.exports = (pool) => {
     }
   };
 
+  // ── Browser-accessible diagnostics (no JWT — use ?secret=ADMIN_SECRET) ──────
+  router.get('/diag/image-gen', async (req, res) => {
+    const adminSecret = process.env.ADMIN_SECRET;
+    if (!adminSecret || req.query.secret !== adminSecret) {
+      return res.status(401).json({ error: 'Provide ?secret=<ADMIN_SECRET>' });
+    }
+    const axios = require('axios');
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) return res.status(503).json({ error: 'GOOGLE_AI_API_KEY not set in Railway env vars' });
+
+    const modelsToTry = [
+      { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1beta' },
+      { name: 'gemini-2.0-flash-exp-image-generation',     api: 'v1beta' },
+      { name: 'gemini-2.5-flash-preview-05-20',            api: 'v1beta' },
+      { name: 'imagen-3.0-generate-002',                   api: 'v1' },
+    ];
+
+    const results = [];
+    for (const { name, api } of modelsToTry) {
+      // imagen-3.0 uses a different request shape
+      const isImagen = name.startsWith('imagen');
+      const body = isImagen
+        ? { instances: [{ prompt: 'A simple red circle on a white background.' }], parameters: { sampleCount: 1 } }
+        : { contents: [{ parts: [{ text: 'A simple red circle on a white background.' }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } };
+      const endpoint = isImagen
+        ? `https://generativelanguage.googleapis.com/${api}/models/${name}:predict`
+        : `https://generativelanguage.googleapis.com/${api}/models/${name}:generateContent`;
+      try {
+        const t0 = Date.now();
+        const response = await axios.post(endpoint, body, {
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          params: { key: apiKey },
+          timeout: 30000,
+        });
+        const candidates = response.data?.candidates || response.data?.predictions || [];
+        let gotImage = false;
+        if (isImagen) {
+          gotImage = candidates.some(p => p.bytesBase64Encoded);
+        } else {
+          for (const c of candidates) {
+            for (const p of (c.content?.parts || [])) { if (p.inlineData?.data) { gotImage = true; break; } }
+          }
+        }
+        results.push({ model: name, api, status: 'ok', gotImage, ms: Date.now() - t0 });
+        if (gotImage) return res.json({ keyPrefix: apiKey.substring(0, 8) + '…', winner: { model: name, api }, results });
+      } catch (err) {
+        const httpStatus = err.response?.status;
+        const error = err.response?.data?.error?.message || err.message;
+        results.push({ model: name, api, status: 'error', httpStatus, error });
+      }
+    }
+    res.json({ keyPrefix: apiKey.substring(0, 8) + '…', winner: null, message: 'All models failed', results });
+  });
+
   router.use(authenticate, adminOnly);
 
   const ALLOWED_CUSTOMER_SORT = ['created_at', 'credits_balance', 'business_name', 'last_login_at'];
@@ -869,9 +923,6 @@ module.exports = (pool) => {
     if (!apiKey) return res.status(503).json({ error: 'GOOGLE_AI_API_KEY not set in Railway env vars' });
 
     const modelsToTry = [
-      { name: 'gemini-2.5-flash-image',                    api: 'v1' },
-      { name: 'gemini-3.1-flash-image',                    api: 'v1' },
-      { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1' },
       { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1beta' },
       { name: 'gemini-2.0-flash-exp-image-generation',     api: 'v1beta' },
     ];

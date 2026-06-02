@@ -185,11 +185,8 @@ class NanoBananaService {
   async generateImage(prompt) {
     const axios = require('axios');
 
-    // Models in priority order — newer models first, legacy fallbacks last
+    // Models in priority order — v1beta confirmed working for image generation
     const modelsToTry = [
-      { name: 'gemini-2.5-flash-image',                    api: 'v1' },
-      { name: 'gemini-3.1-flash-image',                    api: 'v1' },
-      { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1' },
       { name: 'gemini-2.0-flash-preview-image-generation', api: 'v1beta' },
       { name: 'gemini-2.0-flash-exp-image-generation',     api: 'v1beta' },
     ];
