@@ -492,17 +492,47 @@ ItsPosting AI writing rules (non-negotiable):
 
     const isPhoto = !isCarousel && !isVideo && !isStatic;
 
+    const photoCardDesignBrief = isPhoto ? `
+=== PHOTO CARD DESIGN BRIEF (read this before writing imagePrompt) ===
+You are acting as a top-tier graphic designer. This photo post will be turned into a Canva-quality
+branded social media card by compositing a branded overlay on the AI-generated photo.
+
+THREE card template layouts will be generated — you decide which is "recommended" and craft everything
+to work best with it. The imagePrompt must direct the AI photographer accordingly.
+
+TEMPLATE A — "Frosted Glass Panel": Brand-colored glass panel covers LEFT 60% of canvas.
+  → Position: subject/person on the RIGHT 40–50% of frame. Clean background on left (wall, sky, street).
+
+TEMPLATE B — "Bold Brand Split": Solid brand color covers LEFT 52% of canvas. Most impactful for promotions.
+  → Position: subject/person on the RIGHT 45–55% of frame. Strong contrast against solid color panel.
+
+TEMPLATE C — "Floating Glass Card": Brand-colored card sits on the RIGHT 58% of canvas.
+  → Position: subject/person on the LEFT 40–55% of frame. Card sits beside them.
+
+Choose "recommended" based on this post's content:
+  - "A" for: job finished, educational tips, authentic/professional content, before-after
+  - "B" for: promotions, service listings, "we offer X" posts, urgent messaging, price offers
+  - "C" for: testimonials, "why choose us", community/local, milestone, friendly tone
+
+PHOTO COMPOSITION RULE: Always include in imagePrompt — position the main subject in the area that
+stays visible for the RECOMMENDED template. Use professional editorial photography style with:
+cinematic lighting, shallow depth-of-field background blur, modern color grading matching brand colors,
+high-end commercial photography aesthetic. NOT a stock photo look — a premium branded shoot feel.
+` : '';
+
     return `=== OUTPUT FORMAT (CRITICAL — ALWAYS FOLLOW THIS EXACTLY) ===
 Return ONLY valid JSON. No markdown, no backticks, no explanation before or after. First character: { Last character: }
-
+${photoCardDesignBrief}
 ${imageGuidance}
 {
-  "imagePrompt": "A SINGLE shared image prompt used for ALL 3 variations. Must be universal — not tailored to any specific variation. Include: subject, setting, lighting, style, mood, composition. Be specific enough to generate a professional photo. Use the IMAGE PROMPT GUIDANCE above.",${isPhoto ? `
+  "imagePrompt": "${isPhoto ? 'CRAFT THIS carefully based on the PHOTO CARD DESIGN BRIEF above. Include: subject position (left/right based on recommended template), cinematic lighting, professional photography style, brand color palette as scene accents.' : 'A SINGLE shared image prompt used for ALL 3 variations. Include: subject, setting, lighting, style, mood, composition.'}",${isPhoto ? `
   "cardOverlay": {
-    "headline": "BOLD 4-7 WORD HEADLINE — punchy, all-caps works well (e.g. FROZEN PIPES? WE FIX FAST)",
-    "subtext": "One supporting sentence, max 18 words. Explain the benefit, not the feature.",
-    "cta": "Call to action, 2-5 words (e.g. Call Today, Free Quote, Book Now)",
-    "badge": "Short badge label, 2-4 words (e.g. AVAILABLE 24/7, 5-STAR RATED, FREE ESTIMATES)"
+    "headline": "BOLD 4-7 WORD HEADLINE — punchy, attention-stopping (e.g. ROUTINE MAINTENANCE MATTERS, OUR PLUMBING SERVICES)",
+    "subtext": "One supporting sentence, max 18 words. Plain language, benefit-focused.",
+    "cta": "Call-to-action text, 2-5 words (e.g. Call Today, Get Free Quote, Book Now, Contact Us Now)",
+    "badge": "Short badge 2-4 words for the pill chip (e.g. AVAILABLE 24/7, 5-STAR RATED, FREE ESTIMATES, LICENSED & INSURED)",
+    "services": ["Service item 1", "Service item 2", "Service item 3", "Service item 4"],
+    "recommended": "A or B or C — your design recommendation based on the content type and tone"
   },` : ''}${isCarousel ? `
   "carouselSlides": [
     { "slideNumber": 1, "overlayText": "max 8 words", "description": "what this slide shows visually" },

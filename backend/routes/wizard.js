@@ -1470,7 +1470,7 @@ Return ONLY valid JSON (no markdown):
         contentType: answers.contentType,
         contentTypeSelection: answers.contentTypeSelection,
         platform: answers.platform,
-        recommended: 'A',
+        recommended: parsed.cardOverlay?.recommended || 'A',
         slides,
         videoScript,
         meta: {
