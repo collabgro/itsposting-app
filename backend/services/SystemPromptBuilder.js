@@ -490,12 +490,20 @@ ItsPosting AI writing rules (non-negotiable):
 
     const imageGuidance = this._buildImagePromptGuidance();
 
+    const isPhoto = !isCarousel && !isVideo && !isStatic;
+
     return `=== OUTPUT FORMAT (CRITICAL — ALWAYS FOLLOW THIS EXACTLY) ===
 Return ONLY valid JSON. No markdown, no backticks, no explanation before or after. First character: { Last character: }
 
 ${imageGuidance}
 {
-  "imagePrompt": "A SINGLE shared image prompt used for ALL 3 variations. Must be universal — not tailored to any specific variation. Include: subject, setting, lighting, style, mood, composition. Be specific enough to generate a professional photo. Use the IMAGE PROMPT GUIDANCE above.",${isCarousel ? `
+  "imagePrompt": "A SINGLE shared image prompt used for ALL 3 variations. Must be universal — not tailored to any specific variation. Include: subject, setting, lighting, style, mood, composition. Be specific enough to generate a professional photo. Use the IMAGE PROMPT GUIDANCE above.",${isPhoto ? `
+  "cardOverlay": {
+    "headline": "BOLD 4-7 WORD HEADLINE — punchy, all-caps works well (e.g. FROZEN PIPES? WE FIX FAST)",
+    "subtext": "One supporting sentence, max 18 words. Explain the benefit, not the feature.",
+    "cta": "Call to action, 2-5 words (e.g. Call Today, Free Quote, Book Now)",
+    "badge": "Short badge label, 2-4 words (e.g. AVAILABLE 24/7, 5-STAR RATED, FREE ESTIMATES)"
+  },` : ''}${isCarousel ? `
   "carouselSlides": [
     { "slideNumber": 1, "overlayText": "max 8 words", "description": "what this slide shows visually" },
     { "slideNumber": 2, "overlayText": "max 8 words", "description": "what this slide shows visually" },

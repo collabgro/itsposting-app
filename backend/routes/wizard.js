@@ -72,6 +72,14 @@ try {
   console.warn('[Wizard] BrandedCardService not found — branded card generation disabled');
 }
 
+let PhotoCardService;
+try {
+  PhotoCardService = require('../services/PhotoCardService');
+} catch {
+  PhotoCardService = null;
+  console.warn('[Wizard] PhotoCardService not found — photo card overlays disabled');
+}
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Format → dimensions + media type map. Mirrors FORMAT_DATA in frontend/pages/wizard.js.
@@ -1132,10 +1140,36 @@ Return ONLY valid JSON (no markdown):
             }
             const imgGenMs = Date.now() - imgGenStart;
             mediaUrl = imageResult.url;
+
+            // ── Photo Card overlay (3 branded templates per variation) ──────────
+            // Fetch the raw photo buffer, composite branded overlays, upload 3 variants.
+            // Each wizard variation (A/B/C) gets a different card template.
+            let photoCardUrls = null;
+            if (PhotoCardService && ImageResizer && parsed.cardOverlay && contentTypeForMedia === 'photo') {
+              try {
+                const rawBuffer = await ImageResizer.fetchImageAsBuffer(imageResult.url);
+                const { bufferA, bufferB, bufferC } = await PhotoCardService.generatePhotoCards(
+                  rawBuffer, parsed.cardOverlay, session.customer
+                );
+                const ts  = Date.now();
+                const cid = session.customerId;
+                const [urlA, urlB, urlC] = await Promise.all([
+                  ImageResizer.uploadToCloudinary(bufferA, `itsposting/${cid}/wizard-card-${ts}-A`),
+                  ImageResizer.uploadToCloudinary(bufferB, `itsposting/${cid}/wizard-card-${ts}-B`),
+                  ImageResizer.uploadToCloudinary(bufferC, `itsposting/${cid}/wizard-card-${ts}-C`),
+                ]);
+                photoCardUrls = { A: urlA, B: urlB, C: urlC };
+                mediaUrl = urlA; // default shown image; frontend overrides per selected variation
+                console.log('[Wizard] Photo cards generated:', urlA);
+              } catch (cardErr) {
+                console.warn('[Wizard] PhotoCard overlay failed (using plain photo):', cardErr.message);
+              }
+            }
+
             if (ImageResizer) {
               try {
                 const variants = await ImageResizer.uploadResizedImages(
-                  imageResult.url,
+                  photoCardUrls ? photoCardUrls.A : imageResult.url,
                   `wizard-${Date.now()}`,
                   session.customerId
                 );
@@ -1145,6 +1179,9 @@ Return ONLY valid JSON (no markdown):
                 mediaVariants = {};
               }
             }
+
+            // Store photoCardUrls on mediaVariants so it reaches the response builder
+            if (photoCardUrls) mediaVariants._photoCardUrls = photoCardUrls;
             // ── Image training data (fire-and-forget) ──────────────────────────
             const _imgPrompt = imagePromptForGen;
             const _imgUrl = mediaUrl;
@@ -1422,6 +1459,7 @@ Return ONLY valid JSON (no markdown):
         imagePrompt: parsed.imagePrompt || parsed.variation_a?.imagePrompt || '',
         mediaUrl,
         mediaVariants,
+        photoCardUrls: mediaVariants._photoCardUrls || null,
         imageFailed,
         videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
         videoJobId,

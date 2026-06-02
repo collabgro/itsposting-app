@@ -1033,8 +1033,9 @@ export default function Wizard() {
     if (!results?.mediaUrl) return;
     setDownloading(true);
     try {
+      const activeMediaUrl = results.photoCardUrls?.[selectedVariation] || results.mediaUrl;
       const res = await wizardAPI.downloadImage({
-        mediaUrl: results.mediaUrl,
+        mediaUrl: activeMediaUrl,
         postId: results.postId,
         withWatermark,
       });
@@ -1764,9 +1765,9 @@ export default function Wizard() {
                     ) : (
                       <img
                         src={
-                          results.contentTypeSelection === 'branded_card' && results.brandedCardUrls
-                            ? (results.brandedCardUrls[selectedVariation] || results.mediaUrl)
-                            : results.mediaUrl
+                          results.photoCardUrls?.[selectedVariation]
+                            || (results.contentTypeSelection === 'branded_card' && results.brandedCardUrls?.[selectedVariation])
+                            || results.mediaUrl
                         }
                         alt="Generated post"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
