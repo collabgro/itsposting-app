@@ -612,8 +612,8 @@ export default function Layout({ children, title, subtitle, action }) {
               onClick={() => router.push('/wizard')}
               className="btn-shimmer"
               style={{
-                width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                gap: 3, padding: '13px 14px',
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 8, padding: '13px 14px',
                 background: `linear-gradient(135deg, ${wlPrimary} 0%, ${wlPrimary}e8 45%, #9B7FFF 100%)`,
                 border: `1px solid rgba(255,255,255,0.15)`, borderRadius: 14, color: '#fff',
                 transition: 'transform 180ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 180ms ease', cursor: 'pointer',
@@ -631,11 +631,8 @@ export default function Layout({ children, title, subtitle, action }) {
               onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(0.97)'; }}
               onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-2px) scale(1)'; }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <IpSparkle size={16} />
-                <span style={{ fontSize: 13, fontWeight: 700 }}>Create new post</span>
-              </div>
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.72)', fontWeight: 500, letterSpacing: '0.01em' }}>AI-powered · ~30 seconds</span>
+              <IpSparkle size={16} />
+              Create new post
             </button>
           </div>
         )}
@@ -909,12 +906,16 @@ export default function Layout({ children, title, subtitle, action }) {
             )}
             {user && !isMobile && (
               <Link href="/billing" style={{ textDecoration: 'none' }}>
-                <div className="credit-chip"
-                  style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 10, fontSize: 12, cursor: 'pointer', transition: 'transform 140ms ease, box-shadow 140ms ease' }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = `0 6px 20px ${wlPrimary}40`; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill={wlPrimary} style={{ flexShrink: 0 }}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                  <span style={{ color: t.textSecondary, fontWeight: 600, fontSize: 11, letterSpacing: '0.01em' }}>{isSubAccount ? 'Shared' : 'Credits'}</span>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10,
+                  background: `linear-gradient(135deg, ${wlPrimary}22, ${wlPrimary}10)`,
+                  border: `1.5px solid ${wlPrimary}66`,
+                  cursor: 'pointer', transition: 'all 140ms ease',
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `linear-gradient(135deg, ${wlPrimary}33, ${wlPrimary}18)`; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = `linear-gradient(135deg, ${wlPrimary}22, ${wlPrimary}10)`; e.currentTarget.style.transform = ''; }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill={wlPrimary} style={{ flexShrink: 0 }}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                  <span style={{ color: wlPrimary, fontWeight: 600, fontSize: 12 }}>{isSubAccount ? 'Shared' : 'Credits'}</span>
                   <span style={{ color: wlPrimary, fontWeight: 800, fontFamily: 'monospace', fontSize: 15, letterSpacing: '-0.02em' }}>{user.credits_balance ?? 0}</span>
                 </div>
               </Link>
