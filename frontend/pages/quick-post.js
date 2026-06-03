@@ -1077,11 +1077,17 @@ export default function QuickPost() {
             {contentType === 'photo' && (
               <div style={{ padding: '12px 12px 0' }}>
                 {result.mediaUrl ? (
-                  <div style={{ position: 'relative' }}>
+                  <div style={{
+                    position: 'relative',
+                    aspectRatio: '4/5',
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    background: dark ? 'rgba(15,15,24,0.72)' : t.input,
+                  }}>
                     <img
                       src={result.mediaUrl}
                       alt="Generated"
-                      style={{ width: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 12, display: 'block' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />
                   </div>
                 ) : (
