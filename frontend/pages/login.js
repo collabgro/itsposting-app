@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useTheme } from '../lib/theme';
@@ -92,6 +92,13 @@ export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
   const [isWide, setIsWide] = useState(false);
   const [agencyBranding, setAgencyBranding] = useState(null);
+  // OTP step
+  const [step, setStep] = useState('credentials'); // 'credentials' | 'otp'
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendLoading, setResendLoading] = useState(false);
+  const otpRefs = useRef([]);
 
   useEffect(() => {
     setMounted(true);
@@ -114,18 +121,99 @@ export default function Login() {
       .catch(() => {}); // Silently fail — fallback to ItsPosting branding
   }, [router.isReady]);
 
+  // Resend countdown tick
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
+  // Auto-submit when all 6 OTP digits are filled (avoids stale-closure issue)
+  useEffect(() => {
+    if (step === 'otp' && otpDigits.join('').length === 6 && !loading) {
+      handleOtpSubmit(otpDigits.join(''));
+    }
+  }, [otpDigits]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
       const { data } = await authAPI.login(formData);
+      if (data.requiresOtp) {
+        setMaskedEmail(data.maskedEmail);
+        setStep('otp');
+        setResendCooldown(60);
+        setLoading(false);
+        return;
+      }
+      // Fallback if OTP is ever bypassed server-side
       localStorage.setItem('token', data.token);
       router.push('/select-account');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
       setLoading(false);
     }
+  };
+
+  const handleOtpSubmit = useCallback(async (codeOverride) => {
+    const otp = codeOverride !== undefined ? codeOverride : otpDigits.join('');
+    if (otp.length < 6) return;
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await authAPI.verifyOtp({ email: formData.email, otp });
+      localStorage.setItem('token', data.token);
+      router.push('/select-account');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Invalid code. Please try again.');
+      setOtpDigits(['', '', '', '', '', '']);
+      setTimeout(() => otpRefs.current[0]?.focus(), 50);
+      setLoading(false);
+    }
+  }, [formData.email, otpDigits, router]);
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || resendLoading) return;
+    setResendLoading(true);
+    setError('');
+    try {
+      await authAPI.resendOtp({ email: formData.email });
+      setResendCooldown(60);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not resend code. Please try again.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const handleOtpChange = (i, rawVal) => {
+    const val = rawVal.replace(/\D/g, '').slice(-1);
+    const next = [...otpDigits];
+    next[i] = val;
+    setOtpDigits(next);
+    if (val && i < 5) {
+      setTimeout(() => otpRefs.current[i + 1]?.focus(), 0);
+    }
+  };
+
+  const handleOtpKeyDown = (i, e) => {
+    if (e.key === 'Backspace' && !otpDigits[i] && i > 0) {
+      otpRefs.current[i - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pasted) return;
+    const next = ['', '', '', '', '', ''].map((_, j) => pasted[j] || '');
+    setOtpDigits(next);
+    const filled = pasted.length;
+    setTimeout(() => {
+      if (filled < 6) otpRefs.current[filled]?.focus();
+    }, 0);
   };
 
   // Agency-aware accent color — falls back to ItsPosting purple
@@ -341,226 +429,409 @@ export default function Login() {
             </div>
           )}
 
-          {/* Heading */}
-          <div style={{ marginBottom: 30 }}>
-            <h1 style={{
-              fontSize: 30,
-              fontWeight: 800,
-              color: t.text,
-              letterSpacing: '-0.046em',
-              lineHeight: 1.1,
-              margin: '0 0 8px',
-            }}>
-              Welcome back
-            </h1>
-            <p style={{
-              fontSize: 14,
-              color: t.textMuted,
-              margin: 0,
-              letterSpacing: '-0.01em',
-            }}>
-              Sign in to continue to {brandName}
-            </p>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 9,
-              padding: '11px 14px',
-              background: t.errorBg,
-              border: `1px solid ${t.errorBorder}`,
-              borderRadius: 10,
-              marginBottom: 22,
-              fontSize: 13,
-              color: t.error,
-              letterSpacing: '-0.01em',
-            }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              {error}
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} noValidate>
-            {/* Email */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{
-                display: 'block',
-                fontSize: 13,
-                fontWeight: 600,
-                color: t.text,
-                letterSpacing: '-0.01em',
-                marginBottom: 7,
-              }}>
-                Email
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="you@company.com"
-                autoComplete="email"
-                value={formData.email}
-                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                onFocus={() => setFocused('email')}
-                onBlur={() => setFocused(null)}
-                style={inputBase('email')}
-              />
-            </div>
-
-            {/* Password */}
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-                <label style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: t.text,
-                  letterSpacing: '-0.01em',
+          {step === 'otp' ? (
+            /* ─── OTP STEP ─── */
+            <div>
+              {/* Icon + heading */}
+              <div style={{ textAlign: 'center', marginBottom: 32 }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: 18,
+                  background: `linear-gradient(135deg, ${brandColor}28, ${brandColor}10)`,
+                  border: `1px solid ${brandColor}30`,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 20,
+                  boxShadow: `0 0 0 8px ${brandColor}08`,
                 }}>
-                  Password
-                </label>
-                <Link href="/forgot-password" style={{
-                  fontSize: 12.5,
-                  color: brandColor,
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  letterSpacing: '-0.01em',
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+                    stroke={brandColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </div>
+                <h1 style={{
+                  fontSize: 28, fontWeight: 800, color: t.text,
+                  letterSpacing: '-0.046em', lineHeight: 1.1, margin: '0 0 10px',
                 }}>
-                  Forgot?
-                </Link>
+                  Verify it&rsquo;s you
+                </h1>
+                <p style={{ fontSize: 14, color: t.textMuted, margin: 0, lineHeight: 1.6 }}>
+                  We sent a 6-digit code to{' '}
+                  <strong style={{ color: t.text, fontWeight: 700 }}>{maskedEmail}</strong>
+                </p>
               </div>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showPwd ? 'text' : 'password'}
-                  required
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  onFocus={() => setFocused('password')}
-                  onBlur={() => setFocused(null)}
-                  style={{ ...inputBase('password'), paddingRight: 44 }}
-                />
+
+              {/* Error */}
+              {error && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  padding: '11px 14px',
+                  background: t.errorBg,
+                  border: `1px solid ${t.errorBorder}`,
+                  borderRadius: 10,
+                  marginBottom: 22,
+                  fontSize: 13,
+                  color: t.error,
+                  letterSpacing: '-0.01em',
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  {error}
+                </div>
+              )}
+
+              {/* 6 digit boxes */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
+                {otpDigits.map((digit, i) => (
+                  <input
+                    key={i}
+                    ref={el => otpRefs.current[i] = el}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]"
+                    maxLength={1}
+                    value={digit}
+                    autoFocus={i === 0}
+                    disabled={loading}
+                    onChange={e => handleOtpChange(i, e.target.value)}
+                    onKeyDown={e => handleOtpKeyDown(i, e)}
+                    onPaste={handleOtpPaste}
+                    style={{
+                      width: 48, height: 58,
+                      borderRadius: 12,
+                      textAlign: 'center',
+                      fontSize: 24,
+                      fontWeight: 800,
+                      letterSpacing: '0.02em',
+                      color: t.text,
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", monospace',
+                      background: t.isDark ? 'rgba(255,255,255,0.05)' : '#fff',
+                      border: `1.5px solid ${digit ? `${brandColor}c0` : t.isDark ? 'rgba(255,255,255,0.1)' : t.border}`,
+                      boxShadow: digit ? `0 0 0 4px ${brandColor}1c, inset 0 1px 0 rgba(255,255,255,0.05)` : 'none',
+                      outline: 'none',
+                      cursor: loading ? 'not-allowed' : 'text',
+                      transition: 'border-color 150ms ease, box-shadow 150ms ease',
+                      caretColor: brandColor,
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Verify button */}
+              <button
+                onClick={() => handleOtpSubmit()}
+                disabled={loading || otpDigits.join('').length < 6}
+                style={{
+                  width: '100%',
+                  padding: '14px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  letterSpacing: '-0.02em',
+                  background: (loading || otpDigits.join('').length < 6)
+                    ? (t.isDark ? 'rgba(255,255,255,0.07)' : '#E5E5EF')
+                    : `linear-gradient(135deg, ${brandColor} 0%, ${brandColor}cc 100%)`,
+                  border: 'none',
+                  borderRadius: 11,
+                  color: (loading || otpDigits.join('').length < 6) ? t.textDisabled : '#fff',
+                  cursor: (loading || otpDigits.join('').length < 6) ? 'not-allowed' : 'pointer',
+                  boxShadow: (loading || otpDigits.join('').length < 6) ? 'none' : `0 4px 30px ${brandColor}61`,
+                  transition: 'transform 180ms ease, box-shadow 180ms ease, background 180ms ease',
+                }}
+                onMouseEnter={e => {
+                  if (!loading && otpDigits.join('').length === 6) {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = `0 8px 40px ${brandColor}80`;
+                  }
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = (loading || otpDigits.join('').length < 6) ? 'none' : `0 4px 30px ${brandColor}61`;
+                }}
+              >
+                {loading ? (
+                  <>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.75s linear infinite' }}>
+                      <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+                    </svg>
+                    Verifying…
+                  </>
+                ) : (
+                  'Verify Code'
+                )}
+              </button>
+
+              {/* Resend row */}
+              <div style={{ textAlign: 'center', marginTop: 22 }}>
+                <span style={{ fontSize: 13, color: t.textMuted }}>Didn&rsquo;t receive it?{' '}</span>
+                {resendCooldown > 0 ? (
+                  <span style={{ fontSize: 13, color: t.textMuted }}>Resend in <strong style={{ color: t.text }}>{resendCooldown}s</strong></span>
+                ) : (
+                  <button
+                    onClick={handleResend}
+                    disabled={resendLoading}
+                    style={{
+                      background: 'none', border: 'none', cursor: resendLoading ? 'default' : 'pointer',
+                      color: brandColor, fontWeight: 700, fontSize: 13, padding: 0,
+                      opacity: resendLoading ? 0.6 : 1, textDecoration: 'underline',
+                      textDecorationColor: `${brandColor}60`,
+                    }}
+                  >
+                    {resendLoading ? 'Sending…' : 'Resend code'}
+                  </button>
+                )}
+              </div>
+
+              {/* Back to sign in */}
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
                 <button
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowPwd(v => !v)}
-                  aria-label={showPwd ? 'Hide password' : 'Show password'}
-                  style={{
-                    position: 'absolute', right: 13, top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', padding: 4,
-                    cursor: 'pointer', color: t.textMuted,
-                    display: 'flex', alignItems: 'center',
-                    borderRadius: 6,
-                    transition: 'color 150ms ease',
+                  onClick={() => {
+                    setStep('credentials');
+                    setOtpDigits(['', '', '', '', '', '']);
+                    setError('');
+                    setResendCooldown(0);
                   }}
-                  onMouseEnter={e => e.currentTarget.style.color = t.text}
-                  onMouseLeave={e => e.currentTarget.style.color = t.textMuted}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: t.textMuted, fontSize: 12.5, padding: 0,
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                  }}
                 >
-                  {showPwd ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  )}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
+                  </svg>
+                  Back to sign in
                 </button>
               </div>
             </div>
+          ) : (
+            /* ─── CREDENTIALS STEP ─── */
+            <>
+              {/* Heading */}
+              <div style={{ marginBottom: 30 }}>
+                <h1 style={{
+                  fontSize: 30,
+                  fontWeight: 800,
+                  color: t.text,
+                  letterSpacing: '-0.046em',
+                  lineHeight: 1.1,
+                  margin: '0 0 8px',
+                }}>
+                  Welcome back
+                </h1>
+                <p style={{
+                  fontSize: 14,
+                  color: t.textMuted,
+                  margin: 0,
+                  letterSpacing: '-0.01em',
+                }}>
+                  Sign in to continue to {brandName}
+                </p>
+              </div>
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '14px 20px',
+              {/* Error */}
+              {error && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  padding: '11px 14px',
+                  background: t.errorBg,
+                  border: `1px solid ${t.errorBorder}`,
+                  borderRadius: 10,
+                  marginBottom: 22,
+                  fontSize: 13,
+                  color: t.error,
+                  letterSpacing: '-0.01em',
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  {error}
+                </div>
+              )}
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} noValidate>
+                {/* Email */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: t.text,
+                    letterSpacing: '-0.01em',
+                    marginBottom: 7,
+                  }}>
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="you@company.com"
+                    autoComplete="email"
+                    value={formData.email}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    onFocus={() => setFocused('email')}
+                    onBlur={() => setFocused(null)}
+                    style={inputBase('email')}
+                  />
+                </div>
+
+                {/* Password */}
+                <div style={{ marginBottom: 28 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+                    <label style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: t.text,
+                      letterSpacing: '-0.01em',
+                    }}>
+                      Password
+                    </label>
+                    <Link href="/forgot-password" style={{
+                      fontSize: 12.5,
+                      color: brandColor,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      letterSpacing: '-0.01em',
+                    }}>
+                      Forgot?
+                    </Link>
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPwd ? 'text' : 'password'}
+                      required
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={e => setFormData({ ...formData, password: e.target.value })}
+                      onFocus={() => setFocused('password')}
+                      onBlur={() => setFocused(null)}
+                      style={{ ...inputBase('password'), paddingRight: 44 }}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPwd(v => !v)}
+                      aria-label={showPwd ? 'Hide password' : 'Show password'}
+                      style={{
+                        position: 'absolute', right: 13, top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', padding: 4,
+                        cursor: 'pointer', color: t.textMuted,
+                        display: 'flex', alignItems: 'center',
+                        borderRadius: 6,
+                        transition: 'color 150ms ease',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = t.text}
+                      onMouseLeave={e => e.currentTarget.style.color = t.textMuted}
+                    >
+                      {showPwd ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                          <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                          <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    padding: '14px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    letterSpacing: '-0.02em',
+                    background: loading
+                      ? (t.isDark ? 'rgba(255,255,255,0.07)' : '#E5E5EF')
+                      : `linear-gradient(135deg, ${brandColor} 0%, ${brandColor}cc 100%)`,
+                    border: 'none',
+                    borderRadius: 11,
+                    color: loading ? t.textDisabled : '#fff',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    boxShadow: loading ? 'none' : `0 4px 30px ${brandColor}61`,
+                    transition: 'transform 180ms ease, box-shadow 180ms ease, background 180ms ease',
+                  }}
+                  onMouseEnter={e => {
+                    if (!loading) {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = `0 8px 40px ${brandColor}80`;
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = loading ? 'none' : `0 4px 30px ${brandColor}61`;
+                  }}
+                >
+                  {loading ? (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.75s linear infinite' }}>
+                        <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+                      </svg>
+                      Signing in…
+                    </>
+                  ) : (
+                    'Sign in'
+                  )}
+                </button>
+              </form>
+
+              {/* Trust */}
+              <div style={{
+                marginTop: 20,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8,
-                fontSize: 15,
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                background: loading
-                  ? (t.isDark ? 'rgba(255,255,255,0.07)' : '#E5E5EF')
-                  : `linear-gradient(135deg, ${brandColor} 0%, ${brandColor}cc 100%)`,
-                border: 'none',
-                borderRadius: 11,
-                color: loading ? t.textDisabled : '#fff',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: loading ? 'none' : `0 4px 30px ${brandColor}61`,
-                transition: 'transform 180ms ease, box-shadow 180ms ease, background 180ms ease',
-              }}
-              onMouseEnter={e => {
-                if (!loading) {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = `0 8px 40px ${brandColor}80`;
-                }
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = loading ? 'none' : `0 4px 30px ${brandColor}61`;
-              }}
-            >
-              {loading ? (
-                <>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.75s linear infinite' }}>
-                    <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
-                  </svg>
-                  Signing in…
-                </>
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </form>
+                gap: 5,
+              }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span style={{ fontSize: 12, color: t.textMuted, letterSpacing: '-0.01em' }}>
+                  Secure sign-in · No credit card required
+                </span>
+              </div>
 
-          {/* Trust */}
-          <div style={{
-            marginTop: 20,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 5,
-          }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round">
-              <rect x="3" y="11" width="18" height="11" rx="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <span style={{ fontSize: 12, color: t.textMuted, letterSpacing: '-0.01em' }}>
-              Secure sign-in · No credit card required
-            </span>
-          </div>
-
-          {/* Sign up link */}
-          <p style={{
-            textAlign: 'center',
-            marginTop: 30,
-            fontSize: 13.5,
-            color: t.textMuted,
-            letterSpacing: '-0.01em',
-          }}>
-            No account?{' '}
-            <Link href="/signup" style={{
-              color: brandColor,
-              fontWeight: 700,
-              textDecoration: 'none',
-            }}>
-              Start free trial →
-            </Link>
-          </p>
+              {/* Sign up link */}
+              <p style={{
+                textAlign: 'center',
+                marginTop: 30,
+                fontSize: 13.5,
+                color: t.textMuted,
+                letterSpacing: '-0.01em',
+              }}>
+                No account?{' '}
+                <Link href="/signup" style={{
+                  color: brandColor,
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}>
+                  Start free trial →
+                </Link>
+              </p>
+            </>
+          )}
         </div>
       </div>
 

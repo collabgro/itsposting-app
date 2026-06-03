@@ -10,6 +10,17 @@ module.exports = (pool) => {
   const emailQueue = new EmailQueue(pool);
   const onboardingEmail = new OnboardingEmailService(pool);
 
+  function maskEmail(email) {
+    const [local, domain] = email.split('@');
+    return `${local.charAt(0)}***@${domain}`;
+  }
+
+  function generateOtp() {
+    const raw = String(Math.floor(100000 + Math.random() * 900000));
+    const hash = crypto.createHash('sha256').update(raw).digest('hex');
+    return { raw, hash };
+  }
+
   /**
    * POST /api/auth/register
    */
@@ -144,18 +155,158 @@ module.exports = (pool) => {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
+      // Credentials verified — generate OTP, do NOT issue JWT yet
+      const { raw: otpCode, hash: otpHash } = generateOtp();
+
+      await pool.query('DELETE FROM login_otps WHERE customer_id = $1', [customer.id]);
+      await pool.query(
+        `INSERT INTO login_otps (customer_id, code_hash, expires_at)
+         VALUES ($1, $2, NOW() + INTERVAL '10 minutes')`,
+        [customer.id, otpHash]
+      );
+
+      emailQueue.queue(
+        customer.email,
+        'login_otp',
+        { businessName: customer.business_name || customer.email, code: otpCode }
+      ).catch(err => console.error('[Auth] Failed to queue OTP email:', err.message));
+
       await pool.query('UPDATE customers SET last_login_at = NOW() WHERE id = $1', [customer.id]);
 
-      const token = generateToken(customer.id, customer.email);
-
-      delete customer.password_hash;
-      delete customer.password_reset_token;
-      delete customer.email_verification_token;
-
-      res.json({ customer, token });
+      res.json({ requiresOtp: true, maskedEmail: maskEmail(email) });
     } catch (error) {
       console.error('Login error:', error);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/auth/verify-otp
+   */
+  router.post('/verify-otp', async (req, res) => {
+    try {
+      const { email, otp } = req.body;
+      if (!email || !otp) return res.status(400).json({ error: 'Email and code required' });
+
+      const customerResult = await pool.query(
+        'SELECT id, email, business_name, suspended FROM customers WHERE email = $1',
+        [email.toLowerCase().trim()]
+      );
+      if (!customerResult.rows.length) {
+        return res.status(401).json({ error: 'Invalid or expired code. Please sign in again.' });
+      }
+      const customer = customerResult.rows[0];
+
+      if (customer.suspended) {
+        return res.status(403).json({ error: 'Account suspended. Please contact support.' });
+      }
+
+      const otpResult = await pool.query(
+        `SELECT id, code_hash, attempts FROM login_otps
+         WHERE customer_id = $1 AND used_at IS NULL AND expires_at > NOW() AND attempts < 5
+         ORDER BY created_at DESC LIMIT 1`,
+        [customer.id]
+      );
+
+      if (!otpResult.rows.length) {
+        return res.status(401).json({ error: 'Code expired or invalid. Please sign in again.' });
+      }
+
+      const otpRow = otpResult.rows[0];
+      const incomingHash = crypto.createHash('sha256').update(String(otp).trim()).digest('hex');
+      const storedBuf   = Buffer.from(otpRow.code_hash, 'hex');
+      const incomingBuf = Buffer.from(incomingHash, 'hex');
+
+      const match = storedBuf.length === incomingBuf.length &&
+        crypto.timingSafeEqual(storedBuf, incomingBuf);
+
+      if (!match) {
+        const newAttempts = otpRow.attempts + 1;
+        if (newAttempts >= 5) {
+          await pool.query(
+            'UPDATE login_otps SET attempts = $1, used_at = NOW() WHERE id = $2',
+            [newAttempts, otpRow.id]
+          );
+          return res.status(401).json({ error: 'Too many incorrect attempts. Please sign in again.' });
+        }
+        await pool.query('UPDATE login_otps SET attempts = $1 WHERE id = $2', [newAttempts, otpRow.id]);
+        const remaining = 5 - newAttempts;
+        return res.status(401).json({
+          error: `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`,
+        });
+      }
+
+      // OTP correct — burn it and issue JWT
+      await pool.query('UPDATE login_otps SET used_at = NOW() WHERE id = $1', [otpRow.id]);
+
+      const fullResult = await pool.query('SELECT * FROM customers WHERE id = $1', [customer.id]);
+      const fullCustomer = fullResult.rows[0];
+      delete fullCustomer.password_hash;
+      delete fullCustomer.password_reset_token;
+      delete fullCustomer.email_verification_token;
+
+      const token = generateToken(customer.id, customer.email);
+      res.json({ customer: fullCustomer, token });
+
+    } catch (err) {
+      console.error('[Auth] verify-otp error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/auth/resend-otp
+   */
+  router.post('/resend-otp', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: 'Email required' });
+
+      const customerResult = await pool.query(
+        'SELECT id, business_name FROM customers WHERE email = $1',
+        [email.toLowerCase().trim()]
+      );
+      // Silently succeed if email not found — don't leak account existence
+      if (!customerResult.rows.length) return res.json({ success: true });
+
+      const customer = customerResult.rows[0];
+
+      const otpResult = await pool.query(
+        `SELECT id, last_sent_at FROM login_otps
+         WHERE customer_id = $1 AND used_at IS NULL AND expires_at > NOW()
+         ORDER BY created_at DESC LIMIT 1`,
+        [customer.id]
+      );
+
+      if (!otpResult.rows.length) {
+        return res.status(400).json({ error: 'No active sign-in session. Please sign in again.' });
+      }
+
+      const otpRow = otpResult.rows[0];
+      const secondsSince = (Date.now() - new Date(otpRow.last_sent_at).getTime()) / 1000;
+      if (secondsSince < 60) {
+        return res.status(429).json({ error: 'Please wait before requesting another code.' });
+      }
+
+      const { raw: newCode, hash: newHash } = generateOtp();
+      await pool.query(
+        `UPDATE login_otps
+         SET code_hash = $1, expires_at = NOW() + INTERVAL '10 minutes',
+             last_sent_at = NOW(), attempts = 0
+         WHERE id = $2`,
+        [newHash, otpRow.id]
+      );
+
+      emailQueue.queue(
+        email,
+        'login_otp',
+        { businessName: customer.business_name || email, code: newCode }
+      ).catch(err => console.error('[Auth] Failed to queue resend OTP:', err.message));
+
+      res.json({ success: true, maskedEmail: maskEmail(email) });
+    } catch (err) {
+      console.error('[Auth] resend-otp error:', err);
+      res.status(500).json({ error: err.message });
     }
   });
 

@@ -1176,6 +1176,18 @@ console.log('══════════════════════�
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_public_handle ON customers(public_handle) WHERE public_handle IS NOT NULL`,
     // Agency feature flags per plan
     `ALTER TABLE agency_plans ADD COLUMN IF NOT EXISTS feature_flags JSONB DEFAULT '{"wizard":true,"quick_post":true,"calendar":true,"analytics":true,"geo_audit":false,"inbox":false,"competitor_intel":false,"templates":true,"media_library":true,"api_keys":false}'`,
+    // ── Login OTP — email-based second factor ──
+    `CREATE TABLE IF NOT EXISTS login_otps (
+      id           SERIAL PRIMARY KEY,
+      customer_id  INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      code_hash    VARCHAR(64) NOT NULL,
+      expires_at   TIMESTAMPTZ NOT NULL,
+      last_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      attempts     INTEGER NOT NULL DEFAULT 0,
+      used_at      TIMESTAMPTZ,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_login_otps_customer ON login_otps(customer_id)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -3074,6 +3086,8 @@ const adminBroadcastLimiter=rateLimit({ windowMs: 60 * 60 * 1000, max: 5,    sto
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/verify-otp', authLimiter);
+app.use('/api/auth/resend-otp', passwordResetLimiter);
 app.use('/api/auth/forgot-password', passwordResetLimiter);
 app.use('/api/wizard/generate', generationLimiter);
 app.use('/api/wizard/refresh', generationLimiter);
@@ -3371,6 +3385,7 @@ cron.schedule('0 6 * * 1', async () => {
 });
 console.log('🔍 GeoAudit cron scheduled (Monday 6am UTC — Pro/Premium weekly tracking)');
 
+const NotificationService = require('./services/NotificationService');
 const PLAN_MONTHLY_CREDITS = { starter: 50, professional: 100, premium: 150 };
 
 async function runMonthlyCredits() {
@@ -3388,7 +3403,7 @@ async function runMonthlyCredits() {
       const credits = PLAN_MONTHLY_CREDITS[c.plan] || 0;
       if (!credits) continue;
       const newBalance = (c.credits_balance || 0) + credits;
-      const nextDate = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+      const nextDate = new Date(Date.now() + (c.billing_cycle === 'yearly' ? 365 : 30) * 24 * 3600 * 1000);
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
@@ -3422,20 +3437,29 @@ async function runMonthlyCredits() {
         AND plan IN ('starter','professional','premium')
     `);
     for (const c of expired.rows) {
+      // Do NOT set suspended=true — that is for admin actions only.
+      // Plan expiry sets status='inactive' and lets the app show the normal upgrade prompt.
       await pool.query(
-        `UPDATE customers SET status='inactive', suspended=true, updated_at=NOW() WHERE id=$1`,
+        `UPDATE customers SET plan='trial', status='inactive', suspended=false, updated_at=NOW() WHERE id=$1`,
         [c.id]
       );
+      // In-app notification
+      new NotificationService(pool).planExpired(c.id);
       try {
         await pool.query(
           `INSERT INTO email_queue (to_email, template_name, template_data, scheduled_at)
-           VALUES ($1,'account_suspended',$2,NOW())`,
-          [c.email, JSON.stringify({ businessName: c.business_name || 'there', reason: 'Your subscription has expired. Please renew your plan to continue using ItsPosting.' })]
+           VALUES ($1,'subscription_cancelled',$2,NOW())`,
+          [c.email, JSON.stringify({
+            businessName: c.business_name || 'there',
+            planName: 'your plan',
+            accessUntil: 'today',
+            billingUrl: (process.env.FRONTEND_URL || 'https://app.itsposting.com') + '/billing',
+          })]
         );
       } catch (emailErr) {
         console.error(`[MonthlyCredits] Email error for ${c.email}:`, emailErr.message);
       }
-      console.log(`[MonthlyCredits] Revoked access for customer ${c.id} (plan expired)`);
+      console.log(`[MonthlyCredits] Plan expired for customer ${c.id} — moved to trial`);
     }
   } catch (err) {
     console.error('[MonthlyCredits] Cron error:', err.message);

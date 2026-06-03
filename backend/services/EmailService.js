@@ -57,6 +57,11 @@ class EmailService {
   }
 
   _interpolate(str, data) {
+    // Handle {{#if key}}...{{/if}} conditional blocks
+    str = str.replace(/\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, key, content) => {
+      return data[key] ? content : '';
+    });
+    // Handle {{key}} variable substitution
     return str.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? '');
   }
 
@@ -203,6 +208,22 @@ const TEMPLATES = {
       <p>Your credits can be used to generate AI content, images, and more on Its Posting.</p>
     `,
     text: `Hi {{businessName}},\n\nYour credit balance has been adjusted by {{amountLabel}}. New balance: {{newBalance}} credits.\n\nNote: {{reason}}`,
+  },
+
+  login_otp: {
+    subject: 'Your {{platformName}} sign-in code: {{code}}',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>Use the code below to complete your sign-in to {{platformName}}. It expires in <strong>10 minutes</strong>.</p>
+      <div style="text-align:center;margin:32px 0;">
+        <div style="display:inline-block;background:#1A1A2E;border:2px solid #2D2D4E;border-radius:16px;padding:24px 40px;">
+          <span style="font-size:44px;font-weight:900;letter-spacing:0.2em;color:#7C5CFC;font-family:monospace;">{{code}}</span>
+        </div>
+        <p style="margin:12px 0 0;font-size:12px;color:#666;">Expires in 10 minutes &middot; Do not share this code</p>
+      </div>
+      <p style="font-size:13px;color:#666;">If you didn't try to sign in, someone may have your password &mdash; <strong>change it immediately</strong>.</p>
+    `,
+    text: `Your {{platformName}} sign-in code: {{code}}\nExpires in 10 minutes. Do not share this code.\nIf you didn't request this, change your password immediately.`,
   },
 
   password_reset: {
@@ -480,6 +501,152 @@ const TEMPLATES = {
       <a href="{{billingUrl}}" class="btn">View your account</a>
     `,
     text: `Hi {{businessName}},\n\nMessage from the ItsPosting team:\n\n{{message}}\n\nReply to this email to respond.`,
+  },
+
+  upgrade_applied: {
+    subject: "You're now on the {{planName}} plan — {{credits}} credits ready",
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>Your plan has been upgraded instantly. <span class="tag tag-success">{{planName}} Plan — Active</span></p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">New plan</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{planName}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Monthly credits</td>
+            <td style="text-align:right;font-size:16px;font-weight:800;color:#7C5CFC;font-family:monospace;">{{credits}} credits/mo</td>
+          </tr>
+          {{#if creditsDelta}}
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Credits added now</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#22C55E;font-family:monospace;">+{{creditsDelta}} credits</td>
+          </tr>
+          {{/if}}
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Billing cycle</td>
+            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{cycle}}</td>
+          </tr>
+        </table>
+      </div>
+      <p>The extra credits for upgrading mid-cycle have already been added to your balance — no waiting, no proration hassle.</p>
+      <a href="{{loginUrl}}" class="btn">Start creating content →</a>
+      <p style="font-size:12px;color:#555;">Questions? Just reply to this email — we reply fast.</p>
+    `,
+    text: `Hi {{businessName}},\n\nYou've been upgraded to the {{planName}} plan.\n\nMonthly credits: {{credits}}/mo\nCredits added now: +{{creditsDelta}}\nBilling: {{cycle}}\n\nLog in: {{loginUrl}}`,
+  },
+
+  downgrade_scheduled: {
+    subject: 'Plan switch confirmed — switching to {{newPlanName}} on {{effectiveDate}}',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>Your plan switch is confirmed. Here's exactly what will happen:</p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Current plan</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{currentPlanName}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Switching to</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#EAB308;">{{newPlanName}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Switch date</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{effectiveDate}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Credits after switch</td>
+            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{newPlanCredits}} credits/mo</td>
+          </tr>
+        </table>
+      </div>
+      <p>You have full access to all your current plan features until <strong style="color:#E2E2E8;">{{effectiveDate}}</strong>. Your next charge will be at the lower {{newPlanName}} price — no action needed from you.</p>
+      <p style="font-size:13px;color:#A0A0B0;">Changed your mind? Log in and click <strong style="color:#E2E2E8;">"Keep current plan"</strong> in your billing settings any time before {{effectiveDate}}.</p>
+      <a href="{{billingUrl}}" class="btn">View billing settings</a>
+    `,
+    text: `Hi {{businessName}},\n\nPlan switch confirmed.\n\nCurrent plan: {{currentPlanName}}\nSwitching to: {{newPlanName}} ({{newPlanCredits}} credits/mo)\nSwitch date: {{effectiveDate}}\n\nYou keep full access until {{effectiveDate}}. Your next charge will be at the {{newPlanName}} price.\n\nChanged your mind? Log in and click "Keep current plan": {{billingUrl}}`,
+  },
+
+  downgrade_checkout: {
+    subject: 'Your {{currentPlanName}} period has ended — continue with {{newPlanName}}',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>Your <strong>{{currentPlanName}}</strong> billing period has ended. As requested, your account is ready to move to the <strong style="color:#7C5CFC;">{{newPlanName}}</strong> plan.</p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">New plan</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#7C5CFC;">{{newPlanName}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Monthly credits</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{newPlanCredits}} credits/mo</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Billing</td>
+            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{cycle}}</td>
+          </tr>
+        </table>
+      </div>
+      <p>Click the button below to complete your {{newPlanName}} subscription. It takes under 30 seconds and your credits will be available immediately.</p>
+      <a href="{{checkoutUrl}}" class="btn" style="background:#7C5CFC;">Subscribe to {{newPlanName}} →</a>
+      <p style="font-size:12px;color:#555;">This link is personalised for your account. If you have any questions, just reply to this email.</p>
+    `,
+    text: `Hi {{businessName}},\n\nYour {{currentPlanName}} period has ended. To continue with the {{newPlanName}} plan ({{newPlanCredits}} credits/mo, {{cycle}}), subscribe here:\n\n{{checkoutUrl}}\n\nIf you have questions, reply to this email.`,
+  },
+
+  credit_pack_purchased: {
+    subject: '{{amount}} credits have been added to your account',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>Your credit top-up is confirmed. <span class="tag tag-success">+{{amount}} credits added</span></p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Credits purchased</td>
+            <td style="text-align:right;font-size:16px;font-weight:800;color:#22C55E;font-family:monospace;">+{{amount}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">New balance</td>
+            <td style="text-align:right;font-size:18px;font-weight:800;color:#7C5CFC;font-family:monospace;">{{newBalance}} credits</td>
+          </tr>
+        </table>
+      </div>
+      <p>Your credits are ready to use right now — create photo posts (3 credits), carousels (5 credits), or videos (10 credits).</p>
+      <a href="{{loginUrl}}" class="btn">Create content now →</a>
+      <p style="font-size:12px;color:#555;">Questions about your purchase? Reply to this email.</p>
+    `,
+    text: `Hi {{businessName}},\n\n+{{amount}} credits have been added to your account.\n\nNew balance: {{newBalance}} credits.\n\nStart creating: {{loginUrl}}`,
+  },
+
+  subscription_cancelled: {
+    subject: 'Subscription cancelled — you have full access until {{accessUntil}}',
+    html: `
+      <p>Hi <strong>{{businessName}}</strong>,</p>
+      <p>Your <strong>{{planName}}</strong> subscription has been cancelled. <span class="tag tag-warning">Cancellation confirmed</span></p>
+      <div class="box">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Plan</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{planName}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Full access until</td>
+            <td style="text-align:right;font-size:14px;font-weight:700;color:#EAB308;">{{accessUntil}}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Further charges</td>
+            <td style="text-align:right;font-size:13px;font-weight:700;color:#22C55E;">None</td>
+          </tr>
+        </table>
+      </div>
+      <p>You keep everything — all your posts, analytics, and current plan features — until <strong style="color:#E2E2E8;">{{accessUntil}}</strong>. After that, your account moves to the free tier.</p>
+      <p style="font-size:13px;color:#A0A0B0;">Changed your mind? You can resubscribe any time from your billing settings — your posts and data are always kept.</p>
+      <a href="{{billingUrl}}" class="btn">View billing settings</a>
+    `,
+    text: `Hi {{businessName}},\n\nYour {{planName}} subscription has been cancelled. No further charges.\n\nFull access until: {{accessUntil}}\n\nAfter that, your account moves to the free tier. You can resubscribe any time: {{billingUrl}}`,
   },
 };
 
