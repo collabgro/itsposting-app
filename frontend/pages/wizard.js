@@ -1955,7 +1955,11 @@ export default function Wizard() {
                   <div style={{ marginBottom: 10 }}>
                     <button
                       onClick={() => {
-                        if (!cardEditOpen) setEditingOverlay(JSON.parse(JSON.stringify(results.cardOverlay)));
+                        if (!cardEditOpen) {
+                          setEditingOverlay(JSON.parse(JSON.stringify(results.cardOverlay)));
+                          // Sync SVG back to the saved state so form and preview start aligned
+                          if (svgCards?.[selectedVariation]) setActiveSvg(svgCards[selectedVariation]);
+                        }
                         setCardEditOpen(o => !o);
                       }}
                       style={{
