@@ -614,19 +614,19 @@ export default function Layout({ children, title, subtitle, action }) {
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 gap: 8, padding: '13px 14px',
-                background: `linear-gradient(135deg, ${wlPrimary} 0%, ${wlPrimary}e8 45%, #9B7FFF 100%)`,
-                border: `1px solid rgba(255,255,255,0.15)`, borderRadius: 14, color: '#fff',
-                transition: 'transform 180ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 180ms ease', cursor: 'pointer',
-                boxShadow: `0 6px 24px ${wlPrimary}80, 0 1px 4px ${wlPrimary}59, inset 0 1px 0 rgba(255,255,255,0.22)`,
+                background: wlPrimary,
+                border: 'none', borderRadius: 14, color: '#fff',
+                transition: 'transform 180ms cubic-bezier(0.34,1.56,0.64,1), filter 180ms ease', cursor: 'pointer',
+                filter: 'brightness(1)',
                 letterSpacing: '-0.01em',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = `0 10px 32px ${wlPrimary}99, 0 2px 8px ${wlPrimary}66, inset 0 1px 0 rgba(255,255,255,0.28)`;
+                e.currentTarget.style.filter = 'brightness(1.12)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = `0 6px 24px ${wlPrimary}80, 0 1px 4px ${wlPrimary}59, inset 0 1px 0 rgba(255,255,255,0.22)`;
+                e.currentTarget.style.filter = 'brightness(1)';
               }}
               onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(0.97)'; }}
               onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-2px) scale(1)'; }}
@@ -908,14 +908,14 @@ export default function Layout({ children, title, subtitle, action }) {
               <Link href="/billing" style={{ textDecoration: 'none' }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10,
-                  background: `linear-gradient(135deg, ${wlPrimary}22, ${wlPrimary}10)`,
-                  border: `1.5px solid ${wlPrimary}66`,
+                  background: t.card,
+                  border: `1.5px solid ${wlPrimary}`,
                   cursor: 'pointer', transition: 'all 140ms ease',
                 }}
-                  onMouseEnter={e => { e.currentTarget.style.background = `linear-gradient(135deg, ${wlPrimary}33, ${wlPrimary}18)`; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = `linear-gradient(135deg, ${wlPrimary}22, ${wlPrimary}10)`; e.currentTarget.style.transform = ''; }}>
+                  onMouseEnter={e => { e.currentTarget.style.background = wlPrimary; e.currentTarget.style.color = '#fff'; Array.from(e.currentTarget.children).forEach(c => { c.style.color = '#fff'; }); }}
+                  onMouseLeave={e => { e.currentTarget.style.background = t.card; Array.from(e.currentTarget.children).forEach(c => { c.style.color = ''; }); }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill={wlPrimary} style={{ flexShrink: 0 }}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                  <span style={{ color: wlPrimary, fontWeight: 600, fontSize: 12 }}>{isSubAccount ? 'Shared' : 'Credits'}</span>
+                  <span style={{ color: t.textMuted, fontWeight: 600, fontSize: 12 }}>{isSubAccount ? 'Shared' : 'Credits'}</span>
                   <span style={{ color: wlPrimary, fontWeight: 800, fontFamily: 'monospace', fontSize: 15, letterSpacing: '-0.02em' }}>{user.credits_balance ?? 0}</span>
                 </div>
               </Link>
