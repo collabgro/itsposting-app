@@ -661,7 +661,7 @@ export default function Layout({ children, title, subtitle, action }) {
                   gap: 10, padding: '8px 11px', marginBottom: 1,
                   borderRadius: 10, fontSize: 13, fontWeight: active ? 600 : 500,
                   color: active ? t.text : t.textMuted,
-                  background: active ? `${wlPrimary}12` : 'transparent',
+                  background: active ? (t.isDark ? `${wlPrimary}20` : `${wlPrimary}28`) : 'transparent',
                   borderLeft: active ? `2.5px solid ${wlPrimary}` : '2.5px solid transparent',
                   transition: 'all 160ms cubic-bezier(0.34,1.56,0.64,1)', whiteSpace: 'nowrap',
                   textDecoration: 'none', position: 'relative',
@@ -669,7 +669,7 @@ export default function Layout({ children, title, subtitle, action }) {
                 }}
                 onMouseEnter={(e) => {
                   if (!active) {
-                    e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+                    e.currentTarget.style.background = t.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
                     e.currentTarget.style.color = t.text;
                     e.currentTarget.style.transform = 'translateX(2px)';
                   }
@@ -721,12 +721,12 @@ export default function Layout({ children, title, subtitle, action }) {
                   </span>
                 )}
                 {item.isQuickPost && (
-                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 5, background: 'rgba(124,92,252,0.15)', color: t.primary, border: `1px solid rgba(124,92,252,0.25)` }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 5, background: wlPrimary, color: '#fff', border: 'none' }}>
                     30s
                   </span>
                 )}
                 {item.betaBadge && (
-                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 5, background: 'rgba(234,179,8,0.12)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.25)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: 5, background: '#ca8a04', color: '#fff', border: 'none', flexShrink: 0 }}>
                     Beta
                   </span>
                 )}
@@ -751,7 +751,7 @@ export default function Layout({ children, title, subtitle, action }) {
         {/* TRIAL CARD */}
         {!isMobile && user?.status === 'trial' && (
           <div style={{ padding: '10px 12px', borderTop: `1px solid ${t.isDark ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.07)'}`, flexShrink: 0 }}>
-            <div style={{ padding: '13px 14px', background: `${wlPrimary}17`, borderRadius: 12, border: `1px solid ${wlPrimary}38`, boxShadow: `0 4px 16px ${wlPrimary}1a, inset 0 1px 0 rgba(255,255,255,0.06)` }}>
+            <div style={{ padding: '13px 14px', background: t.card, borderRadius: 12, border: `1.5px solid ${wlPrimary}` }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: t.text, letterSpacing: '-0.01em' }}>Free Trial</div>
                 <div style={{ fontSize: 10, fontWeight: 600, color: wlPrimary }}>{user.credits_balance ?? 0} {isSubAccount ? 'shared credits' : 'credits left'}</div>
