@@ -539,6 +539,10 @@ export default function Wizard() {
   const [editingOverlay, setEditingOverlay] = useState(null);
   const [cardRerenderLoading, setCardRerenderLoading] = useState(false);
 
+  // SVG live preview — document-first, raster-last (no network round-trips while editing)
+  const [svgCards, setSvgCards] = useState(null);   // { A, B, C } SVG strings from API
+  const [activeSvg, setActiveSvg] = useState(null); // currently displayed SVG
+
   // Result screen action state
   const [actionLoading, setActionLoading] = useState(false);
   const [actionToast, setActionToast] = useState(null);
@@ -851,6 +855,7 @@ export default function Wizard() {
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
     setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null);
     setSelectedVariation('A'); setActionLoading(false); setActionToast(null);
+    setSvgCards(null); setActiveSvg(null); setCardEditOpen(false); setEditingOverlay(null);
     setShowScheduleModal(false); setScheduleDate(''); setIsEditing(false); setEditedCaption('');
     setSmartScheduleDismissed(false);
   };
@@ -877,6 +882,101 @@ export default function Wizard() {
       );
     }
   };
+
+  // ── SVG live editing helpers ───────────────────────────────────────────────
+  // Mirror of backend wrapText — same logic, same maxChars per template
+  function wrapTextFE(text, maxChars) {
+    const words = String(text).split(' ');
+    const lines = [];
+    let cur = '';
+    for (const word of words) {
+      const candidate = cur ? `${cur} ${word}` : word;
+      if (candidate.length > maxChars && cur) { lines.push(cur); cur = word; }
+      else { cur = candidate; }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  // Update a single data-field in the active SVG string without a network call.
+  // Returns the new SVG string (caller is responsible for setActiveSvg).
+  function patchSvgField(currentSvg, field, value, overlayState) {
+    if (!currentSvg || typeof document === 'undefined') return currentSvg;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(currentSvg, 'image/svg+xml');
+      const uppercase = overlayState?.uppercase !== false;
+
+      if (field === 'headline') {
+        // Recalculate wrapped lines (max 13 chars — safe default across all 3 templates)
+        const display = uppercase ? String(value).toUpperCase() : String(value);
+        const lines = wrapTextFE(display, 13);
+        for (let i = 0; i < 4; i++) {
+          const el = doc.querySelector(`[data-field="headline-${i}"]`);
+          if (el) el.textContent = lines[i] !== undefined ? lines[i] : '';
+        }
+      } else if (field === 'eyebrow') {
+        const el = doc.querySelector('[data-field="eyebrow"]');
+        if (el) el.textContent = String(value).toUpperCase();
+      } else if (field === 'subtext') {
+        // Update the first subtext line (accent pill in Template C, plain text in A/B)
+        const el = doc.querySelector('[data-field="subtext-0"]');
+        if (el) el.textContent = String(value);
+        // Clear remaining subtext lines so stale text doesn't show
+        for (let i = 1; i < 4; i++) {
+          const el2 = doc.querySelector(`[data-field="subtext-${i}"]`);
+          if (el2) el2.textContent = '';
+        }
+      } else if (field === 'cta') {
+        const el = doc.querySelector('[data-field="cta"]');
+        if (el) el.textContent = String(value).toUpperCase();
+      } else if (field === 'badge') {
+        const el = doc.querySelector('[data-field="badge"]');
+        if (el) el.textContent = String(value).toUpperCase();
+      } else if (field === 'services') {
+        const arr = Array.isArray(value) ? value : [];
+        for (let i = 0; i < 4; i++) {
+          const el = doc.querySelector(`[data-field="service-${i}"]`);
+          if (el) el.textContent = arr[i] || '';
+        }
+      }
+
+      return new XMLSerializer().serializeToString(doc);
+    } catch {
+      return currentSvg; // silent fail — SVG stays unchanged
+    }
+  }
+
+  // Click on a text element in the SVG preview → open editor + focus that field
+  function handleSvgClick(e) {
+    const target = e.target;
+    const field = target.getAttribute?.('data-field') ||
+                  target.closest?.('[data-field]')?.getAttribute('data-field');
+    if (!field) return;
+
+    const fieldToInputId = {
+      eyebrow: 'card-input-eyebrow',
+      badge:   'card-input-badge',
+      cta:     'card-input-cta',
+      phone:   null, // phone is not editable (comes from profile)
+    };
+    if (field.startsWith('headline')) fieldToInputId[field] = 'card-input-headline';
+    if (field.startsWith('subtext'))  fieldToInputId[field] = 'card-input-subtext';
+    if (field.startsWith('service'))  fieldToInputId[field] = 'card-input-services';
+
+    const inputId = fieldToInputId[field];
+    if (!inputId) return;
+
+    if (!cardEditOpen) {
+      setEditingOverlay(JSON.parse(JSON.stringify(results.cardOverlay)));
+      setCardEditOpen(true);
+    }
+    // Focus the matching input after state update renders
+    setTimeout(() => {
+      const el = document.getElementById(inputId);
+      if (el) { el.focus(); el.select?.(); }
+    }, 60);
+  }
 
   const handleGenerate = async () => {
     setStep('loading');
@@ -906,6 +1006,11 @@ export default function Wizard() {
       const genRes = await apiPost('/api/wizard/generate', { wizardId });
       setResults(genRes);
       setSelectedVariation(genRes.recommended || 'A');
+      // Populate SVG live-preview cards
+      if (genRes.svgCards) {
+        setSvgCards(genRes.svgCards);
+        setActiveSvg(genRes.svgCards[genRes.recommended || 'A'] || genRes.svgCards.A || null);
+      }
       setStep('results');
       setMascotMood('excited', 'Here are your 3 variations — pick the one you love!');
       window.dispatchEvent(new Event('creditRefresh'));
@@ -1778,6 +1883,18 @@ export default function Wizard() {
                   {results.mediaUrl && results.videoRendering !== true ? (
                     results.contentTypeSelection === 'video' ? (
                       <video src={results.mediaUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : activeSvg && results.photoCardUrls ? (
+                      /* SVG live preview — browser renders directly, zero network latency.
+                         Clicking a text element opens the editor and focuses the matching field. */
+                      <div
+                        onClick={handleSvgClick}
+                        dangerouslySetInnerHTML={{ __html: activeSvg }}
+                        style={{
+                          width: '100%', lineHeight: 0,
+                          cursor: cardEditOpen ? 'text' : 'pointer',
+                        }}
+                        title={cardEditOpen ? 'Click any text to jump to that field' : 'Click to edit card text'}
+                      />
                     ) : (
                       <img
                         src={
@@ -1831,7 +1948,9 @@ export default function Wizard() {
                   )}
                 </div>
 
-                {/* Inline card text editor — photo posts with cardOverlay */}
+                {/* Inline card text editor — photo posts with cardOverlay.
+                    Live preview: every keystroke instantly patches the SVG in the preview
+                    panel above (zero network). "Save to Post" finalises to JPEG via Sharp. */}
                 {results.contentTypeSelection === 'photo' && results.cardOverlay && (
                   <div style={{ marginBottom: 10 }}>
                     <button
@@ -1847,36 +1966,59 @@ export default function Wizard() {
                         color: cardEditOpen ? t.primary : t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer',
                       }}
                     >
-                      <span>✎ Edit Card Text</span>
+                      <span>Edit Card Text</span>
                       <span style={{ fontSize: 11, opacity: 0.6 }}>{cardEditOpen ? '▲ close' : '▼ open'}</span>
                     </button>
                     {cardEditOpen && editingOverlay && (
                       <div style={{ border: `1.5px solid ${t.primaryBorder}`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 14, background: t.card, display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                        {/* Live-preview hint */}
+                        {activeSvg && (
+                          <div style={{ fontSize: 11, color: t.primary, background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 6, padding: '5px 10px' }}>
+                            Preview updates as you type. Click any text on the card to jump to that field.
+                          </div>
+                        )}
+
                         {[
-                          { key: 'headline', label: 'Headline' },
-                          { key: 'eyebrow', label: 'Eyebrow (small text above headline)' },
-                          { key: 'subtext', label: 'Subtext' },
-                          { key: 'cta', label: 'CTA button' },
-                          { key: 'badge', label: 'Badge (top-right pill)' },
-                        ].map(({ key, label }) => (
+                          { key: 'headline', label: 'Headline',                      id: 'card-input-headline' },
+                          { key: 'eyebrow',  label: 'Eyebrow (small text above)',    id: 'card-input-eyebrow'  },
+                          { key: 'subtext',  label: 'Subtext',                       id: 'card-input-subtext'  },
+                          { key: 'cta',      label: 'CTA button text',               id: 'card-input-cta'      },
+                          { key: 'badge',    label: 'Badge (top-right trust pill)',  id: 'card-input-badge'    },
+                        ].map(({ key, label, id }) => (
                           <div key={key}>
                             <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 4 }}>{label}</div>
                             <input
+                              id={id}
                               value={editingOverlay[key] || ''}
-                              onChange={e => setEditingOverlay(o => ({ ...o, [key]: e.target.value }))}
+                              onChange={e => {
+                                const v = e.target.value;
+                                setEditingOverlay(o => ({ ...o, [key]: v }));
+                                // Instant SVG patch — no network call
+                                setActiveSvg(prev => patchSvgField(prev, key, v, editingOverlay));
+                              }}
                               style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, boxSizing: 'border-box' }}
                             />
                           </div>
                         ))}
+
                         <div>
-                          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 4 }}>Services (one per line)</div>
+                          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 4 }}>Services (one per line, shown as checklist on card)</div>
                           <textarea
+                            id="card-input-services"
                             rows={3}
                             value={(editingOverlay.services || []).join('\n')}
-                            onChange={e => setEditingOverlay(o => ({ ...o, services: e.target.value.split('\n').filter(Boolean) }))}
+                            onChange={e => {
+                              const arr = e.target.value.split('\n');
+                              setEditingOverlay(o => ({ ...o, services: arr.filter(Boolean) }));
+                              // Patch services — include empty lines so line removal works
+                              setActiveSvg(prev => patchSvgField(prev, 'services', arr, editingOverlay));
+                            }}
                             style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
                           />
                         </div>
+
+                        {/* Save to Post — finalises the edited text to proper JPEG via Sharp */}
                         <button
                           disabled={cardRerenderLoading}
                           onClick={async () => {
@@ -1884,15 +2026,20 @@ export default function Wizard() {
                             try {
                               const photoUrl = results.rawPhotoUrl || results.mediaUrl;
                               const { data } = await wizardAPI.rerenderCard({ photoUrl, cardOverlay: editingOverlay });
+                              // Update JPEG cards and refresh SVG from server (canonical render)
                               setResults(r => ({
                                 ...r,
                                 cardOverlay: editingOverlay,
                                 photoCardUrls: data.photoCardUrls,
-                                mediaUrl: data.photoCardUrls.A,
+                                mediaUrl: data.photoCardUrls[selectedVariation] || data.photoCardUrls.A,
                               }));
+                              if (data.svgCards) {
+                                setSvgCards(data.svgCards);
+                                setActiveSvg(data.svgCards[selectedVariation] || data.svgCards.A);
+                              }
                               setCardEditOpen(false);
                             } catch (err) {
-                              alert('Failed to update card. Please try again.');
+                              alert('Failed to save card. Please try again.');
                             } finally {
                               setCardRerenderLoading(false);
                             }
@@ -1904,8 +2051,11 @@ export default function Wizard() {
                             cursor: cardRerenderLoading ? 'wait' : 'pointer',
                           }}
                         >
-                          {cardRerenderLoading ? 'Updating card…' : '↺ Update Card'}
+                          {cardRerenderLoading ? 'Saving…' : 'Save to Post'}
                         </button>
+                        <div style={{ fontSize: 11, color: t.textMuted, textAlign: 'center' }}>
+                          Preview above updates live. Save finalises to high-quality image.
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2055,7 +2205,7 @@ export default function Wizard() {
                     return (
                       <div
                         key={label}
-                        onClick={() => { if (!isEditing) { setSelectedVariation(label); setIsEditing(false); setShowApplySetDropdown(false); setShowAddToSetDropdown(false); if (results?.postId) wizardAPI.feedback({ postId: results.postId, variationSelected: label }).catch(() => {}); } }}
+                        onClick={() => { if (!isEditing) { setSelectedVariation(label); setIsEditing(false); setShowApplySetDropdown(false); setShowAddToSetDropdown(false); if (svgCards?.[label]) setActiveSvg(svgCards[label]); if (results?.postId) wizardAPI.feedback({ postId: results.postId, variationSelected: label }).catch(() => {}); } }}
                         style={{
                           background: isSelected
                             ? t.isDark ? 'rgba(15,15,24,0.82)' : t.card

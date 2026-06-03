@@ -1181,6 +1181,16 @@ Return ONLY valid JSON (no markdown):
               }
             }
 
+            // Generate SVG versions for live browser-side editing (no network calls — uses rawPhotoUrl directly)
+            if (PhotoCardService?.generatePhotoCardsSVG && photoCardUrls && rawPhotoUrl && parsed.cardOverlay) {
+              try {
+                const { svgA, svgB, svgC } = await PhotoCardService.generatePhotoCardsSVG(rawPhotoUrl, parsed.cardOverlay, session.customer);
+                mediaVariants._svgCards = { A: svgA, B: svgB, C: svgC };
+              } catch (svgErr) {
+                console.warn('[Wizard] SVG card generation failed (non-fatal):', svgErr.message);
+              }
+            }
+
             // Store photoCardUrls + raw photo URL on mediaVariants so they reach the response builder
             if (photoCardUrls) mediaVariants._photoCardUrls = photoCardUrls;
             if (rawPhotoUrl) mediaVariants._rawPhotoUrl = rawPhotoUrl;
@@ -1463,6 +1473,7 @@ Return ONLY valid JSON (no markdown):
         mediaVariants,
         photoCardUrls: mediaVariants._photoCardUrls || null,
         rawPhotoUrl: mediaVariants._rawPhotoUrl || null,
+        svgCards: mediaVariants._svgCards || null,
         imageFailed,
         videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
         videoJobId,
@@ -1938,7 +1949,18 @@ Return ONLY valid JSON (no markdown):
         ImageResizer.uploadToCloudinary(bufferC, `itsposting/${cid}/wizard-card-${ts}-C`),
       ]);
 
-      res.json({ photoCardUrls: { A: urlA, B: urlB, C: urlC } });
+      // Also generate SVG strings for instant browser preview
+      let svgCards = null;
+      if (PhotoCardService.generatePhotoCardsSVG) {
+        try {
+          const { svgA, svgB, svgC } = await PhotoCardService.generatePhotoCardsSVG(photoUrl, cardOverlay, customer);
+          svgCards = { A: svgA, B: svgB, C: svgC };
+        } catch (svgErr) {
+          console.warn('[Wizard] rerender-card SVG generation failed (non-fatal):', svgErr.message);
+        }
+      }
+
+      res.json({ photoCardUrls: { A: urlA, B: urlB, C: urlC }, svgCards });
     } catch (err) {
       console.error('[Wizard] rerender-card error:', err);
       res.status(500).json({ error: 'Card re-render failed. Please try again.' });
