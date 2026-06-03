@@ -213,9 +213,18 @@ module.exports = (pool) => {
       }
 
       const otpRow = otpResult.rows[0];
-      const incomingHash = crypto.createHash('sha256').update(String(otp).trim()).digest('hex');
+      const otpStr = String(otp).trim();
+      const incomingHash = crypto.createHash('sha256').update(otpStr).digest('hex');
       const storedBuf   = Buffer.from(otpRow.code_hash, 'hex');
       const incomingBuf = Buffer.from(incomingHash, 'hex');
+
+      // Temporary diagnostic — remove after confirming OTP works
+      console.log('[Auth] verify-otp: email=%s cid=%d otp_type=%s otp_len=%d char_codes=[%s] stored_pfx=%s incoming_pfx=%s',
+        email, customer.id, typeof otp, otpStr.length,
+        [...otpStr].map(c => c.charCodeAt(0)).join(','),
+        otpRow.code_hash.substring(0, 8),
+        incomingHash.substring(0, 8)
+      );
 
       const match = storedBuf.length === incomingBuf.length &&
         crypto.timingSafeEqual(storedBuf, incomingBuf);

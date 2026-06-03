@@ -98,6 +98,7 @@ export default function Login() {
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
   const otpRefs = useRef([]);
 
   useEffect(() => {
@@ -181,6 +182,10 @@ export default function Login() {
     try {
       await authAPI.resendOtp({ email: formData.email });
       setResendCooldown(60);
+      setOtpDigits(['', '', '', '', '', '']);
+      setResendSuccess(true);
+      setTimeout(() => setResendSuccess(false), 4000);
+      setTimeout(() => otpRefs.current[0]?.focus(), 50);
     } catch (err) {
       setError(err.response?.data?.error || 'Could not resend code. Please try again.');
     } finally {
@@ -459,6 +464,26 @@ export default function Login() {
                   <strong style={{ color: t.text, fontWeight: 700 }}>{maskedEmail}</strong>
                 </p>
               </div>
+
+              {/* Resend success */}
+              {resendSuccess && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 9,
+                  padding: '11px 14px',
+                  background: 'rgba(34,197,94,0.1)',
+                  border: '1px solid rgba(34,197,94,0.3)',
+                  borderRadius: 10,
+                  marginBottom: 14,
+                  fontSize: 13,
+                  color: '#22C55E',
+                  letterSpacing: '-0.01em',
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  New code sent — check your email for the latest code
+                </div>
+              )}
 
               {/* Error */}
               {error && (
