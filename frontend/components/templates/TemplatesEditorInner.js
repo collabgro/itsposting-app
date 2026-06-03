@@ -389,7 +389,7 @@ const COLOR_SCHEMES = [
   { name: 'Sand',       colors: ['#1C1208','#5C3D11','#B8860B','#F4D03F'] },
   { name: 'Arctic',     colors: ['#FFFFFF','#E0F4FF','#9EDBF9','#3BAFDA'] },
   { name: 'Slate',      colors: ['#1E293B','#334155','#64748B','#CBD5E1'] },
-  { name: appName, colors: [TEAL,'#7C5CFC','#FF7A00','#FFCE00'] },
+  { name: 'ItsPosting', colors: [TEAL,'#7C5CFC','#FF7A00','#FFCE00'] },
   { name: 'Minimal',    colors: ['#111111','#333333','#777777','#EEEEEE'] },
   { name: 'Coral',      colors: ['#1A0A08','#8B2500','#E85D04','#FFBA08'] },
 ];
