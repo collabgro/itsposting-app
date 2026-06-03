@@ -88,6 +88,16 @@ export default function Layout({ children, title, subtitle, action }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
 
+  const navScrollRef = useRef(null);
+
+  // Scroll sidebar nav to top each time the mobile drawer opens so the user
+  // always sees Dashboard/Create first, not the Agency/Admin items at the bottom.
+  useEffect(() => {
+    if (mobileNavOpen && navScrollRef.current) {
+      navScrollRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [mobileNavOpen]);
+
   // ── Nav hover prefetch ───────────────────────────────────────────────────────
   // Each route is prefetched at most once per session (tracked in a Set).
   // Fires when the cursor enters the nav link — by the time the user clicks,
@@ -638,7 +648,7 @@ export default function Layout({ children, title, subtitle, action }) {
         )}
 
         {/* NAVIGATION */}
-        <nav aria-label="Main navigation" style={{ flex: 1, padding: '4px 10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <nav ref={navScrollRef} aria-label="Main navigation" style={{ flex: 1, padding: '4px 10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ flex: 1 }}>
           {visibleNavItems.map((item) => {
             if (item.isDivider) {
