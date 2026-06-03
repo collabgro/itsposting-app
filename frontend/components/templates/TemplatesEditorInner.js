@@ -5968,6 +5968,7 @@ export default function TemplatesEditorInner() {
     };
     patchElements(prev => [...prev, el]);
     setSelectedId(el.id);
+    return el.id;
   }
 
   // Apply Claude-returned mask polygon to image using Canvas 2D — returns transparent PNG data URL
@@ -7855,11 +7856,12 @@ export default function TemplatesEditorInner() {
                 )}
               </div>
               <D />
-              {/* Effects — stub button (visual parity with Canva) */}
+              {/* Effects — opens the ⋯ More panel which contains Effects presets */}
               <button
-                style={{ height: 32, padding: '0 10px', border: 'none', borderRadius: 8, background: 'transparent', color: t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 120ms ease', whiteSpace: 'nowrap' }}
-                onMouseEnter={e => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; }}>
+                onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowMorePanel(p => !p); setShowEmojiPanel(false); }}
+                style={{ height: 32, padding: '0 10px', border: 'none', borderRadius: 8, background: showMorePanel ? t.primaryBg : 'transparent', color: showMorePanel ? t.primary : t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0, transition: 'all 120ms ease', whiteSpace: 'nowrap' }}
+                onMouseEnter={e => { if (!showMorePanel) { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.color = t.text; } }}
+                onMouseLeave={e => { if (!showMorePanel) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textSecondary; } }}>
                 Effects
               </button>
               {/* Animate — opens element animation panel */}
@@ -11964,11 +11966,24 @@ export default function TemplatesEditorInner() {
                                 style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#FF453A', border: 'none', color: '#fff', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>×</button>
                             </div>
                           ) : (
-                            <div onClick={() => setActiveLeftTool('uploads')}
-                              style={{ background: t.input, borderRadius: 10, border: `1px dashed ${t.border}`, padding: '14px', textAlign: 'center', color: t.textMuted, fontSize: 12, cursor: 'pointer' }}>
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ display: 'block', margin: '0 auto 6px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                              Upload logo from media library
-                            </div>
+                            <label
+                              style={{ display: 'block', background: t.input, borderRadius: 10, border: `1px dashed ${t.border}`, padding: '14px', textAlign: 'center', color: t.textMuted, fontSize: 12, cursor: 'pointer', transition: 'border-color 150ms' }}
+                              onMouseEnter={e => e.currentTarget.style.borderColor = t.primaryBorder}
+                              onMouseLeave={e => e.currentTarget.style.borderColor = t.border}>
+                              <input type="file" accept="image/*" style={{ display: 'none' }}
+                                onChange={async e => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  try {
+                                    const res = await mediaAPI.upload([file], 'logos');
+                                    const url = res.data?.files?.[0]?.url;
+                                    if (url) await patchKit({ logo_url: url });
+                                  } catch {}
+                                  e.target.value = '';
+                                }} />
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ display: 'block', margin: '0 auto 6px' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                              Click to upload logo
+                            </label>
                           )}
                         </div>
 
@@ -12023,18 +12038,48 @@ export default function TemplatesEditorInner() {
                           ].map(({ role, key, size, weight }) => {
                             const fontName = kitFonts[key] || 'Inter';
                             return (
-                              <button key={key}
-                                onMouseDown={e => { e.preventDefault(); addText({ fontSize: key === 'headline' ? 64 : 20, fontFamily: fontName, fill: kitColors[0]?.hex || '#1a1a2e', text: key === 'headline' ? (brandProfile?.business_name || 'Heading') : 'Body text here', fontWeight: weight }); }}
-                                onMouseEnter={e => e.currentTarget.style.borderColor = t.primaryBorder}
-                                onMouseLeave={e => e.currentTarget.style.borderColor = t.border}
-                                style={{ width: '100%', padding: 0, borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, cursor: 'pointer', overflow: 'hidden', textAlign: 'left', transition: 'border-color 150ms', marginBottom: 6, display: 'block' }}>
-                                <div style={{ padding: '8px 12px', borderBottom: `1px solid ${t.border}`, background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }}>
+                              <div key={key} style={{ marginBottom: 8, borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, overflow: 'hidden' }}>
+                                {/* Font preview — click to add branded text to canvas */}
+                                <button
+                                  onMouseDown={e => { e.preventDefault(); addText({ fontSize: key === 'headline' ? 64 : 20, fontFamily: fontName, fill: kitColors[0]?.hex || '#1a1a2e', text: key === 'headline' ? (brandProfile?.business_name || 'Heading') : 'Body text here', fontWeight: weight }); }}
+                                  title={`Add ${role} text to canvas`}
+                                  style={{ width: '100%', padding: '8px 12px', borderBottom: `1px solid ${t.border}`, background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'block' }}>
                                   <span style={{ fontFamily: fontName, fontSize: size, fontWeight: weight, color: t.text, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{role}</span>
+                                </button>
+                                {/* Font selector */}
+                                <div style={{ display: 'flex', alignItems: 'center', padding: '2px 10px', gap: 6 }}>
+                                  <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0, minWidth: 38 }}>{role}:</span>
+                                  <select value={fontName}
+                                    onChange={e => patchKit({ fonts: { ...kitFonts, [key]: e.target.value } })}
+                                    style={{ flex: 1, padding: '4px 2px', border: 'none', background: 'transparent', color: t.text, fontSize: 11, cursor: 'pointer', outline: 'none' }}>
+                                    {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+                                  </select>
                                 </div>
-                                <div style={{ padding: '4px 10px 5px', fontSize: 9, color: t.textMuted }}>{role} · {fontName}</div>
-                              </button>
+                              </div>
                             );
                           })}
+                        </div>
+
+                        {/* Apply Kit to Canvas */}
+                        <div style={{ marginBottom: 12 }}>
+                          <button
+                            onClick={() => {
+                              if (!confirm('Apply brand colors and fonts to all text elements on this page?')) return;
+                              pushHistory();
+                              const primaryHex = kitColors[0]?.hex;
+                              const headlineFont = kitFonts.headline || 'Inter';
+                              const bodyFont = kitFonts.body || 'Inter';
+                              patchElements(prev => prev.map(el => {
+                                if (el.type !== 'text') return el;
+                                const isHeadline = (el.fontSize || 20) >= 40;
+                                return { ...el, ...(primaryHex ? { fill: primaryHex } : {}), fontFamily: isHeadline ? headlineFont : bodyFont };
+                              }));
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; e.currentTarget.style.color = t.primary; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.text; }}
+                            style={{ width: '100%', padding: '8px 0', borderRadius: 8, border: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'border-color 150ms, color 150ms' }}>
+                            Apply Kit to Canvas
+                          </button>
                         </div>
 
                         {/* Delete kit */}
@@ -14810,10 +14855,22 @@ export default function TemplatesEditorInner() {
 
       {/* Hidden file input for upload-from-device (File menu → Upload files) */}
       <input ref={uploadFileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }}
-        onChange={e => {
+        onChange={async e => {
           const f = e.target.files?.[0];
-          if (f) addImageElement(URL.createObjectURL(f));
+          if (!f) return;
           e.target.value = '';
+          // Use a temporary blob URL for instant preview while upload completes
+          const blobUrl = URL.createObjectURL(f);
+          const tempId = addImageElement(blobUrl);
+          try {
+            const res = await mediaAPI.upload([f], 'all');
+            const permanentUrl = res.data?.files?.[0]?.url;
+            if (permanentUrl) {
+              URL.revokeObjectURL(blobUrl);
+              patchElements(prev => prev.map(el => el.id === tempId ? { ...el, src: permanentUrl } : el));
+              setUploadItems(prev => [...(res.data?.files || []), ...prev]);
+            }
+          } catch {}
         }} />
 
       {/* Hidden file input for image replace (Replace button + double-click) */}
