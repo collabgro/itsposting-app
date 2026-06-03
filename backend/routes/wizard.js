@@ -1140,6 +1140,7 @@ Return ONLY valid JSON (no markdown):
             }
             const imgGenMs = Date.now() - imgGenStart;
             mediaUrl = imageResult.url;
+            const rawPhotoUrl = imageResult.url; // preserve original before potential overwrite by card URLs
 
             // ── Photo Card overlay (3 branded templates per variation) ──────────
             // Fetch the raw photo buffer, composite branded overlays, upload 3 variants.
@@ -1180,8 +1181,9 @@ Return ONLY valid JSON (no markdown):
               }
             }
 
-            // Store photoCardUrls on mediaVariants so it reaches the response builder
+            // Store photoCardUrls + raw photo URL on mediaVariants so they reach the response builder
             if (photoCardUrls) mediaVariants._photoCardUrls = photoCardUrls;
+            if (rawPhotoUrl) mediaVariants._rawPhotoUrl = rawPhotoUrl;
             // ── Image training data (fire-and-forget) ──────────────────────────
             const _imgPrompt = imagePromptForGen;
             const _imgUrl = mediaUrl;
@@ -1460,6 +1462,7 @@ Return ONLY valid JSON (no markdown):
         mediaUrl,
         mediaVariants,
         photoCardUrls: mediaVariants._photoCardUrls || null,
+        rawPhotoUrl: mediaVariants._rawPhotoUrl || null,
         imageFailed,
         videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
         videoJobId,

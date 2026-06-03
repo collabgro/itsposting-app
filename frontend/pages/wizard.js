@@ -1882,9 +1882,7 @@ export default function Wizard() {
                           onClick={async () => {
                             setCardRerenderLoading(true);
                             try {
-                              const photoUrl = results.photoCardUrls?.A
-                                ? results.mediaUrl
-                                : results.mediaUrl;
+                              const photoUrl = results.rawPhotoUrl || results.mediaUrl;
                               const { data } = await wizardAPI.rerenderCard({ photoUrl, cardOverlay: editingOverlay });
                               setResults(r => ({
                                 ...r,
