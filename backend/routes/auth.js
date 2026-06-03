@@ -3,11 +3,13 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { generateToken, authenticate, invalidatePwCache } = require('../middleware/auth');
 const EmailQueue = require('../services/EmailQueue');
+const EmailService = require('../services/EmailService');
 const OnboardingEmailService = require('../services/OnboardingEmailService');
 
 module.exports = (pool) => {
   const router = express.Router();
   const emailQueue = new EmailQueue(pool);
+  const emailService = new EmailService();
   const onboardingEmail = new OnboardingEmailService(pool);
 
   function maskEmail(email) {
@@ -165,11 +167,12 @@ module.exports = (pool) => {
         [customer.id, otpHash]
       );
 
-      emailQueue.queue(
-        customer.email,
-        'login_otp',
-        { businessName: customer.business_name || customer.email, code: otpCode }
-      ).catch(err => console.error('[Auth] Failed to queue OTP email:', err.message));
+      const { subject: otpSubject, html: otpHtml, text: otpText } = emailService.renderTemplate('login_otp', {
+        businessName: customer.business_name || customer.email,
+        code: otpCode,
+      });
+      emailService.send({ to: customer.email, subject: otpSubject, html: otpHtml, text: otpText })
+        .catch(err => console.error('[Auth] Failed to send OTP email:', err.message));
 
       await pool.query('UPDATE customers SET last_login_at = NOW() WHERE id = $1', [customer.id]);
 
@@ -298,11 +301,12 @@ module.exports = (pool) => {
         [newHash, otpRow.id]
       );
 
-      emailQueue.queue(
-        email,
-        'login_otp',
-        { businessName: customer.business_name || email, code: newCode }
-      ).catch(err => console.error('[Auth] Failed to queue resend OTP:', err.message));
+      const { subject: resendSubject, html: resendHtml, text: resendText } = emailService.renderTemplate('login_otp', {
+        businessName: customer.business_name || email,
+        code: newCode,
+      });
+      emailService.send({ to: email, subject: resendSubject, html: resendHtml, text: resendText })
+        .catch(err => console.error('[Auth] Failed to send resend OTP email:', err.message));
 
       res.json({ success: true, maskedEmail: maskEmail(email) });
     } catch (err) {
