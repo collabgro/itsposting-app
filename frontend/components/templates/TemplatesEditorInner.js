@@ -9683,38 +9683,56 @@ export default function TemplatesEditorInner() {
               {/* Animate button + panel */}
               <div style={{ position:'relative' }} onClick={e => e.stopPropagation()}>
                 <button onClick={e => { setPanelAnchor(e.currentTarget.getBoundingClientRect()); setShowAnimatePanel(p => !p); setShowShadowPanel(false); setShowOutlinePanel(false); setShowPositionPanel(false); }}
-                  style={{ height:30, padding:'0 9px', border:'none', borderRadius:8, background:(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none'))?t.primaryBg:'transparent', color:(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none'))?t.primary:t.textSecondary, fontSize:13, cursor:'pointer', flexShrink:0, transition:'all 150ms cubic-bezier(0.34,1.56,0.64,1)', display:'flex', alignItems:'center', gap:4 }}>
+                  style={{ height:30, padding:'0 9px', border:'none', borderRadius:8, background:(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none') || !!(selectedEl?.animateOut && selectedEl.animateOut !== 'none'))?t.primaryBg:'transparent', color:(showAnimatePanel || !!(selectedEl?.animateIn && selectedEl.animateIn !== 'none') || !!(selectedEl?.animateOut && selectedEl.animateOut !== 'none'))?t.primary:t.textSecondary, fontSize:13, cursor:'pointer', flexShrink:0, transition:'all 150ms cubic-bezier(0.34,1.56,0.64,1)', display:'flex', alignItems:'center', gap:4 }}>
                   <IpSparkle size={14} /> Animate
                 </button>
                 {showAnimatePanel && panelAnchor && createPortal(
                   <>
                     <div style={{ position:'fixed', inset:0, zIndex:9998 }} onMouseDown={() => setShowAnimatePanel(false)} />
-                    <div style={{ position:'fixed', top:panelAnchor.bottom + 4, right:Math.max(0, window.innerWidth - panelAnchor.right), zIndex:9999, background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:14, width:260, boxShadow:'0 8px 32px rgba(0,0,0,0.25)', animation:'dropdownIn 150ms ease forwards' }}>
-                      <div style={{ fontSize:12, fontWeight:600, color:t.textMuted, marginBottom:10 }}>Entrance animation</div>
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6 }}>
-                        {ANIMATE_PRESETS.map(a => {
-                          const isActive = (selectedEl.animateIn || 'none') === a.id;
-                          return (
-                            <button key={a.id} title={a.desc}
-                              onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, animateIn: a.id }); }}
-                              style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, padding:'8px 4px', borderRadius:8, border:`1.5px solid ${isActive?t.primaryBorder:t.border}`, background:isActive?t.primaryBg:t.input, cursor:'pointer', color:isActive?t.primary:t.textSecondary, transition:'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}>
-                              <span style={{ fontSize:18 }}>{a.icon}</span>
-                              <span style={{ fontSize:10, fontWeight:isActive?600:400 }}>{a.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {selectedEl.animateIn && selectedEl.animateIn !== 'none' && (
-                        <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${t.border}` }}>
-                          <div style={{ fontSize:11, color:t.textMuted, marginBottom:6 }}>Duration</div>
-                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                            <input type="range" min={200} max={2000} step={100} value={selectedEl.animateDuration||600}
-                              onChange={e => updateElement({...selectedEl, animateDuration:parseInt(e.target.value)})}
-                              onMouseUp={() => pushHistory()} style={{ flex:1, accentColor:t.primary }} />
-                            <span style={{ fontSize:11, color:t.textMuted, minWidth:36, textAlign:'right' }}>{((selectedEl.animateDuration||600)/1000).toFixed(1)}s</span>
-                          </div>
-                        </div>
-                      )}
+                    <div style={{ position:'fixed', top:panelAnchor.bottom + 4, right:Math.max(4, window.innerWidth - panelAnchor.right), zIndex:9999, background:t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:14, width:288, boxShadow:'0 8px 32px rgba(0,0,0,0.28)', animation:'dropdownIn 150ms ease forwards' }}>
+                      {(() => {
+                        const [animTab2, setAnimTab2] = React.useState('in');
+                        const isIn2 = animTab2 === 'in';
+                        const durKey2 = isIn2 ? 'animateDuration' : 'animateOutDuration';
+                        const activePreset2 = isIn2 ? (selectedEl?.animateIn || 'none') : (selectedEl?.animateOut || 'none');
+                        const activeDur2 = selectedEl?.[durKey2] || 600;
+                        return (
+                          <>
+                            <div style={{ display:'flex', gap:4, marginBottom:12, background:t.input, borderRadius:8, padding:3 }}>
+                              {[{ id:'in', label:'Entrance' }, { id:'out', label:'Exit' }].map(tab => (
+                                <button key={tab.id} onClick={() => setAnimTab2(tab.id)}
+                                  style={{ flex:1, height:26, borderRadius:6, border:'none', background:animTab2===tab.id?t.card:'transparent', color:animTab2===tab.id?t.text:t.textMuted, fontSize:12, fontWeight:animTab2===tab.id?700:400, cursor:'pointer', boxShadow:animTab2===tab.id?'0 1px 4px rgba(0,0,0,0.15)':'none', transition:'all 150ms' }}>
+                                  {tab.label}
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:5 }}>
+                              {ANIMATE_PRESETS.map(a => {
+                                const isActive = activePreset2 === a.id;
+                                return (
+                                  <button key={a.id} title={a.desc}
+                                    onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, [isIn2 ? 'animateIn' : 'animateOut']: a.id }); }}
+                                    style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, padding:'8px 4px', borderRadius:9, border:`1.5px solid ${isActive?t.primaryBorder:t.border}`, background:isActive?t.primaryBg:t.input, cursor:'pointer', color:isActive?t.primary:t.textSecondary, transition:'all 150ms cubic-bezier(0.34,1.56,0.64,1)', boxShadow:isActive?`0 0 0 1px ${t.primaryBorder}`:'none' }}>
+                                    <span style={{ fontSize:17 }}>{a.icon}</span>
+                                    <span style={{ fontSize:9, fontWeight:isActive?700:400, lineHeight:1.2, textAlign:'center' }}>{a.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {activePreset2 !== 'none' && (
+                              <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${t.border}` }}>
+                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+                                  <span style={{ fontSize:11, color:t.textMuted }}>Duration</span>
+                                  <span style={{ fontSize:11, color:t.textMuted, fontWeight:600 }}>{(activeDur2/1000).toFixed(1)}s</span>
+                                </div>
+                                <input type="range" min={100} max={2000} step={100} value={activeDur2}
+                                  onChange={e => updateElement({...selectedEl, [durKey2]:parseInt(e.target.value)})}
+                                  onMouseUp={() => pushHistory()} style={{ width:'100%', accentColor:t.primary }} />
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </>,
                   document.body
