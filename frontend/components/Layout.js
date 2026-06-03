@@ -242,7 +242,19 @@ export default function Layout({ children, title, subtitle, action }) {
   const sidebarWidth = 240;
 
   const wlConfig = user?.white_label_config || {};
-  const wlPrimary = wlConfig.primaryColor || t.primary;
+  // Ensure the stored primary color has enough contrast against white (#FFF).
+  // A stored value like '#B39DFF' (light lavender) would be invisible in light mode.
+  // If relative luminance > 0.20 (too light), fall back to the theme default.
+  const _storedColor = wlConfig.primaryColor;
+  const _safeColor = (() => {
+    if (!_storedColor || !/^#[0-9A-Fa-f]{6}$/i.test(_storedColor)) return null;
+    const r = parseInt(_storedColor.slice(1, 3), 16) / 255;
+    const g = parseInt(_storedColor.slice(3, 5), 16) / 255;
+    const b = parseInt(_storedColor.slice(5, 7), 16) / 255;
+    const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return (!t.isDark && L > 0.20) ? null : _storedColor;
+  })();
+  const wlPrimary = _safeColor || t.primary;
   const { appName, aiName } = useBranding();
 
   // Always show Workspaces nav — members need it to manage their memberships
