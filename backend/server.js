@@ -54,6 +54,7 @@ const referralsRoutes = require('./routes/referrals');
 const competitorRoutes = require('./routes/competitor');
 const publicRoutes = require('./routes/public');
 const agencyRoutes = require('./routes/agency');
+const emailRoutes  = require('./routes/email');
 
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
@@ -1188,6 +1189,15 @@ console.log('══════════════════════�
       created_at   TIMESTAMPTZ DEFAULT NOW()
     )`,
     `CREATE INDEX IF NOT EXISTS idx_login_otps_customer ON login_otps(customer_id)`,
+
+    // ── Email deliverability — opt-out and bounce suppression ──
+    // Required so Resend bounce/complaint webhooks can suppress bad addresses.
+    // List-Unsubscribe one-click POSTs also update marketing_emails_opt_out.
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS marketing_emails_opt_out BOOLEAN DEFAULT FALSE`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS email_hard_bounced BOOLEAN DEFAULT FALSE`,
+    `ALTER TABLE customers ADD COLUMN IF NOT EXISTS email_bounce_at TIMESTAMP`,
+    `CREATE INDEX IF NOT EXISTS idx_customers_email_bounce
+       ON customers(email_hard_bounced) WHERE email_hard_bounced = TRUE`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
@@ -3180,6 +3190,7 @@ app.use('/api/calendar-plans', calendarPlansRoutes(pool));
 app.use('/api/referrals', referralsRoutes(pool));
 app.use('/api/competitor', competitorRoutes(pool));
 app.use('/api/agency', agencyRoutes(pool));
+app.use('/api/email', emailRoutes(pool));
 
 
 app.get('/health', async (req, res) => {
@@ -3193,7 +3204,7 @@ app.get('/health', async (req, res) => {
 
 app.get('/', (req, res) => {
   res.json({
-    name: 'Its Posting API',
+    name: 'ItsPosting API',
     version: '2.1.0',
     docs: '/health',
     endpoints: { auth: '/api/auth/*', customers: '/api/customers/*', posts: '/api/posts/*', content: '/api/content/*', admin: '/api/admin/*', analytics: '/api/analytics/*' },
@@ -3229,7 +3240,7 @@ async function runTrialExpiry() {
           await pool.query(
             `INSERT INTO email_queue (to_email, template_name, template_data, scheduled_at)
              VALUES ($1, $2, $3, NOW())`,
-            [customer.email, 'account_suspended', JSON.stringify({ businessName: customer.business_name || 'there', reason: 'Your 7-day free trial has ended. Please upgrade to continue using Its Posting.' })]
+            [customer.email, 'account_suspended', JSON.stringify({ businessName: customer.business_name || 'there', reason: 'Your 7-day free trial has ended. Please upgrade to continue using ItsPosting.' })]
           );
         } catch (emailErr) {
           console.error(`[TrialExpiry] Failed to queue email for ${customer.email}:`, emailErr.message);
@@ -3571,7 +3582,7 @@ console.log('⭐ Testimonial Machine cron scheduled (Mon+Thu 10am UTC)');
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔═══════════════════════════════════════════╗
-║   🚀 Its Posting API Server v2.1.0        ║
+║   🚀 ItsPosting API Server v2.1.0         ║
 ║                                           ║
 ║   📊 Port: ${PORT}                            ║
 ║   🌍 Env: ${(process.env.NODE_ENV || 'development').padEnd(11)}                    ║

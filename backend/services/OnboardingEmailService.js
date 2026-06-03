@@ -51,66 +51,130 @@ const CASE_STUDIES = {
 
 // ─── shared email chrome ───────────────────────────────────────────────────────
 
-function emailWrapper(bodyHtml, footerNote = '') {
+function emailWrapper(bodyHtml, footerNote = '', preheader = '') {
+  const logoUrl = `${APP_URL}/fav-icon.png`;
+  const year    = new Date().getFullYear();
+  const preheaderHtml = preheader ? `\n<!--[if !gte mso 9]><!--><div style="display:none;max-height:0;overflow:hidden;mso-hide:all;visibility:hidden;opacity:0;font-size:1px;color:#F5F3FF;line-height:1px;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div><!--<![endif]-->` : '';
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="format-detection" content="telephone=no,date=no,address=no,email=no" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!--[if mso]>
+  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+  <![endif]-->
   <style>
-    body{margin:0;padding:0;background:#0B0B0F;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;color:#E2E2E8}
-    .wrap{max-width:560px;margin:40px auto;background:#16161D;border:1px solid #26262F;border-radius:14px;overflow:hidden}
-    .hdr{padding:24px 32px;background:linear-gradient(135deg,#7C5CFC 0%,#5B3FF0 100%)}
-    .hdr-top{display:flex;align-items:center;gap:10px}
-    .hdr h1{margin:0;font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.03em}
-    .hdr p{margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.65)}
-    .body{padding:28px 32px}
-    .body p{font-size:14px;line-height:1.75;color:#A0A0B0;margin:0 0 16px}
-    .body strong{color:#E2E2E8}
-    .hero{font-size:22px;font-weight:800;color:#fff;line-height:1.3;margin:0 0 16px;letter-spacing:-0.03em}
-    .btn{display:inline-block;margin:8px 0 20px;padding:13px 26px;background:linear-gradient(135deg,#7C5CFC,#5B3FF0);color:#fff;text-decoration:none;border-radius:9px;font-size:14px;font-weight:700;letter-spacing:-0.01em}
-    .btn-ghost{display:inline-block;margin:4px 0 16px;padding:10px 20px;border:1px solid #3A3A4A;color:#A0A0B0;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600}
-    .box{background:#0D0D14;border:1px solid #26262F;border-radius:10px;padding:16px 20px;margin:16px 0}
-    .box-purple{background:rgba(124,92,252,0.08);border:1px solid rgba(124,92,252,0.25);border-radius:10px;padding:16px 20px;margin:16px 0}
-    .chip{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin:2px 3px}
-    .chip-purple{background:rgba(124,92,252,0.15);color:#A78BFA}
-    .chip-green{background:rgba(16,185,129,0.15);color:#34d399}
-    .chip-amber{background:rgba(245,158,11,0.15);color:#fbbf24}
-    .step{display:flex;gap:14px;margin:0 0 18px;align-items:flex-start}
-    .step-num{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7C5CFC,#5B3FF0);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
-    .step-body p{margin:0 0 4px;font-size:14px;color:#E2E2E8;font-weight:600}
-    .step-body span{font-size:13px;color:#888}
-    .stat-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #26262F}
-    .stat-row:last-child{border-bottom:none}
-    .stat-label{font-size:13px;color:#888}
-    .stat-val{font-size:14px;font-weight:700;color:#E2E2E8}
-    .divider{height:1px;background:#26262F;margin:20px 0}
-    .ftr{padding:18px 32px;border-top:1px solid #26262F;font-size:12px;color:#555;line-height:1.6}
-    .ftr a{color:#666;text-decoration:none}
-    @media(max-width:600px){.wrap{margin:0;border-radius:0}.body{padding:22px 20px}.hdr{padding:20px}}
+    body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+    table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+    img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none;}
+    :root{color-scheme:light;}
+    body{margin:0;padding:0;background:#F5F3FF;width:100% !important;min-width:100%;}
+    .body p{font-size:15px;line-height:1.75;color:#374151;margin:0 0 16px;}
+    .body strong{color:#111827;}
+    .hero{font-size:22px;font-weight:800;color:#111827;line-height:1.3;margin:0 0 20px;letter-spacing:-0.02em;}
+    .btn-wrap{text-align:center;margin:24px 0 8px;}
+    .btn{display:inline-block;padding:13px 28px;background:#7C5CFC;color:#ffffff !important;text-decoration:none;border-radius:100px;font-size:14px;font-weight:700;}
+    .btn-ghost{display:inline-block;padding:10px 22px;border:1px solid #EDE9FE;color:#6B7280;text-decoration:none;border-radius:100px;font-size:13px;font-weight:600;}
+    .box{background:#F9F8FF;border:1px solid #EDE9FE;border-radius:10px;padding:16px 20px;margin:16px 0;}
+    .box-purple{background:#F5F3FF;border:1px solid #C4B5FD;border-radius:10px;padding:20px;margin:16px 0;}
+    .chip{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;margin:2px 3px;}
+    .chip-purple{background:#EDE9FE !important;color:#7C5CFC !important;}
+    .chip-green{background:#D1FAE5 !important;color:#059669 !important;}
+    .chip-amber{background:#FEF3C7 !important;color:#D97706 !important;}
+    hr.divider{border:none;border-top:1px solid #EDE9FE;margin:24px 0;}
+    @media screen and (max-width:600px){
+      .email-card{width:100% !important;max-width:100% !important;}
+      .email-body-td{padding:22px 20px !important;}
+      .logo-outer-td{padding:20px 16px 12px !important;}
+    }
+    @media (prefers-color-scheme:dark){
+      body{background-color:#F5F3FF !important;}
+      .email-card-white{background-color:#FFFFFF !important;}
+      .body p{color:#374151 !important;}
+      .body strong,.hero{color:#111827 !important;}
+    }
   </style>
 </head>
-<body>
-<div class="wrap">
-  <div class="hdr">
-    <div class="hdr-top">
-      <div style="width:32px;height:32px;background:rgba(255,255,255,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px">📱</div>
-      <div>
-        <h1>ItsPosting</h1>
-        <p>AI Social Media · ItsPosting AI</p>
-      </div>
-    </div>
-  </div>
-  <div class="body">
-    ${bodyHtml}
-  </div>
-  <div class="ftr">
-    ${footerNote || 'You received this because you signed up for ItsPosting.'}<br />
-    <a href="${APP_URL}/settings">Manage email preferences</a> &nbsp;·&nbsp; &copy; ${new Date().getFullYear()} ItsPosting
-  </div>
-</div>
+<body style="margin:0;padding:0;background:#F5F3FF;width:100%;">
+${preheaderHtml}
+<!--[if mso | IE]><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F5F3FF;"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F5F3FF;width:100%;border-collapse:collapse;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+
+      <!-- Logo above card -->
+      <table role="presentation" class="email-card" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;border-collapse:collapse;">
+        <tr>
+          <td class="logo-outer-td" align="center" style="padding-bottom:16px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+              <tr>
+                <td style="vertical-align:middle;padding-right:10px;">
+                  <img src="${logoUrl}" alt="ItsPosting" width="36" height="36" style="display:block;width:36px;height:36px;border-radius:8px;" />
+                </td>
+                <td style="vertical-align:middle;">
+                  <span style="font-size:17px;font-weight:700;color:#111827;letter-spacing:-0.02em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">ItsPosting</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Card -->
+      <table role="presentation" class="email-card email-card-white" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;background:#FFFFFF;border-radius:12px;border:1px solid #EDE9FE;border-collapse:collapse;">
+        <tr>
+          <td class="email-body-td body" style="padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.75;color:#374151;">
+            ${bodyHtml}
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:20px 32px;background:#1E1B4B;border-radius:0 0 12px 12px;">
+            <p style="margin:0;font-size:12px;color:#A5B4FC;line-height:1.8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+              ${footerNote || 'You received this because you signed up for ItsPosting.'}<br />
+              <a href="${APP_URL}/settings" style="color:#C4B5FD;text-decoration:none;">Manage email preferences</a>
+              &nbsp;&middot;&nbsp; &copy; ${year} ItsPosting
+            </p>
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>
+<!--[if mso | IE]></td></tr></table><![endif]-->
 </body>
 </html>`;
+}
+
+// ─── step item helper (table-based for email-client compatibility) ─────────────
+function stepItem(num, title, detail) {
+  return `
+    <table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 18px;">
+      <tr>
+        <td style="width:32px;vertical-align:top;padding-top:1px;">
+          <div style="width:28px;height:28px;border-radius:50%;background:#7C5CFC;text-align:center;line-height:28px;font-size:13px;font-weight:800;color:#fff;font-family:-apple-system,sans-serif;">${num}</div>
+        </td>
+        <td style="padding-left:14px;vertical-align:top;">
+          <p style="margin:0 0 4px;font-size:14px;color:#111827;font-weight:600;">${title}</p>
+          <p style="margin:0;font-size:13px;color:#6B7280;line-height:1.6;">${detail}</p>
+        </td>
+      </tr>
+    </table>`;
+}
+
+// ─── stat row helper (table-based) ────────────────────────────────────────────
+function statRow(label, value, valueColor = '#111827', borderTop = true) {
+  const border = borderTop ? 'border-top:1px solid #EDE9FE;' : '';
+  return `
+    <tr>
+      <td style="font-size:13px;color:#6B7280;padding:8px 0;${border}">${label}</td>
+      <td style="text-align:right;font-size:14px;font-weight:700;color:${valueColor};padding:8px 0;${border}">${value}</td>
+    </tr>`;
 }
 
 class OnboardingEmailService {
@@ -125,7 +189,6 @@ class OnboardingEmailService {
     const now = new Date();
     const month = now.getMonth() + 1;
 
-    // Get all non-admin, non-suspended customers + their onboarding email state
     const { rows: customers } = await this.pool.query(`
       SELECT c.id, c.email, c.business_name, c.industry, c.location, c.plan, c.status,
              c.credits_balance, c.total_posts_this_month, c.created_at,
@@ -139,6 +202,8 @@ class OnboardingEmailService {
         AND c.parent_customer_id IS NULL
         AND (c.suspended = false OR c.suspended IS NULL)
         AND c.created_at > NOW() - INTERVAL '35 days'
+        AND (c.marketing_emails_opt_out IS NULL OR c.marketing_emails_opt_out = FALSE)
+        AND (c.email_hard_bounced IS NULL OR c.email_hard_bounced = FALSE)
     `);
 
     let sent = 0, skipped = 0;
@@ -149,37 +214,25 @@ class OnboardingEmailService {
       const postsCount = parseInt(c.total_posts_this_month) || 0;
 
       try {
-        // Day 1 — if they signed up yesterday and haven't received it
         if (days >= 1 && !sentDays.includes(1)) {
           await this._send(c, 1, () => this._buildDay1(c, month));
           sent++;
-        }
-        // Day 3
-        else if (days >= 3 && !sentDays.includes(3)) {
+        } else if (days >= 3 && !sentDays.includes(3)) {
           await this._send(c, 3, () => this._buildDay3(c, month));
           sent++;
-        }
-        // Day 5 — only if no posts created
-        else if (days >= 5 && !sentDays.includes(5) && postsCount === 0) {
+        } else if (days >= 5 && !sentDays.includes(5) && postsCount === 0) {
           await this._send(c, 5, () => this._buildDay5(c));
           sent++;
-        }
-        // Day 7 — trial expiry (send to trial accounts only)
-        else if (days >= 7 && !sentDays.includes(7) && c.plan === 'trial') {
+        } else if (days >= 7 && !sentDays.includes(7) && c.plan === 'trial') {
           await this._send(c, 7, () => this._buildDay7(c));
           sent++;
-        }
-        // Day 14
-        else if (days >= 14 && !sentDays.includes(14)) {
+        } else if (days >= 14 && !sentDays.includes(14)) {
           await this._send(c, 14, () => this._buildDay14(c, month));
           sent++;
-        }
-        // Day 30
-        else if (days >= 30 && !sentDays.includes(30)) {
+        } else if (days >= 30 && !sentDays.includes(30)) {
           await this._send(c, 30, () => this._buildDay30(c));
           sent++;
-        }
-        else {
+        } else {
           skipped++;
         }
       } catch (err) {
@@ -233,53 +286,28 @@ class OnboardingEmailService {
       <p>ItsPosting AI has been briefed on your business. It knows you're in <strong>${industryLabel}</strong> and it already knows what local homeowners are searching for right now.</p>
 
       <div class="box-purple">
-        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#A78BFA;text-transform:uppercase;letter-spacing:0.06em">ItsPosting AI's first suggestion for you</p>
-        <p style="margin:0;font-size:15px;font-weight:600;color:#fff">"${seasonal?.urgencyTopic || 'Share what makes your business different'}"</p>
-        <p style="margin:6px 0 0;font-size:12px;color:#888">This is the #1 topic local homeowners are looking for in ${MONTH_NAMES[month - 1]}.</p>
+        <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.08em;">ItsPosting AI's first suggestion for you</p>
+        <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#111827;line-height:1.4;">"${seasonal?.urgencyTopic || 'Share what makes your business different'}"</p>
+        <p style="margin:0;font-size:13px;color:#6B7280;">The #1 topic local homeowners are searching for in ${MONTH_NAMES[month - 1]}.</p>
       </div>
 
       <p>Here's how to create your first post in under 60 seconds:</p>
 
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-body">
-          <p>Open the Post Wizard</p>
-          <span>Tap "Post Wizard" — ItsPosting AI guides you through 3 quick questions.</span>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-body">
-          <p>Pick a content type</p>
-          <span>Photo, text card, carousel — ItsPosting AI writes the caption for you.</span>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-body">
-          <p>Tap Post Now or Schedule</p>
-          <span>Your post goes live on Facebook, Instagram, and Google Business at once.</span>
-        </div>
-      </div>
+      ${stepItem(1, 'Open the Post Wizard', 'Tap "Post Wizard" — ItsPosting AI guides you through 3 quick questions.')}
+      ${stepItem(2, 'Pick a content type', 'Photo, text card, carousel — ItsPosting AI writes the caption for you.')}
+      ${stepItem(3, 'Tap Post Now or Schedule', 'Your post goes live on Facebook, Instagram, and Google Business at once.')}
 
-      <a href="${wizardUrl}" class="btn">Create my first post →</a>
+      <div class="btn-wrap"><a href="${wizardUrl}" class="btn">Create my first post →</a></div>
 
       <div class="box">
-        <div class="stat-row">
-          <span class="stat-label">Free credits</span>
-          <span class="stat-val" style="color:#7C5CFC">10 credits</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Photo post costs</span>
-          <span class="stat-val">3 credits</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Trial length</span>
-          <span class="stat-val">7 days</span>
-        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          ${statRow('Free credits', '<span style="color:#7C5CFC;font-family:monospace;">10 credits</span>', '#111827', false)}
+          ${statRow('Photo post costs', '3 credits', '#111827')}
+          ${statRow('Trial length', '7 days', '#111827')}
+        </table>
       </div>
-      <p style="font-size:13px;color:#666">Need help? Just reply to this email — I read every one.</p>
-    `, 'You received this because you just created an ItsPosting account.');
+      <p style="font-size:13px;color:#9CA3AF;">Need help? Just reply to this email — I read every one.</p>
+    `, 'You received this because you just created an ItsPosting account.', `Your first post idea is ready — ItsPosting AI picked the perfect topic for ${biz} this ${MONTH_NAMES[month - 1]}.`);
 
     const text = `Welcome to ItsPosting, ${biz}!\n\nItsPosting AI has been briefed on your ${industryLabel} business.\n\nYour first suggested post topic: "${seasonal?.urgencyTopic}"\n\nCreate your first post here: ${wizardUrl}\n\nYou have 10 free credits and 7 days to try everything.\n\nQuestions? Reply to this email.`;
 
@@ -300,24 +328,23 @@ class OnboardingEmailService {
       <p>It's ${MONTH_NAMES[month - 1]} — and based on what local homeowners are searching for right now, ItsPosting AI has a post idea ready for your business.</p>
 
       <div class="box-purple">
-        <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#A78BFA;text-transform:uppercase;letter-spacing:0.06em">This week's recommended post</p>
-        <p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#fff">${seasonal?.urgencyTopic || 'Share a recent job you completed'}</p>
-        <p style="margin:0;font-size:13px;color:#A0A0B0">Opening hook ItsPosting AI will use: <em style="color:#E2E2E8">"${hook}"</em></p>
+        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.08em;">This week's recommended post</p>
+        <p style="margin:0 0 10px;font-size:17px;font-weight:700;color:#111827;line-height:1.4;">${seasonal?.urgencyTopic || 'Share a recent job you completed'}</p>
+        <p style="margin:0;font-size:13px;color:#6B7280;">Opening hook ItsPosting AI will use: <em style="color:#374151;">"${hook}"</em></p>
       </div>
 
       <p>ItsPosting AI writes the full caption, generates an image, and adapts it for Facebook, Instagram, and Google Business — automatically.</p>
       <p>It takes about <strong>45 seconds</strong> from tap to scheduled.</p>
 
-      <a href="${wizardUrl}" class="btn">Use this idea now →</a>
-      <p style="font-size:13px;color:#555">This idea is time-sensitive — ${MONTH_NAMES[month - 1]} is the right moment for this topic.</p>
-    `);
+      <div class="btn-wrap"><a href="${wizardUrl}" class="btn">Use this idea now →</a></div>
+      <p style="font-size:13px;color:#9CA3AF;text-align:center;">This idea is time-sensitive — ${MONTH_NAMES[month - 1]} is the right moment for this topic.</p>
+    `, '', `ItsPosting AI has a post ready for ${biz} — takes 45 seconds to create and schedule.`);
 
     const text = `ItsPosting AI has a post idea ready for you.\n\nThis month's recommended topic: "${seasonal?.urgencyTopic}"\n\nCreate it here in 45 seconds: ${wizardUrl}`;
     return { subject, html, text };
   }
 
   _buildDay3(customer, month) {
-    const biz = customer.business_name || 'there';
     const industryLabel = INDUSTRY_LABELS[customer.industry] || 'your industry';
     const knowledge = industryKnowledge[customer.industry] || industryKnowledge.general_contractor;
     const seasonal = knowledge.seasonalContent[month];
@@ -331,143 +358,124 @@ class OnboardingEmailService {
       <p>ItsPosting AI analyzed engagement data across ${industryLabel} businesses this ${MONTH_NAMES[month - 1]}. Here's what's getting the most reach locally:</p>
 
       <div class="box">
-        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.06em">#1 Topic this month</p>
-        <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#fff">${seasonal?.urgencyTopic || 'Customer testimonials and before/after work'}</p>
-        <p style="margin:0;font-size:13px;color:#888">Tip angle: <em style="color:#A0A0B0">${seasonal?.tipTopic || 'Share a specific problem you solved recently'}</em></p>
+        <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.08em;">#1 Topic this month</p>
+        <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#111827;">${seasonal?.urgencyTopic || 'Customer testimonials and before/after work'}</p>
+        <p style="margin:0;font-size:13px;color:#6B7280;">Tip angle: <em style="color:#374151;">${seasonal?.tipTopic || 'Share a specific problem you solved recently'}</em></p>
       </div>
 
-      <p style="margin-top:20px;font-size:13px;font-weight:700;color:#E2E2E8">Opening hooks that stop the scroll for ${industryLabel} businesses:</p>
-      ${hooks.map(h => `<div style="display:flex;gap:10px;margin:0 0 10px;align-items:flex-start"><span style="color:#7C5CFC;font-weight:800;flex-shrink:0">→</span><span style="font-size:13px;color:#A0A0B0;font-style:italic">"${h}"</span></div>`).join('')}
+      <p style="margin-top:20px;font-size:14px;font-weight:700;color:#111827;">Opening hooks that stop the scroll for ${industryLabel} businesses:</p>
+      ${hooks.map(h => `
+        <table cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 10px;">
+          <tr>
+            <td style="width:16px;vertical-align:top;padding-top:1px;font-size:14px;font-weight:800;color:#7C5CFC;">&rarr;</td>
+            <td style="padding-left:10px;font-size:13px;color:#6B7280;font-style:italic;line-height:1.6;">"${h}"</td>
+          </tr>
+        </table>`).join('')}
 
-      <p style="margin-top:20px;font-size:13px;font-weight:700;color:#E2E2E8">CTAs that convert:</p>
-      ${ctaVariations.map(c => `<span class="chip chip-purple">${c}</span>`).join('')}
+      <p style="margin-top:20px;font-size:14px;font-weight:700;color:#111827;">CTAs that convert:</p>
+      <p style="margin:8px 0 16px;">${ctaVariations.map(c => `<span class="chip chip-purple">${c}</span>`).join('')}</p>
 
-      <div class="divider"></div>
+      <hr class="divider" />
       <p>ItsPosting AI uses all of this automatically when you generate a post. You never have to think about it.</p>
-      <a href="${APP_URL}/wizard" class="btn">Generate a post with these insights →</a>
-    `);
+      <div class="btn-wrap"><a href="${APP_URL}/wizard" class="btn">Generate a post with these insights →</a></div>
+    `, '', `Here's what's converting for ${industryLabel} businesses this ${MONTH_NAMES[month - 1]} — ItsPosting AI uses it automatically.`);
 
     const text = `What's working in ${industryLabel} this ${MONTH_NAMES[month - 1]}:\n\n#1 topic: ${seasonal?.urgencyTopic}\n\nItsPosting AI uses this data automatically. Generate a post here: ${APP_URL}/wizard`;
     return { subject, html, text };
   }
 
   _buildDay5(customer) {
-    const biz = customer.business_name || 'there';
-    const industryLabel = INDUSTRY_LABELS[customer.industry] || 'your industry';
     const wizardUrl = `${APP_URL}/wizard`;
 
-    const subject = `Still getting started, ${biz}? Let me make it easier.`;
+    const subject = `Still getting started? Let me make it easier.`;
 
     const html = emailWrapper(`
       <p class="hero">Creating content doesn't have to be hard.</p>
       <p>ItsPosting AI noticed you haven't created your first post yet. That's completely fine — I want to make this as easy as possible.</p>
       <p>Here's the exact process. It takes <strong>under 2 minutes</strong>:</p>
 
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-body">
-          <p>Go to Post Wizard</p>
-          <span>No blank page. ItsPosting AI asks you 3 quick questions — that's it.</span>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-body">
-          <p>Answer: What happened recently?</p>
-          <span>Finished a job? Got a great review? Pick it from a list — no typing needed.</span>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-body">
-          <p>ItsPosting AI writes 3 variations</p>
-          <span>Pick the one you like. One tap publishes or schedules it.</span>
-        </div>
-      </div>
+      ${stepItem(1, 'Go to Post Wizard', 'No blank page. ItsPosting AI asks you 3 quick questions — that\'s it.')}
+      ${stepItem(2, 'Answer: What happened recently?', 'Finished a job? Got a great review? Pick it from a list — no typing needed.')}
+      ${stepItem(3, 'ItsPosting AI writes 3 variations', 'Pick the one you like. One tap publishes or schedules it.')}
 
-      <a href="${wizardUrl}" class="btn">Try it now — 2 minutes →</a>
+      <div class="btn-wrap"><a href="${wizardUrl}" class="btn">Try it now — 2 minutes →</a></div>
 
-      <div class="box">
-        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#E2E2E8">Common questions:</p>
-        <p style="margin:0 0 12px;font-size:13px;color:#888"><strong style="color:#E2E2E8">Q: I don't know what to write.</strong><br/>A: You don't write anything. ItsPosting AI writes it. You just answer 3 questions about your business.</p>
-        <p style="margin:0 0 12px;font-size:13px;color:#888"><strong style="color:#E2E2E8">Q: I don't have photos.</strong><br/>A: ItsPosting AI generates an image for you automatically. Or you can upload your own (it's free).</p>
-        <p style="margin:0;font-size:13px;color:#888"><strong style="color:#E2E2E8">Q: I don't have time.</strong><br/>A: The average post takes 47 seconds from open to scheduled. We timed it.</p>
-      </div>
+      <hr class="divider" />
 
-      <p style="font-size:13px;color:#555">Still stuck? Just reply to this email and tell me what's getting in the way. I'll help you through it personally.</p>
-    `);
+      <p style="font-size:14px;font-weight:700;color:#111827;margin-bottom:12px;">Common questions:</p>
+      <table cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
+        <tr><td style="padding:12px 0;border-bottom:1px solid #EDE9FE;font-size:14px;color:#374151;vertical-align:top;"><strong style="color:#111827;">Q: I don't know what to write.</strong><br/><span style="color:#6B7280;">A: You don't write anything. ItsPosting AI writes it. You just answer 3 questions about your business.</span></td></tr>
+        <tr><td style="padding:12px 0;border-bottom:1px solid #EDE9FE;font-size:14px;color:#374151;vertical-align:top;"><strong style="color:#111827;">Q: I don't have photos.</strong><br/><span style="color:#6B7280;">A: ItsPosting AI generates an image for you automatically. Or you can upload your own (it's free).</span></td></tr>
+        <tr><td style="padding:12px 0;font-size:14px;color:#374151;vertical-align:top;"><strong style="color:#111827;">Q: I don't have time.</strong><br/><span style="color:#6B7280;">A: The average post takes 47 seconds from open to scheduled. We timed it.</span></td></tr>
+      </table>
 
-    const text = `Creating content doesn't have to be hard, ${biz}.\n\nItsPosting AI asks 3 questions — you pick answers from a list — it writes the caption and generates the image. Average time: 47 seconds.\n\nTry it here: ${wizardUrl}\n\nStill stuck? Reply and I'll help you personally.`;
+      <p style="font-size:13px;color:#9CA3AF;margin-top:20px;">Still stuck? Just reply to this email and tell me what's getting in the way. I'll help you through it personally.</p>
+    `, '', 'Creating your first post takes under 2 minutes — ItsPosting AI does the writing, you just answer 3 quick questions.');
+
+    const text = `Creating content doesn't have to be hard.\n\nItsPosting AI asks 3 questions — you pick answers from a list — it writes the caption and generates the image. Average time: 47 seconds.\n\nTry it here: ${wizardUrl}\n\nStill stuck? Reply and I'll help you personally.`;
     return { subject, html, text };
   }
 
   _buildDay7(customer) {
-    const biz = customer.business_name || 'there';
     const credits = parseInt(customer.credits_balance) || 0;
     const upgradeUrl = `${APP_URL}/billing`;
 
-    const subject = `Your free trial ends tomorrow, ${biz}`;
+    const subject = `Your free trial ends tomorrow`;
 
     const html = emailWrapper(`
       <p class="hero">Your trial ends in 24 hours.</p>
       <p>After tomorrow, your ItsPosting account moves to read-only mode — you can still view your posts but won't be able to generate new content.</p>
 
       <div class="box-purple">
-        <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#A78BFA;text-transform:uppercase;letter-spacing:0.06em">Your trial summary</p>
-        <div class="stat-row" style="border-color:rgba(124,92,252,0.2)">
-          <span class="stat-label">Credits remaining</span>
-          <span class="stat-val" style="color:#7C5CFC">${credits} credits</span>
-        </div>
-        <div class="stat-row" style="border-color:rgba(124,92,252,0.2);border-bottom:none">
-          <span class="stat-label">Value if upgraded today</span>
-          <span class="stat-val" style="color:#34d399">Keep everything</span>
-        </div>
+        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.08em;">Your trial summary</p>
+        <table style="width:100%;border-collapse:collapse;">
+          ${statRow('Credits remaining', `<span style="color:#7C5CFC;font-family:monospace;">${credits} credits</span>`, '#111827', false)}
+          ${statRow('Status if upgraded today', '<span style="color:#059669;">Keep everything</span>', '#111827')}
+        </table>
       </div>
 
-      <p style="font-size:13px;font-weight:700;color:#E2E2E8;margin-top:20px">Choose your plan:</p>
-      <div class="box" style="padding:0;overflow:hidden">
-        <div style="padding:14px 20px;border-bottom:1px solid #26262F">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <span style="font-size:14px;font-weight:700;color:#E2E2E8">Starter</span>
-              <span style="font-size:12px;color:#888;margin-left:8px">50 credits/month</span>
-            </div>
-            <span style="font-size:16px;font-weight:800;color:#7C5CFC">$20<span style="font-size:12px;font-weight:400;color:#888">/mo</span></span>
-          </div>
-          <p style="margin:4px 0 0;font-size:12px;color:#666">Perfect for getting started — 1 post every few days</p>
-        </div>
-        <div style="padding:14px 20px;border-bottom:1px solid #26262F;background:rgba(124,92,252,0.06)">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <span style="font-size:14px;font-weight:700;color:#E2E2E8">Professional</span>
-              <span class="chip chip-purple" style="margin-left:6px">Most popular</span>
-            </div>
-            <span style="font-size:16px;font-weight:800;color:#7C5CFC">$40<span style="font-size:12px;font-weight:400;color:#888">/mo</span></span>
-          </div>
-          <p style="margin:4px 0 0;font-size:12px;color:#666">100 credits/month — post daily across all platforms</p>
-        </div>
-        <div style="padding:14px 20px">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <span style="font-size:14px;font-weight:700;color:#E2E2E8">Premium</span>
-              <span style="font-size:12px;color:#888;margin-left:8px">150 credits/month</span>
-            </div>
-            <span style="font-size:16px;font-weight:800;color:#7C5CFC">$60<span style="font-size:12px;font-weight:400;color:#888">/mo</span></span>
-          </div>
-          <p style="margin:4px 0 0;font-size:12px;color:#666">Full power — video, carousels, multi-account</p>
-        </div>
+      <p style="font-size:14px;font-weight:700;color:#111827;margin-top:20px;">Choose your plan:</p>
+      <div class="box" style="padding:0;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="padding:14px 20px;border-bottom:1px solid #EDE9FE;vertical-align:middle;">
+              <p style="margin:0 0 2px;font-size:14px;font-weight:700;color:#111827;">Starter &nbsp;<span style="font-size:12px;font-weight:400;color:#6B7280;">50 credits/month</span></p>
+              <p style="margin:0;font-size:12px;color:#9CA3AF;">Perfect for getting started — 1 post every few days</p>
+            </td>
+            <td style="padding:14px 20px;border-bottom:1px solid #EDE9FE;text-align:right;white-space:nowrap;vertical-align:middle;">
+              <span style="font-size:17px;font-weight:800;color:#7C5CFC;">$20<span style="font-size:12px;font-weight:400;color:#9CA3AF;">/mo</span></span>
+            </td>
+          </tr>
+          <tr style="background:#F9F8FF;">
+            <td style="padding:14px 20px;border-bottom:1px solid #EDE9FE;vertical-align:middle;">
+              <p style="margin:0 0 2px;font-size:14px;font-weight:700;color:#111827;">Professional &nbsp;<span class="chip chip-purple">Most popular</span></p>
+              <p style="margin:0;font-size:12px;color:#9CA3AF;">100 credits/month — post daily across all platforms</p>
+            </td>
+            <td style="padding:14px 20px;border-bottom:1px solid #EDE9FE;text-align:right;white-space:nowrap;vertical-align:middle;">
+              <span style="font-size:17px;font-weight:800;color:#7C5CFC;">$40<span style="font-size:12px;font-weight:400;color:#9CA3AF;">/mo</span></span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:14px 20px;vertical-align:middle;">
+              <p style="margin:0 0 2px;font-size:14px;font-weight:700;color:#111827;">Premium &nbsp;<span style="font-size:12px;font-weight:400;color:#6B7280;">150 credits/month</span></p>
+              <p style="margin:0;font-size:12px;color:#9CA3AF;">Full power — video, carousels, multi-account</p>
+            </td>
+            <td style="padding:14px 20px;text-align:right;white-space:nowrap;vertical-align:middle;">
+              <span style="font-size:17px;font-weight:800;color:#7C5CFC;">$60<span style="font-size:12px;font-weight:400;color:#9CA3AF;">/mo</span></span>
+            </td>
+          </tr>
+        </table>
       </div>
 
-      <a href="${upgradeUrl}" class="btn">Upgrade now — keep your content →</a>
-      <p style="font-size:12px;color:#555">No contracts. Cancel anytime. Prices in USD.</p>
-    `);
+      <div class="btn-wrap"><a href="${upgradeUrl}" class="btn">Upgrade now — keep your content →</a></div>
+      <p style="font-size:12px;color:#9CA3AF;text-align:center;">No contracts. Cancel anytime. Prices in USD.</p>
+    `, '', `Your free trial ends in 24 hours — upgrade from $20/mo to keep posting. No contracts.`);
 
-    const text = `Your ItsPosting trial ends tomorrow, ${biz}.\n\nUpgrade to keep posting:\n- Starter: $20/mo (50 credits)\n- Professional: $40/mo (100 credits) ← most popular\n- Premium: $60/mo (150 credits)\n\nUpgrade here: ${upgradeUrl}\n\nNo contracts. Cancel anytime.`;
+    const text = `Your ItsPosting trial ends tomorrow.\n\nUpgrade to keep posting:\n- Starter: $20/mo (50 credits)\n- Professional: $40/mo (100 credits) ← most popular\n- Premium: $60/mo (150 credits)\n\nUpgrade here: ${upgradeUrl}\n\nNo contracts. Cancel anytime.`;
     return { subject, html, text };
   }
 
   _buildDay14(customer, month) {
-    const biz = customer.business_name || 'there';
     const industry = customer.industry || 'general_contractor';
     const study = CASE_STUDIES[industry] || CASE_STUDIES.general_contractor;
     const industryLabel = INDUSTRY_LABELS[industry] || 'your industry';
@@ -479,50 +487,28 @@ class OnboardingEmailService {
     const html = emailWrapper(`
       <p class="hero">Real results from a ${industryLabel} business like yours.</p>
 
-      <div class="box-purple" style="margin-bottom:24px">
-        <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#A78BFA;text-transform:uppercase;letter-spacing:0.06em">Case Study — ${study.city}</p>
-        <p style="margin:0 0 8px;font-size:18px;font-weight:800;color:#fff">${study.name}</p>
-        <p style="margin:0;font-size:14px;color:#A0A0B0">They ${study.achievement}.</p>
+      <div class="box-purple">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.08em;">Case Study — ${study.city}</p>
+        <p style="margin:0 0 8px;font-size:19px;font-weight:800;color:#111827;letter-spacing:-0.02em;">${study.name}</p>
+        <p style="margin:0;font-size:14px;color:#374151;">They ${study.achievement}.</p>
       </div>
 
-      <p style="font-size:13px;font-weight:700;color:#E2E2E8">What they did:</p>
+      <p style="font-size:14px;font-weight:700;color:#111827;margin:20px 0 12px;">What they did:</p>
 
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-body">
-          <p>Posted consistently — 3 times per week</p>
-          <span>Using the wizard, each post took under a minute to create and schedule.</span>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-body">
-          <p>Used seasonal content at the right time</p>
-          <span>This ${MONTH_NAMES[month - 1]}: "${seasonal?.urgencyTopic || 'timely content for local homeowners'}"</span>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-body">
-          <p>Mixed content types</p>
-          <span>70% educational tips, 20% before/after showcases, 10% promotions.</span>
-        </div>
-      </div>
+      ${stepItem(1, 'Posted consistently — 3 times per week', 'Using the wizard, each post took under a minute to create and schedule.')}
+      ${stepItem(2, 'Used seasonal content at the right time', `This ${MONTH_NAMES[month - 1]}: "${seasonal?.urgencyTopic || 'timely content for local homeowners'}"`)}
+      ${stepItem(3, 'Mixed content types', '70% educational tips, 20% before/after showcases, 10% promotions.')}
 
       <div class="box">
-        <div class="stat-row">
-          <span class="stat-label">Avg reach per post</span>
-          <span class="stat-val">${study.metric}</span>
-        </div>
-        <div class="stat-row" style="border-bottom:none">
-          <span class="stat-label">Time per post</span>
-          <span class="stat-val" style="color:#34d399">&lt; 60 seconds</span>
-        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          ${statRow('Avg reach per post', `<strong>${study.metric}</strong>`, '#111827', false)}
+          ${statRow('Time per post', '<span style="color:#059669;">&#60; 60 seconds</span>', '#111827')}
+        </table>
       </div>
 
-      <p style="font-size:12px;color:#555">Based on anonymized data from ${industryLabel} businesses on ItsPosting. Results vary.</p>
-      <a href="${APP_URL}/wizard" class="btn">Start building your story →</a>
-    `);
+      <p style="font-size:12px;color:#9CA3AF;">Based on anonymized data from ${industryLabel} businesses on ItsPosting. Results vary.</p>
+      <div class="btn-wrap"><a href="${APP_URL}/wizard" class="btn">Start building your story →</a></div>
+    `, '', `${study.name} in ${study.city} ${study.achievement} — here's exactly how.`);
 
     const text = `${study.name} in ${study.city} ${study.achievement} — averaging ${study.metric}.\n\nThey posted 3x/week using ItsPosting's wizard, seasonal content, and a consistent content mix.\n\nStart yours here: ${APP_URL}/wizard`;
     return { subject, html, text };
@@ -533,59 +519,55 @@ class OnboardingEmailService {
     const posts = parseInt(customer.total_posts_this_month) || 0;
     const industryLabel = INDUSTRY_LABELS[customer.industry] || 'your industry';
     const estReach = posts * 650;
+    const estSaved = Math.round(estReach * 0.012);
 
     const subject = posts > 0
       ? `${biz}: your first month with ItsPosting AI — here's the scorecard`
       : `${biz}: here's what your first month could have looked like`;
 
-    const html = emailWrapper(posts > 0 ? `
+    const day30Preheader = posts > 0
+      ? `You reached an estimated ~${estReach.toLocaleString()} local homeowners this month — here's your full scorecard.`
+      : `Here's what ${industryLabel} businesses like yours accomplished this month — and what's still ahead.`;
+
+    const day30Body = posts > 0 ? `
       <p class="hero">You've been posting for 30 days. Here's your scorecard.</p>
 
       <div class="box">
-        <div class="stat-row">
-          <span class="stat-label">Posts created this month</span>
-          <span class="stat-val">${posts}</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Est. local reach</span>
-          <span class="stat-val" style="color:#7C5CFC">~${estReach.toLocaleString()} homeowners</span>
-        </div>
-        <div class="stat-row" style="border-bottom:none">
-          <span class="stat-label">Equivalent ad spend</span>
-          <span class="stat-val" style="color:#34d399">~$${Math.round(estReach * 0.012).toLocaleString()} saved</span>
-        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          ${statRow('Posts created this month', `<strong>${posts}</strong>`, '#111827', false)}
+          ${statRow('Est. local reach', `<span style="color:#7C5CFC;font-family:monospace;">~${estReach.toLocaleString()} homeowners</span>`, '#111827')}
+          ${statRow('Equivalent ad spend saved', `<span style="color:#059669;">~$${estSaved.toLocaleString()}</span>`, '#111827')}
+        </table>
       </div>
 
-      <p style="font-size:11px;color:#555">Based on industry averages for ${industryLabel} businesses. Actual results vary.</p>
+      <p style="font-size:11px;color:#9CA3AF;">Based on industry averages for ${industryLabel} businesses. Actual results vary.</p>
 
       <p>${posts >= 8
         ? `You're in the top tier of ${industryLabel} businesses on ItsPosting. Keep it up — consistency is the single biggest predictor of results.`
         : `You're making progress. ${industryLabel} businesses that post at least 3x per week see an average of 4× more inbound inquiries.`
       }</p>
 
-      <a href="${APP_URL}/analytics" class="btn">View your full analytics →</a>
-      <a href="${APP_URL}/wizard" class="btn-ghost">Create next month's content</a>
+      <div class="btn-wrap"><a href="${APP_URL}/analytics" class="btn">View your full analytics →</a></div>
+      <div class="btn-wrap" style="margin-top:0;"><a href="${APP_URL}/wizard" class="btn-ghost">Create next month's content</a></div>
     ` : `
       <p class="hero">A month has passed. Here's what you missed — and what's still ahead.</p>
 
       <p>${industryLabel} businesses that posted 3x/week this month reached an average of <strong>~7,800 local homeowners</strong> organically. That's potential customers who never saw your name.</p>
 
       <div class="box-purple">
-        <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#A78BFA;text-transform:uppercase;letter-spacing:0.06em">What consistency looks like</p>
-        <div class="stat-row" style="border-color:rgba(124,92,252,0.2)">
-          <span class="stat-label">12 posts/month</span>
-          <span class="stat-val">~7,800 local reach</span>
-        </div>
-        <div class="stat-row" style="border-color:rgba(124,92,252,0.2);border-bottom:none">
-          <span class="stat-label">Time investment</span>
-          <span class="stat-val" style="color:#34d399">&lt; 10 minutes</span>
-        </div>
+        <p style="margin:0 0 10px;font-size:11px;font-weight:700;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.08em;">What consistency looks like</p>
+        <table style="width:100%;border-collapse:collapse;">
+          ${statRow('12 posts/month', '<span style="font-family:monospace;">~7,800 local reach</span>', '#111827', false)}
+          ${statRow('Time investment', '<span style="color:#059669;">&#60; 10 minutes</span>', '#111827')}
+        </table>
       </div>
 
       <p>It's not too late. Month 2 starts now.</p>
-      <a href="${APP_URL}/wizard" class="btn">Create your first post today →</a>
-      <p style="font-size:12px;color:#555">Based on industry averages. Actual results vary.</p>
-    `);
+      <div class="btn-wrap"><a href="${APP_URL}/wizard" class="btn">Create your first post today →</a></div>
+      <p style="font-size:12px;color:#9CA3AF;text-align:center;">Based on industry averages. Actual results vary.</p>
+    `;
+
+    const html = emailWrapper(day30Body, '', day30Preheader);
 
     const text = posts > 0
       ? `Your first month with ItsPosting: ${posts} posts, ~${estReach.toLocaleString()} estimated local reach.\n\nView analytics: ${APP_URL}/analytics`

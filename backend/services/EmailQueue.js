@@ -294,7 +294,7 @@ class EmailQueue {
     await this.queue(customer.email, 'referral_rejected', {
       businessName: customer.business_name || customer.email,
       reasonBlock: reason
-        ? `<div class="box"><p style="margin:0;font-size:13px;color:#A0A0B0;">Reason provided:</p><p style="margin:8px 0 0;font-size:14px;color:#E2E2E8;">${reason}</p></div>`
+        ? `<div class="box"><p style="margin:0;font-size:13px;color:#6B7280;">Reason provided:</p><p style="margin:8px 0 0;font-size:14px;color:#374151;">${reason}</p></div>`
         : '',
       reasonText: reason ? `Reason: ${reason}` : '',
       billingUrl: `${APP_URL}/billing?tab=referral`,

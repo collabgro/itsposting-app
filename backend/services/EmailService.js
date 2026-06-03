@@ -1,26 +1,153 @@
 /**
  * EmailService — provider-agnostic transactional email service.
  *
- * Provider is auto-detected from available environment variables:
- *   - RESEND_API_KEY present       → uses Resend  (preferred)
- *   - SENDGRID_API_KEY present     → uses SendGrid
- *   - SMTP_HOST present            → uses SMTP / nodemailer
- *   - EMAIL_PROVIDER set explicitly → overrides auto-detect
- *   - None of the above            → LOG-ONLY mode (console output, no actual sending)
+ * Provider auto-detected from env:
+ *   RESEND_API_KEY → Resend (preferred)
+ *   SENDGRID_API_KEY → SendGrid
+ *   SMTP_HOST → SMTP / nodemailer
+ *   None → LOG-ONLY mode
  */
 
-// Auto-detect provider from available API keys so emails work without explicitly setting EMAIL_PROVIDER
 function resolveProvider() {
   if (process.env.EMAIL_PROVIDER) return process.env.EMAIL_PROVIDER;
-  if (process.env.RESEND_API_KEY)      return 'resend';
-  if (process.env.SENDGRID_API_KEY)    return 'sendgrid';
-  if (process.env.SMTP_HOST)           return 'smtp';
+  if (process.env.RESEND_API_KEY)   return 'resend';
+  if (process.env.SENDGRID_API_KEY) return 'sendgrid';
+  if (process.env.SMTP_HOST)        return 'smtp';
   return 'log';
 }
 
-const PROVIDER = resolveProvider();
+const PROVIDER   = resolveProvider();
 const FROM_NAME  = process.env.EMAIL_FROM_NAME    || 'ItsPosting';
 const FROM_EMAIL = process.env.EMAIL_FROM_ADDRESS || 'noreply@itsposting.com';
+const APP_URL    = process.env.FRONTEND_URL        || 'https://app.itsposting.com';
+
+// ─── Design helpers (evaluated at module load; {{vars}} interpolated at send time) ──
+
+/** Centered pill CTA button — table-based + inline styles (Outlook-safe) */
+function btn(url, label) {
+  return `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="margin:28px 0 8px;border-collapse:collapse;"><tr><td align="center"><a href="${url}" style="display:inline-block;padding:14px 32px;background:#7C5CFC;color:#ffffff;text-decoration:none;border-radius:100px;font-size:15px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.01em;">${label}</a></td></tr></table>`;
+}
+
+/** Ghost (outlined) secondary button */
+function btnGhost(url, label) {
+  return `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="margin:8px 0;border-collapse:collapse;"><tr><td align="center"><a href="${url}" style="display:inline-block;padding:11px 28px;background:transparent;color:#6B7280;text-decoration:none;border-radius:100px;border:1px solid #EDE9FE;font-size:13px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">${label}</a></td></tr></table>`;
+}
+
+/** Light data box with optional accent color */
+function box(content, { bg = '#F9F8FF', border = '#EDE9FE', radius = '10px', padding = '20px 22px' } = {}) {
+  return `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="margin:16px 0;border-collapse:collapse;"><tr><td style="background:${bg};border:1px solid ${border};border-radius:${radius};padding:${padding};">${content}</td></tr></table>`;
+}
+
+/** Two-column label/value row — stacks inside a box */
+function row(label, value, valueStyle = '', first = false) {
+  const t = first ? '' : 'border-top:1px solid #EDE9FE;';
+  const ff = `font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;`;
+  return `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="border-collapse:collapse;"><tr>
+    <td style="${ff}font-size:13px;color:#6B7280;padding:9px 0;${t}">${label}</td>
+    <td style="${ff}text-align:right;font-size:14px;font-weight:600;color:#111827;padding:9px 0;${t}${valueStyle}">${value}</td>
+  </tr></table>`;
+}
+
+/** Centered large number hero — for credits / balances */
+function bigNum(value, label, color = '#7C5CFC') {
+  return `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="margin:20px 0;border-collapse:collapse;"><tr><td align="center" style="background:#F9F8FF;border:1px solid #EDE9FE;border-radius:14px;padding:32px 24px;">
+    <span style="display:block;font-size:56px;font-weight:900;color:${color};font-family:'Courier New',Courier,monospace;line-height:1;letter-spacing:-0.02em;">${value}</span>
+    <span style="display:block;margin-top:10px;font-size:13px;color:#6B7280;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">${label}</span>
+  </td></tr></table>`;
+}
+
+/** Colored status badge pill */
+function badge(text, type = 'success') {
+  const C = { success:{bg:'#D1FAE5',fg:'#059669'}, warning:{bg:'#FEF3C7',fg:'#D97706'}, error:{bg:'#FEE2E2',fg:'#DC2626'}, info:{bg:'#EDE9FE',fg:'#7C5CFC'}, neutral:{bg:'#F3F4F6',fg:'#6B7280'} };
+  const c = C[type] || C.info;
+  return `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;margin-bottom:20px;"><tr><td style="background:${c.bg};border-radius:100px;padding:7px 18px;font-size:13px;font-weight:700;color:${c.fg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;white-space:nowrap;">${text}</td></tr></table>`;
+}
+
+/** Purple left-border callout for highlighted messages */
+function callout(content, borderColor = '#7C5CFC', bg = '#F9F8FF') {
+  return `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="margin:16px 0;border-collapse:collapse;"><tr><td style="border-left:4px solid ${borderColor};background:${bg};border-radius:0 8px 8px 0;padding:14px 18px;">${content}</td></tr></table>`;
+}
+
+/** Horizontal rule divider */
+function hr() {
+  return `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="margin:28px 0;border-collapse:collapse;"><tr><td style="height:1px;background:#EDE9FE;font-size:0;line-height:0;">&nbsp;</td></tr></table>`;
+}
+
+/** Side-by-side plan comparison (Current → New) */
+function planCompare(currentPlan, newPlan) {
+  const ff = `font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;`;
+  return `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="margin:20px 0;background:#F9F8FF;border-radius:10px;border:1px solid #EDE9FE;border-collapse:collapse;"><tr>
+    <td style="padding:22px 20px;text-align:center;width:42%;">
+      <span style="${ff}display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Current plan</span>
+      <span style="${ff}display:block;font-size:19px;font-weight:800;color:#111827;">${currentPlan}</span>
+    </td>
+    <td style="${ff}text-align:center;font-size:22px;color:#C4B5FD;width:16%;">&#8594;</td>
+    <td style="padding:22px 20px;text-align:center;border-left:1px solid #EDE9FE;width:42%;">
+      <span style="${ff}display:block;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">New plan</span>
+      <span style="${ff}display:block;font-size:19px;font-weight:800;color:#D97706;">${newPlan}</span>
+    </td>
+  </tr></table>`;
+}
+
+/** Paragraph shorthand (avoids repetition in templates) */
+function p(text, style = '') {
+  return `<p style="margin:0 0 16px;font-size:15px;line-height:1.75;color:#374151;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;${style}">${text}</p>`;
+}
+
+/** Muted small note */
+function note(text) {
+  return `<p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#6B7280;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">${text}</p>`;
+}
+
+/** Tiny caption — for legal-ish notes at bottom */
+function caption(text) {
+  return `<p style="margin:8px 0 0;font-size:12px;line-height:1.6;color:#9CA3AF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">${text}</p>`;
+}
+
+// ─── Deliverability helpers ───────────────────────────────────────────────────
+
+/**
+ * HMAC token for unsubscribe URLs — prevents enumeration attacks.
+ * Uses JWT_SECRET so the token is server-specific and rotates with the secret.
+ */
+function _unsubToken(email) {
+  const crypto = require('crypto');
+  const secret = process.env.JWT_SECRET || 'itsposting-unsub-fallback';
+  return crypto.createHmac('sha256', secret).update(email.toLowerCase().trim()).digest('hex').slice(0, 24);
+}
+
+/**
+ * Inbox preview text — shown after the subject line in Gmail/Apple Mail/Outlook.
+ * Keeps the content relevant so emails don't look like bulk mail in inbox lists.
+ * {{vars}} are interpolated at render time, same as subject/body.
+ */
+const PREHEADERS = {
+  login_otp:                   '{{code}} is your sign-in code — expires in 10 minutes.',
+  password_reset:              'Your password reset link is ready. Valid for 1 hour.',
+  password_reset_admin:        'An administrator just reset your ItsPosting account password.',
+  account_suspended:           'Your account has been temporarily paused — here\'s why.',
+  account_reactivated:         'Welcome back — your account is fully active again.',
+  credits_adjusted:            'Your credit balance has been updated to {{newBalance}} credits.',
+  payment_confirmed:           '{{planName}} is active. Your {{credits}} credits are loaded and ready.',
+  upgrade_applied:             'You\'re now on {{planName}} — {{credits}} credits per month from here.',
+  downgrade_scheduled:         'Plan change confirmed — switching to {{newPlanName}} on {{effectiveDate}}.',
+  downgrade_checkout:          'Your {{currentPlanName}} period ended — continue in one tap.',
+  credit_pack_purchased:       '+{{amount}} credits added. New balance: {{newBalance}} credits.',
+  subscription_cancelled:      'Confirmed — no further charges. Access continues until {{accessUntil}}.',
+  welcome:                     'You have {{credits}} free credits and a first post ready to create in 47 seconds.',
+  post_published:              'Your post is live on {{platform}} — track reach and engagement here.',
+  workspace_invite:            '{{inviterBusinessName}} wants you on their ItsPosting team.',
+  postcore_briefing:           'Your weekly PostCore briefing is ready — what\'s working this week.',
+  referral_released:           '+{{credits}} credits added — your referral upgraded to a paid plan.',
+  referral_rejected:           'About your recent referral reward — a note from our team.',
+  service_request_received:    'Our team has your request and will update you within 24 hours.',
+  service_request_admin_alert: '{{businessName}} submitted a {{requestLabel}} — review needed.',
+  service_request_resolved:    'Done — your {{requestLabel}} has been processed and is live.',
+  service_request_rejected:    'About your {{requestLabel}} — a note from our team.',
+  service_request_message:     'The ItsPosting team has a note for you about your account.',
+};
+
+// ─── EmailService class ───────────────────────────────────────────────────────
 
 class EmailService {
   constructor() {
@@ -28,87 +155,141 @@ class EmailService {
     console.log(`[EmailService] Initialised in ${PROVIDER === 'log' ? 'LOG-ONLY (no emails sent)' : PROVIDER} mode`);
   }
 
-  // ─── Public send method ───────────────────────────────────────────────────
-
   async send({ to, subject, html, text, fromName }) {
     if (!to || !subject) throw new Error('to and subject are required');
-
-    const payload = { from: `${fromName || FROM_NAME} <${FROM_EMAIL}>`, to, subject, html, text };
-
+    // List-Unsubscribe + List-Unsubscribe-Post headers are required by Gmail and Yahoo
+    // for all bulk senders (mandatory since Feb 2024). Including them on transactional
+    // emails too — it doesn't hurt and keeps SPF/DKIM reputation clean.
+    const unsubUrl = `${APP_URL}/api/email/unsubscribe?email=${encodeURIComponent(to)}&t=${_unsubToken(to)}`;
+    const headers = {
+      'List-Unsubscribe':      `<${unsubUrl}>, <mailto:${FROM_EMAIL}?subject=unsubscribe>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    };
+    const payload = { from: `${fromName || FROM_NAME} <${FROM_EMAIL}>`, to, subject, html, text, headers };
     switch (this.provider) {
-      case 'sendgrid':   return this._sendViaSendGrid(payload);
-      case 'resend':     return this._sendViaResend(payload);
-      case 'smtp':       return this._sendViaSmtp(payload);
-      default:           return this._logEmail(payload);
+      case 'sendgrid': return this._sendViaSendGrid(payload);
+      case 'resend':   return this._sendViaResend(payload);
+      case 'smtp':     return this._sendViaSmtp(payload);
+      default:         return this._logEmail(payload);
     }
   }
-
-  // ─── Template renderer ────────────────────────────────────────────────────
 
   renderTemplate(templateName, data = {}, { platformName } = {}) {
     const tpl = TEMPLATES[templateName];
     if (!tpl) throw new Error(`Unknown email template: ${templateName}`);
     const mergedData = { platformName: platformName || FROM_NAME, ...data };
+    const preheader  = PREHEADERS[templateName]
+      ? this._interpolate(PREHEADERS[templateName], mergedData)
+      : '';
     return {
       subject: this._interpolate(tpl.subject, mergedData),
-      html: this._wrapHtml(this._interpolate(tpl.html, mergedData), tpl.subject, platformName),
-      text: this._interpolate(tpl.text, mergedData),
+      html:    this._wrapHtml(this._interpolate(tpl.html, mergedData), tpl.subject, platformName, preheader),
+      text:    this._interpolate(tpl.text, mergedData),
     };
   }
 
   _interpolate(str, data) {
-    // Handle {{#if key}}...{{/if}} conditional blocks
-    str = str.replace(/\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, key, content) => {
-      return data[key] ? content : '';
-    });
-    // Handle {{key}} variable substitution
+    str = str.replace(/\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, key, content) => data[key] ? content : '');
     return str.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? '');
   }
 
-  _wrapHtml(body, title, platformName) {
-    const brand = platformName || FROM_NAME;
+  _wrapHtml(body, title, platformName, preheader = '') {
+    const brand   = platformName || FROM_NAME;
+    const logoUrl = `${APP_URL}/fav-icon.png`;
+    const year    = new Date().getFullYear();
+
+    // Preheader: hidden text shown as inbox preview after the subject line.
+    // The &zwnj; padding prevents the actual email body from bleeding into the preview.
+    const preheaderHtml = preheader ? `
+<!--[if !gte mso 9]><!--><div style="display:none;max-height:0;overflow:hidden;mso-hide:all;visibility:hidden;opacity:0;font-size:1px;color:#F5F3FF;line-height:1px;">${preheader}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div><!--<![endif]-->` : '';
+
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="format-detection" content="telephone=no,date=no,address=no,email=no" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <!--[if mso]>
+  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+  <![endif]-->
   <title>${title}</title>
   <style>
-    body { margin: 0; padding: 0; background: #0B0B0F; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #E2E2E8; }
-    .container { max-width: 560px; margin: 40px auto; background: #16161D; border: 1px solid #26262F; border-radius: 12px; overflow: hidden; }
-    .header { padding: 28px 32px; background: linear-gradient(135deg, #7C5CFC 0%, #5B3FF0 100%); }
-    .header h1 { margin: 0; font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
-    .header p { margin: 4px 0 0; font-size: 13px; color: rgba(255,255,255,0.7); }
-    .body { padding: 28px 32px; }
-    .body p { font-size: 14px; line-height: 1.7; color: #A0A0B0; margin: 0 0 16px; }
-    .body strong { color: #E2E2E8; }
-    .btn { display: inline-block; margin: 20px 0; padding: 12px 24px; background: #7C5CFC; color: #fff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600; }
-    .box { background: #0B0B0F; border: 1px solid #26262F; border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
-    .box code { font-family: monospace; color: #7C5CFC; font-size: 15px; word-break: break-all; }
-    .footer { padding: 20px 32px; border-top: 1px solid #26262F; font-size: 12px; color: #555; }
-    .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-    .tag-error { background: rgba(239,68,68,0.15); color: #EF4444; }
-    .tag-success { background: rgba(34,197,94,0.15); color: #22C55E; }
-    .tag-warning { background: rgba(234,179,8,0.15); color: #EAB308; }
+    body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+    table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+    img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none;}
+    :root{color-scheme:light;}
+    body{margin:0;padding:0;background:#F5F3FF;width:100% !important;min-width:100%;}
+    .tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+    .tag-error{background:#FEE2E2 !important;color:#DC2626 !important;}
+    .tag-success{background:#D1FAE5 !important;color:#059669 !important;}
+    .tag-warning{background:#FEF3C7 !important;color:#D97706 !important;}
+    @media screen and (max-width:600px){
+      .email-card{width:100% !important;max-width:100% !important;}
+      .email-body{padding:24px 20px !important;}
+      .email-footer{padding:18px 20px !important;}
+      .logo-cell{padding-bottom:12px !important;}
+    }
+    @media (prefers-color-scheme:dark){
+      body{background-color:#F5F3FF !important;}
+      .email-outer-bg{background-color:#F5F3FF !important;}
+      .email-card-white{background-color:#FFFFFF !important;}
+    }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>${brand}</h1>
-      <p>AI Social Media Automation</p>
-    </div>
-    <div class="body">${body}</div>
-    <div class="footer">
-      You received this email because of activity on your ${brand} account.<br />
-      &copy; ${new Date().getFullYear()} ${brand}. All rights reserved.
-    </div>
-  </div>
+<body style="margin:0;padding:0;background:#F5F3FF;width:100%;">
+${preheaderHtml}
+<!--[if mso | IE]><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F5F3FF;"><tr><td><![endif]-->
+<table role="presentation" class="email-outer-bg" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F5F3FF;width:100%;border-collapse:collapse;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+
+      <!-- Logo above card -->
+      <table role="presentation" class="email-card" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;border-collapse:collapse;">
+        <tr>
+          <td class="logo-cell" align="center" style="padding-bottom:18px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+              <tr>
+                <td style="vertical-align:middle;padding-right:10px;">
+                  <img src="${logoUrl}" alt="${brand}" width="36" height="36" style="display:block;width:36px;height:36px;border-radius:8px;" />
+                </td>
+                <td style="vertical-align:middle;">
+                  <span style="font-size:17px;font-weight:700;color:#111827;letter-spacing:-0.02em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">${brand}</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- White card -->
+      <table role="presentation" class="email-card email-card-white" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;background:#FFFFFF;border-radius:12px;border:1px solid #EDE9FE;border-collapse:collapse;">
+        <tr>
+          <td class="email-body" style="padding:36px 32px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.75;color:#374151;">
+            ${body}
+          </td>
+        </tr>
+        <tr>
+          <td class="email-footer" align="center" style="padding:20px 32px;background:#1E1B4B;border-radius:0 0 12px 12px;">
+            <p style="margin:0;font-size:12px;color:#A5B4FC;line-height:1.8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+              You received this email because of activity on your ${brand} account.<br />
+              <a href="${APP_URL}/settings" style="color:#C4B5FD;text-decoration:none;">Manage preferences</a>
+              &nbsp;&middot;&nbsp; &copy; ${year} ${brand}
+            </p>
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>
+<!--[if mso | IE]></td></tr></table><![endif]-->
 </body>
 </html>`;
   }
-
-  // ─── Provider implementations ─────────────────────────────────────────────
 
   _logEmail({ from, to, subject, html, text }) {
     console.log('\n┌──────────────────────────────────────────');
@@ -121,24 +302,22 @@ class EmailService {
     return { success: true, provider: 'log', messageId: `log_${Date.now()}` };
   }
 
-  async _sendViaSendGrid({ from, to, subject, html, text }) {
-    // npm install @sendgrid/mail  (add to package.json when activating)
+  async _sendViaSendGrid({ from, to, subject, html, text, headers }) {
     const sgMail = require('@sendgrid/mail');
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    const result = await sgMail.send({ from, to, subject, html, text });
+    const result = await sgMail.send({ from, to, subject, html, text, headers });
     return { success: true, provider: 'sendgrid', statusCode: result[0].statusCode };
   }
 
-  async _sendViaResend({ from, to, subject, html, text }) {
+  async _sendViaResend({ from, to, subject, html, text, headers }) {
     const { Resend } = require('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const { data, error } = await resend.emails.send({ from, to, subject, html, text });
+    const { data, error } = await resend.emails.send({ from, to, subject, html, text, headers });
     if (error) throw new Error(`Resend: ${error.message || JSON.stringify(error)}`);
     return { success: true, provider: 'resend', id: data?.id };
   }
 
-  async _sendViaSmtp({ from, to, subject, html, text }) {
-    // npm install nodemailer  (add to package.json when activating)
+  async _sendViaSmtp({ from, to, subject, html, text, headers }) {
     const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -146,508 +325,432 @@ class EmailService {
       secure: process.env.SMTP_SECURE === 'true',
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
     });
-    const result = await transporter.sendMail({ from, to, subject, html, text });
+    const result = await transporter.sendMail({ from, to, subject, html, text, headers });
     return { success: true, provider: 'smtp', messageId: result.messageId };
   }
 }
 
-// ─── Email Templates ──────────────────────────────────────────────────────────
+// ─── Templates — designed + written to be beautiful AND human ────────────────
 
 const TEMPLATES = {
-  account_suspended: {
-    subject: 'Your Its Posting account has been suspended',
-    html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Your Its Posting account has been <span class="tag tag-error">Suspended</span>.</p>
-      {{#if reason}}
-      <div class="box">
-        <p style="margin:0;font-size:13px;color:#A0A0B0;">Reason provided:</p>
-        <p style="margin:8px 0 0;font-size:14px;color:#E2E2E8;">{{reason}}</p>
-      </div>
-      {{/if}}
-      <p>If you believe this is a mistake or would like to appeal, please reply to this email or contact our support team.</p>
-    `,
-    text: `Hi {{businessName}},\n\nYour Its Posting account has been suspended.\n\nReason: {{reason}}\n\nIf you believe this is a mistake, please contact support.`,
-  },
 
-  account_reactivated: {
-    subject: 'Your Its Posting account has been reactivated',
-    html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Great news — your Its Posting account has been <span class="tag tag-success">Reactivated</span>.</p>
-      <p>You can now log back in and continue creating content for your business.</p>
-      <a href="{{loginUrl}}" class="btn">Log in to Its Posting</a>
-      <p>If you have any questions, don't hesitate to reach out to our support team.</p>
-    `,
-    text: `Hi {{businessName}},\n\nYour Its Posting account has been reactivated. You can now log in at: {{loginUrl}}\n\nWelcome back!`,
-  },
-
-  credits_adjusted: {
-    subject: 'Your Its Posting credit balance has been updated',
-    html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>An admin has adjusted your credit balance on Its Posting.</p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Adjustment</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:{{amountColor}};font-family:monospace;">{{amountLabel}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">New balance</td>
-            <td style="text-align:right;font-size:16px;font-weight:800;color:#E2E2E8;font-family:monospace;">{{newBalance}} credits</td>
-          </tr>
-          {{#if reason}}
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Note</td>
-            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{reason}}</td>
-          </tr>
-          {{/if}}
-        </table>
-      </div>
-      <p>Your credits can be used to generate AI content, images, and more on Its Posting.</p>
-    `,
-    text: `Hi {{businessName}},\n\nYour credit balance has been adjusted by {{amountLabel}}. New balance: {{newBalance}} credits.\n\nNote: {{reason}}`,
-  },
+  // ── Security ────────────────────────────────────────────────────────────────
 
   login_otp: {
-    subject: 'Your {{platformName}} sign-in code: {{code}}',
+    subject: 'Your sign-in code: {{code}}',
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Use the code below to complete your sign-in to {{platformName}}. It expires in <strong>10 minutes</strong>.</p>
-      <div style="text-align:center;margin:32px 0;">
-        <div style="display:inline-block;background:#1A1A2E;border:2px solid #2D2D4E;border-radius:16px;padding:24px 40px;">
-          <span style="font-size:44px;font-weight:900;letter-spacing:0.2em;color:#7C5CFC;font-family:monospace;">{{code}}</span>
-        </div>
-        <p style="margin:12px 0 0;font-size:12px;color:#666;">Expires in 10 minutes &middot; Do not share this code</p>
-      </div>
-      <p style="font-size:13px;color:#666;">If you didn't try to sign in, someone may have your password &mdash; <strong>change it immediately</strong>.</p>
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Here\'s your one-time sign-in code for <strong style="color:#111827;">{{platformName}}</strong>. Enter it now — it expires in 10 minutes.')}
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="margin:8px 0 24px;border-collapse:collapse;">
+        <tr><td align="center">
+          <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;">
+            <tr>
+              <td style="background:#F5F3FF;border:2px solid #7C5CFC;border-radius:16px;padding:28px 56px;text-align:center;">
+                <span style="display:block;font-size:54px;font-weight:900;color:#7C5CFC;font-family:'Courier New',Courier,monospace;letter-spacing:0.22em;line-height:1;">{{code}}</span>
+                <span style="display:block;margin-top:14px;font-size:12px;color:#9CA3AF;font-family:-apple-system,sans-serif;letter-spacing:0.02em;">Expires in 10 minutes &nbsp;&middot;&nbsp; Never share this</span>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+      </table>
+      ${callout(`<p style="margin:0;font-size:13px;color:#374151;line-height:1.6;font-family:-apple-system,sans-serif;">Didn't try to sign in? Someone may have your password. <strong style="color:#DC2626;">Change it immediately</strong> — don't wait.</p>`, '#DC2626', '#FFF5F5')}
     `,
-    text: `Your {{platformName}} sign-in code: {{code}}\nExpires in 10 minutes. Do not share this code.\nIf you didn't request this, change your password immediately.`,
+    text: `Your {{platformName}} sign-in code: {{code}}\n\nExpires in 10 minutes. Never share this code.\n\nIf you didn't request this, change your password immediately.`,
   },
 
   password_reset: {
-    subject: 'Reset your Its Posting password',
+    subject: 'Reset your ItsPosting password',
     html: `
-      <p>Hi there,</p>
-      <p>We received a request to reset your Its Posting password. Click the button below to choose a new one:</p>
-      <a href="{{resetUrl}}" class="btn">Reset my password</a>
-      <p style="font-size:13px;color:#666;">This link expires in <strong style="color:#E2E2E8;">1 hour</strong>. If you didn't request this, you can safely ignore this email — your password won't change.</p>
-      <div class="box">
-        <p style="margin:0;font-size:12px;color:#666;">If the button doesn't work, copy and paste this link:</p>
-        <code>{{resetUrl}}</code>
-      </div>
+      ${p('Hi there,')}
+      ${p('Someone (hopefully you) asked to reset your ItsPosting password. Click the button to pick a new one — this link is good for <strong style="color:#111827;">1 hour</strong>, then it expires for your security.')}
+      ${btn('{{resetUrl}}', 'Reset my password →')}
+      ${hr()}
+      ${note('Didn\'t ask for this? Just ignore it — your password is unchanged and your account is safe.')}
+      ${box(`<p style="margin:0 0 6px;font-size:12px;color:#9CA3AF;font-family:-apple-system,sans-serif;">Button not working? Copy and paste this link:</p>
+              <p style="margin:0;font-size:12px;color:#7C5CFC;font-family:'Courier New',Courier,monospace;word-break:break-all;">{{resetUrl}}</p>`)}
     `,
-    text: `Hi,\n\nReset your Its Posting password using this link (expires in 1 hour):\n{{resetUrl}}\n\nIf you didn't request this, ignore this email.`,
+    text: `Reset your ItsPosting password (expires in 1 hour):\n{{resetUrl}}\n\nDidn't ask for this? Ignore it — your password is unchanged.`,
   },
 
   password_reset_admin: {
-    subject: 'Your Its Posting password has been reset by an admin',
+    subject: 'Your ItsPosting password was just reset',
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>An administrator has reset your Its Posting account password.</p>
-      <p>If this was expected, you can log in with your new password. If you did <strong>not</strong> request this, please contact support immediately.</p>
-      <a href="{{loginUrl}}" class="btn">Log in to Its Posting</a>
+      ${badge('Password Reset by Administrator', 'warning')}
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('An administrator just reset your ItsPosting account password. Here\'s what to do next:')}
+      ${box(`<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="border-collapse:collapse;">
+        <tr><td style="padding:12px 0;border-bottom:1px solid #EDE9FE;font-size:14px;font-family:-apple-system,sans-serif;">
+          <strong style="color:#059669;">&#10003;&nbsp; If you expected this</strong>
+          <span style="display:block;color:#6B7280;font-size:13px;margin-top:4px;">All good — use the button below to log in with your new credentials.</span>
+        </td></tr>
+        <tr><td style="padding:12px 0;font-size:14px;font-family:-apple-system,sans-serif;">
+          <strong style="color:#DC2626;">&#10005;&nbsp; If you didn't expect this</strong>
+          <span style="display:block;color:#6B7280;font-size:13px;margin-top:4px;">Reply to this email right now and we'll investigate immediately.</span>
+        </td></tr>
+      </table>`)}
+      ${btn('{{loginUrl}}', 'Log in to ItsPosting →')}
     `,
-    text: `Hi {{businessName}},\n\nAn administrator has reset your Its Posting password. Log in at: {{loginUrl}}\n\nIf you did not request this, contact support.`,
+    text: `Hi {{businessName}},\n\nAn administrator reset your ItsPosting password.\n\nExpected this? Log in at: {{loginUrl}}\n\nDidn't expect this? Reply to this email immediately.`,
   },
+
+  // ── Account status ──────────────────────────────────────────────────────────
+
+  account_suspended: {
+    subject: 'Your ItsPosting account has been paused',
+    html: `
+      ${badge('Account Paused', 'error')}
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Your ItsPosting account has been temporarily paused. Content creation and posting are on hold until this is resolved.')}
+      {{#if reason}}
+      ${callout(`<p style="margin:0 0 5px;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.08em;font-family:-apple-system,sans-serif;">Reason</p>
+                 <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;font-family:-apple-system,sans-serif;">{{reason}}</p>`, '#DC2626', '#FFF5F5')}
+      {{/if}}
+      ${hr()}
+      ${p('Think this is a mistake? Reply to this email and we\'ll look into it today. We\'re real people and we respond fast.')}
+    `,
+    text: `Hi {{businessName}},\n\nYour ItsPosting account has been paused.\n\nReason: {{reason}}\n\nIf you believe this is a mistake, reply to this email.`,
+  },
+
+  account_reactivated: {
+    subject: "You're back — ItsPosting account reactivated",
+    html: `
+      ${badge('&#10003; Account Active', 'success')}
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Your ItsPosting account is back up and running. Everything is exactly as you left it — your posts, settings, and credits are all there.')}
+      ${btn('{{loginUrl}}', 'Log back in →')}
+      ${note('Questions about what happened? Just reply to this email — happy to walk you through it.')}
+    `,
+    text: `Hi {{businessName}},\n\nYour ItsPosting account has been reactivated. Everything is back to normal.\n\nLog in at: {{loginUrl}}\n\nWelcome back!`,
+  },
+
+  // ── Credits ─────────────────────────────────────────────────────────────────
+
+  credits_adjusted: {
+    subject: 'Your credit balance was updated — {{newBalance}} credits now',
+    html: `
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('A credit adjustment was just made to your ItsPosting account. Here\'s the breakdown:')}
+      ${bigNum('{{newBalance}}', 'credits — your new balance')}
+      ${box(`
+        ${row('Adjustment made', '<span style="font-family:\'Courier New\',monospace;font-weight:700;color:{{amountColor}};">{{amountLabel}}</span>', '', true)}
+        {{#if reason}}${row('Reason', '{{reason}}')}{{/if}}
+      `)}
+      ${caption('Each photo post costs 3 credits. Carousels are 5. Videos are 10. Make them count.')}
+    `,
+    text: `Hi {{businessName}},\n\nYour credit balance was adjusted by {{amountLabel}}. New balance: {{newBalance}} credits.\n\nReason: {{reason}}`,
+  },
+
+  // ── Billing ─────────────────────────────────────────────────────────────────
 
   payment_confirmed: {
-    subject: 'Payment confirmed — welcome to Its Posting {{planName}}',
+    subject: 'Payment confirmed — {{planName}} is live on your account',
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Your payment was successful! <span class="tag tag-success">{{planName}} Plan</span> is now active on your account.</p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Plan</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{planName}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Credits added</td>
-            <td style="text-align:right;font-size:16px;font-weight:800;color:#7C5CFC;font-family:monospace;">{{credits}} credits</td>
-          </tr>
-        </table>
-      </div>
-      <p>Log in now and let ItsPosting AI get to work for your business.</p>
-      <a href="{{loginUrl}}" class="btn">Log in to Its Posting</a>
-      <p style="font-size:13px;color:#666;">Questions? Just reply to this email — we're here to help.</p>
+      ${badge('&#10003; Payment Successful', 'success')}
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('It\'s official. <strong style="color:#7C5CFC;">{{planName}}</strong> is active and your credits are loaded. Time to put them to work.')}
+      ${box(`
+        ${row('Plan', '<strong style="color:#111827;">{{planName}}</strong>', '', true)}
+        ${row('Credits added', '<span style="font-size:16px;font-weight:800;color:#7C5CFC;font-family:\'Courier New\',monospace;">{{credits}} credits</span>')}
+        ${row('Status', '<span style="background:#D1FAE5;border-radius:100px;padding:3px 12px;font-size:12px;font-weight:700;color:#059669;">Active</span>')}
+      `)}
+      ${btn('{{loginUrl}}', 'Start creating →')}
+      ${caption('Questions? Reply to this email — we\'re real people and we respond same day.')}
     `,
-    text: `Hi {{businessName}},\n\nPayment confirmed! Your {{planName}} plan is now active with {{credits}} credits.\n\nLog in at: {{loginUrl}}\n\nQuestions? Reply to this email.`,
+    text: `Hi {{businessName}},\n\nPayment confirmed! Your {{planName}} plan is active with {{credits}} credits.\n\nLog in at: {{loginUrl}}\n\nQuestions? Reply to this email.`,
   },
 
-  welcome: {
-    subject: 'Welcome to Its Posting — your AI social media assistant',
+  upgrade_applied: {
+    subject: "Upgraded to {{planName}} — your extra credits are already in",
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Welcome to Its Posting! Your account is ready and you have <strong style="color:#7C5CFC;">{{credits}} free credits</strong> to get started.</p>
-      <p>Here's what you can do with Its Posting:</p>
-      <ul style="color:#A0A0B0;font-size:14px;line-height:1.8;padding-left:20px;">
-        <li>Generate AI-written captions for Facebook, Instagram, and Google Business</li>
-        <li>Create stunning AI images for your posts</li>
-        <li>Build carousel posts automatically</li>
-        <li>Schedule posts to publish at the perfect time</li>
-      </ul>
-      <a href="{{loginUrl}}" class="btn">Start creating content</a>
+      ${badge('&#8593; Plan Upgraded', 'info')}
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Your account is now on <strong style="color:#7C5CFC;">{{planName}}</strong>. We\'ve already added prorated credits for your remaining billing cycle — no waiting, no proration headache.')}
+      ${box(`
+        ${row('New plan', '<strong style="color:#111827;">{{planName}}</strong>', '', true)}
+        ${row('Monthly credits', '<span style="font-size:16px;font-weight:800;color:#7C5CFC;font-family:\'Courier New\',monospace;">{{credits}}/mo</span>')}
+        {{#if creditsDelta}}${row('Added right now', '<span style="font-weight:700;color:#059669;font-family:\'Courier New\',monospace;">+{{creditsDelta}} credits</span>')}{{/if}}
+        ${row('Billing', '{{cycle}}')}
+      `)}
+      ${btn('{{loginUrl}}', 'Go create something →')}
+      ${caption('Questions? Reply to this email — we respond same day.')}
     `,
-    text: `Hi {{businessName}},\n\nWelcome to Its Posting! You have {{credits}} free credits to get started.\n\nLog in at: {{loginUrl}}`,
+    text: `Hi {{businessName}},\n\nUpgraded to {{planName}}!\n\nMonthly credits: {{credits}}/mo\nCredits added instantly: +{{creditsDelta}}\nBilling: {{cycle}}\n\nLog in: {{loginUrl}}`,
+  },
+
+  downgrade_scheduled: {
+    subject: 'Noted — switching to {{newPlanName}} on {{effectiveDate}}',
+    html: `
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Your plan change is locked in. Here\'s exactly what happens:')}
+      ${planCompare('{{currentPlanName}}', '{{newPlanName}}')}
+      ${box(`
+        ${row('Switches on', '<strong style="color:#111827;">{{effectiveDate}}</strong>', '', true)}
+        ${row('New monthly credits', '{{newPlanCredits}} credits/mo')}
+        ${row('Until then', '<span style="color:#059669;font-weight:600;">Full access — keep posting</span>')}
+      `)}
+      ${p('Keep using everything you have today. Nothing changes until <strong style="color:#111827;">{{effectiveDate}}</strong>, and your next charge will automatically be at the new lower price.')}
+      ${callout(`<p style="margin:0;font-size:13px;color:#374151;line-height:1.6;font-family:-apple-system,sans-serif;">Changed your mind? Go to billing settings and click <strong style="color:#111827;">"Keep current plan"</strong> before {{effectiveDate}} — no penalty, no friction.</p>`)}
+      ${btnGhost('{{billingUrl}}', 'View billing settings')}
+    `,
+    text: `Hi {{businessName}},\n\nSwitching from {{currentPlanName}} to {{newPlanName}} on {{effectiveDate}}.\n\nYou have full access until then. Changed your mind? Visit: {{billingUrl}}`,
+  },
+
+  downgrade_checkout: {
+    subject: "Your {{currentPlanName}} period ended — pick up where you left off",
+    html: `
+      ${badge('Billing period ended', 'neutral')}
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Your <strong style="color:#111827;">{{currentPlanName}}</strong> billing period just ended. Your <strong style="color:#7C5CFC;">{{newPlanName}}</strong> subscription is ready and waiting — subscribe in under 30 seconds and your credits load instantly.')}
+      ${box(`
+        ${row('Plan', '<span style="color:#7C5CFC;font-weight:700;">{{newPlanName}}</span>', '', true)}
+        ${row('Monthly credits', '{{newPlanCredits}} credits/mo')}
+        ${row('Billing', '{{cycle}}')}
+      `)}
+      ${btn('{{checkoutUrl}}', 'Continue with {{newPlanName}} →')}
+      ${caption('This link is personalised for your account. Have a question? Just reply to this email.')}
+    `,
+    text: `Hi {{businessName}},\n\nYour {{currentPlanName}} period ended. Continue with {{newPlanName}} ({{newPlanCredits}} credits/mo):\n\n{{checkoutUrl}}`,
+  },
+
+  credit_pack_purchased: {
+    subject: '+{{amount}} credits just landed in your ItsPosting account',
+    html: `
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Purchase confirmed. Your credits are in and ready to use right now — no delays.')}
+      ${bigNum('+{{amount}}', 'credits added to your account', '#059669')}
+      ${box(`${row('New balance', '<span style="font-size:17px;font-weight:800;color:#7C5CFC;font-family:\'Courier New\',monospace;">{{newBalance}} credits</span>', '', true)}`)}
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="margin:16px 0 20px;border-collapse:collapse;">
+        <tr><td style="padding:7px 0;border-bottom:1px solid #EDE9FE;font-size:14px;color:#374151;font-family:-apple-system,sans-serif;"><span style="color:#7C5CFC;font-weight:700;margin-right:8px;">&#8594;</span> Photo post &nbsp;&mdash;&nbsp; 3 credits</td></tr>
+        <tr><td style="padding:7px 0;border-bottom:1px solid #EDE9FE;font-size:14px;color:#374151;font-family:-apple-system,sans-serif;"><span style="color:#7C5CFC;font-weight:700;margin-right:8px;">&#8594;</span> Carousel &nbsp;&mdash;&nbsp; 5 credits</td></tr>
+        <tr><td style="padding:7px 0;font-size:14px;color:#374151;font-family:-apple-system,sans-serif;"><span style="color:#7C5CFC;font-weight:700;margin-right:8px;">&#8594;</span> Video &nbsp;&mdash;&nbsp; 10 credits</td></tr>
+      </table>
+      ${btn('{{loginUrl}}', 'Start creating →')}
+      ${caption('Purchase question? Reply to this email and we\'ll sort it out.')}
+    `,
+    text: `Hi {{businessName}},\n\n+{{amount}} credits added. New balance: {{newBalance}} credits.\n\nStart creating: {{loginUrl}}`,
+  },
+
+  subscription_cancelled: {
+    subject: 'Subscription cancelled — no further charges from ItsPosting',
+    html: `
+      ${badge('Cancellation Confirmed', 'warning')}
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Your <strong style="color:#111827;">{{planName}}</strong> subscription has been cancelled. No hard feelings — here\'s what you still have:')}
+      ${box(`
+        ${row('Full access until', '<strong style="color:#D97706;">{{accessUntil}}</strong>', '', true)}
+        ${row('Further charges', '<span style="color:#059669;font-weight:700;">None</span>')}
+        ${row('Your content & history', '<span style="color:#059669;font-weight:700;">Always kept — forever</span>')}
+      `)}
+      ${p('Keep posting and using everything until <strong style="color:#111827;">{{accessUntil}}</strong>. After that, your account moves to the free tier — but your posts and data are always there.')}
+      ${callout(`<p style="margin:0;font-size:13px;color:#374151;line-height:1.6;font-family:-apple-system,sans-serif;">We\'d love to have you back whenever the time is right. One click in billing settings is all it takes — your history is always waiting.</p>`)}
+      ${btnGhost('{{billingUrl}}', 'View billing settings')}
+    `,
+    text: `Hi {{businessName}},\n\nSubscription cancelled — no further charges. Full access until: {{accessUntil}}\n\nYour content is always kept. Come back any time: {{billingUrl}}`,
+  },
+
+  // ── Onboarding / Engagement ─────────────────────────────────────────────────
+
+  welcome: {
+    subject: 'Welcome to ItsPosting, {{businessName}} — your first post is one tap away',
+    html: `
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      <p style="margin:0 0 24px;font-size:22px;font-weight:800;color:#111827;line-height:1.3;letter-spacing:-0.02em;font-family:-apple-system,sans-serif;">ItsPosting knows your business.<br />Your first post is one tap away.</p>
+      ${bigNum('{{credits}}', 'free credits — no card required')}
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="margin:20px 0;border-collapse:collapse;">
+        <tr><td style="padding:8px 0;border-bottom:1px solid #EDE9FE;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="border-collapse:collapse;"><tr>
+            <td style="width:28px;vertical-align:top;padding-top:2px;"><span style="font-size:14px;color:#059669;font-weight:700;">&#10003;</span></td>
+            <td style="font-size:14px;color:#374151;font-family:-apple-system,sans-serif;line-height:1.6;">Captions written for your industry — Facebook, Instagram, Google Business</td>
+          </tr></table>
+        </td></tr>
+        <tr><td style="padding:8px 0;border-bottom:1px solid #EDE9FE;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="border-collapse:collapse;"><tr>
+            <td style="width:28px;vertical-align:top;padding-top:2px;"><span style="font-size:14px;color:#059669;font-weight:700;">&#10003;</span></td>
+            <td style="font-size:14px;color:#374151;font-family:-apple-system,sans-serif;line-height:1.6;">AI images that look like they came from your job site</td>
+          </tr></table>
+        </td></tr>
+        <tr><td style="padding:8px 0;border-bottom:1px solid #EDE9FE;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="border-collapse:collapse;"><tr>
+            <td style="width:28px;vertical-align:top;padding-top:2px;"><span style="font-size:14px;color:#059669;font-weight:700;">&#10003;</span></td>
+            <td style="font-size:14px;color:#374151;font-family:-apple-system,sans-serif;line-height:1.6;">Photo posts, carousels, and video — all in one tap</td>
+          </tr></table>
+        </td></tr>
+        <tr><td style="padding:8px 0;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="border-collapse:collapse;"><tr>
+            <td style="width:28px;vertical-align:top;padding-top:2px;"><span style="font-size:14px;color:#059669;font-weight:700;">&#10003;</span></td>
+            <td style="font-size:14px;color:#374151;font-family:-apple-system,sans-serif;line-height:1.6;">Schedule everything — or post instantly — your call</td>
+          </tr></table>
+        </td></tr>
+      </table>
+      ${btn('{{loginUrl}}', 'Create my first post →')}
+      ${caption('Average time from sign-in to first post: 47 seconds. We timed it.')}
+    `,
+    text: `Hi {{businessName}},\n\nWelcome to ItsPosting! You have {{credits}} free credits. Average time from sign-in to first post: 47 seconds.\n\nLog in at: {{loginUrl}}`,
   },
 
   post_published: {
-    subject: 'Your post went live on {{platform}}',
+    subject: "Your post is live on {{platform}}",
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Your post was successfully published to <strong style="color:#22C55E;">{{platform}}</strong>. <span class="tag tag-success">Live</span></p>
-      <p>ItsPosting AI will track its performance over the next 24–48 hours and surface insights in your analytics dashboard.</p>
-      <a href="{{analyticsUrl}}" class="btn">View Analytics</a>
+      ${badge('&#10003; Published', 'success')}
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('It\'s out there. Your post is live on <strong style="color:#111827;">{{platform}}</strong> and reaching your local audience right now.')}
+      ${callout(`<p style="margin:0;font-size:13px;color:#374151;line-height:1.6;font-family:-apple-system,sans-serif;"><strong style="color:#111827;">Quick tip:</strong> Reply to any comments in the first hour — it tells the algorithm this post deserves more reach. Local businesses that do this see 2–3× more impressions.</p>`)}
+      ${btn('{{analyticsUrl}}', 'View performance →')}
+      ${caption('ItsPosting AI tracks engagement over the next 24–48 hours and surfaces insights in your dashboard.')}
     `,
-    text: `Hi {{businessName}},\n\nYour post is now live on {{platform}}.\n\nView analytics at: {{analyticsUrl}}`,
+    text: `Hi {{businessName}},\n\nYour post is live on {{platform}}. View analytics at: {{analyticsUrl}}\n\nTip: Reply to comments in the first hour for more reach.`,
   },
 
   workspace_invite: {
-    subject: "You've been invited to join {{inviterBusinessName}} on {{platformName}}",
+    subject: "{{inviterBusinessName}} invited you to join their ItsPosting team",
     html: `
-      <p>Hi there,</p>
-      <p><strong>{{inviterBusinessName}}</strong> has invited you to join their team on {{platformName}} as a <strong style="color:#7C5CFC;">{{roleLabel}}</strong>.</p>
-      <p>Click the button below to accept the invitation and set up your account. It takes less than a minute.</p>
-      <a href="{{acceptUrl}}" class="btn">Accept invitation →</a>
-      <p style="font-size:13px;color:#666;">This invitation expires in <strong style="color:#E2E2E8;">7 days</strong>. If you already have a {{platformName}} account, just log in on the next page — you'll be linked automatically.</p>
-      <div class="box">
-        <p style="margin:0;font-size:12px;color:#666;">If the button doesn't work, copy and paste this link:</p>
-        <code>{{acceptUrl}}</code>
-      </div>
-      <p style="font-size:12px;color:#555;">If you weren't expecting this invitation, you can safely ignore this email.</p>
+      ${p('Hi there,')}
+      ${box(`<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="border-collapse:collapse;"><tr>
+        <td style="padding:4px 0;font-size:15px;color:#374151;font-family:-apple-system,sans-serif;">
+          <strong style="color:#111827;">{{inviterBusinessName}}</strong> has invited you to join their team on <strong style="color:#111827;">{{platformName}}</strong> as a
+        </td>
+      </tr><tr>
+        <td style="padding:8px 0 4px;">
+          <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;"><tr><td style="background:#EDE9FE;border-radius:100px;padding:6px 18px;font-size:14px;font-weight:700;color:#7C5CFC;font-family:-apple-system,sans-serif;">{{roleLabel}}</td></tr></table>
+        </td>
+      </tr></table>`, { bg:'#F9F8FF', border:'#EDE9FE', padding:'20px 22px' })}
+      ${p('Click the button below to accept the invitation and set up your account. It takes less than a minute.')}
+      ${btn('{{acceptUrl}}', 'Accept invitation →')}
+      ${note('This invitation expires in <strong style="color:#111827;">7 days</strong>. If you already have a {{platformName}} account, just log in on the next page — you\'ll be linked automatically.')}
+      ${box(`<p style="margin:0 0 6px;font-size:12px;color:#9CA3AF;font-family:-apple-system,sans-serif;">If the button doesn't work, copy and paste this link:</p>
+              <p style="margin:0;font-size:12px;color:#7C5CFC;font-family:'Courier New',Courier,monospace;word-break:break-all;">{{acceptUrl}}</p>`)}
+      ${caption('If you weren\'t expecting this invitation, you can safely ignore this email.')}
     `,
-    text: `{{inviterBusinessName}} has invited you to join their team on {{platformName}} as a {{roleLabel}}.\n\nAccept the invitation here (expires in 7 days):\n{{acceptUrl}}\n\nIf you already have an account, just log in on the next page.\n\nIf you weren't expecting this, you can ignore this email.`,
+    text: `{{inviterBusinessName}} has invited you to join their team on {{platformName}} as {{roleLabel}}.\n\nAccept here (expires in 7 days):\n{{acceptUrl}}\n\nIf you weren't expecting this, ignore this email.`,
   },
 
+  // ── PostCore ────────────────────────────────────────────────────────────────
+
   postcore_briefing: {
-    subject: 'Your weekly ItsPosting AI briefing',
+    subject: 'Your weekly briefing from PostCore',
     html: `
-      <p style="font-size:16px;font-weight:600;color:#E2E2E8;">{{greeting}}</p>
-      <p>{{weekSummary}}</p>
-      <div class="box">
-        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.05em;">What's Working</p>
-        <p style="margin:0;font-size:14px;color:#E2E2E8;">{{whatWorking}}</p>
-      </div>
-      <div class="box">
-        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#EAB308;text-transform:uppercase;letter-spacing:0.05em;">This Week's Opportunity</p>
-        <p style="margin:0;font-size:14px;color:#E2E2E8;">{{opportunity}}</p>
-      </div>
-      <p style="font-size:13px;color:#666;font-style:italic;">{{closingNote}}</p>
-      <a href="{{dashboardUrl}}" class="btn">Open Dashboard</a>
+      <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.1em;font-family:-apple-system,sans-serif;">PostCore &middot; Weekly Briefing</p>
+      <p style="margin:0 0 20px;font-size:22px;font-weight:800;color:#111827;line-height:1.3;letter-spacing:-0.02em;font-family:-apple-system,sans-serif;">{{greeting}}</p>
+      ${p('{{weekSummary}}')}
+      ${hr()}
+      ${callout(`<p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.08em;font-family:-apple-system,sans-serif;">What's Working</p>
+                 <p style="margin:0;font-size:14px;color:#374151;line-height:1.7;font-family:-apple-system,sans-serif;">{{whatWorking}}</p>`)}
+      ${callout(`<p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#D97706;text-transform:uppercase;letter-spacing:0.08em;font-family:-apple-system,sans-serif;">This Week's Opportunity</p>
+                 <p style="margin:0;font-size:14px;color:#374151;line-height:1.7;font-family:-apple-system,sans-serif;">{{opportunity}}</p>`, '#D97706', '#FFFBEB')}
+      ${hr()}
+      ${note('<em>{{closingNote}}</em>')}
+      ${btn('{{dashboardUrl}}', 'Open dashboard →')}
     `,
     text: `{{greeting}}\n\n{{weekSummary}}\n\nWhat's Working:\n{{whatWorking}}\n\nThis Week's Opportunity:\n{{opportunity}}\n\n{{closingNote}}\n\nDashboard: {{dashboardUrl}}`,
   },
 
+  // ── Referrals ───────────────────────────────────────────────────────────────
+
   referral_released: {
-    subject: 'You earned {{credits}} credits — your referral just upgraded!',
+    subject: '+{{credits}} credits earned — your referral just upgraded',
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Great news! Someone you referred to Its Posting just upgraded to a paid plan. <span class="tag tag-success">+{{credits}} credits added</span></p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Credits earned</td>
-            <td style="text-align:right;font-size:16px;font-weight:800;color:#22C55E;font-family:monospace;">+{{credits}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">New balance</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;font-family:monospace;">{{newBalance}} credits</td>
-          </tr>
-        </table>
-      </div>
-      <p>Keep sharing your referral link — there's no limit to how many businesses you can refer.</p>
-      <a href="{{referralUrl}}" class="btn">View referral stats →</a>
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Nice work. Someone you referred just upgraded to a paid plan, and your reward has been added to your account automatically.')}
+      ${bigNum('+{{credits}}', 'credits earned — just for referring a friend', '#059669')}
+      ${box(`${row('New credit balance', '<span style="font-size:16px;font-weight:800;color:#7C5CFC;font-family:\'Courier New\',monospace;">{{newBalance}} credits</span>', '', true)}`)}
+      ${p('There\'s no cap on how many businesses you can refer. Every paid upgrade earns you more credits — share your link and keep going.')}
+      ${btn('{{referralUrl}}', 'View referral stats →')}
     `,
-    text: `Hi {{businessName}},\n\nYou earned {{credits}} credits! Someone you referred just upgraded to a paid plan.\n\nNew balance: {{newBalance}} credits.\n\nView your referral stats: {{referralUrl}}`,
+    text: `Hi {{businessName}},\n\nNice work! You earned +{{credits}} credits. New balance: {{newBalance}} credits.\n\nView referral stats: {{referralUrl}}`,
   },
 
   referral_rejected: {
-    subject: 'A referral reward has been reviewed',
+    subject: 'About your referral reward',
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>A referral credit award associated with your account has been reviewed by our team and was not approved.</p>
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('We reviewed a referral credit award on your account. After looking into it, we were unable to approve it this time.')}
       {{reasonBlock}}
-      <p>If you believe this was a mistake, please reply to this email or contact our support team and we'll look into it right away.</p>
-      <a href="{{billingUrl}}" class="btn">View referral stats</a>
+      ${hr()}
+      ${p('Think we got it wrong? Reply to this email with any context you have and we\'ll look again — we genuinely want to get this right.')}
+      ${btnGhost('{{billingUrl}}', 'View referral stats')}
     `,
-    text: `Hi {{businessName}},\n\nA referral credit award on your account was reviewed and not approved.\n\n{{reasonText}}\n\nIf you believe this is a mistake, please contact support.`,
+    text: `Hi {{businessName}},\n\nA referral credit award was reviewed and not approved.\n\n{{reasonText}}\n\nThink we got it wrong? Reply to this email.`,
   },
 
+  // ── Service requests ────────────────────────────────────────────────────────
+
   service_request_received: {
-    subject: 'We received your request — {{requestLabel}}',
+    subject: "Got it — we're on your {{requestLabel}} request",
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>We received your request and our team will review it shortly.</p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Request type</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{requestLabel}}</td>
-          </tr>
-          {{#if requestDetail}}
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Details</td>
-            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{requestDetail}}</td>
-          </tr>
-          {{/if}}
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Estimated response</td>
-            <td style="text-align:right;font-size:13px;font-weight:600;color:#22C55E;">Within 24 hours</td>
-          </tr>
-        </table>
-      </div>
-      <p>You don't need to do anything else. We'll email you once your request has been processed.</p>
-      <a href="{{billingUrl}}" class="btn">View billing</a>
+      ${badge('&#10003; Request Received', 'info')}
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('We\'ve got your request and our team is already on it. Here\'s what we have on file:')}
+      ${box(`
+        ${row('Request', '<strong style="color:#111827;">{{requestLabel}}</strong>', '', true)}
+        {{#if requestDetail}}${row('Details', '{{requestDetail}}')}{{/if}}
+        ${row('You\'ll hear from us', '<span style="color:#059669;font-weight:600;">Within 24 hours</span>')}
+      `)}
+      ${note('Nothing else needed from you. We\'ll email as soon as it\'s processed.')}
     `,
-    text: `Hi {{businessName}},\n\nWe received your {{requestLabel}} request. Our team will process it within 24 hours.\n\nDetails: {{requestDetail}}\n\nWe'll email you once it's done.`,
+    text: `Hi {{businessName}},\n\nGot it. We're on your {{requestLabel}} request and will respond within 24 hours.\n\nDetails: {{requestDetail}}`,
   },
 
   service_request_admin_alert: {
-    subject: '[ItsPosting] New service request — {{requestLabel}} from {{businessName}}',
+    subject: 'New service request — {{requestLabel}} from {{businessName}}',
     html: `
-      <p>A new service request has been submitted and requires your review.</p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Customer</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{businessName}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Email</td>
-            <td style="text-align:right;font-size:13px;color:#7C5CFC;">{{customerEmail}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Request type</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{requestLabel}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Details</td>
-            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{requestDetail}}</td>
-          </tr>
-        </table>
-      </div>
+      ${badge('New Request Requires Review', 'warning')}
+      ${box(`
+        ${row('Customer', '<strong style="color:#111827;">{{businessName}}</strong>', '', true)}
+        ${row('Email', '<span style="color:#7C5CFC;">{{customerEmail}}</span>')}
+        ${row('Request type', '<strong style="color:#111827;">{{requestLabel}}</strong>')}
+        ${row('Details', '{{requestDetail}}')}
+      `)}
       {{#if customerMessage}}
-      <div class="box">
-        <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.05em;">Customer note</p>
-        <p style="margin:0;font-size:13px;color:#E2E2E8;">{{customerMessage}}</p>
-      </div>
+      ${callout(`<p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#7C5CFC;text-transform:uppercase;letter-spacing:0.06em;font-family:-apple-system,sans-serif;">Customer note</p>
+                 <p style="margin:0;font-size:13px;color:#374151;font-family:-apple-system,sans-serif;">{{customerMessage}}</p>`)}
       {{/if}}
-      <a href="{{adminUrl}}" class="btn">Review in admin panel →</a>
+      ${btn('{{adminUrl}}', 'Review in admin panel →')}
     `,
     text: `New service request:\n\nCustomer: {{businessName}} ({{customerEmail}})\nType: {{requestLabel}}\nDetails: {{requestDetail}}\nNote: {{customerMessage}}\n\nReview: {{adminUrl}}`,
   },
 
   service_request_resolved: {
-    subject: 'Your request has been processed — {{requestLabel}}',
+    subject: "Done — your {{requestLabel}} request has been processed",
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Your request has been <span class="tag tag-success">Processed</span> by our team.</p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Request type</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{requestLabel}}</td>
-          </tr>
-          {{#if adminNotes}}
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Message from team</td>
-            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{adminNotes}}</td>
-          </tr>
-          {{/if}}
-        </table>
-      </div>
-      <p>Log in to see the changes applied to your account.</p>
-      <a href="{{billingUrl}}" class="btn">View account</a>
+      ${badge('&#10003; Done', 'success')}
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Your request has been processed and the changes are live on your account.')}
+      ${box(`
+        ${row('Request', '<strong style="color:#111827;">{{requestLabel}}</strong>', '', true)}
+        {{#if adminNotes}}${row('From our team', '{{adminNotes}}')}{{/if}}
+      `)}
+      ${btn('{{billingUrl}}', 'Check your account →')}
     `,
-    text: `Hi {{businessName}},\n\nYour {{requestLabel}} request has been processed.\n\n{{adminNotes}}\n\nLog in to see the changes: {{billingUrl}}`,
+    text: `Hi {{businessName}},\n\nDone — your {{requestLabel}} request has been processed.\n\n{{adminNotes}}\n\nCheck your account: {{billingUrl}}`,
   },
 
   service_request_rejected: {
-    subject: 'Update on your request — {{requestLabel}}',
+    subject: "About your {{requestLabel}} request",
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>We reviewed your request and were unable to process it at this time.</p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Request type</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{requestLabel}}</td>
-          </tr>
-          {{#if adminNotes}}
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:4px 0;">Reason</td>
-            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{adminNotes}}</td>
-          </tr>
-          {{/if}}
-        </table>
-      </div>
-      <p>If you have any questions or would like to try again, please reply to this email and our team will be happy to help.</p>
-      <a href="{{billingUrl}}" class="btn">Contact support</a>
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('We looked at your request carefully and weren\'t able to process it this time.')}
+      ${box(`
+        ${row('Request', '<strong style="color:#111827;">{{requestLabel}}</strong>', '', true)}
+        {{#if adminNotes}}${row('Reason', '{{adminNotes}}')}{{/if}}
+      `)}
+      ${p('Questions? Just reply to this email — we\'re humans who read every message and we\'re happy to talk it through.')}
+      ${btnGhost('{{billingUrl}}', 'Contact support')}
     `,
-    text: `Hi {{businessName}},\n\nYour {{requestLabel}} request could not be processed at this time.\n\nReason: {{adminNotes}}\n\nReply to this email if you have questions.`,
+    text: `Hi {{businessName}},\n\nWe couldn't process your {{requestLabel}} request.\n\nReason: {{adminNotes}}\n\nQuestions? Reply to this email.`,
   },
 
   service_request_message: {
-    subject: 'Message from the ItsPosting team',
+    subject: 'A note from the ItsPosting team',
     html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>You have a message from our team regarding your account:</p>
-      <div class="box">
-        <p style="margin:0;font-size:14px;color:#E2E2E8;line-height:1.7;">{{message}}</p>
-      </div>
-      <p>Reply to this email if you'd like to respond.</p>
-      <a href="{{billingUrl}}" class="btn">View your account</a>
+      ${p('Hi <strong style="color:#111827;">{{businessName}}</strong>,')}
+      ${p('Our team wanted to reach out about your account:')}
+      ${callout(`<p style="margin:0;font-size:15px;color:#374151;line-height:1.75;font-family:-apple-system,sans-serif;">{{message}}</p>`)}
+      ${note('Reply directly to this email and it goes straight to us — we respond the same day.')}
+      ${btnGhost('{{billingUrl}}', 'View your account')}
     `,
-    text: `Hi {{businessName}},\n\nMessage from the ItsPosting team:\n\n{{message}}\n\nReply to this email to respond.`,
+    text: `Hi {{businessName}},\n\nA note from the ItsPosting team:\n\n{{message}}\n\nReply to this email to respond.`,
   },
 
-  upgrade_applied: {
-    subject: "You're now on the {{planName}} plan — {{credits}} credits ready",
-    html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Your plan has been upgraded instantly. <span class="tag tag-success">{{planName}} Plan — Active</span></p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">New plan</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{planName}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Monthly credits</td>
-            <td style="text-align:right;font-size:16px;font-weight:800;color:#7C5CFC;font-family:monospace;">{{credits}} credits/mo</td>
-          </tr>
-          {{#if creditsDelta}}
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Credits added now</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#22C55E;font-family:monospace;">+{{creditsDelta}} credits</td>
-          </tr>
-          {{/if}}
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Billing cycle</td>
-            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{cycle}}</td>
-          </tr>
-        </table>
-      </div>
-      <p>The extra credits for upgrading mid-cycle have already been added to your balance — no waiting, no proration hassle.</p>
-      <a href="{{loginUrl}}" class="btn">Start creating content →</a>
-      <p style="font-size:12px;color:#555;">Questions? Just reply to this email — we reply fast.</p>
-    `,
-    text: `Hi {{businessName}},\n\nYou've been upgraded to the {{planName}} plan.\n\nMonthly credits: {{credits}}/mo\nCredits added now: +{{creditsDelta}}\nBilling: {{cycle}}\n\nLog in: {{loginUrl}}`,
-  },
-
-  downgrade_scheduled: {
-    subject: 'Plan switch confirmed — switching to {{newPlanName}} on {{effectiveDate}}',
-    html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Your plan switch is confirmed. Here's exactly what will happen:</p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Current plan</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{currentPlanName}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Switching to</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#EAB308;">{{newPlanName}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Switch date</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{effectiveDate}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Credits after switch</td>
-            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{newPlanCredits}} credits/mo</td>
-          </tr>
-        </table>
-      </div>
-      <p>You have full access to all your current plan features until <strong style="color:#E2E2E8;">{{effectiveDate}}</strong>. Your next charge will be at the lower {{newPlanName}} price — no action needed from you.</p>
-      <p style="font-size:13px;color:#A0A0B0;">Changed your mind? Log in and click <strong style="color:#E2E2E8;">"Keep current plan"</strong> in your billing settings any time before {{effectiveDate}}.</p>
-      <a href="{{billingUrl}}" class="btn">View billing settings</a>
-    `,
-    text: `Hi {{businessName}},\n\nPlan switch confirmed.\n\nCurrent plan: {{currentPlanName}}\nSwitching to: {{newPlanName}} ({{newPlanCredits}} credits/mo)\nSwitch date: {{effectiveDate}}\n\nYou keep full access until {{effectiveDate}}. Your next charge will be at the {{newPlanName}} price.\n\nChanged your mind? Log in and click "Keep current plan": {{billingUrl}}`,
-  },
-
-  downgrade_checkout: {
-    subject: 'Your {{currentPlanName}} period has ended — continue with {{newPlanName}}',
-    html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Your <strong>{{currentPlanName}}</strong> billing period has ended. As requested, your account is ready to move to the <strong style="color:#7C5CFC;">{{newPlanName}}</strong> plan.</p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">New plan</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#7C5CFC;">{{newPlanName}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Monthly credits</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{newPlanCredits}} credits/mo</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Billing</td>
-            <td style="text-align:right;font-size:13px;color:#E2E2E8;">{{cycle}}</td>
-          </tr>
-        </table>
-      </div>
-      <p>Click the button below to complete your {{newPlanName}} subscription. It takes under 30 seconds and your credits will be available immediately.</p>
-      <a href="{{checkoutUrl}}" class="btn" style="background:#7C5CFC;">Subscribe to {{newPlanName}} →</a>
-      <p style="font-size:12px;color:#555;">This link is personalised for your account. If you have any questions, just reply to this email.</p>
-    `,
-    text: `Hi {{businessName}},\n\nYour {{currentPlanName}} period has ended. To continue with the {{newPlanName}} plan ({{newPlanCredits}} credits/mo, {{cycle}}), subscribe here:\n\n{{checkoutUrl}}\n\nIf you have questions, reply to this email.`,
-  },
-
-  credit_pack_purchased: {
-    subject: '{{amount}} credits have been added to your account',
-    html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Your credit top-up is confirmed. <span class="tag tag-success">+{{amount}} credits added</span></p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Credits purchased</td>
-            <td style="text-align:right;font-size:16px;font-weight:800;color:#22C55E;font-family:monospace;">+{{amount}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">New balance</td>
-            <td style="text-align:right;font-size:18px;font-weight:800;color:#7C5CFC;font-family:monospace;">{{newBalance}} credits</td>
-          </tr>
-        </table>
-      </div>
-      <p>Your credits are ready to use right now — create photo posts (3 credits), carousels (5 credits), or videos (10 credits).</p>
-      <a href="{{loginUrl}}" class="btn">Create content now →</a>
-      <p style="font-size:12px;color:#555;">Questions about your purchase? Reply to this email.</p>
-    `,
-    text: `Hi {{businessName}},\n\n+{{amount}} credits have been added to your account.\n\nNew balance: {{newBalance}} credits.\n\nStart creating: {{loginUrl}}`,
-  },
-
-  subscription_cancelled: {
-    subject: 'Subscription cancelled — you have full access until {{accessUntil}}',
-    html: `
-      <p>Hi <strong>{{businessName}}</strong>,</p>
-      <p>Your <strong>{{planName}}</strong> subscription has been cancelled. <span class="tag tag-warning">Cancellation confirmed</span></p>
-      <div class="box">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Plan</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#E2E2E8;">{{planName}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Full access until</td>
-            <td style="text-align:right;font-size:14px;font-weight:700;color:#EAB308;">{{accessUntil}}</td>
-          </tr>
-          <tr>
-            <td style="font-size:13px;color:#A0A0B0;padding:6px 0;">Further charges</td>
-            <td style="text-align:right;font-size:13px;font-weight:700;color:#22C55E;">None</td>
-          </tr>
-        </table>
-      </div>
-      <p>You keep everything — all your posts, analytics, and current plan features — until <strong style="color:#E2E2E8;">{{accessUntil}}</strong>. After that, your account moves to the free tier.</p>
-      <p style="font-size:13px;color:#A0A0B0;">Changed your mind? You can resubscribe any time from your billing settings — your posts and data are always kept.</p>
-      <a href="{{billingUrl}}" class="btn">View billing settings</a>
-    `,
-    text: `Hi {{businessName}},\n\nYour {{planName}} subscription has been cancelled. No further charges.\n\nFull access until: {{accessUntil}}\n\nAfter that, your account moves to the free tier. You can resubscribe any time: {{billingUrl}}`,
-  },
 };
 
 module.exports = EmailService;
