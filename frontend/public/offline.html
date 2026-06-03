@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#7C5CFC">
+  <title>ItsPosting — You're offline</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100dvh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #07070E;
+      color: #F5F5F7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .icon-wrap {
+      width: 88px;
+      height: 88px;
+      border-radius: 26px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border: 1px solid rgba(124, 92, 252, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 28px;
+      box-shadow:
+        0 0 0 1px rgba(124,92,252,0.1),
+        0 20px 60px rgba(0,0,0,0.6),
+        0 0 80px rgba(124,92,252,0.08);
+      animation: pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 1px rgba(124,92,252,0.1), 0 20px 60px rgba(0,0,0,0.6), 0 0 80px rgba(124,92,252,0.08); }
+      50%       { box-shadow: 0 0 0 1px rgba(124,92,252,0.3), 0 20px 60px rgba(0,0,0,0.6), 0 0 120px rgba(124,92,252,0.18); }
+    }
+
+    .wordmark {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #00C4CC 0%, #7C5CFC 50%, #9B7FFF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 36px;
+    }
+
+    .cloud-icon {
+      width: 52px;
+      height: 52px;
+      opacity: 0.45;
+    }
+
+    h1 {
+      font-size: clamp(22px, 5vw, 28px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #F5F5F7;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+
+    p {
+      font-size: 14px;
+      color: #6E6E73;
+      line-height: 1.6;
+      max-width: 320px;
+      margin: 0 auto 32px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(124,92,252,0.45);
+      transition: transform 160ms ease, box-shadow 160ms ease;
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(124,92,252,0.55); }
+    .btn:active { transform: scale(0.97); }
+
+    .hint {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #3a3a45;
+    }
+
+    .status-dots {
+      display: flex;
+      gap: 5px;
+      justify-content: center;
+      margin-top: 40px;
+    }
+    .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(124,92,252,0.3);
+      animation: dotBounce 1.4s ease-in-out infinite;
+    }
+    .dot:nth-child(1) { animation-delay: 0s; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotBounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+      30%            { transform: translateY(-6px); opacity: 1; }
+    }
+
+    @media (prefers-color-scheme: light) {
+      html, body { background: #F0F0F7; }
+      h1 { color: #1D1D1F; }
+      .icon-wrap {
+        background: linear-gradient(135deg, #fff 0%, #f5f3ff 100%);
+        border-color: rgba(124,92,252,0.2);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="icon-wrap">
+    <!-- ItsPosting logo mark — inline SVG so no network needed -->
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="48" height="48" rx="14" fill="url(#offlineGrad)"/>
+      <path d="M14 24C14 18.477 18.477 14 24 14C29.523 14 34 18.477 34 24C34 29.523 29.523 34 24 34C18.477 34 14 29.523 14 24Z" fill="rgba(255,255,255,0.08)"/>
+      <path d="M20 20.5L24 17L28 20.5V31H20V20.5Z" fill="white" opacity="0.9"/>
+      <path d="M22 26H26M22 29H25" stroke="url(#offlineGrad)" stroke-width="1.5" stroke-linecap="round"/>
+      <defs>
+        <linearGradient id="offlineGrad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#00C4CC"/>
+          <stop offset="50%" stop-color="#7C5CFC"/>
+          <stop offset="100%" stop-color="#9B7FFF"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="wordmark">ItsPosting</div>
+
+  <!-- Offline cloud icon -->
+  <svg class="cloud-icon" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:16px">
+    <path d="M38 36H16a10 10 0 1 1 2.1-19.8A12 12 0 1 1 38 28v8Z" stroke="#7C5CFC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M20 44l12-12M32 44L20 32" stroke="#FF453A" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+
+  <h1>You're offline</h1>
+  <p>ItsPosting needs an internet connection to load your dashboard and generate content. Check your connection and try again.</p>
+
+  <button class="btn" onclick="window.location.reload()">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12.5 2.5A6.5 6.5 0 0 0 2.5 9M1.5 11.5A6.5 6.5 0 0 0 11.5 5" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M10 4.5L12.5 2.5L14.5 5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Try again
+  </button>
+
+  <p class="hint">Your posts and data are safely stored in the cloud.</p>
+
+  <div class="status-dots">
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  </div>
+</body>
+</html>
