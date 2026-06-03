@@ -4255,6 +4255,7 @@ export default function TemplatesEditorInner() {
   const [magicResizeCustomOn, setMagicResizeCustomOn] = useState(false);
   const [magicResizeCustomW, setMagicResizeCustomW] = useState(1080);
   const [magicResizeCustomH, setMagicResizeCustomH] = useState(1080);
+  const [animTab, setAnimTab] = useState('in'); // shared by both animate panels
   const [uploadItems, setUploadItems] = useState([]);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadQuota, setUploadQuota] = useState(null);
@@ -7874,31 +7875,28 @@ export default function TemplatesEditorInner() {
                   <>
                     <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowAnimatePanel(false)} />
                     <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, left: Math.min(panelAnchor.left, window.innerWidth - 292), zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 14, width: 288, boxShadow: '0 8px 32px rgba(0,0,0,0.28)', animation: 'dropdownIn 150ms ease forwards' }}>
-                      {/* Tab switcher: Entrance | Exit */}
+                      <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: t.input, borderRadius: 8, padding: 3 }}>
+                        {[{ id: 'in', label: 'Entrance' }, { id: 'out', label: 'Exit' }].map(tab => (
+                          <button key={tab.id} onClick={() => setAnimTab(tab.id)}
+                            style={{ flex: 1, height: 26, borderRadius: 6, border: 'none', background: animTab === tab.id ? t.card : 'transparent', color: animTab === tab.id ? t.text : t.textMuted, fontSize: 12, fontWeight: animTab === tab.id ? 700 : 400, cursor: 'pointer', boxShadow: animTab === tab.id ? '0 1px 4px rgba(0,0,0,0.15)' : 'none', transition: 'all 150ms' }}>
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
                       {(() => {
-                        const [animTab, setAnimTab] = React.useState('in');
-                        const isIn  = animTab === 'in';
-                        const inKey  = 'animateIn';
-                        const outKey = 'animateOut';
+                        const isIn = animTab === 'in';
+                        const elKey = isIn ? 'animateIn' : 'animateOut';
                         const durKey = isIn ? 'animateDuration' : 'animateOutDuration';
-                        const activePreset = isIn ? (selectedEl?.animateIn || 'none') : (selectedEl?.animateOut || 'none');
-                        const activeDur    = selectedEl?.[durKey] || 600;
+                        const activePreset = selectedEl?.[elKey] || 'none';
+                        const activeDur = selectedEl?.[durKey] || 600;
                         return (
                           <>
-                            <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: t.input, borderRadius: 8, padding: 3 }}>
-                              {[{ id: 'in', label: 'Entrance' }, { id: 'out', label: 'Exit' }].map(tab => (
-                                <button key={tab.id} onClick={() => setAnimTab(tab.id)}
-                                  style={{ flex: 1, height: 26, borderRadius: 6, border: 'none', background: animTab === tab.id ? t.card : 'transparent', color: animTab === tab.id ? t.text : t.textMuted, fontSize: 12, fontWeight: animTab === tab.id ? 700 : 400, cursor: 'pointer', boxShadow: animTab === tab.id ? '0 1px 4px rgba(0,0,0,0.15)' : 'none', transition: 'all 150ms' }}>
-                                  {tab.label}
-                                </button>
-                              ))}
-                            </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
                               {ANIMATE_PRESETS.map(a => {
                                 const isActive = activePreset === a.id;
                                 return (
                                   <button key={a.id} title={a.desc}
-                                    onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, [isIn ? inKey : outKey]: a.id }); }}
+                                    onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, [elKey]: a.id }); }}
                                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '8px 4px', borderRadius: 9, border: `1.5px solid ${isActive ? t.primaryBorder : t.border}`, background: isActive ? t.primaryBg : t.input, cursor: 'pointer', color: isActive ? t.primary : t.textSecondary, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', boxShadow: isActive ? `0 0 0 1px ${t.primaryBorder}` : 'none' }}>
                                     <span style={{ fontSize: 17 }}>{a.icon}</span>
                                     <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 400, lineHeight: 1.2, textAlign: 'center' }}>{a.label}</span>
@@ -9690,28 +9688,28 @@ export default function TemplatesEditorInner() {
                   <>
                     <div style={{ position:'fixed', inset:0, zIndex:9998 }} onMouseDown={() => setShowAnimatePanel(false)} />
                     <div style={{ position:'fixed', top:panelAnchor.bottom + 4, right:Math.max(4, window.innerWidth - panelAnchor.right), zIndex:9999, background:t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:14, width:288, boxShadow:'0 8px 32px rgba(0,0,0,0.28)', animation:'dropdownIn 150ms ease forwards' }}>
+                      <div style={{ display:'flex', gap:4, marginBottom:12, background:t.input, borderRadius:8, padding:3 }}>
+                        {[{ id:'in', label:'Entrance' }, { id:'out', label:'Exit' }].map(tab => (
+                          <button key={tab.id} onClick={() => setAnimTab(tab.id)}
+                            style={{ flex:1, height:26, borderRadius:6, border:'none', background:animTab===tab.id?t.card:'transparent', color:animTab===tab.id?t.text:t.textMuted, fontSize:12, fontWeight:animTab===tab.id?700:400, cursor:'pointer', boxShadow:animTab===tab.id?'0 1px 4px rgba(0,0,0,0.15)':'none', transition:'all 150ms' }}>
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
                       {(() => {
-                        const [animTab2, setAnimTab2] = React.useState('in');
-                        const isIn2 = animTab2 === 'in';
-                        const durKey2 = isIn2 ? 'animateDuration' : 'animateOutDuration';
-                        const activePreset2 = isIn2 ? (selectedEl?.animateIn || 'none') : (selectedEl?.animateOut || 'none');
-                        const activeDur2 = selectedEl?.[durKey2] || 600;
+                        const isIn = animTab === 'in';
+                        const elKey = isIn ? 'animateIn' : 'animateOut';
+                        const durKey = isIn ? 'animateDuration' : 'animateOutDuration';
+                        const activePreset = selectedEl?.[elKey] || 'none';
+                        const activeDur = selectedEl?.[durKey] || 600;
                         return (
                           <>
-                            <div style={{ display:'flex', gap:4, marginBottom:12, background:t.input, borderRadius:8, padding:3 }}>
-                              {[{ id:'in', label:'Entrance' }, { id:'out', label:'Exit' }].map(tab => (
-                                <button key={tab.id} onClick={() => setAnimTab2(tab.id)}
-                                  style={{ flex:1, height:26, borderRadius:6, border:'none', background:animTab2===tab.id?t.card:'transparent', color:animTab2===tab.id?t.text:t.textMuted, fontSize:12, fontWeight:animTab2===tab.id?700:400, cursor:'pointer', boxShadow:animTab2===tab.id?'0 1px 4px rgba(0,0,0,0.15)':'none', transition:'all 150ms' }}>
-                                  {tab.label}
-                                </button>
-                              ))}
-                            </div>
                             <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:5 }}>
                               {ANIMATE_PRESETS.map(a => {
-                                const isActive = activePreset2 === a.id;
+                                const isActive = activePreset === a.id;
                                 return (
                                   <button key={a.id} title={a.desc}
-                                    onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, [isIn2 ? 'animateIn' : 'animateOut']: a.id }); }}
+                                    onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, [elKey]: a.id }); }}
                                     style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, padding:'8px 4px', borderRadius:9, border:`1.5px solid ${isActive?t.primaryBorder:t.border}`, background:isActive?t.primaryBg:t.input, cursor:'pointer', color:isActive?t.primary:t.textSecondary, transition:'all 150ms cubic-bezier(0.34,1.56,0.64,1)', boxShadow:isActive?`0 0 0 1px ${t.primaryBorder}`:'none' }}>
                                     <span style={{ fontSize:17 }}>{a.icon}</span>
                                     <span style={{ fontSize:9, fontWeight:isActive?700:400, lineHeight:1.2, textAlign:'center' }}>{a.label}</span>
@@ -9719,14 +9717,14 @@ export default function TemplatesEditorInner() {
                                 );
                               })}
                             </div>
-                            {activePreset2 !== 'none' && (
+                            {activePreset !== 'none' && (
                               <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${t.border}` }}>
                                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
                                   <span style={{ fontSize:11, color:t.textMuted }}>Duration</span>
-                                  <span style={{ fontSize:11, color:t.textMuted, fontWeight:600 }}>{(activeDur2/1000).toFixed(1)}s</span>
+                                  <span style={{ fontSize:11, color:t.textMuted, fontWeight:600 }}>{(activeDur/1000).toFixed(1)}s</span>
                                 </div>
-                                <input type="range" min={100} max={2000} step={100} value={activeDur2}
-                                  onChange={e => updateElement({...selectedEl, [durKey2]:parseInt(e.target.value)})}
+                                <input type="range" min={100} max={2000} step={100} value={activeDur}
+                                  onChange={e => updateElement({...selectedEl, [durKey]:parseInt(e.target.value)})}
                                   onMouseUp={() => pushHistory()} style={{ width:'100%', accentColor:t.primary }} />
                               </div>
                             )}
