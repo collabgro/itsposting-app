@@ -308,8 +308,9 @@ export const billingAPI = {
   getCurrent: () => api.get('/api/billing/current'),
   getHistory: () => api.get('/api/billing/history'),
   getCheckoutLink: (plan, cycle) => api.get(`/api/billing/checkout-link?plan=${plan}&cycle=${cycle}`),
-  buyCredits: (pack, amount) => api.get(`/api/billing/buy-credits?pack=${pack}${amount ? `&amount=${encodeURIComponent(amount)}` : ''}`),
+  buyCredits: (pack) => api.get(`/api/billing/buy-credits?pack=${pack}`),
   cancel: () => api.post('/api/billing/cancel'),
+  cancelDowngrade: () => api.post('/api/billing/cancel-downgrade'),
   createServiceRequest: (type, data) => api.post('/api/billing/service-request', { type, data }),
 };
 
@@ -553,6 +554,10 @@ export const studioAPI = {
   extractElements: (imageUrl) => api.post('/api/studio/extract-elements', { imageUrl }),
   rewriteText: (data) => api.post('/api/studio/rewrite-text', data),
   updateTemplate: (id, data) => api.patch(`/api/studio/templates/${id}`, data),
+  getBrandKits: () => api.get('/api/studio/brand-kits'),
+  createBrandKit: (data) => api.post('/api/studio/brand-kits', data),
+  updateBrandKit: (id, data) => api.patch(`/api/studio/brand-kits/${id}`, data),
+  deleteBrandKit: (id) => api.delete(`/api/studio/brand-kits/${id}`),
 };
 
 export const receptionistAPI = {

@@ -4247,6 +4247,14 @@ export default function TemplatesEditorInner() {
   const [thumbGenProgress, setThumbGenProgress] = useState(null); // null | { current, total, name }
   const [brandProfile, setBrandProfile] = useState(null);
   const [brandLoading, setBrandLoading] = useState(false);
+  const [brandKits, setBrandKits] = useState([]);
+  const [activeKitId, setActiveKitId] = useState(null);
+  const [kitNameEditing, setKitNameEditing] = useState(false);
+  const [kitNameDraft, setKitNameDraft] = useState('');
+  const [kitSaving, setKitSaving] = useState(false);
+  const [magicResizeCustomOn, setMagicResizeCustomOn] = useState(false);
+  const [magicResizeCustomW, setMagicResizeCustomW] = useState(1080);
+  const [magicResizeCustomH, setMagicResizeCustomH] = useState(1080);
   const [uploadItems, setUploadItems] = useState([]);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadQuota, setUploadQuota] = useState(null);
@@ -4654,13 +4662,24 @@ export default function TemplatesEditorInner() {
       .catch(() => {});
   }, []);
 
-  // ── Load customer brand profile ────────────────────────────────────────────
+  // ── Load customer brand profile + brand kits ──────────────────────────────
   useEffect(() => {
     if (activeLeftTool !== 'brand') return;
-    if (brandProfile) return;
+    if (brandProfile && brandKits.length > 0) return;
     setBrandLoading(true);
-    customerAPI.getProfile()
-      .then(r => setBrandProfile(r.data || null))
+    Promise.all([
+      customerAPI.getProfile(),
+      studioAPI.getBrandKits(),
+    ])
+      .then(([profileRes, kitsRes]) => {
+        setBrandProfile(profileRes.data || null);
+        const kits = kitsRes.data?.kits || [];
+        setBrandKits(kits);
+        if (kits.length > 0 && !activeKitId) {
+          const def = kits.find(k => k.is_default) || kits[0];
+          setActiveKitId(def.id);
+        }
+      })
       .catch(() => {})
       .finally(() => setBrandLoading(false));
   }, [activeLeftTool]);
@@ -6566,6 +6585,9 @@ export default function TemplatesEditorInner() {
   // ── Magic Resize ───────────────────────────────────────────────────────────
   function runMagicResize() {
     const selected = CANVAS_SIZES.filter(s => magicResizeSelected[s.id] && s.id !== canvasSizeId);
+    if (magicResizeCustomOn && magicResizeCustomW >= 100 && magicResizeCustomH >= 100) {
+      selected.push({ id: 'custom', label: `Custom (${magicResizeCustomW}×${magicResizeCustomH})`, w: magicResizeCustomW, h: magicResizeCustomH });
+    }
     if (!selected.length) { setShowMagicResize(false); return; }
     pushHistory();
     const sourceW = canvasSize.w;
@@ -7851,32 +7873,56 @@ export default function TemplatesEditorInner() {
                 {showAnimatePanel && panelAnchor && createPortal(
                   <>
                     <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setShowAnimatePanel(false)} />
-                    <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, left: panelAnchor.left, zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, padding: 14, width: 260, boxShadow: '0 8px 32px rgba(0,0,0,0.25)', animation: 'dropdownIn 150ms ease forwards' }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 10 }}>Entrance animation</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
-                        {ANIMATE_PRESETS.map(a => {
-                          const isActive = (selectedEl?.animateIn || 'none') === a.id;
-                          return (
-                            <button key={a.id} title={a.desc}
-                              onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, animateIn: a.id }); }}
-                              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '8px 4px', borderRadius: 8, border: `1.5px solid ${isActive ? t.primaryBorder : t.border}`, background: isActive ? t.primaryBg : t.input, cursor: 'pointer', color: isActive ? t.primary : t.textSecondary, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)' }}>
-                              <span style={{ fontSize: 18 }}>{a.icon}</span>
-                              <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400 }}>{a.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {selectedEl?.animateIn && selectedEl.animateIn !== 'none' && (
-                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.border}` }}>
-                          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 6 }}>Duration</div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <input type="range" min={200} max={2000} step={100} value={selectedEl.animateDuration || 600}
-                              onChange={e => updateElement({ ...selectedEl, animateDuration: parseInt(e.target.value) })}
-                              onMouseUp={() => pushHistory()} style={{ flex: 1, accentColor: t.primary }} />
-                            <span style={{ fontSize: 11, color: t.textMuted, minWidth: 36, textAlign: 'right' }}>{((selectedEl.animateDuration || 600) / 1000).toFixed(1)}s</span>
-                          </div>
-                        </div>
-                      )}
+                    <div style={{ position: 'fixed', top: panelAnchor.bottom + 4, left: Math.min(panelAnchor.left, window.innerWidth - 292), zIndex: 9999, background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 14, width: 288, boxShadow: '0 8px 32px rgba(0,0,0,0.28)', animation: 'dropdownIn 150ms ease forwards' }}>
+                      {/* Tab switcher: Entrance | Exit */}
+                      {(() => {
+                        const [animTab, setAnimTab] = React.useState('in');
+                        const isIn  = animTab === 'in';
+                        const inKey  = 'animateIn';
+                        const outKey = 'animateOut';
+                        const durKey = isIn ? 'animateDuration' : 'animateOutDuration';
+                        const activePreset = isIn ? (selectedEl?.animateIn || 'none') : (selectedEl?.animateOut || 'none');
+                        const activeDur    = selectedEl?.[durKey] || 600;
+                        return (
+                          <>
+                            <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: t.input, borderRadius: 8, padding: 3 }}>
+                              {[{ id: 'in', label: 'Entrance' }, { id: 'out', label: 'Exit' }].map(tab => (
+                                <button key={tab.id} onClick={() => setAnimTab(tab.id)}
+                                  style={{ flex: 1, height: 26, borderRadius: 6, border: 'none', background: animTab === tab.id ? t.card : 'transparent', color: animTab === tab.id ? t.text : t.textMuted, fontSize: 12, fontWeight: animTab === tab.id ? 700 : 400, cursor: 'pointer', boxShadow: animTab === tab.id ? '0 1px 4px rgba(0,0,0,0.15)' : 'none', transition: 'all 150ms' }}>
+                                  {tab.label}
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 }}>
+                              {ANIMATE_PRESETS.map(a => {
+                                const isActive = activePreset === a.id;
+                                return (
+                                  <button key={a.id} title={a.desc}
+                                    onClick={() => { pushHistory(); handleElementChange({ ...selectedEl, [isIn ? inKey : outKey]: a.id }); }}
+                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '8px 4px', borderRadius: 9, border: `1.5px solid ${isActive ? t.primaryBorder : t.border}`, background: isActive ? t.primaryBg : t.input, cursor: 'pointer', color: isActive ? t.primary : t.textSecondary, transition: 'all 150ms cubic-bezier(0.34,1.56,0.64,1)', boxShadow: isActive ? `0 0 0 1px ${t.primaryBorder}` : 'none' }}>
+                                    <span style={{ fontSize: 17 }}>{a.icon}</span>
+                                    <span style={{ fontSize: 9, fontWeight: isActive ? 700 : 400, lineHeight: 1.2, textAlign: 'center' }}>{a.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {activePreset !== 'none' && (
+                              <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${t.border}` }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                  <span style={{ fontSize: 11, color: t.textMuted }}>Duration</span>
+                                  <span style={{ fontSize: 11, color: t.textMuted, fontWeight: 600 }}>{(activeDur / 1000).toFixed(1)}s</span>
+                                </div>
+                                <input type="range" min={100} max={2000} step={100} value={activeDur}
+                                  onChange={e => updateElement({ ...selectedEl, [durKey]: parseInt(e.target.value) })}
+                                  onMouseUp={() => pushHistory()} style={{ width: '100%', accentColor: t.primary }} />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: t.textMuted, marginTop: 2 }}>
+                                  <span>0.1s</span><span>2.0s</span>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </>,
                   document.body
@@ -11808,189 +11854,194 @@ export default function TemplatesEditorInner() {
 
             {/* BRAND */}
             {activeLeftTool === 'brand' && (
-              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                {/* Brand panel top navigation — search + All Brand Templates + Brand Kit ▾ */}
-                <div style={{ padding: '0 0 8px', flexShrink: 0 }}>
-                  {/* Search */}
-                  <div style={{ position: 'relative', marginBottom: 8 }}>
-                    <IpSearch size={14} color={t.textMuted} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                    <input placeholder="Search" style={{ width: '100%', height: 36, paddingLeft: 32, borderRadius: 8, background: t.input, border: `1px solid ${t.border}`, color: t.text, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
-                  {/* All Brand Templates */}
-                  <button style={{ width: '100%', height: 36, display: 'flex', alignItems: 'center', paddingLeft: 4, border: 'none', background: 'transparent', color: TEAL, fontSize: 13, fontWeight: 600, cursor: 'pointer', borderRadius: 6, textAlign: 'left', transition: 'background 120ms' }}
-                    onMouseEnter={e => e.currentTarget.style.background = t.cardHover}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    All Brand Templates
-                  </button>
-                  <div style={{ width: '100%', height: 1, background: t.border, margin: '8px 0' }} />
-                  {/* Brand Kit ▾ dropdown */}
-                  <button style={{ width: '100%', height: 36, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', border: `1px solid ${t.border}`, borderRadius: 8, background: t.input, color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'border-color 120ms', boxSizing: 'border-box' }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = t.primaryBorder}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = t.border}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                    <span style={{ flex: 1, textAlign: 'left' }}>Brand Kit</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-                  </button>
-                  {/* Sub-category navigation list */}
-                  <div style={{ marginTop: 4 }}>
-                    {[
-                      { label: 'All assets',       color: TEAL      },
-                      { label: 'Guidelines',        color: '#5BA3F5' },
-                      { label: 'Brand Templates',   color: '#5BA3F5', badge: 'New' },
-                      { label: 'Logos',             color: '#5BA3F5' },
-                      { label: 'Colors',            color: '#5BA3F5' },
-                      { label: 'Fonts',             color: '#F59E0B' },
-                      { label: 'Brand voice',       color: '#5BA3F5' },
-                      { label: 'Photos',            color: '#A855F7' },
-                      { label: 'Components',        color: '#5BA3F5' },
-                      { label: 'Graphics',          color: '#5BA3F5' },
-                      { label: 'Icons',             color: '#F59E0B' },
-                      { label: 'Charts',            color: '#5BA3F5' },
-                    ].map((item) => {
-                      const isActive = activeBrandItem === item.label;
-                      return (
-                        <button key={item.label} onClick={() => setActiveBrandItem(item.label)}
-                          style={{ width: '100%', height: 34, display: 'flex', alignItems: 'center', paddingLeft: isActive ? 10 : 8, paddingRight: isActive ? 10 : 8, border: 'none', borderRadius: 20, background: isActive ? t.primaryBg : 'transparent', color: isActive ? t.primary : t.text, fontSize: 13, fontWeight: isActive ? 600 : 400, cursor: 'pointer', textAlign: 'left', transition: 'background 120ms' }}
-                          onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = t.cardHover; }}
-                          onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
-                          {item.label}
-                          {item.badge && (
-                            <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, background: t.primary, color: '#fff', padding: '1px 6px', borderRadius: 10, lineHeight: 1.6, flexShrink: 0 }}>{item.badge}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                 {brandLoading && (
-                  <div style={{ textAlign: 'center', color: t.textMuted, fontSize: 13, padding: '30px 0' }}>Loading your brand…</div>
+                  <div style={{ textAlign: 'center', color: t.textMuted, fontSize: 13, padding: '30px 0' }}>Loading brand kits…</div>
                 )}
                 {!brandLoading && (() => {
-                  const bc = brandProfile?.brand_colors || {};
-                  const brandPrimary    = bc.primary    || '#00C4CC';
-                  const brandSecondary  = bc.secondary  || '#7C5CFC';
-                  const brandAccent     = bc.accent     || '#1a1a2e';
-                  const brandBackground = bc.background || '#FFFFFF';
-                  const brandText       = bc.text       || '#1A1A2E';
-                  const brandExtra      = bc.extra      || '#F59E0B';
-                  const swatches = [
-                    { label: 'Primary',   hex: brandPrimary   },
-                    { label: 'Secondary', hex: brandSecondary },
-                    { label: 'Accent',    hex: brandAccent    },
-                    { label: 'BG',        hex: brandBackground },
-                    { label: 'Text',      hex: brandText      },
-                    { label: 'Extra',     hex: brandExtra     },
-                  ];
-                  const bf = brandProfile?.brand_fonts || {};
-                  const headlineFont = bf.headline || 'Bebas Neue';
-                  const bodyFont     = bf.body     || 'Inter';
-                  const brandFonts = [
-                    { role: 'Heading',    fontFamily: headlineFont, previewSize: 22, overrides: { fontSize: 64, fontFamily: headlineFont, fontStyle: 'normal', text: 'Service Announcement', letterSpacing: 2, fill: brandPrimary } },
-                    { role: 'Subheading', fontFamily: headlineFont, previewSize: 14, overrides: { fontSize: 36, fontFamily: headlineFont, fontStyle: 'bold',   text: 'Your Local Expert',      fill: brandPrimary } },
-                    { role: 'Body',       fontFamily: bodyFont,     previewSize: 11, overrides: { fontSize: 20, fontFamily: bodyFont,     fontStyle: 'normal', text: 'Professional service you can trust', fill: brandPrimary } },
-                  ];
+                  const activeKit = brandKits.find(k => k.id === activeKitId) || brandKits[0];
+                  if (!activeKit) return (
+                    <div style={{ textAlign: 'center', color: t.textMuted, fontSize: 13, padding: '30px 16px', lineHeight: 1.6 }}>
+                      No brand kits found.<br />
+                      <button onClick={async () => {
+                        try {
+                          const { data } = await studioAPI.createBrandKit({ name: 'My Brand' });
+                          setBrandKits([data.kit]);
+                          setActiveKitId(data.kit.id);
+                        } catch {}
+                      }} style={{ marginTop: 12, padding: '8px 20px', background: t.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                        Create Brand Kit
+                      </button>
+                    </div>
+                  );
+
+                  const kitColors = Array.isArray(activeKit.colors) ? activeKit.colors : [];
+                  const kitFonts  = (activeKit.fonts && typeof activeKit.fonts === 'object') ? activeKit.fonts : { headline: 'Bebas Neue', body: 'Inter' };
+
+                  const patchKit = async (patch) => {
+                    try {
+                      const { data } = await studioAPI.updateBrandKit(activeKit.id, patch);
+                      setBrandKits(prev => prev.map(k => k.id === data.kit.id ? data.kit : k));
+                    } catch (e) { console.error('[BrandKit]', e.message); }
+                  };
+
+                  const addColor = () => patchKit({ colors: [...kitColors, { name: `Color ${kitColors.length + 1}`, hex: '#7C5CFC' }] });
+                  const updateColor = (i, hex) => patchKit({ colors: kitColors.map((c, idx) => idx === i ? { ...c, hex } : c) });
+                  const removeColor = (i) => { if (kitColors.length > 1) patchKit({ colors: kitColors.filter((_, idx) => idx !== i) }); };
+
                   return (
-                    <div style={{ flex: 1, overflowY: 'auto' }}>
-
-                      {/* S1: Brand Logo */}
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Brand Logo</div>
-                        {brandProfile?.logo_url ? (
-                          <>
-                            <div onMouseDown={e => { e.preventDefault(); addImageElement(brandProfile.logo_url); }}
-                              onMouseEnter={e => e.currentTarget.style.borderColor = t.primaryBorder}
-                              onMouseLeave={e => e.currentTarget.style.borderColor = t.border}
-                              style={{ width: '100%', background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, padding: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 80, transition: 'border-color 0.15s', boxSizing: 'border-box' }}>
-                              <img src={brandProfile.logo_url} alt="Brand logo" style={{ maxWidth: '100%', maxHeight: 70, objectFit: 'contain' }} />
-                            </div>
-                            <div style={{ fontSize: 10, color: t.textMuted, textAlign: 'center', marginTop: 5 }}>Click to add to canvas</div>
-                          </>
-                        ) : (
-                          <div style={{ background: t.input, borderRadius: 10, border: `1px dashed ${t.border}`, padding: '18px', textAlign: 'center', color: t.textMuted, fontSize: 12 }}>
-                            No logo yet — go to <span style={{ color: t.primary }}>Settings</span> to add one
-                          </div>
-                        )}
-                      </div>
-
-                      {/* S2: Brand Colors */}
-                      <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 16 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted }}>Brand Colors</div>
-                          <button onClick={() => router.push('/settings')} style={{ background: 'none', border: 'none', color: t.primary, fontSize: 11, cursor: 'pointer', padding: 0, fontWeight: 600 }}>Edit</button>
-                        </div>
-                        {/* 3×2 swatch grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
-                          {swatches.map(s => (
-                            <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
-                              onMouseDown={e => { e.preventDefault(); if (selectedEl) handleElementChange({ ...selectedEl, fill: s.hex }); }}>
-                              <div
-                                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = `0 0 0 2px ${t.primaryBorder}`; }}
-                                onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
-                                title={`Apply ${s.label} (${s.hex})`}
-                                style={{ width: '100%', height: 36, borderRadius: 7, background: s.hex, border: `1.5px solid ${t.border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.18)', cursor: 'pointer', transition: 'transform 0.15s, box-shadow 0.15s' }} />
-                              <div style={{ textAlign: 'center', lineHeight: 1.3 }}>
-                                <div style={{ fontSize: 9, fontWeight: 600, color: t.textMuted }}>{s.label}</div>
-                                <div style={{ fontSize: 8, color: t.textMuted, fontFamily: 'monospace', opacity: 0.6 }}>{s.hex}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        {/* Quick color chips: all brand + neutral colors */}
-                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                          {[brandPrimary, brandSecondary, brandAccent, brandBackground, brandText, brandExtra, '#ffffff', '#000000'].map(hex => (
-                            <button key={hex}
-                              onMouseDown={e => { e.preventDefault(); if (selectedEl) handleElementChange({ ...selectedEl, fill: hex }); }}
-                              title={hex}
-                              style={{ width: 24, height: 24, borderRadius: 6, background: hex, border: `1.5px solid ${t.border}`, cursor: 'pointer', flexShrink: 0, transition: 'transform 100ms' }}
-                              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
-                              onMouseLeave={e => e.currentTarget.style.transform = ''} />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* S3: Brand Fonts */}
-                      <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12, marginBottom: 16 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Brand Fonts</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {brandFonts.map(f => (
-                            <button key={f.role} onMouseDown={e => { e.preventDefault(); addText(f.overrides); }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor = t.primaryBorder; }}
-                              onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; }}
-                              style={{ width: '100%', padding: 0, borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, cursor: 'pointer', overflow: 'hidden', textAlign: 'left', transition: 'border-color 150ms' }}>
-                              <div style={{ padding: '10px 12px 8px', borderBottom: `1px solid ${t.border}`, background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }}>
-                                <span style={{ fontFamily: f.fontFamily, fontSize: f.previewSize, fontWeight: f.previewSize > 18 ? 400 : 700, color: t.text, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{f.role}</span>
-                              </div>
-                              <div style={{ padding: '4px 10px 5px', fontSize: 9, color: t.textMuted }}>{f.role} · {f.fontFamily}</div>
+                    <>
+                      {/* ── Kit switcher ── */}
+                      <div style={{ flexShrink: 0, marginBottom: 12 }}>
+                        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
+                          {brandKits.map(kit => (
+                            <button key={kit.id} onClick={() => setActiveKitId(kit.id)}
+                              style={{ flexShrink: 0, height: 28, padding: '0 12px', borderRadius: 20, border: `1.5px solid ${kit.id === activeKitId ? t.primary : t.border}`, background: kit.id === activeKitId ? t.primaryBg : 'transparent', color: kit.id === activeKitId ? t.primary : t.textMuted, fontSize: 12, fontWeight: kit.id === activeKitId ? 700 : 400, cursor: 'pointer', transition: 'all 150ms', whiteSpace: 'nowrap' }}>
+                              {kit.name}
                             </button>
                           ))}
+                          <button
+                            onClick={async () => {
+                              try {
+                                const { data } = await studioAPI.createBrandKit({ name: 'New Kit' });
+                                setBrandKits(prev => [...prev, data.kit]);
+                                setActiveKitId(data.kit.id);
+                              } catch (e) { alert(e.response?.data?.error || 'Could not create kit'); }
+                            }}
+                            title="New brand kit"
+                            style={{ flexShrink: 0, height: 28, padding: '0 10px', borderRadius: 20, border: `1.5px dashed ${t.border}`, background: 'transparent', color: t.textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            New
+                          </button>
                         </div>
                       </div>
 
-                      {/* S4: Brand Voice */}
-                      <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: t.textMuted, marginBottom: 8 }}>Brand Voice</div>
-                        <div style={{ background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, padding: '12px 14px', marginBottom: 10 }}>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 8, fontFamily: 'Montserrat', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {brandProfile?.business_name || 'Your Business'}
+                      <div style={{ flex: 1, overflowY: 'auto' }}>
+
+                        {/* Kit name */}
+                        <div style={{ marginBottom: 14 }}>
+                          {kitNameEditing && activeKitId === activeKit.id ? (
+                            <input autoFocus value={kitNameDraft}
+                              onChange={e => setKitNameDraft(e.target.value)}
+                              onBlur={async () => { if (kitNameDraft.trim()) await patchKit({ name: kitNameDraft.trim() }); setKitNameEditing(false); }}
+                              onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setKitNameEditing(false); }}
+                              style={{ width: '100%', padding: '6px 10px', borderRadius: 8, border: `1.5px solid ${t.primary}`, background: t.input, color: t.text, fontSize: 14, fontWeight: 700, outline: 'none', boxSizing: 'border-box' }} />
+                          ) : (
+                            <button onClick={() => { setKitNameDraft(activeKit.name); setKitNameEditing(true); }}
+                              style={{ background: 'none', border: 'none', color: t.text, fontSize: 14, fontWeight: 700, cursor: 'pointer', padding: '2px 0', display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left' }}>
+                              {activeKit.name}
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: t.textMuted, flexShrink: 0 }}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Logo */}
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Logo</div>
+                          {activeKit.logo_url ? (
+                            <div style={{ position: 'relative', display: 'inline-flex', width: '100%' }}>
+                              <div onMouseDown={e => { e.preventDefault(); addImageElement(activeKit.logo_url); }} title="Click to add to canvas"
+                                style={{ width: '100%', background: t.input, borderRadius: 10, border: `1px solid ${t.border}`, padding: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 64, boxSizing: 'border-box' }}>
+                                <img src={activeKit.logo_url} alt="Logo" style={{ maxWidth: '90%', maxHeight: 52, objectFit: 'contain' }} />
+                              </div>
+                              <button onClick={() => patchKit({ logo_url: null })} title="Remove"
+                                style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#FF453A', border: 'none', color: '#fff', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>×</button>
+                            </div>
+                          ) : (
+                            <div onClick={() => setActiveLeftTool('uploads')}
+                              style={{ background: t.input, borderRadius: 10, border: `1px dashed ${t.border}`, padding: '14px', textAlign: 'center', color: t.textMuted, fontSize: 12, cursor: 'pointer' }}>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ display: 'block', margin: '0 auto 6px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                              Upload logo from media library
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Colors */}
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Colors</div>
+                            <button onClick={addColor}
+                              style={{ background: 'none', border: `1px solid ${t.border}`, color: t.textMuted, fontSize: 11, cursor: 'pointer', padding: '2px 8px', borderRadius: 6, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                              Add
+                            </button>
                           </div>
-                          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                            {brandProfile?.tone && (
-                              <span style={{ fontSize: 10, background: t.primaryBg, color: t.primary, padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>{brandProfile.tone}</span>
-                            )}
-                            {brandProfile?.visual_style && (
-                              <span style={{ fontSize: 10, background: 'rgba(124,92,252,0.12)', color: '#7C5CFC', padding: '3px 8px', borderRadius: 20, fontWeight: 600 }}>{brandProfile.visual_style}</span>
-                            )}
-                            {brandProfile?.industry && (
-                              <span style={{ fontSize: 10, background: 'transparent', color: t.textMuted, padding: '3px 8px', borderRadius: 20, border: `1px solid ${t.border}` }}>{brandProfile.industry}</span>
-                            )}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 8 }}>
+                            {kitColors.map((c, i) => (
+                              <div key={i} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                                <label style={{ width: '100%', cursor: 'pointer', position: 'relative' }} title={`${c.name}: ${c.hex} — Click to apply, hold to pick color`}>
+                                  <div
+                                    style={{ width: '100%', height: 32, borderRadius: 7, background: c.hex, border: `1.5px solid ${t.border}`, cursor: 'pointer', transition: 'transform 0.12s' }}
+                                    onMouseDown={e => { if (e.button === 0) { e.preventDefault(); if (selectedEl) handleElementChange({ ...selectedEl, fill: c.hex }); } }}
+                                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
+                                    onMouseLeave={e => e.currentTarget.style.transform = ''} />
+                                  <input type="color" value={c.hex} onChange={e => updateColor(i, e.target.value)}
+                                    style={{ position: 'absolute', opacity: 0, inset: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none', padding: 0 }} />
+                                </label>
+                                <div style={{ fontSize: 8, color: t.textMuted, fontFamily: 'monospace', textAlign: 'center', overflow: 'hidden', width: '100%', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.hex}</div>
+                                {kitColors.length > 1 && (
+                                  <button onClick={() => removeColor(i)}
+                                    style={{ position: 'absolute', top: -5, right: -4, width: 14, height: 14, borderRadius: '50%', background: t.card, border: `1px solid ${t.border}`, color: t.textMuted, fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1 }}>×</button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          {/* Quick apply chips */}
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            {[...kitColors.map(c => c.hex), '#ffffff', '#000000'].map((hex, i) => (
+                              <button key={i} title={hex}
+                                onMouseDown={e => { e.preventDefault(); if (selectedEl) handleElementChange({ ...selectedEl, fill: hex }); }}
+                                style={{ width: 20, height: 20, borderRadius: 5, background: hex, border: `1.5px solid ${t.border}`, cursor: 'pointer', flexShrink: 0, transition: 'transform 100ms' }}
+                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.25)'}
+                                onMouseLeave={e => e.currentTarget.style.transform = ''} />
+                            ))}
                           </div>
                         </div>
-                        <button style={{ width: '100%', padding: '10px 0', borderRadius: 8, border: `1.5px solid ${t.primaryBorder}`, background: 'transparent', color: t.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <IpSparkle size={14} /> {aiName} Write
-                        </button>
-                      </div>
 
-                    </div>
+                        {/* Fonts */}
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Fonts</div>
+                          {[
+                            { role: 'Heading', key: 'headline', size: 22, weight: 700 },
+                            { role: 'Body',    key: 'body',     size: 13, weight: 400 },
+                          ].map(({ role, key, size, weight }) => {
+                            const fontName = kitFonts[key] || 'Inter';
+                            return (
+                              <button key={key}
+                                onMouseDown={e => { e.preventDefault(); addText({ fontSize: key === 'headline' ? 64 : 20, fontFamily: fontName, fill: kitColors[0]?.hex || '#1a1a2e', text: key === 'headline' ? (brandProfile?.business_name || 'Heading') : 'Body text here', fontWeight: weight }); }}
+                                onMouseEnter={e => e.currentTarget.style.borderColor = t.primaryBorder}
+                                onMouseLeave={e => e.currentTarget.style.borderColor = t.border}
+                                style={{ width: '100%', padding: 0, borderRadius: 9, border: `1px solid ${t.border}`, background: t.input, cursor: 'pointer', overflow: 'hidden', textAlign: 'left', transition: 'border-color 150ms', marginBottom: 6, display: 'block' }}>
+                                <div style={{ padding: '8px 12px', borderBottom: `1px solid ${t.border}`, background: t.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)' }}>
+                                  <span style={{ fontFamily: fontName, fontSize: size, fontWeight: weight, color: t.text, display: 'block', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{role}</span>
+                                </div>
+                                <div style={{ padding: '4px 10px 5px', fontSize: 9, color: t.textMuted }}>{role} · {fontName}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Delete kit */}
+                        {brandKits.length > 1 && (
+                          <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 12 }}>
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Delete "${activeKit.name}"? This cannot be undone.`)) return;
+                                try {
+                                  await studioAPI.deleteBrandKit(activeKit.id);
+                                  const remaining = brandKits.filter(k => k.id !== activeKit.id);
+                                  setBrandKits(remaining);
+                                  setActiveKitId(remaining[0]?.id || null);
+                                } catch (e) { alert(e.response?.data?.error || 'Could not delete kit'); }
+                              }}
+                              style={{ width: '100%', padding: '8px 0', borderRadius: 8, border: '1px solid rgba(255,69,58,0.3)', background: 'rgba(255,69,58,0.06)', color: '#FF453A', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                              Delete "{activeKit.name}"
+                            </button>
+                          </div>
+                        )}
+
+                      </div>
+                    </>
                   );
                 })()}
               </div>
@@ -14982,26 +15033,52 @@ export default function TemplatesEditorInner() {
             <p style={{ margin: '0 0 20px', fontSize: 12, color: '#6B6B88', lineHeight: 1.5 }}>
               Your current design (<strong style={{ color: '#A0A0C0' }}>{canvasSize.label}</strong>) will be proportionally scaled into new pages for each selected format. Adjust any elements that need fine-tuning after.
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
               {CANVAS_SIZES.filter(s => s.id !== canvasSizeId).map(size => {
                 const checked = !!magicResizeSelected[size.id];
                 return (
-                  <label key={size.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${checked ? 'rgba(124,92,252,0.5)' : 'rgba(255,255,255,0.08)'}`, background: checked ? 'rgba(124,92,252,0.1)' : 'rgba(255,255,255,0.03)', cursor: 'pointer', transition: 'all 120ms ease', userSelect: 'none' }}>
+                  <label key={size.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${checked ? 'rgba(124,92,252,0.5)' : 'rgba(255,255,255,0.08)'}`, background: checked ? 'rgba(124,92,252,0.1)' : 'rgba(255,255,255,0.03)', cursor: 'pointer', transition: 'all 120ms ease', userSelect: 'none' }}>
                     <input type="checkbox" checked={checked} onChange={() => setMagicResizeSelected(prev => ({ ...prev, [size.id]: !prev[size.id] }))}
                       style={{ accentColor: '#7C5CFC', width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
                     <div style={{ flex: 1 }}>
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: checked ? '#C4B5FD' : '#E8E8F2' }}>{size.label}</p>
                       <p style={{ margin: '1px 0 0', fontSize: 11, color: '#6B6B88' }}>{size.w} × {size.h} px</p>
                     </div>
-                    <div style={{ width: 36, height: Math.round(36 * size.h / size.w), maxHeight: 28, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 3, flexShrink: 0 }} />
+                    <div style={{ width: 36, height: Math.min(52, Math.round(36 * size.h / size.w)), background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 3, flexShrink: 0 }} />
                   </label>
                 );
               })}
+              {/* Custom size row */}
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${magicResizeCustomOn ? 'rgba(124,92,252,0.5)' : 'rgba(255,255,255,0.08)'}`, background: magicResizeCustomOn ? 'rgba(124,92,252,0.1)' : 'rgba(255,255,255,0.03)', cursor: 'pointer', transition: 'all 120ms ease', userSelect: 'none' }}>
+                <input type="checkbox" checked={magicResizeCustomOn} onChange={e => setMagicResizeCustomOn(e.target.checked)}
+                  style={{ accentColor: '#7C5CFC', width: 16, height: 16, cursor: 'pointer', flexShrink: 0, marginTop: 2 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: magicResizeCustomOn ? '#C4B5FD' : '#E8E8F2' }}>Custom size</p>
+                  {magicResizeCustomOn && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 6, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                      <div>
+                        <div style={{ fontSize: 10, color: '#6B6B88', marginBottom: 3 }}>Width (px)</div>
+                        <input type="number" min={100} max={8000} value={magicResizeCustomW}
+                          onChange={e => setMagicResizeCustomW(Math.max(100, Math.min(8000, parseInt(e.target.value) || 100)))}
+                          style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#E8E8F2', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
+                      <span style={{ fontSize: 14, color: '#6B6B88' }}>×</span>
+                      <div>
+                        <div style={{ fontSize: 10, color: '#6B6B88', marginBottom: 3 }}>Height (px)</div>
+                        <input type="number" min={100} max={8000} value={magicResizeCustomH}
+                          onChange={e => setMagicResizeCustomH(Math.max(100, Math.min(8000, parseInt(e.target.value) || 100)))}
+                          style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#E8E8F2', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ color: '#6B6B88', flexShrink: 0, marginTop: 2 }}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              </label>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setShowMagicResize(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 9, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: '#9090A8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={runMagicResize} disabled={!CANVAS_SIZES.filter(s => s.id !== canvasSizeId).some(s => magicResizeSelected[s.id])}
-                style={{ flex: 2, padding: '10px 0', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'opacity 120ms', opacity: CANVAS_SIZES.filter(s => s.id !== canvasSizeId).some(s => magicResizeSelected[s.id]) ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+              <button onClick={runMagicResize} disabled={!CANVAS_SIZES.filter(s => s.id !== canvasSizeId).some(s => magicResizeSelected[s.id]) && !magicResizeCustomOn}
+                style={{ flex: 2, padding: '10px 0', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #7C5CFC 0%, #9B7FFF 100%)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'opacity 120ms', opacity: (CANVAS_SIZES.filter(s => s.id !== canvasSizeId).some(s => magicResizeSelected[s.id]) || magicResizeCustomOn) ? 1 : 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
                 Create Resized Versions
               </button>

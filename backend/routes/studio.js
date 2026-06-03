@@ -1231,5 +1231,118 @@ Rules:
     }
   });
 
+  // ── BRAND KITS ────────────────────────────────────────────────────────────
+
+  // GET /api/studio/brand-kits — list all kits; auto-seeds from customer profile on first call
+  router.get('/brand-kits', async (req, res) => {
+    try {
+      const { rows } = await pool.query(
+        'SELECT * FROM brand_kits WHERE customer_id = $1 ORDER BY is_default DESC, created_at ASC',
+        [req.customerId]
+      );
+      if (rows.length > 0) return res.json({ kits: rows });
+
+      // First time: migrate existing brand data from customers row into a default kit
+      const { rows: [cust] } = await pool.query(
+        'SELECT business_name, brand_colors, brand_fonts, logo_url FROM customers WHERE id = $1',
+        [req.customerId]
+      );
+      const bc = cust.brand_colors || {};
+      const bf = cust.brand_fonts  || {};
+      const defaultColors = [
+        { name: 'Primary',    hex: bc.primary    || '#00C4CC' },
+        { name: 'Secondary',  hex: bc.secondary  || '#7C5CFC' },
+        { name: 'Accent',     hex: bc.accent     || '#1a1a2e' },
+        { name: 'Background', hex: bc.background || '#FFFFFF' },
+        { name: 'Text',       hex: bc.text       || '#1A1A2E' },
+      ].filter(c => c.hex);
+      const { rows: [kit] } = await pool.query(
+        `INSERT INTO brand_kits (customer_id, name, is_default, logo_url, colors, fonts)
+         VALUES ($1, $2, true, $3, $4, $5) RETURNING *`,
+        [
+          req.customerId,
+          cust.business_name || 'My Brand',
+          cust.logo_url || null,
+          JSON.stringify(defaultColors),
+          JSON.stringify({ headline: bf.headline || 'Bebas Neue', body: bf.body || 'Inter' }),
+        ]
+      );
+      res.json({ kits: [kit] });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // POST /api/studio/brand-kits — create a new kit
+  router.post('/brand-kits', async (req, res) => {
+    try {
+      const { name = 'New Kit' } = req.body;
+      // Enforce plan limits: Trial/Starter = 1, Pro = 3, Premium = unlimited
+      const { rows: [cust] } = await pool.query(
+        'SELECT plan, credits_balance FROM customers WHERE id = $1', [req.customerId]
+      );
+      const { rows: existing } = await pool.query(
+        'SELECT COUNT(*) FROM brand_kits WHERE customer_id = $1', [req.customerId]
+      );
+      const count = parseInt(existing[0].count);
+      const plan = cust.plan || 'trial';
+      const limit = plan === 'premium' ? Infinity : plan === 'professional' ? 3 : 1;
+      if (count >= limit) {
+        return res.status(403).json({ error: `Your plan allows ${limit} brand kit${limit === 1 ? '' : 's'}. Upgrade to add more.` });
+      }
+      const { rows: [kit] } = await pool.query(
+        `INSERT INTO brand_kits (customer_id, name, colors, fonts)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [req.customerId, name, JSON.stringify([{ name: 'Primary', hex: '#7C5CFC' }]), JSON.stringify({ headline: 'Inter', body: 'Inter' })]
+      );
+      res.json({ kit });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // PATCH /api/studio/brand-kits/:id — update name / logo / colors / fonts / is_default
+  router.patch('/brand-kits/:id', async (req, res) => {
+    try {
+      const { name, logo_url, colors, fonts, is_default } = req.body;
+      const kitId = parseInt(req.params.id);
+      // Verify ownership
+      const { rows: [owned] } = await pool.query(
+        'SELECT id FROM brand_kits WHERE id = $1 AND customer_id = $2', [kitId, req.customerId]
+      );
+      if (!owned) return res.status(404).json({ error: 'Kit not found' });
+
+      if (is_default) {
+        await pool.query('UPDATE brand_kits SET is_default = false WHERE customer_id = $1', [req.customerId]);
+      }
+      const setClauses = [];
+      const vals = [kitId, req.customerId];
+      if (name      !== undefined) setClauses.push(`name = $${vals.push(name)}`);
+      if (logo_url  !== undefined) setClauses.push(`logo_url = $${vals.push(logo_url)}`);
+      if (colors    !== undefined) setClauses.push(`colors = $${vals.push(JSON.stringify(colors))}`);
+      if (fonts     !== undefined) setClauses.push(`fonts = $${vals.push(JSON.stringify(fonts))}`);
+      if (is_default)              setClauses.push('is_default = true');
+      setClauses.push('updated_at = NOW()');
+      const { rows: [kit] } = await pool.query(
+        `UPDATE brand_kits SET ${setClauses.join(', ')} WHERE id = $1 AND customer_id = $2 RETURNING *`,
+        vals
+      );
+      res.json({ kit });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // DELETE /api/studio/brand-kits/:id
+  router.delete('/brand-kits/:id', async (req, res) => {
+    try {
+      const kitId = parseInt(req.params.id);
+      const { rows: [owned] } = await pool.query(
+        'SELECT id FROM brand_kits WHERE id = $1 AND customer_id = $2', [kitId, req.customerId]
+      );
+      if (!owned) return res.status(404).json({ error: 'Kit not found' });
+      const { rows: [{ count }] } = await pool.query(
+        'SELECT COUNT(*) FROM brand_kits WHERE customer_id = $1', [req.customerId]
+      );
+      if (parseInt(count) <= 1) return res.status(400).json({ error: 'Cannot delete your only brand kit' });
+      await pool.query('DELETE FROM brand_kits WHERE id = $1 AND customer_id = $2', [kitId, req.customerId]);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   return router;
 };

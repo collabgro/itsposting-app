@@ -884,6 +884,20 @@ console.log('══════════════════════�
     )`,
     `CREATE INDEX IF NOT EXISTS idx_push_subs_customer ON push_subscriptions(customer_id)`,
 
+    // ── BRAND KITS — multi-kit branding per customer ──────────────────────────
+    `CREATE TABLE IF NOT EXISTS brand_kits (
+      id          SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      name        VARCHAR(100) NOT NULL DEFAULT 'Brand Kit',
+      is_default  BOOLEAN DEFAULT false,
+      logo_url    TEXT,
+      colors      JSONB DEFAULT '[]',
+      fonts       JSONB DEFAULT '{}',
+      created_at  TIMESTAMP DEFAULT NOW(),
+      updated_at  TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_brand_kits_customer ON brand_kits(customer_id)`,
+
     // ── SCALABILITY — Phase S.1: composite indexes for high-frequency query patterns ──
 
     // Posts: the three most common list queries
@@ -3475,6 +3489,9 @@ console.log('🕷️ Receptionist weekly re-crawl cron scheduled (Monday 8am UTC
 pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ').catch(() => {});
 pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_token VARCHAR(64)').catch(() => {});
 pool.query('ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ').catch(() => {});
+// Pending plan downgrade — stores scheduled end-of-period plan change
+pool.query("ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_downgrade_plan VARCHAR(50)").catch(() => {});
+pool.query("ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_downgrade_cycle VARCHAR(20)").catch(() => {});
 
 // email_queue column migrations — the table may exist with an older schema that
 // only had subject/body_html/body_text. Add template columns if missing so that
