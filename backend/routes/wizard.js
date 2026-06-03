@@ -545,7 +545,7 @@ module.exports = (pool) => {
       const customerId = req.customerId;
 
       const customerResult = await pool.query(
-        `SELECT id, business_name, industry, location, tone, visual_style,
+        `SELECT id, business_name, industry, location, phone, tone, visual_style,
                 timezone, credits_balance, plan, status,
                 brand_colors, logo_url,
                 past_post_examples, content_preferences
