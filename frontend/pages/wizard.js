@@ -534,6 +534,11 @@ export default function Wizard() {
   const [downloadModal, setDownloadModal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  // Inline card text editor state
+  const [cardEditOpen, setCardEditOpen] = useState(false);
+  const [editingOverlay, setEditingOverlay] = useState(null);
+  const [cardRerenderLoading, setCardRerenderLoading] = useState(false);
+
   // Result screen action state
   const [actionLoading, setActionLoading] = useState(false);
   const [actionToast, setActionToast] = useState(null);
@@ -1825,6 +1830,88 @@ export default function Wizard() {
                     </div>
                   )}
                 </div>
+
+                {/* Inline card text editor — photo posts with cardOverlay */}
+                {results.contentTypeSelection === 'photo' && results.cardOverlay && (
+                  <div style={{ marginBottom: 10 }}>
+                    <button
+                      onClick={() => {
+                        if (!cardEditOpen) setEditingOverlay(JSON.parse(JSON.stringify(results.cardOverlay)));
+                        setCardEditOpen(o => !o);
+                      }}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '10px 16px', borderRadius: cardEditOpen ? '10px 10px 0 0' : 10,
+                        background: cardEditOpen ? t.primaryBg : 'transparent',
+                        border: `1.5px solid ${cardEditOpen ? t.primaryBorder : t.border}`,
+                        color: cardEditOpen ? t.primary : t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >
+                      <span>✎ Edit Card Text</span>
+                      <span style={{ fontSize: 11, opacity: 0.6 }}>{cardEditOpen ? '▲ close' : '▼ open'}</span>
+                    </button>
+                    {cardEditOpen && editingOverlay && (
+                      <div style={{ border: `1.5px solid ${t.primaryBorder}`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: 14, background: t.card, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {[
+                          { key: 'headline', label: 'Headline' },
+                          { key: 'eyebrow', label: 'Eyebrow (small text above headline)' },
+                          { key: 'subtext', label: 'Subtext' },
+                          { key: 'cta', label: 'CTA button' },
+                          { key: 'badge', label: 'Badge (top-right pill)' },
+                        ].map(({ key, label }) => (
+                          <div key={key}>
+                            <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 4 }}>{label}</div>
+                            <input
+                              value={editingOverlay[key] || ''}
+                              onChange={e => setEditingOverlay(o => ({ ...o, [key]: e.target.value }))}
+                              style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, boxSizing: 'border-box' }}
+                            />
+                          </div>
+                        ))}
+                        <div>
+                          <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 4 }}>Services (one per line)</div>
+                          <textarea
+                            rows={3}
+                            value={(editingOverlay.services || []).join('\n')}
+                            onChange={e => setEditingOverlay(o => ({ ...o, services: e.target.value.split('\n').filter(Boolean) }))}
+                            style={{ width: '100%', padding: '7px 10px', borderRadius: 7, border: `1px solid ${t.border}`, background: t.input, color: t.text, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <button
+                          disabled={cardRerenderLoading}
+                          onClick={async () => {
+                            setCardRerenderLoading(true);
+                            try {
+                              const photoUrl = results.photoCardUrls?.A
+                                ? results.mediaUrl
+                                : results.mediaUrl;
+                              const { data } = await wizardAPI.rerenderCard({ photoUrl, cardOverlay: editingOverlay });
+                              setResults(r => ({
+                                ...r,
+                                cardOverlay: editingOverlay,
+                                photoCardUrls: data.photoCardUrls,
+                                mediaUrl: data.photoCardUrls.A,
+                              }));
+                              setCardEditOpen(false);
+                            } catch (err) {
+                              alert('Failed to update card. Please try again.');
+                            } finally {
+                              setCardRerenderLoading(false);
+                            }
+                          }}
+                          style={{
+                            width: '100%', padding: '10px', borderRadius: 8,
+                            background: cardRerenderLoading ? t.border : '#7C5CFC',
+                            color: '#fff', border: 'none', fontSize: 13, fontWeight: 700,
+                            cursor: cardRerenderLoading ? 'wait' : 'pointer',
+                          }}
+                        >
+                          {cardRerenderLoading ? 'Updating card…' : '↺ Update Card'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Edit in Studio CTA — only for image posts with a generated image */}
                 {results.mediaUrl && results.contentTypeSelection !== 'video' && results.videoRendering !== true && (

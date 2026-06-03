@@ -284,6 +284,7 @@ export const wizardAPI = {
   downloadImage: (data) => api.post('/api/wizard/download-image', data, { responseType: 'blob' }),
   pollVideo: (postId) => api.get(`/api/wizard/video-poll/${postId}`),
   feedback: (data) => api.post('/api/wizard/feedback', data),
+  rerenderCard: (data) => api.post('/api/wizard/rerender-card', data),
 };
 
 export const uploadAPI = {

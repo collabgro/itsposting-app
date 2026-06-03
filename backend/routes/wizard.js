@@ -1471,6 +1471,7 @@ Return ONLY valid JSON (no markdown):
         contentTypeSelection: answers.contentTypeSelection,
         platform: answers.platform,
         recommended: parsed.cardOverlay?.recommended || 'A',
+        cardOverlay: parsed.cardOverlay || null,
         slides,
         videoScript,
         meta: {
@@ -1905,6 +1906,39 @@ Return ONLY valid JSON (no markdown):
     } catch (err) {
       console.error('[Wizard] Refresh error:', err);
       res.status(500).json({ error: 'Refresh failed. Please try again.' });
+    }
+  });
+
+  // POST /api/wizard/rerender-card — re-render photo card with edited cardOverlay (no AI, no credits)
+  router.post('/rerender-card', authenticate, async (req, res) => {
+    try {
+      const { photoUrl, cardOverlay } = req.body;
+      if (!photoUrl || !cardOverlay) return res.status(400).json({ error: 'photoUrl and cardOverlay required' });
+
+      const customerResult = await pool.query(
+        `SELECT id, business_name, industry, location, phone, brand_colors, logo_url FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+      const customer = customerResult.rows[0];
+      if (!customer) return res.status(404).json({ error: 'Customer not found' });
+
+      if (!PhotoCardService || !ImageResizer) return res.status(503).json({ error: 'Photo card service unavailable' });
+
+      const rawBuffer = await ImageResizer.fetchImageAsBuffer(photoUrl);
+      const { bufferA, bufferB, bufferC } = await PhotoCardService.generatePhotoCards(rawBuffer, cardOverlay, customer);
+
+      const ts = Date.now();
+      const cid = req.customerId;
+      const [urlA, urlB, urlC] = await Promise.all([
+        ImageResizer.uploadToCloudinary(bufferA, `itsposting/${cid}/wizard-card-${ts}-A`),
+        ImageResizer.uploadToCloudinary(bufferB, `itsposting/${cid}/wizard-card-${ts}-B`),
+        ImageResizer.uploadToCloudinary(bufferC, `itsposting/${cid}/wizard-card-${ts}-C`),
+      ]);
+
+      res.json({ photoCardUrls: { A: urlA, B: urlB, C: urlC } });
+    } catch (err) {
+      console.error('[Wizard] rerender-card error:', err);
+      res.status(500).json({ error: 'Card re-render failed. Please try again.' });
     }
   });
 
