@@ -104,7 +104,7 @@ function PlanModal({ t, plan, onClose, onSaved }) {
             </label>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={labelStyle}>Your Price / Month ($)</label>
               <input type="number" min="0" step="0.01" style={inputStyle} value={form.priceMonthly} onChange={e => setForm(f => ({ ...f, priceMonthly: e.target.value }))} placeholder="e.g. 49.00" />
@@ -119,7 +119,7 @@ function PlanModal({ t, plan, onClose, onSaved }) {
           {/* Feature Flags */}
           <div style={{ marginBottom: 18 }}>
             <label style={labelStyle}>Features Clients Can Access</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(160px, 100%), 1fr))', gap: 6 }}>
               {Object.entries(FLAG_LABELS).map(([key, label]) => (
                 <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '7px 10px', borderRadius: 8, background: t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', fontSize: 12 }}>
                   <input

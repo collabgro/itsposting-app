@@ -41,6 +41,7 @@ export default function AdminLLM() {
   const { t } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState('overview');
+  const [isMobile, setIsMobile] = useState(false);
 
   // Data
   const [overview, setOverview]         = useState(null);
@@ -156,7 +157,15 @@ export default function AdminLLM() {
     finally { setLabelLoading(false); }
   }, [imagePage, imageFilter]);
 
-  useEffect(() => { setMounted(true); if (!localStorage.getItem('token')) { router.replace('/login'); return; } loadOverview(); }, []);
+  useEffect(() => {
+    setMounted(true);
+    if (!localStorage.getItem('token')) { router.replace('/login'); return; }
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    loadOverview();
+    return () => window.removeEventListener('resize', check);
+  }, []);
   useEffect(() => { if (!mounted) return; if (tab === 'training') loadTraining(); }, [tab, mounted, trainingPage, trainingIndustry]);
   useEffect(() => { if (!mounted) return; if (tab === 'models') loadModels(); }, [tab, mounted]);
   useEffect(() => { if (!mounted) return; if (tab === 'ab') { loadExperiments(); loadModels(); } }, [tab, mounted]);
@@ -422,9 +431,7 @@ export default function AdminLLM() {
         <div style={{ ...gc, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 14, background: 'linear-gradient(135deg, #5B21B6, #7C5CFC)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(124,92,252,0.35)' }}>
-                <IpSparkle size={26} style={{ color: '#fff' }} />
-              </div>
+              <img src="/fav-icon.png" alt="ItsPosting" width={52} height={52} style={{ borderRadius: 14, display: 'block', boxShadow: '0 4px 20px rgba(124,92,252,0.35)' }} />
               <div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: t.text, letterSpacing: '-0.03em' }}>ItsPosting AI Brain</div>
                 <div style={{ fontSize: 12, color: t.textMuted, marginTop: 2 }}>Proprietary LLM — Admin only. Collects training data from every customer generation.</div>
@@ -503,14 +510,14 @@ export default function AdminLLM() {
 
                 {/* Image + Video stats */}
                 {(overview.imageStats || overview.videoStats) && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 20 }}>
                     {[
                       { label: 'Image Generation', stats: overview.imageStats, color: '#10B981', dl: 'regenerated' },
                       { label: 'Video Generation', stats: overview.videoStats, color: '#3B82F6', dl: 'discarded' },
                     ].map(({ label, stats, color, dl }) => stats && (
                       <div key={label} style={{ ...gc, marginBottom: 0, padding: 18 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 12 }}>{label}</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 8 }}>
                           {[['Total', stats.total], ['Kept', stats.kept], ['Keep rate', stats.keepRate !== null ? `${stats.keepRate}%` : '—'],
                             ['w/ feedback', stats.withFeedback], [dl.charAt(0).toUpperCase()+dl.slice(1), stats.discarded ?? stats.regenerated ?? 0], ['Avg gen', stats.avgGenSecs ? `${stats.avgGenSecs}s` : '—']].map(([l, v]) => (
                             <div key={l}><div style={{ fontSize: 10, color: t.textMuted }}>{l}</div><div style={{ fontSize: 15, fontWeight: 800, color: t.text }}>{typeof v === 'number' ? v.toLocaleString() : v}</div></div>
@@ -727,7 +734,7 @@ export default function AdminLLM() {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Industry <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 10 }}>(leave blank = auto-detect per image)</span>
@@ -986,7 +993,7 @@ export default function AdminLLM() {
             {/* Export section */}
             <div style={gc}>
               <SectionHeader icon={IpDownload} title="Export for LoRA Training" subtitle="Download your labeled image dataset ready to use with FLUX.1-schnell or SDXL training tools" />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginTop: 20 }}>
                 {/* JSONL export */}
                 <div style={{ padding: '18px 20px', background: t.isDark ? 'rgba(255,255,255,0.03)' : t.input, borderRadius: 12, border: `1px solid ${t.border}` }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 6 }}>📄 JSONL Dataset</div>
@@ -1594,7 +1601,7 @@ print("Test image:", out["images"][0]["url"])`
               </div>
               <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 16 }}>You currently have {videoCount.toLocaleString()} video script examples being collected. Video scripts feed directly into Path 1 (same text model training). Full video LoRA fine-tuning is a separate future step.</div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
                 <div style={{ padding: '16px 18px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 10 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#10B981', marginBottom: 8 }}>✅ What's already working</div>
                   <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.7 }}>
@@ -1647,7 +1654,7 @@ print("Test image:", out["images"][0]["url"])`
                 <input required value={registerForm.versionName} onChange={e => setRegisterForm(f => ({ ...f, versionName: e.target.value }))}
                   placeholder="e.g. postcore-text-v0.1-llama3.2-3b" style={inputStyle} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Base Model *</div>
                   <select value={registerForm.baseModel} onChange={e => setRegisterForm(f => ({ ...f, baseModel: e.target.value }))} style={inputStyle}>
@@ -1669,7 +1676,7 @@ print("Test image:", out["images"][0]["url"])`
                 <input value={registerForm.weightsUrl} onChange={e => setRegisterForm(f => ({ ...f, weightsUrl: e.target.value }))}
                   placeholder="https://your-modal-app--postcore-text.modal.run" style={inputStyle} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Training examples</div>
                   <input type="number" value={registerForm.trainingExamples} onChange={e => setRegisterForm(f => ({ ...f, trainingExamples: e.target.value }))} placeholder="e.g. 12500" style={inputStyle} />
@@ -1739,7 +1746,7 @@ print("Test image:", out["images"][0]["url"])`
               <button onClick={() => setShowAddExample(false)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer' }}><IpClose size={18} /></button>
             </div>
             <form onSubmit={handleAddExample} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Industry</div>
                   <select value={addExForm.industry} onChange={e => setAddExForm(f => ({ ...f, industry: e.target.value }))} style={inputStyle}>
@@ -1790,7 +1797,7 @@ print("Test image:", out["images"][0]["url"])`
             </div>
 
             {/* Side-by-side: image preview + form */}
-            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 20, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '200px 1fr', gap: 20, alignItems: 'start' }}>
               {/* Preview */}
               <div style={{ borderRadius: 10, overflow: 'hidden', background: t.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', aspectRatio: '1/1' }}>
                 {editingImage.url ? (

@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useTheme } from '../lib/theme';
 import { useBranding } from '../lib/branding';
 import { workspacesAPI } from '../lib/api';
-import { IpSparkle, IpCheckCircle, IpWarning } from '../components/icons';
+import { IpCheckCircle, IpWarning } from '../components/icons';
 
 const ROLE_META = {
   manager: { label: 'Manager', color: '#7C5CFC', bg: 'rgba(124,92,252,0.12)' },
@@ -87,9 +87,7 @@ export default function SelectAccount() {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a12', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 9, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <IpSparkle size={20} color="#fff" />
-          </div>
+          <img src="/fav-icon.png" alt="ItsPosting" width={36} height={36} style={{ borderRadius: 9, display: 'block' }} />
           <div style={{ width: 200, height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden' }}>
             <div style={{ height: '100%', background: 'linear-gradient(90deg, #7C5CFC, #9B7FFF)', borderRadius: 8, animation: 'progress 1.4s ease-in-out infinite', width: '40%' }} />
           </div>
@@ -119,9 +117,7 @@ export default function SelectAccount() {
             <img src={logo} alt={appName} style={{ height: 34, maxWidth: 160, objectFit: 'contain' }} />
           ) : (
             <>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: `linear-gradient(135deg, ${brandColor} 0%, ${brandColor}cc 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <IpSparkle size={19} color="#fff" />
-              </div>
+              <img src="/fav-icon.png" alt={appName} width={34} height={34} style={{ borderRadius: 9, display: 'block' }} />
               <span style={{ fontSize: 18, fontWeight: 800, color: t.text, letterSpacing: '-0.025em' }}>{appName}</span>
             </>
           )}

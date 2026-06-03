@@ -81,6 +81,7 @@ export default function AgencyClientDetail() {
   const [error, setError]         = useState('');
   const [showCredits, setShowCredits] = useState(false);
   const [mounted, setMounted]     = useState(false);
+  const [isMobile, setIsMobile]   = useState(false);
 
   async function load() {
     if (!id) return;
@@ -95,7 +96,13 @@ export default function AgencyClientDetail() {
     }
   }
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
   useEffect(() => { if (id) load(); }, [id]);
   if (!mounted) return null;
 
@@ -152,7 +159,7 @@ export default function AgencyClientDetail() {
       }
     >
       <div style={gc}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 28 }}>
           {/* Plan card */}
           <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: 14, padding: 20 }}>
             <SectionHeader icon={IpDollar} title="Plan" subtitle="Credit budget assigned to this client" />

@@ -121,6 +121,71 @@ class NotificationService {
       'A referral credit award on your account was reviewed and not approved. Contact support if you think this is a mistake.'
     );
   }
+
+  // ── Billing notifications ─────────────────────────────────────────────────
+
+  planActivated(customerId, planName, credits) {
+    this.create(
+      customerId, TYPES.ACCOUNT,
+      `${planName} plan is active`,
+      `Welcome to ${planName}! ${credits} credits have been added to your account.`
+    );
+  }
+
+  planUpgraded(customerId, planName, creditsDelta) {
+    const deltaText = creditsDelta > 0 ? ` +${creditsDelta} credits added instantly.` : '';
+    this.create(
+      customerId, TYPES.ACCOUNT,
+      `Upgraded to ${planName}`,
+      `Your plan has been upgraded to ${planName}.${deltaText}`
+    );
+  }
+
+  planDowngradeScheduled(customerId, newPlanName, effectiveDate) {
+    const dateText = effectiveDate
+      ? new Date(effectiveDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'your next billing date';
+    this.create(
+      customerId, TYPES.ACCOUNT,
+      `Plan switch confirmed`,
+      `Your account will switch to ${newPlanName} on ${dateText}. You have full access until then.`
+    );
+  }
+
+  planCancelled(customerId, planName, accessUntil) {
+    const dateText = accessUntil
+      ? new Date(accessUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'the end of your billing period';
+    this.create(
+      customerId, TYPES.ACCOUNT,
+      'Subscription cancelled',
+      `Your ${planName} subscription has been cancelled. Full access continues until ${dateText}.`
+    );
+  }
+
+  planExpired(customerId) {
+    this.create(
+      customerId, TYPES.ACCOUNT,
+      'Plan access ended',
+      'Your subscription has ended. Upgrade from the billing page to continue posting without interruption.'
+    );
+  }
+
+  creditPackPurchased(customerId, amount, newBalance) {
+    this.create(
+      customerId, TYPES.CREDITS,
+      `+${amount} credits added`,
+      `Your credit purchase was successful. New balance: ${newBalance} credits.`
+    );
+  }
+
+  downgradeApplied(customerId, newPlanName, credits) {
+    this.create(
+      customerId, TYPES.ACCOUNT,
+      `Now on ${newPlanName} plan`,
+      `Your plan has switched to ${newPlanName}. ${credits} credits have been added to your account.`
+    );
+  }
 }
 
 module.exports = NotificationService;

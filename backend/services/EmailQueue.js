@@ -227,6 +227,68 @@ class EmailQueue {
     });
   }
 
+  /** Called when an upgrade is applied immediately (PATCH in-place) */
+  async notifyUpgradeApplied(customer, { newPlan, credits, creditsDelta, cycle }) {
+    await this.queue(customer.email, 'upgrade_applied', {
+      businessName: customer.business_name || customer.email,
+      planName: newPlan,
+      credits,
+      creditsDelta: creditsDelta > 0 ? creditsDelta : null,
+      cycle: cycle === 'yearly' ? 'Yearly (billed annually)' : 'Monthly',
+      loginUrl: `${APP_URL}/dashboard`,
+    });
+  }
+
+  /** Called when a downgrade is scheduled (cancel at period end) */
+  async notifyDowngradeScheduled(customer, { currentPlan, newPlan, newPlanCredits, effectiveDate }) {
+    const fmtDate = effectiveDate
+      ? new Date(effectiveDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : 'your next billing date';
+    await this.queue(customer.email, 'downgrade_scheduled', {
+      businessName: customer.business_name || customer.email,
+      currentPlanName: currentPlan,
+      newPlanName: newPlan,
+      newPlanCredits,
+      effectiveDate: fmtDate,
+      billingUrl: `${APP_URL}/billing`,
+    });
+  }
+
+  /** Called when a pending downgrade's billing period ends — sends re-subscription link */
+  async notifyDowngradeCheckout(customer, { newPlan, cycle, checkoutUrl, currentPlan }) {
+    await this.queue(customer.email, 'downgrade_checkout', {
+      businessName: customer.business_name || customer.email,
+      currentPlanName: currentPlan || 'your previous plan',
+      newPlanName: newPlan.name,
+      newPlanCredits: newPlan.credits,
+      cycle: cycle === 'yearly' ? 'Yearly (billed annually)' : 'Monthly',
+      checkoutUrl,
+    });
+  }
+
+  /** Called when a credit pack purchase is confirmed via Whop webhook */
+  async notifyCreditPackPurchased(customer, { amount, newBalance }) {
+    await this.queue(customer.email, 'credit_pack_purchased', {
+      businessName: customer.business_name || customer.email,
+      amount,
+      newBalance,
+      loginUrl: `${APP_URL}/dashboard`,
+    });
+  }
+
+  /** Called when a customer cancels their subscription */
+  async notifySubscriptionCancelled(customer, { planName, accessUntil }) {
+    const fmtDate = accessUntil
+      ? new Date(accessUntil).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : 'your current billing period end';
+    await this.queue(customer.email, 'subscription_cancelled', {
+      businessName: customer.business_name || customer.email,
+      planName,
+      accessUntil: fmtDate,
+      billingUrl: `${APP_URL}/billing`,
+    });
+  }
+
   /** Called when admin rejects a referral award */
   async notifyReferralRejected(customer, reason) {
     await this.queue(customer.email, 'referral_rejected', {

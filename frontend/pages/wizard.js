@@ -1787,10 +1787,8 @@ export default function Wizard() {
               <div style={{ position: 'absolute', inset: -10, borderRadius: '50%', border: '2.5px solid transparent', borderTopColor: '#7C5CFC', borderRightColor: '#9B7BFF', animation: 'spin 1.1s linear infinite' }} />
               {/* Inner spinning arc (opposite) */}
               <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: '2px solid transparent', borderBottomColor: 'rgba(124,92,252,0.4)', animation: 'spin 1.8s linear reverse infinite' }} />
-              {/* Logo box */}
-              <div style={{ width: 88, height: 88, borderRadius: 24, background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'wiz-pulse 2.4s ease-in-out 0.2s infinite', boxShadow: '0 8px 32px rgba(124,92,252,0.4), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)' }}>
-                <IpSparkle size={40} color="#fff" />
-              </div>
+              {/* Logo */}
+              <img src="/fav-icon.png" alt="ItsPosting" width={88} height={88} style={{ borderRadius: 24, display: 'block', animation: 'wiz-pulse 2.4s ease-in-out 0.2s infinite', boxShadow: '0 8px 32px rgba(124,92,252,0.4), 0 2px 8px rgba(0,0,0,0.3)' }} />
             </div>
 
             {/* Text */}

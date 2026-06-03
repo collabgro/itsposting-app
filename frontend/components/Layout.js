@@ -9,6 +9,7 @@ import {
   IpMail, IpMenu, IpClose, IpPlus, IpSun, IpMoon, IpLogout,
   IpChevronsUpDown, IpChevronRight, IpInbox, IpTeam, IpZap, IpBusiness, IpSearch,
   IpPhotoStudio, IpWarning, IpSchedule, IpVideo, IpCheck, IpTrendingUp, IpTip, IpComment,
+  IpGift, IpWand,
 } from './icons';
 import { useTheme } from '../lib/theme';
 import { authAPI, dmsAPI, suggestionsAPI, workspacesAPI, postsAPI, intelligenceAPI, analyticsAPI, billingAPI, geoAPI, knowledgeAPI, customerAPI, mediaAPI, adminAPI } from '../lib/api';
@@ -42,8 +43,8 @@ const NAV_ITEMS = [
 
   { isDivider: true, label: 'Create' },
   { name: 'Quick Post',    href: '/quick-post',     icon: IpZap,          isQuickPost: true,  featureKey: 'quick_post' },
-  { name: 'Post Wizard',   href: '/wizard',         icon: IpWizard,       showSuggBadge: true, featureKey: 'wizard' },
-  { name: 'Templates',     href: '/templates',      icon: IpPhotoStudio,  featureKey: 'templates' },
+  { name: 'AI Post',       href: '/wizard',         icon: IpWand,         showSuggBadge: true, featureKey: 'wizard' },
+  { name: 'Templates Studio', href: '/templates',  icon: IpPhotoStudio,  featureKey: 'templates' },
   { name: 'Post Ideas',    href: '/ideas',          icon: IpTip },
   { name: 'Content Calendar', href: '/content-calendar', icon: IpSchedule },
   { name: 'Social Planner', href: '/upload',         icon: IpCreatePost },
@@ -63,7 +64,7 @@ const NAV_ITEMS = [
   { isDivider: true, label: 'Account' },
   { name: 'Knowledge Base', href: '/knowledge-base', icon: IpBusiness },
   { name: 'Workspaces',    href: '/workspaces',     icon: IpTeam,         isWorkspaceNav: true },
-  { name: 'Refer & Earn',  href: '/billing?tab=referral', icon: IpZap },
+  { name: 'Refer & Earn',  href: '/billing?tab=referral', icon: IpGift },
   { name: 'Billing',       href: '/billing',        icon: IpBilling },
   { name: 'Settings',      href: '/settings',       icon: IpSettings },
 ];

@@ -1316,3 +1316,117 @@ button, a {
     width: 100%;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EXTRA RESPONSIVE SAFETY NETS
+   Applied globally to prevent common layout overflow scenarios.
+══════════════════════════════════════════════════════════════════════════ */
+
+/* Prevent any fixed-width child from causing horizontal page scroll */
+body, #__next, [data-nextjs-scroll-focus-boundary] {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Ensure all images are contained */
+img, video, svg {
+  max-width: 100%;
+}
+
+/* Topbar action button row — hidden on very small screens when crowded */
+@media (max-width: 360px) {
+  .topbar-actions-hide-xs { display: none !important; }
+}
+
+/* Safe content padding for mobile — used on page wrappers */
+.mobile-px { padding-left: 14px; padding-right: 14px; }
+@media (min-width: 900px) {
+  .mobile-px { padding-left: 44px; padding-right: 44px; }
+}
+
+/* Agency sidebar layout — collapse to single column on mobile */
+@media (max-width: 767px) {
+  .agency-split { grid-template-columns: 1fr !important; }
+}
+
+/* Admin table scroll — ensure all tables scroll horizontally */
+.admin-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.admin-table-wrap table { min-width: 600px; width: 100%; }
+
+/* Form field pair grids — collapse to 1 col on phones */
+@media (max-width: 480px) {
+  .field-pair { grid-template-columns: 1fr !important; }
+}
+
+/* Modal inner content on very small screens */
+@media (max-width: 360px) {
+  .modal-inner { padding: 16px !important; border-radius: 12px !important; }
+}
+
+/* Page subtitle in topbar — truncate gracefully on narrow screens */
+@media (max-width: 480px) {
+  .page-subtitle { display: none !important; }
+}
+
+/* Responsive two-panel: list + detail */
+@media (max-width: 767px) {
+  .panel-split {
+    grid-template-columns: 1fr !important;
+  }
+  .panel-split > .panel-sidebar {
+    display: none;
+  }
+  .panel-split > .panel-sidebar.panel-visible {
+    display: block;
+  }
+}
+
+/* Wizard step card grid — ensure 2-col on small phones */
+@media (max-width: 360px) {
+  .wizard-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 6px !important; }
+}
+
+/* Stat number — prevent overflow on tiny screens */
+@media (max-width: 360px) {
+  .stat-number { font-size: 24px !important; }
+}
+
+/* Platform chip scroll row — prevent wrapping overflow */
+.platform-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  flex-wrap: nowrap;
+}
+.platform-chips::-webkit-scrollbar { display: none; }
+.platform-chips > * { flex-shrink: 0; }
+
+/* Billing cycle toggle + title row — allow wrap on mobile */
+@media (max-width: 640px) {
+  .billing-header-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+}
+
+/* Credit history table row — compact on mobile */
+@media (max-width: 640px) {
+  .credit-row-amount { display: none !important; }
+}
+
+/* Make sure all card content wraps correctly on mobile */
+.card-content { word-break: break-word; overflow-wrap: break-word; }
+
+/* Prevent long URLs or email addresses from breaking layouts */
+.text-break { word-break: break-all; overflow-wrap: anywhere; }
+
+/* Bottom nav clearance for iOS safe area */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mobile-bottom-clear {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+  }
+}

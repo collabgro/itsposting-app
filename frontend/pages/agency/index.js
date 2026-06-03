@@ -78,9 +78,13 @@ export default function AgencyOverview() {
   const [showBcast,  setShowBcast]  = useState(false);
   const [bcastMsg,   setBcastMsg]   = useState('');
   const [mounted,    setMounted]    = useState(false);
+  const [isMobile,   setIsMobile]   = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
     Promise.all([agencyAPI.getOverview(), agencyAPI.getAnalytics()])
       .then(([ov, an]) => {
         setOverview(ov.data);
@@ -95,6 +99,7 @@ export default function AgencyOverview() {
         }
       })
       .finally(() => setLoading(false));
+    return () => window.removeEventListener('resize', check);
   }, []);
 
   if (!mounted) return null;
@@ -165,7 +170,7 @@ export default function AgencyOverview() {
           ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: clients.length > 0 ? '1fr 320px' : '1fr', gap: 20, marginBottom: 28, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (clients.length > 0 ? '1fr 320px' : '1fr'), gap: 20, marginBottom: 28, alignItems: 'start' }}>
 
           {/* Credit usage bar chart */}
           {clients.length > 0 && (

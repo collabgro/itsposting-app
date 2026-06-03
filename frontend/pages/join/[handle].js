@@ -116,7 +116,7 @@ export default function JoinPage({ branding, handle }) {
                 <input style={inputStyle} value={form.businessName} onChange={e => setForm(f => ({ ...f, businessName: e.target.value }))} placeholder="e.g. Mike's Plumbing" autoFocus required />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Industry</label>
                   <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.industry} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}>

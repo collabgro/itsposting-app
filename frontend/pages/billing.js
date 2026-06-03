@@ -32,7 +32,9 @@ const CREDIT_PACKS = [
   { id: 'credits_100', amount: 100, price: 40 },
   { id: 'credits_125', amount: 125, price: 50 },
   { id: 'credits_150', amount: 150, price: 60 },
+  { id: 'credits_175', amount: 175, price: 70 },
   { id: 'credits_200', amount: 200, price: 80 },
+  { id: 'credits_225', amount: 225, price: 90 },
   { id: 'credits_250', amount: 250, price: 100 },
   { id: 'credits_custom', amount: 0, price: 0, isCustom: true },
 ];
@@ -64,7 +66,11 @@ export default function Billing() {
   const [selectedPackId, setSelectedPackId] = useState('credits_100'); // Upwork-style dropdown selection
   const [customCreditsInput, setCustomCreditsInput] = useState('');
   const [upgradeError, setUpgradeError] = useState('');
-  const [creditMsg, setCreditMsg] = useState('');
+  const [switchedPlanName, setSwitchedPlanName] = useState(''); // success banner after in-place switch
+  const [switchEffectiveDate, setSwitchEffectiveDate] = useState(null); // for downgrade scheduled message
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
+  const [pendingDowngradePlan, setPendingDowngradePlan] = useState(null);
+  const [cancellingDowngrade, setCancellingDowngrade] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
@@ -149,17 +155,44 @@ export default function Billing() {
   const handleUpgrade = async (plan) => {
     setCheckingOut(plan.id);
     setUpgradeError('');
+    setSwitchedPlanName('');
+    setSwitchEffectiveDate(null);
     try {
       const { data } = await billingAPI.getCheckoutLink(plan.id, cycle);
       if (data.url) {
+        // New subscriber (or PATCH unsupported) — redirect to Whop checkout
         window.location.href = data.url;
+      } else if (data.switched && data.immediate) {
+        // Upgrade applied immediately in-place
+        setSwitchedPlanName(data.newPlan);
+        await loadData();
+      } else if (data.switched && !data.immediate) {
+        // Downgrade scheduled for end of billing period
+        setSwitchedPlanName(data.newPlan);
+        setSwitchEffectiveDate(data.effectiveDate);
+        await loadData();
       } else {
-        setUpgradeError(data.error || 'Checkout link unavailable. Please contact support.');
+        setUpgradeError(data.error || 'Could not process plan change. Please contact support.');
       }
     } catch (err) {
       setUpgradeError(err.response?.data?.error || 'Could not connect to billing. Please try again.');
     } finally {
       setCheckingOut(null);
+    }
+  };
+
+  const handleCancelDowngrade = async () => {
+    setCancellingDowngrade(true);
+    setUpgradeError('');
+    try {
+      await billingAPI.cancelDowngrade();
+      setSwitchedPlanName('');
+      setSwitchEffectiveDate(null);
+      await loadData();
+    } catch (err) {
+      setUpgradeError(err.response?.data?.error || 'Could not cancel scheduled switch. Please try again.');
+    } finally {
+      setCancellingDowngrade(false);
     }
   };
 
@@ -170,20 +203,23 @@ export default function Billing() {
         setUpgradeError('Please enter an amount between 10 and 10,000 credits.');
         return;
       }
-      // Show service request form instead of email instruction
       setShowCreditForm(true);
       setCreditFormDone(false);
       return;
     }
     setBuyingPack(pack.id);
-    setCreditMsg('');
     setUpgradeError('');
     try {
       const { data } = await billingAPI.buyCredits(pack.id);
       if (data.url) {
+        // Whop product configured — redirect to checkout
         window.location.href = data.url;
-      } else if (data.message) {
-        setCreditMsg(data.message);
+      } else if (data.useForm) {
+        // No Whop product for this pack yet — use the service-request form
+        // Pre-fill the amount so handleSubmitCreditRequest can read it
+        if (pack.amount > 0) setCustomCreditsInput(String(pack.amount));
+        setShowCreditForm(true);
+        setCreditFormDone(false);
       } else {
         setUpgradeError('Unable to process. Please contact support.');
       }
@@ -358,6 +394,29 @@ export default function Billing() {
                 </div>
               </div>
             )}
+            {/* Pending downgrade banner */}
+            {!isTrial && !isCancelled && current?.pendingDowngradePlan && (
+              <div style={{ marginTop: 16, padding: '12px 14px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#FEF08A', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <IpSchedule size={13} /> Switching to {current.pendingDowngradePlan.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+                      On {current?.planExpiresAt ? new Date(current.planExpiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'} · Next charge at {current.pendingDowngradePlan.name} price
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleCancelDowngrade}
+                    disabled={cancellingDowngrade}
+                    style={{ padding: '5px 12px', borderRadius: 7, cursor: cancellingDowngrade ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 700, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.85)', whiteSpace: 'nowrap', opacity: cancellingDowngrade ? 0.6 : 1 }}
+                  >
+                    {cancellingDowngrade ? 'Cancelling…' : 'Keep current plan'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {isCancelled && (
               <div style={{ marginTop: 16, padding: '12px 14px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#FCA5A5', marginBottom: 4 }}>
@@ -601,7 +660,7 @@ export default function Billing() {
         {activeTab === 'plans' && <>
 
         {/* ── BILLING CYCLE TOGGLE ──────────────────────────────────── */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: 12, marginBottom: 16 }}>
           <div>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, margin: '0 0 4px' }}>
               {isTrial ? 'Pick the right plan for your business' : 'Your plan options'}
@@ -634,6 +693,31 @@ export default function Billing() {
           </div>
         </div>
 
+        {/* ── PLAN SWITCH SUCCESS BANNER ───────────────────────────────── */}
+        {switchedPlanName && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 18px', background: switchEffectiveDate ? 'rgba(245,158,11,0.08)' : 'rgba(34,197,94,0.08)', border: `1px solid ${switchEffectiveDate ? 'rgba(245,158,11,0.25)' : 'rgba(34,197,94,0.25)'}`, borderRadius: 12, marginBottom: 16 }}>
+            <IpCheckCircle size={18} style={{ color: switchEffectiveDate ? '#f59e0b' : '#22c55e', flexShrink: 0, marginTop: 1 }} />
+            <div style={{ flex: 1 }}>
+              {switchEffectiveDate ? (
+                <>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2 }}>
+                    Switching to {switchedPlanName} on {new Date(switchEffectiveDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </div>
+                  <div style={{ fontSize: 12, color: t.textMuted, lineHeight: 1.6 }}>
+                    You keep full access to your current plan until that date. Your next charge will be at the {switchedPlanName} price.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Switched to {switchedPlanName}!</span>
+                  <span style={{ fontSize: 13, color: t.textMuted }}> Your plan and credits are now updated.</span>
+                </>
+              )}
+            </div>
+            <button onClick={() => { setSwitchedPlanName(''); setSwitchEffectiveDate(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, padding: 0 }}><IpClose size={14} /></button>
+          </div>
+        )}
+
         {/* ── PLAN CARDS ─────────────────────────────────────────────── */}
         {plansError && nonTrialPlans.length === 0 && (
           <div style={{ padding: '32px 24px', background: t.card, border: `1px solid ${t.border}`, borderRadius: 12, textAlign: 'center', marginBottom: 24 }}>
@@ -647,6 +731,7 @@ export default function Billing() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 24, paddingTop: 14 }}>
           {nonTrialPlans.map(plan => {
             const isCurrent = current?.currentPlan?.id === plan.id;
+            const isPendingDowngrade = current?.pendingDowngradePlan?.id === plan.id;
             const isDowngrade = !isTrial && !isCurrent &&
               (nonTrialPlans.findIndex(p => p.id === plan.id) < nonTrialPlans.findIndex(p => p.id === current?.currentPlan?.id));
             const PlanIcon = PLAN_ICONS[plan.id] || IpCredits;
@@ -665,7 +750,7 @@ export default function Billing() {
                   border: `2px solid ${isCurrent ? t.primary : plan.popular ? 'rgba(124,92,252,0.55)' : t.border}`,
                   borderRadius: 20, padding: 24, position: 'relative',
                   display: 'flex', flexDirection: 'column',
-                  opacity: isDowngrade ? 0.6 : 1,
+                  opacity: 1,
                   boxShadow: isCurrent
                     ? `0 0 0 1px rgba(124,92,252,0.25), 0 12px 40px rgba(124,92,252,0.18), inset 0 1px 0 rgba(255,255,255,0.06)`
                     : plan.popular
@@ -673,7 +758,7 @@ export default function Billing() {
                       : `${t.shadowMd}, inset 0 1px 0 rgba(255,255,255,0.03)`,
                   transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 200ms ease',
                 }}
-                onMouseEnter={e => { if (!isDowngrade) { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = plan.popular ? '0 16px 56px rgba(124,92,252,0.35), 0 4px 12px rgba(0,0,0,0.4)' : t.shadowXl; } }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = plan.popular ? '0 16px 56px rgba(124,92,252,0.35), 0 4px 12px rgba(0,0,0,0.4)' : t.shadowXl; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = plan.popular ? '0 8px 40px rgba(124,92,252,0.22), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)' : 'none'; }}
               >
                 {plan.popular && !isCurrent && (
@@ -692,6 +777,15 @@ export default function Billing() {
                     fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap',
                   }}>
                     Your Plan
+                  </div>
+                )}
+                {isPendingDowngrade && !isCurrent && (
+                  <div style={{
+                    position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', padding: '4px 14px', borderRadius: 9999,
+                    fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap',
+                  }}>
+                    Scheduled
                   </div>
                 )}
 
@@ -732,8 +826,13 @@ export default function Billing() {
 
                 <Button
                   onClick={() => {
-                    if (isDowngrade) { window.location.href = 'mailto:support@itsposting.com?subject=Downgrade request'; return; }
-                    if (!isCurrent) handleUpgrade(plan);
+                    if (isCurrent) return;
+                    if (isDowngrade) {
+                      setPendingDowngradePlan(plan);
+                      setShowDowngradeModal(true);
+                      return;
+                    }
+                    handleUpgrade(plan);
                   }}
                   disabled={isCurrent || !!checkingOut}
                   variant={isCurrent ? 'secondary' : plan.popular ? 'primary' : 'secondary'}
@@ -742,7 +841,7 @@ export default function Billing() {
                   {isCurrent ? (
                     <><IpCheck size={13} strokeWidth={3} /> Current plan</>
                   ) : isDowngrade ? (
-                    'Email us to downgrade'
+                    isCheckingOut ? <><img src="/icon-192.png" alt="" style={{ width: 13, height: 13, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} /> Switching...</> : 'Switch to this plan'
                   ) : isCheckingOut ? (
                     <><img src="/icon-192.png" alt="" style={{ width: 13, height: 13, borderRadius: 3, animation: 'logo-pulse 1.2s ease-in-out infinite', verticalAlign: 'middle' }} /> Redirecting...</>
                   ) : (
@@ -843,15 +942,7 @@ export default function Billing() {
 
           const packOptions = CREDIT_PACKS.map(pack => {
             if (pack.isCustom) return { value: pack.id, label: 'Custom amount' };
-            return {
-              value: pack.id,
-              label: `${pack.amount} credits for $${pack.price}`,
-              tag: pack.id === 'credits_200'
-                ? { label: 'Best Value', bg: 'rgba(16,185,129,0.15)', color: '#10b981' }
-                : pack.id === 'credits_100'
-                  ? { label: 'Popular', bg: `${t.primary}20`, color: t.primary }
-                  : null,
-            };
+            return { value: pack.id, label: `${pack.amount} credits for $${pack.price}` };
           });
 
           return (
@@ -1047,12 +1138,6 @@ export default function Billing() {
                   <p style={{ fontSize: 12, color: t.textMuted, maxWidth: 420, marginTop: 12, lineHeight: 1.6 }}>
                     Credits are added to your account instantly after payment. Taxes may apply based on your location.
                   </p>
-                  {creditMsg && (
-                    <div style={{ marginTop: 12, padding: '12px 16px', background: t.primaryBg, border: `1px solid ${t.primaryBorder}`, borderRadius: 10, fontSize: 12, color: t.textSecondary, lineHeight: 1.6, maxWidth: 420 }}>
-                      {creditMsg}
-                      <button onClick={() => setCreditMsg('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted }}><IpClose size={14} /></button>
-                    </div>
-                  )}
                 </>
               )}
             </div>
@@ -1205,6 +1290,47 @@ export default function Billing() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Downgrade confirmation modal ───────────────────────────── */}
+      {showDowngradeModal && pendingDowngradePlan && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: t.isDark ? 'rgba(12,12,20,0.97)' : 'rgba(255,255,255,0.98)', backdropFilter: 'blur(32px)', WebkitBackdropFilter: 'blur(32px)', borderRadius: 22, padding: 32, maxWidth: 440, width: '100%', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.07)'}`, boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
+            <IpWarning size={28} style={{ color: t.warning, display: 'block', margin: '0 auto 16px' }} />
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: t.text, textAlign: 'center', margin: '0 0 10px' }}>
+              Switch to {pendingDowngradePlan.name}?
+            </h3>
+            <p style={{ fontSize: 13, color: t.textSecondary, textAlign: 'center', lineHeight: 1.7, margin: '0 0 8px' }}>
+              You'll keep full <strong>{current?.currentPlan?.name}</strong> access until{' '}
+              <strong>{current?.planExpiresAt ? new Date(current.planExpiresAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'your billing date'}</strong>.
+              After that, your plan switches to <strong>{pendingDowngradePlan?.name}</strong> ({pendingDowngradePlan?.credits} credits/mo) and your card is charged at the lower price.
+            </p>
+            <p style={{ fontSize: 12, color: t.textMuted, textAlign: 'center', margin: '0 0 24px' }}>
+              You won't be charged again for the current plan. No proration deductions.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Button
+                variant="secondary"
+                onClick={() => { setShowDowngradeModal(false); setPendingDowngradePlan(null); }}
+                disabled={checkingOut === pendingDowngradePlan.id}
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                Keep current plan
+              </Button>
+              <Button
+                onClick={async () => {
+                  setShowDowngradeModal(false);
+                  await handleUpgrade(pendingDowngradePlan);
+                  setPendingDowngradePlan(null);
+                }}
+                disabled={!!checkingOut}
+                style={{ flex: 1, justifyContent: 'center', background: t.warning, color: '#fff' }}
+              >
+                {checkingOut === pendingDowngradePlan?.id ? 'Switching…' : `Yes, switch to ${pendingDowngradePlan.name}`}
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -70,7 +70,7 @@ function AddClientModal({ t, plans, onClose, onCreated }) {
             <label style={labelStyle}>Business Name *</label>
             <input style={inputStyle} value={form.businessName} onChange={e => setForm(f => ({ ...f, businessName: e.target.value }))} placeholder="e.g. Mike's Plumbing" autoFocus />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: 12, marginBottom: 16 }}>
             <div>
               <label style={labelStyle}>Industry</label>
               <select style={inputStyle} value={form.industry} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}>

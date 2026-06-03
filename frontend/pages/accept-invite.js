@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { IpSparkle, IpCheckCircle, IpWarning, IpCheck } from '../components/icons';
+import { IpCheckCircle, IpWarning, IpCheck } from '../components/icons';
 import { useTheme } from '../lib/theme';
 import { inviteAPI } from '../lib/api';
 
@@ -107,9 +107,7 @@ export default function AcceptInvite() {
             <img src={agencyLogo} alt={agencyName} style={{ height: 34, maxWidth: 160, objectFit: 'contain' }} />
           ) : (
             <>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${agencyColor} 0%, ${agencyColor}cc 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <IpSparkle size={18} color="#fff" />
-              </div>
+              <img src="/fav-icon.png" alt={agencyName} width={32} height={32} style={{ borderRadius: 8, display: 'block' }} />
               <span style={{ fontSize: 17, fontWeight: 800, color: t.text, letterSpacing: '-0.02em' }}>{agencyName}</span>
             </>
           )}

@@ -496,7 +496,7 @@ function AvatarUploader({ profile, t, onUpload }) {
   );
 }
 
-function AgencyEmailConfig({ t, wlConfig }) {
+function AgencyEmailConfig({ t, wlConfig, isMobile }) {
   const PROVIDERS = [
     { value: 'mailgun', label: 'Mailgun', desc: 'Best deliverability' },
     { value: 'resend',  label: 'Resend',  desc: 'Modern REST API'    },
@@ -652,7 +652,7 @@ function AgencyEmailConfig({ t, wlConfig }) {
               <input style={inputS} value={smtpPort} onChange={e => setSmtpPort(e.target.value)} placeholder="587" />
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelS}>SMTP Username</label>
               <input style={inputS} value={smtpUser} onChange={e => setSmtpUser(e.target.value)} placeholder="user@youragency.com" />
@@ -672,7 +672,7 @@ function AgencyEmailConfig({ t, wlConfig }) {
       )}
 
       {/* From address */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
         <div>
           <label style={labelS}>From Email</label>
           <input style={inputS} value={fromEmail} onChange={e => setFromEmail(e.target.value)} placeholder="hello@youragency.com" />
@@ -2392,7 +2392,7 @@ export default function Settings() {
             {/* Left: Form */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
                 {/* Agency Name */}
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: t.textSecondary, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Agency Name</label>
@@ -2744,7 +2744,7 @@ export default function Settings() {
           <p style={{ margin: '0 0 20px', fontSize: 13, color: t.textMuted }}>
             Send transactional emails (welcome, password reset) to your clients from your own domain.
           </p>
-          <AgencyEmailConfig t={t} wlConfig={wlConfig} />
+          <AgencyEmailConfig t={t} wlConfig={wlConfig} isMobile={isMobile} />
         </div>
 
         </>)} {/* end agency plan check */}

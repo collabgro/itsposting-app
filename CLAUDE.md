@@ -389,6 +389,16 @@ PLAN_PRO_M_WHOP_ID              # Whop plan ID for Professional monthly ($40)
 PLAN_PRO_Y_WHOP_ID              # Whop plan ID for Professional yearly ($36/mo)
 PLAN_PREMIUM_M_WHOP_ID          # Whop plan ID for Premium monthly ($60)
 PLAN_PREMIUM_Y_WHOP_ID          # Whop plan ID for Premium yearly ($54/mo)
+CREDIT_25_WHOP_ID               # Whop one-time product ID for 25 credits ($10)
+CREDIT_50_WHOP_ID               # Whop one-time product ID for 50 credits ($20)
+CREDIT_75_WHOP_ID               # Whop one-time product ID for 75 credits ($30)
+CREDIT_100_WHOP_ID              # Whop one-time product ID for 100 credits ($40)
+CREDIT_125_WHOP_ID              # Whop one-time product ID for 125 credits ($50)
+CREDIT_150_WHOP_ID              # Whop one-time product ID for 150 credits ($60)
+CREDIT_175_WHOP_ID              # Whop one-time product ID for 175 credits ($70)
+CREDIT_200_WHOP_ID              # Whop one-time product ID for 200 credits ($80)
+CREDIT_225_WHOP_ID              # Whop one-time product ID for 225 credits ($90)
+CREDIT_250_WHOP_ID              # Whop one-time product ID for 250 credits ($100)
 
 # Email
 RESEND_API_KEY
@@ -924,10 +934,12 @@ Premium:      $60/month  — 150 credits/month ($54/mo yearly)
 25 credits  → $10
 50 credits  → $20
 75 credits  → $30
-100 credits → $40
+100 credits → $40  ← Popular
 125 credits → $50
 150 credits → $60
-200 credits → $80
+175 credits → $70
+200 credits → $80  ← Best Value
+225 credits → $90
 250 credits → $100
 ```
 

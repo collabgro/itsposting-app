@@ -78,7 +78,32 @@ export function IpSparkle({ size = 20, style, className }) {
   );
 }
 
-export const IpWizard = IpSparkle;
+export function IpWand({ size = 20, style, className }) {
+  const gid = `wandGrad-${++_filterCounter}`;
+  const did = `wandDepth-${_filterCounter}`;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={style} className={className}>
+      <defs>
+        <linearGradient id={gid} x1="2" y1="22" x2="22" y2="2" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#7C5CFC" />
+          <stop offset="100%" stopColor="#C084FC" />
+        </linearGradient>
+        <filter id={did} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" floodColor="rgba(124,92,252,0.6)" floodOpacity="1" />
+        </filter>
+      </defs>
+      {/* Wand handle */}
+      <line x1="4" y1="20" x2="15" y2="9" stroke={`url(#${gid})`} strokeWidth="2.8" strokeLinecap="round" filter={`url(#${did})`} />
+      {/* Star at wand tip */}
+      <path d="M17.5 2l.9 2.5L21 5.5l-2.6.8-.9 2.7-.9-2.7L14 5.5l2.6-.8z" fill={`url(#${gid})`} filter={`url(#${did})`} />
+      {/* Sparkle accents */}
+      <circle cx="9" cy="5" r="1" fill={`url(#${gid})`} opacity="0.65" />
+      <circle cx="19" cy="14" r="0.75" fill={`url(#${gid})`} opacity="0.5" />
+    </svg>
+  );
+}
+
+export const IpWizard = IpWand;
 export const IpGenerate = IpSparkle;
 
 export function IpCreatePost({ size = 20, color = 'currentColor', strokeWidth = 1.75, style, className }) {
