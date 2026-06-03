@@ -774,6 +774,13 @@ export default function Wizard() {
     };
   }, [results?.videoRendering, results?.postId]);
 
+  // Prefetch Studio editor bundle as soon as results appear — eliminates the long load on "Edit in Studio"
+  useEffect(() => {
+    if (step === 'results' && results?.mediaUrl) {
+      router.prefetch('/templates/editor');
+    }
+  }, [step, results?.mediaUrl]);
+
   // Auto-select accounts that match the chosen platform when results load
   useEffect(() => {
     if (step !== 'results' || !results || socialAccountsList.length === 0) return;
