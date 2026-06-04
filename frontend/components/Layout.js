@@ -930,14 +930,15 @@ export default function Layout({ children, title, subtitle, action }) {
               <Link href="/billing" style={{ textDecoration: 'none' }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 10,
-                  background: t.card,
-                  border: `1.5px solid ${wlPrimary}`,
+                  background: t.isDark ? `${wlPrimary}18` : `${wlPrimary}14`,
+                  border: `2px solid ${wlPrimary}`,
+                  boxShadow: `0 0 0 1px ${wlPrimary}22`,
                   cursor: 'pointer', transition: 'all 140ms ease',
                 }}
-                  onMouseEnter={e => { e.currentTarget.style.background = wlPrimary; e.currentTarget.style.color = '#fff'; Array.from(e.currentTarget.children).forEach(c => { c.style.color = '#fff'; }); }}
-                  onMouseLeave={e => { e.currentTarget.style.background = t.card; Array.from(e.currentTarget.children).forEach(c => { c.style.color = ''; }); }}>
+                  onMouseEnter={e => { e.currentTarget.style.background = wlPrimary; Array.from(e.currentTarget.children).forEach(c => { c.style.color = '#fff'; if (c.tagName === 'svg') c.style.fill = '#fff'; }); }}
+                  onMouseLeave={e => { e.currentTarget.style.background = t.isDark ? `${wlPrimary}18` : `${wlPrimary}14`; Array.from(e.currentTarget.children).forEach(c => { c.style.color = ''; if (c.tagName === 'svg') c.style.fill = wlPrimary; }); }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill={wlPrimary} style={{ flexShrink: 0 }}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                  <span style={{ color: t.textMuted, fontWeight: 600, fontSize: 12 }}>{isSubAccount ? 'Shared' : 'Credits'}</span>
+                  <span style={{ color: wlPrimary, fontWeight: 600, fontSize: 12 }}>{isSubAccount ? 'Shared' : 'Credits'}</span>
                   <span style={{ color: wlPrimary, fontWeight: 800, fontFamily: 'monospace', fontSize: 15, letterSpacing: '-0.02em' }}>{user.credits_balance ?? 0}</span>
                 </div>
               </Link>
