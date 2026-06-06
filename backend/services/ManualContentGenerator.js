@@ -13,6 +13,13 @@ const MidjourneyService = require('./MidjourneyService');
 const HeyGenService = require('./HeyGenService');
 const VideoService = require('./VideoService');
 
+let ImageResizer;
+try {
+  ImageResizer = require('./ImageResizer');
+} catch {
+  ImageResizer = null;
+}
+
 const CREDIT_COSTS = {
   static: 1,
   photo: 3,
@@ -157,9 +164,28 @@ class ManualContentGenerator {
     let imageResult = null;
     if (imageService) {
       try {
-        imageResult = await imageService.service.generateFromPrompt(customer, imageGenPrompt, options);
+        imageResult = await imageService.service.generateFromPrompt(
+          customer, imageGenPrompt, { ...options, aspectRatio: '4:5' }
+        );
       } catch (err) {
         console.error('[ManualContentGenerator] photo image generation failed:', err.message || err);
+      }
+    }
+
+    // Resize to exact 1080×1350 (same pipeline as wizard)
+    let mediaUrl = imageResult?.url || null;
+    let mediaVariants = {};
+    if (imageResult?.url && ImageResizer) {
+      try {
+        const variants = await ImageResizer.uploadResizedImages(
+          imageResult.url,
+          `content-${Date.now()}`,
+          customer.id
+        );
+        mediaUrl = variants.instagram_feed || variants.original || imageResult.url;
+        mediaVariants = variants;
+      } catch (resizerErr) {
+        console.warn('[ManualContentGenerator] ImageResizer failed — using original URL:', resizerErr.message);
       }
     }
 
@@ -167,7 +193,8 @@ class ManualContentGenerator {
       contentType: 'photo',
       caption: captionData.caption,
       hashtags: captionData.hashtags,
-      mediaUrl: imageResult?.url || null,
+      mediaUrl,
+      mediaVariants,
       provider: imageResult?.provider || imageService?.name || 'none',
       model: imageResult?.model || null,
       variations: captionData.variations || null,

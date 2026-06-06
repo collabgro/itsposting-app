@@ -107,7 +107,7 @@ Video gen:    Two separate pipelines:
               2. Cinematic/job footage (PLANNED — see VIDEO CONTENT PIPELINE section):
                  NanoBanana 2 key frame → Veo 3.1 Fast (primary) →
                  Runway Gen-4 (fallback #1) → Pika 2.2 (fallback #2)
-              VeoService.js and VideoService.js already exist for pipeline #2
+              VeoService.js, VideoService.js, VideoComposer.js all exist for pipeline #2
 Timezone:     Luxon (backend), Intl.DateTimeFormat (frontend)
 Payments:     Whop (NOT Stripe — unavailable in Pakistan)
 Email:        Resend SDK
@@ -174,6 +174,14 @@ itsposting-app-main/
 - `studio.js` — AI-powered image studio (Sharp + Claude for branded card templates)
 - `apiKeys.js` — Developer API key management (create, list, revoke); enforces plan limits (Trial = 0, paid = 5)
 - `external.js` — External API v1 (mounted at /api/v1); all 16 endpoints require API key auth + scope
+- `agency.js` — Agency white-label portal (overview, client CRUD, plan management, credit allocation, impersonation, email config, broadcast); requires `role = 'agency'`
+- `calendarPlans.js` — AI content calendar plans (CRUD, AI-generate full month plan, AI-fill individual slots, bulk-save)
+- `competitor.js` — Competitor intelligence (add/remove competitor URLs, trigger Claude-powered analysis, view insights)
+- `email.js` — Email unsubscribe handling (GET + RFC 8058 one-click POST) + Resend bounce/complaint webhook
+- `ideas.js` — Daily AI post ideas engine (today's ideas, refresh once/day, mark-as-used, generate-daily cron endpoint)
+- `public.js` — Public routes (agency branding lookup for white-label login, business showcase, handle lookup/update)
+- `referrals.js` — Referral system (my-code, my-referrals list with conversion stats, credit award records)
+- `templates.js` — Post templates (CRUD, use/apply template, usage count tracking)
 
 ### Backend middleware (all in backend/middleware/):
 - `auth.js` — JWT authentication, token revocation, admin verification, workspace billing resolution
@@ -209,6 +217,15 @@ itsposting-app-main/
 - `WhopService.js` — Whop integration
 - `ReceptionistService.js` — AI receptionist brain (intent classification, reply generation, escalation logic)
 - `GMBMessagesService.js` — Google My Business Messages send/receive
+- `SocialPublisher.js` — posts to all 5 platforms (Facebook, Instagram 3-step container, Google Business, LinkedIn, TikTok); handles OAuth token auto-refresh before every post
+- `AgencyEmailService.js` — sends emails via the agency's own provider (Mailgun, Resend, or SMTP); falls back to platform EmailService if no agency config
+- `BrandedCardService.js` — Canva-style branded card generator using Sharp; 3 layout variants at 1080×1350px
+- `MetricsSyncService.js` — syncs post engagement metrics from Facebook/Instagram Graph API
+- `OnboardingEmailService.js` — 7-email drip sequence for new users (sent over 14 days via EmailQueue)
+- `PhotoCardService.js` — pixel-perfect photo card engine; full-bleed photo background with brand overlays (3 template styles)
+- `TestimonialMachine.js` — AI-powered testimonial generation and processing
+- `VideoComposer.js` — FFmpeg-based video composition (combines clips, audio, and captions)
+- `WebPushService.js` — VAPID web push notifications; sends to all subscriptions for a customer, auto-cleans dead subscriptions
 
 ### Frontend pages (all in frontend/pages/):
 - `index.js` — auth redirect
@@ -242,6 +259,39 @@ itsposting-app-main/
 - `admin/posts.js` — admin posts management
 - `admin/broadcast.js` — admin broadcast messaging
 
+#### Auth / onboarding pages:
+- `forgot-password.js` — password reset request form (sends reset email)
+- `reset-password.js` — password reset form (token from email link)
+- `welcome.js` — post-signup welcome / onboarding entry point
+- `select-account.js` — account selector shown when a user belongs to multiple workspaces
+- `auth/callback.js` — OAuth social login callback handler
+- `accept-invite.js` — workspace invite acceptance (token-based, from invitation email link)
+
+#### Agency white-label pages:
+- `agency/index.js` — agency dashboard (overview stats, credit usage, client activity)
+- `agency/plans.js` — agency plan builder (create/edit plans with credit budgets and feature flags)
+- `agency/clients.js` — agency client list (invite, suspend, impersonate, assign plans, allocate credits)
+
+#### Content creation pages:
+- `ideas.js` — daily AI post ideas page; shows 5 ideas, one refresh/day, tap to pre-fill wizard
+- `templates.js` — post templates library (saved templates from past wizard sessions)
+- `templates/editor.js` — full post template editor (design + content settings)
+- `templates/video-editor.js` — video template editor
+- `content-calendar.js` — AI content calendar planner; generate a full month plan, save individual slots
+
+#### Analytics / intelligence pages:
+- `competitor-intel.js` — competitor intelligence dashboard (track competitor URLs, view AI analysis)
+
+#### Public / external pages:
+- `showcase.js` — public business showcase page (uses public API, no auth required)
+- `p/[handle].js` — public profile page for a business handle
+- `join/[handle].js` — agency/workspace join landing page (for invite links)
+
+#### Redirect stubs (legacy URL support):
+- `approvals.js` — redirects to /history
+- `profile.js` — redirects to /settings
+- `video-wizard.js` — redirects to /wizard
+
 ### Frontend components:
 - `Layout.js` — sidebar + topbar with theme toggle; trial card shows "X shared credits" for sub-accounts
 - `ContentCreatorModal.js` — wizard content creation (current primary UI for wizard flow)
@@ -253,6 +303,16 @@ itsposting-app-main/
 - `ItsPostingLogo.js` — brand logo component
 - `Icon.js` — Lucide wrapper for wizard step cards
 - `icons/index.js` — custom Ip-prefixed SVG icons (~80 icons)
+- `AppLoader.js` — full-screen loading state shown during initial app bootstrap
+- `LoadingScreen.js` — branded loading screen for page-level transitions
+- `PostCoreMascot.js` — PostCore mascot illustration rendered in the sidebar
+- `ImageEditor.js` — in-app image editor (crop, filters, overlays) used in studio/media flows
+- `PostMockups.js` — social platform post preview mockups (phone/desktop frames)
+- `PostPreviewModal.js` — modal overlay showing a full post preview before publishing
+- `IntegrationSetupWizard.js` — step-by-step integration setup flow
+- `templates/TemplatesEditorInner.js` — inner editor panel for post template editing
+- `templates/VideoEditorInner.js` — inner editor panel for video template editing
+- `templates/BrandedIcon.js` — branded icon renderer used inside templates
 
 ---
 
@@ -293,6 +353,29 @@ receptionist_config       -- Per-customer AI Receptionist settings:
                           --   business_hours_start/end, timezone, after_hours_message
 dm_conversations          -- Inbound DM conversation threads (Facebook, Instagram, Google)
 dm_messages               -- Individual DM messages; ai_handled BOOLEAN tracks AI auto-replies
+```
+
+### Auth / security tables:
+```sql
+login_otps                -- Email OTP codes for 2FA login; customer_id, code_hash, expires_at, attempts
+```
+
+### Engagement / growth tables:
+```sql
+push_subscriptions        -- VAPID web push subscriptions per customer (id, customer_id, subscription JSONB)
+post_ideas                -- Daily AI-generated post ideas; customer_id, ideas JSONB, generated_date, refreshed_at
+post_templates            -- Customer-saved post templates; customer_id, name, settings JSONB, usage_count
+content_calendar_plans    -- AI-generated content calendar month plans
+competitor_profiles       -- Competitor URLs + Claude analysis results per customer
+referral_awards           -- Referral credit award history (referrer_customer_id, awarded_credits, created_at)
+```
+
+### Agency white-label tables:
+```sql
+agency_plans              -- Plans an agency offers to clients; agency_id, name, credits_per_month,
+                          --   monthly_cap_enabled, price_monthly, price_yearly, feature_flags JSONB
+workspace_plan_assignments -- Links a client workspace to an agency plan;
+                          --   workspace_id, agency_id, agency_plan_id, monthly_credit_budget, cycle_reset_at
 ```
 
 ### Key columns on customers:
@@ -402,6 +485,11 @@ CREDIT_250_WHOP_ID              # Whop one-time product ID for 250 credits ($100
 
 # Email
 RESEND_API_KEY
+
+# Web Push (VAPID — for browser push notifications)
+VAPID_PUBLIC_KEY                # VAPID public key (generate with web-push generate-vapid-keys)
+VAPID_PRIVATE_KEY               # VAPID private key
+VAPID_EMAIL                     # Optional — contact email in VAPID header (defaults to support@itsposting.com)
 ```
 
 ---
@@ -854,7 +942,7 @@ Two separate pipelines for different video types:
 **Pipeline 1 — Avatar / talking-head (EXISTS):**
 `HeyGenService.js` — for AI spokesperson videos
 
-**Pipeline 2 — Cinematic / job footage (PLANNED):**
+**Pipeline 2 — Cinematic / job footage (BUILT):**
 ```
 Step 1: Generate key frame image
         NanoBanana 2 (always — stable)
@@ -1083,6 +1171,21 @@ CTA: Clear single action (not multiple options)
 - **OAuth token auto-refresh** — Google and TikTok access tokens are refreshed automatically before every post when expired or within 5 min of expiry; new tokens written back to `social_accounts` (SocialPublisher._refreshTokenIfNeeded)
 - **Workspace membership system** — `workspace_invitations` table with token-based invites; `workspace_members` join table; `GET /api/workspaces/my-memberships` endpoint; "Shared with you" section on workspaces page; invites can target a specific sub-workspace via `workspaceId`; `/verify` JWT transition fallback covers 30-day old-token window
 - **Codebase cleanup** — removed all traces of TwilioService.js, MetaWhatsAppService.js, MailgunService.js, CalComService.js, OutboundQueue.js, QueueService.js (services never implemented); removed sms_conversations/sms_messages/outbound_jobs DB migrations; removed dead integration forms from settings.js; removed stale receptionist_config credential columns from migrations; gmb-messages.js properly mounted at /api/gmb
+- **Email OTP 2FA** — email one-time password on login (GHL-style); `login_otps` table; raw code hashed before storage; 5-attempt lockout; `/api/auth/verify-otp` endpoint; code sent directly (bypasses 30s queue poll)
+- **Agency white-label** — `agency.js` route + `agency/` frontend pages; agencies get their own branded subdomain/login, custom plans with per-client credit budgets, client impersonation, and white-label email sending via `AgencyEmailService.js`; `agency_plans` + `workspace_plan_assignments` tables
+- **Post Ideas engine** — daily 5-idea AI feed per customer (`ideas.js` route + `ideas.js` page); one refresh/day; ideas tap-to-prefill wizard; `post_ideas` table; `generate-daily` cron endpoint
+- **Content Calendar Plans** — AI-generated full-month content plans (`calendarPlans.js` route + `content-calendar.js` page); AI-fill individual slots; bulk-save; `content_calendar_plans` table
+- **Competitor Intelligence** — track competitor URLs, Claude-powered analysis of their social strategy (`competitor.js` route + `competitor-intel.js` page); `competitor_profiles` table
+- **Post Templates** — save and reuse wizard configurations as templates (`templates.js` route + `templates.js` page + `templates/editor.js` + `templates/video-editor.js`); `post_templates` table
+- **Referral system** — referral code per customer, conversion tracking, credit award records (`referrals.js` route); `referral_awards` table
+- **Web Push notifications** — VAPID browser push via `WebPushService.js`; `push_subscriptions` table; Apple splash screens + VAPID wiring in PWA
+- **Public profiles / handles** — public business showcase at `/p/[handle]` and `/showcase`; agency branding lookup for white-label login page; `public.js` route
+- **Onboarding email drip** — 7-email sequence over 14 days for new users via `OnboardingEmailService.js` + EmailQueue
+- **Metrics sync** — background sync of post engagement from Facebook/Instagram Graph API via `MetricsSyncService.js`
+- **Video composition** — FFmpeg-based video assembly via `VideoComposer.js` (clips + audio + captions)
+- **Testimonial Machine** — AI-powered testimonial generation via `TestimonialMachine.js`
+- **Photo & Branded Cards** — `PhotoCardService.js` (full-bleed photo cards, 3 template styles) + `BrandedCardService.js` (solid-color branded cards, 3 layout variants); both use Sharp at 1080×1350px
+- **Email unsubscribe + bounce handling** — `email.js` route handles RFC 8058 one-click unsubscribe + Resend bounce/complaint webhooks
 
 ---
 
@@ -1164,4 +1267,4 @@ Done. 10 seconds. No thinking required.
 
 ---
 
-*Last updated: May 2026 (v2.2) | ItsPosting.com*
+*Last updated: June 2026 (v2.3) | ItsPosting.com*
