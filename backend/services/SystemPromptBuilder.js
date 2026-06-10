@@ -162,7 +162,8 @@ You have deep knowledge of this industry. Use this to make every post feel speci
         seasonal:      ['seasonal_warning', 'seasonal', 'seasonal_urgency', 'seasonal_event', 'safety_warning', 'educational', 'targeted_urgent'],
         community:     ['community', 'educational', 'values_content', 'b2b_targeting'],
         team_spotlight: ['team_spotlight', 'team_story', 'behind_scenes'],
-        behind_scenes: ['behind_scenes', 'process_transparency', 'process_video', 'service_showcase', 'team_story', 'team_spotlight'],
+        team_spotlight: ['team_spotlight', 'team_story', 'social_proof', 'emotional_educational'],
+        behind_scenes:  ['behind_scenes', 'process_transparency', 'process_video', 'service_showcase', 'team_story', 'team_spotlight'],
         promotion:     ['promotional', 'social_proof', 'values_content', 'capability_showcase', 'targeted_urgent', 'b2b_targeting', 'educational'],
       };
       const engagementOrder = { very_high: 0, high: 1, medium_high: 2, medium: 3 };
@@ -364,8 +365,14 @@ Must: reference current month's urgency topic from industry knowledge`,
 Structure: Question (as headline) → Common myth → The truth → Why it matters → CTA
 Format: Q&A works well here — "Q: [question] A: [expert answer]"`,
 
-      behind_scenes: `Content trigger: BEHIND THE SCENES / TEAM SPOTLIGHT
-Structure: Introduce the moment → What's happening → The skill or effort involved → CTA
+      team_spotlight: `Content trigger: TEAM SPOTLIGHT
+Structure: Introduce the person or milestone → What makes them stand out (specific skill, years, achievement) → A real moment or story → CTA
+Include: First name only, years of experience, a specific detail that makes them human and memorable
+Tone: warm and proud — this is about the person, not the sale. The business is the supporting character.
+End: a question that invites the audience to share their own experience with the team or a memory of great service`,
+
+      behind_scenes: `Content trigger: BEHIND THE SCENES
+Structure: Set the scene → What's happening and why it matters → The craft or effort involved → CTA
 Tone: human, real, relatable — this is where authenticity wins`,
 
       community: `Content trigger: COMMUNITY / LOCAL EVENT
@@ -438,7 +445,7 @@ ItsPosting AI writing rules (non-negotiable):
 - Specificity beats generality every single time. "We replaced 18 feet of galvanized pipe with PEX" beats "We completed a plumbing repair."
 - Show the work. Real details create credibility. Vague claims destroy it.
 - Address the homeowner directly. They are scared, frustrated, or excited. Meet them where they are.
-- NEVER use: "delve", "synergy", "leverage", "utilize", "optimize", "comprehensive", "streamlined", "transform your", "unlock", "empower"
+- NEVER use: "delve", "synergy", "leverage", "utilize", "optimize", "robust", "holistic", "paradigm", "comprehensive", "streamlined", "transform your", "unlock", "empower" — these are instant AI-content giveaways that destroy trust with trade customers
 - NEVER start with "Are you looking for..." or "As a [industry] professional..." — these are dead giveaways of AI-generated content
 - NEVER use exclamation marks more than once per post
 - Every post ends with a single, specific engagement question — not a generic "What do you think?" but something that makes the reader check their own home or remember a real experience
@@ -500,24 +507,49 @@ Your job: choose the best template, write headline/eyebrow/subtext to perfection
 composition so the subject is in exactly the right position for the chosen template.
 
 TEMPLATE A — "Left Fade Pro":
-  Brand gradient covers left 68% (fades to transparent). Subject visible on right. Text on left.
-  Best for: job finished, educational tip, before/after, authentic professional content.
-  → imagePrompt: "Subject positioned center-right 50–60% of frame, upper-left area relatively clear"
+  Dark cinematic scrim covers left 68% (fades to transparent right). Subject CLEARLY visible on right side. Brand-colored accent bar on far left edge. Text anchored on left over dark area.
+  Best for: job finished, before/after reveals, authentic professional content.
+  → imagePrompt: "Subject positioned center-right 45–60% of frame clearly visible, dramatic side lighting, left side of frame darker/simpler for text overlay"
 
 TEMPLATE B — "Angular Impact":
   Diagonal dark triangle covers upper-left. Subject fully visible on right side. Huge headline.
-  Best for: urgent, emergency, promotional offers, dramatic/powerful tone, price deals.
+  Best for: educational tips, FAQ, community content, emergency/urgent tone.
   → imagePrompt: "Subject in right 45–55% of frame, looking toward camera, dynamic angle"
 
 TEMPLATE C — "Top Card Window":
   Brand card covers top 54% with angled bottom edge. Photo shows in lower 45% like a window.
-  Best for: service listings, testimonials, why-choose-us, professional/trust-building posts.
+  Best for: testimonials, service overview, team spotlights, trust-building posts.
   → imagePrompt: "Subject in lower 50–60% of frame, candid/natural, top of frame shows setting/background"
 
+TEMPLATE D — "Brand Immersion":
+  Solid brand-color tint covers the ENTIRE canvas at ~62% opacity. Subject visible through the tint. White pill CTA button. Secondary-color bullet points. This makes every pixel feel branded.
+  Best for: promotions, seasonal pushes, milestone posts, price offers.
+  → imagePrompt: "Subject anywhere in frame — full tint covers evenly. Rich color and contrast so subject reads through brand color overlay. Cinematic quality, authentic."
+
+TEMPLATE E — "Social Proof":
+  Dark frosted panel covers bottom 55% with a SHARP edge (no gradient) — the Canva/Envato testimonial signature. Massive decorative open-quote mark (") in secondary color as ghost watermark behind the text. Gold 5-star rating. Quote text (headline) large, white, natural case. Attribution (subtext) in secondary color with em-dash prefix.
+  Best for: reviews, testimonials, got_review content type.
+  → imagePrompt: "Happy homeowner OR completed job result in UPPER 44% of frame. Lower 55% will be covered by dark testimonial panel — keep it clean. Warm authentic lighting, candid, NOT stock photo."
+  → headline: Write as a direct quote from a customer — natural case, 8-14 words, in quotation marks: "They fixed our burst pipe in under an hour. Amazing service."
+  → subtext: Customer attribution only — "Sarah K., Dallas Homeowner" or "Mike T., Google Review"
+  → eyebrow: "VERIFIED [CITY] REVIEW" or "5-STAR GOOGLE REVIEW"
+
+TEMPLATE F — "Bold Number":
+  Left-dark cinematic gradient + ENORMOUS ghost number (the count/stat from eyebrow) behind the text area at 9% opacity. Services render as NUMBERED checklist items — filled brand-color circle badge with number inside + white text. This is the Canva/Envato tip-post signature.
+  Best for: share_tip, faq, educational how-to content ("3 Signs You Need a Plumber").
+  → imagePrompt: "Subject in RIGHT 45-55% of frame, dynamic angle, professional trade work in progress. Left side darker for gradient overlay."
+  → eyebrow: START with the number — "3 Signs Your Pipes Are Failing" or "5 HVAC Tips Every Homeowner Needs"
+  → services: Write 3-4 numbered tips as short bullets (max 6 words each) — these become the numbered checklist items on the card
+  → headline: The tip topic title (what the list is about)
+
 TEMPLATE RECOMMENDATION RULES:
-  - "A" → job_finished, share_tip, before_after, got_review (professional tone), educational
-  - "B" → promotion, urgent, seasonal (peak season), emergency services, price_offer
-  - "C" → testimonials, service_overview, why_choose_us, milestone, FAQ, team_spotlight
+  ALWAYS recommend "A" — the system auto-assigns the right template for each content type:
+  - got_review → Template E (Social Proof panel)
+  - share_tip / faq → Template F (Bold Number checklist)
+  - promotion / seasonal → Template D (Brand Immersion)
+  - team_spotlight → Template C (Top Card Window)
+  - job_finished → Template A (Left Fade Pro)
+  You do not need to choose — just write the right content for the content type.
 
 HEADLINE STYLE — choose uppercase carefully:
   - urgent, promotional, emergency content → uppercase: true ("DRAIN CLEARED IN 45 MIN")
@@ -528,9 +560,83 @@ EYEBROW TEXT: Small text above main headline. Always hyper-local and credibility
   Examples: "LICENSED PLUMBER · DALLAS TX", "YOUR EXPERT ROOFER", "SERVING DALLAS SINCE 2010"
   Never generic. Always reference the business location or a trust signal.
 
+SERVICES LIST — write these like a Canva/Envato ad designer would:
+  - For promotions: include prices or savings ("Drain Cleaning — $10 Off", "Free Estimate — Book Today")
+  - For job reveals: include specific work done ("PEX Repiping", "Sump Pump Install", "Roof Replacement")
+  - For seasonal: include urgency items ("Emergency Call-Out", "24/7 Response", "Same-Day Service")
+  - For tips/educational: include benefit statements ("Prevents $4,000 in damage", "Lasts 20+ years")
+  - Always write in the customer's voice. Max 5 words per bullet. 3-4 bullets is the sweet spot.
+
+PROFESSIONAL DESIGN PRINCIPLES (from Canva/Figma/Envato template DNA — apply to ALL overlays):
+  Typography: headline should feel like it fills the left 55% of the card. 4-6 words maximum.
+              Use sentence fragments that pack meaning: "Solved Right" > "We Solved It Right For You"
+  Hierarchy:  eyebrow (small, colored) → headline (massive, white) → divider → subtext → bullets → CTA
+              Each layer must earn its space. Cut anything generic or redundant.
+  Contrast:   every text element must pop against both light and dark backgrounds simultaneously.
+              Write text that works on any photo — avoid references to specific visual elements.
+  CTA copy:   2-4 words, action-first. "Book Today" > "Click Here to Book". Verb always comes first.
+  Badge copy: The trust badge (top-right pill) should be the single most compelling credential.
+              Examples: "AVAILABLE 24/7", "5-STAR RATED", "LICENSED & INSURED", "FREE ESTIMATES"
+              Never use: "CLICK HERE", "LEARN MORE", "CONTACT US"
+
+=== CONTENT-TYPE DESIGN BLUEPRINTS ===
+Every content type has its own visual language. Canva/Envato templates that work never mix these up.
+Write cardOverlay fields to match the blueprint for this specific content type:
+
+JOB_FINISHED / BEFORE_AFTER → Template A (Left Fade Pro):
+  The reveal is everything. Show the transformation, not the sale.
+  → headline: The outcome, specific — "Drain Cleared in 45 Min" / "Roof Fixed, Leak Gone" / "Lawn Transformed Today"
+  → eyebrow: "JUST COMPLETED · [CITY]" or "[BUSINESS NAME] · [MONTH]"
+  → subtext: One sentence — what was done and for whom. Real detail, not generic.
+  → cta: "Call for Same-Day Service" or "Get Your Free Quote"
+  → badge: "LICENSED & INSURED" or "AVAILABLE 24/7" or "SAME-DAY SERVICE"
+  → services: Specific work actually done — ["PEX Repiping", "Leak Detection", "Full Replacement"] (not generic service names)
+  IF the post describes a visible before/after transformation (old vs new, broken vs fixed, dirty vs clean):
+    → imagePrompt MUST be a SPLIT-CANVAS: left 50% = the problem state (dark, damaged, before), right 50% = the result (clean, repaired, after), separated by a thin diagonal slash line. Example: "Split-canvas image: left half shows corroded, leaking pipe joint — rusty and dark; right half shows gleaming new copper fittings, bright and clean. Diagonal divider line between halves. Professional trade photography, dramatic side lighting." If there is NO clear before/after transformation (e.g. a general job completion post), write a standard single-scene imagePrompt instead.
+
+GOT_REVIEW → Template E (Social Proof):
+  The customer's words are more powerful than yours. Put them front and center.
+  → headline: A DIRECT CUSTOMER QUOTE in natural case, 8-14 words — "They fixed our burst pipe in under an hour. Incredible."
+  → eyebrow: "5-STAR GOOGLE REVIEW · [CITY]" or "VERIFIED [CITY] CUSTOMER"
+  → subtext: Customer attribution ONLY — "— Sarah K., [Neighborhood] Homeowner" or "— Mike T., [City]"
+  → cta: "Read All Our Reviews" or "Join [X]+ Happy Customers"
+  → badge: "GOOGLE ★ 5.0" or "[X]-STAR RATED" or "[X]+ REVIEWS"
+  → services: The specific things the customer praised — ["Same-day arrival", "Clean & professional", "Honest pricing"]
+
+SHARE_TIP / FAQ → Template F (Bold Number):
+  Authority through giving. Teach something real that helps homeowners.
+  → eyebrow: START WITH THE NUMBER — "3 Signs Your Pipes Are Failing" or "5 Things to Check Before Winter"
+  → headline: The tip topic title — "Warning Signs Homeowners Miss" or "Before You Call a Plumber, Check This"
+  → subtext: One sentence establishing authority — "After [X] years fixing [city]'s [trade] problems, here's what we see every week."
+  → cta: "DM Us Any Question" or "More Tips on Our Page"
+  → badge: "[X] YEARS EXPERIENCE" or "CERTIFIED [TRADE]"
+  → services: THE ACTUAL NUMBERED TIPS — 3-4 items, max 6 words each, real and specific:
+              ["Slow drain = partial blockage forming", "Discolored water = pipe corrosion", "Low pressure = hidden leak"]
+
+PROMOTION / SEASONAL → Template D (Brand Immersion):
+  Scarcity + specificity = action. Give them ONE reason to act NOW.
+  → headline: The offer, bold and specific — "$50 Off This Month" / "Free Inspection — Book Now" / "Storm Season? We're Ready"
+  → eyebrow: "LIMITED TIME · [MONTH] [YEAR]" or "STORM SEASON SPECIAL · [CITY]"
+  → subtext: Urgency + conditions — "Book before [date] and save. Only [X] slots left this month."
+  → cta: "Call Now" or "Book Online Today" — immediate action always
+  → badge: "SAVE $[X]" or "[X]% OFF" — specific savings always, never vague
+  → services: What's included — ["$50 off service call", "Free filter check included", "Same-day booking available"]
+
+TEAM_SPOTLIGHT / COMMUNITY → Template C (Top Card Window):
+  Humans buy from humans. Show the face behind the business.
+  → headline: Name the moment — "Meet [First Name]" / "10 Years. Still Going." / "Your [City] Neighbors Trust Us"
+  → eyebrow: "[BUSINESS NAME] TEAM · [CITY]" or "FAMILY-OWNED SINCE [YEAR]"
+  → subtext: A real credential or human detail — "[Name] has been fixing [City]'s [trade] problems for [X] years."
+  → cta: "Come Meet Our Team" or "Call Us Anytime"
+  → badge: "FAMILY-OWNED" or "[X] YEARS IN [CITY]"
+  → services: Real credentials — ["Master [Trade] License", "[X] Years with [Company]", "[City] Local Since [Year]"]
+
 PHOTO QUALITY BRIEF for imagePrompt: Cinematic lighting, shallow depth-of-field background blur,
 professional editorial photography style, modern color grading. NOT stock photo look.
-Include specific composition instruction (subject position) for the CHOSEN template.
+Shoot as if for a Canva Pro template — intentional negative space, strong subject isolation,
+natural authentic feel (tradesperson actually working, not posed). Rich contrast so the subject
+reads clearly through a color overlay. Include specific composition instruction for the content type's template.
+MANDATORY: The imagePrompt must explicitly state "no text, logos, business names, or brand marks on clothing, uniforms, vehicles, or equipment — plain workwear only." This is non-negotiable — the image generator will hallucinate fictional company names otherwise.
 ` : '';
 
     return `=== OUTPUT FORMAT (CRITICAL — ALWAYS FOLLOW THIS EXACTLY) ===
@@ -547,7 +653,7 @@ ${imageGuidance}
     "badge": "2-4 word trust badge for top-right pill (e.g. AVAILABLE 24/7, 5-STAR RATED, FREE ESTIMATES)",
     "services": ["Specific service 1", "Specific service 2", "Specific service 3"],
     "uppercase": true,
-    "recommended": "A or B or C"
+    "recommended": "Always 'A' — the system assigns the right visual template automatically"
   },` : ''}${isCarousel ? `
   "carouselSlides": [
     { "slideNumber": 1, "overlayText": "max 8 words", "description": "what this slide shows visually" },
@@ -605,15 +711,16 @@ CRITICAL JSON SAFETY RULES (violations cause parse errors):
 
     if (this.wizardTrigger) {
       const triggerLabels = {
-        custom:        'They have their own specific idea for this post (see "Post idea" below)',
-        finished_job:  'They just finished a job',
-        share_tip:     'They want to share a helpful tip',
-        got_review:    'They received a great customer review',
-        promotion:     'They are running a promotion or special offer',
-        seasonal:      `Seasonal content for ${this._getMonthName(this.currentMonth)}`,
-        faq:           'They want to answer a common customer question',
-        behind_scenes: 'Behind-the-scenes look at their work',
-        community:     'Community or local event content',
+        custom:          'They have their own specific idea for this post (see "Post idea" below)',
+        finished_job:    'They just finished a job',
+        share_tip:       'They want to share a helpful tip',
+        got_review:      'They received a great customer review',
+        promotion:       'They are running a promotion or special offer',
+        seasonal:        `Seasonal content for ${this._getMonthName(this.currentMonth)}`,
+        faq:             'They want to answer a common customer question (FAQ or myth-bust)',
+        team_spotlight:  'Spotlight on a team member or company milestone',
+        behind_scenes:   'Behind-the-scenes look at their work',
+        community:       'Community or local event content',
       };
       prompt += `\nContent type: ${triggerLabels[this.wizardTrigger] || this.wizardTrigger}`;
     }

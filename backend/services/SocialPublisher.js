@@ -62,14 +62,23 @@ class SocialPublisher {
     const platformPostIds = {};
     const errors = [];
 
-    for (const account of accounts.rows) {
-      try {
-        const platformId = await this.postToPlatform(account, post);
-        if (platformId) platformPostIds[account.platform] = platformId;
-      } catch (err) {
-        const apiDetail = err.response?.data ? JSON.stringify(err.response.data) : null;
-        console.error(`[SocialPublisher] ${account.platform} failed:`, err.message, apiDetail || '');
-        errors.push({ platform: account.platform, message: err.message });
+    const results = await Promise.allSettled(
+      accounts.rows.map(account =>
+        this.postToPlatform(account, post)
+          .then(id => ({ account, id }))
+          .catch(err => { throw { account, err }; })
+      )
+    );
+
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        const { account, id } = r.value;
+        if (id) platformPostIds[account.platform] = id;
+      } else {
+        const { account, err } = r.reason;
+        const apiDetail = err?.response?.data ? JSON.stringify(err.response.data) : null;
+        console.error(`[SocialPublisher] ${account?.platform} failed:`, err?.message, apiDetail || '');
+        errors.push({ platform: account?.platform, message: err?.message });
       }
     }
 
@@ -93,18 +102,27 @@ class SocialPublisher {
     const accountLabels = {};
     const errors = [];
 
-    for (const account of accounts.rows) {
-      try {
-        const platformId = await this.postToPlatform(account, post);
-        if (platformId) {
+    const results = await Promise.allSettled(
+      accounts.rows.map(account =>
+        this.postToPlatform(account, post)
+          .then(id => ({ account, id }))
+          .catch(err => { throw { account, err }; })
+      )
+    );
+
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        const { account, id } = r.value;
+        if (id) {
           const key = `${account.platform}_${account.id}`;
-          platformPostIds[key] = platformId;
+          platformPostIds[key] = id;
           accountLabels[key] = account.account_name || account.account_username || account.platform;
         }
-      } catch (err) {
-        const apiDetail = err.response?.data ? JSON.stringify(err.response.data) : null;
-        console.error(`[SocialPublisher] ${account.platform} (id=${account.id}) failed:`, err.message, apiDetail || '');
-        errors.push({ platform: account.platform, accountId: account.id, message: err.message });
+      } else {
+        const { account, err } = r.reason;
+        const apiDetail = err?.response?.data ? JSON.stringify(err.response.data) : null;
+        console.error(`[SocialPublisher] ${account?.platform} (id=${account?.id}) failed:`, err?.message, apiDetail || '');
+        errors.push({ platform: account?.platform, accountId: account?.id, message: err?.message });
       }
     }
 
@@ -126,14 +144,23 @@ class SocialPublisher {
     const platformPostIds = {};
     const errors = [];
 
-    for (const account of accounts.rows) {
-      try {
-        const platformId = await this.postToPlatform(account, post);
-        if (platformId) platformPostIds[account.platform] = platformId;
-      } catch (err) {
-        const apiDetail = err.response?.data ? JSON.stringify(err.response.data) : null;
-        console.error(`[SocialPublisher] ${account.platform} failed:`, err.message, apiDetail || '');
-        errors.push({ platform: account.platform, message: err.message });
+    const results = await Promise.allSettled(
+      accounts.rows.map(account =>
+        this.postToPlatform(account, post)
+          .then(id => ({ account, id }))
+          .catch(err => { throw { account, err }; })
+      )
+    );
+
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        const { account, id } = r.value;
+        if (id) platformPostIds[account.platform] = id;
+      } else {
+        const { account, err } = r.reason;
+        const apiDetail = err?.response?.data ? JSON.stringify(err.response.data) : null;
+        console.error(`[SocialPublisher] ${account?.platform} failed:`, err?.message, apiDetail || '');
+        errors.push({ platform: account?.platform, message: err?.message });
       }
     }
 

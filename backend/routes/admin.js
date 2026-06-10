@@ -11,6 +11,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const AuditLog = require('../services/AuditLog');
 const EmailQueue = require('../services/EmailQueue');
 const NotificationService = require('../services/NotificationService');
+let DesignAdvisorService;
+try { DesignAdvisorService = require('../services/DesignAdvisorService'); } catch { DesignAdvisorService = null; }
 
 module.exports = (pool) => {
   const router = express.Router();
@@ -2769,6 +2771,26 @@ if __name__ == "__main__":
       res.json({ success: true });
     } catch (err) {
       console.error('[Admin] POST /service-requests/:id/approve:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── POST /api/admin/design-refresh — run monthly DesignAdvisor Claude call ───
+  // Trigger manually or from a monthly cron (e.g. 1st of each month, 9am UTC).
+  // Returns the new params so they can be inspected immediately.
+  router.post('/design-refresh', authenticate, adminOnly, async (req, res) => {
+    if (!DesignAdvisorService) {
+      return res.status(503).json({ error: 'DesignAdvisorService not available' });
+    }
+    try {
+      const advisor = new DesignAdvisorService(pool);
+      const params  = await advisor.runMonthlyRefresh();
+      await audit.log(req.admin.id, req.admin.email, 'design_refresh', 'design_advisor_params', null, {
+        trends: params.currentTrends,
+      }, req);
+      res.json({ success: true, params });
+    } catch (err) {
+      console.error('[Admin] design-refresh error:', err.message);
       res.status(500).json({ error: err.message });
     }
   });

@@ -12,7 +12,7 @@ import { setMascotMood, triggerMilestone } from '../components/PostCoreMascot';
 import { useTheme } from '../lib/theme';
 import { useBranding } from '../lib/branding';
 import api, { customerAPI, socialAPI, analyticsAPI, postsAPI, templatesAPI, wizardAPI, calendarPlansAPI } from '../lib/api';
-import { CHAR_LIMITS } from '../components/PostMockups';
+import { CHAR_LIMITS, MOCKUP_MAP, PLATFORM_META } from '../components/PostMockups';
 
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
 const CONTENT_TYPES = [
@@ -30,6 +30,7 @@ const CONTENT_THEMES = [
   { id: 'got_review',         icon: 'got_review',     label: 'Got a great review',      desc: 'Showcase customer love' },
   { id: 'running_promo',      icon: 'promotion',      label: 'Running a promotion',     desc: 'Announce an offer or deal' },
   { id: 'seasonal',           icon: 'seasonal',       label: 'Seasonal content',        desc: null },
+  { id: 'faq',                 icon: 'faq',            label: 'Answer a question',       desc: 'FAQ or myth-bust — builds authority' },
   { id: 'community',          icon: 'community',      label: 'Community / local event', desc: 'Connect with your neighborhood' },
   { id: 'team_spotlight',     icon: 'team_spotlight', label: 'Team spotlight',          desc: 'Put a face to your business' },
 ];
@@ -470,6 +471,7 @@ function buildDetailsObject(contentType, detailsText) {
     got_review:        { review_text: detailsText },
     running_promo:     { promo_offer: detailsText },
     seasonal:          { seasonal_angle: detailsText },
+    faq:               { question: detailsText },
     community:         { community_event: detailsText },
     team_spotlight:    { spotlight_subject: detailsText },
   };
@@ -521,6 +523,9 @@ export default function Wizard() {
   const [seasonalDesc, setSeasonalDesc] = useState(getSeasonalDesc());
   const [copiedId, setCopiedId] = useState(null);
   const [selectedVariation, setSelectedVariation] = useState('A');
+  const [selectedCardStyle, setSelectedCardStyle] = useState('A');
+  const [selectedPlatformTab, setSelectedPlatformTab] = useState('instagram_feed');
+  const [wizardPreviewPlatform, setWizardPreviewPlatform] = useState('all');
 
   const [connectedPlatforms, setConnectedPlatforms] = useState(null); // null = not yet loaded
   const [socialAccountsList, setSocialAccountsList] = useState([]);
@@ -546,6 +551,7 @@ export default function Wizard() {
   // Result screen action state
   const [actionLoading, setActionLoading] = useState(false);
   const [actionToast, setActionToast] = useState(null);
+  const [publishedTo, setPublishedTo] = useState(null); // set to platform string after successful publish
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleConflicts, setScheduleConflicts] = useState([]);
@@ -854,7 +860,7 @@ export default function Wizard() {
     setStep(1); setContentType(null); setVideoType('services'); setTheme(null); setTone(null); setSelectedPlatforms([]);
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
     setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null);
-    setSelectedVariation('A'); setActionLoading(false); setActionToast(null);
+    setSelectedVariation('A'); setSelectedCardStyle('A'); setActionLoading(false); setActionToast(null);
     setSvgCards(null); setActiveSvg(null); setCardEditOpen(false); setEditingOverlay(null);
     setShowScheduleModal(false); setScheduleDate(''); setIsEditing(false); setEditedCaption('');
     setSmartScheduleDismissed(false);
@@ -1034,7 +1040,7 @@ export default function Wizard() {
 
   const showToast = (type, message) => {
     setActionToast({ type, message });
-    setTimeout(() => setActionToast(null), 3500);
+    setTimeout(() => setActionToast(null), type === 'success' ? 6000 : 4000);
   };
 
   const handlePostNow = async () => {
@@ -1046,10 +1052,11 @@ export default function Wizard() {
         ? ALL_PLATFORM_IDS
         : rawPlatform ? [rawPlatform] : [];
 
-      // Record chosen variation + update media_url to the selected card template before publishing
+      // Record chosen variation + update media_url to the selected card style before publishing
       try {
         const patchData = { chosenVariation: selectedVariation };
-        if (results.photoCardUrls?.[selectedVariation]) patchData.mediaUrl = results.photoCardUrls[selectedVariation];
+        const styleUrl = results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation];
+        if (styleUrl) patchData.mediaUrl = styleUrl;
         await apiPatch(`/api/posts/${results.postId}`, patchData);
       } catch {}
       wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, mediaKept: !!results.mediaUrl, wasPublished: true }).catch(() => {});
@@ -1064,6 +1071,7 @@ export default function Wizard() {
         if (posted.length > 0 && errors.length === 0) {
           setMascotMood('celebrating', `🎉 Live on ${posted.join(', ')}!`);
           showToast('success', `Published to ${posted.join(', ')}!`);
+          setPublishedTo(posted.join(', '));
           if (calendarPlanId) calendarPlansAPI.update(calendarPlanId, { status: 'published' }).catch(() => {});
           // Trigger first_post milestone if this is their first post
           if (!localStorage.getItem('has_posted')) {
@@ -1078,6 +1086,7 @@ export default function Wizard() {
       } else {
         await apiPatch(`/api/posts/${results.postId}`, { status: 'posted' });
         showToast('success', 'Post published!');
+        setPublishedTo('your feed');
       }
     } catch (err) {
       showToast('error', err.response?.data?.error || err.message || 'Failed to publish');
@@ -1107,7 +1116,8 @@ export default function Wizard() {
     setActionLoading(true);
     try {
       const schedulePatch = { status: 'scheduled', scheduledDate: scheduleDate, chosenVariation: selectedVariation };
-      if (results.photoCardUrls?.[selectedVariation]) schedulePatch.mediaUrl = results.photoCardUrls[selectedVariation];
+      const scheduleStyleUrl = results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation];
+      if (scheduleStyleUrl) schedulePatch.mediaUrl = scheduleStyleUrl;
       await apiPatch(`/api/posts/${results.postId}`, schedulePatch);
       wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, mediaKept: !!results.mediaUrl, wasPublished: false }).catch(() => {});
       setShowScheduleModal(false);
@@ -1824,6 +1834,7 @@ export default function Wizard() {
               @keyframes wiz-orb-1  { 0%,100%{transform:translateX(-50%) scale(1);opacity:1} 50%{transform:translateX(-50%) scale(1.15);opacity:0.7} }
               @keyframes wiz-orb-2  { 0%,100%{transform:translateX(-50%) scale(1);opacity:0.8} 60%{transform:translateX(-40%) scale(1.2);opacity:0.4} }
               @keyframes wiz-fade-in{ 0%{opacity:0;transform:translateY(4px)} 100%{opacity:1;transform:translateY(0)} }
+              @keyframes toast-drop-in{ 0%{opacity:0;transform:translateX(-50%) translateY(-14px) scale(0.96)} 100%{opacity:1;transform:translateX(-50%) translateY(0) scale(1)} }
             `}</style>
           </div>
         )}
@@ -1835,8 +1846,8 @@ export default function Wizard() {
           <div>
             {/* Toast notification */}
             {actionToast && (
-              <div style={{ position: 'fixed', top: 24, right: 24, zIndex: 9999, padding: '12px 20px', borderRadius: 10, background: actionToast.type === 'success' ? '#22C55E' : '#EF4444', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name={actionToast.type === 'success' ? 'check' : 'warning'} size={15} color="#fff" />
+              <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, padding: '14px 24px', borderRadius: 14, background: actionToast.type === 'success' ? '#16A34A' : '#DC2626', color: '#fff', fontSize: 15, fontWeight: 700, boxShadow: '0 12px 40px rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center', gap: 10, minWidth: 280, whiteSpace: 'nowrap', animation: 'toast-drop-in 280ms cubic-bezier(0.16,1,0.3,1)' }}>
+                <Icon name={actionToast.type === 'success' ? 'check' : 'warning'} size={18} color="#fff" />
                 {actionToast.message}
               </div>
             )}
@@ -1849,11 +1860,11 @@ export default function Wizard() {
               <div style={{ fontSize: 14, color: t.textMuted }}>Pick whichever sounds most like you — then post or schedule</div>
             </div>
 
-            {/* Two-column layout */}
-            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+            {/* Two-column layout — captions LEFT, card+preview RIGHT (sticky) */}
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row-reverse', alignItems: 'flex-start' }}>
 
-              {/* ── LEFT: Media panel — hidden for text/static posts ── */}
-              {results.contentTypeSelection !== 'static' && <div style={{ flex: isMobile ? '0 0 100%' : '0 0 280px', minWidth: isMobile ? 0 : 220 }}>
+              {/* ── RIGHT (visually): Card image + platform preview — sticky ── */}
+              {results.contentTypeSelection !== 'static' && <div style={{ flex: isMobile ? '0 0 100%' : '0 0 320px', minWidth: isMobile ? 0 : 260, position: isMobile ? 'static' : 'sticky', top: 20, alignSelf: 'flex-start' }}>
 
                 {/* Image/video failed banner */}
                 {results.imageFailed && (
@@ -1876,8 +1887,8 @@ export default function Wizard() {
                   </div>
                 )}
 
-                {/* Media display */}
-                <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, aspectRatio: '4/5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, boxShadow: `0 8px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
+                {/* Media display — aspect ratio tracks selected platform */}
+                <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, aspectRatio: ({ instagram_feed: '4/5', facebook_feed: '1200/630', linkedin_feed: '1200/627', google_business: '4/3', instagram_square: '1/1' })[results.photoCardsByPlatform ? selectedPlatformTab : 'instagram_feed'] || '4/5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, transition: 'aspect-ratio 250ms ease', boxShadow: `0 8px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
                   {results.mediaUrl && results.videoRendering !== true ? (
                     results.contentTypeSelection === 'video' ? (
                       <video src={results.mediaUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -1896,12 +1907,20 @@ export default function Wizard() {
                     ) : (
                       <img
                         src={
-                          results.photoCardUrls?.[selectedVariation]
+                          // Platform-specific card takes priority when available
+                          (results.photoCardsByPlatform?.[selectedPlatformTab]?.[selectedCardStyle])
+                            || (results.photoCardsByPlatform?.[selectedPlatformTab]?.[selectedVariation])
+                            || results.photoCardUrls?.[selectedCardStyle]
+                            || results.photoCardUrls?.[selectedVariation]
                             || (results.contentTypeSelection === 'branded_card' && results.brandedCardUrls?.[selectedVariation])
                             || results.mediaUrl
                         }
                         alt="Generated post"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{
+                          width: '100%', height: '100%', objectFit: 'cover',
+                          // Landscape platforms need different aspect ratio
+                          aspectRatio: selectedPlatformTab === 'facebook_feed' || selectedPlatformTab === 'linkedin_feed' ? '1200/630' : selectedPlatformTab === 'google_business' ? '4/3' : undefined,
+                        }}
                       />
                     )
                   ) : (results.videoRendering === true || (results.videoRendering && results.videoRendering !== 'completed' && results.videoRendering !== 'failed')) ? (
@@ -1946,6 +1965,120 @@ export default function Wizard() {
                   )}
                 </div>
 
+                {/* ── Card Style Picker — 3 template thumbnails ── */}
+                {results.contentTypeSelection === 'photo' && results.photoCardUrls && (
+                  (() => {
+                    const styleKeys = ['A', 'B', 'C'].filter(k => results.photoCardUrls[k]);
+                    if (styleKeys.length < 2) return null;
+                    const styleLabels = { A: 'Style 1', B: 'Style 2', C: 'Style 3' };
+                    return (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Card Design</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                          {styleKeys.map(key => {
+                            const isActive = selectedCardStyle === key;
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCardStyle(key);
+                                  if (svgCards?.[key]) setActiveSvg(svgCards[key]);
+                                }}
+                                style={{
+                                  padding: 0, border: `2px solid ${isActive ? t.primary : t.border}`,
+                                  borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
+                                  background: 'none', position: 'relative',
+                                  boxShadow: isActive ? `0 0 0 3px ${t.primary}30, 0 4px 16px rgba(0,0,0,0.18)` : '0 2px 8px rgba(0,0,0,0.12)',
+                                  transform: isActive ? 'scale(1.03)' : 'scale(1)',
+                                  transition: 'all 160ms cubic-bezier(0.34,1.56,0.64,1)',
+                                }}
+                              >
+                                <img
+                                  src={results.photoCardUrls[key]}
+                                  alt={styleLabels[key]}
+                                  style={{ width: '100%', aspectRatio: '4/5', objectFit: 'cover', display: 'block' }}
+                                />
+                                {/* Style label pill */}
+                                <div style={{
+                                  position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
+                                  background: isActive ? t.primary : 'rgba(0,0,0,0.60)',
+                                  color: '#fff', fontSize: 9, fontWeight: 800,
+                                  padding: '3px 8px', borderRadius: 20, whiteSpace: 'nowrap',
+                                  letterSpacing: '0.04em', backdropFilter: 'blur(6px)',
+                                }}>
+                                  {styleLabels[key]}
+                                </div>
+                                {/* Active checkmark */}
+                                {isActive && (
+                                  <div style={{
+                                    position: 'absolute', top: 6, right: 6,
+                                    width: 20, height: 20, borderRadius: '50%',
+                                    background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                  }}>
+                                    <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                                      <path d="M1 4.5L4 7.5L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
+
+                {/* ── Platform Tabs — show when platform-native cards are available ── */}
+                {results.photoCardsByPlatform && Object.keys(results.photoCardsByPlatform).length > 1 && (
+                  (() => {
+                    const PLATFORM_TAB_META = {
+                      instagram_feed:  { label: 'Instagram', Icon: IpInstagram, ratio: '4:5'    },
+                      facebook_feed:   { label: 'Facebook',  Icon: IpFacebook,  ratio: '1.91:1' },
+                      google_business: { label: 'Google',    Icon: IpGoogle,    ratio: '4:3'    },
+                      linkedin_feed:   { label: 'LinkedIn',  Icon: IpLinkedIn,  ratio: '1.91:1' },
+                    };
+                    const availablePlatforms = Object.keys(results.photoCardsByPlatform);
+                    return (
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                          Platform Preview
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {availablePlatforms.map(platform => {
+                            const meta = PLATFORM_TAB_META[platform] || { label: platform, Icon: IpSparkle, ratio: '' };
+                            const isActive = selectedPlatformTab === platform;
+                            const TabIcon = meta.Icon;
+                            return (
+                              <button
+                                key={platform}
+                                type="button"
+                                onClick={() => setSelectedPlatformTab(platform)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 5,
+                                  padding: '6px 12px', borderRadius: 20,
+                                  background: isActive ? t.primary : t.isDark ? 'rgba(255,255,255,0.05)' : t.input,
+                                  border: `1.5px solid ${isActive ? t.primary : t.border}`,
+                                  color: isActive ? '#ffffff' : t.textSecondary,
+                                  fontSize: 12, fontWeight: isActive ? 700 : 500,
+                                  cursor: 'pointer', transition: 'all 150ms ease',
+                                  boxShadow: isActive ? `0 2px 10px ${t.primary}40` : 'none',
+                                }}
+                              >
+                                <TabIcon size={13} color={isActive ? '#ffffff' : t.textSecondary} />
+                                {meta.label}
+                                <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 2 }}>{meta.ratio}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
+
                 {/* Inline card text editor — photo posts with cardOverlay.
                     Live preview: every keystroke instantly patches the SVG in the preview
                     panel above (zero network). "Save to Post" finalises to JPEG via Sharp. */}
@@ -1956,7 +2089,8 @@ export default function Wizard() {
                         if (!cardEditOpen) {
                           setEditingOverlay(JSON.parse(JSON.stringify(results.cardOverlay)));
                           // Sync SVG back to the saved state so form and preview start aligned
-                          if (svgCards?.[selectedVariation]) setActiveSvg(svgCards[selectedVariation]);
+                          if (svgCards?.[selectedCardStyle]) setActiveSvg(svgCards[selectedCardStyle]);
+                          else if (svgCards?.[selectedVariation]) setActiveSvg(svgCards[selectedVariation]);
                         }
                         setCardEditOpen(o => !o);
                       }}
@@ -2193,14 +2327,85 @@ export default function Wizard() {
                     <IpRefresh size={13} /> {actionLoading ? 'Generating...' : 'Regenerate Image'}
                   </button>
                 )}
+
+                {/* ── Post Preview panel — Social Planner style ── */}
+                {!isMobile && (() => {
+                  const varData = results?.variations?.[selectedVariation];
+                  if (!varData) return null;
+                  const previewPlatforms = (results?.platform === 'all'
+                    ? ['facebook', 'instagram', 'google_business']
+                    : [results?.platform]).filter(p => p && MOCKUP_MAP[p]);
+                  if (previewPlatforms.length === 0) return null;
+                  const activePid = (wizardPreviewPlatform === 'all' || !previewPlatforms.includes(wizardPreviewPlatform))
+                    ? 'all' : wizardPreviewPlatform;
+                  const previewPost = {
+                    media_url: results?.photoCardUrls?.[selectedVariation] || results?.mediaUrl || null,
+                    hashtags: varData.hashtags || [],
+                    content_type: results?.contentTypeSelection === 'static' ? 'static' : 'photo',
+                  };
+                  const previewCaption = [varData.caption, varData.engagementQuestion].filter(Boolean).join('\n\n');
+                  const getProfileForPlatform = (pid) => {
+                    const acct = socialAccountsList.find(a => a.platform === pid);
+                    return { name: acct?.account_name || acct?.username || 'Your Business', picture: acct?.profile_picture || null };
+                  };
+                  const ActiveMockup = activePid !== 'all' ? MOCKUP_MAP[activePid] : null;
+                  return (
+                    <div style={{ marginTop: 12, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.border}`, borderRadius: 14, padding: '16px 16px 12px', boxShadow: t.shadowSm }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Post Preview</div>
+                      {/* Platform tabs — All + per-platform icons */}
+                      <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${t.border}`, marginBottom: 16, gap: 0 }}>
+                        <button type="button" onClick={() => setWizardPreviewPlatform('all')}
+                          style={{ padding: '7px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: activePid === 'all' ? t.primary : t.textMuted, borderBottom: `2px solid ${activePid === 'all' ? t.primary : 'transparent'}`, marginBottom: -1, transition: 'all 150ms', whiteSpace: 'nowrap' }}
+                        >All</button>
+                        {previewPlatforms.filter(pid => MOCKUP_MAP[pid]).map(pid => {
+                          const meta = PLATFORM_META[pid];
+                          const PlatIcon = meta?.Icon;
+                          const isAct = activePid === pid;
+                          return (
+                            <button key={pid} type="button" onClick={() => setWizardPreviewPlatform(pid)}
+                              style={{ padding: '7px 12px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: `2px solid ${isAct ? (meta?.color || t.primary) : 'transparent'}`, marginBottom: -1, transition: 'all 150ms', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              {PlatIcon && <PlatIcon size={18} style={{ color: isAct ? meta?.color : t.textMuted, transition: 'color 150ms' }} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {/* Mockup area */}
+                      <div style={{ borderRadius: 10, overflow: 'hidden' }}>
+                        {activePid === 'all' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                            {previewPlatforms.filter(pid => MOCKUP_MAP[pid]).map((pid, idx) => {
+                              const Mock = MOCKUP_MAP[pid];
+                              const isLast = idx === previewPlatforms.filter(p => MOCKUP_MAP[p]).length - 1;
+                              return (
+                                <div key={pid} style={{ borderBottom: isLast ? 'none' : `1px solid ${t.border}`, paddingBottom: isLast ? 0 : 20, marginBottom: isLast ? 0 : 20 }}>
+                                  <Mock post={previewPost} caption={previewCaption} profile={getProfileForPlatform(pid)} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          ActiveMockup && <ActiveMockup post={previewPost} caption={previewCaption} profile={getProfileForPlatform(activePid)} />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>}
 
-              {/* ── RIGHT: Variations + actions (60%) ── */}
+              {/* ── LEFT (visually): Variations + actions ── */}
               <div style={{ flex: 1, minWidth: 280 }}>
 
                 {/* Variation radio cards */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-                  {results.variations && Object.entries(results.variations).map(([label, variation]) => {
+                  {results.variations && (() => {
+                    // Find which variation has the highest predicted engagement score
+                    const vars = Object.entries(results.variations);
+                    const scoresPresent = vars.some(([, v]) => v.engagementScore != null);
+                    const bestLabel = scoresPresent
+                      ? vars.reduce((best, [key, v]) => (v.engagementScore || 0) > (results.variations[best]?.engagementScore || 0) ? key : best, 'A')
+                      : null;
+                    return vars.map(([label, variation]) => {
                     const isSelected = selectedVariation === label;
                     const labelColors = { A: t.primary, B: t.info, C: t.success };
                     const color = labelColors[label] || t.primary;
@@ -2229,13 +2434,18 @@ export default function Wizard() {
                           <div style={{ width: 26, height: 26, borderRadius: 7, background: isSelected ? `linear-gradient(135deg, ${color}, ${color}cc)` : t.isDark ? 'rgba(255,255,255,0.06)' : t.input, border: `2px solid ${isSelected ? 'transparent' : t.isDark ? 'rgba(255,255,255,0.1)' : t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12, color: isSelected ? '#fff' : t.textMuted, flexShrink: 0, boxShadow: isSelected ? `0 2px 8px ${color}50` : 'none', transition: 'all 200ms ease' }}>
                             {label}
                           </div>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: isSelected ? color : t.textSecondary }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: isSelected ? color : t.textSecondary, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             Variation {label}
                             {variation.hookType && <span style={{ color: t.textMuted, fontWeight: 400, fontSize: 12 }}> · {
                               results.contentTypeSelection === 'branded_card'
                                 ? ({ full_overlay: 'Full color', bold_split: 'Bold split', side_accent: 'Side accent' }[variation.hookType] || variation.hookType)
                                 : variation.hookType
                             }</span>}
+                            {bestLabel === label && (
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#fff', letterSpacing: '0.04em', textTransform: 'uppercase', boxShadow: '0 1px 4px rgba(245,158,11,0.35)' }}>
+                                Best
+                              </span>
+                            )}
                           </span>
                         </div>
 
@@ -2411,7 +2621,8 @@ export default function Wizard() {
                         )}
                       </div>
                     );
-                  })}
+                  });
+                  })()}
                 </div>
 
                 {/* Account picker — shown when multiple accounts are connected */}
@@ -2519,10 +2730,16 @@ export default function Wizard() {
                         const blocked = noneConnected || overLimit;
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <button onClick={handlePostNow} disabled={actionLoading || !results.postId || blocked} style={{ width: '100%', padding: '13px 14px', background: blocked ? '#9CA3AF' : `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, border: 'none', borderRadius: 11, color: '#fff', fontSize: 14, fontWeight: 700, cursor: (actionLoading || blocked) ? 'not-allowed' : 'pointer', opacity: (actionLoading || blocked) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: blocked ? 'none' : '0 4px 16px rgba(124,92,252,0.38)', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)' }}>
-                              <Icon name="send" size={14} color="#fff" /> Post Now
-                            </button>
-                            {overLimit && <div style={{ fontSize: 10, color: '#ef4444', textAlign: 'center' }}>Caption too long for some platforms — edit to fix</div>}
+                            {publishedTo ? (
+                              <div style={{ width: '100%', padding: '14px', background: 'rgba(22,163,74,0.08)', border: '2px solid rgba(22,163,74,0.40)', borderRadius: 11, color: '#16A34A', fontSize: 14, fontWeight: 700, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, animation: 'fadeIn 350ms ease' }}>
+                                <IpCheckCircle size={16} color="#16A34A" /> Live on {publishedTo}
+                              </div>
+                            ) : (
+                              <button onClick={handlePostNow} disabled={actionLoading || !results.postId || blocked} style={{ width: '100%', padding: '13px 14px', background: blocked ? '#9CA3AF' : `linear-gradient(135deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, border: 'none', borderRadius: 11, color: '#fff', fontSize: 14, fontWeight: 700, cursor: (actionLoading || blocked) ? 'not-allowed' : 'pointer', opacity: (actionLoading || blocked) ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: blocked ? 'none' : '0 4px 16px rgba(124,92,252,0.38)', transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)' }}>
+                                <Icon name="send" size={14} color="#fff" /> {actionLoading ? 'Publishing...' : 'Post Now'}
+                              </button>
+                            )}
+                            {overLimit && !publishedTo && <div style={{ fontSize: 10, color: '#ef4444', textAlign: 'center' }}>Caption too long for some platforms — edit to fix</div>}
                           </div>
                         );
                       })()}
@@ -2934,6 +3151,7 @@ function getDetailsPlaceholder(theme) {
     got_review:        'e.g. Customer Maria left us a 5-star review saying we saved her from a burst pipe at 11pm on a Friday...',
     running_promo:     'e.g. 20% off all AC tune-ups booked before June 15. Normally $129, now $99...',
     seasonal:          "e.g. With summer coming, we're seeing a lot of AC systems failing that haven't been serviced. Here's what to check...",
+    faq:               "e.g. Question: Do I need to service my AC every year? Myth to bust: Only if it's not working. Truth: Annual tune-ups prevent 80% of breakdowns...",
     community:         "e.g. We're sponsoring the Riverside Little League team again this year — so proud to support local kids...",
     team_spotlight:    "e.g. Meet Mike, our lead HVAC tech who has been with us for 11 years. He's seen it all and is certified on all major brands...",
   };

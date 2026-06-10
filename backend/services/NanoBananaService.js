@@ -317,7 +317,7 @@ class NanoBananaService {
       } catch { return null; }
     })();
     if (brandColors) {
-      parts.push(`technician wearing branded workwear and vehicle in ${brandColors}, brand color ${brandColors} visible as accent in the scene`);
+      parts.push(`technician wearing plain solid-color workwear in ${brandColors} (no text, no logos on clothing), vehicle accent color ${brandColors}`);
     }
 
     // 6. Visual style — adapted to feel authentic to trades (not corporate polished)
@@ -350,7 +350,7 @@ class NanoBananaService {
     // 9. Negative prompt — critical for avoiding the generic stock-photo look
     const clichesToAvoid = iv.avoidCliches?.slice(0, 4).join(', ') || 'generic stock photography, clipart, cartoons, illustrations';
     const finalPrompt = parts.join(', ') +
-      `. No text overlays, watermarks, signatures, or logos in the image. ` +
+      `. CRITICAL: No text, words, letters, business names, logos, or brand marks anywhere in the image — not on clothing, uniforms, hats, vehicles, vans, trucks, equipment, tools, or any surface. Workwear must be plain with no embroidery or print. Vehicles must be plain with no decals or signage. No watermarks, signatures, or overlays of any kind. ` +
       `Do not generate: ${clichesToAvoid}.`;
 
     console.log(`🍌 [NanoBanana] Enhanced prompt for ${industry} (${finalPrompt.length} chars)`);

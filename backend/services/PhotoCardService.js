@@ -103,6 +103,14 @@ function darkenHex(hex, factor = 0.25) {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
+function lightenHex(hex, factor = 0.25) {
+  const h = (hex || '#3B82F6').replace('#', '').padStart(6, '0');
+  const r = Math.min(255, Math.round(parseInt(h.slice(0, 2), 16) + (255 - parseInt(h.slice(0, 2), 16)) * factor));
+  const g = Math.min(255, Math.round(parseInt(h.slice(2, 4), 16) + (255 - parseInt(h.slice(2, 4), 16)) * factor));
+  const b = Math.min(255, Math.round(parseInt(h.slice(4, 6), 16) + (255 - parseInt(h.slice(4, 6), 16)) * factor));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
 function industryIconSvg(cx, cy, r, industry, bgColor = 'rgba(255,255,255,0.95)', iconColor = '#1B3A6B') {
   const pathData = INDUSTRY_ICONS[industry] || INDUSTRY_ICONS.general_contractor;
   const scale = (r * 1.35) / 24;
@@ -148,6 +156,37 @@ function formatPhone(raw) {
   return raw;
 }
 
+// ── Design Seed System ─────────────────────────────────────────────────────────
+// Deterministic visual fingerprint per business — same customer always gets the
+// same template variants (brand consistency), different customers get different
+// variants (no two businesses look the same, even in the same industry).
+
+function computeDesignSeed(customerId, businessName) {
+  const str = `${customerId || 0}|${businessName || ''}`;
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+    hash = hash >>> 0;
+  }
+  return hash;
+}
+
+function getDesignFingerprint(customer) {
+  const seed = computeDesignSeed(customer?.id, customer?.business_name);
+  return {
+    // Swap primary/secondary color roles — same template, completely different feel
+    colorRole:        (seed >> 18) % 2,           // 0=normal, 1=swapped
+    // Card/overlay opacity variation
+    overlayOpacity:   0.82 + ((seed >> 12) % 3) * 0.05, // 0.82 | 0.87 | 0.92
+    // Decoration density for accent elements
+    decorDensity:     (seed >> 15) % 3,            // 0=minimal, 1=standard, 2=rich
+    // Typography weight variation
+    typographyWeight: (seed >> 9) % 2,             // 0=900 heavy, 1=800 bold
+    // Which of 3 template lineups this customer sees for each trigger type
+    lineupOffset:     (seed >> 3) % 3,             // 0, 1, or 2
+  };
+}
+
 // ── Template A — "Left Fade Pro" ──────────────────────────────────────────────
 async function buildTemplateA(
   resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
@@ -169,9 +208,9 @@ async function buildTemplateA(
   const headEndY   = headStartY + headLines.length * headLineH;
   const dividerY   = headEndY + 18;
   const subStartY  = dividerY + 28;
-  const subLineH   = 36;
+  const subLineH   = 44;
   const listStartY = subStartY + subLines.length * subLineH + 32;
-  const listLineH  = 52;
+  const listLineH  = 60;
   const bullets    = Array.isArray(services) ? services.slice(0, 4) : [];
 
   // data-field attribute helper — only added in browser mode for live editing
@@ -187,25 +226,26 @@ async function buildTemplateA(
   parts.push(
     `<defs>
       <linearGradient id="fadeA" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%"   stop-color="${colors.primary}" stop-opacity="0.91"/>
-        <stop offset="45%"  stop-color="${colors.primary}" stop-opacity="0.86"/>
-        <stop offset="68%"  stop-color="${colors.primary}" stop-opacity="0.22"/>
-        <stop offset="100%" stop-color="${colors.primary}" stop-opacity="0.00"/>
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.88"/>
+        <stop offset="44%"  stop-color="#000000" stop-opacity="0.76"/>
+        <stop offset="66%"  stop-color="#000000" stop-opacity="0.15"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.00"/>
       </linearGradient>
       <linearGradient id="topDarkA" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%"   stop-color="#000000" stop-opacity="0.62"/>
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.74"/>
         <stop offset="100%" stop-color="#000000" stop-opacity="0.00"/>
       </linearGradient>
       <linearGradient id="botDarkA" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%"   stop-color="${dark}" stop-opacity="0.00"/>
-        <stop offset="30%"  stop-color="${dark}" stop-opacity="0.82"/>
-        <stop offset="100%" stop-color="${dark}" stop-opacity="0.97"/>
+        <stop offset="28%"  stop-color="${dark}" stop-opacity="0.92"/>
+        <stop offset="100%" stop-color="${dark}" stop-opacity="0.98"/>
       </linearGradient>
     </defs>`,
     `<rect x="0" y="0" width="${W}" height="${H}" fill="url(#fadeA)"/>`,
+    `<rect x="0" y="0" width="${Math.floor(W * 0.62)}" height="${H}" fill="${colors.primary}" opacity="0.20"/>`,
     `<rect x="0" y="0" width="${W}" height="110" fill="url(#topDarkA)"/>`,
-    `<rect x="0" y="${H - 160}" width="${W}" height="160" fill="url(#botDarkA)"/>`,
-    `<rect x="0" y="0" width="5" height="${H}" fill="${colors.secondary}" opacity="0.85"/>`,
+    `<rect x="0" y="${H - 165}" width="${W}" height="165" fill="url(#botDarkA)"/>`,
+    `<rect x="0" y="0" width="9" height="${H}" fill="${colors.secondary}" opacity="1.0"/>`,
   );
 
   // Logo + business name — top left
@@ -234,25 +274,27 @@ async function buildTemplateA(
   // Main headline lines
   headLines.forEach((l, i) => {
     parts.push(
-      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="80" font-weight="900" letter-spacing="-2.5" fill="#ffffff" dominant-baseline="hanging">${l}</text>`
+      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="80" font-weight="900" letter-spacing="-2.5" fill="#ffffff" stroke="#000000" stroke-width="10" stroke-opacity="0.42" paint-order="stroke fill" dominant-baseline="hanging">${l}</text>`
     );
   });
 
-  // Accent divider bar
-  parts.push(`<rect x="${padX}" y="${dividerY}" width="160" height="6" rx="3" fill="${colors.secondary}" opacity="0.95"/>`);
+  // Accent divider bar — thicker, more prominent
+  parts.push(`<rect x="${padX}" y="${dividerY}" width="180" height="7" rx="3.5" fill="${colors.secondary}" opacity="1.0"/>`);
 
   // Subtext lines
   subLines.forEach((l, i) => {
     parts.push(
-      `<text${df(`subtext-${i}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="27" font-weight="400" fill="#ffffff" opacity="0.88" dominant-baseline="hanging">${l}</text>`
+      `<text${df(`subtext-${i}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="34" font-weight="400" fill="#ffffff" opacity="0.88" dominant-baseline="hanging">${l}</text>`
     );
   });
 
-  // Service checklist (arrow style)
+  // Service checklist — filled circle bullets in brand secondary color
   bullets.forEach((item, i) => {
     const y = listStartY + i * listLineH + 24;
-    parts.push(`<text x="${padX}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="26" font-weight="700" fill="${colors.secondary}" dominant-baseline="middle">&#x2192;</text>`);
-    parts.push(`<text${df(`service-${i}`)} x="${padX + 36}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="26" font-weight="500" fill="#ffffff" dominant-baseline="middle">${escapeXml(item)}</text>`);
+    const dotR = 9;
+    const dotCx = padX + dotR + 1;
+    parts.push(`<circle cx="${dotCx}" cy="${y}" r="${dotR}" fill="${colors.secondary}"/>`);
+    parts.push(`<text${df(`service-${i}`)} x="${padX + dotR * 2 + 16}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="32" font-weight="600" fill="#ffffff" stroke="#000000" stroke-width="4" stroke-opacity="0.30" paint-order="stroke fill" dominant-baseline="middle">${escapeXml(item)}</text>`);
   });
 
   // Bottom: phone icon + number + CTA / business name
@@ -267,13 +309,14 @@ async function buildTemplateA(
     parts.push(`<text${df('cta')} x="${W / 2}" y="${H - 44}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="500" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" opacity="0.72">${escapeXml(cta || businessName)}</text>`);
   } else {
     if (cta) {
-      const ctaW = Math.min(480, Math.max(240, cta.length * 16 + 80));
+      const ctaW = Math.min(500, Math.max(260, cta.length * 16 + 80));
       const ctaX = padX;
-      const ctaY = H - 130;
-      parts.push(`<rect x="${ctaX}" y="${ctaY}" width="${ctaW}" height="62" rx="31" fill="#ffffff"/>`);
-      parts.push(`<text${df('cta')} x="${ctaX + ctaW / 2}" y="${ctaY + 31}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="800" fill="${colors.primary}" text-anchor="middle" dominant-baseline="middle">${escapeXml(cta.toUpperCase())}</text>`);
+      const ctaY = H - 136;
+      parts.push(`<rect x="${ctaX}" y="${ctaY}" width="${ctaW}" height="68" rx="34" fill="${colors.secondary}"/>`);
+      parts.push(`<rect x="${ctaX + 3}" y="${ctaY + 3}" width="${ctaW - 6}" height="62" rx="31" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>`);
+      parts.push(`<text${df('cta')} x="${ctaX + ctaW / 2}" y="${ctaY + 34}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="900" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${escapeXml(cta.toUpperCase())}</text>`);
     }
-    parts.push(`<text x="${W / 2}" y="${H - 42}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="500" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" opacity="0.72">${escapeXml(businessName)}</text>`);
+    parts.push(`<text x="${W / 2}" y="${H - 44}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="500" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" opacity="0.65">${escapeXml(businessName)}</text>`);
   }
 
   // ── Browser mode: return self-contained SVG string ─────────────────────────
@@ -313,7 +356,7 @@ async function buildTemplateB(
   const headStartY = 168;
   const headLineH  = 98;
   const subStartY  = headStartY + headLines.length * headLineH + 20;
-  const subLineH   = 36;
+  const subLineH   = 44;
   const listStartY = subStartY + subLines.length * subLineH + 36;
   const listLineH  = 58;
   const bullets    = Array.isArray(services) ? services.slice(0, 3) : [];
@@ -367,22 +410,24 @@ async function buildTemplateB(
 
   headLines.forEach((l, i) => {
     parts.push(
-      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="96" font-weight="900" letter-spacing="-3.5" fill="#ffffff" dominant-baseline="hanging">${l}</text>`
+      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="96" font-weight="900" letter-spacing="-3.5" fill="#ffffff" stroke="#000000" stroke-width="12" stroke-opacity="0.42" paint-order="stroke fill" dominant-baseline="hanging">${l}</text>`
     );
   });
 
   subLines.forEach((l, i) => {
     parts.push(
-      `<text${df(`subtext-${i}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="28" font-weight="400" fill="#ffffff" opacity="0.88" dominant-baseline="hanging">${l}</text>`
+      `<text${df(`subtext-${i}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="34" font-weight="400" fill="#ffffff" stroke="#000000" stroke-width="4" stroke-opacity="0.30" paint-order="stroke fill" opacity="0.92" dominant-baseline="hanging">${l}</text>`
     );
   });
 
-  // Editorial checklist — left color stripe per item
+  // Editorial checklist — pill backdrop + brand stripe per item
   bullets.forEach((item, i) => {
     const itemY = listStartY + i * listLineH;
-    const textH = 40;
-    parts.push(`<rect x="${padX}" y="${itemY}" width="6" height="${textH}" rx="3" fill="${colors.secondary}"/>`);
-    parts.push(`<text${df(`service-${i}`)} x="${padX + 22}" y="${itemY + textH / 2}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="26" font-weight="600" fill="#ffffff" dominant-baseline="middle">${escapeXml(item)}</text>`);
+    const textH = 46;
+    const itemW = Math.min(700, item.length * 15 + 64);
+    parts.push(`<rect x="${padX}" y="${itemY}" width="${itemW}" height="${textH}" rx="8" fill="rgba(0,0,0,0.45)"/>`);
+    parts.push(`<rect x="${padX}" y="${itemY}" width="9" height="${textH}" rx="4" fill="${colors.secondary}"/>`);
+    parts.push(`<text${df(`service-${i}`)} x="${padX + 27}" y="${itemY + textH / 2}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="30" font-weight="600" fill="#ffffff" dominant-baseline="middle">${escapeXml(item)}</text>`);
   });
 
   const phoneFormatted = formatPhone(phone);
@@ -500,7 +545,7 @@ async function buildTemplateC(
 
   headLines.forEach((l, i) => {
     parts.push(
-      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="74" font-weight="900" letter-spacing="-2" fill="#ffffff" dominant-baseline="hanging">${l}</text>`
+      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="74" font-weight="900" letter-spacing="-2" fill="#ffffff" stroke="#000000" stroke-width="9" stroke-opacity="0.40" paint-order="stroke fill" dominant-baseline="hanging">${l}</text>`
     );
   });
 
@@ -512,7 +557,7 @@ async function buildTemplateC(
 
     subLines.slice(1).forEach((l, i) => {
       parts.push(
-        `<text${df(`subtext-${i + 1}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="26" font-weight="400" fill="#ffffff" opacity="0.86" dominant-baseline="hanging">${l}</text>`
+        `<text${df(`subtext-${i + 1}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="32" font-weight="400" fill="#ffffff" opacity="0.86" dominant-baseline="hanging">${l}</text>`
       );
     });
   }
@@ -554,25 +599,1037 @@ async function buildTemplateC(
     .toBuffer();
 }
 
+// ── Template D — "Brand Immersion" (Claude Design style) ─────────────────────
+// Full-bleed photo with solid brand-color tint over the ENTIRE canvas.
+// Unlike Template A's directional gradient, the brand color wraps everything
+// uniformly, making the image feel like a branded ad rather than a photo with
+// text on top. Ideal for promotions, seasonal pushes, and milestone posts.
+async function buildTemplateD(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null
+) {
+  const {
+    headline = '', eyebrow = '', subtext = '', cta = '',
+    badge = '', services = [], uppercase = false,
+  } = cardOverlay;
+
+  const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const headLines = wrapText(escapeXml(headText), 14);
+  const subLines  = wrapText(escapeXml(subtext), 28);
+  const padX      = 58;
+
+  // Parse brand primary into r,g,b for the rgba tint
+  const hexToRgb = (hex) => {
+    const h = (hex || '#1B3A6B').replace('#', '').padStart(6, '0');
+    return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+  };
+  const { r, g, b } = hexToRgb(colors.primary);
+  const tintColor = `rgba(${r},${g},${b},0.62)`;
+
+  const headLineH  = 84;
+  const headStartY = 210;
+  const headEndY   = headStartY + headLines.length * headLineH;
+  const dividerY   = headEndY + 22;
+  const subStartY  = dividerY + 38;
+  const subLineH   = 44;
+  const listStartY = subStartY + subLines.length * subLineH + 44;
+  const listLineH  = 60;
+  const bullets    = Array.isArray(services) ? services.slice(0, 4) : [];
+
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const parts = [];
+
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  }
+
+  // Full-canvas brand color tint — the defining trait of this template
+  parts.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="${tintColor}"/>`);
+
+  // Subtle top + bottom vignette for text legibility without killing the tint
+  parts.push(
+    `<defs>
+      <linearGradient id="topVigD" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.38"/>
+        <stop offset="18%"  stop-color="#000000" stop-opacity="0.00"/>
+      </linearGradient>
+      <linearGradient id="botVigD" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.00"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.42"/>
+      </linearGradient>
+    </defs>`,
+    `<rect x="0" y="0" width="${W}" height="130" fill="url(#topVigD)"/>`,
+    `<rect x="0" y="${H - 180}" width="${W}" height="180" fill="url(#botVigD)"/>`,
+  );
+
+  // Logo + business name — top left
+  const hasLogo = browserMode ? !!logoUrl : !!logoBuffer;
+  if (hasLogo) {
+    parts.push(`<text x="${padX + 82}" y="58" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  } else {
+    parts.push(industryIconSvg(padX + 22, 58, 24, industry, 'rgba(255,255,255,0.95)', colors.primary));
+    parts.push(`<text x="${padX + 58}" y="58" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  }
+
+  // Trust badge — white pill, brand-color text (Claude Design style)
+  if (badge) {
+    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeW = Math.max(210, badgeText.length * 11.5 + 52);
+    const badgeX = W - badgeW - 24;
+    parts.push(`<rect x="${badgeX}" y="30" width="${badgeW}" height="52" rx="26" fill="#ffffff"/>`);
+    parts.push(`<text${df('badge')} x="${badgeX + badgeW / 2}" y="56" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="800" letter-spacing="0.8" fill="${colors.primary}" text-anchor="middle" dominant-baseline="middle">${badgeText}</text>`);
+  }
+
+  // Eyebrow — secondary color, all caps, letter-spaced
+  if (eyebrow) {
+    parts.push(`<text${df('eyebrow')} x="${padX}" y="${headStartY - 44}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="2.5" fill="${colors.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+  }
+
+  // Large bold headline
+  headLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="82" font-weight="900" letter-spacing="-2.5" fill="#ffffff" stroke="#000000" stroke-width="8" stroke-opacity="0.28" paint-order="stroke fill" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Divider line — secondary color
+  parts.push(`<rect x="${padX}" y="${dividerY}" width="160" height="6" rx="3" fill="${colors.secondary}"/>`);
+
+  // Subtext
+  subLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`subtext-${i}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="34" font-weight="400" fill="#ffffff" opacity="0.90" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Service bullets — secondary color dots + white text
+  bullets.forEach((item, i) => {
+    const y = listStartY + i * listLineH + 24;
+    const dotR = 8;
+    parts.push(`<circle cx="${padX + dotR}" cy="${y}" r="${dotR}" fill="${colors.secondary}"/>`);
+    parts.push(`<text${df(`service-${i}`)} x="${padX + dotR * 2 + 16}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="32" font-weight="600" fill="#ffffff" dominant-baseline="middle">${escapeXml(item)}</text>`);
+  });
+
+  // CTA — white pill button with brand-color text (Claude Design style)
+  const ctaY = H - 148;
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(480, Math.max(240, ctaText.length * 16 + 80));
+    parts.push(`<rect x="${padX}" y="${ctaY}" width="${ctaW}" height="66" rx="33" fill="#ffffff"/>`);
+    parts.push(`<text${df('cta')} x="${padX + ctaW / 2}" y="${ctaY + 33}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="900" fill="${colors.primary}" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  // Business name footer
+  parts.push(`<text x="${W / 2}" y="${H - 44}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="500" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" opacity="0.68">${escapeXml(businessName)}</text>`);
+
+  if (browserMode) {
+    if (logoUrl) {
+      parts.push(`<image href="${escapeXml(logoUrl)}" x="${padX}" y="22" width="68" height="68" preserveAspectRatio="xMidYMid meet"/>`);
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 22, left: padX });
+  return sharp(resizedBuffer)
+    .composite(composite)
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
+}
+
+// ── Template E — "Social Proof" ────────────────────────────────────────────────
+// Dark frosted panel covers the bottom 55% with a sharp edge — no gradient,
+// exactly like Canva/Envato testimonial templates. Massive decorative open-quote
+// mark (&#x201C;) in secondary color as ghost watermark. Gold stars. The customer's
+// quote (headline) is large and clean. Attribution in secondary color.
+// Best for: reviews, testimonials. The customer's voice IS the design.
+async function buildTemplateE(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null
+) {
+  const {
+    headline = '', eyebrow = '', subtext = '', cta = '',
+    badge = '', services = [],
+  } = cardOverlay;
+
+  // Natural case for quotes — shouted quotes feel inauthentic
+  const quoteLines  = wrapText(escapeXml(headline), 28);
+  const padX        = 64;
+  const panelTop    = Math.floor(H * 0.44);
+  const panelH      = H - panelTop;
+  const starsY      = panelTop + 48;
+  const quoteStartY = starsY + 72;
+  const quoteLineH  = 50;
+  const attrY       = quoteStartY + quoteLines.length * quoteLineH + 24;
+
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+  const parts = [];
+
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  }
+
+  parts.push(
+    `<defs>
+      <linearGradient id="topVigE" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.00"/>
+      </linearGradient>
+    </defs>`,
+    `<rect x="0" y="0" width="${W}" height="120" fill="url(#topVigE)"/>`,
+    // Sharp-edged dark panel — the Canva/Envato testimonial signature
+    `<rect x="0" y="${panelTop}" width="${W}" height="${panelH}" fill="rgba(8,12,22,0.90)"/>`,
+  );
+
+  // Thin brand accent bar across very top
+  parts.push(`<rect x="0" y="0" width="${W}" height="7" fill="${colors.secondary}"/>`);
+
+  // Logo / business name — top left
+  const hasLogo = browserMode ? !!logoUrl : !!logoBuffer;
+  if (hasLogo) {
+    parts.push(`<text x="${padX + 82}" y="56" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  } else {
+    parts.push(industryIconSvg(padX + 22, 56, 22, industry, 'rgba(255,255,255,0.95)', colors.primary));
+    parts.push(`<text x="${padX + 54}" y="56" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  }
+
+  // Badge pill — brand primary background (contrasts with white secondaries above)
+  if (badge) {
+    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeW = Math.max(200, badgeText.length * 11 + 48);
+    const badgeX = W - badgeW - 22;
+    parts.push(`<rect x="${badgeX}" y="32" width="${badgeW}" height="48" rx="24" fill="${colors.primary}"/>`);
+    parts.push(`<text${df('badge')} x="${badgeX + badgeW / 2}" y="56" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="800" letter-spacing="0.5" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${badgeText}</text>`);
+  }
+
+  // Massive ghost open-quote mark — the Canva/Envato testimonial card signature
+  parts.push(`<text x="${padX - 20}" y="${panelTop + 14}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="340" font-weight="900" fill="${colors.secondary}" opacity="0.18" dominant-baseline="hanging">&#x201C;</text>`);
+
+  // Eyebrow label + 5 gold stars
+  const starColor    = colors.secondary || '#F59E0B';
+  const eyebrowLabel = eyebrow ? escapeXml(eyebrow.toUpperCase()) : 'VERIFIED CUSTOMER REVIEW';
+  parts.push(`<text${df('eyebrow')} x="${padX}" y="${starsY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="700" letter-spacing="2" fill="${starColor}" dominant-baseline="hanging">${eyebrowLabel}</text>`);
+  parts.push(`<text x="${padX}" y="${starsY + 30}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="34" fill="${starColor}" dominant-baseline="hanging">&#x2605;&#x2605;&#x2605;&#x2605;&#x2605;</text>`);
+
+  // Quote text (headline) — natural case, large and clean, white
+  quoteLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`headline-${i}`)} x="${padX}" y="${quoteStartY + i * quoteLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="40" font-weight="700" fill="#ffffff" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Attribution — secondary color, em-dash prefix
+  if (subtext) {
+    parts.push(`<text${df('subtext-0')} x="${padX}" y="${attrY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="30" font-weight="500" fill="${starColor}" dominant-baseline="hanging">${escapeXml('— ' + subtext)}</text>`);
+  }
+
+  // CTA pill
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(440, Math.max(240, ctaText.length * 15 + 72));
+    const ctaY = H - 128;
+    parts.push(`<rect x="${padX}" y="${ctaY}" width="${ctaW}" height="62" rx="31" fill="${colors.primary}"/>`);
+    parts.push(`<text${df('cta')} x="${padX + ctaW / 2}" y="${ctaY + 31}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="21" font-weight="900" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  parts.push(`<text x="${W / 2}" y="${H - 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="500" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" opacity="0.52">${escapeXml(businessName)}</text>`);
+
+  if (browserMode) {
+    if (logoUrl) {
+      parts.push(`<image href="${escapeXml(logoUrl)}" x="${padX}" y="20" width="68" height="68" preserveAspectRatio="xMidYMid meet"/>`);
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 20, left: padX });
+  return sharp(resizedBuffer)
+    .composite(composite)
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
+}
+
+// ── Template F — "Bold Number" ─────────────────────────────────────────────────
+// Left-dark cinematic gradient + oversized ghost number as the anchor element.
+// Services render as NUMBERED checklist items (filled circle badge + number + text)
+// instead of dot bullets — the Canva/Envato tip-post signature.
+// Best for: share_tip, faq, educational content ("3 Signs You Need a Plumber").
+async function buildTemplateF(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null
+) {
+  const {
+    headline = '', eyebrow = '', subtext = '', cta = '',
+    badge = '', services = [], uppercase = false,
+  } = cardOverlay;
+
+  const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const headLines = wrapText(escapeXml(headText), 14);
+  const subLines  = wrapText(escapeXml(subtext), 26);
+  const padX      = 58;
+  const dark      = darkenHex(colors.primary, 0.28);
+
+  // Extract the first number found in eyebrow (e.g. "3 Signs..." → "3") for ghost element
+  const eyebrowStr = String(eyebrow || '');
+  const numMatch   = eyebrowStr.match(/(\d+)/);
+  const ghostNum   = numMatch ? numMatch[1] : '3';
+
+  const headStartY = 200;
+  const headLineH  = 80;
+  const headEndY   = headStartY + headLines.length * headLineH;
+  const dividerY   = headEndY + 16;
+  const subStartY  = dividerY + 26;
+  const subLineH   = 42;
+  const listStartY = subStartY + subLines.length * subLineH + 36;
+  const listLineH  = 64;
+  const bullets    = Array.isArray(services) ? services.slice(0, 4) : [];
+
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+  const parts = [];
+
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  }
+
+  parts.push(
+    `<defs>
+      <linearGradient id="fadeF" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.91"/>
+        <stop offset="50%"  stop-color="#000000" stop-opacity="0.78"/>
+        <stop offset="72%"  stop-color="#000000" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.00"/>
+      </linearGradient>
+      <linearGradient id="botDarkF" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="${dark}" stop-opacity="0.00"/>
+        <stop offset="35%"  stop-color="${dark}" stop-opacity="0.90"/>
+        <stop offset="100%" stop-color="${dark}" stop-opacity="0.98"/>
+      </linearGradient>
+      <linearGradient id="topDarkF" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.66"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.00"/>
+      </linearGradient>
+    </defs>`,
+    `<rect x="0" y="0" width="${W}" height="${H}" fill="url(#fadeF)"/>`,
+    `<rect x="0" y="0" width="${W}" height="120" fill="url(#topDarkF)"/>`,
+    `<rect x="0" y="${H - 160}" width="${W}" height="160" fill="url(#botDarkF)"/>`,
+    `<rect x="0" y="0" width="9" height="${H}" fill="${colors.secondary}" opacity="1.0"/>`,
+  );
+
+  // Ghost number — enormous, anchors the entire dark left zone visually
+  parts.push(`<text x="${padX - 10}" y="180" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="520" font-weight="900" letter-spacing="-20" fill="${colors.secondary}" opacity="0.09" dominant-baseline="hanging">${escapeXml(ghostNum)}</text>`);
+
+  // Logo + business name
+  const hasLogo = browserMode ? !!logoUrl : !!logoBuffer;
+  if (hasLogo) {
+    parts.push(`<text x="${padX + 82}" y="58" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  } else {
+    parts.push(industryIconSvg(padX + 22, 58, 22, industry, 'rgba(255,255,255,0.95)', colors.primary));
+    parts.push(`<text x="${padX + 54}" y="58" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  }
+
+  if (badge) {
+    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeW = Math.max(200, badgeText.length * 11 + 48);
+    const badgeX = W - badgeW - 22;
+    parts.push(`<rect x="${badgeX}" y="34" width="${badgeW}" height="48" rx="24" fill="rgba(255,255,255,0.92)"/>`);
+    parts.push(`<text${df('badge')} x="${badgeX + badgeW / 2}" y="58" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="800" letter-spacing="0.5" fill="${colors.primary}" text-anchor="middle" dominant-baseline="middle">${badgeText}</text>`);
+  }
+
+  if (eyebrow) {
+    parts.push(`<text${df('eyebrow')} x="${padX}" y="${headStartY - 36}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="2.5" fill="${colors.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+  }
+
+  headLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="78" font-weight="900" letter-spacing="-2" fill="#ffffff" stroke="#000000" stroke-width="10" stroke-opacity="0.38" paint-order="stroke fill" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  parts.push(`<rect x="${padX}" y="${dividerY}" width="160" height="6" rx="3" fill="${colors.secondary}"/>`);
+
+  subLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`subtext-${i}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="32" font-weight="400" fill="#ffffff" opacity="0.85" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Numbered checklist — filled circle with number + text (Canva/Envato tip signature)
+  bullets.forEach((item, i) => {
+    const y       = listStartY + i * listLineH;
+    const badgeR  = 22;
+    const badgeCx = padX + badgeR;
+    const badgeCy = y + badgeR;
+    parts.push(`<circle cx="${badgeCx}" cy="${badgeCy}" r="${badgeR}" fill="${colors.secondary}"/>`);
+    parts.push(`<text x="${badgeCx}" y="${badgeCy}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="900" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${i + 1}</text>`);
+    parts.push(`<text${df(`service-${i}`)} x="${padX + badgeR * 2 + 18}" y="${badgeCy}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="32" font-weight="600" fill="#ffffff" stroke="#000000" stroke-width="4" stroke-opacity="0.28" paint-order="stroke fill" dominant-baseline="middle">${escapeXml(item)}</text>`);
+  });
+
+  const phoneFormatted = formatPhone(phone);
+  if (phoneFormatted) {
+    const pillY = H - 116;
+    const pillH = 62;
+    const rW = Math.max(300, phoneFormatted.length * 16 + 104);
+    parts.push(`<rect x="${padX}" y="${pillY}" width="${rW}" height="${pillH}" rx="${pillH / 2}" fill="${colors.secondary}"/>`);
+    parts.push(phoneIconSvg(padX + 26, pillY + pillH / 2, 22, '#ffffff'));
+    parts.push(`<text${df('phone')} x="${padX + 56}" y="${pillY + pillH / 2}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="800" fill="#ffffff" dominant-baseline="middle">${escapeXml(phoneFormatted)}</text>`);
+  } else if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(500, Math.max(240, ctaText.length * 16 + 80));
+    const ctaY = H - 136;
+    parts.push(`<rect x="${padX}" y="${ctaY}" width="${ctaW}" height="66" rx="33" fill="${colors.secondary}"/>`);
+    parts.push(`<text${df('cta')} x="${padX + ctaW / 2}" y="${ctaY + 33}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="900" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  parts.push(`<text x="${W / 2}" y="${H - 44}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="500" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" opacity="0.60">${escapeXml(businessName)}</text>`);
+
+  if (browserMode) {
+    if (logoUrl) {
+      parts.push(`<image href="${escapeXml(logoUrl)}" x="${padX}" y="22" width="68" height="68" preserveAspectRatio="xMidYMid meet"/>`);
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 22, left: padX });
+  return sharp(resizedBuffer)
+    .composite(composite)
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer();
+}
+
+// ── Template G — "Frosted Panel Left" ─────────────────────────────────────────
+// Full-bleed photo background. Left 58% covered by a SOLID frosted brand-color
+// panel (not a gradient fade — a sharp vertical edge). Photo subject is fully
+// visible on the right. Secondary-color vertical accent bar separates the zones.
+// Like the Canva "split content" style — the most distinctive modern layout.
+async function buildTemplateG(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const {
+    headline = '', eyebrow = '', subtext = '', cta = '',
+    badge = '', services = [], uppercase = false,
+  } = cardOverlay;
+
+  const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const panelW    = 580;
+  const padX      = 54;
+  const headLines = wrapText(escapeXml(headText), 12);
+  const subLines  = wrapText(escapeXml(subtext), 22);
+  const bullets   = Array.isArray(services) ? services.slice(0, 3) : [];
+  const opacity   = fingerprint?.overlayOpacity || 0.88;
+
+  const headStartY = 220;
+  const headLineH  = 80;
+  const headEndY   = headStartY + headLines.length * headLineH;
+  const subStartY  = headEndY + 28;
+  const subLineH   = 40;
+  const listStartY = subStartY + subLines.length * subLineH + 36;
+  const listLineH  = 56;
+
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+  const parts = [];
+
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  }
+
+  // Frosted brand-color panel — solid, sharp vertical right edge
+  const { r: pr, g: pg, b: pb } = hexToRgbG(c.primary);
+  parts.push(
+    `<rect x="0" y="0" width="${panelW}" height="${H}" fill="rgba(${pr},${pg},${pb},${opacity})"/>`,
+    // Secondary-color vertical accent bar — the design seam
+    `<rect x="${panelW - 6}" y="0" width="8" height="${H}" fill="${c.secondary}"/>`,
+    // Subtle decorative circle in panel for depth
+    `<circle cx="${Math.floor(panelW * 0.85)}" cy="${Math.floor(H * 0.12)}" r="${fingerprint?.decorDensity === 2 ? 90 : 60}" fill="${c.secondary}" opacity="0.12"/>`,
+    `<circle cx="${Math.floor(panelW * 0.15)}" cy="${Math.floor(H * 0.82)}" r="${fingerprint?.decorDensity === 2 ? 110 : 75}" fill="${c.secondary}" opacity="0.08"/>`,
+  );
+
+  // Logo + business name — inside panel, top-left
+  const hasLogo = browserMode ? !!logoUrl : !!logoBuffer;
+  if (hasLogo) {
+    parts.push(`<text x="${padX + 82}" y="68" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="21" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  } else {
+    parts.push(industryIconSvg(padX + 22, 68, 23, industry, 'rgba(255,255,255,0.95)', c.primary));
+    parts.push(`<text x="${padX + 56}" y="68" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="21" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  }
+
+  // Badge — inside panel, top area
+  if (badge) {
+    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeW = Math.max(170, badgeText.length * 10 + 36);
+    if (badgeW < panelW - padX - 20) {
+      parts.push(`<rect x="${padX}" y="104" width="${badgeW}" height="38" rx="6" fill="rgba(255,255,255,0.18)"/>`);
+      parts.push(`<text${df('badge')} x="${padX + 14}" y="123" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="800" letter-spacing="1" fill="#ffffff" dominant-baseline="middle">${badgeText}</text>`);
+    }
+  }
+
+  // Eyebrow
+  if (eyebrow) {
+    parts.push(`<text${df('eyebrow')} x="${padX}" y="${headStartY - 42}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="2.5" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+  }
+
+  // Large headline — weight from fingerprint
+  const fw = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  headLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="76" font-weight="${fw}" letter-spacing="-2" fill="#ffffff" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Accent divider bar
+  parts.push(`<rect x="${padX}" y="${headEndY + 14}" width="120" height="5" rx="2.5" fill="${c.secondary}"/>`);
+
+  // Subtext
+  subLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`subtext-${i}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="28" font-weight="400" fill="rgba(255,255,255,0.88)" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Service bullets
+  bullets.forEach((item, i) => {
+    const y = listStartY + i * listLineH + 20;
+    parts.push(`<circle cx="${padX + 8}" cy="${y}" r="8" fill="${c.secondary}"/>`);
+    parts.push(`<text${df(`service-${i}`)} x="${padX + 26}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="26" font-weight="600" fill="#ffffff" dominant-baseline="middle">${escapeXml(item)}</text>`);
+  });
+
+  // CTA button — white pill with brand color text
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW    = Math.min(440, Math.max(200, ctaText.length * 14 + 64));
+    const ctaY    = H - 158;
+    parts.push(`<rect x="${padX}" y="${ctaY}" width="${ctaW}" height="60" rx="30" fill="#ffffff"/>`);
+    parts.push(`<text${df('cta')} x="${padX + ctaW / 2}" y="${ctaY + 30}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="900" fill="${c.primary}" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const phoneFormatted = formatPhone(phone);
+  if (phoneFormatted && !cta) {
+    const pillY = H - 148;
+    parts.push(`<rect x="${padX}" y="${pillY}" width="340" height="52" rx="26" fill="rgba(255,255,255,0.15)"/>`);
+    parts.push(phoneIconSvg(padX + 18, pillY + 26, 18, '#ffffff'));
+    parts.push(`<text${df('phone')} x="${padX + 44}" y="${pillY + 26}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(phoneFormatted)}</text>`);
+  }
+
+  // Bottom info bar across full card
+  parts.push(`<rect x="0" y="${H - 72}" width="${W}" height="72" fill="rgba(0,0,0,0.60)"/>`);
+  parts.push(`<text x="${W / 2}" y="${H - 36}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="500" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" opacity="0.80">${escapeXml(businessName)}</text>`);
+
+  if (browserMode) {
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${padX}" y="30" width="64" height="64" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 30, left: padX });
+  return sharp(resizedBuffer).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+function hexToRgbG(hex) {
+  const h = (hex || '#1B3A6B').replace('#', '').padStart(6, '0');
+  return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+}
+
+// ── Template H — "Frosted Float Card" ─────────────────────────────────────────
+// Full-bleed photo with a DARK radial vignette for depth. A frosted white
+// rounded-rectangle card floats in the center — DARK TEXT ON WHITE background.
+// Completely different aesthetic from all other templates — clean, airy, premium.
+// The card has a brand-color top bar accent and a colored CTA button.
+async function buildTemplateH(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const {
+    headline = '', eyebrow = '', subtext = '', cta = '',
+    badge = '', services = [], uppercase = false,
+  } = cardOverlay;
+
+  const headText   = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const cardX      = 72;
+  const cardY      = 170;
+  const cardW      = W - 144;
+  const cardH      = H - 240;
+  const cardRx     = 28;
+  const padX       = cardX + 52;
+  const cardOpacity = fingerprint?.overlayOpacity || 0.93;
+
+  const headLines  = wrapText(escapeXml(headText), 17);
+  const subLines   = wrapText(escapeXml(subtext), 30);
+  const bullets    = Array.isArray(services) ? services.slice(0, 3) : [];
+
+  const headStartY = cardY + 124;
+  const headLineH  = 68;
+  const headEndY   = headStartY + headLines.length * headLineH;
+  const subStartY  = headEndY + 24;
+  const subLineH   = 36;
+  const listStartY = subStartY + subLines.length * subLineH + 28;
+  const listLineH  = 50;
+
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+  const parts = [];
+
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  }
+
+  // Radial dark vignette — creates cinematic depth around the card edges
+  parts.push(
+    `<defs>
+      <radialGradient id="vigH" cx="50%" cy="50%" r="65%">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.00"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+      </radialGradient>
+    </defs>`,
+    `<rect x="0" y="0" width="${W}" height="${H}" fill="url(#vigH)"/>`,
+  );
+
+  // Frosted white card
+  parts.push(
+    `<rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="${cardRx}" fill="rgba(255,255,255,${cardOpacity})"/>`,
+    // Subtle card shadow outline
+    `<rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="${cardRx}" fill="none" stroke="rgba(255,255,255,0.50)" stroke-width="1"/>`,
+    // Brand accent bar — top of card
+    `<rect x="${cardX}" y="${cardY}" width="${cardW}" height="10" rx="${cardRx}" fill="${c.primary}"/>`,
+    // Thin secondary-color underline accent
+    `<rect x="${padX}" y="${cardY + 10}" width="80" height="4" fill="${c.secondary}"/>`,
+  );
+
+  if (fingerprint?.decorDensity === 2) {
+    // Rich decoration: large faint circle inside card bottom-right
+    parts.push(`<circle cx="${cardX + cardW - 60}" cy="${cardY + cardH - 60}" r="100" fill="${c.secondary}" opacity="0.05"/>`);
+  }
+
+  // Logo + business name — inside card, below top bar
+  const hasLogo = browserMode ? !!logoUrl : !!logoBuffer;
+  const logoY   = cardY + 22;
+  if (hasLogo) {
+    parts.push(`<text x="${padX + 74}" y="${logoY + 28}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="700" fill="${c.primary}" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  } else {
+    parts.push(industryIconSvg(padX + 20, logoY + 28, 20, industry, c.primary, '#ffffff'));
+    parts.push(`<text x="${padX + 50}" y="${logoY + 28}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="700" fill="${c.primary}" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  }
+
+  // Badge
+  if (badge) {
+    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeW = Math.max(160, badgeText.length * 10 + 36);
+    const badgeX = cardX + cardW - badgeW - 20;
+    parts.push(`<rect x="${badgeX}" y="${logoY + 8}" width="${badgeW}" height="40" rx="20" fill="${c.primary}"/>`);
+    parts.push(`<text${df('badge')} x="${badgeX + badgeW / 2}" y="${logoY + 28}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${badgeText}</text>`);
+  }
+
+  // Eyebrow — secondary color
+  if (eyebrow) {
+    parts.push(`<text${df('eyebrow')} x="${padX}" y="${headStartY - 38}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="2.5" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+  }
+
+  // Headline — DARK on white (key differentiator from other templates)
+  const fw = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  headLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="62" font-weight="${fw}" letter-spacing="-1.5" fill="${c.primary}" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Divider
+  parts.push(`<rect x="${padX}" y="${headEndY + 10}" width="100" height="4" rx="2" fill="${c.secondary}"/>`);
+
+  // Subtext — dark gray on white
+  subLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`subtext-${i}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="26" font-weight="400" fill="#2d2d3a" opacity="0.85" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Service items — secondary color dots + dark text
+  bullets.forEach((item, i) => {
+    const y = listStartY + i * listLineH + 18;
+    parts.push(`<circle cx="${padX + 8}" cy="${y}" r="8" fill="${c.secondary}"/>`);
+    parts.push(`<text${df(`service-${i}`)} x="${padX + 26}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="24" font-weight="600" fill="#1a1a2a" dominant-baseline="middle">${escapeXml(item)}</text>`);
+  });
+
+  // CTA — brand primary solid button
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW    = Math.min(450, Math.max(210, ctaText.length * 13 + 60));
+    const ctaY    = cardY + cardH - 88;
+    parts.push(`<rect x="${padX}" y="${ctaY}" width="${ctaW}" height="58" rx="29" fill="${c.primary}"/>`);
+    parts.push(`<text${df('cta')} x="${padX + ctaW / 2}" y="${ctaY + 29}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const phoneFormatted = formatPhone(phone);
+  if (phoneFormatted && !cta) {
+    const pillY = cardY + cardH - 88;
+    const rW    = Math.max(260, phoneFormatted.length * 13 + 80);
+    parts.push(`<rect x="${padX}" y="${pillY}" width="${rW}" height="54" rx="27" fill="${c.primary}"/>`);
+    parts.push(phoneIconSvg(padX + 18, pillY + 27, 18, '#ffffff'));
+    parts.push(`<text${df('phone')} x="${padX + 44}" y="${pillY + 27}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(phoneFormatted)}</text>`);
+  }
+
+  if (browserMode) {
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${padX}" y="${logoY}" width="56" height="56" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: logoY, left: padX });
+  return sharp(resizedBuffer).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+// ── Template I — "Header + Footer Bars" ──────────────────────────────────────
+// Unique 3-zone layout: dark header bar (top 16%), completely clear photo in the
+// middle, frosted white footer bar (bottom 34%) with brand-color headline.
+// The PHOTO IS FULLY UNOBSCURED in the center — the most photo-forward design.
+// Perfect for dramatic before/afters and job showcase content.
+async function buildTemplateI(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const {
+    headline = '', eyebrow = '', subtext = '', cta = '',
+    badge = '', services = [], uppercase = false,
+  } = cardOverlay;
+
+  const headText    = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const headerH     = Math.floor(H * 0.16);   // 216px — dark header
+  const footerY     = Math.floor(H * 0.66);   // footer starts at 66%
+  const footerH     = H - footerY;            // 459px
+  const padX        = 58;
+  const footOpacity = fingerprint?.overlayOpacity || 0.94;
+
+  const headLines   = wrapText(escapeXml(headText), 16);
+  const subLines    = wrapText(escapeXml(subtext), 30);
+  const bullets     = Array.isArray(services) ? services.slice(0, 2) : [];
+
+  const headStartY  = footerY + 52;
+  const headLineH   = 66;
+  const headEndY    = headStartY + headLines.length * headLineH;
+  const subStartY   = headEndY + 18;
+  const subLineH    = 34;
+
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+  const parts = [];
+
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  }
+
+  // Dark header bar
+  parts.push(
+    `<defs>
+      <linearGradient id="hdrI" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.82"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.50"/>
+      </linearGradient>
+    </defs>`,
+    `<rect x="0" y="0" width="${W}" height="${headerH}" fill="url(#hdrI)"/>`,
+    // Top accent bar in secondary color
+    `<rect x="0" y="0" width="${W}" height="8" fill="${c.secondary}"/>`,
+  );
+
+  // WHITE/FROSTED footer bar — text rendered dark on light
+  const { r: fr, g: fg, b: fb } = hexToRgbG('#ffffff');
+  parts.push(
+    `<rect x="0" y="${footerY}" width="${W}" height="${footerH}" fill="rgba(${fr},${fg},${fb},${footOpacity})"/>`,
+    // Brand seam bar between photo and footer
+    `<rect x="0" y="${footerY - 4}" width="${W}" height="10" fill="${c.primary}"/>`,
+    // Left brand accent bar inside footer
+    `<rect x="0" y="${footerY + 10}" width="8" height="${footerH - 10}" fill="${c.secondary}" opacity="0.80"/>`,
+  );
+
+  // Logo + business name — inside HEADER
+  const hasLogo = browserMode ? !!logoUrl : !!logoBuffer;
+  if (hasLogo) {
+    parts.push(`<text x="${padX + 82}" y="${headerH / 2}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  } else {
+    parts.push(industryIconSvg(padX + 22, headerH / 2, 22, industry, 'rgba(255,255,255,0.95)', c.primary));
+    parts.push(`<text x="${padX + 56}" y="${headerH / 2}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  }
+
+  // Badge — header right side
+  if (badge) {
+    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeW = Math.max(170, badgeText.length * 10 + 40);
+    const badgeX = W - badgeW - 24;
+    parts.push(`<rect x="${badgeX}" y="${Math.floor(headerH / 2) - 22}" width="${badgeW}" height="44" rx="22" fill="${c.secondary}"/>`);
+    parts.push(`<text${df('badge')} x="${badgeX + badgeW / 2}" y="${Math.floor(headerH / 2)}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="15" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${badgeText}</text>`);
+  }
+
+  // Eyebrow — inside footer, brand secondary color
+  if (eyebrow) {
+    parts.push(`<text${df('eyebrow')} x="${padX + 14}" y="${footerY + 18}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="2" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+  }
+
+  // Headline — BRAND COLOR on white footer (unique look)
+  const fw = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  headLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`headline-${i}`)} x="${padX + 14}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="60" font-weight="${fw}" letter-spacing="-1.5" fill="${c.primary}" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Subtext — dark gray on white
+  subLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`subtext-${i}`)} x="${padX + 14}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="24" font-weight="400" fill="#2a2a3a" opacity="0.80" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Compact bullets in footer
+  bullets.forEach((item, i) => {
+    const y = subStartY + subLines.length * subLineH + 24 + i * 38;
+    parts.push(`<text x="${padX + 14}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="600" fill="${c.primary}" dominant-baseline="hanging">· ${escapeXml(item)}</text>`);
+  });
+
+  // CTA — right side of footer
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW    = Math.min(360, Math.max(190, ctaText.length * 12 + 52));
+    const ctaX    = W - ctaW - padX;
+    const ctaY    = H - 84;
+    parts.push(`<rect x="${ctaX}" y="${ctaY - 26}" width="${ctaW}" height="52" rx="26" fill="${c.primary}"/>`);
+    parts.push(`<text${df('cta')} x="${ctaX + ctaW / 2}" y="${ctaY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const phoneFormatted = formatPhone(phone);
+  if (phoneFormatted && !cta) {
+    parts.push(`<text${df('phone')} x="${W - padX}" y="${H - 52}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="800" fill="${c.primary}" text-anchor="end" dominant-baseline="auto">${escapeXml(phoneFormatted)}</text>`);
+  }
+
+  if (browserMode) {
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${padX}" y="${Math.floor(headerH / 2) - 28}" width="56" height="56" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: Math.floor(headerH / 2) - 28, left: padX });
+  return sharp(resizedBuffer).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+// ── Template J — "Magazine Bottom Panel" ──────────────────────────────────────
+// Inverse of Template C. Photo fills the TOP 55% with minimal dark overlay for
+// readability. SOLID brand-color panel fills the BOTTOM 45% — white text on
+// brand color. A secondary-color accent bar runs at the seam. A large ghost
+// circle decoration inside the panel adds depth. Very editorial magazine feel.
+async function buildTemplateJ(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const {
+    headline = '', eyebrow = '', subtext = '', cta = '',
+    badge = '', services = [], uppercase = true,
+  } = cardOverlay;
+
+  const headText   = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const splitY     = Math.floor(H * 0.54);
+  const padX       = 60;
+  const dark       = darkenHex(c.primary, 0.22);
+
+  const headLines  = wrapText(escapeXml(headText), 14);
+  const subLines   = wrapText(escapeXml(subtext), 28);
+  const bullets    = Array.isArray(services) ? services.slice(0, 3) : [];
+
+  const headStartY = splitY + 72;
+  const headLineH  = 78;
+  const headEndY   = headStartY + headLines.length * headLineH;
+  const subStartY  = headEndY + 20;
+  const subLineH   = 38;
+  const listStartY = subStartY + subLines.length * subLineH + 28;
+
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+  const parts = [];
+
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  }
+
+  parts.push(
+    `<defs>
+      <linearGradient id="topVigJ" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.60"/>
+        <stop offset="22%"  stop-color="#000000" stop-opacity="0.00"/>
+      </linearGradient>
+      <linearGradient id="panelJ" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="${c.primary}" stop-opacity="1.0"/>
+        <stop offset="100%" stop-color="${dark}" stop-opacity="1.0"/>
+      </linearGradient>
+    </defs>`,
+    // Subtle top vignette for logo visibility only
+    `<rect x="0" y="0" width="${W}" height="180" fill="url(#topVigJ)"/>`,
+    // Solid brand color bottom panel
+    `<rect x="0" y="${splitY}" width="${W}" height="${H - splitY}" fill="url(#panelJ)"/>`,
+    // Secondary-color accent seam
+    `<rect x="0" y="${splitY - 5}" width="${W}" height="12" fill="${c.secondary}"/>`,
+  );
+
+  // Ghost circle decoration — the magazine signature element
+  const circleR = fingerprint?.decorDensity === 2 ? 200 : 160;
+  parts.push(`<circle cx="${W - 100}" cy="${splitY + circleR + 40}" r="${circleR}" fill="${c.secondary}" opacity="${fingerprint?.decorDensity === 0 ? '0.05' : '0.08'}"/>`);
+  if (fingerprint?.decorDensity === 2) {
+    parts.push(`<circle cx="${W - 100}" cy="${splitY + circleR + 40}" r="${circleR - 60}" fill="none" stroke="${c.secondary}" stroke-width="2" opacity="0.15"/>`);
+  }
+
+  // Logo + business name — top left of PHOTO area
+  const hasLogo = browserMode ? !!logoUrl : !!logoBuffer;
+  if (hasLogo) {
+    parts.push(`<text x="${padX + 82}" y="62" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  } else {
+    parts.push(industryIconSvg(padX + 22, 62, 24, industry, 'rgba(255,255,255,0.95)', c.primary));
+    parts.push(`<text x="${padX + 58}" y="62" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  }
+
+  // Badge — photo area, top right
+  if (badge) {
+    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeW = Math.max(180, badgeText.length * 10 + 40);
+    const badgeX = W - badgeW - 24;
+    parts.push(`<rect x="${badgeX}" y="32" width="${badgeW}" height="52" rx="26" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.55)" stroke-width="1.5"/>`);
+    parts.push(`<text${df('badge')} x="${badgeX + badgeW / 2}" y="58" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${badgeText}</text>`);
+  }
+
+  // Eyebrow — inside bottom panel
+  if (eyebrow) {
+    parts.push(`<text${df('eyebrow')} x="${padX}" y="${splitY + 34}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="2.5" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+  }
+
+  // Headline — white on brand color
+  const fw = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  headLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="70" font-weight="${fw}" letter-spacing="-1.5" fill="#ffffff" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Accent divider bar
+  parts.push(`<rect x="${padX}" y="${headEndY + 10}" width="130" height="5" rx="2.5" fill="${c.secondary}"/>`);
+
+  // Subtext
+  subLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`subtext-${i}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="28" font-weight="400" fill="rgba(255,255,255,0.82)" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Service bullets
+  bullets.forEach((item, i) => {
+    const y = listStartY + i * 52 + 18;
+    parts.push(`<circle cx="${padX + 8}" cy="${y}" r="8" fill="${c.secondary}"/>`);
+    parts.push(`<text${df(`service-${i}`)} x="${padX + 26}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="26" font-weight="600" fill="#ffffff" dominant-baseline="middle">${escapeXml(item)}</text>`);
+  });
+
+  // CTA — white pill button
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW    = Math.min(440, Math.max(220, ctaText.length * 14 + 64));
+    const ctaY    = H - 116;
+    parts.push(`<rect x="${padX}" y="${ctaY}" width="${ctaW}" height="60" rx="30" fill="#ffffff"/>`);
+    parts.push(`<text${df('cta')} x="${padX + ctaW / 2}" y="${ctaY + 30}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="900" fill="${c.primary}" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const phoneFormatted = formatPhone(phone);
+  if (phoneFormatted && !cta) {
+    const pillY = H - 118;
+    const rW    = Math.max(260, phoneFormatted.length * 14 + 80);
+    parts.push(`<rect x="${padX}" y="${pillY}" width="${rW}" height="56" rx="28" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.40)" stroke-width="1.5"/>`);
+    parts.push(phoneIconSvg(padX + 20, pillY + 28, 20, '#ffffff'));
+    parts.push(`<text${df('phone')} x="${padX + 48}" y="${pillY + 28}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="21" font-weight="800" fill="#ffffff" dominant-baseline="middle">${escapeXml(phoneFormatted)}</text>`);
+  }
+
+  parts.push(`<text x="${W / 2}" y="${H - 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="500" fill="rgba(255,255,255,0.46)" text-anchor="middle" dominant-baseline="auto">${escapeXml(businessName)}</text>`);
+
+  if (browserMode) {
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${padX}" y="26" width="68" height="68" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 26, left: padX });
+  return sharp(resizedBuffer).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+// ── Template set selection — content-type + design-seed aware ─────────────────
+// 3 lineup options per trigger type. Customer's lineupOffset (from design seed)
+// picks which set of 3 templates they see — same trigger, different businesses
+// = different template combinations. Ensures no two customers look the same.
+const LINEUP_MAP = {
+  'job_finished':   [['A','I','H'], ['G','A','H'], ['H','J','A']],
+  'before_after':   [['A','G','I'], ['I','H','A'], ['G','A','J']],
+  'promotion':      [['D','G','B'], ['J','D','G'], ['B','G','D']],
+  'seasonal':       [['D','J','B'], ['G','D','A'], ['B','D','J']],
+  'got_review':     [['E','H','C'], ['E','G','C'], ['H','E','J']],
+  'share_tip':      [['F','G','B'], ['B','F','I'], ['G','F','H']],
+  'faq':            [['F','B','J'], ['G','F','B'], ['B','F','I']],
+  'team_spotlight': [['C','H','E'], ['H','G','E'], ['E','H','J']],
+  'community':      [['B','J','C'], ['G','B','I'], ['J','C','A']],
+  'milestone':      [['D','J','G'], ['G','D','H'], ['J','B','D']],
+};
+
+function resolveTemplateSet(wizardTrigger, customer) {
+  const fp      = getDesignFingerprint(customer);
+  const lineups = LINEUP_MAP[wizardTrigger] || LINEUP_MAP['job_finished'];
+  return lineups[fp.lineupOffset % lineups.length];
+}
+
+const TEMPLATE_BUILDERS = {
+  A: buildTemplateA,
+  B: buildTemplateB,
+  C: buildTemplateC,
+  D: buildTemplateD,
+  E: buildTemplateE,
+  F: buildTemplateF,
+  G: buildTemplateG,
+  H: buildTemplateH,
+  I: buildTemplateI,
+  J: buildTemplateJ,
+};
+
 // ── Main exports ──────────────────────────────────────────────────────────────
 
 /**
  * Generate 3 branded photo card JPEGs (Sharp composite path).
+ * wizardTrigger selects which 3 of the 4 templates to use and in what order,
+ * so variation A always shows the best-fit design for the content type.
  * @returns {{ bufferA, bufferB, bufferC }}
  */
-async function generatePhotoCards(photoBuffer, cardOverlay, customer) {
+async function generatePhotoCards(photoBuffer, cardOverlay, customer, wizardTrigger = null) {
   const colors       = resolveBrandColors(customer);
   const businessName = customer?.business_name || '';
   const phone        = customer?.phone || null;
   const industry     = customer?.industry || 'general_contractor';
+  const fingerprint  = getDesignFingerprint(customer);
 
   const logoBuffer = await fetchLogoBuffer(customer?.logo_url);
   const resized    = await resizePhoto(photoBuffer);
 
+  const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer);
   const [bufferA, bufferB, bufferC] = await Promise.all([
-    buildTemplateA(resized, cardOverlay, businessName, phone, colors, logoBuffer, industry),
-    buildTemplateB(resized, cardOverlay, businessName, phone, colors, logoBuffer, industry),
-    buildTemplateC(resized, cardOverlay, businessName, phone, colors, logoBuffer, industry),
+    TEMPLATE_BUILDERS[tA](resized, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+    TEMPLATE_BUILDERS[tB](resized, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+    TEMPLATE_BUILDERS[tC](resized, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
   ]);
 
   return { bufferA, bufferB, bufferC };
@@ -585,20 +1642,513 @@ async function generatePhotoCards(photoBuffer, cardOverlay, customer) {
  * attributes so the frontend can update them via DOMParser without a round-trip.
  * @returns {{ svgA, svgB, svgC }}
  */
-async function generatePhotoCardsSVG(photoUrl, cardOverlay, customer) {
+async function generatePhotoCardsSVG(photoUrl, cardOverlay, customer, wizardTrigger = null) {
   const colors       = resolveBrandColors(customer);
   const businessName = customer?.business_name || '';
   const phone        = customer?.phone || null;
   const industry     = customer?.industry || 'general_contractor';
   const logoUrl      = customer?.logo_url || null;
+  const fingerprint  = getDesignFingerprint(customer);
 
+  const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer);
   const [svgA, svgB, svgC] = await Promise.all([
-    buildTemplateA(null, cardOverlay, businessName, phone, colors, null, industry, true, photoUrl, logoUrl),
-    buildTemplateB(null, cardOverlay, businessName, phone, colors, null, industry, true, photoUrl, logoUrl),
-    buildTemplateC(null, cardOverlay, businessName, phone, colors, null, industry, true, photoUrl, logoUrl),
+    TEMPLATE_BUILDERS[tA](null, cardOverlay, businessName, phone, colors, null, industry, true, photoUrl, logoUrl, fingerprint),
+    TEMPLATE_BUILDERS[tB](null, cardOverlay, businessName, phone, colors, null, industry, true, photoUrl, logoUrl, fingerprint),
+    TEMPLATE_BUILDERS[tC](null, cardOverlay, businessName, phone, colors, null, industry, true, photoUrl, logoUrl, fingerprint),
   ]);
 
   return { svgA, svgB, svgC };
 }
 
-module.exports = { generatePhotoCards, generatePhotoCardsSVG, resolveBrandColors };
+// ═══════════════════════════════════════════════════════════════════════════════
+// PLATFORM DIMENSION ENGINE
+// Purpose-built layouts per aspect ratio — NOT crop/resize hacks.
+// Every platform gets a composition designed for its canvas and audience.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const PLATFORM_SPECS = {
+  instagram_feed:    { w: 1080, h: 1350, label: 'Instagram Feed' },
+  instagram_square:  { w: 1080, h: 1080, label: 'Instagram Square' },
+  instagram_stories: { w: 1080, h: 1920, label: 'Instagram Stories' },
+  facebook_feed:     { w: 1200, h: 630,  label: 'Facebook Feed' },
+  linkedin_feed:     { w: 1200, h: 627,  label: 'LinkedIn Feed' },
+  google_business:   { w: 1200, h: 900,  label: 'Google Business' },
+};
+
+async function resizePhotoTo(buffer, targetW, targetH) {
+  return sharp(buffer)
+    .rotate()
+    .resize(targetW, targetH, { fit: 'cover', position: 'center' })
+    .toBuffer();
+}
+
+// ── Landscape L1 — "Wide Side Panel" (1200×630) ───────────────────────────────
+// Brand color panel left 42% with all text. Photo FULLY VISIBLE right 58%.
+// Sharp vertical seam in secondary color — the most effective Facebook format.
+async function buildLandscapePanel(resizedBuf, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint) {
+  const FW = 1200, FH = 630;
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+  const { headline = '', eyebrow = '', subtext = '', cta = '', services = [], uppercase = false } = cardOverlay;
+  const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const panelW    = 492;
+  const padX      = 44;
+  const headLines = wrapText(escapeXml(headText), 15);
+  const subLines  = wrapText(escapeXml(subtext), 27);
+  const bullets   = Array.isArray(services) ? services.slice(0, 2) : [];
+  const { r: pr, g: pg, b: pb } = hexToRgbG(c.primary);
+  const opacity   = fingerprint?.overlayOpacity || 0.90;
+  const dark      = darkenHex(c.primary, 0.20);
+  const fw        = fingerprint?.typographyWeight === 1 ? '800' : '900';
+
+  const headStartY = 155;
+  const headLineH  = 54;
+  const headEndY   = headStartY + headLines.length * headLineH;
+  const subStartY  = headEndY + 18;
+  const subLineH   = 28;
+  const listStartY = subStartY + subLines.length * subLineH + 18;
+
+  const parts = [
+    `<defs><linearGradient id="panelLP" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.primary}"/><stop offset="100%" stop-color="${dark}"/></linearGradient></defs>`,
+    `<rect x="0" y="0" width="${panelW}" height="${FH}" fill="rgba(${pr},${pg},${pb},${opacity})"/>`,
+    `<rect x="${panelW - 5}" y="0" width="${fingerprint?.accentBarThickness || 7}" height="${FH}" fill="${c.secondary}"/>`,
+    `<circle cx="${Math.floor(panelW * 0.82)}" cy="${Math.floor(FH * 0.18)}" r="55" fill="${c.secondary}" opacity="0.09"/>`,
+    `<circle cx="${Math.floor(panelW * 0.12)}" cy="${Math.floor(FH * 0.76)}" r="80" fill="${c.secondary}" opacity="${fingerprint?.decorDensity === 2 ? '0.07' : '0.04'}"/>`,
+  ];
+
+  parts.push(logoBuffer
+    ? `<text x="${padX + 78}" y="38" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`
+    : industryIconSvg(padX + 18, 38, 17, industry, 'rgba(255,255,255,0.95)', c.primary) + `<text x="${padX + 46}" y="38" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`
+  );
+
+  if (eyebrow) parts.push(`<text x="${padX}" y="${headStartY - 32}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="2" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+
+  headLines.forEach((l, i) => parts.push(`<text x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="46" font-weight="${fw}" letter-spacing="-1.5" fill="#ffffff" dominant-baseline="hanging">${l}</text>`));
+  parts.push(`<rect x="${padX}" y="${headEndY + 10}" width="80" height="4" rx="2" fill="${c.secondary}"/>`);
+  subLines.forEach((l, i) => parts.push(`<text x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="400" fill="rgba(255,255,255,0.84)" dominant-baseline="hanging">${l}</text>`));
+  bullets.forEach((item, i) => {
+    const y = listStartY + i * 36 + 12;
+    parts.push(`<circle cx="${padX + 7}" cy="${y}" r="7" fill="${c.secondary}"/>`);
+    parts.push(`<text x="${padX + 22}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="600" fill="#ffffff" dominant-baseline="middle">${escapeXml(item)}</text>`);
+  });
+
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(380, Math.max(180, ctaText.length * 11 + 52));
+    const ctaY = FH - 96;
+    parts.push(`<rect x="${padX}" y="${ctaY}" width="${ctaW}" height="52" rx="26" fill="#ffffff"/>`);
+    parts.push(`<text x="${padX + ctaW / 2}" y="${ctaY + 26}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="900" fill="${c.primary}" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${FW}" height="${FH}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 10, left: padX });
+  return sharp(resizedBuf).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+// ── Landscape L2 — "Cinematic Lower Third" (1200×630) ─────────────────────────
+// Photo FULLY CLEAR in top 58%. Dark gradient bottom zone — broadcast style.
+// Brand-color bar pins the top. Headline + CTA in lower third only.
+async function buildLandscapeCinematic(resizedBuf, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint) {
+  const FW = 1200, FH = 630;
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+  const { headline = '', eyebrow = '', subtext = '', cta = '', uppercase = false } = cardOverlay;
+  const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const headLines = wrapText(escapeXml(headText), 22);
+  const subLines  = wrapText(escapeXml(subtext), 44);
+  const dark      = darkenHex(c.primary, 0.22);
+  const lowerY    = Math.floor(FH * 0.58);
+  const lowerH    = FH - lowerY;
+  const padX      = 44;
+  const fw        = fingerprint?.typographyWeight === 1 ? '800' : '900';
+
+  const parts = [
+    `<defs><linearGradient id="lowerLC" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#000000" stop-opacity="0.68"/><stop offset="100%" stop-color="${dark}" stop-opacity="0.95"/></linearGradient></defs>`,
+    `<rect x="0" y="0" width="${FW}" height="${fingerprint?.accentBarThickness || 7}" fill="${c.secondary}"/>`,
+    `<text x="${padX}" y="32" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="600" fill="#ffffff" dominant-baseline="middle" opacity="0.70">${escapeXml(businessName)}</text>`,
+    `<rect x="0" y="${lowerY}" width="${FW}" height="${lowerH}" fill="url(#lowerLC)"/>`,
+  ];
+
+  const headStartY = lowerY + (eyebrow ? 52 : 30);
+  if (eyebrow) parts.push(`<text x="${padX}" y="${lowerY + 16}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="2.5" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+
+  headLines.slice(0, 2).forEach((l, i) => parts.push(`<text x="${padX}" y="${headStartY + i * 52}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="44" font-weight="${fw}" letter-spacing="-1" fill="#ffffff" dominant-baseline="hanging">${l}</text>`));
+
+  const subY = headStartY + Math.min(headLines.length, 2) * 52 + 10;
+  subLines.slice(0, 1).forEach(l => parts.push(`<text x="${padX}" y="${subY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="400" fill="rgba(255,255,255,0.76)" dominant-baseline="hanging">${l}</text>`));
+
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(280, Math.max(160, ctaText.length * 10 + 44));
+    const ctaX = FW - ctaW - padX;
+    const ctaY = FH - 68;
+    parts.push(`<rect x="${ctaX}" y="${ctaY - 22}" width="${ctaW}" height="44" rx="22" fill="${c.secondary}"/>`);
+    parts.push(`<text x="${ctaX + ctaW / 2}" y="${ctaY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const phoneFormatted = formatPhone(phone);
+  if (phoneFormatted && !cta) parts.push(`<text x="${FW - padX}" y="${FH - 38}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="700" fill="#ffffff" text-anchor="end" dominant-baseline="middle">${escapeXml(phoneFormatted)}</text>`);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${FW}" height="${FH}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 10, left: padX });
+  return sharp(resizedBuf).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+// ── Landscape L3 — "Right Frosted Card" (1200×630) ────────────────────────────
+// Photo full-bleed (photo subject visible left side). Frosted white card RIGHT.
+// Dark text on white — premium, asymmetric, editorial. Most unique Facebook look.
+async function buildLandscapeSplitCard(resizedBuf, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint) {
+  const FW = 1200, FH = 630;
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+  const { headline = '', eyebrow = '', subtext = '', cta = '', uppercase = false } = cardOverlay;
+  const headText    = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const cardW       = 484;
+  const cardH       = 550;
+  const cardX       = FW - cardW - 30;
+  const cardY       = (FH - cardH) / 2;
+  const cardRx      = fingerprint?.cornerRadiusMd || 20;
+  const cPadX       = cardX + 40;
+  const headLines   = wrapText(escapeXml(headText), 14);
+  const subLines    = wrapText(escapeXml(subtext), 27);
+  const cardOpacity = fingerprint?.overlayOpacity || 0.92;
+  const fw          = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const headStartY  = cardY + 96;
+  const headLineH   = 52;
+  const headEndY    = headStartY + headLines.length * headLineH;
+  const subStartY   = headEndY + 14;
+
+  const parts = [
+    `<defs><radialGradient id="vigLSC" cx="30%" cy="50%" r="80%"><stop offset="0%" stop-color="#000000" stop-opacity="0.00"/><stop offset="100%" stop-color="#000000" stop-opacity="0.38"/></radialGradient></defs>`,
+    `<rect x="0" y="0" width="${FW}" height="${FH}" fill="url(#vigLSC)"/>`,
+    `<rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="${cardRx}" fill="rgba(255,255,255,${cardOpacity})"/>`,
+    `<rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="${cardRx}" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1"/>`,
+    `<rect x="${cardX}" y="${cardY}" width="${cardW}" height="${fingerprint?.accentBarThickness || 8}" rx="${cardRx}" fill="${c.primary}"/>`,
+    `<text x="32" y="${FH - 20}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="13" font-weight="600" fill="#ffffff" dominant-baseline="auto" opacity="0.60">${escapeXml(businessName)}</text>`,
+  ];
+
+  parts.push(logoBuffer
+    ? `<text x="${cPadX + 64}" y="${cardY + 36}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="15" font-weight="700" fill="${c.primary}" dominant-baseline="middle">${escapeXml(businessName)}</text>`
+    : industryIconSvg(cPadX + 17, cardY + 36, 17, industry, c.primary, '#ffffff') + `<text x="${cPadX + 44}" y="${cardY + 36}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="15" font-weight="700" fill="${c.primary}" dominant-baseline="middle">${escapeXml(businessName)}</text>`
+  );
+
+  if (eyebrow) parts.push(`<text x="${cPadX}" y="${headStartY - 26}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="2" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+
+  headLines.forEach((l, i) => parts.push(`<text x="${cPadX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="44" font-weight="${fw}" letter-spacing="-1" fill="${c.primary}" dominant-baseline="hanging">${l}</text>`));
+  parts.push(`<rect x="${cPadX}" y="${headEndY + 8}" width="70" height="4" rx="2" fill="${c.secondary}"/>`);
+  subLines.forEach((l, i) => parts.push(`<text x="${cPadX}" y="${subStartY + i * 28}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="400" fill="#2d2d3a" opacity="0.82" dominant-baseline="hanging">${l}</text>`));
+
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(360, Math.max(160, ctaText.length * 10 + 44));
+    const ctaY = cardY + cardH - 68;
+    parts.push(`<rect x="${cPadX}" y="${ctaY - 20}" width="${ctaW}" height="44" rx="22" fill="${c.primary}"/>`);
+    parts.push(`<text x="${cPadX + ctaW / 2}" y="${ctaY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${FW}" height="${FH}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: cardY + 18, left: cPadX });
+  return sharp(resizedBuf).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+// ── Google Business GB1 — "Bottom Banner" (1200×900) ──────────────────────────
+// Photo fills top 62%. Frosted white strip bottom 38%. Brand-color seam bar.
+// Brand-color headline on white — extremely readable, recommended for GBP.
+async function buildGBBottomBanner(resizedBuf, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint) {
+  const FW = 1200, FH = 900;
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+  const { headline = '', eyebrow = '', subtext = '', cta = '', services = [], uppercase = false } = cardOverlay;
+  const headText   = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const stripY     = Math.floor(FH * 0.62);
+  const stripH     = FH - stripY;
+  const padX       = 60;
+  const stripOpac  = fingerprint?.overlayOpacity || 0.95;
+  const headLines  = wrapText(escapeXml(headText), 18);
+  const subLines   = wrapText(escapeXml(subtext), 36);
+  const bullets    = Array.isArray(services) ? services.slice(0, 2) : [];
+  const headStartY = stripY + 52;
+  const headLineH  = 64;
+  const headEndY   = headStartY + headLines.length * headLineH;
+  const fw         = fingerprint?.typographyWeight === 1 ? '800' : '900';
+
+  const parts = [
+    `<defs><linearGradient id="topVigGB1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#000000" stop-opacity="0.56"/><stop offset="20%" stop-color="#000000" stop-opacity="0.00"/></linearGradient></defs>`,
+    `<rect x="0" y="0" width="${FW}" height="160" fill="url(#topVigGB1)"/>`,
+    `<rect x="0" y="${stripY}" width="${FW}" height="${stripH}" fill="rgba(255,255,255,${stripOpac})"/>`,
+    `<rect x="0" y="${stripY - 4}" width="${FW}" height="${fingerprint?.accentBarThickness || 10}" fill="${c.primary}"/>`,
+    `<rect x="0" y="${stripY + 6}" width="${Math.round((fingerprint?.accentBarThickness || 7) * 0.9) || 6}" height="${stripH - 6}" fill="${c.secondary}" opacity="0.80"/>`,
+  ];
+
+  parts.push(logoBuffer
+    ? `<text x="${padX + 76}" y="52" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`
+    : industryIconSvg(padX + 20, 52, 20, industry, 'rgba(255,255,255,0.95)', c.primary) + `<text x="${padX + 52}" y="52" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`
+  );
+
+  if (eyebrow) parts.push(`<text x="${padX + 12}" y="${stripY + 18}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="2" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+
+  headLines.forEach((l, i) => parts.push(`<text x="${padX + 12}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="56" font-weight="${fw}" letter-spacing="-1.5" fill="${c.primary}" dominant-baseline="hanging">${l}</text>`));
+
+  subLines.slice(0, 2).forEach((l, i) => parts.push(`<text x="${padX + 12}" y="${headEndY + 18 + i * 30}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="400" fill="#2a2a3a" opacity="0.78" dominant-baseline="hanging">${l}</text>`));
+
+  bullets.forEach((item, i) => {
+    const y = headEndY + 18 + 2 * 30 + 24 + i * 40;
+    parts.push(`<text x="${padX + 12}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="600" fill="${c.primary}" dominant-baseline="middle">· ${escapeXml(item)}</text>`);
+  });
+
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(360, Math.max(200, ctaText.length * 12 + 52));
+    const ctaX = FW - ctaW - padX;
+    const ctaY = FH - 78;
+    parts.push(`<rect x="${ctaX}" y="${ctaY - 26}" width="${ctaW}" height="52" rx="26" fill="${c.primary}"/>`);
+    parts.push(`<text x="${ctaX + ctaW / 2}" y="${ctaY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${FW}" height="${FH}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 22, left: padX });
+  return sharp(resizedBuf).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+// ── Google Business GB2 — "Full Overlay" (1200×900) ───────────────────────────
+// Photo full-bleed. Dark left gradient. Left-aligned text hierarchy.
+// Mirrors Template A proportionally for the 4:3 canvas — native GBP look.
+async function buildGBFullOverlay(resizedBuf, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint) {
+  const FW = 1200, FH = 900;
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+  const { headline = '', eyebrow = '', subtext = '', cta = '', services = [], uppercase = false } = cardOverlay;
+  const headText   = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const headLines  = wrapText(escapeXml(headText), 16);
+  const subLines   = wrapText(escapeXml(subtext), 30);
+  const bullets    = Array.isArray(services) ? services.slice(0, 3) : [];
+  const padX       = 60;
+  const dark       = darkenHex(c.primary, 0.28);
+  const headStartY = 220;
+  const headLineH  = 70;
+  const headEndY   = headStartY + headLines.length * headLineH;
+  const subStartY  = headEndY + 24;
+  const listStartY = subStartY + subLines.length * 38 + 30;
+  const fw         = fingerprint?.typographyWeight === 1 ? '800' : '900';
+
+  const parts = [
+    `<defs>
+      <linearGradient id="fadeGB2" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#000000" stop-opacity="0.88"/><stop offset="48%" stop-color="#000000" stop-opacity="0.72"/><stop offset="70%" stop-color="#000000" stop-opacity="0.10"/><stop offset="100%" stop-color="#000000" stop-opacity="0.00"/></linearGradient>
+      <linearGradient id="topDGB2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#000000" stop-opacity="0.72"/><stop offset="100%" stop-color="#000000" stop-opacity="0.00"/></linearGradient>
+      <linearGradient id="botDGB2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${dark}" stop-opacity="0.00"/><stop offset="100%" stop-color="${dark}" stop-opacity="0.96"/></linearGradient>
+    </defs>`,
+    `<rect x="0" y="0" width="${FW}" height="${FH}" fill="url(#fadeGB2)"/>`,
+    `<rect x="0" y="0" width="${FW}" height="120" fill="url(#topDGB2)"/>`,
+    `<rect x="0" y="${FH - 160}" width="${FW}" height="160" fill="url(#botDGB2)"/>`,
+    `<rect x="0" y="0" width="${Math.min(12, (fingerprint?.accentBarThickness || 7) + 2)}" height="${FH}" fill="${c.secondary}"/>`,
+  ];
+
+  parts.push(logoBuffer
+    ? `<text x="${padX + 78}" y="60" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`
+    : industryIconSvg(padX + 22, 60, 22, industry, 'rgba(255,255,255,0.95)', c.primary) + `<text x="${padX + 56}" y="60" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`
+  );
+
+  if (eyebrow) parts.push(`<text x="${padX}" y="${headStartY - 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="2.5" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+
+  headLines.forEach((l, i) => parts.push(`<text x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="64" font-weight="${fw}" letter-spacing="-1.5" fill="#ffffff" stroke="#000000" stroke-width="8" stroke-opacity="0.36" paint-order="stroke fill" dominant-baseline="hanging">${l}</text>`));
+  parts.push(`<rect x="${padX}" y="${headEndY + 14}" width="110" height="5" rx="2.5" fill="${c.secondary}"/>`);
+  subLines.forEach((l, i) => parts.push(`<text x="${padX}" y="${subStartY + i * 38}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="28" font-weight="400" fill="#ffffff" opacity="0.86" dominant-baseline="hanging">${l}</text>`));
+  bullets.forEach((item, i) => {
+    const y = listStartY + i * 52 + 20;
+    parts.push(`<circle cx="${padX + 8}" cy="${y}" r="8" fill="${c.secondary}"/>`);
+    parts.push(`<text x="${padX + 26}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="26" font-weight="600" fill="#ffffff" dominant-baseline="middle">${escapeXml(item)}</text>`);
+  });
+
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(420, Math.max(220, ctaText.length * 13 + 60));
+    const ctaY = FH - 120;
+    parts.push(`<rect x="${padX}" y="${ctaY}" width="${ctaW}" height="60" rx="30" fill="${c.secondary}"/>`);
+    parts.push(`<text x="${padX + ctaW / 2}" y="${ctaY + 30}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="900" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${FW}" height="${FH}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 22, left: padX });
+  return sharp(resizedBuf).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+// ── Google Business GB3 — "Centered Float Card" (1200×900) ────────────────────
+// Photo full-bleed with radial vignette. Centered frosted card (920×560px).
+// Dark text on white — premium, clean, professional. GBP loves clean layouts.
+async function buildGBFloatCard(resizedBuf, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint) {
+  const FW = 1200, FH = 900;
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+  const { headline = '', eyebrow = '', subtext = '', cta = '', services = [], uppercase = false } = cardOverlay;
+  const headText    = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const cardW       = 920, cardH = 560;
+  const cardX       = (FW - cardW) / 2;
+  const cardY       = (FH - cardH) / 2;
+  const cardRx      = fingerprint?.cornerRadiusLg || 24;
+  const cPadX       = cardX + 60;
+  const cardOpacity = fingerprint?.overlayOpacity || 0.92;
+  const headLines   = wrapText(escapeXml(headText), 22);
+  const subLines    = wrapText(escapeXml(subtext), 40);
+  const bullets     = Array.isArray(services) ? services.slice(0, 2) : [];
+  const headStartY  = cardY + 120;
+  const headLineH   = 66;
+  const headEndY    = headStartY + headLines.length * headLineH;
+  const fw          = fingerprint?.typographyWeight === 1 ? '800' : '900';
+
+  const parts = [
+    `<defs><radialGradient id="vigGB3" cx="50%" cy="50%" r="65%"><stop offset="0%" stop-color="#000000" stop-opacity="0.00"/><stop offset="100%" stop-color="#000000" stop-opacity="0.52"/></radialGradient></defs>`,
+    `<rect x="0" y="0" width="${FW}" height="${FH}" fill="url(#vigGB3)"/>`,
+    `<rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="${cardRx}" fill="rgba(255,255,255,${cardOpacity})"/>`,
+    `<rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="${cardRx}" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1"/>`,
+    `<rect x="${cardX}" y="${cardY}" width="${cardW}" height="${fingerprint?.accentBarThickness || 10}" rx="${cardRx}" fill="${c.primary}"/>`,
+  ];
+
+  parts.push(logoBuffer
+    ? `<text x="${cPadX + 80}" y="${cardY + 42}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="700" fill="${c.primary}" dominant-baseline="middle">${escapeXml(businessName)}</text>`
+    : industryIconSvg(cPadX + 20, cardY + 42, 20, industry, c.primary, '#ffffff') + `<text x="${cPadX + 52}" y="${cardY + 42}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="700" fill="${c.primary}" dominant-baseline="middle">${escapeXml(businessName)}</text>`
+  );
+
+  if (eyebrow) parts.push(`<text x="${cPadX}" y="${headStartY - 34}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="2" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+
+  headLines.forEach((l, i) => parts.push(`<text x="${cPadX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="58" font-weight="${fw}" letter-spacing="-1.5" fill="${c.primary}" dominant-baseline="hanging">${l}</text>`));
+  parts.push(`<rect x="${cPadX}" y="${headEndY + 10}" width="90" height="4" rx="2" fill="${c.secondary}"/>`);
+  subLines.slice(0, 2).forEach((l, i) => parts.push(`<text x="${cPadX}" y="${headEndY + 24 + i * 34}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="24" font-weight="400" fill="#2d2d3a" opacity="0.82" dominant-baseline="hanging">${l}</text>`));
+  bullets.forEach((item, i) => {
+    const y = headEndY + 24 + 2 * 34 + 20 + i * 42;
+    parts.push(`<circle cx="${cPadX + 8}" cy="${y}" r="8" fill="${c.secondary}"/>`);
+    parts.push(`<text x="${cPadX + 26}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="600" fill="#1a1a2a" dominant-baseline="middle">${escapeXml(item)}</text>`);
+  });
+
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(400, Math.max(200, ctaText.length * 13 + 56));
+    const ctaY = cardY + cardH - 80;
+    parts.push(`<rect x="${cPadX}" y="${ctaY - 26}" width="${ctaW}" height="52" rx="26" fill="${c.primary}"/>`);
+    parts.push(`<text x="${cPadX + ctaW / 2}" y="${ctaY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${FW}" height="${FH}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: cardY + 22, left: cPadX });
+  return sharp(resizedBuf).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+// ── Design param merger ────────────────────────────────────────────────────────
+// Merges global DesignAdvisor params (monthly Claude output) into the
+// per-customer fingerprint. Customer-specific values (colorRole, lineupOffset,
+// decorDensity) are preserved; global trend overrides (opacity, bar thickness,
+// radii, weight) are applied on top.
+function mergeDesignParams(fingerprint, dp) {
+  if (!dp) return fingerprint;
+  return {
+    ...fingerprint,
+    overlayOpacity:      dp.overlayOpacityBase    || fingerprint.overlayOpacity,
+    typographyWeight:    dp.headlineFontWeight === '800' ? 1 : 0,
+    accentBarThickness:  dp.accentBarThickness     || 7,
+    cornerRadiusMd:      dp.cornerRadiusMd         || 18,
+    cornerRadiusLg:      dp.cornerRadiusLg         || 24,
+  };
+}
+
+/**
+ * Generate photo cards for multiple platforms in parallel.
+ * Each platform gets a purpose-built composition — NOT a crop/resize of the master.
+ *
+ * instagram_feed:   10-template variety (A-J) selected by design seed
+ * facebook_feed:    3 dedicated landscape compositions (L1/L2/L3)
+ * linkedin_feed:    same 3 landscape compositions as Facebook
+ * google_business:  3 dedicated 4:3 compositions (GB1/GB2/GB3)
+ * instagram_square: portrait templates at 1080×1080 (center-crop photo)
+ *
+ * @param {Buffer}   photoBuffer      Raw NanoBanana photo buffer
+ * @param {Object}   cardOverlay      Text content (headline, subtext, cta, etc.)
+ * @param {Object}   customer         Customer row with brand_colors, business_name
+ * @param {string}   wizardTrigger    Content type from wizard step 1
+ * @param {string[]} platforms        Which platforms to generate. Default: main 3.
+ * @returns {Object} { instagram_feed: {A, B, C}, facebook_feed: {A, B, C}, ... }
+ */
+async function generatePhotoCardsForPlatforms(
+  photoBuffer,
+  cardOverlay,
+  customer,
+  wizardTrigger = null,
+  platforms = ['instagram_feed', 'facebook_feed', 'google_business'],
+  designParams = null
+) {
+  const colors       = resolveBrandColors(customer);
+  const businessName = customer?.business_name || '';
+  const phone        = customer?.phone || null;
+  const industry     = customer?.industry || 'general_contractor';
+  const fingerprint  = mergeDesignParams(getDesignFingerprint(customer), designParams);
+  const logoBuffer   = await fetchLogoBuffer(customer?.logo_url);
+
+  // Resize photo to each unique dimension needed (deduplicated)
+  const dimsNeeded = new Map();
+  for (const p of platforms) {
+    const s = PLATFORM_SPECS[p];
+    if (s) dimsNeeded.set(`${s.w}x${s.h}`, { w: s.w, h: s.h });
+  }
+  const resizedMap = {};
+  await Promise.all(Array.from(dimsNeeded.entries()).map(async ([key, dim]) => {
+    resizedMap[key] = await resizePhotoTo(photoBuffer, dim.w, dim.h);
+  }));
+
+  const result = {};
+
+  await Promise.all(platforms.map(async (platform) => {
+    const spec = PLATFORM_SPECS[platform];
+    if (!spec) return;
+    const photo = resizedMap[`${spec.w}x${spec.h}`];
+
+    if (platform === 'instagram_feed') {
+      const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer);
+      const [bA, bB, bC] = await Promise.all([
+        TEMPLATE_BUILDERS[tA](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+        TEMPLATE_BUILDERS[tB](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+        TEMPLATE_BUILDERS[tC](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+      ]);
+      result.instagram_feed = { A: bA, B: bB, C: bC };
+
+    } else if (platform === 'facebook_feed' || platform === 'linkedin_feed') {
+      const [bA, bB, bC] = await Promise.all([
+        buildLandscapePanel(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
+        buildLandscapeCinematic(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
+        buildLandscapeSplitCard(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
+      ]);
+      result[platform] = { A: bA, B: bB, C: bC };
+
+    } else if (platform === 'google_business') {
+      const [bA, bB, bC] = await Promise.all([
+        buildGBBottomBanner(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
+        buildGBFullOverlay(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
+        buildGBFloatCard(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
+      ]);
+      result.google_business = { A: bA, B: bB, C: bC };
+
+    } else if (platform === 'instagram_square') {
+      // Square: use portrait templates with square-cropped photo
+      const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer);
+      const [bA, bB, bC] = await Promise.all([
+        TEMPLATE_BUILDERS[tA](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+        TEMPLATE_BUILDERS[tB](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+        TEMPLATE_BUILDERS[tC](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+      ]);
+      result.instagram_square = { A: bA, B: bB, C: bC };
+    }
+  }));
+
+  return result;
+}
+
+module.exports = { generatePhotoCards, generatePhotoCardsSVG, generatePhotoCardsForPlatforms, resolveBrandColors, PLATFORM_SPECS };

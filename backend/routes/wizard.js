@@ -80,6 +80,13 @@ try {
   console.warn('[Wizard] PhotoCardService not found — photo card overlays disabled');
 }
 
+let DesignAdvisorService;
+try {
+  DesignAdvisorService = require('../services/DesignAdvisorService');
+} catch {
+  DesignAdvisorService = null;
+}
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Format → dimensions + media type map. Mirrors FORMAT_DATA in frontend/pages/wizard.js.
@@ -145,6 +152,132 @@ function repairJSON(str) {
     result += ch;
   }
   return result;
+}
+
+// ─────────────────────────────────────────────────────────────
+// QA Auto-Fix — runs after every Claude generation
+// Catches and repairs common quality gaps before returning to frontend.
+// Mutates the variations object in-place; no extra API calls.
+// ─────────────────────────────────────────────────────────────
+const BANNED_POSTCORE_WORDS = {
+  delve:    'explore',
+  synergy:  'teamwork',
+  leverage: 'use',
+  optimize: 'improve',
+  utilize:  'use',
+  robust:   'solid',
+  holistic: 'complete',
+  paradigm: 'approach',
+};
+const WEAK_OPENER_RE = /^(we |our |i am |hello |hi |hey |introducing |welcome )/i;
+
+function qaAutoFix(variations, customer) {
+  // Extract city from location string — "Dallas, TX" → "dallas", "Austin" → "austin"
+  const rawLoc = customer.location || '';
+  const city = rawLoc.split(',')[0].trim().toLowerCase();
+  const flags = [];
+
+  for (const [key, v] of Object.entries(variations)) {
+    if (!v || !v.caption) continue;
+
+    // 1. Replace banned PostCore words
+    let caption = v.caption;
+    for (const [bad, good] of Object.entries(BANNED_POSTCORE_WORDS)) {
+      const re = new RegExp(`\\b${bad}(ing|ed|s|ly)?\\b`, 'gi');
+      if (re.test(caption)) {
+        caption = caption.replace(re, (match) => {
+          const suffix = match.slice(bad.length);
+          return good + suffix;
+        });
+        flags.push(`${key}:replaced "${bad}"`);
+      }
+    }
+    v.caption = caption;
+
+    // 2. Fix missing engagementQuestion — extract the last "?" sentence
+    if (!v.engagementQuestion || v.engagementQuestion.trim() === '') {
+      const sentences = caption.split(/(?<=[.!?])\s+/);
+      const question = [...sentences].reverse().find(s => s.trim().endsWith('?'));
+      if (question) {
+        v.engagementQuestion = question.trim();
+        flags.push(`${key}:extracted engagementQuestion`);
+      } else {
+        flags.push(`${key}:WARN no engagementQuestion`);
+      }
+    }
+
+    // 3. Ensure hashtags is always an array
+    if (!Array.isArray(v.hashtags)) v.hashtags = [];
+
+    // 4. Log quality signals (not auto-fixed — would change meaning)
+    if (city && !caption.toLowerCase().includes(city)) {
+      flags.push(`${key}:WARN city not mentioned`);
+    }
+    if (WEAK_OPENER_RE.test(caption)) {
+      flags.push(`${key}:WARN weak opener`);
+    }
+  }
+
+  if (flags.length > 0) {
+    console.log('[Wizard][QA]', flags.join(' | '));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Card overlay validator — enforces service item length and
+// removes invalid state codes from eyebrow text before the
+// overlay is passed to PhotoCardService.
+// ─────────────────────────────────────────────────────────────
+const VALID_US_STATES = new Set(['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC','PR','GU','VI']);
+
+function validateAndFixCardOverlay(overlay, customer) {
+  if (!overlay) return overlay;
+
+  // Services: each item must be max 5 words — they render as visual tags, not sentences
+  if (Array.isArray(overlay.services)) {
+    overlay.services = overlay.services.map(item => {
+      if (typeof item !== 'string') return item;
+      const words = item.trim().split(/\s+/);
+      if (words.length > 5) {
+        console.log(`[Wizard][CardQA] service truncated: "${item.substring(0, 40)}"→"${words.slice(0, 5).join(' ')}"`);
+        return words.slice(0, 5).join(' ');
+      }
+      return item;
+    }).filter(Boolean).slice(0, 4);
+  }
+
+  // Headline: max 6 words to prevent 4+ line wrap at large font size
+  if (overlay.headline) {
+    const words = overlay.headline.trim().split(/\s+/);
+    if (words.length > 6) {
+      overlay.headline = words.slice(0, 6).join(' ');
+      console.log('[Wizard][CardQA] headline trimmed to 6 words');
+    }
+  }
+
+  // Subtext: one sentence max 18 words
+  if (overlay.subtext) {
+    const firstSentence = overlay.subtext.split(/(?<=[.!?])\s+/)[0];
+    const words = firstSentence.trim().split(/\s+/);
+    if (words.length > 18) {
+      overlay.subtext = words.slice(0, 18).join(' ') + '.';
+    } else {
+      overlay.subtext = firstSentence.trim();
+    }
+  }
+
+  // Eyebrow: remove invalid 2-letter state codes (Claude often hallucinates "AX", "XX" etc.)
+  if (overlay.eyebrow) {
+    overlay.eyebrow = overlay.eyebrow.replace(/\b([A-Z]{2})\b/g, (match) => {
+      if (!VALID_US_STATES.has(match)) {
+        console.log(`[Wizard][CardQA] removed invalid state code "${match}" from eyebrow`);
+        return '';
+      }
+      return match;
+    }).replace(/\s{2,}/g, ' ').replace(/·\s*$/, '').trim();
+  }
+
+  return overlay;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -298,6 +431,7 @@ function getWizardSteps(industry, contentType) {
         emoji: '🌤️',
         description: seasonal.urgencyTopic || 'Timely, seasonal content for this month',
       },
+      { value: 'faq',           label: 'Answer a question',        emoji: '❓', description: 'FAQ or myth-busting post — builds trust and authority' },
       { value: 'community',     label: 'Community or local event', emoji: '🏘️', description: 'Connect with your local area' },
       { value: 'team_spotlight', label: 'Team spotlight',          emoji: '🎉', description: 'Introduce your team or celebrate a milestone' },
     ],
@@ -526,6 +660,9 @@ function getContentTypeRules(contentType) {
 module.exports = (pool) => {
   const router = express.Router();
 
+  // DesignAdvisor — shared instance for all wizard routes (reads DB-driven monthly params)
+  const designAdvisor = DesignAdvisorService ? new DesignAdvisorService(pool) : null;
+
   // GET /api/wizard/steps/:industry/:contentType
   router.get('/steps/:industry/:contentType', authenticate, async (req, res) => {
     try {
@@ -707,15 +844,16 @@ module.exports = (pool) => {
 
       // Map wizard content types to SystemPromptBuilder triggers
       const triggerMap = {
-        custom:           'custom',
+        custom:            'custom',
         just_finished_job: 'finished_job',
-        share_tip:        'share_tip',
-        got_review:       'got_review',
-        running_promo:    'promotion',
-        seasonal:         'seasonal',
-        community:        'community',
-        faq:              'faq',
-        team_spotlight:   'behind_scenes',
+        share_tip:         'share_tip',
+        got_review:        'got_review',
+        running_promo:     'promotion',
+        seasonal:          'seasonal',
+        community:         'community',
+        faq:               'faq',
+        team_spotlight:    'team_spotlight',
+        behind_scenes:     'behind_scenes',
       };
 
       let businessKnowledge = [];
@@ -758,30 +896,58 @@ module.exports = (pool) => {
           return res.status(503).json({ error: 'Branded card generation is not available on this server.' });
         }
 
-        // Short Claude call — only needs card copy, not a full social post prompt
+        // Short Claude call — card copy + caption, enriched with industry + seasonal intelligence
         let cardParsed;
         try {
+          const bck       = industryKnowledge[session.customer.industry] || industryKnowledge.general_contractor || {};
+          const bcMonth   = new Date().getMonth() + 1;
+          const bcSeasonal = bck.seasonalContent?.[bcMonth] || {};
+          const bcHook    = bck.hookFormulas?.[0] || '';
+          const bcAngle   = bck.contentAngles?.find(a => a.engagementLevel === 'very_high') || bck.contentAngles?.[0] || {};
+          const bcLoc     = session.customer.location || '';
+          const bcCity    = bcLoc.split(',')[0].trim();
+          const bcMonthName = ['January','February','March','April','May','June','July','August','September','October','November','December'][bcMonth - 1];
+
           const cardClaudeResp = await Promise.race([
             anthropic.messages.create({
               model: 'claude-sonnet-4-6',
-              max_tokens: 500,
+              max_tokens: 700,
               messages: [{
                 role: 'user',
-                content: `You are writing text for a branded social media card for a local ${session.customer.industry || 'home services'} business.
+                content: `You are a world-class social media copywriter for LOCAL SERVICE BUSINESSES (trades, home services).
+Write card copy for a branded social media post card. The card is visual-first — every word must be punchy, local, and specific.
 
-Business: ${session.customer.business_name || 'Local Business'}
-Location: ${session.customer.location || ''}
-Theme: ${answers.contentType || 'job finished'}
-Details: ${answers.details ? JSON.stringify(answers.details) : 'none'}
+=== BUSINESS ===
+Name: ${session.customer.business_name || 'Local Business'}
+Industry: ${session.customer.industry || 'home services'}
+Location: ${bcLoc}
 Tone: ${answers.tone || 'professional'}
+Theme: ${answers.contentType || 'finished_job'}
+Details: ${answers.details ? JSON.stringify(answers.details) : 'none'}
 
-Return ONLY valid JSON (no markdown):
+=== SEASONAL CONTEXT (${bcMonthName}) ===
+${bcSeasonal.urgencyTopic ? `Most urgent right now: ${bcSeasonal.urgencyTopic}` : ''}
+${bcSeasonal.promotionAngle ? `Best promo angle: ${bcSeasonal.promotionAngle}` : ''}
+
+=== HIGH-PERFORMING HOOK FOR THIS INDUSTRY ===
+${bcHook ? `"${bcHook.replace(/\[city\]/g, bcCity)}"` : ''}
+${bcAngle.hook ? `Best-performing angle: "${bcAngle.hook.replace(/\[city\]/g, bcCity)}"` : ''}
+
+=== RULES ===
+- Headline: 4-7 words, punchy and specific — NOT generic ("Drain Cleared in 45 Min" beats "Great Plumbing Service")
+- Subtext: one sentence, max 15 words, benefit-focused, references ${bcCity || 'local'} homeowners
+- CTA: 2-4 words, verb-first ("Book Today", "Call Now", "Free Quote")
+- Caption: 120-200 words, starts with a scroll-stopping hook, ends with an engagement question, includes 6-10 relevant hashtags
+- NEVER use: "delve", "synergy", "leverage", "utilize", "optimize", "robust", "comprehensive"
+- Caption must sound like a real ${session.customer.industry || 'tradesperson'} wrote it — specific and human
+
+Return ONLY valid JSON (no markdown, no backticks):
 {
-  "headline": "Bold 5-8 word headline for the card (ALL CAPS works well)",
-  "subtext": "One supporting sentence, max 18 words",
-  "ctaText": "Call to action, max 5 words (e.g. Call Today, Free Quote, Book Now)",
-  "caption": "Full social media caption with relevant hashtags for the post",
-  "hashtags": ["tag1", "tag2", "tag3"]
+  "headline": "4-7 word specific headline",
+  "subtext": "One sentence, max 15 words, benefit-focused",
+  "ctaText": "2-4 word CTA",
+  "caption": "Full social caption ending with a specific engagement question",
+  "hashtags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
 }`,
               }],
             }),
@@ -808,8 +974,9 @@ Return ONLY valid JSON (no markdown):
         // Generate 3 card layouts in parallel
         let bufferA, bufferB, bufferC;
         try {
+          const brandedDesignParams = designAdvisor ? await designAdvisor.getActiveParams() : null;
           ({ bufferA, bufferB, bufferC } = await BrandedCardService.generateBrandedCards(
-            session.customer, headline, subtext, ctaText
+            session.customer, headline, subtext, ctaText, answers.contentType, brandedDesignParams
           ));
         } catch (sharpErr) {
           console.error('[Wizard/BrandedCard] Sharp generation failed:', sharpErr.message);
@@ -1038,18 +1205,21 @@ Return ONLY valid JSON (no markdown):
           engagementQuestion: parsed.variation_a?.engagementQuestion || '',
           hookType: parsed.variation_a?.hookFormulaUsed || 'question',
           hashtags: parsed.variation_a?.hashtags || [],
+          engagementScore: parsed.variation_a?.engagementScore || null,
         },
         B: {
           caption: parsed.variation_b?.caption || '',
           engagementQuestion: parsed.variation_b?.engagementQuestion || '',
           hookType: parsed.variation_b?.hookFormulaUsed || 'story',
           hashtags: parsed.variation_b?.hashtags || parsed.variation_a?.hashtags || [],
+          engagementScore: parsed.variation_b?.engagementScore || null,
         },
         C: {
           caption: parsed.variation_c?.caption || '',
           engagementQuestion: parsed.variation_c?.engagementQuestion || '',
           hookType: parsed.variation_c?.hookFormulaUsed || 'tip',
           hashtags: parsed.variation_c?.hashtags || parsed.variation_a?.hashtags || [],
+          engagementScore: parsed.variation_c?.engagementScore || null,
         },
       };
 
@@ -1067,6 +1237,9 @@ Return ONLY valid JSON (no markdown):
         console.error('[Wizard] Invalid response structure from Claude:', parsed);
         return res.status(502).json({ error: 'Invalid AI response structure. Please try again.' });
       }
+
+      // ── QA auto-fix — correct common quality gaps before serving ─────────────
+      qaAutoFix(transformedVariations, session.customer);
 
       // ── Media orchestration (NanoBanana images) ──────────────────────────────
       let mediaUrl = null;
@@ -1149,42 +1322,63 @@ Return ONLY valid JSON (no markdown):
             if (PhotoCardService && ImageResizer && parsed.cardOverlay && contentTypeForMedia === 'photo') {
               try {
                 const rawBuffer = await ImageResizer.fetchImageAsBuffer(imageResult.url);
-                const { bufferA, bufferB, bufferC } = await PhotoCardService.generatePhotoCards(
-                  rawBuffer, parsed.cardOverlay, session.customer
+                // Normalise wizard content-type names to what PhotoCardService.resolveTemplateSet expects
+                const WIZARD_CARD_TRIGGER = { just_finished_job: 'job_finished', running_promo: 'promotion' };
+                const cardTrigger = WIZARD_CARD_TRIGGER[answers.contentType] || answers.contentType;
+                const fixedOverlay = validateAndFixCardOverlay(parsed.cardOverlay, session.customer);
+
+                // Generate platform-native cards (purpose-built per aspect ratio)
+                const designParams = designAdvisor ? await designAdvisor.getActiveParams() : null;
+                const platformCards = await PhotoCardService.generatePhotoCardsForPlatforms(
+                  rawBuffer, fixedOverlay, session.customer, cardTrigger,
+                  ['instagram_feed', 'facebook_feed', 'google_business'],
+                  designParams
                 );
+
+                // Upload all platform variants to Cloudinary in parallel
                 const ts  = Date.now();
                 const cid = session.customerId;
-                const [urlA, urlB, urlC] = await Promise.all([
-                  ImageResizer.uploadToCloudinary(bufferA, `itsposting/${cid}/wizard-card-${ts}-A`),
-                  ImageResizer.uploadToCloudinary(bufferB, `itsposting/${cid}/wizard-card-${ts}-B`),
-                  ImageResizer.uploadToCloudinary(bufferC, `itsposting/${cid}/wizard-card-${ts}-C`),
-                ]);
-                photoCardUrls = { A: urlA, B: urlB, C: urlC };
-                mediaUrl = urlA; // default shown image; frontend overrides per selected variation
-                console.log('[Wizard] Photo cards generated:', urlA);
+                const photoCardsByPlatform = {};
+                await Promise.all(Object.entries(platformCards).map(async ([platform, variants]) => {
+                  const [urlA, urlB, urlC] = await Promise.all([
+                    ImageResizer.uploadToCloudinary(variants.A, `itsposting/${cid}/wizard-card-${ts}-${platform}-A`),
+                    ImageResizer.uploadToCloudinary(variants.B, `itsposting/${cid}/wizard-card-${ts}-${platform}-B`),
+                    ImageResizer.uploadToCloudinary(variants.C, `itsposting/${cid}/wizard-card-${ts}-${platform}-C`),
+                  ]);
+                  photoCardsByPlatform[platform] = { A: urlA, B: urlB, C: urlC };
+                }));
+
+                // Backwards compat: instagram_feed cards drive mediaUrl + existing photoCardUrls
+                photoCardUrls = photoCardsByPlatform.instagram_feed || Object.values(photoCardsByPlatform)[0];
+                mediaUrl = photoCardUrls.A;
+                mediaVariants._photoCardsByPlatform = photoCardsByPlatform;
+                console.log('[Wizard] Platform cards generated:', Object.keys(photoCardsByPlatform).join(', '));
               } catch (cardErr) {
                 console.warn('[Wizard] PhotoCard overlay failed (using plain photo):', cardErr.message);
               }
             }
 
-            if (ImageResizer) {
+            if (ImageResizer && !mediaVariants._photoCardsByPlatform) {
+              // Only run ImageResizer resize when we don't already have platform-native cards
               try {
                 const variants = await ImageResizer.uploadResizedImages(
                   photoCardUrls ? photoCardUrls.A : imageResult.url,
                   `wizard-${Date.now()}`,
                   session.customerId
                 );
-                mediaVariants = variants;
+                mediaVariants = { ...mediaVariants, ...variants };
+                if (!photoCardUrls && variants.instagram_feed) {
+                  mediaUrl = variants.instagram_feed;
+                }
               } catch (resizerErr) {
                 console.warn('[Wizard] ImageResizer failed — using original URL:', resizerErr.message);
-                mediaVariants = {};
               }
             }
 
             // Generate SVG versions for live browser-side editing (no network calls — uses rawPhotoUrl directly)
             if (PhotoCardService?.generatePhotoCardsSVG && photoCardUrls && rawPhotoUrl && parsed.cardOverlay) {
               try {
-                const { svgA, svgB, svgC } = await PhotoCardService.generatePhotoCardsSVG(rawPhotoUrl, parsed.cardOverlay, session.customer);
+                const { svgA, svgB, svgC } = await PhotoCardService.generatePhotoCardsSVG(rawPhotoUrl, parsed.cardOverlay, session.customer, cardTrigger);
                 mediaVariants._svgCards = { A: svgA, B: svgB, C: svgC };
               } catch (svgErr) {
                 console.warn('[Wizard] SVG card generation failed (non-fatal):', svgErr.message);
@@ -1472,6 +1666,7 @@ Return ONLY valid JSON (no markdown):
         mediaUrl,
         mediaVariants,
         photoCardUrls: mediaVariants._photoCardUrls || null,
+        photoCardsByPlatform: mediaVariants._photoCardsByPlatform || null,
         rawPhotoUrl: mediaVariants._rawPhotoUrl || null,
         svgCards: mediaVariants._svgCards || null,
         imageFailed,
@@ -1697,10 +1892,18 @@ Return ONLY valid JSON (no markdown):
     }
   });
 
-  // POST /api/wizard/quick — mobile quick post mode
+  // POST /api/wizard/quick — mobile quick post mode (photo + text card)
   router.post('/quick', authenticate, requireActiveAccount(pool), async (req, res) => {
     try {
-      const { description, platform = 'facebook', tone = 'friendly' } = req.body;
+      const { description, platform = 'facebook', tone = 'friendly', contentType = 'photo', wizardTrigger: rawTrigger } = req.body;
+
+      // Normalise quick-post trigger names for PhotoCardService (which uses its own naming)
+      const QUICK_PHOTO_TRIGGER_MAP = {
+        finished_job:  'job_finished',
+        behind_scenes: 'team_spotlight',
+      };
+      const quickTrigger       = rawTrigger || 'finished_job';
+      const photoCardTrigger   = QUICK_PHOTO_TRIGGER_MAP[quickTrigger] || quickTrigger;
 
       if (!description || description.trim().length < 5) {
         return res.status(400).json({ error: 'Please describe what happened in at least a few words.' });
@@ -1708,9 +1911,16 @@ Return ONLY valid JSON (no markdown):
       if (description.length > 2000) {
         return res.status(400).json({ error: 'Description is too long (max 2000 characters).' });
       }
+      if (!['static', 'photo'].includes(contentType)) {
+        return res.status(400).json({ error: 'contentType must be static or photo' });
+      }
+
+      const creditCost = contentType === 'static' ? 1 : 3;
 
       const customerResult = await pool.query(
-        'SELECT id, business_name, industry, location, tone, visual_style FROM customers WHERE id = $1',
+        `SELECT id, business_name, industry, location, phone, tone, visual_style,
+                brand_colors, logo_url, website_services, website_about, website_testimonials
+         FROM customers WHERE id = $1`,
         [req.customerId]
       );
 
@@ -1721,59 +1931,182 @@ Return ONLY valid JSON (no markdown):
       const customer = customerResult.rows[0];
 
       const billingId = getBillingCustomerId(req);
-      const creditRow = await pool.query(
-        'SELECT credits_balance FROM customers WHERE id = $1',
-        [billingId]
-      );
-      if (!creditRow.rows[0] || creditRow.rows[0].credits_balance < 3) {
+      const creditRow = await pool.query('SELECT credits_balance FROM customers WHERE id = $1', [billingId]);
+      if (!creditRow.rows[0] || creditRow.rows[0].credits_balance < creditCost) {
         return res.status(402).json({
-          error: 'Not enough credits. Quick photo posts cost 3 credits. Please upgrade your plan.',
+          error: `Not enough credits. Quick ${contentType === 'static' ? 'text card' : 'photo'} posts cost ${creditCost} credit${creditCost > 1 ? 's' : ''}. Please upgrade your plan.`,
         });
       }
 
-      // Use SystemPromptBuilder for consistent quality
+      // Build rich prompt — SystemPromptBuilder includes cardOverlay brief when contentType=photo
       const builder = new SystemPromptBuilder(customer, {
         platform,
-        contentType: 'photo', // Quick post generates single images
-        wizardTrigger: 'finished_job', // Default trigger for quick posts
-        counterAnswers: { job_description: description.trim() }, // Pass the description as job details
+        contentType,
+        wizardTrigger: quickTrigger,
+        counterAnswers: { job_description: description.trim() },
       });
-
       const { systemPrompt, userPrompt } = builder.build();
 
       const claudeResponse = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 800,
+        max_tokens: contentType === 'photo' ? 2800 : 1200,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       });
 
-      const rawText = claudeResponse.content
-        .filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('');
-      const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-
-      // Deduct 3 credits atomically — reject if another concurrent request beat us
-      const quickDeduct = await pool.query(
-        'UPDATE customers SET credits_balance = credits_balance - 3, credits_used_this_month = credits_used_this_month + 3 WHERE id = $1 AND credits_balance >= 3 RETURNING credits_balance',
-        [billingId]
-      );
-      if (quickDeduct.rows.length === 0) {
-        return res.status(402).json({ error: 'Not enough credits. Quick photo posts cost 3 credits. Please upgrade your plan.' });
+      const rawText = claudeResponse.content.filter(b => b.type === 'text').map(b => b.text).join('');
+      let parsed;
+      try {
+        const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        parsed = JSON.parse(cleaned);
+      } catch {
+        try {
+          parsed = JSON.parse(repairJSON(rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()));
+        } catch {
+          return res.status(500).json({ error: 'Quick post generation failed. Please try again.' });
+        }
       }
 
-      // Extract from variation_a (SystemPromptBuilder format)
-      const quickResult = {
-        success: true,
-        caption: parsed.variation_a?.caption || '',
-        hashtags: parsed.variation_a?.hashtags || [],
-        imagePrompt: parsed.variation_a?.imagePrompt || '',
-        engagementQuestion: parsed.variation_a?.engagementQuestion || '',
-        platform,
-        tone,
+      // Atomic credit deduction — fail fast if insufficient
+      const quickDeduct = await pool.query(
+        `UPDATE customers SET credits_balance = credits_balance - $2,
+           credits_used_this_month = credits_used_this_month + $2
+         WHERE id = $1 AND credits_balance >= $2
+         RETURNING credits_balance`,
+        [billingId, creditCost]
+      );
+      if (quickDeduct.rows.length === 0) {
+        return res.status(402).json({ error: `Not enough credits. Quick ${contentType === 'static' ? 'text card' : 'photo'} posts cost ${creditCost} credit${creditCost > 1 ? 's' : ''}. Please upgrade your plan.` });
+      }
+
+      // Build all 3 variations (B and C fall back to A if Claude only returned one)
+      const variations = {
+        a: {
+          caption:           parsed.variation_a?.caption || '',
+          hashtags:          parsed.variation_a?.hashtags || [],
+          engagementQuestion:parsed.variation_a?.engagementQuestion || '',
+          imagePrompt:       parsed.variation_a?.imagePrompt || parsed.imagePrompt || '',
+          engagementScore:   parsed.variation_a?.engagementScore || null,
+        },
+        b: {
+          caption:           parsed.variation_b?.caption || parsed.variation_a?.caption || '',
+          hashtags:          parsed.variation_b?.hashtags || parsed.variation_a?.hashtags || [],
+          engagementQuestion:parsed.variation_b?.engagementQuestion || parsed.variation_a?.engagementQuestion || '',
+          imagePrompt:       parsed.variation_b?.imagePrompt || parsed.imagePrompt || '',
+          engagementScore:   parsed.variation_b?.engagementScore || null,
+        },
+        c: {
+          caption:           parsed.variation_c?.caption || parsed.variation_a?.caption || '',
+          hashtags:          parsed.variation_c?.hashtags || parsed.variation_a?.hashtags || [],
+          engagementQuestion:parsed.variation_c?.engagementQuestion || parsed.variation_a?.engagementQuestion || '',
+          imagePrompt:       parsed.variation_c?.imagePrompt || parsed.imagePrompt || '',
+          engagementScore:   parsed.variation_c?.engagementScore || null,
+        },
       };
+
+      // ── QA auto-fix — correct common quality gaps before serving ─────────────
+      qaAutoFix(variations, customer);
+
+      // ── Image generation (photo posts only) ───────────────────────────────
+      let mediaUrl    = null;
+      let photoCardUrls = null;
+      let imageFailed = false;
+
+      if (contentType === 'photo' && NanoBananaService) {
+        try {
+          const nanoBanana = new NanoBananaService();
+          const imagePrompt = parsed.imagePrompt || variations.a.imagePrompt || description;
+          const imageResult = await nanoBanana.generateFromPrompt(customer, imagePrompt, { aspectRatio: '4:5' });
+          await validateMedia(imageResult.url);
+          mediaUrl = imageResult.url;
+
+          // Photo card overlays — platform-native generation
+          if (PhotoCardService && ImageResizer && parsed.cardOverlay) {
+            try {
+              validateAndFixCardOverlay(parsed.cardOverlay, customer);
+              const rawBuffer = await ImageResizer.fetchImageAsBuffer(imageResult.url);
+              const designParams = designAdvisor ? await designAdvisor.getActiveParams() : null;
+              const platformCards = await PhotoCardService.generatePhotoCardsForPlatforms(
+                rawBuffer, parsed.cardOverlay, customer, photoCardTrigger,
+                ['instagram_feed', 'facebook_feed', 'google_business'],
+                designParams
+              );
+              const ts  = Date.now();
+              const cid = req.customerId;
+              const photoCardsByPlatform = {};
+              await Promise.all(Object.entries(platformCards).map(async ([platform, variants]) => {
+                const [urlA, urlB, urlC] = await Promise.all([
+                  ImageResizer.uploadToCloudinary(variants.A, `itsposting/${cid}/quick-card-${ts}-${platform}-A`),
+                  ImageResizer.uploadToCloudinary(variants.B, `itsposting/${cid}/quick-card-${ts}-${platform}-B`),
+                  ImageResizer.uploadToCloudinary(variants.C, `itsposting/${cid}/quick-card-${ts}-${platform}-C`),
+                ]);
+                photoCardsByPlatform[platform] = { A: urlA, B: urlB, C: urlC };
+              }));
+              photoCardUrls = photoCardsByPlatform.instagram_feed || Object.values(photoCardsByPlatform)[0];
+              mediaUrl = photoCardUrls.A;
+              // Attach platform map so the response can include it
+              parsed._photoCardsByPlatform = photoCardsByPlatform;
+              console.log('[Wizard/quick] Platform cards generated:', Object.keys(photoCardsByPlatform).join(', '));
+            } catch (cardErr) {
+              console.warn('[Wizard/quick] PhotoCard failed — using plain photo:', cardErr.message);
+              if (ImageResizer) {
+                try {
+                  const variants = await ImageResizer.uploadResizedImages(
+                    imageResult.url, `quick-${Date.now()}`, req.customerId
+                  );
+                  if (variants.instagram_feed) mediaUrl = variants.instagram_feed;
+                } catch {}
+              }
+            }
+          } else if (ImageResizer) {
+            // No card overlay — ensure 1080×1350 via ImageResizer
+            try {
+              const variants = await ImageResizer.uploadResizedImages(
+                imageResult.url, `quick-${Date.now()}`, req.customerId
+              );
+              if (variants.instagram_feed) mediaUrl = variants.instagram_feed;
+            } catch {}
+          }
+        } catch (imgErr) {
+          console.warn('[Wizard/quick] Image generation failed:', imgErr.message);
+          imageFailed = true;
+        }
+      }
+
+      // ── Save post record so Post Now works ────────────────────────────────
+      let savedPostId = null;
+      try {
+        const postInsert = await pool.query(
+          `INSERT INTO posts
+             (customer_id, caption, hashtags, media_url, content_type, platform, platforms,
+              status, source, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', 'ai_generated', NOW())
+           RETURNING id`,
+          [
+            req.customerId,
+            variations.a.caption,
+            JSON.stringify(variations.a.hashtags),
+            mediaUrl,
+            contentType === 'static' ? 'static' : 'photo',
+            platform,
+            JSON.stringify([platform]),
+          ]
+        );
+        savedPostId = postInsert.rows[0]?.id;
+      } catch (dbErr) {
+        console.warn('[Wizard/quick] DB post save failed (non-fatal):', dbErr.message);
+      }
+
+      res.json({
+        success: true,
+        postId: savedPostId,
+        variations,
+        mediaUrl,
+        photoCardUrls,
+        photoCardsByPlatform: parsed._photoCardsByPlatform || null,
+        imageFailed,
+        creditsRemaining: quickDeduct.rows[0].credits_balance,
+      });
 
       // ── Training data (fire-and-forget) ───────────────────────────────────
       setImmediate(async () => {
@@ -1781,28 +2114,19 @@ Return ONLY valid JSON (no markdown):
           await pool.query(
             `INSERT INTO post_training_data
                (post_id, customer_id, input_payload, output_payload, model_used, created_at)
-             VALUES (NULL, $1, $2, $3, 'claude-sonnet-4-6', NOW())`,
+             VALUES ($1, $2, $3, $4, 'claude-sonnet-4-6', NOW())`,
             [
+              savedPostId,
               req.customerId,
               JSON.stringify({
-                source:       'quick_post',
-                industry:     customer.industry,
-                contentType:  'photo',
-                tone,
-                platform,
-                details:      description.trim(),
+                source: 'quick_post_v2', industry: customer.industry,
+                contentType, tone, platform,
+                details: description.trim(),
                 businessName: customer.business_name,
-                location:     customer.location,
-                month:        new Date().getMonth() + 1,
+                location: customer.location,
+                month: new Date().getMonth() + 1,
               }),
-              JSON.stringify({
-                variation_a: {
-                  caption:            quickResult.caption,
-                  hashtags:           quickResult.hashtags,
-                  engagementQuestion: quickResult.engagementQuestion,
-                  imagePrompt:        quickResult.imagePrompt,
-                },
-              }),
+              JSON.stringify({ variations }),
             ]
           );
         } catch (e) {
@@ -1810,7 +2134,6 @@ Return ONLY valid JSON (no markdown):
         }
       });
 
-      res.json(quickResult);
     } catch (err) {
       console.error('[Wizard] Quick post error:', err);
       res.status(500).json({ error: 'Quick post generation failed. Please try again.' });
@@ -1879,7 +2202,15 @@ Return ONLY valid JSON (no markdown):
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(cleaned);
 
-      const refreshedCaption = parsed.caption || '';
+      let refreshedCaption = parsed.caption || '';
+
+      // QA: strip banned PostCore words from refreshed caption
+      for (const [bad, good] of Object.entries(BANNED_POSTCORE_WORDS)) {
+        const re = new RegExp(`\\b${bad}(ing|ed|s|ly)?\\b`, 'gi');
+        if (re.test(refreshedCaption)) {
+          refreshedCaption = refreshedCaption.replace(re, (match) => good + match.slice(bad.length));
+        }
+      }
 
       // ── Training data — refresh is a high-value negative signal ───────────
       // Means: the original caption didn't satisfy the customer.
@@ -1926,7 +2257,7 @@ Return ONLY valid JSON (no markdown):
   // POST /api/wizard/rerender-card — re-render photo card with edited cardOverlay (no AI, no credits)
   router.post('/rerender-card', authenticate, async (req, res) => {
     try {
-      const { photoUrl, cardOverlay } = req.body;
+      const { photoUrl, cardOverlay, wizardTrigger: rerenderTrigger } = req.body;
       if (!photoUrl || !cardOverlay) return res.status(400).json({ error: 'photoUrl and cardOverlay required' });
 
       const customerResult = await pool.query(
@@ -1938,29 +2269,45 @@ Return ONLY valid JSON (no markdown):
 
       if (!PhotoCardService || !ImageResizer) return res.status(503).json({ error: 'Photo card service unavailable' });
 
+      validateAndFixCardOverlay(cardOverlay, customer);
       const rawBuffer = await ImageResizer.fetchImageAsBuffer(photoUrl);
-      const { bufferA, bufferB, bufferC } = await PhotoCardService.generatePhotoCards(rawBuffer, cardOverlay, customer);
+
+      // Platform-native regeneration
+      const designParams = designAdvisor ? await designAdvisor.getActiveParams() : null;
+      const platformCards = await PhotoCardService.generatePhotoCardsForPlatforms(
+        rawBuffer, cardOverlay, customer, rerenderTrigger || null,
+        ['instagram_feed', 'facebook_feed', 'google_business'],
+        designParams
+      );
 
       const ts = Date.now();
       const cid = req.customerId;
-      const [urlA, urlB, urlC] = await Promise.all([
-        ImageResizer.uploadToCloudinary(bufferA, `itsposting/${cid}/wizard-card-${ts}-A`),
-        ImageResizer.uploadToCloudinary(bufferB, `itsposting/${cid}/wizard-card-${ts}-B`),
-        ImageResizer.uploadToCloudinary(bufferC, `itsposting/${cid}/wizard-card-${ts}-C`),
-      ]);
 
-      // Also generate SVG strings for instant browser preview
+      // Upload all platform variants
+      const photoCardsByPlatform = {};
+      await Promise.all(Object.entries(platformCards).map(async ([platform, variants]) => {
+        const [urlA, urlB, urlC] = await Promise.all([
+          ImageResizer.uploadToCloudinary(variants.A, `itsposting/${cid}/wizard-card-${ts}-${platform}-A`),
+          ImageResizer.uploadToCloudinary(variants.B, `itsposting/${cid}/wizard-card-${ts}-${platform}-B`),
+          ImageResizer.uploadToCloudinary(variants.C, `itsposting/${cid}/wizard-card-${ts}-${platform}-C`),
+        ]);
+        photoCardsByPlatform[platform] = { A: urlA, B: urlB, C: urlC };
+      }));
+
+      const igCards = photoCardsByPlatform.instagram_feed || Object.values(photoCardsByPlatform)[0];
+
+      // SVG strings for instant browser preview (Instagram only — shown in editor)
       let svgCards = null;
       if (PhotoCardService.generatePhotoCardsSVG) {
         try {
-          const { svgA, svgB, svgC } = await PhotoCardService.generatePhotoCardsSVG(photoUrl, cardOverlay, customer);
+          const { svgA, svgB, svgC } = await PhotoCardService.generatePhotoCardsSVG(photoUrl, cardOverlay, customer, rerenderTrigger || null);
           svgCards = { A: svgA, B: svgB, C: svgC };
         } catch (svgErr) {
           console.warn('[Wizard] rerender-card SVG generation failed (non-fatal):', svgErr.message);
         }
       }
 
-      res.json({ photoCardUrls: { A: urlA, B: urlB, C: urlC }, svgCards });
+      res.json({ photoCardUrls: igCards, photoCardsByPlatform, svgCards });
     } catch (err) {
       console.error('[Wizard] rerender-card error:', err);
       res.status(500).json({ error: 'Card re-render failed. Please try again.' });
@@ -2416,6 +2763,22 @@ Rules:
 
       const imgRes = await (require('axios').get(mediaUrl, { responseType: 'arraybuffer', timeout: 15000 }));
       let buffer = Buffer.from(imgRes.data);
+
+      // Always normalise to 1080×1350 JPEG for download — Gemini may produce non-standard sizes
+      if (ImageResizer) {
+        try {
+          const sharp = require('sharp');
+          const meta = await sharp(buffer).metadata();
+          if (meta.width !== 1080 || meta.height !== 1350) {
+            buffer = await sharp(buffer)
+              .resize(1080, 1350, { fit: 'cover', position: 'centre' })
+              .jpeg({ quality: 85, mozjpeg: true })
+              .toBuffer();
+          }
+        } catch (resizeErr) {
+          console.warn('[Wizard/download] Resize normalisation failed (sending original):', resizeErr.message);
+        }
+      }
 
       if (withWatermark) {
         buffer = await ImageResizer.addWatermark(buffer, { isDark: true });

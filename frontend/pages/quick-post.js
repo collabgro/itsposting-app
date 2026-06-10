@@ -13,8 +13,9 @@ import {
   IpCheckCircle, IpInfo, IpDollar, IpCalendar, IpTeam,
 } from '../components/icons';
 import { useToast } from '../components/ui';
-import { contentAPI, socialAPI } from '../lib/api';
+import api, { wizardAPI, socialAPI } from '../lib/api';
 import { setMascotMood } from '../components/PostCoreMascot';
+import { MOCKUP_MAP, PLATFORM_META } from '../components/PostMockups';
 
 function Spinner({ color = '#fff', size = 16 }) {
   return (
@@ -482,15 +483,17 @@ export default function QuickPost() {
   const [result,        setResult]        = useState(null);
   const [error,         setError]         = useState('');
   const [shake,         setShake]         = useState(false);
-  const [activeVar,     setActiveVar]     = useState('a');
-  const [editing,       setEditing]       = useState(false);
-  const [editedCaption, setEditedCaption] = useState('');
+  const [activeVar,           setActiveVar]           = useState('a');
+  const [editing,             setEditing]             = useState(false);
+  const [editedCaption,       setEditedCaption]       = useState('');
+  const [selectedPlatformTab, setSelectedPlatformTab] = useState('instagram_feed');
   const [copied,        setCopied]        = useState(false);
   const [posting,       setPosting]       = useState(false);
   const [posted,        setPosted]        = useState(false);
   const [isMobile,      setIsMobile]      = useState(false);
   const [socialAccounts, setSocialAccounts] = useState([]);
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [qpPreviewPlatform, setQpPreviewPlatform] = useState('all');
 
   const loadMsgTimer = useRef(null);
   const platformsDefaulted = useRef(false);
@@ -554,18 +557,15 @@ export default function QuickPost() {
     setError(''); setResult(null); setEditing(false); setActiveVar('a'); setGenerating(true);
     setMascotMood('thinking', 'Crafting your post...');
     try {
-      const { data } = await contentAPI.generate({
+      const { data } = await wizardAPI.quick({
         contentType,
-        prompt: `${assembled} [Tone: ${tone}]`,
-        options: {
-          platforms: selectedPlats,
-          tone,
-          quickPost: true,
-          wizardTrigger: jt.wizardTrigger,
-        },
+        description: assembled,
+        platform: selectedPlats[0] || 'facebook',
+        tone,
+        wizardTrigger: jt.wizardTrigger,
       });
       setResult(data);
-      setEditedCaption(data.variations?.a?.caption || data.caption || '');
+      setEditedCaption(data.variations?.a?.caption || '');
       setMascotMood('excited', 'Your post is ready — pick a variation!');
       showToast('Post ready — choose a version below', 'success');
       window.dispatchEvent(new Event('creditRefresh'));
@@ -576,9 +576,14 @@ export default function QuickPost() {
     }
   };
 
-  const getCaption  = () => editing ? editedCaption : result?.variations?.[activeVar]?.caption || result?.caption || '';
-  const getHashtags = () => result?.variations?.[activeVar]?.hashtags || result?.hashtags || [];
+  const getCaption  = () => editing ? editedCaption : result?.variations?.[activeVar]?.caption || '';
+  const getHashtags = () => result?.variations?.[activeVar]?.hashtags || [];
   const getEngQ     = () => result?.variations?.[activeVar]?.engagementQuestion || null;
+  const getMediaUrl = () =>
+    result?.photoCardsByPlatform?.[selectedPlatformTab]?.[activeVar.toUpperCase()]
+      || result?.photoCardUrls?.[activeVar.toUpperCase()]
+      || result?.mediaUrl
+      || null;
 
   // accountIds = integer row IDs from social_accounts (when modal is used)
   // falls back to platform names when no accounts loaded yet
@@ -587,6 +592,12 @@ export default function QuickPost() {
     setPosting(true);
     setShowPublishModal(false);
     try {
+      // Patch the post record so the correct variation's caption + card image is published
+      const activeMediaUrl = getMediaUrl();
+      const patchData = { caption: getCaption(), hashtags: getHashtags() };
+      if (activeMediaUrl) patchData.mediaUrl = activeMediaUrl;
+      try { await api.patch(`/api/posts/${result.postId}`, patchData); } catch {}
+
       const pubRes = accountIds?.length
         ? await socialAPI.publish(result.postId, accountIds, null)
         : await socialAPI.publish(result.postId, null, selectedPlats);
@@ -607,16 +618,19 @@ export default function QuickPost() {
     }
   };
   const handleOpenWizard = () => {
+    // Wizard uses uppercase keys (A/B/C) — convert lowercase quick-post variations
+    const wizardVariations = {};
+    if (result?.variations) {
+      Object.entries(result.variations).forEach(([k, v]) => {
+        wizardVariations[k.toUpperCase()] = v;
+      });
+    }
     const wizardResult = {
-      variations: {
-        a: {
-          caption: getCaption(),
-          hashtags: getHashtags(),
-          imagePrompt: result?.variations?.[activeVar]?.imagePrompt || result?.imagePrompt || '',
-          engagementQuestion: getEngQ() || '',
-        },
-      },
-      mediaUrl: result?.mediaUrl || null,
+      variations: wizardVariations,
+      mediaUrl: getMediaUrl(),
+      photoCardUrls: result?.photoCardUrls || null,
+      photoCardsByPlatform: result?.photoCardsByPlatform || null,
+      postId: result?.postId || null,
       fromQuickPost: true,
     };
     sessionStorage.setItem('quickPostResult', JSON.stringify({ result: wizardResult, platforms: selectedPlats, tone, prompt: JOB_TYPES.find(j => j.id === jobType)?.prompt || '', timestamp: Date.now() }));
@@ -1076,25 +1090,66 @@ export default function QuickPost() {
             {/* Image preview (photo posts only) */}
             {contentType === 'photo' && (
               <div style={{ padding: '12px 12px 0' }}>
-                {result.mediaUrl ? (
+                {/* Platform tabs — shown when platform-native cards are available */}
+                {result?.photoCardsByPlatform && Object.keys(result.photoCardsByPlatform).length > 1 && (() => {
+                  const QP_PLATFORM_META = {
+                    instagram_feed:  { label: 'Instagram', Icon: IpInstagram, ratio: '4:5'    },
+                    facebook_feed:   { label: 'Facebook',  Icon: IpFacebook,  ratio: '1.91:1' },
+                    google_business: { label: 'Google',    Icon: IpGoogle,    ratio: '4:3'    },
+                    linkedin_feed:   { label: 'LinkedIn',  Icon: IpLinkedIn,  ratio: '1.91:1' },
+                  };
+                  return (
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+                      {Object.keys(result.photoCardsByPlatform).map(platform => {
+                        const meta = QP_PLATFORM_META[platform] || { label: platform, Icon: IpSparkle, ratio: '' };
+                        const isActive = selectedPlatformTab === platform;
+                        const TabIcon = meta.Icon;
+                        return (
+                          <button
+                            key={platform}
+                            type="button"
+                            onClick={() => setSelectedPlatformTab(platform)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              padding: '4px 10px', borderRadius: 16,
+                              background: isActive ? t.primary : dark ? 'rgba(255,255,255,0.05)' : t.input,
+                              border: `1.5px solid ${isActive ? t.primary : t.border}`,
+                              color: isActive ? '#ffffff' : t.textSecondary,
+                              fontSize: 11, fontWeight: isActive ? 700 : 500,
+                              cursor: 'pointer', transition: 'all 150ms ease',
+                              boxShadow: isActive ? `0 2px 8px ${t.primary}40` : 'none',
+                            }}
+                          >
+                            <TabIcon size={12} color={isActive ? '#ffffff' : t.textSecondary} />
+                            {meta.label}
+                            <span style={{ fontSize: 9, opacity: 0.65, marginLeft: 1 }}>{meta.ratio}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {getMediaUrl() ? (
                   <div style={{
                     position: 'relative',
-                    aspectRatio: '4/5',
+                    aspectRatio: ({ facebook_feed: '1200/630', linkedin_feed: '1200/627', google_business: '4/3' })[selectedPlatformTab] || '4/5',
                     borderRadius: 12,
                     overflow: 'hidden',
                     background: dark ? 'rgba(15,15,24,0.72)' : t.input,
+                    transition: 'aspect-ratio 220ms ease',
                   }}>
                     <img
-                      src={result.mediaUrl}
+                      src={getMediaUrl()}
                       alt="Generated"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />
                   </div>
-                ) : (
+                ) : result.imageFailed ? (
                   <div style={{ height: 72, borderRadius: 12, background: t.input, border: `1px dashed ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <span style={{ fontSize: 12, color: t.textMuted }}>Image could not be generated — your text is ready</span>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
 
@@ -1181,6 +1236,67 @@ export default function QuickPost() {
                 <div style={{ fontSize: 12, color: t.textSecondary, fontStyle: 'italic' }}>{getEngQ()}</div>
               </div>
             )}
+
+            {/* Post Preview — Social Planner style */}
+            {(() => {
+              const varData = result?.variations?.[activeVar];
+              if (!varData) return null;
+              const previewPlatforms = selectedPlats.filter(p => MOCKUP_MAP[p]);
+              if (previewPlatforms.length === 0) return null;
+              const activePid = (qpPreviewPlatform === 'all' || !previewPlatforms.includes(qpPreviewPlatform)) ? 'all' : qpPreviewPlatform;
+              const previewPost = {
+                media_url: getMediaUrl(),
+                hashtags: getHashtags(),
+                content_type: contentType === 'text' ? 'static' : 'photo',
+              };
+              const previewCaption = [getCaption(), getEngQ()].filter(Boolean).join('\n\n');
+              const getProfileForPlatform = (pid) => {
+                const acct = socialAccounts.find(a => a.platform === pid);
+                return { name: acct?.account_name || acct?.username || 'Your Business', picture: acct?.profile_picture || null };
+              };
+              const ActiveMockup = activePid !== 'all' ? MOCKUP_MAP[activePid] : null;
+              return (
+                <div style={{ margin: '0 12px 12px', background: dark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.border}`, borderRadius: 14, padding: '16px 16px 12px', boxShadow: t.shadowSm }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Post Preview</div>
+                  {/* Platform tabs — All + per-platform icons */}
+                  <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${t.border}`, marginBottom: 16, gap: 0 }}>
+                    <button type="button" onClick={() => setQpPreviewPlatform('all')}
+                      style={{ padding: '7px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: activePid === 'all' ? t.primary : t.textMuted, borderBottom: `2px solid ${activePid === 'all' ? t.primary : 'transparent'}`, marginBottom: -1, transition: 'all 150ms', whiteSpace: 'nowrap' }}
+                    >All</button>
+                    {previewPlatforms.filter(pid => MOCKUP_MAP[pid]).map(pid => {
+                      const meta = PLATFORM_META[pid];
+                      const PlatIcon = meta?.Icon;
+                      const isAct = activePid === pid;
+                      return (
+                        <button key={pid} type="button" onClick={() => setQpPreviewPlatform(pid)}
+                          style={{ padding: '7px 12px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: `2px solid ${isAct ? (meta?.color || t.primary) : 'transparent'}`, marginBottom: -1, transition: 'all 150ms', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          {PlatIcon && <PlatIcon size={18} style={{ color: isAct ? meta?.color : t.textMuted, transition: 'color 150ms' }} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Mockup area */}
+                  <div style={{ borderRadius: 10, overflow: 'hidden' }}>
+                    {activePid === 'all' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                        {previewPlatforms.filter(pid => MOCKUP_MAP[pid]).map((pid, idx) => {
+                          const Mock = MOCKUP_MAP[pid];
+                          const isLast = idx === previewPlatforms.filter(p => MOCKUP_MAP[p]).length - 1;
+                          return (
+                            <div key={pid} style={{ borderBottom: isLast ? 'none' : `1px solid ${t.border}`, paddingBottom: isLast ? 0 : 20, marginBottom: isLast ? 0 : 20 }}>
+                              <Mock post={previewPost} caption={previewCaption} profile={getProfileForPlatform(pid)} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      ActiveMockup && <ActiveMockup post={previewPost} caption={previewCaption} profile={getProfileForPlatform(activePid)} />
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Action buttons */}
             <div style={{ padding: '10px 12px 12px', borderTop: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
