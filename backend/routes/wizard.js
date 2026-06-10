@@ -89,21 +89,51 @@ try {
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// Format → dimensions + media type map. Mirrors FORMAT_DATA in frontend/pages/wizard.js.
-// Used to pass correct aspect ratio to NanoBanana and Veo.
+// Format → dimensions + media type + platform map. Mirrors FORMAT_DATA in frontend/pages/wizard.js.
+// platform drives SystemPromptBuilder caption rules (Instagram-style vs Facebook-style etc.)
+// mediaType drives image vs video generation path.
 const FORMAT_CONFIG = {
-  'ig-45':        { w: 1080, h: 1350, mediaType: 'image', aspectRatio: '4:5' },
-  'ig-story':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
-  'ig-reel':      { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
-  'ig-square':    { w: 1080, h: 1080, mediaType: 'image', aspectRatio: '1:1' },
-  'fb-landscape': { w: 1200, h: 630,  mediaType: 'image', aspectRatio: '16:9' },
-  'fb-story':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
-  'fb-square':    { w: 1080, h: 1080, mediaType: 'image', aspectRatio: '1:1' },
-  'li-post':      { w: 1200, h: 1200, mediaType: 'image', aspectRatio: '1:1' },
-  'li-video':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
-  'tt-video':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
-  'tt-story':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16' },
-  'gb-45':        { w: 1080, h: 1350, mediaType: 'image', aspectRatio: '4:5' },
+  'universal':    { w: 1080, h: 1350, mediaType: 'image', aspectRatio: '4:5',  platform: 'all'            },
+  'ig-45':        { w: 1080, h: 1350, mediaType: 'image', aspectRatio: '4:5',  platform: 'instagram'      },
+  'ig-story':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16', platform: 'instagram'      },
+  'ig-reel':      { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16', platform: 'instagram'      },
+  'ig-square':    { w: 1080, h: 1080, mediaType: 'image', aspectRatio: '1:1',  platform: 'instagram'      },
+  'fb-landscape': { w: 1200, h: 630,  mediaType: 'image', aspectRatio: '16:9', platform: 'facebook'       },
+  'fb-story':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16', platform: 'facebook'       },
+  'fb-square':    { w: 1080, h: 1080, mediaType: 'image', aspectRatio: '1:1',  platform: 'facebook'       },
+  'li-post':      { w: 1200, h: 1200, mediaType: 'image', aspectRatio: '1:1',  platform: 'linkedin'       },
+  'li-video':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16', platform: 'linkedin'       },
+  'tt-video':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16', platform: 'tiktok'         },
+  'tt-story':     { w: 1080, h: 1920, mediaType: 'video', aspectRatio: '9:16', platform: 'tiktok'         },
+  'gb-45':        { w: 1080, h: 1350, mediaType: 'image', aspectRatio: '4:5',  platform: 'google_business'},
+};
+
+// Maps format ID → platform(s) to pass to generatePhotoCardsForPlatforms.
+// null means this format uses the video pipeline — no card generation.
+const FORMAT_TO_CARD_PLATFORMS = {
+  'universal':    ['instagram_feed', 'facebook_feed', 'google_business'],
+  'ig-45':        ['instagram_feed'],
+  'ig-story':     null,
+  'ig-reel':      null,
+  'ig-square':    ['instagram_feed'],   // instagram_square fallback
+  'fb-landscape': ['facebook_feed'],
+  'fb-story':     null,
+  'fb-square':    ['facebook_feed'],    // facebook_square fallback
+  'li-post':      ['instagram_feed'],   // portrait closest to LinkedIn
+  'li-video':     null,
+  'tt-video':     null,
+  'tt-story':     null,
+  'gb-45':        ['google_business'],
+};
+
+// Maps format ID → ImageResizer platform name for BrandedCard post-resize.
+const FORMAT_TO_RESIZER_PLATFORM = {
+  'ig-45':        'instagram_feed',
+  'ig-square':    'instagram_square',
+  'fb-landscape': 'facebook_feed',
+  'fb-square':    'facebook_square',
+  'li-post':      'linkedin_feed',
+  'gb-45':        'instagram_feed',    // google_business cards are 720×720 — keep portrait for card
 };
 
 // Auto-save generated media to media_library (non-blocking)
@@ -842,6 +872,15 @@ module.exports = (pool) => {
       const fmtConfig = (fmtId && FORMAT_CONFIG[fmtId]) || {};
       const formatAspectRatio = fmtConfig.aspectRatio || null;
 
+      // Format is the source of truth for platform (caption rules) and media type.
+      // effectivePlatform drives SystemPromptBuilder — Instagram copy for Reels, FB copy for landscape, etc.
+      const effectivePlatform = fmtConfig.platform || answers.platform;
+      // If the selected format is a video format, force video generation even for 'photo' content type.
+      const isVideoPost = answers.contentTypeSelection === 'video' || fmtConfig.mediaType === 'video';
+      if (isVideoPost && answers.contentTypeSelection !== 'video') {
+        console.log(`[Wizard] Format ${fmtId} is a video format — upgrading content type to video`);
+      }
+
       // Map wizard content types to SystemPromptBuilder triggers
       const triggerMap = {
         custom:            'custom',
@@ -869,7 +908,9 @@ module.exports = (pool) => {
 
       // ── Credit check — fail before any expensive API calls ──────────────────
       const CREDIT_COSTS = { static: 1, photo: 3, branded_card: 3, carousel: 5, video: 10 };
-      const creditCost = CREDIT_COSTS[answers.contentTypeSelection] ?? 1;
+      // If the format selection forces video (e.g. Reel), charge video credits regardless of content type
+      const effectiveContentType = isVideoPost ? 'video' : answers.contentTypeSelection;
+      const creditCost = CREDIT_COSTS[effectiveContentType] ?? 1;
 
       debugStage = 'credit_check';
       const billingId = getBillingCustomerId(req);
@@ -983,6 +1024,21 @@ Return ONLY valid JSON (no markdown, no backticks):
           return res.status(500).json({ error: 'Card generation failed. Please try again.' });
         }
 
+        // Resize branded card buffers to the selected format's dimensions (if applicable).
+        // Cards are generated at 1080×1350; FORMAT_TO_RESIZER_PLATFORM maps format → resizer spec.
+        const bcResizerPlatform = fmtId ? FORMAT_TO_RESIZER_PLATFORM[fmtId] : null;
+        if (bcResizerPlatform && ImageResizer) {
+          try {
+            [bufferA, bufferB, bufferC] = await Promise.all([
+              ImageResizer.resizeForPlatform(bufferA, bcResizerPlatform).then(r => r.buffer),
+              ImageResizer.resizeForPlatform(bufferB, bcResizerPlatform).then(r => r.buffer),
+              ImageResizer.resizeForPlatform(bufferC, bcResizerPlatform).then(r => r.buffer),
+            ]);
+          } catch (resizeErr) {
+            console.warn('[Wizard/BrandedCard] Resize to format failed — using original dimensions:', resizeErr.message);
+          }
+        }
+
         // Upload all 3 to Cloudinary in parallel
         let urlA, urlB, urlC;
         try {
@@ -1015,8 +1071,8 @@ Return ONLY valid JSON (no markdown, no backticks):
               session.customerId,
               'branded_card',
               caption,
-              answers.platform === 'all' ? 'facebook' : answers.platform,
-              answers.platform === 'all' ? JSON.stringify(['facebook', 'instagram', 'google_business']) : JSON.stringify([answers.platform]),
+              effectivePlatform === 'all' ? 'facebook' : effectivePlatform,
+              effectivePlatform === 'all' ? JSON.stringify(['facebook', 'instagram', 'google_business', 'linkedin', 'tiktok']) : JSON.stringify([effectivePlatform]),
               urlA,
             ]
           );
@@ -1089,7 +1145,7 @@ Return ONLY valid JSON (no markdown, no backticks):
 
       debugStage = 'prompt_build';
       const builder = new SystemPromptBuilder(session.customer, {
-        platform: answers.platform,
+        platform: effectivePlatform,  // derived from format selection, falls back to platform step
         contentType: answers.contentTypeSelection, // 'static', 'photo', 'carousel', 'video'
         wizardTrigger: triggerMap[answers.contentType] || answers.contentType,
         counterAnswers: answers.details,
@@ -1106,7 +1162,7 @@ Return ONLY valid JSON (no markdown, no backticks):
       // The fetches take ~8s each; Claude takes ~10-15s — so by the time Claude finishes
       // the IDs are already cached and createVideo() returns in <15s instead of ~31s.
       let heyGenPrefetch = null;
-      const willUseHeyGen = answers.contentTypeSelection === 'video' && (
+      const willUseHeyGen = isVideoPost && (
         answers.videoType === 'avatar' || process.env.VEO_ENABLED !== 'true'
       );
       if (HeyGenService && process.env.HEYGEN_API_KEY && willUseHeyGen) {
@@ -1229,7 +1285,7 @@ Return ONLY valid JSON (no markdown, no backticks):
 
       if (answers.contentTypeSelection === 'carousel') {
         slides = parsed.variation_a?.slides || [];
-      } else if (answers.contentTypeSelection === 'video') {
+      } else if (isVideoPost) {
         videoScript = parsed.variation_a?.videoScript || '';
       }
 
@@ -1246,7 +1302,8 @@ Return ONLY valid JSON (no markdown, no backticks):
       let mediaVariants = {};
       let imageFailed = false;
       const imagePromptForGen = parsed.imagePrompt || parsed.variation_a?.imagePrompt || '';
-      const contentTypeForMedia = answers.contentTypeSelection;
+      // Skip image gen if video format was selected (video pipeline handles its own key frame)
+      const contentTypeForMedia = isVideoPost ? 'video' : answers.contentTypeSelection;
 
       if (!imagePromptForGen && (contentTypeForMedia === 'photo' || contentTypeForMedia === 'carousel')) {
         console.warn('[Wizard] Claude returned no imagePrompt — skipping image generation. Parsed keys:', Object.keys(parsed));
@@ -1327,11 +1384,14 @@ Return ONLY valid JSON (no markdown, no backticks):
                 const cardTrigger = WIZARD_CARD_TRIGGER[answers.contentType] || answers.contentType;
                 const fixedOverlay = validateAndFixCardOverlay(parsed.cardOverlay, session.customer);
 
-                // Generate platform-native cards (purpose-built per aspect ratio)
+                // Generate platform-native cards — only for the format(s) the customer chose.
+                // FORMAT_TO_CARD_PLATFORMS maps format ID → platform list; null means video format (skip card).
+                const cardPlatforms = (fmtId && FORMAT_TO_CARD_PLATFORMS[fmtId]) ||
+                  ['instagram_feed', 'facebook_feed', 'google_business'];
                 const designParams = designAdvisor ? await designAdvisor.getActiveParams() : null;
                 const platformCards = await PhotoCardService.generatePhotoCardsForPlatforms(
                   rawBuffer, fixedOverlay, session.customer, cardTrigger,
-                  ['instagram_feed', 'facebook_feed', 'google_business'],
+                  cardPlatforms,
                   designParams
                 );
 
@@ -1430,8 +1490,8 @@ Return ONLY valid JSON (no markdown, no backticks):
             session.customerId,
             answers.contentTypeSelection,
             transformedVariations.A.caption,
-            answers.platform === 'all' ? 'facebook' : answers.platform,
-            answers.platform === 'all' ? JSON.stringify(['facebook', 'instagram', 'google_business']) : JSON.stringify([answers.platform]),
+            effectivePlatform === 'all' ? 'facebook' : effectivePlatform,
+            effectivePlatform === 'all' ? JSON.stringify(['facebook', 'instagram', 'google_business', 'linkedin', 'tiktok']) : JSON.stringify([effectivePlatform]),
             mediaUrl,
           ]
         );
@@ -1440,6 +1500,11 @@ Return ONLY valid JSON (no markdown, no backticks):
 
         if (savedPostId) {
           try {
+            const variationHashtags = {
+              A: parsed.variation_a?.hashtags || [],
+              B: parsed.variation_b?.hashtags || parsed.variation_a?.hashtags || [],
+              C: parsed.variation_c?.hashtags || parsed.variation_a?.hashtags || [],
+            };
             for (const [label, variation] of Object.entries(transformedVariations)) {
               await pool.query(
                 `INSERT INTO post_variations (post_id, variation_label, caption, hashtags, image_prompt, created_at)
@@ -1449,7 +1514,7 @@ Return ONLY valid JSON (no markdown, no backticks):
                   savedPostId,
                   label,
                   variation.caption,
-                  JSON.stringify(parsed.variation_a?.hashtags || []), // Use variation_a hashtags for all
+                  JSON.stringify(variationHashtags[label] || []),
                   parsed.variation_a?.imagePrompt || null,
                 ]
               );
@@ -1589,7 +1654,7 @@ Return ONLY valid JSON (no markdown, no backticks):
       // Either way: mark videoRendering=true, return captions now, generate in background,
       // and let /video-poll/:postId handle completion polling.
       const videoServiceAvailable = VideoService && (process.env.HEYGEN_API_KEY || process.env.VEO_ENABLED === 'true');
-      if (videoServiceAvailable && answers.contentTypeSelection === 'video' && savedPostId) {
+      if (videoServiceAvailable && isVideoPost && savedPostId) {
         videoRendering = true; // captions are ready immediately — video is on its way
 
         const bgPostId = savedPostId;

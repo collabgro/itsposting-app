@@ -90,8 +90,43 @@ const LOADING_MESSAGES = {
 // ── Step 2: Choose Format ─────────────────────────────────────────────────────
 const FORMAT_TABS = ['Popular', 'Facebook', 'Instagram', 'LinkedIn', 'TikTok', 'Google'];
 
+// Maps format ID → result screen platform tab key (auto-selects correct tab after generation)
+const FORMAT_TO_RESULT_TAB = {
+  'universal':    'instagram_feed',
+  'ig-45':        'instagram_feed',
+  'ig-story':     'instagram_feed',
+  'ig-reel':      'instagram_feed',
+  'ig-square':    'instagram_feed',
+  'fb-landscape': 'facebook_feed',
+  'fb-story':     'facebook_feed',
+  'fb-square':    'facebook_feed',
+  'gb-45':        'google_business',
+  'li-post':      'linkedin_feed',
+  'li-video':     'linkedin_feed',
+  'tt-video':     'instagram_feed',
+  'tt-story':     'instagram_feed',
+};
+
+// Reach/engagement hints shown on each format card (from Buffer 2026 research)
+const FORMAT_REACH_HINTS = {
+  'universal':    'Best for multi-platform posting',
+  'ig-reel':      '~3× more organic reach than static posts',
+  'ig-story':     'Full-screen · no competing content',
+  'ig-45':        'Stops the scroll · best for feed posts',
+  'ig-square':    'Clean square · works on all platforms',
+  'fb-landscape': 'Best format for paid promotion',
+  'fb-story':     'Full-screen · highly engaging on mobile',
+  'fb-square':    'Versatile · great for feed and ads',
+  'li-post':      '+21% engagement vs single image',
+  'li-video':     'Gets more views in LinkedIn feed',
+  'tt-video':     '~3× more organic reach than static posts',
+  'tt-story':     'Full-screen immersive TikTok format',
+  'gb-45':        'Boosts local search visibility',
+};
+
 const FORMAT_DATA = {
   Popular: [
+    { id: 'universal',    platform: 'all',             label: 'All Platforms',        sublabel: '1080 × 1350 · Best for multi-platform', width: 1080, height: 1350 },
     { id: 'ig-45',        platform: 'instagram',       label: 'Instagram Post',       sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
     { id: 'ig-story',     platform: 'instagram',       label: 'Instagram Story',      sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
     { id: 'fb-landscape', platform: 'facebook',        label: 'Facebook Post',        sublabel: '1200 × 630 · 16:9',  width: 1200, height: 630  },
@@ -123,41 +158,52 @@ const FORMAT_DATA = {
   ],
 };
 
-// Content-type-aware recommendations for the hero row
+// Content-type-aware recommendations for the hero row.
+// Universal is always the first / BEST PICK for image content types.
+const UNIVERSAL_FMT = { id: 'universal', platform: 'all', label: 'All Platforms', sublabel: '1080 × 1350 · Best for multi-platform', width: 1080, height: 1350 };
+
 const RECOMMENDED_FORMATS = {
   static: [
+    UNIVERSAL_FMT,
     { id: 'ig-45',        platform: 'instagram',       label: 'Instagram Post',       sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
     { id: 'fb-landscape', platform: 'facebook',        label: 'Facebook Post',        sublabel: '1200 × 630 · 16:9',  width: 1200, height: 630  },
-    { id: 'li-post',      platform: 'linkedin',        label: 'LinkedIn Post',        sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
   ],
   photo: [
+    UNIVERSAL_FMT,
     { id: 'ig-45',     platform: 'instagram', label: 'Instagram Post',  sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
-    { id: 'ig-story',  platform: 'instagram', label: 'Instagram Story', sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
-    { id: 'fb-square', platform: 'facebook',  label: 'Facebook Square', sublabel: '1080 × 1080 · 1:1',  width: 1080, height: 1080 },
+    { id: 'fb-landscape', platform: 'facebook', label: 'Facebook Post', sublabel: '1200 × 630 · 16:9', width: 1200, height: 630  },
   ],
   carousel: [
+    UNIVERSAL_FMT,
     { id: 'ig-45',     platform: 'instagram', label: 'Instagram Post',  sublabel: '1080 × 1350 · 4:5',  width: 1080, height: 1350 },
     { id: 'li-post',   platform: 'linkedin',  label: 'LinkedIn Post',   sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
-    { id: 'fb-square', platform: 'facebook',  label: 'Facebook Square', sublabel: '1080 × 1080 · 1:1',  width: 1080, height: 1080 },
   ],
   video: [
-    { id: 'tt-video',  platform: 'tiktok',    label: 'TikTok Video',    sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
     { id: 'ig-reel',   platform: 'instagram', label: 'Instagram Reel',  sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'tt-video',  platform: 'tiktok',    label: 'TikTok Video',    sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
     { id: 'fb-story',  platform: 'facebook',  label: 'Facebook Story',  sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+  ],
+  branded_card: [
+    UNIVERSAL_FMT,
+    { id: 'ig-45',        platform: 'instagram', label: 'Instagram Post',  sublabel: '1080 × 1350 · 4:5', width: 1080, height: 1350 },
+    { id: 'fb-landscape', platform: 'facebook',  label: 'Facebook Post',   sublabel: '1200 × 630 · 16:9', width: 1200, height: 630  },
   ],
 };
 
 const FORMAT_PLATFORM_COLORS = {
+  all: '#7C3AED',  // brand purple for Universal
   facebook: '#1877F2', instagram: '#E1306C', linkedin: '#0A66C2',
   tiktok: '#111111', google_business: '#34A853',
   Google: '#34A853',
 };
 
 const FORMAT_TYPE_FILTER = {
-  video:    ['ig-reel', 'ig-story', 'fb-story', 'tt-video', 'tt-story', 'li-video'],
-  carousel: ['ig-45', 'ig-square', 'li-post', 'fb-square'],
-  photo:    ['ig-45', 'ig-story', 'ig-reel', 'ig-square', 'fb-story', 'fb-square', 'li-post', 'gb-45'],
-  static:   ['ig-45', 'fb-landscape', 'li-post', 'gb-45', 'fb-square'],
+  // video formats only show video formats; image formats show universal + image-only options
+  video:        ['ig-reel', 'ig-story', 'fb-story', 'tt-video', 'tt-story', 'li-video'],
+  carousel:     ['universal', 'ig-45', 'ig-square', 'li-post', 'fb-square'],
+  photo:        ['universal', 'ig-45', 'ig-square', 'fb-landscape', 'fb-square', 'li-post', 'gb-45'],
+  static:       ['universal', 'ig-45', 'fb-landscape', 'li-post', 'gb-45', 'fb-square'],
+  branded_card: ['universal', 'ig-45', 'fb-landscape', 'li-post', 'gb-45', 'fb-square'],
 };
 
 // ── Real Pexels trade-business photos (CDN URLs — no key needed to display) ──
@@ -698,7 +744,7 @@ export default function Wizard() {
 
   useEffect(() => {
     if (step === 'loading') {
-      const msgFn = LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo;
+      const msgFn = LOADING_MESSAGES[effectiveContentTypeForDisplay] || LOADING_MESSAGES.photo;
       const msgs = msgFn(industry, city, videoType);
       loadingInterval.current = setInterval(() => {
         setLoadingMsgIdx(i => (i + 1) % msgs.length);
@@ -808,7 +854,7 @@ export default function Wizard() {
 
   const canProceed = () => {
     if (step === 1) return !!contentType;
-    if (step === 2) return true; // format is optional
+    if (step === 2) return true; // format is optional — Skip sets Universal
     if (step === 3) return !!theme;
     if (step === 4) return !!tone;
     if (step === 5) return true;
@@ -821,6 +867,7 @@ export default function Wizard() {
     if (s.contentType) setContentType(s.contentType);
     if (s.tone) setTone(s.tone);
     if (Array.isArray(s.platforms) && s.platforms.length > 0) setSelectedPlatforms(s.platforms);
+    if (s.selectedFormat) setSelectedFormat(s.selectedFormat);
     setShowTemplatePicker(false);
     showToast('success', `Template "${tmpl.name}" applied`);
     templatesAPI.use(tmpl.id).catch(() => {});
@@ -834,6 +881,7 @@ export default function Wizard() {
         contentType,
         tone,
         platforms: selectedPlatforms,
+        selectedFormat: selectedFormat || null,
       };
       const res = await templatesAPI.create({ name: templateName.trim(), settings });
       setTemplates(prev => [res.data, ...prev]);
@@ -845,21 +893,31 @@ export default function Wizard() {
     }
   };
 
+  // Format encodes platform — skip step 6 ("Where to post?") when a specific format is chosen
+  const formatSkipsPlatformStep = selectedFormat && selectedFormat.id !== 'universal';
+
+  // Video formats (9:16 story/reel/video types) force video generation even for non-video content types.
+  // This must mirror the backend's `isVideoPost` logic so credit display and loading messages are correct.
+  const VIDEO_FORMAT_IDS = ['ig-story', 'ig-reel', 'fb-story', 'li-video', 'tt-video', 'tt-story'];
+  const fmtForcesVideo = selectedFormat?.id && VIDEO_FORMAT_IDS.includes(selectedFormat.id);
+  const effectiveContentTypeForDisplay = fmtForcesVideo ? 'video' : contentType;
+
   const handleNext = async () => {
-    if (step === 6) { await handleGenerate(); }
+    if (step === 5 && formatSkipsPlatformStep) { await handleGenerate(); }
+    else if (step === 6) { await handleGenerate(); }
     else setStep(s => s + 1);
   };
 
   const handleBack = () => {
     if (step === 1) { router.push('/dashboard'); return; }
-    if (step === 'results') { setStep(6); return; }
+    if (step === 'results') { setStep(formatSkipsPlatformStep ? 5 : 6); return; }
     setStep(s => s - 1);
   };
 
   const handleReset = () => {
     setStep(1); setContentType(null); setVideoType('services'); setTheme(null); setTone(null); setSelectedPlatforms([]);
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
-    setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null);
+    setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null); setSelectedPlatformTab('instagram_feed');
     setSelectedVariation('A'); setSelectedCardStyle('A'); setActionLoading(false); setActionToast(null);
     setSvgCards(null); setActiveSvg(null); setCardEditOpen(false); setEditingOverlay(null);
     setShowScheduleModal(false); setScheduleDate(''); setIsEditing(false); setEditedCaption('');
@@ -868,6 +926,14 @@ export default function Wizard() {
 
   const handleFormatSelect = (fmt) => {
     setSelectedFormat(fmt);
+    // Pre-fill platform selection to match the chosen format so step 6 can be skipped
+    if (!fmt.platform || fmt.platform === 'all') {
+      setSelectedPlatforms([...ALL_PLATFORM_IDS]);
+    } else {
+      // Map format platform name to the platform ID used in selectedPlatforms
+      const pid = fmt.platform; // they share the same naming
+      if (ALL_PLATFORM_IDS.includes(pid)) setSelectedPlatforms([pid]);
+    }
     setTimeout(() => setStep(3), 180);
   };
 
@@ -1012,6 +1078,10 @@ export default function Wizard() {
       const genRes = await apiPost('/api/wizard/generate', { wizardId });
       setResults(genRes);
       setSelectedVariation(genRes.recommended || 'A');
+      // Auto-select the result tab that matches the format the customer chose
+      if (selectedFormat?.id && FORMAT_TO_RESULT_TAB[selectedFormat.id]) {
+        setSelectedPlatformTab(FORMAT_TO_RESULT_TAB[selectedFormat.id]);
+      }
       // Populate SVG live-preview cards
       if (genRes.svgCards) {
         setSvgCards(genRes.svgCards);
@@ -1027,7 +1097,7 @@ export default function Wizard() {
       }
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Something went wrong. Please try again.');
-      setStep(6); // stay on platform step so the error banner is visible
+      setStep(formatSkipsPlatformStep ? 5 : 6); // return to last visible step
     }
   };
 
@@ -1187,9 +1257,12 @@ export default function Wizard() {
     }
   };
 
-  const stepNum = typeof step === 'number' ? step : (step === 'results' ? 7 : 6.5);
-  const progressPct = Math.min(100, ((stepNum - 1) / 6) * 100);
-  const stepLabels = ['Content type', 'Format', "What's happening?", "What's the vibe?", 'Any details?', 'Where to post?'];
+  const totalSteps = formatSkipsPlatformStep ? 5 : 6;
+  const stepNum = typeof step === 'number' ? step : (step === 'results' ? totalSteps + 1 : totalSteps + 0.5);
+  const progressPct = Math.min(100, ((stepNum - 1) / totalSteps) * 100);
+  const stepLabels = formatSkipsPlatformStep
+    ? ['Content type', 'Format', "What's happening?", "What's the vibe?", 'Any details?']
+    : ['Content type', 'Format', "What's happening?", "What's the vibe?", 'Any details?', 'Where to post?'];
 
   return (
     <Layout title="Post Wizard" subtitle={`Guided content creation — powered by ${aiName}`}>
@@ -1218,7 +1291,7 @@ export default function Wizard() {
           <div style={{ marginBottom: 32 }}>
             {isMobile ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, flexShrink: 0 }}>{step}/6</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, flexShrink: 0 }}>{step}/{totalSteps}</span>
                 <div style={{ flex: 1, height: 4, background: t.isDark ? 'rgba(255,255,255,0.06)' : t.border, borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${t.primary}, ${t.primaryLight || '#9B7BFF'})`, borderRadius: 4, transition: 'width 500ms cubic-bezier(0.4,0,0.2,1)', boxShadow: '0 0 8px rgba(124,92,252,0.4)' }} />
                 </div>
@@ -1463,6 +1536,11 @@ export default function Wizard() {
                   {(isHovered || isSelected) && ct !== 'static' && (
                     <div style={{ fontSize: 10, color: `${pColor}cc`, marginTop: 3, fontWeight: 600 }}>{fmt.width}×{fmt.height}</div>
                   )}
+                  {FORMAT_REACH_HINTS[fmt.id] && (
+                    <div style={{ fontSize: 9, color: fmt.id === 'universal' ? t.primary : t.textMuted, marginTop: 4, fontWeight: fmt.id === 'universal' ? 700 : 500, lineHeight: 1.3, opacity: 0.9 }}>
+                      {FORMAT_REACH_HINTS[fmt.id]}
+                    </div>
+                  )}
                 </div>
               </button>
             );
@@ -1490,7 +1568,7 @@ export default function Wizard() {
                       key={`rec-${idx}`}
                       fmt={fmt}
                       uid={`rec-${idx}`}
-                      isSelected={selectedFormat?.label === fmt.label && selectedFormat?.platform === fmt.platform}
+                      isSelected={selectedFormat?.id === fmt.id}
                       size="lg"
                       isBest={idx === 0}
                       contentType={contentType}
@@ -1547,7 +1625,7 @@ export default function Wizard() {
                         key={`${formatTab}-${idx}`}
                         fmt={fmt}
                         uid={`${formatTab}-${idx}`}
-                        isSelected={selectedFormat?.label === fmt.label && selectedFormat?.platform === fmt.platform}
+                        isSelected={selectedFormat?.id === fmt.id}
                         contentType={contentType}
                       />
                     ))}
@@ -1563,7 +1641,7 @@ export default function Wizard() {
                 >
                   <IpArrowLeft size={14} /> Back
                 </button>
-                <button onClick={() => { setSelectedFormat(null); setStep(3); }} style={{ fontSize: 12, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '10px 4px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                <button onClick={() => { handleFormatSelect(UNIVERSAL_FMT); }} style={{ fontSize: 12, color: t.textMuted, background: 'none', border: 'none', cursor: 'pointer', padding: '10px 4px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
                   Skip for now
                 </button>
               </div>
@@ -1706,7 +1784,23 @@ export default function Wizard() {
               </div>
             )}
 
-            <WizardNav t={t} onBack={handleBack} onNext={handleNext} canNext={true} nextLabel="Next →" />
+            {formatSkipsPlatformStep && (() => {
+              const ct = CONTENT_TYPES.find(c => c.id === effectiveContentTypeForDisplay);
+              if (!ct) return null;
+              return (
+                <div style={{ padding: '10px 14px', background: t.surfaceHover, borderRadius: 8, fontSize: 13, color: t.textMuted, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <IpSparkle size={14} color={t.primary} />
+                  This will use <strong style={{ color: t.text }}>&nbsp;{ct.credits} credit{ct.credits !== 1 ? 's' : ''}</strong> from your balance.
+                  {fmtForcesVideo && contentType !== 'video' && (
+                    <span style={{ marginLeft: 4 }}> — video format</span>
+                  )}
+                </div>
+              );
+            })()}
+
+            <WizardNav t={t} onBack={handleBack} onNext={handleNext} canNext={true}
+              nextLabel={formatSkipsPlatformStep ? <><IpSparkle size={14} /> Generate Posts</> : 'Next →'}
+              nextStyle={formatSkipsPlatformStep ? { background: `linear-gradient(135deg, ${t.primary}, ${t.primaryLight})`, padding: '12px 28px', fontSize: 15 } : undefined} />
           </div>
         )}
 
@@ -1805,7 +1899,7 @@ export default function Wizard() {
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
               <div style={{ fontSize: 24, fontWeight: 800, color: t.text, marginBottom: 10, letterSpacing: '-0.02em' }}>Crafting your posts...</div>
               <div style={{ fontSize: 14, color: t.primary, minHeight: 24, fontWeight: 500, transition: 'opacity 400ms ease', animation: 'wiz-fade-in 400ms ease' }}>
-                {((LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry, city, videoType))[loadingMsgIdx] || ''}
+                {((LOADING_MESSAGES[effectiveContentTypeForDisplay] || LOADING_MESSAGES.photo)(industry, city, videoType))[loadingMsgIdx] || ''}
               </div>
             </div>
 
@@ -1821,7 +1915,7 @@ export default function Wizard() {
               <div style={{
                 height: '100%', borderRadius: 3,
                 background: 'linear-gradient(90deg, #7C5CFC, #9B7BFF)',
-                width: `${Math.min(((loadingMsgIdx + 1) / ((LOADING_MESSAGES[contentType] || LOADING_MESSAGES.photo)(industry, city, videoType).length)) * 100, 95)}%`,
+                width: `${Math.min(((loadingMsgIdx + 1) / ((LOADING_MESSAGES[effectiveContentTypeForDisplay] || LOADING_MESSAGES.photo)(industry, city, videoType).length)) * 100, 95)}%`,
                 transition: 'width 600ms cubic-bezier(0.16,1,0.3,1)',
                 boxShadow: '0 0 8px rgba(124,92,252,0.5)',
               }} />
@@ -2175,7 +2269,7 @@ export default function Wizard() {
                               }
                               setCardEditOpen(false);
                             } catch (err) {
-                              alert('Failed to save card. Please try again.');
+                              showToast('error', 'Failed to save card. Please try again.');
                             } finally {
                               setCardRerenderLoading(false);
                             }
@@ -2262,7 +2356,7 @@ export default function Wizard() {
                 {/* Platform badges with connection status */}
                 {(() => {
                   const targetPlatforms = results.platform === 'all'
-                    ? ['facebook', 'instagram', 'google_business']
+                    ? ALL_PLATFORM_IDS
                     : [results.platform].filter(Boolean);
                   const noneConnected = connectedPlatforms !== null && connectedPlatforms.length > 0
                     && !targetPlatforms.some(p => connectedPlatforms.includes(p));
@@ -2333,7 +2427,7 @@ export default function Wizard() {
                   const varData = results?.variations?.[selectedVariation];
                   if (!varData) return null;
                   const previewPlatforms = (results?.platform === 'all'
-                    ? ['facebook', 'instagram', 'google_business']
+                    ? ALL_PLATFORM_IDS
                     : [results?.platform]).filter(p => p && MOCKUP_MAP[p]);
                   if (previewPlatforms.length === 0) return null;
                   const activePid = (wizardPreviewPlatform === 'all' || !previewPlatforms.includes(wizardPreviewPlatform))

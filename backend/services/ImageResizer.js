@@ -18,6 +18,8 @@ const PLATFORM_SPECS = {
   instagram_stories: { width: 1080, height: 1920, format: 'jpeg', quality: 85 },
   google_business:   { width: 720,  height: 720,  format: 'jpeg', quality: 85 },
   universal_feed:    { width: 1080, height: 1350, format: 'jpeg', quality: 85 },
+  linkedin_feed:     { width: 1200, height: 1200, format: 'jpeg', quality: 85 },
+  tiktok_video:      { width: 1080, height: 1920, format: 'jpeg', quality: 85 },
 };
 
 const SAFE_ZONES = {
@@ -28,6 +30,8 @@ const SAFE_ZONES = {
   instagram_stories: { topPercent: 14, bottomPercent: 20, leftPercent: 8,  rightPercent: 8  },
   google_business:   { topPercent: 10, bottomPercent: 10, leftPercent: 10, rightPercent: 10 },
   universal_feed:    { topPercent: 10, bottomPercent: 15, leftPercent: 10, rightPercent: 10 },
+  linkedin_feed:     { topPercent: 8,  bottomPercent: 8,  leftPercent: 8,  rightPercent: 8  },
+  tiktok_video:      { topPercent: 14, bottomPercent: 20, leftPercent: 8,  rightPercent: 8  },
 };
 
 const DEFAULT_PLATFORMS = ['facebook_feed', 'instagram_feed', 'google_business'];
