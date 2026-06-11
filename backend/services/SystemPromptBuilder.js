@@ -384,12 +384,13 @@ Keep: local focus tight — neighbourhood level, not just city`,
       static: 'Content format: TEXT CARD — write only the caption text. No image description needed.',
       photo: 'Content format: PHOTO POST — include an imagePrompt for each variation describing what the AI image should look like. Be specific: lighting, angle, subject, style.',
       carousel: `Content format: CAROUSEL (maximum 4 slides)
-In addition to the main caption, provide slide text:
-Slide 1: Hook — stops the scroll
-Slide 2: Main point / Step 1
-Slide 3: Supporting point / Step 2
-Slide 4: CTA — what to do next (only include if topic warrants it)
-Keep each slide text to 8 words or fewer (fits on image). Use 3 slides for simple tips, 4 for step-by-step or detailed topics. NEVER more than 4.`,
+Each slide has a specific role — like a mini-article people swipe through:
+
+SLIDE 1 (Cover/Hook): Big attention-grabbing headline (max 6 words) + ONE subtitle sentence. This is what makes people swipe. No bullet points.
+SLIDE 2–3 (Body steps): Each body slide has a short title (max 5 words) + 2-3 short bullet points (max 5 words each) + one brief context sentence. These deliver the value.
+LAST SLIDE (CTA Closer): A question or invitation (e.g. "Ready to fix that leak?") + one-line action nudge. This drives bookings and calls.
+
+Use 3 slides for simple tips (cover + 1 body + CTA). Use 4 slides for step-by-step (cover + 2 body + CTA). NEVER more than 4 slides.`,
       video: `Content format: VIDEO SCRIPT
 Write a 20-30 second spoken script in addition to the post caption.
 Structure: Hook (0-3s) → Core message (4-20s) → CTA (21-30s)
@@ -655,10 +656,38 @@ ${imageGuidance}
     "recommended": "Always 'A' — the system assigns the right visual template automatically"
   },` : ''}${isCarousel ? `
   "carouselSlides": [
-    { "slideNumber": 1, "overlayText": "max 8 words", "description": "what this slide shows visually" },
-    { "slideNumber": 2, "overlayText": "max 8 words", "description": "what this slide shows visually" },
-    { "slideNumber": 3, "overlayText": "max 8 words", "description": "what this slide shows visually" },
-    { "slideNumber": 4, "overlayText": "max 8 words — omit this slide if not needed", "description": "what this slide shows visually" }
+    {
+      "slideNumber": 1,
+      "slideType": "cover",
+      "overlayText": "Big hook headline max 6 words",
+      "subtext": "One subtitle sentence explaining what is coming",
+      "bullets": [],
+      "description": "Visual description for slide 1 image (specific scene, action, lighting)"
+    },
+    {
+      "slideNumber": 2,
+      "slideType": "body",
+      "overlayText": "Step 1 title max 5 words",
+      "subtext": "One-line context max 12 words",
+      "bullets": ["Short point one max 5 words", "Short point two max 5 words"],
+      "description": "Visual description for slide 2 image"
+    },
+    {
+      "slideNumber": 3,
+      "slideType": "body",
+      "overlayText": "Step 2 title max 5 words",
+      "subtext": "One-line context max 12 words",
+      "bullets": ["Short point one max 5 words", "Short point two max 5 words"],
+      "description": "Visual description for slide 3 image"
+    },
+    {
+      "slideNumber": 4,
+      "slideType": "cta",
+      "overlayText": "CTA question max 6 words",
+      "subtext": "Action nudge — book call visit today (max 10 words)",
+      "bullets": [],
+      "description": "Visual description for closing slide image — omit this slide if only 3 slides needed"
+    }
   ],` : ''}
   "variation_a": {
     "caption": "Full caption text for variation A",
@@ -691,7 +720,7 @@ Rules for all 3 variations:
 - Variation A is for Facebook, B for Instagram, C for Google Business (even if platform = 'all')
 - imagePrompt MUST work for ALL three variations — it is shared and generated once (saves cost)
 - NEVER output the same hashtag set for multiple variations${isCarousel ? `
-- Carousel: Include 3-4 slides in carouselSlides. Simple tips = 3 slides, step-by-step or detailed = 4 slides. NEVER more than 4. Keep each overlayText under 8 words.` : ''}
+- Carousel: Include 3-4 slides. slideType must be "cover" (slide 1), "body" (middle), or "cta" (last). Cover has big headline + subtext, no bullets. Body has short title + 2-3 bullets + subtext. CTA has hook question + action nudge, no bullets. NEVER more than 4 slides.` : ''}
 
 CRITICAL JSON SAFETY RULES (violations cause parse errors):
 - Do NOT put quotation marks inside string values — write: John said it was amazing. NOT: John said "it was amazing."

@@ -1336,6 +1336,7 @@ export default function Wizard() {
         const { data } = await wizardAPI.moreDesigns({
           slideUrls: results.rawSlideUrls,
           slideOverlayTexts: results.slideOverlayTexts || [],
+          slideData: results.slideMetadata || [],
           wizardTrigger: results.cardTrigger,
           lineupIndex: nextIdx,
         });
@@ -2127,7 +2128,8 @@ export default function Wizard() {
                         return (
                           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                             <img src={slideImg} alt={`Slide ${activeSlide + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            {slide?.overlayText && (
+                            {/* Only show text overlay on raw NanoBanana slides — card designs already have text baked in */}
+                            {!results.carouselCardDesigns && slide?.overlayText && (
                               <div style={{
                                 position: 'absolute', bottom: 0, left: 0, right: 0,
                                 background: 'linear-gradient(transparent, rgba(0,0,0,0.72))',
@@ -2175,7 +2177,7 @@ export default function Wizard() {
                                 )}
                                 {/* Dot indicators */}
                                 <div style={{
-                                  position: 'absolute', bottom: slide?.overlayText ? 50 : 12,
+                                  position: 'absolute', bottom: (!results.carouselCardDesigns && slide?.overlayText) ? 50 : 12,
                                   left: '50%', transform: 'translateX(-50%)',
                                   display: 'flex', gap: 5, alignItems: 'center',
                                 }}>

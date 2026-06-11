@@ -1380,6 +1380,7 @@ Return ONLY valid JSON (no markdown, no backticks):
                 const ts  = Date.now();
                 const cid = session.customerId;
 
+                const totalCarouselSlides = slideResults.length;
                 for (let si = 0; si < slideResults.length; si++) {
                   const slide = slideResults[si];
                   const rawBuffer = slideBuffers[si];
@@ -1390,15 +1391,44 @@ Return ONLY valid JSON (no markdown, no backticks):
                     continue;
                   }
 
+                  // Carousel slides get role-specific overlays (like a mini-article):
+                  // Cover  (slide 1)  — big headline + subtitle, "Swipe →" badge, no bullets/CTA
+                  // Body   (mid)      — step title + bullet points + context, progress badge
+                  // CTA    (last)     — closing question + action nudge, CTA button
+                  const isFirstSlide = si === 0;
+                  const isLastSlide = si === totalCarouselSlides - 1;
+                  const slideType = slide.slideType || (isFirstSlide ? 'cover' : isLastSlide ? 'cta' : 'body');
+
+                  const slideBadge = isFirstSlide
+                    ? 'Swipe →'    // "Swipe →" drives the swipe action
+                    : `${si + 1} of ${totalCarouselSlides}`;
+
+                  // Cover: eye-catching headline + subtitle, no bullets
+                  // Body:  step title + 2-3 bullet services + brief context
+                  // CTA:   closing question + action nudge + CTA button
+                  let slideServices = [];
+                  let slideSubtext = '';
+                  let slideCta = '';
+
+                  if (slideType === 'cover') {
+                    slideSubtext = slide.subtext || '';
+                  } else if (slideType === 'body') {
+                    slideServices = Array.isArray(slide.bullets) ? slide.bullets : [];
+                    slideSubtext = slide.subtext || '';
+                  } else {
+                    // CTA slide
+                    slideSubtext = slide.subtext || '';
+                    slideCta = session.customer.phone ? 'Call Today' : 'Book Now';
+                  }
+
                   const slideCardOverlay = {
                     headline: slide.overlayText || '',
-                    eyebrow: session.customer.business_name
-                      ? `${session.customer.business_name}${session.customer.city ? ' · ' + String(session.customer.city).toUpperCase().slice(0, 20) : ''}`
-                      : '',
-                    services: [],
-                    subtext: '',
-                    cta: '',
-                    badge: '',
+                    // Business name only — badge carries the slide context
+                    eyebrow: session.customer.business_name || '',
+                    services: slideServices,
+                    subtext: slideSubtext,
+                    cta: slideCta,
+                    badge: slideBadge,
                     uppercase: true,
                   };
                   const fixedSlideOverlay = validateAndFixCardOverlay(slideCardOverlay, session.customer);
@@ -1421,9 +1451,15 @@ Return ONLY valid JSON (no markdown, no backticks):
                   carouselCardDesigns.C.push(urlC);
                 }
 
-                // Save raw slide URLs BEFORE overwriting with card URLs
+                // Save raw slide URLs and metadata BEFORE overwriting with card URLs
                 const rawSlideUrls = slideResults.map(s => s.imageUrl || null);
                 const slideOverlayTexts = slideResults.map(s => s.overlayText || '');
+                // Per-slide metadata for more-designs to reproduce identical badge/CTA treatment
+                const slideMetadata = slideResults.map(s => ({
+                  type: s.slideType || null,
+                  bullets: Array.isArray(s.bullets) ? s.bullets : [],
+                  subtext: s.subtext || '',
+                }));
 
                 // Update slides to use design-A images as default display
                 for (let si = 0; si < slideResults.length; si++) {
@@ -1443,6 +1479,7 @@ Return ONLY valid JSON (no markdown, no backticks):
                 mediaVariants._cardTrigger          = carouselCardTrigger;
                 mediaVariants._rawSlideUrls         = rawSlideUrls;
                 mediaVariants._slideOverlayTexts    = slideOverlayTexts;
+                mediaVariants._slideMetadata        = slideMetadata;
               } catch (carouselCardErr) {
                 console.warn('[Wizard] Carousel card design generation failed (using raw photos):', carouselCardErr.message);
               }
@@ -1835,6 +1872,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         carouselCardDesigns: mediaVariants._carouselCardDesigns || null,
         rawSlideUrls: mediaVariants._rawSlideUrls || null,
         slideOverlayTexts: mediaVariants._slideOverlayTexts || null,
+        slideMetadata: mediaVariants._slideMetadata || null,
         imageFailed,
         videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
         videoJobId,
@@ -2496,7 +2534,7 @@ Return ONLY valid JSON (no markdown, no backticks):
   router.post('/more-designs', authenticate, async (req, res) => {
     try {
       const { photoUrl, cardOverlay, wizardTrigger, lineupIndex,
-              slideUrls, slideOverlayTexts } = req.body;
+              slideUrls, slideOverlayTexts, slideData } = req.body;
       const isCarouselMode = Array.isArray(slideUrls) && slideUrls.length > 0;
 
       if (!isCarouselMode && (!photoUrl || !cardOverlay)) {
@@ -2524,6 +2562,8 @@ Return ONLY valid JSON (no markdown, no backticks):
       if (isCarouselMode) {
         // ── Carousel mode: generate 3 designs × N slides ──────────────────────
         const overlayTexts = Array.isArray(slideOverlayTexts) ? slideOverlayTexts : [];
+        const metaArr = Array.isArray(slideData) ? slideData : [];
+        const totalMoreSlides = slideUrls.length;
         const carouselCardDesigns = { A: [], B: [], C: [] };
 
         for (let si = 0; si < slideUrls.length; si++) {
@@ -2535,12 +2575,35 @@ Return ONLY valid JSON (no markdown, no backticks):
             continue;
           }
           const rawBuffer = await ImageResizer.fetchImageAsBuffer(rawUrl);
+
+          // Reproduce role-aware slide overlay (same logic as main generate endpoint)
+          const meta = metaArr[si] || {};
+          const isFirstSlide = si === 0;
+          const isLastSlide  = si === totalMoreSlides - 1;
+          const slideType = meta.type || (isFirstSlide ? 'cover' : isLastSlide ? 'cta' : 'body');
+          const slideBadge = isFirstSlide ? 'Swipe →' : `${si + 1} of ${totalMoreSlides}`;
+
+          let slideServices = [];
+          let slideSubtext  = '';
+          let slideCta      = '';
+          if (slideType === 'cover') {
+            slideSubtext = meta.subtext || '';
+          } else if (slideType === 'body') {
+            slideServices = Array.isArray(meta.bullets) ? meta.bullets : [];
+            slideSubtext  = meta.subtext || '';
+          } else {
+            slideSubtext = meta.subtext || '';
+            slideCta     = customer.phone ? 'Call Today' : 'Book Now';
+          }
+
           const slideCardOverlay = {
             headline: overlayTexts[si] || '',
-            eyebrow: customer.business_name
-              ? `${customer.business_name}${customer.city ? ' · ' + String(customer.city).toUpperCase().slice(0, 20) : ''}`
-              : '',
-            services: [], subtext: '', cta: '', badge: '', uppercase: true,
+            eyebrow: customer.business_name || '',
+            services: slideServices,
+            subtext: slideSubtext,
+            cta: slideCta,
+            badge: slideBadge,
+            uppercase: true,
           };
           validateAndFixCardOverlay(slideCardOverlay, customer);
 
