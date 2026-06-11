@@ -2086,7 +2086,7 @@ export default function Wizard() {
                 )}
 
                 {/* Media display — aspect ratio tracks selected platform */}
-                <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, aspectRatio: ({ instagram_feed: '4/5', facebook_feed: '1200/630', linkedin_feed: '1200/627', google_business: '4/3', instagram_square: '1/1' })[results.photoCardsByPlatform ? selectedPlatformTab : 'instagram_feed'] || '4/5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, transition: 'aspect-ratio 250ms ease', boxShadow: `0 8px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
+                <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, aspectRatio: ({ instagram_feed: '4/5', facebook_feed: '1/1', linkedin_feed: '1200/627', google_business: '4/3', instagram_square: '1/1' })[results.photoCardsByPlatform ? selectedPlatformTab : 'instagram_feed'] || '4/5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, transition: 'aspect-ratio 250ms ease', boxShadow: `0 8px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
                   {results.mediaUrl && results.videoRendering !== true ? (
                     results.contentTypeSelection === 'video' ? (
                       <video src={results.mediaUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -2123,7 +2123,7 @@ export default function Wizard() {
                         style={{
                           width: '100%', height: '100%', objectFit: 'cover',
                           // Landscape platforms need different aspect ratio
-                          aspectRatio: selectedPlatformTab === 'facebook_feed' || selectedPlatformTab === 'linkedin_feed' ? '1200/630' : selectedPlatformTab === 'google_business' ? '4/3' : undefined,
+                          aspectRatio: selectedPlatformTab === 'linkedin_feed' ? '1200/627' : selectedPlatformTab === 'google_business' ? '4/3' : undefined,
                         }}
                       />
                     )
@@ -2290,7 +2290,7 @@ export default function Wizard() {
                   (() => {
                     const PLATFORM_TAB_META = {
                       instagram_feed:  { label: 'Instagram', Icon: IpInstagram, ratio: '4:5'    },
-                      facebook_feed:   { label: 'Facebook',  Icon: IpFacebook,  ratio: '1.91:1' },
+                      facebook_feed:   { label: 'Facebook',  Icon: IpFacebook,  ratio: '1:1'    },
                       google_business: { label: 'Google',    Icon: IpGoogle,    ratio: '4:3'    },
                       linkedin_feed:   { label: 'LinkedIn',  Icon: IpLinkedIn,  ratio: '1.91:1' },
                     };

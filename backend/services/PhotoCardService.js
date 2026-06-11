@@ -1673,7 +1673,7 @@ const PLATFORM_SPECS = {
   instagram_feed:    { w: 1080, h: 1350, label: 'Instagram Feed' },
   instagram_square:  { w: 1080, h: 1080, label: 'Instagram Square' },
   instagram_stories: { w: 1080, h: 1920, label: 'Instagram Stories' },
-  facebook_feed:     { w: 1200, h: 630,  label: 'Facebook Feed' },
+  facebook_feed:     { w: 1080, h: 1080, label: 'Facebook Feed' },
   linkedin_feed:     { w: 1200, h: 627,  label: 'LinkedIn Feed' },
   google_business:   { w: 1200, h: 900,  label: 'Google Business' },
 };
@@ -2124,13 +2124,23 @@ async function generatePhotoCardsForPlatforms(
       ]);
       result.instagram_feed = { A: bA, B: bB, C: bC };
 
-    } else if (platform === 'facebook_feed' || platform === 'linkedin_feed') {
+    } else if (platform === 'facebook_feed') {
+      // Square (1080×1080): reuse portrait templates — SVG clips at square boundary, key content stays
+      const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride);
+      const [bA, bB, bC] = await Promise.all([
+        TEMPLATE_BUILDERS[tA](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+        TEMPLATE_BUILDERS[tB](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+        TEMPLATE_BUILDERS[tC](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+      ]);
+      result.facebook_feed = { A: bA, B: bB, C: bC };
+
+    } else if (platform === 'linkedin_feed') {
       const [bA, bB, bC] = await Promise.all([
         buildLandscapePanel(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
         buildLandscapeCinematic(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
         buildLandscapeSplitCard(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
       ]);
-      result[platform] = { A: bA, B: bB, C: bC };
+      result.linkedin_feed = { A: bA, B: bB, C: bC };
 
     } else if (platform === 'google_business') {
       const [bA, bB, bC] = await Promise.all([
