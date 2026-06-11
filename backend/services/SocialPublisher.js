@@ -629,67 +629,123 @@ class SocialPublisher {
 
     const caption = this.buildCaption(post, 'linkedin');
 
-    let mediaAsset = null;
+    // ── LinkedIn Multi-Image Carousel (2–20 images) ──────────────────────────
+    if (post.slides?.length >= 2) {
+      return this._postLinkedInMultiImage(token, authorUrn, caption, post.slides);
+    }
+
+    // ── Single image or text-only post (new Posts API) ───────────────────────
+    let imageUrn = null;
     if (post.media_url) {
       try {
-        mediaAsset = await this._uploadLinkedInImage(token, authorUrn, post.media_url);
+        imageUrn = await this._uploadLinkedInImageNew(token, authorUrn, post.media_url);
       } catch (err) {
         console.warn('[SocialPublisher] LinkedIn image upload failed, posting text-only:', err.message);
       }
     }
 
-    const shareContent = {
-      shareCommentary: { text: caption },
-      shareMediaCategory: mediaAsset ? 'IMAGE' : 'NONE',
+    const body = {
+      author: authorUrn,
+      commentary: caption,
+      visibility: 'PUBLIC',
+      distribution: { feedDistribution: 'MAIN_FEED', targetEntities: [], thirdPartyDistributionChannels: [] },
+      lifecycleState: 'PUBLISHED',
+      isReshareDisabledByAuthor: false,
     };
-    if (mediaAsset) {
-      shareContent.media = [{ status: 'READY', description: { text: '' }, media: mediaAsset, title: { text: '' } }];
+    if (imageUrn) {
+      body.content = { media: { altText: '', id: imageUrn } };
     }
 
     const res = await axios.post(
-      'https://api.linkedin.com/v2/ugcPosts',
+      'https://api.linkedin.com/rest/posts',
+      body,
       {
-        author: authorUrn,
-        lifecycleState: 'PUBLISHED',
-        specificContent: { 'com.linkedin.ugc.ShareContent': shareContent },
-        visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
-      },
-      {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-Restli-Protocol-Version': '2.0.0' },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'LinkedIn-Version': '202502',
+          'X-Restli-Protocol-Version': '2.0.0',
+        },
         timeout: 30000,
       }
     );
-    return res.headers['x-linkedin-id'] || res.data.id;
+    return res.headers['x-linkedin-id'] || res.headers['x-restli-id'] || res.data.id;
   }
 
-  async _uploadLinkedInImage(token, authorUrn, imageUrl) {
-    // Step 1 — register upload
-    const regRes = await axios.post(
-      'https://api.linkedin.com/v2/assets?action=registerUpload',
+  // ── LinkedIn Multi-Image Carousel (new Posts API, multiImage content type) ─
+  async _postLinkedInMultiImage(token, authorUrn, caption, slideUrls) {
+    const slides = slideUrls.slice(0, 20); // LinkedIn hard cap: 20 images
+
+    // Upload each image sequentially and collect URNs
+    const imageUrns = [];
+    for (const url of slides) {
+      try {
+        const urn = await this._uploadLinkedInImageNew(token, authorUrn, url);
+        imageUrns.push(urn);
+      } catch (err) {
+        console.warn('[SocialPublisher] LinkedIn slide upload failed, skipping:', err.message);
+      }
+    }
+
+    if (imageUrns.length < 2) throw new Error('LinkedIn multiImage requires at least 2 successfully uploaded images');
+
+    const res = await axios.post(
+      'https://api.linkedin.com/rest/posts',
       {
-        registerUploadRequest: {
-          owner: authorUrn,
-          recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
-          serviceRelationships: [{ identifier: 'urn:li:userGeneratedContent', relationshipType: 'OWNER' }],
-          supportedUploadMechanism: ['SYNCHRONOUS_UPLOAD'],
+        author: authorUrn,
+        commentary: caption,
+        visibility: 'PUBLIC',
+        distribution: { feedDistribution: 'MAIN_FEED', targetEntities: [], thirdPartyDistributionChannels: [] },
+        lifecycleState: 'PUBLISHED',
+        isReshareDisabledByAuthor: false,
+        content: {
+          multiImage: {
+            images: imageUrns.map(id => ({ id, altText: '' })),
+          },
         },
       },
-      { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 15000 }
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'LinkedIn-Version': '202502',
+          'X-Restli-Protocol-Version': '2.0.0',
+        },
+        timeout: 30000,
+      }
     );
+    return res.headers['x-linkedin-id'] || res.headers['x-restli-id'] || res.data.id;
+  }
 
-    const uploadUrl  = regRes.data.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
-    const assetUrn   = regRes.data.value.asset;
+  // ── LinkedIn Image Upload (new Images API) ───────────────────────────────
+  async _uploadLinkedInImageNew(token, authorUrn, imageUrl) {
+    // Step 1 — initialize upload, get upload URL + image URN
+    const initRes = await axios.post(
+      'https://api.linkedin.com/rest/images?action=initializeUpload',
+      { initializeUploadRequest: { owner: authorUrn } },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'LinkedIn-Version': '202502',
+          'X-Restli-Protocol-Version': '2.0.0',
+        },
+        timeout: 15000,
+      }
+    );
+    const uploadUrl = initRes.data.value.uploadUrl;
+    const imageUrn  = initRes.data.value.image; // e.g. "urn:li:image:C4D22AQxxx"
 
-    // Step 2 — download image buffer
+    // Step 2 — download image buffer from Cloudinary
     const imgRes = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 20000 });
 
-    // Step 3 — PUT to LinkedIn upload URL
+    // Step 3 — PUT binary to LinkedIn's upload URL
     await axios.put(uploadUrl, imgRes.data, {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream' },
       timeout: 30000,
     });
 
-    return assetUrn;
+    return imageUrn;
   }
 
   async postToTikTok(account, post) {
