@@ -287,6 +287,7 @@ export const wizardAPI = {
   pollVideo: (postId) => api.get(`/api/wizard/video-poll/${postId}`),
   feedback: (data) => api.post('/api/wizard/feedback', data),
   rerenderCard: (data) => api.post('/api/wizard/rerender-card', data),
+  moreDesigns: (data) => api.post('/api/wizard/more-designs', data),
 };
 
 export const uploadAPI = {

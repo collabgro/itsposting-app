@@ -1383,6 +1383,9 @@ Return ONLY valid JSON (no markdown, no backticks):
                 const WIZARD_CARD_TRIGGER = { just_finished_job: 'job_finished', running_promo: 'promotion' };
                 const cardTrigger = WIZARD_CARD_TRIGGER[answers.contentType] || answers.contentType;
                 const fixedOverlay = validateAndFixCardOverlay(parsed.cardOverlay, session.customer);
+                const cardLineupIndex = PhotoCardService.getDesignFingerprint
+                  ? PhotoCardService.getDesignFingerprint(session.customer).lineupOffset % 3
+                  : 0;
 
                 // Generate platform-native cards — only for the format(s) the customer chose.
                 // FORMAT_TO_CARD_PLATFORMS maps format ID → platform list; null means video format (skip card).
@@ -1448,6 +1451,8 @@ Return ONLY valid JSON (no markdown, no backticks):
             // Store photoCardUrls + raw photo URL on mediaVariants so they reach the response builder
             if (photoCardUrls) mediaVariants._photoCardUrls = photoCardUrls;
             if (rawPhotoUrl) mediaVariants._rawPhotoUrl = rawPhotoUrl;
+            if (typeof cardLineupIndex !== 'undefined') mediaVariants._cardLineupIndex = cardLineupIndex;
+            if (typeof cardTrigger !== 'undefined') mediaVariants._cardTrigger = cardTrigger;
             // ── Image training data (fire-and-forget) ──────────────────────────
             const _imgPrompt = imagePromptForGen;
             const _imgUrl = mediaUrl;
@@ -1734,6 +1739,8 @@ Return ONLY valid JSON (no markdown, no backticks):
         photoCardsByPlatform: mediaVariants._photoCardsByPlatform || null,
         rawPhotoUrl: mediaVariants._rawPhotoUrl || null,
         svgCards: mediaVariants._svgCards || null,
+        cardLineupIndex: mediaVariants._cardLineupIndex ?? null,
+        cardTrigger: mediaVariants._cardTrigger || null,
         imageFailed,
         videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
         videoJobId,
@@ -2376,6 +2383,58 @@ Return ONLY valid JSON (no markdown, no backticks):
     } catch (err) {
       console.error('[Wizard] rerender-card error:', err);
       res.status(500).json({ error: 'Card re-render failed. Please try again.' });
+    }
+  });
+
+  // POST /api/wizard/more-designs — generate 3 more card designs from an alternate template lineup
+  router.post('/more-designs', authenticate, async (req, res) => {
+    try {
+      const { photoUrl, cardOverlay, wizardTrigger, lineupIndex } = req.body;
+      if (!photoUrl || !cardOverlay || lineupIndex === undefined || lineupIndex === null) {
+        return res.status(400).json({ error: 'photoUrl, cardOverlay, and lineupIndex are required' });
+      }
+      const idx = parseInt(lineupIndex, 10);
+      if (isNaN(idx) || idx < 0 || idx > 2) {
+        return res.status(400).json({ error: 'lineupIndex must be 0, 1, or 2' });
+      }
+
+      const customerResult = await pool.query(
+        `SELECT id, business_name, industry, location, phone, brand_colors, logo_url FROM customers WHERE id = $1`,
+        [req.customerId]
+      );
+      const customer = customerResult.rows[0];
+      if (!customer) return res.status(404).json({ error: 'Customer not found' });
+      if (!PhotoCardService || !ImageResizer) return res.status(503).json({ error: 'Photo card service unavailable' });
+
+      validateAndFixCardOverlay(cardOverlay, customer);
+      const rawBuffer = await ImageResizer.fetchImageAsBuffer(photoUrl);
+
+      const platformCards = await PhotoCardService.generatePhotoCardsForPlatforms(
+        rawBuffer, cardOverlay, customer, wizardTrigger || null,
+        ['instagram_feed'],
+        null,
+        idx
+      );
+
+      const igCards = platformCards.instagram_feed;
+      if (!igCards) return res.status(500).json({ error: 'Card generation produced no output' });
+
+      const ts = Date.now();
+      const cid = req.customerId;
+      const [urlA, urlB, urlC] = await Promise.all([
+        ImageResizer.uploadToCloudinary(igCards.A, `itsposting/${cid}/wizard-more-${ts}-A`),
+        ImageResizer.uploadToCloudinary(igCards.B, `itsposting/${cid}/wizard-more-${ts}-B`),
+        ImageResizer.uploadToCloudinary(igCards.C, `itsposting/${cid}/wizard-more-${ts}-C`),
+      ]);
+
+      res.json({
+        cards: { A: urlA, B: urlB, C: urlC },
+        lineupIndex: idx,
+        hasMore: idx < 2,
+      });
+    } catch (err) {
+      console.error('[Wizard] more-designs error:', err);
+      res.status(500).json({ error: 'Failed to load more designs. Please try again.' });
     }
   });
 

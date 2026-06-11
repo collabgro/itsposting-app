@@ -1588,10 +1588,13 @@ const LINEUP_MAP = {
   'milestone':      [['D','J','G'], ['G','D','H'], ['J','B','D']],
 };
 
-function resolveTemplateSet(wizardTrigger, customer) {
+function resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride = null) {
   const fp      = getDesignFingerprint(customer);
   const lineups = LINEUP_MAP[wizardTrigger] || LINEUP_MAP['job_finished'];
-  return lineups[fp.lineupOffset % lineups.length];
+  const idx     = lineupIndexOverride !== null
+    ? ((lineupIndexOverride % lineups.length) + lineups.length) % lineups.length
+    : fp.lineupOffset % lineups.length;
+  return lineups[idx];
 }
 
 const TEMPLATE_BUILDERS = {
@@ -2084,7 +2087,8 @@ async function generatePhotoCardsForPlatforms(
   customer,
   wizardTrigger = null,
   platforms = ['instagram_feed', 'facebook_feed', 'google_business'],
-  designParams = null
+  designParams = null,
+  lineupIndexOverride = null
 ) {
   const colors       = resolveBrandColors(customer);
   const businessName = customer?.business_name || '';
@@ -2112,7 +2116,7 @@ async function generatePhotoCardsForPlatforms(
     const photo = resizedMap[`${spec.w}x${spec.h}`];
 
     if (platform === 'instagram_feed') {
-      const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer);
+      const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride);
       const [bA, bB, bC] = await Promise.all([
         TEMPLATE_BUILDERS[tA](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
         TEMPLATE_BUILDERS[tB](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
@@ -2138,7 +2142,7 @@ async function generatePhotoCardsForPlatforms(
 
     } else if (platform === 'instagram_square') {
       // Square: use portrait templates with square-cropped photo
-      const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer);
+      const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride);
       const [bA, bB, bC] = await Promise.all([
         TEMPLATE_BUILDERS[tA](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
         TEMPLATE_BUILDERS[tB](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
@@ -2151,4 +2155,4 @@ async function generatePhotoCardsForPlatforms(
   return result;
 }
 
-module.exports = { generatePhotoCards, generatePhotoCardsSVG, generatePhotoCardsForPlatforms, resolveBrandColors, PLATFORM_SPECS };
+module.exports = { generatePhotoCards, generatePhotoCardsSVG, generatePhotoCardsForPlatforms, resolveBrandColors, PLATFORM_SPECS, getDesignFingerprint };

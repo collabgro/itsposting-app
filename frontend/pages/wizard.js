@@ -571,6 +571,9 @@ export default function Wizard() {
   const [selectedVariation, setSelectedVariation] = useState('A');
   const [selectedCardStyle, setSelectedCardStyle] = useState('A');
   const [selectedPlatformTab, setSelectedPlatformTab] = useState('instagram_feed');
+  const [extraPhotoCardUrls, setExtraPhotoCardUrls] = useState({});
+  const [loadingMoreDesigns, setLoadingMoreDesigns] = useState(false);
+  const [altLineupQueue, setAltLineupQueue] = useState([]);
   const [wizardPreviewPlatform, setWizardPreviewPlatform] = useState('all');
 
   const [connectedPlatforms, setConnectedPlatforms] = useState(null); // null = not yet loaded
@@ -1077,7 +1080,14 @@ export default function Wizard() {
 
       const genRes = await apiPost('/api/wizard/generate', { wizardId });
       setResults(genRes);
+      setExtraPhotoCardUrls({});
       setSelectedVariation(genRes.recommended || 'A');
+      if (genRes.photoCardUrls && genRes.cardLineupIndex !== null && genRes.cardLineupIndex !== undefined) {
+        const base = genRes.cardLineupIndex;
+        setAltLineupQueue([(base + 1) % 3, (base + 2) % 3]);
+      } else {
+        setAltLineupQueue([]);
+      }
       // Auto-select the result tab that matches the format the customer chose
       if (selectedFormat?.id && FORMAT_TO_RESULT_TAB[selectedFormat.id]) {
         setSelectedPlatformTab(FORMAT_TO_RESULT_TAB[selectedFormat.id]);
@@ -1125,7 +1135,7 @@ export default function Wizard() {
       // Record chosen variation + update media_url to the selected card style before publishing
       try {
         const patchData = { chosenVariation: selectedVariation };
-        const styleUrl = results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation];
+        const styleUrl = extraPhotoCardUrls[selectedCardStyle] || results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation];
         if (styleUrl) patchData.mediaUrl = styleUrl;
         await apiPatch(`/api/posts/${results.postId}`, patchData);
       } catch {}
@@ -1186,7 +1196,7 @@ export default function Wizard() {
     setActionLoading(true);
     try {
       const schedulePatch = { status: 'scheduled', scheduledDate: scheduleDate, chosenVariation: selectedVariation };
-      const scheduleStyleUrl = results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation];
+      const scheduleStyleUrl = extraPhotoCardUrls[selectedCardStyle] || results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation];
       if (scheduleStyleUrl) schedulePatch.mediaUrl = scheduleStyleUrl;
       await apiPatch(`/api/posts/${results.postId}`, schedulePatch);
       wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, mediaKept: !!results.mediaUrl, wasPublished: false }).catch(() => {});
@@ -1234,7 +1244,7 @@ export default function Wizard() {
     if (!results?.mediaUrl) return;
     setDownloading(true);
     try {
-      const activeMediaUrl = results.photoCardUrls?.[selectedVariation] || results.mediaUrl;
+      const activeMediaUrl = extraPhotoCardUrls[selectedCardStyle] || results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation] || results.mediaUrl;
       const res = await wizardAPI.downloadImage({
         mediaUrl: activeMediaUrl,
         postId: results.postId,
@@ -1257,6 +1267,39 @@ export default function Wizard() {
     }
   };
 
+  // Helper — resolves a card style key (A-I) to its URL, checking extra designs first
+  const getCardUrl = (style) =>
+    extraPhotoCardUrls[style] || results?.photoCardUrls?.[style] || null;
+
+  const loadMoreDesigns = async () => {
+    if (loadingMoreDesigns || altLineupQueue.length === 0 || !results?.rawPhotoUrl) return;
+    setLoadingMoreDesigns(true);
+    const [nextIdx, ...remaining] = altLineupQueue;
+    try {
+      const data = await wizardAPI.moreDesigns({
+        photoUrl: results.rawPhotoUrl,
+        cardOverlay: results.cardOverlay,
+        wizardTrigger: results.cardTrigger,
+        lineupIndex: nextIdx,
+      });
+      const loadedCount = Object.keys(extraPhotoCardUrls).length;
+      const keyGroups = [['D','E','F'], ['G','H','I']];
+      const keys = keyGroups[Math.floor(loadedCount / 3)] || keyGroups[0];
+      setExtraPhotoCardUrls(prev => ({
+        ...prev,
+        [keys[0]]: data.cards.A,
+        [keys[1]]: data.cards.B,
+        [keys[2]]: data.cards.C,
+      }));
+      setAltLineupQueue(remaining);
+    } catch (err) {
+      console.error('[Wizard] loadMoreDesigns failed:', err);
+      showToast('error', 'Failed to load more designs. Please try again.');
+    } finally {
+      setLoadingMoreDesigns(false);
+    }
+  };
+
   const totalSteps = formatSkipsPlatformStep ? 5 : 6;
   const stepNum = typeof step === 'number' ? step : (step === 'results' ? totalSteps + 1 : totalSteps + 0.5);
   const progressPct = Math.min(100, ((stepNum - 1) / totalSteps) * 100);
@@ -1266,7 +1309,7 @@ export default function Wizard() {
 
   return (
     <Layout title="Post Wizard" subtitle={`Guided content creation — powered by ${aiName}`}>
-      <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      <div style={{ maxWidth: step === 'results' ? 1200 : 800, margin: '0 auto', transition: 'max-width 300ms ease' }}>
         <style>{`
           @keyframes wizCardPop  { 0%{transform:translateY(-5px) scale(1.04)} 30%{transform:translateY(-7px) scale(1.06)} 100%{transform:translateY(-5px) scale(1.04)} }
           @keyframes wizLabelIn  { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
@@ -1958,7 +2001,7 @@ export default function Wizard() {
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row-reverse', alignItems: 'flex-start' }}>
 
               {/* ── RIGHT (visually): Card image + platform preview — sticky ── */}
-              {results.contentTypeSelection !== 'static' && <div style={{ flex: isMobile ? '0 0 100%' : '0 0 320px', minWidth: isMobile ? 0 : 260, position: isMobile ? 'static' : 'sticky', top: 20, alignSelf: 'flex-start' }}>
+              {results.contentTypeSelection !== 'static' && <div style={{ flex: isMobile ? '0 0 100%' : '0 0 400px', minWidth: isMobile ? 0 : 300, position: isMobile ? 'static' : 'sticky', top: 20, alignSelf: 'flex-start' }}>
 
                 {/* Image/video failed banner */}
                 {results.imageFailed && (
@@ -1986,7 +2029,7 @@ export default function Wizard() {
                   {results.mediaUrl && results.videoRendering !== true ? (
                     results.contentTypeSelection === 'video' ? (
                       <video src={results.mediaUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : activeSvg && results.photoCardUrls ? (
+                    ) : activeSvg && results.photoCardUrls && !extraPhotoCardUrls[selectedCardStyle] ? (
                       /* SVG live preview — browser renders directly, zero network latency.
                          Clicking a text element opens the editor and focuses the matching field. */
                       <div
@@ -2001,8 +2044,10 @@ export default function Wizard() {
                     ) : (
                       <img
                         src={
-                          // Platform-specific card takes priority when available
-                          (results.photoCardsByPlatform?.[selectedPlatformTab]?.[selectedCardStyle])
+                          // Extra designs (D-I) don't have platform variants — use primary URL
+                          extraPhotoCardUrls[selectedCardStyle]
+                            // Platform-specific card takes priority for initial styles (A-C)
+                            || (results.photoCardsByPlatform?.[selectedPlatformTab]?.[selectedCardStyle])
                             || (results.photoCardsByPlatform?.[selectedPlatformTab]?.[selectedVariation])
                             || results.photoCardUrls?.[selectedCardStyle]
                             || results.photoCardUrls?.[selectedVariation]
@@ -2062,9 +2107,11 @@ export default function Wizard() {
                 {/* ── Card Style Picker — 3 template thumbnails ── */}
                 {results.contentTypeSelection === 'photo' && results.photoCardUrls && (
                   (() => {
-                    const styleKeys = ['A', 'B', 'C'].filter(k => results.photoCardUrls[k]);
+                    const ALL_STYLE_KEYS = ['A','B','C','D','E','F','G','H','I'];
+                    const styleLabels = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
+                    const allUrls = { ...results.photoCardUrls, ...extraPhotoCardUrls };
+                    const styleKeys = ALL_STYLE_KEYS.filter(k => allUrls[k]);
                     if (styleKeys.length < 2) return null;
-                    const styleLabels = { A: 'Style 1', B: 'Style 2', C: 'Style 3' };
                     return (
                       <div style={{ marginBottom: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Card Design</div>
@@ -2078,6 +2125,7 @@ export default function Wizard() {
                                 onClick={() => {
                                   setSelectedCardStyle(key);
                                   if (svgCards?.[key]) setActiveSvg(svgCards[key]);
+                                  else if (extraPhotoCardUrls[key]) setActiveSvg(null);
                                 }}
                                 style={{
                                   padding: 0, border: `2px solid ${isActive ? t.primary : t.border}`,
@@ -2089,11 +2137,10 @@ export default function Wizard() {
                                 }}
                               >
                                 <img
-                                  src={results.photoCardUrls[key]}
+                                  src={allUrls[key]}
                                   alt={styleLabels[key]}
                                   style={{ width: '100%', aspectRatio: '4/5', objectFit: 'cover', display: 'block' }}
                                 />
-                                {/* Style label pill */}
                                 <div style={{
                                   position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
                                   background: isActive ? t.primary : 'rgba(0,0,0,0.60)',
@@ -2103,7 +2150,6 @@ export default function Wizard() {
                                 }}>
                                   {styleLabels[key]}
                                 </div>
-                                {/* Active checkmark */}
                                 {isActive && (
                                   <div style={{
                                     position: 'absolute', top: 6, right: 6,
@@ -2120,6 +2166,50 @@ export default function Wizard() {
                             );
                           })}
                         </div>
+
+                        {/* Load more / all loaded button */}
+                        {altLineupQueue.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={loadMoreDesigns}
+                            disabled={loadingMoreDesigns}
+                            style={{
+                              marginTop: 10, width: '100%', padding: '9px 14px',
+                              background: t.isDark ? 'rgba(124,92,252,0.10)' : 'rgba(124,92,252,0.06)',
+                              border: `1px dashed ${t.isDark ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.3)'}`,
+                              borderRadius: 10, cursor: loadingMoreDesigns ? 'default' : 'pointer',
+                              color: t.primary, fontSize: 12, fontWeight: 700,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                              transition: 'opacity 150ms',
+                              opacity: loadingMoreDesigns ? 0.6 : 1,
+                            }}
+                          >
+                            {loadingMoreDesigns ? (
+                              <>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}>
+                                  <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                                </svg>
+                                Loading designs…
+                              </>
+                            ) : (
+                              <>
+                                <IpRefresh size={13} color={t.primary} />
+                                Load {altLineupQueue.length === 2 ? '3' : '3'} more designs
+                              </>
+                            )}
+                          </button>
+                        ) : styleKeys.length > 3 ? (
+                          <div style={{
+                            marginTop: 10, width: '100%', padding: '8px 14px',
+                            background: t.isDark ? 'rgba(255,255,255,0.03)' : t.input,
+                            border: `1px solid ${t.border}`, borderRadius: 10,
+                            color: t.textMuted, fontSize: 11, fontWeight: 600,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            All {styleKeys.length} designs loaded
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })()
@@ -2422,69 +2512,6 @@ export default function Wizard() {
                   </button>
                 )}
 
-                {/* ── Post Preview panel — Social Planner style ── */}
-                {!isMobile && (() => {
-                  const varData = results?.variations?.[selectedVariation];
-                  if (!varData) return null;
-                  const previewPlatforms = (results?.platform === 'all'
-                    ? ALL_PLATFORM_IDS
-                    : [results?.platform]).filter(p => p && MOCKUP_MAP[p]);
-                  if (previewPlatforms.length === 0) return null;
-                  const activePid = (wizardPreviewPlatform === 'all' || !previewPlatforms.includes(wizardPreviewPlatform))
-                    ? 'all' : wizardPreviewPlatform;
-                  const previewPost = {
-                    media_url: results?.photoCardUrls?.[selectedVariation] || results?.mediaUrl || null,
-                    hashtags: varData.hashtags || [],
-                    content_type: results?.contentTypeSelection === 'static' ? 'static' : 'photo',
-                  };
-                  const previewCaption = [varData.caption, varData.engagementQuestion].filter(Boolean).join('\n\n');
-                  const getProfileForPlatform = (pid) => {
-                    const acct = socialAccountsList.find(a => a.platform === pid);
-                    return { name: acct?.account_name || acct?.username || 'Your Business', picture: acct?.profile_picture || null };
-                  };
-                  const ActiveMockup = activePid !== 'all' ? MOCKUP_MAP[activePid] : null;
-                  return (
-                    <div style={{ marginTop: 12, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.border}`, borderRadius: 14, padding: '16px 16px 12px', boxShadow: t.shadowSm }}>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 14 }}>Post Preview</div>
-                      {/* Platform tabs — All + per-platform icons */}
-                      <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${t.border}`, marginBottom: 16, gap: 0 }}>
-                        <button type="button" onClick={() => setWizardPreviewPlatform('all')}
-                          style={{ padding: '7px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: activePid === 'all' ? t.primary : t.textMuted, borderBottom: `2px solid ${activePid === 'all' ? t.primary : 'transparent'}`, marginBottom: -1, transition: 'all 150ms', whiteSpace: 'nowrap' }}
-                        >All</button>
-                        {previewPlatforms.filter(pid => MOCKUP_MAP[pid]).map(pid => {
-                          const meta = PLATFORM_META[pid];
-                          const PlatIcon = meta?.Icon;
-                          const isAct = activePid === pid;
-                          return (
-                            <button key={pid} type="button" onClick={() => setWizardPreviewPlatform(pid)}
-                              style={{ padding: '7px 12px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: `2px solid ${isAct ? (meta?.color || t.primary) : 'transparent'}`, marginBottom: -1, transition: 'all 150ms', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                              {PlatIcon && <PlatIcon size={18} style={{ color: isAct ? meta?.color : t.textMuted, transition: 'color 150ms' }} />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {/* Mockup area */}
-                      <div style={{ borderRadius: 10, overflow: 'hidden' }}>
-                        {activePid === 'all' ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                            {previewPlatforms.filter(pid => MOCKUP_MAP[pid]).map((pid, idx) => {
-                              const Mock = MOCKUP_MAP[pid];
-                              const isLast = idx === previewPlatforms.filter(p => MOCKUP_MAP[p]).length - 1;
-                              return (
-                                <div key={pid} style={{ borderBottom: isLast ? 'none' : `1px solid ${t.border}`, paddingBottom: isLast ? 0 : 20, marginBottom: isLast ? 0 : 20 }}>
-                                  <Mock post={previewPost} caption={previewCaption} profile={getProfileForPlatform(pid)} />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          ActiveMockup && <ActiveMockup post={previewPost} caption={previewCaption} profile={getProfileForPlatform(activePid)} />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>}
 
               {/* ── LEFT (visually): Variations + actions ── */}
@@ -2872,6 +2899,80 @@ export default function Wizard() {
                 </div>
               </div>
             </div>
+
+            {/* ── Full-width Post Preview ── */}
+            {!isMobile && (() => {
+              const varData = results?.variations?.[selectedVariation];
+              if (!varData) return null;
+              const previewPlatforms = (results?.platform === 'all'
+                ? ALL_PLATFORM_IDS
+                : [results?.platform]).filter(p => p && MOCKUP_MAP[p]);
+              if (previewPlatforms.length === 0) return null;
+              const activePid = (wizardPreviewPlatform === 'all' || !previewPlatforms.includes(wizardPreviewPlatform))
+                ? 'all' : wizardPreviewPlatform;
+              const previewMediaUrl = extraPhotoCardUrls[selectedCardStyle] || results?.photoCardUrls?.[selectedCardStyle] || results?.photoCardUrls?.[selectedVariation] || results?.mediaUrl || null;
+              const previewPost = {
+                media_url: previewMediaUrl,
+                hashtags: varData.hashtags || [],
+                content_type: results?.contentTypeSelection === 'static' ? 'static' : 'photo',
+              };
+              const previewCaption = [varData.caption, varData.engagementQuestion].filter(Boolean).join('\n\n');
+              const getProfileForPlatform = (pid) => {
+                const acct = socialAccountsList.find(a => a.platform === pid);
+                return { name: acct?.account_name || acct?.username || 'Your Business', picture: acct?.profile_picture || null };
+              };
+              const ActiveMockup = activePid !== 'all' ? MOCKUP_MAP[activePid] : null;
+              const mockupPids = previewPlatforms.filter(pid => MOCKUP_MAP[pid]);
+              return (
+                <div style={{ marginTop: 28, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid ${t.border}`, borderRadius: 16, padding: '20px 24px 24px', boxShadow: t.shadowSm }}>
+                  {/* Header + tabs */}
+                  <div style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${t.border}`, marginBottom: 20, paddingBottom: 0, gap: 4 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: t.text, marginRight: 12 }}>Post Preview</div>
+                    <button type="button" onClick={() => setWizardPreviewPlatform('all')}
+                      style={{ padding: '8px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: activePid === 'all' ? t.primary : t.textMuted, borderBottom: `2px solid ${activePid === 'all' ? t.primary : 'transparent'}`, marginBottom: -1, transition: 'all 150ms', whiteSpace: 'nowrap' }}
+                    >All</button>
+                    {mockupPids.map(pid => {
+                      const meta = PLATFORM_META[pid];
+                      const PlatIcon = meta?.Icon;
+                      const isAct = activePid === pid;
+                      return (
+                        <button key={pid} type="button" onClick={() => setWizardPreviewPlatform(pid)}
+                          style={{ padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', borderBottom: `2px solid ${isAct ? (meta?.color || t.primary) : 'transparent'}`, marginBottom: -1, transition: 'all 150ms', display: 'flex', alignItems: 'center', gap: 6 }}
+                        >
+                          {PlatIcon && <PlatIcon size={18} style={{ color: isAct ? meta?.color : t.textMuted, transition: 'color 150ms' }} />}
+                          {meta && <span style={{ fontSize: 12, fontWeight: 600, color: isAct ? meta.color : t.textMuted, transition: 'color 150ms' }}>{meta.label}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Mockup area */}
+                  {activePid === 'all' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(mockupPids.length, 3)}, 1fr)`, gap: 24 }}>
+                      {mockupPids.map(pid => {
+                        const Mock = MOCKUP_MAP[pid];
+                        const meta = PLATFORM_META[pid];
+                        return (
+                          <div key={pid}>
+                            {meta && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                                {meta.Icon && <meta.Icon size={14} style={{ color: meta.color }} />}
+                                <span style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{meta.label}</span>
+                              </div>
+                            )}
+                            <Mock post={previewPost} caption={previewCaption} profile={getProfileForPlatform(pid)} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ maxWidth: 560, margin: '0 auto' }}>
+                      {ActiveMockup && <ActiveMockup post={previewPost} caption={previewCaption} profile={getProfileForPlatform(activePid)} />}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ── Save as template modal ── */}
             {showSaveTemplate && (
