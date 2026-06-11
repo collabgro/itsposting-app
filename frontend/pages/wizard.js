@@ -2454,7 +2454,10 @@ export default function Wizard() {
                 {/* Edit in Studio CTA — only for image posts with a generated image */}
                 {results.mediaUrl && results.contentTypeSelection !== 'video' && results.videoRendering !== true && (
                   <button
-                    onClick={() => router.push(`/templates/editor?addImage=${encodeURIComponent(results.mediaUrl)}&size=ig_portrait`)}
+                    onClick={() => {
+                      const cardUrl = results.contentTypeSelection === 'photo' ? getCardUrl(selectedCardStyle) : null;
+                      router.push(`/templates/editor?addImage=${encodeURIComponent(cardUrl || results.mediaUrl)}&size=ig_portrait`);
+                    }}
                     style={{
                       width: '100%', marginBottom: 10,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,

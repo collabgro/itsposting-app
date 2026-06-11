@@ -2083,8 +2083,10 @@ Return ONLY valid JSON (no markdown, no backticks):
 
       // ── Image generation (photo posts only) ───────────────────────────────
       let mediaUrl    = null;
+      let rawPhotoUrl = null;
       let photoCardUrls = null;
       let imageFailed = false;
+      let quickCardLineupIndex = null;
 
       if (contentType === 'photo' && NanoBananaService) {
         try {
@@ -2093,6 +2095,12 @@ Return ONLY valid JSON (no markdown, no backticks):
           const imageResult = await nanoBanana.generateFromPrompt(customer, imagePrompt, { aspectRatio: '4:5' });
           await validateMedia(imageResult.url);
           mediaUrl = imageResult.url;
+          rawPhotoUrl = imageResult.url;
+
+          if (PhotoCardService?.getDesignFingerprint) {
+            const fp = PhotoCardService.getDesignFingerprint(customer);
+            quickCardLineupIndex = fp.lineupOffset % 3;
+          }
 
           // Photo card overlays — platform-native generation
           if (PhotoCardService && ImageResizer && parsed.cardOverlay) {
@@ -2178,6 +2186,10 @@ Return ONLY valid JSON (no markdown, no backticks):
         mediaUrl,
         photoCardUrls,
         photoCardsByPlatform: parsed._photoCardsByPlatform || null,
+        rawPhotoUrl,
+        cardOverlay: parsed.cardOverlay || null,
+        cardLineupIndex: quickCardLineupIndex,
+        cardTrigger: photoCardTrigger,
         imageFailed,
         creditsRemaining: quickDeduct.rows[0].credits_balance,
       });

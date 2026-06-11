@@ -487,6 +487,11 @@ export default function QuickPost() {
   const [editing,             setEditing]             = useState(false);
   const [editedCaption,       setEditedCaption]       = useState('');
   const [selectedPlatformTab, setSelectedPlatformTab] = useState('instagram_feed');
+  const [selectedCardStyle,   setSelectedCardStyle]   = useState('A');
+  const [extraPhotoCardUrls,  setExtraPhotoCardUrls]  = useState({});
+  const [extraCardsByPlatform,setExtraCardsByPlatform]= useState({});
+  const [loadingMoreDesigns,  setLoadingMoreDesigns]  = useState(false);
+  const [altLineupQueue,      setAltLineupQueue]      = useState([]);
   const [copied,        setCopied]        = useState(false);
   const [posting,       setPosting]       = useState(false);
   const [posted,        setPosted]        = useState(false);
@@ -554,7 +559,9 @@ export default function QuickPost() {
     const detailSuffix = details.trim() ? ` — ${details.trim()}` : '';
     const assembled = `${jt.prompt}${detailSuffix}`;
 
-    setError(''); setResult(null); setEditing(false); setActiveVar('a'); setGenerating(true);
+    setError(''); setResult(null); setEditing(false); setActiveVar('a');
+    setSelectedCardStyle('A'); setExtraPhotoCardUrls({}); setExtraCardsByPlatform({}); setAltLineupQueue([]);
+    setGenerating(true);
     setMascotMood('thinking', 'Crafting your post...');
     try {
       const { data } = await wizardAPI.quick({
@@ -566,6 +573,10 @@ export default function QuickPost() {
       });
       setResult(data);
       setEditedCaption(data.variations?.a?.caption || '');
+      if (data.photoCardUrls && data.cardLineupIndex !== null && data.cardLineupIndex !== undefined) {
+        const base = data.cardLineupIndex;
+        setAltLineupQueue([(base + 1) % 3, (base + 2) % 3]);
+      }
       setMascotMood('excited', 'Your post is ready — pick a variation!');
       showToast('Post ready — choose a version below', 'success');
       window.dispatchEvent(new Event('creditRefresh'));
@@ -579,11 +590,20 @@ export default function QuickPost() {
   const getCaption  = () => editing ? editedCaption : result?.variations?.[activeVar]?.caption || '';
   const getHashtags = () => result?.variations?.[activeVar]?.hashtags || [];
   const getEngQ     = () => result?.variations?.[activeVar]?.engagementQuestion || null;
-  const getMediaUrl = () =>
-    result?.photoCardsByPlatform?.[selectedPlatformTab]?.[activeVar.toUpperCase()]
-      || result?.photoCardUrls?.[activeVar.toUpperCase()]
+  const getCardUrl = (style) => extraPhotoCardUrls[style] || result?.photoCardUrls?.[style] || null;
+  const getMediaUrl = () => {
+    const style = selectedCardStyle;
+    return (
+      (extraCardsByPlatform[style] && (
+        extraCardsByPlatform[style][selectedPlatformTab === 'facebook_feed' ? 'facebook' : selectedPlatformTab === 'google_business' ? 'google_business' : 'instagram']
+      ))
+      || extraPhotoCardUrls[style]
+      || result?.photoCardsByPlatform?.[selectedPlatformTab]?.[style]
+      || result?.photoCardUrls?.[style]
       || result?.mediaUrl
-      || null;
+      || null
+    );
+  };
 
   // accountIds = integer row IDs from social_accounts (when modal is used)
   // falls back to platform names when no accounts loaded yet
@@ -636,12 +656,52 @@ export default function QuickPost() {
     sessionStorage.setItem('quickPostResult', JSON.stringify({ result: wizardResult, platforms: selectedPlats, tone, prompt: JOB_TYPES.find(j => j.id === jobType)?.prompt || '', timestamp: Date.now() }));
     router.push('/wizard?from=quick-post');
   };
+  const loadMoreDesigns = async () => {
+    if (loadingMoreDesigns || altLineupQueue.length === 0 || !result?.rawPhotoUrl) return;
+    setLoadingMoreDesigns(true);
+    const [nextIdx, ...remaining] = altLineupQueue;
+    try {
+      const { data } = await wizardAPI.moreDesigns({
+        photoUrl: result.rawPhotoUrl,
+        cardOverlay: result.cardOverlay,
+        wizardTrigger: result.cardTrigger,
+        lineupIndex: nextIdx,
+      });
+      const loadedCount = Object.keys(extraPhotoCardUrls).length;
+      const keyGroups = [['D','E','F'], ['G','H','I']];
+      const keys = keyGroups[Math.floor(loadedCount / 3)] || keyGroups[0];
+      const newExtras = {};
+      const newByPlatform = {};
+      if (data.cards?.A) {
+        newExtras[keys[0]] = data.cards.A;
+        if (data.cardsByPlatform) newByPlatform[keys[0]] = { facebook: data.cardsByPlatform.facebook_feed?.A, instagram: data.cardsByPlatform.instagram_feed?.A, google_business: data.cardsByPlatform.google_business?.A };
+      }
+      if (data.cards?.B) {
+        newExtras[keys[1]] = data.cards.B;
+        if (data.cardsByPlatform) newByPlatform[keys[1]] = { facebook: data.cardsByPlatform.facebook_feed?.B, instagram: data.cardsByPlatform.instagram_feed?.B, google_business: data.cardsByPlatform.google_business?.B };
+      }
+      if (data.cards?.C) {
+        newExtras[keys[2]] = data.cards.C;
+        if (data.cardsByPlatform) newByPlatform[keys[2]] = { facebook: data.cardsByPlatform.facebook_feed?.C, instagram: data.cardsByPlatform.instagram_feed?.C, google_business: data.cardsByPlatform.google_business?.C };
+      }
+      setExtraPhotoCardUrls(prev => ({ ...prev, ...newExtras }));
+      setExtraCardsByPlatform(prev => ({ ...prev, ...newByPlatform }));
+      setAltLineupQueue(remaining);
+    } catch (err) {
+      console.error('[QuickPost] loadMoreDesigns failed:', err);
+      showToast('Failed to load more designs. Please try again.', 'error');
+    } finally {
+      setLoadingMoreDesigns(false);
+    }
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(getCaption()).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2200); });
   };
   const handleReset = () => {
     setResult(null); setError(''); setEditing(false); setPosted(false);
     setJobType(null); setDetails(''); setActiveVar('a');
+    setSelectedCardStyle('A'); setExtraPhotoCardUrls({}); setExtraCardsByPlatform({}); setAltLineupQueue([]);
   };
 
   const handleRegenerate = () => {
@@ -1133,7 +1193,7 @@ export default function QuickPost() {
                 {getMediaUrl() ? (
                   <div style={{
                     position: 'relative',
-                    aspectRatio: ({ facebook_feed: '1200/630', linkedin_feed: '1200/627', google_business: '4/3' })[selectedPlatformTab] || '4/5',
+                    aspectRatio: ({ linkedin_feed: '1200/627', google_business: '4/3' })[selectedPlatformTab] || '4/5',
                     borderRadius: 12,
                     overflow: 'hidden',
                     background: dark ? 'rgba(15,15,24,0.72)' : t.input,
@@ -1150,6 +1210,83 @@ export default function QuickPost() {
                     <span style={{ fontSize: 12, color: t.textMuted }}>Image could not be generated — your text is ready</span>
                   </div>
                 ) : null}
+
+                {/* Card design style picker — A/B/C thumbnails + Load more designs */}
+                {result?.photoCardUrls && (() => {
+                  const ALL_STYLE_KEYS = ['A','B','C','D','E','F','G','H','I'];
+                  const styleLabels = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
+                  const allUrls = { ...result.photoCardUrls, ...extraPhotoCardUrls };
+                  const styleKeys = ALL_STYLE_KEYS.filter(k => allUrls[k]);
+                  if (styleKeys.length < 2) return null;
+                  return (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 6, letterSpacing: '0.03em' }}>
+                        DESIGN STYLE
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                        {styleKeys.map(key => {
+                          const isActive = selectedCardStyle === key;
+                          const thumbUrl = getCardUrl(key);
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setSelectedCardStyle(key)}
+                              style={{
+                                padding: 0, border: `2px solid ${isActive ? '#7C5CFC' : t.border}`,
+                                borderRadius: 8, overflow: 'hidden', cursor: 'pointer',
+                                aspectRatio: '4/5', background: t.input, position: 'relative',
+                                boxShadow: isActive ? '0 0 0 2px rgba(124,92,252,0.30)' : 'none',
+                                transition: 'border-color 140ms, box-shadow 140ms',
+                              }}
+                            >
+                              {thumbUrl && (
+                                <img src={thumbUrl} alt={styleLabels[key]} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                              )}
+                              {isActive && (
+                                <div style={{
+                                  position: 'absolute', bottom: 4, right: 4,
+                                  width: 18, height: 18, borderRadius: '50%',
+                                  background: '#7C5CFC', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                  <IpCheck size={10} color="#fff" />
+                                </div>
+                              )}
+                              <div style={{
+                                position: 'absolute', bottom: 0, left: 0, right: 0,
+                                background: 'rgba(0,0,0,0.52)', fontSize: 9, fontWeight: 700,
+                                color: '#fff', padding: '2px 0', textAlign: 'center',
+                              }}>
+                                {styleLabels[key]}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {altLineupQueue.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={loadMoreDesigns}
+                          disabled={loadingMoreDesigns}
+                          style={{
+                            marginTop: 8, width: '100%', padding: '8px 0',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            background: 'transparent', border: `1px solid ${t.border}`,
+                            borderRadius: 8, color: t.primary, fontSize: 11, fontWeight: 700,
+                            cursor: loadingMoreDesigns ? 'not-allowed' : 'pointer',
+                            opacity: loadingMoreDesigns ? 0.6 : 1, transition: 'opacity 150ms',
+                          }}
+                        >
+                          {loadingMoreDesigns ? <Spinner size={12} color={t.primary} /> : <IpRefresh size={12} color={t.primary} />}
+                          {loadingMoreDesigns ? 'Loading designs…' : `Load 3 more designs`}
+                        </button>
+                      )}
+                      {altLineupQueue.length === 0 && styleKeys.length >= 9 && (
+                        <p style={{ margin: '8px 0 0', fontSize: 10, color: t.textMuted, textAlign: 'center' }}>All 9 designs loaded</p>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
