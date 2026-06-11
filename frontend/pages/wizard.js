@@ -2619,7 +2619,7 @@ export default function Wizard() {
                       const cardUrl = results.contentTypeSelection === 'photo'
                         ? getCardUrl(selectedCardStyle)
                         : results.contentTypeSelection === 'carousel'
-                        ? (results.mediaVariants?.slides?.[activeSlide]?.imageUrl || results.mediaUrl)
+                        ? (getCarouselSlideUrl(selectedCardStyle, activeSlide) || results.mediaUrl)
                         : null;
                       router.push(`/templates/editor?addImage=${encodeURIComponent(cardUrl || results.mediaUrl)}&size=ig_portrait`);
                     }}
