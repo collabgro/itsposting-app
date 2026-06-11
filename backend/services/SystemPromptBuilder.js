@@ -383,14 +383,13 @@ Keep: local focus tight — neighbourhood level, not just city`,
     const contentTypeRules = {
       static: 'Content format: TEXT CARD — write only the caption text. No image description needed.',
       photo: 'Content format: PHOTO POST — include an imagePrompt for each variation describing what the AI image should look like. Be specific: lighting, angle, subject, style.',
-      carousel: `Content format: CAROUSEL (5 slides)
+      carousel: `Content format: CAROUSEL (maximum 4 slides)
 In addition to the main caption, provide slide text:
 Slide 1: Hook — stops the scroll
-Slide 2: Point 1 / Step 1
-Slide 3: Point 2 / Step 2
-Slide 4: Point 3 / Step 3
-Slide 5: CTA — what to do next
-Keep each slide text to 8 words or fewer (fits on image).`,
+Slide 2: Main point / Step 1
+Slide 3: Supporting point / Step 2
+Slide 4: CTA — what to do next (only include if topic warrants it)
+Keep each slide text to 8 words or fewer (fits on image). Use 3 slides for simple tips, 4 for step-by-step or detailed topics. NEVER more than 4.`,
       video: `Content format: VIDEO SCRIPT
 Write a 20-30 second spoken script in addition to the post caption.
 Structure: Hook (0-3s) → Core message (4-20s) → CTA (21-30s)
@@ -658,7 +657,8 @@ ${imageGuidance}
   "carouselSlides": [
     { "slideNumber": 1, "overlayText": "max 8 words", "description": "what this slide shows visually" },
     { "slideNumber": 2, "overlayText": "max 8 words", "description": "what this slide shows visually" },
-    { "slideNumber": 3, "overlayText": "max 8 words", "description": "what this slide shows visually" }
+    { "slideNumber": 3, "overlayText": "max 8 words", "description": "what this slide shows visually" },
+    { "slideNumber": 4, "overlayText": "max 8 words — omit this slide if not needed", "description": "what this slide shows visually" }
   ],` : ''}
   "variation_a": {
     "caption": "Full caption text for variation A",
@@ -691,7 +691,7 @@ Rules for all 3 variations:
 - Variation A is for Facebook, B for Instagram, C for Google Business (even if platform = 'all')
 - imagePrompt MUST work for ALL three variations — it is shared and generated once (saves cost)
 - NEVER output the same hashtag set for multiple variations${isCarousel ? `
-- Carousel: Include 3-7 slides in carouselSlides. Decide count based on topic complexity: simple tips = 3, step-by-step processes = 5-6, complex how-tos = 7. Keep each overlayText under 8 words.` : ''}
+- Carousel: Include 3-4 slides in carouselSlides. Simple tips = 3 slides, step-by-step or detailed = 4 slides. NEVER more than 4. Keep each overlayText under 8 words.` : ''}
 
 CRITICAL JSON SAFETY RULES (violations cause parse errors):
 - Do NOT put quotation marks inside string values — write: John said it was amazing. NOT: John said "it was amazing."

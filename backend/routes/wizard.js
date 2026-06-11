@@ -1328,7 +1328,8 @@ Return ONLY valid JSON (no markdown, no backticks):
 
         try {
           if (contentTypeForMedia === 'carousel') {
-            const slideList = parsed.carouselSlides || parsed.variation_a?.slides || [];
+            const rawSlideList = parsed.carouselSlides || parsed.variation_a?.slides || [];
+            const slideList = rawSlideList.slice(0, 4); // hard cap at 4 slides
             const slideResults = [];
             for (const slide of slideList) {
               const slidePrompt = slide.description || imagePromptForGen;
