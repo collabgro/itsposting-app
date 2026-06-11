@@ -575,6 +575,7 @@ export default function Wizard() {
   const [extraCardsByPlatform, setExtraCardsByPlatform] = useState({});
   const [loadingMoreDesigns, setLoadingMoreDesigns] = useState(false);
   const [altLineupQueue, setAltLineupQueue] = useState([]);
+  const [moreDesignsModal, setMoreDesignsModal] = useState(null);
   const [wizardPreviewPlatform, setWizardPreviewPlatform] = useState('all');
   const [previewCaptionExpanded, setPreviewCaptionExpanded] = useState(false);
 
@@ -1084,6 +1085,7 @@ export default function Wizard() {
       setResults(genRes);
       setExtraPhotoCardUrls({});
       setExtraCardsByPlatform({});
+      setMoreDesignsModal(null);
       setSelectedCardStyle('A');
       setPreviewCaptionExpanded(false);
       setSelectedVariation(genRes.recommended || 'A');
@@ -1312,7 +1314,7 @@ export default function Wizard() {
     setLoadingMoreDesigns(true);
     const [nextIdx, ...remaining] = altLineupQueue;
     try {
-      const data = await wizardAPI.moreDesigns({
+      const { data } = await wizardAPI.moreDesigns({
         photoUrl: results.rawPhotoUrl,
         cardOverlay: results.cardOverlay,
         wizardTrigger: results.cardTrigger,
@@ -1321,27 +1323,39 @@ export default function Wizard() {
       const loadedCount = Object.keys(extraPhotoCardUrls).length;
       const keyGroups = [['D','E','F'], ['G','H','I']];
       const keys = keyGroups[Math.floor(loadedCount / 3)] || keyGroups[0];
-      setExtraPhotoCardUrls(prev => ({
-        ...prev,
-        [keys[0]]: data.cards.A,
-        [keys[1]]: data.cards.B,
-        [keys[2]]: data.cards.C,
-      }));
-      if (data.cardsByPlatform) {
-        setExtraCardsByPlatform(prev => ({
-          ...prev,
-          [keys[0]]: { facebook: data.cardsByPlatform.facebook_feed?.A, instagram: data.cardsByPlatform.instagram_feed?.A, google_business: data.cardsByPlatform.google_business?.A },
-          [keys[1]]: { facebook: data.cardsByPlatform.facebook_feed?.B, instagram: data.cardsByPlatform.instagram_feed?.B, google_business: data.cardsByPlatform.google_business?.B },
-          [keys[2]]: { facebook: data.cardsByPlatform.facebook_feed?.C, instagram: data.cardsByPlatform.instagram_feed?.C, google_business: data.cardsByPlatform.google_business?.C },
-        }));
-      }
+      // Pre-evaluate card URLs to avoid React deferring closure evaluation outside try/catch
+      const cardA = data.cards?.A;
+      const cardB = data.cards?.B;
+      const cardC = data.cards?.C;
       setAltLineupQueue(remaining);
+      setMoreDesignsModal({ cardA, cardB, cardC, cardsByPlatform: data.cardsByPlatform, keys });
     } catch (err) {
       console.error('[Wizard] loadMoreDesigns failed:', err);
       showToast('error', 'Failed to load more designs. Please try again.');
     } finally {
       setLoadingMoreDesigns(false);
     }
+  };
+
+  const selectMoreDesign = (letter) => {
+    if (!moreDesignsModal) return;
+    const { cardA, cardB, cardC, cardsByPlatform, keys } = moreDesignsModal;
+    const cardUrl = letter === 'A' ? cardA : letter === 'B' ? cardB : cardC;
+    const finalKey = letter === 'A' ? keys[0] : letter === 'B' ? keys[1] : keys[2];
+    setExtraPhotoCardUrls(prev => ({ ...prev, [finalKey]: cardUrl }));
+    if (cardsByPlatform) {
+      setExtraCardsByPlatform(prev => ({
+        ...prev,
+        [finalKey]: {
+          facebook: cardsByPlatform.facebook_feed?.[letter],
+          instagram: cardsByPlatform.instagram_feed?.[letter],
+          google_business: cardsByPlatform.google_business?.[letter],
+        },
+      }));
+    }
+    setSelectedCardStyle(finalKey);
+    setActiveSvg(null);
+    setMoreDesignsModal(null);
   };
 
   const totalSteps = formatSkipsPlatformStep ? 5 : 6;
@@ -3167,6 +3181,48 @@ export default function Wizard() {
         )}
 
       </div>
+
+      {/* ── More Designs Preview Modal ── */}
+      {moreDesignsModal && (
+        <div
+          onClick={() => setMoreDesignsModal(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: t.card, borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 720, boxShadow: '0 24px 80px rgba(0,0,0,0.5)', border: `1px solid ${t.border}` }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Pick a design</div>
+                <div style={{ fontSize: 13, color: t.textMuted, marginTop: 3 }}>Choose the one you like — it'll be set as your active card</div>
+              </div>
+              <button onClick={() => setMoreDesignsModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+              {[
+                { letter: 'A', url: moreDesignsModal.cardA, label: 'Option 1' },
+                { letter: 'B', url: moreDesignsModal.cardB, label: 'Option 2' },
+                { letter: 'C', url: moreDesignsModal.cardC, label: 'Option 3' },
+              ].map(({ letter, url, label }) => url && (
+                <div key={letter} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ borderRadius: 12, overflow: 'hidden', border: `2px solid ${t.border}`, aspectRatio: '4/5', background: t.input }}>
+                    <img src={url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </div>
+                  <button
+                    onClick={() => selectMoreDesign(letter)}
+                    style={{ width: '100%', padding: '10px 0', background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.01em' }}
+                  >
+                    Select {label}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Download Image Modal ── */}
       {downloadModal && results?.mediaUrl && (
