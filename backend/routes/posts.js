@@ -241,7 +241,7 @@ module.exports = (pool) => {
    */
   router.patch('/:id', authenticate, async (req, res) => {
     try {
-      const { caption, scheduledDate, timezone, platform, platforms, status, chosenVariation, mediaUrl, platformMediaUrls } = req.body;
+      const { caption, scheduledDate, timezone, platform, platforms, status, chosenVariation, mediaUrl, platformMediaUrls, carouselSlideUrls } = req.body;
 
       if (caption !== undefined && caption.length > 5000) {
         return res.status(400).json({ error: 'Caption too long (max 5000 characters)' });
@@ -303,6 +303,24 @@ module.exports = (pool) => {
       }
 
       const updatedPost = result.rows[0];
+
+      // Replace carousel slides when the user has selected a different design style
+      if (Array.isArray(carouselSlideUrls) && carouselSlideUrls.length > 0 && updatedPost.content_type === 'carousel') {
+        try {
+          await pool.query('DELETE FROM post_carousel_slides WHERE post_id = $1', [updatedPost.id]);
+          for (let si = 0; si < carouselSlideUrls.length; si++) {
+            const slideUrl = carouselSlideUrls[si];
+            if (slideUrl) {
+              await pool.query(
+                `INSERT INTO post_carousel_slides (post_id, slide_number, media_url, caption) VALUES ($1, $2, $3, NULL)`,
+                [updatedPost.id, si + 1, slideUrl]
+              );
+            }
+          }
+        } catch (slidesErr) {
+          console.warn('[Posts PATCH] Could not update carousel slides:', slidesErr.message);
+        }
+      }
 
       if (status === 'posted' && updatedPost.status === 'posted') {
         try {

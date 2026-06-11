@@ -1148,22 +1148,35 @@ export default function Wizard() {
       try {
         const patchData = { chosenVariation: selectedVariation };
         const styleKey = selectedCardStyle;
-        const styleUrl = extraPhotoCardUrls[styleKey] || results.photoCardUrls?.[styleKey] || results.photoCardUrls?.[selectedVariation];
-        if (styleUrl) patchData.mediaUrl = styleUrl;
-        // Pass platform-specific card sizes so Facebook gets 1200×630 and Instagram gets 1080×1350
-        const extraPlatformEntry = extraCardsByPlatform[styleKey];
-        if (extraPlatformEntry) {
-          const pmu = {};
-          if (extraPlatformEntry.facebook) pmu.facebook = extraPlatformEntry.facebook;
-          if (extraPlatformEntry.instagram) pmu.instagram = extraPlatformEntry.instagram;
-          if (extraPlatformEntry.google_business) pmu.google_business = extraPlatformEntry.google_business;
-          if (Object.keys(pmu).length > 0) patchData.platformMediaUrls = pmu;
-        } else if (results.photoCardsByPlatform) {
-          const pmu = {};
-          if (results.photoCardsByPlatform.facebook_feed?.[styleKey]) pmu.facebook = results.photoCardsByPlatform.facebook_feed[styleKey];
-          if (results.photoCardsByPlatform.instagram_feed?.[styleKey]) pmu.instagram = results.photoCardsByPlatform.instagram_feed[styleKey];
-          if (results.photoCardsByPlatform.google_business?.[styleKey]) pmu.google_business = results.photoCardsByPlatform.google_business[styleKey];
-          if (Object.keys(pmu).length > 0) patchData.platformMediaUrls = pmu;
+
+        if (results.contentTypeSelection === 'carousel') {
+          // Send all slide URLs for the selected design so the backend saves true carousel slides
+          const selectedSlides = (extraCarouselDesigns[styleKey]?.length
+            ? extraCarouselDesigns[styleKey]
+            : results.carouselCardDesigns?.[styleKey]
+          )?.filter(Boolean) || [];
+          if (selectedSlides.length > 0) {
+            patchData.carouselSlideUrls = selectedSlides;
+            patchData.mediaUrl = selectedSlides[0]; // first slide as the post thumbnail
+          }
+        } else {
+          const styleUrl = extraPhotoCardUrls[styleKey] || results.photoCardUrls?.[styleKey] || results.photoCardUrls?.[selectedVariation];
+          if (styleUrl) patchData.mediaUrl = styleUrl;
+          // Pass platform-specific card sizes so Facebook gets 1200×630 and Instagram gets 1080×1350
+          const extraPlatformEntry = extraCardsByPlatform[styleKey];
+          if (extraPlatformEntry) {
+            const pmu = {};
+            if (extraPlatformEntry.facebook) pmu.facebook = extraPlatformEntry.facebook;
+            if (extraPlatformEntry.instagram) pmu.instagram = extraPlatformEntry.instagram;
+            if (extraPlatformEntry.google_business) pmu.google_business = extraPlatformEntry.google_business;
+            if (Object.keys(pmu).length > 0) patchData.platformMediaUrls = pmu;
+          } else if (results.photoCardsByPlatform) {
+            const pmu = {};
+            if (results.photoCardsByPlatform.facebook_feed?.[styleKey]) pmu.facebook = results.photoCardsByPlatform.facebook_feed[styleKey];
+            if (results.photoCardsByPlatform.instagram_feed?.[styleKey]) pmu.instagram = results.photoCardsByPlatform.instagram_feed[styleKey];
+            if (results.photoCardsByPlatform.google_business?.[styleKey]) pmu.google_business = results.photoCardsByPlatform.google_business[styleKey];
+            if (Object.keys(pmu).length > 0) patchData.platformMediaUrls = pmu;
+          }
         }
         await apiPatch(`/api/posts/${results.postId}`, patchData);
       } catch {}
@@ -1225,21 +1238,33 @@ export default function Wizard() {
     try {
       const schedulePatch = { status: 'scheduled', scheduledDate: scheduleDate, chosenVariation: selectedVariation };
       const schedStyleKey = selectedCardStyle;
-      const scheduleStyleUrl = extraPhotoCardUrls[schedStyleKey] || results.photoCardUrls?.[schedStyleKey] || results.photoCardUrls?.[selectedVariation];
-      if (scheduleStyleUrl) schedulePatch.mediaUrl = scheduleStyleUrl;
-      const schedExtraPlatform = extraCardsByPlatform[schedStyleKey];
-      if (schedExtraPlatform) {
-        const pmu = {};
-        if (schedExtraPlatform.facebook) pmu.facebook = schedExtraPlatform.facebook;
-        if (schedExtraPlatform.instagram) pmu.instagram = schedExtraPlatform.instagram;
-        if (schedExtraPlatform.google_business) pmu.google_business = schedExtraPlatform.google_business;
-        if (Object.keys(pmu).length > 0) schedulePatch.platformMediaUrls = pmu;
-      } else if (results.photoCardsByPlatform) {
-        const pmu = {};
-        if (results.photoCardsByPlatform.facebook_feed?.[schedStyleKey]) pmu.facebook = results.photoCardsByPlatform.facebook_feed[schedStyleKey];
-        if (results.photoCardsByPlatform.instagram_feed?.[schedStyleKey]) pmu.instagram = results.photoCardsByPlatform.instagram_feed[schedStyleKey];
-        if (results.photoCardsByPlatform.google_business?.[schedStyleKey]) pmu.google_business = results.photoCardsByPlatform.google_business[schedStyleKey];
-        if (Object.keys(pmu).length > 0) schedulePatch.platformMediaUrls = pmu;
+
+      if (results.contentTypeSelection === 'carousel') {
+        const selectedSlides = (extraCarouselDesigns[schedStyleKey]?.length
+          ? extraCarouselDesigns[schedStyleKey]
+          : results.carouselCardDesigns?.[schedStyleKey]
+        )?.filter(Boolean) || [];
+        if (selectedSlides.length > 0) {
+          schedulePatch.carouselSlideUrls = selectedSlides;
+          schedulePatch.mediaUrl = selectedSlides[0];
+        }
+      } else {
+        const scheduleStyleUrl = extraPhotoCardUrls[schedStyleKey] || results.photoCardUrls?.[schedStyleKey] || results.photoCardUrls?.[selectedVariation];
+        if (scheduleStyleUrl) schedulePatch.mediaUrl = scheduleStyleUrl;
+        const schedExtraPlatform = extraCardsByPlatform[schedStyleKey];
+        if (schedExtraPlatform) {
+          const pmu = {};
+          if (schedExtraPlatform.facebook) pmu.facebook = schedExtraPlatform.facebook;
+          if (schedExtraPlatform.instagram) pmu.instagram = schedExtraPlatform.instagram;
+          if (schedExtraPlatform.google_business) pmu.google_business = schedExtraPlatform.google_business;
+          if (Object.keys(pmu).length > 0) schedulePatch.platformMediaUrls = pmu;
+        } else if (results.photoCardsByPlatform) {
+          const pmu = {};
+          if (results.photoCardsByPlatform.facebook_feed?.[schedStyleKey]) pmu.facebook = results.photoCardsByPlatform.facebook_feed[schedStyleKey];
+          if (results.photoCardsByPlatform.instagram_feed?.[schedStyleKey]) pmu.instagram = results.photoCardsByPlatform.instagram_feed[schedStyleKey];
+          if (results.photoCardsByPlatform.google_business?.[schedStyleKey]) pmu.google_business = results.photoCardsByPlatform.google_business[schedStyleKey];
+          if (Object.keys(pmu).length > 0) schedulePatch.platformMediaUrls = pmu;
+        }
       }
       await apiPatch(`/api/posts/${results.postId}`, schedulePatch);
       wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, mediaKept: !!results.mediaUrl, wasPublished: false }).catch(() => {});

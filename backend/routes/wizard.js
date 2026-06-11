@@ -1657,6 +1657,27 @@ Return ONLY valid JSON (no markdown, no backticks):
             console.warn('[Wizard] Could not save post_variations (table may not exist yet):', variationsErr.message);
           }
 
+          // Save carousel slides (design A as default — user can switch design before posting)
+          if (answers.contentTypeSelection === 'carousel') {
+            try {
+              const designASlides = mediaVariants._carouselCardDesigns?.A || [];
+              if (designASlides.length > 0) {
+                for (let si = 0; si < designASlides.length; si++) {
+                  const slideUrl = designASlides[si];
+                  if (slideUrl) {
+                    await pool.query(
+                      `INSERT INTO post_carousel_slides (post_id, slide_number, media_url, caption)
+                       VALUES ($1, $2, $3, NULL)`,
+                      [savedPostId, si + 1, slideUrl]
+                    );
+                  }
+                }
+              }
+            } catch (slidesErr) {
+              console.warn('[Wizard] Could not save post_carousel_slides:', slidesErr.message);
+            }
+          }
+
           // Auto-save generated image/video to Media Library (non-blocking)
           if (mediaUrl) {
             const fmt = answers.selectedFormat;

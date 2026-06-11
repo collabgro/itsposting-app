@@ -936,6 +936,16 @@ module.exports = (pool) => {
       if (!postResult.rows[0]) return res.status(404).json({ error: 'Post not found' });
       const post = { ...postResult.rows[0], customer_id: req.customerId };
 
+      // Attach carousel slide URLs so SocialPublisher can publish a true multi-image carousel
+      if (post.content_type === 'carousel') {
+        const slidesRes = await pool.query(
+          `SELECT media_url FROM post_carousel_slides WHERE post_id = $1 ORDER BY slide_number`,
+          [post.id]
+        );
+        const slideUrls = slidesRes.rows.map(r => r.media_url).filter(Boolean);
+        if (slideUrls.length > 1) post.slides = slideUrls;
+      }
+
       // Pre-validate that all requested platforms are connected for this customer (legacy path)
       if (!accountIds?.length && platforms?.length > 0) {
         const connectedResult = await pool.query(

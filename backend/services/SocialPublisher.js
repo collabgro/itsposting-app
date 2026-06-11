@@ -289,6 +289,11 @@ class SocialPublisher {
     };
 
     try {
+      // ── Facebook Multi-Photo (carousel) ────────────────────────────────────
+      if (post.slides?.length >= 2 && format !== 'reel' && format !== 'story') {
+        return this._postFacebookMultiPhoto(pageId, token, caption, post.slides, post.location_id);
+      }
+
       // ── Facebook Reel ──────────────────────────────────────────────────────
       if (format === 'reel') {
         if (!post.media_url || !isVideo) {
@@ -402,10 +407,16 @@ class SocialPublisher {
     const igUserId = account.account_id;
     const token    = account.access_token;
     if (!igUserId) throw new Error('Instagram Business Account ID not stored — reconnect the account');
-    if (!post.media_url && !post.platform_media_urls?.instagram) throw new Error('Instagram requires an image or video URL');
+    if (!post.media_url && !post.platform_media_urls?.instagram && !post.slides?.length) throw new Error('Instagram requires an image or video URL');
 
     const caption  = this.buildCaption(post, 'instagram');
     const format   = post.ig_post_format || 'feed';
+
+    // ── Instagram Carousel (2–10 images, Feed only) ───────────────────────────
+    if (post.slides?.length >= 2 && format === 'feed') {
+      return this._postInstagramCarousel(igUserId, token, caption, post.slides);
+    }
+
     const igMediaUrl = post.platform_media_urls?.instagram || post.media_url;
     const isVideo  = this._isVideoUrl(igMediaUrl);
 
@@ -487,6 +498,78 @@ class SocialPublisher {
     } catch (err) {
       _igErr(err);
     }
+  }
+
+  // ── Instagram Carousel (2-10 images, Feed only) ──────────────────────────
+  // Instagram Graph API: create item containers → carousel container → publish.
+  async _postInstagramCarousel(igUserId, token, caption, slideUrls) {
+    const slides = slideUrls.slice(0, 10); // Instagram hard cap: 10 items
+
+    // Step 1 — create an item container for every slide (is_carousel_item=true)
+    const itemIds = [];
+    for (const url of slides) {
+      const itemRes = await axios.post(
+        `https://graph.facebook.com/v18.0/${igUserId}/media`,
+        { image_url: url, is_carousel_item: true, access_token: token },
+        { timeout: 30000 }
+      );
+      itemIds.push(itemRes.data.id);
+    }
+
+    // Step 2 — create the carousel container
+    const carouselRes = await axios.post(
+      `https://graph.facebook.com/v18.0/${igUserId}/media`,
+      { media_type: 'CAROUSEL', caption, children: itemIds.join(','), access_token: token },
+      { timeout: 30000 }
+    );
+    const carouselId = carouselRes.data.id;
+
+    // Step 3 — wait for container to be ready (item containers are usually instant)
+    await this._waitForIgContainer(igUserId, carouselId, token, 60000);
+
+    // Step 4 — publish
+    const publishRes = await axios.post(
+      `https://graph.facebook.com/v18.0/${igUserId}/media_publish`,
+      { creation_id: carouselId, access_token: token },
+      { timeout: 30000 }
+    );
+    const mediaId = publishRes.data.id;
+    await this._postFollowUpComment(mediaId, token, null);
+    return mediaId;
+  }
+
+  // ── Facebook Multi-Photo post ─────────────────────────────────────────────
+  // Upload each photo as unpublished, then attach to a single feed post.
+  async _postFacebookMultiPhoto(pageId, token, caption, slideUrls, locationId) {
+    const slides = slideUrls.slice(0, 10); // reasonable cap
+
+    // Upload each photo as unpublished to get a photo ID
+    const photoIds = await Promise.all(
+      slides.map(url =>
+        axios.post(
+          `https://graph.facebook.com/v18.0/${pageId}/photos`,
+          { url, published: false, access_token: token },
+          { timeout: 30000 }
+        ).then(r => r.data.id)
+      )
+    );
+
+    // Post to feed with attached_media
+    const feedBody = {
+      message: caption,
+      attached_media: photoIds.map(id => ({ media_fbid: id })),
+      access_token: token,
+    };
+    if (locationId) feedBody.place = locationId;
+
+    const feedRes = await axios.post(
+      `https://graph.facebook.com/v18.0/${pageId}/feed`,
+      feedBody,
+      { timeout: 30000 }
+    );
+    const postId = feedRes.data.id;
+    await this._postFollowUpComment(postId, token, null);
+    return postId;
   }
 
   async _waitForIgContainer(igUserId, creationId, token, maxWaitMs = 45000) {
