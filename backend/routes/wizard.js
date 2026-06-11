@@ -1359,6 +1359,94 @@ Return ONLY valid JSON (no markdown, no backticks):
             }
             mediaUrl = slideResults[0]?.imageUrl || null;
             mediaVariants = { slides: slideResults };
+
+            // ── Carousel Card Designs (3 branded templates × N slides) ─────────
+            if (PhotoCardService && ImageResizer && slideResults.some(s => s.imageUrl)) {
+              try {
+                const WIZARD_CARD_TRIGGER = { just_finished_job: 'job_finished', running_promo: 'promotion' };
+                const carouselCardTrigger = WIZARD_CARD_TRIGGER[answers.contentType] || answers.contentType || 'job_finished';
+                const carouselLineupIndex = PhotoCardService.getDesignFingerprint
+                  ? PhotoCardService.getDesignFingerprint(session.customer).lineupOffset % 3
+                  : 0;
+
+                // Fetch all raw slide buffers in parallel
+                const slideBuffers = await Promise.all(
+                  slideResults.map(s =>
+                    s.imageUrl ? ImageResizer.fetchImageAsBuffer(s.imageUrl).catch(() => null) : Promise.resolve(null)
+                  )
+                );
+
+                const carouselCardDesigns = { A: [], B: [], C: [] };
+                const ts  = Date.now();
+                const cid = session.customerId;
+
+                for (let si = 0; si < slideResults.length; si++) {
+                  const slide = slideResults[si];
+                  const rawBuffer = slideBuffers[si];
+                  if (!rawBuffer) {
+                    carouselCardDesigns.A.push(slide.imageUrl || null);
+                    carouselCardDesigns.B.push(slide.imageUrl || null);
+                    carouselCardDesigns.C.push(slide.imageUrl || null);
+                    continue;
+                  }
+
+                  const slideCardOverlay = {
+                    headline: slide.overlayText || '',
+                    eyebrow: session.customer.business_name
+                      ? `${session.customer.business_name}${session.customer.city ? ' · ' + String(session.customer.city).toUpperCase().slice(0, 20) : ''}`
+                      : '',
+                    services: [],
+                    subtext: '',
+                    cta: '',
+                    badge: '',
+                    uppercase: true,
+                  };
+                  const fixedSlideOverlay = validateAndFixCardOverlay(slideCardOverlay, session.customer);
+
+                  // Use instagram_square (1080×1080) for carousel — native 1:1 aspect ratio
+                  const slideCards = await PhotoCardService.generatePhotoCardsForPlatforms(
+                    rawBuffer, fixedSlideOverlay, session.customer, carouselCardTrigger,
+                    ['instagram_square'], null, carouselLineupIndex
+                  );
+                  const squareCards = slideCards.instagram_square;
+                  if (!squareCards) { carouselCardDesigns.A.push(null); carouselCardDesigns.B.push(null); carouselCardDesigns.C.push(null); continue; }
+
+                  const [urlA, urlB, urlC] = await Promise.all([
+                    ImageResizer.uploadToCloudinary(squareCards.A, `itsposting/${cid}/carousel-card-${ts}-s${si + 1}-A`),
+                    ImageResizer.uploadToCloudinary(squareCards.B, `itsposting/${cid}/carousel-card-${ts}-s${si + 1}-B`),
+                    ImageResizer.uploadToCloudinary(squareCards.C, `itsposting/${cid}/carousel-card-${ts}-s${si + 1}-C`),
+                  ]);
+                  carouselCardDesigns.A.push(urlA);
+                  carouselCardDesigns.B.push(urlB);
+                  carouselCardDesigns.C.push(urlC);
+                }
+
+                // Save raw slide URLs BEFORE overwriting with card URLs
+                const rawSlideUrls = slideResults.map(s => s.imageUrl || null);
+                const slideOverlayTexts = slideResults.map(s => s.overlayText || '');
+
+                // Update slides to use design-A images as default display
+                for (let si = 0; si < slideResults.length; si++) {
+                  if (carouselCardDesigns.A[si]) slideResults[si].imageUrl = carouselCardDesigns.A[si];
+                }
+                mediaVariants.slides = slideResults;
+                mediaUrl = carouselCardDesigns.A[0] || mediaUrl;
+
+                const carouselPhotoCardUrls = {
+                  A: carouselCardDesigns.A[0] || null,
+                  B: carouselCardDesigns.B[0] || null,
+                  C: carouselCardDesigns.C[0] || null,
+                };
+                mediaVariants._photoCardUrls       = carouselPhotoCardUrls;
+                mediaVariants._carouselCardDesigns  = carouselCardDesigns;
+                mediaVariants._cardLineupIndex      = carouselLineupIndex;
+                mediaVariants._cardTrigger          = carouselCardTrigger;
+                mediaVariants._rawSlideUrls         = rawSlideUrls;
+                mediaVariants._slideOverlayTexts    = slideOverlayTexts;
+              } catch (carouselCardErr) {
+                console.warn('[Wizard] Carousel card design generation failed (using raw photos):', carouselCardErr.message);
+              }
+            }
           } else {
             // Photo — try once, retry once on failure
             const imgGenStart = Date.now();
@@ -1744,6 +1832,9 @@ Return ONLY valid JSON (no markdown, no backticks):
         svgCards: mediaVariants._svgCards || null,
         cardLineupIndex: mediaVariants._cardLineupIndex ?? null,
         cardTrigger: mediaVariants._cardTrigger || null,
+        carouselCardDesigns: mediaVariants._carouselCardDesigns || null,
+        rawSlideUrls: mediaVariants._rawSlideUrls || null,
+        slideOverlayTexts: mediaVariants._slideOverlayTexts || null,
         imageFailed,
         videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
         videoJobId,
@@ -2404,9 +2495,15 @@ Return ONLY valid JSON (no markdown, no backticks):
   // POST /api/wizard/more-designs — generate 3 more card designs from an alternate template lineup
   router.post('/more-designs', authenticate, async (req, res) => {
     try {
-      const { photoUrl, cardOverlay, wizardTrigger, lineupIndex } = req.body;
-      if (!photoUrl || !cardOverlay || lineupIndex === undefined || lineupIndex === null) {
+      const { photoUrl, cardOverlay, wizardTrigger, lineupIndex,
+              slideUrls, slideOverlayTexts } = req.body;
+      const isCarouselMode = Array.isArray(slideUrls) && slideUrls.length > 0;
+
+      if (!isCarouselMode && (!photoUrl || !cardOverlay)) {
         return res.status(400).json({ error: 'photoUrl, cardOverlay, and lineupIndex are required' });
+      }
+      if (lineupIndex === undefined || lineupIndex === null) {
+        return res.status(400).json({ error: 'lineupIndex is required' });
       }
       const idx = parseInt(lineupIndex, 10);
       if (isNaN(idx) || idx < 0 || idx > 2) {
@@ -2414,13 +2511,69 @@ Return ONLY valid JSON (no markdown, no backticks):
       }
 
       const customerResult = await pool.query(
-        `SELECT id, business_name, industry, location, phone, brand_colors, logo_url FROM customers WHERE id = $1`,
+        `SELECT id, business_name, city, industry, location, phone, brand_colors, logo_url FROM customers WHERE id = $1`,
         [req.customerId]
       );
       const customer = customerResult.rows[0];
       if (!customer) return res.status(404).json({ error: 'Customer not found' });
       if (!PhotoCardService || !ImageResizer) return res.status(503).json({ error: 'Photo card service unavailable' });
 
+      const ts  = Date.now();
+      const cid = req.customerId;
+
+      if (isCarouselMode) {
+        // ── Carousel mode: generate 3 designs × N slides ──────────────────────
+        const overlayTexts = Array.isArray(slideOverlayTexts) ? slideOverlayTexts : [];
+        const carouselCardDesigns = { A: [], B: [], C: [] };
+
+        for (let si = 0; si < slideUrls.length; si++) {
+          const rawUrl = slideUrls[si];
+          if (!rawUrl) {
+            carouselCardDesigns.A.push(null);
+            carouselCardDesigns.B.push(null);
+            carouselCardDesigns.C.push(null);
+            continue;
+          }
+          const rawBuffer = await ImageResizer.fetchImageAsBuffer(rawUrl);
+          const slideCardOverlay = {
+            headline: overlayTexts[si] || '',
+            eyebrow: customer.business_name
+              ? `${customer.business_name}${customer.city ? ' · ' + String(customer.city).toUpperCase().slice(0, 20) : ''}`
+              : '',
+            services: [], subtext: '', cta: '', badge: '', uppercase: true,
+          };
+          validateAndFixCardOverlay(slideCardOverlay, customer);
+
+          const slideCards = await PhotoCardService.generatePhotoCardsForPlatforms(
+            rawBuffer, slideCardOverlay, customer, wizardTrigger || null,
+            ['instagram_square'], null, idx
+          );
+          const squareCards = slideCards.instagram_square;
+          if (!squareCards) { carouselCardDesigns.A.push(null); carouselCardDesigns.B.push(null); carouselCardDesigns.C.push(null); continue; }
+
+          const [urlA, urlB, urlC] = await Promise.all([
+            ImageResizer.uploadToCloudinary(squareCards.A, `itsposting/${cid}/carousel-more-${ts}-s${si + 1}-A`),
+            ImageResizer.uploadToCloudinary(squareCards.B, `itsposting/${cid}/carousel-more-${ts}-s${si + 1}-B`),
+            ImageResizer.uploadToCloudinary(squareCards.C, `itsposting/${cid}/carousel-more-${ts}-s${si + 1}-C`),
+          ]);
+          carouselCardDesigns.A.push(urlA);
+          carouselCardDesigns.B.push(urlB);
+          carouselCardDesigns.C.push(urlC);
+        }
+
+        return res.json({
+          carouselDesigns: carouselCardDesigns,
+          cards: {
+            A: carouselCardDesigns.A[0] || null,
+            B: carouselCardDesigns.B[0] || null,
+            C: carouselCardDesigns.C[0] || null,
+          },
+          lineupIndex: idx,
+          hasMore: idx < 2,
+        });
+      }
+
+      // ── Photo mode (original behaviour) ─────────────────────────────────────
       validateAndFixCardOverlay(cardOverlay, customer);
       const rawBuffer = await ImageResizer.fetchImageAsBuffer(photoUrl);
 
@@ -2437,8 +2590,6 @@ Return ONLY valid JSON (no markdown, no backticks):
       const fbCards = platformCards.facebook_feed || igCards;
       const gbCards = platformCards.google_business || igCards;
 
-      const ts = Date.now();
-      const cid = req.customerId;
       const [urlA, urlB, urlC, fbA, fbB, fbC, gbA, gbB, gbC] = await Promise.all([
         ImageResizer.uploadToCloudinary(igCards.A, `itsposting/${cid}/wizard-more-${ts}-A`),
         ImageResizer.uploadToCloudinary(igCards.B, `itsposting/${cid}/wizard-more-${ts}-B`),

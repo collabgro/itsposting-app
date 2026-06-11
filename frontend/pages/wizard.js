@@ -573,6 +573,7 @@ export default function Wizard() {
   const [selectedPlatformTab, setSelectedPlatformTab] = useState('instagram_feed');
   const [extraPhotoCardUrls, setExtraPhotoCardUrls] = useState({});
   const [extraCardsByPlatform, setExtraCardsByPlatform] = useState({});
+  const [extraCarouselDesigns, setExtraCarouselDesigns] = useState({}); // { D: [slide1,slide2,...], E: [...] }
   const [loadingMoreDesigns, setLoadingMoreDesigns] = useState(false);
   const [altLineupQueue, setAltLineupQueue] = useState([]);
   const [moreDesignsModal, setMoreDesignsModal] = useState(null);
@@ -926,6 +927,7 @@ export default function Wizard() {
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
     setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null); setSelectedPlatformTab('instagram_feed');
     setSelectedVariation('A'); setSelectedCardStyle('A'); setActiveSlide(0); setActionLoading(false); setActionToast(null);
+    setExtraCarouselDesigns({});
     setSvgCards(null); setActiveSvg(null); setCardEditOpen(false); setEditingOverlay(null);
     setShowScheduleModal(false); setScheduleDate(''); setIsEditing(false); setEditedCaption('');
     setSmartScheduleDismissed(false);
@@ -1086,6 +1088,7 @@ export default function Wizard() {
       setResults(genRes);
       setExtraPhotoCardUrls({});
       setExtraCardsByPlatform({});
+      setExtraCarouselDesigns({});
       setMoreDesignsModal(null);
       setSelectedCardStyle('A');
       setActiveSlide(0);
@@ -1311,41 +1314,65 @@ export default function Wizard() {
   const getCardUrl = (style) =>
     extraPhotoCardUrls[style] || results?.photoCardUrls?.[style] || null;
 
+  const getCarouselSlideUrl = (designKey, slideIndex) =>
+    extraCarouselDesigns[designKey]?.[slideIndex]
+    || results?.carouselCardDesigns?.[designKey]?.[slideIndex]
+    || results?.mediaVariants?.slides?.[slideIndex]?.imageUrl
+    || null;
+
   const loadMoreDesigns = async () => {
-    if (loadingMoreDesigns || altLineupQueue.length === 0 || !results?.rawPhotoUrl) return;
+    if (loadingMoreDesigns || altLineupQueue.length === 0) return;
+    const isCarousel = results?.contentTypeSelection === 'carousel';
+    if (!isCarousel && !results?.rawPhotoUrl) return;
+    if (isCarousel && !results?.rawSlideUrls?.length) return;
     setLoadingMoreDesigns(true);
     const [nextIdx, ...remaining] = altLineupQueue;
     try {
-      const { data } = await wizardAPI.moreDesigns({
-        photoUrl: results.rawPhotoUrl,
-        cardOverlay: results.cardOverlay,
-        wizardTrigger: results.cardTrigger,
-        lineupIndex: nextIdx,
-      });
       const loadedCount = Object.keys(extraPhotoCardUrls).length;
       const keyGroups = [['D','E','F'], ['G','H','I']];
       const keys = keyGroups[Math.floor(loadedCount / 3)] || keyGroups[0];
-      // Pre-evaluate card URLs inside try/catch to prevent React deferred evaluation crash
-      const cardA = data.cards?.A;
-      const cardB = data.cards?.B;
-      const cardC = data.cards?.C;
-      // Write all new cards into state immediately, then open the gallery
-      const newExtras = {};
-      const newByPlatform = {};
-      if (cardA) {
-        newExtras[keys[0]] = cardA;
-        if (data.cardsByPlatform) newByPlatform[keys[0]] = { facebook: data.cardsByPlatform.facebook_feed?.A, instagram: data.cardsByPlatform.instagram_feed?.A, google_business: data.cardsByPlatform.google_business?.A };
+
+      if (isCarousel) {
+        const { data } = await wizardAPI.moreDesigns({
+          slideUrls: results.rawSlideUrls,
+          slideOverlayTexts: results.slideOverlayTexts || [],
+          wizardTrigger: results.cardTrigger,
+          lineupIndex: nextIdx,
+        });
+        const newDesigns = {};
+        const newThumbs = {};
+        if (data.carouselDesigns?.A) { newDesigns[keys[0]] = data.carouselDesigns.A; newThumbs[keys[0]] = data.cards?.A; }
+        if (data.carouselDesigns?.B) { newDesigns[keys[1]] = data.carouselDesigns.B; newThumbs[keys[1]] = data.cards?.B; }
+        if (data.carouselDesigns?.C) { newDesigns[keys[2]] = data.carouselDesigns.C; newThumbs[keys[2]] = data.cards?.C; }
+        setExtraCarouselDesigns(prev => ({ ...prev, ...newDesigns }));
+        setExtraPhotoCardUrls(prev => ({ ...prev, ...newThumbs }));
+      } else {
+        const { data } = await wizardAPI.moreDesigns({
+          photoUrl: results.rawPhotoUrl,
+          cardOverlay: results.cardOverlay,
+          wizardTrigger: results.cardTrigger,
+          lineupIndex: nextIdx,
+        });
+        const cardA = data.cards?.A;
+        const cardB = data.cards?.B;
+        const cardC = data.cards?.C;
+        const newExtras = {};
+        const newByPlatform = {};
+        if (cardA) {
+          newExtras[keys[0]] = cardA;
+          if (data.cardsByPlatform) newByPlatform[keys[0]] = { facebook: data.cardsByPlatform.facebook_feed?.A, instagram: data.cardsByPlatform.instagram_feed?.A, google_business: data.cardsByPlatform.google_business?.A };
+        }
+        if (cardB) {
+          newExtras[keys[1]] = cardB;
+          if (data.cardsByPlatform) newByPlatform[keys[1]] = { facebook: data.cardsByPlatform.facebook_feed?.B, instagram: data.cardsByPlatform.instagram_feed?.B, google_business: data.cardsByPlatform.google_business?.B };
+        }
+        if (cardC) {
+          newExtras[keys[2]] = cardC;
+          if (data.cardsByPlatform) newByPlatform[keys[2]] = { facebook: data.cardsByPlatform.facebook_feed?.C, instagram: data.cardsByPlatform.instagram_feed?.C, google_business: data.cardsByPlatform.google_business?.C };
+        }
+        setExtraPhotoCardUrls(prev => ({ ...prev, ...newExtras }));
+        setExtraCardsByPlatform(prev => ({ ...prev, ...newByPlatform }));
       }
-      if (cardB) {
-        newExtras[keys[1]] = cardB;
-        if (data.cardsByPlatform) newByPlatform[keys[1]] = { facebook: data.cardsByPlatform.facebook_feed?.B, instagram: data.cardsByPlatform.instagram_feed?.B, google_business: data.cardsByPlatform.google_business?.B };
-      }
-      if (cardC) {
-        newExtras[keys[2]] = cardC;
-        if (data.cardsByPlatform) newByPlatform[keys[2]] = { facebook: data.cardsByPlatform.facebook_feed?.C, instagram: data.cardsByPlatform.instagram_feed?.C, google_business: data.cardsByPlatform.google_business?.C };
-      }
-      setExtraPhotoCardUrls(prev => ({ ...prev, ...newExtras }));
-      setExtraCardsByPlatform(prev => ({ ...prev, ...newByPlatform }));
       setAltLineupQueue(remaining);
       setMoreDesignsModal(true);
     } catch (err) {
@@ -2088,7 +2115,7 @@ export default function Wizard() {
                 )}
 
                 {/* Media display — aspect ratio tracks selected platform */}
-                <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, aspectRatio: results.contentTypeSelection === 'carousel' ? '1/1' : (({ instagram_feed: '4/5', facebook_feed: '1/1', linkedin_feed: '1200/627', google_business: '4/3', instagram_square: '1/1' })[results.photoCardsByPlatform ? selectedPlatformTab : 'instagram_feed'] || '4/5'), display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, transition: 'aspect-ratio 250ms ease', boxShadow: `0 8px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
+                <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, aspectRatio: results.contentTypeSelection === 'carousel' ? (results.carouselCardDesigns ? '4/5' : '1/1') : (({ instagram_feed: '4/5', facebook_feed: '1/1', linkedin_feed: '1200/627', google_business: '4/3', instagram_square: '1/1' })[results.photoCardsByPlatform ? selectedPlatformTab : 'instagram_feed'] || '4/5'), display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, transition: 'aspect-ratio 250ms ease', boxShadow: `0 8px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
                   {results.mediaUrl && results.videoRendering !== true ? (
                     results.contentTypeSelection === 'video' ? (
                       <video src={results.mediaUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -2096,7 +2123,7 @@ export default function Wizard() {
                       (() => {
                         const carouselSlides = results.mediaVariants?.slides || [];
                         const slide = carouselSlides[activeSlide];
-                        const slideImg = slide?.imageUrl || results.mediaUrl;
+                        const slideImg = getCarouselSlideUrl(selectedCardStyle, activeSlide) || slide?.imageUrl || results.mediaUrl;
                         return (
                           <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                             <img src={slideImg} alt={`Slide ${activeSlide + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -2245,8 +2272,8 @@ export default function Wizard() {
                   )}
                 </div>
 
-                {/* ── Card Style Picker — 3 template thumbnails ── */}
-                {results.contentTypeSelection === 'photo' && results.photoCardUrls && (
+                {/* ── Card Style Picker — 3 template thumbnails (photo + carousel) ── */}
+                {(results.contentTypeSelection === 'photo' || results.contentTypeSelection === 'carousel') && results.photoCardUrls && (
                   (() => {
                     const ALL_STYLE_KEYS = ['A','B','C','D','E','F','G','H','I'];
                     const styleLabels = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
@@ -2365,6 +2392,7 @@ export default function Wizard() {
                 {results.contentTypeSelection === 'carousel' && (results.mediaVariants?.slides || []).length > 1 && (
                   (() => {
                     const slides = results.mediaVariants.slides;
+                    const aspectR = results.carouselCardDesigns ? '4/5' : '1/1';
                     return (
                       <div style={{ marginBottom: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
@@ -2373,6 +2401,7 @@ export default function Wizard() {
                         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(slides.length, 5)}, 1fr)`, gap: 8 }}>
                           {slides.map((slide, i) => {
                             const isActive = i === activeSlide;
+                            const thumbUrl = getCarouselSlideUrl(selectedCardStyle, i) || slide.imageUrl || null;
                             return (
                               <button key={i} type="button" onClick={() => setActiveSlide(i)} style={{
                                 position: 'relative', border: `2px solid ${isActive ? t.primary : 'transparent'}`,
@@ -2380,10 +2409,10 @@ export default function Wizard() {
                                 transform: isActive ? 'scale(1.04)' : 'scale(1)',
                                 transition: 'all 160ms cubic-bezier(0.34,1.56,0.64,1)',
                               }}>
-                                {slide.imageUrl ? (
-                                  <img src={slide.imageUrl} alt={`Slide ${i + 1}`} style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }} />
+                                {thumbUrl ? (
+                                  <img src={thumbUrl} alt={`Slide ${i + 1}`} style={{ width: '100%', aspectRatio: aspectR, objectFit: 'cover', display: 'block' }} />
                                 ) : (
-                                  <div style={{ width: '100%', aspectRatio: '1/1', background: t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <div style={{ width: '100%', aspectRatio: aspectR, background: t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <span style={{ fontSize: 10, color: t.textMuted }}>Slide {i + 1}</span>
                                   </div>
                                 )}
