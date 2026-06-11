@@ -575,6 +575,7 @@ export default function Wizard() {
   const [loadingMoreDesigns, setLoadingMoreDesigns] = useState(false);
   const [altLineupQueue, setAltLineupQueue] = useState([]);
   const [wizardPreviewPlatform, setWizardPreviewPlatform] = useState('all');
+  const [previewCaptionExpanded, setPreviewCaptionExpanded] = useState(false);
 
   const [connectedPlatforms, setConnectedPlatforms] = useState(null); // null = not yet loaded
   const [socialAccountsList, setSocialAccountsList] = useState([]);
@@ -1132,11 +1133,20 @@ export default function Wizard() {
         ? ALL_PLATFORM_IDS
         : rawPlatform ? [rawPlatform] : [];
 
-      // Record chosen variation + update media_url to the selected card style before publishing
+      // Record chosen variation + update media_url + platform-specific URLs before publishing
       try {
         const patchData = { chosenVariation: selectedVariation };
-        const styleUrl = extraPhotoCardUrls[selectedCardStyle] || results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation];
+        const styleKey = selectedCardStyle;
+        const styleUrl = extraPhotoCardUrls[styleKey] || results.photoCardUrls?.[styleKey] || results.photoCardUrls?.[selectedVariation];
         if (styleUrl) patchData.mediaUrl = styleUrl;
+        // Pass platform-specific card sizes so Facebook gets 1200×630 and Instagram gets 1080×1350
+        if (results.photoCardsByPlatform) {
+          const pmu = {};
+          if (results.photoCardsByPlatform.facebook_feed?.[styleKey]) pmu.facebook = results.photoCardsByPlatform.facebook_feed[styleKey];
+          if (results.photoCardsByPlatform.instagram_feed?.[styleKey]) pmu.instagram = results.photoCardsByPlatform.instagram_feed[styleKey];
+          if (results.photoCardsByPlatform.google_business?.[styleKey]) pmu.google_business = results.photoCardsByPlatform.google_business[styleKey];
+          if (Object.keys(pmu).length > 0) patchData.platformMediaUrls = pmu;
+        }
         await apiPatch(`/api/posts/${results.postId}`, patchData);
       } catch {}
       wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, mediaKept: !!results.mediaUrl, wasPublished: true }).catch(() => {});
@@ -1196,8 +1206,16 @@ export default function Wizard() {
     setActionLoading(true);
     try {
       const schedulePatch = { status: 'scheduled', scheduledDate: scheduleDate, chosenVariation: selectedVariation };
-      const scheduleStyleUrl = extraPhotoCardUrls[selectedCardStyle] || results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation];
+      const schedStyleKey = selectedCardStyle;
+      const scheduleStyleUrl = extraPhotoCardUrls[schedStyleKey] || results.photoCardUrls?.[schedStyleKey] || results.photoCardUrls?.[selectedVariation];
       if (scheduleStyleUrl) schedulePatch.mediaUrl = scheduleStyleUrl;
+      if (results.photoCardsByPlatform) {
+        const pmu = {};
+        if (results.photoCardsByPlatform.facebook_feed?.[schedStyleKey]) pmu.facebook = results.photoCardsByPlatform.facebook_feed[schedStyleKey];
+        if (results.photoCardsByPlatform.instagram_feed?.[schedStyleKey]) pmu.instagram = results.photoCardsByPlatform.instagram_feed[schedStyleKey];
+        if (results.photoCardsByPlatform.google_business?.[schedStyleKey]) pmu.google_business = results.photoCardsByPlatform.google_business[schedStyleKey];
+        if (Object.keys(pmu).length > 0) schedulePatch.platformMediaUrls = pmu;
+      }
       await apiPatch(`/api/posts/${results.postId}`, schedulePatch);
       wizardAPI.feedback({ postId: results.postId, variationSelected: selectedVariation, mediaKept: !!results.mediaUrl, wasPublished: false }).catch(() => {});
       setShowScheduleModal(false);
@@ -1309,11 +1327,12 @@ export default function Wizard() {
 
   return (
     <Layout title="Post Wizard" subtitle={`Guided content creation — powered by ${aiName}`}>
-      <div style={{ maxWidth: step === 'results' ? 1200 : 800, margin: '0 auto', transition: 'max-width 300ms ease' }}>
+      <div style={{ maxWidth: step === 'results' ? 'none' : 800, margin: '0 auto', transition: 'max-width 300ms ease' }}>
         <style>{`
           @keyframes wizCardPop  { 0%{transform:translateY(-5px) scale(1.04)} 30%{transform:translateY(-7px) scale(1.06)} 100%{transform:translateY(-5px) scale(1.04)} }
           @keyframes wizLabelIn  { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
           @keyframes wizPencilIn { from{opacity:0;transform:translateY(-3px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         `}</style>
 
         {/* ── Onboarding welcome banner ── */}
@@ -2902,6 +2921,7 @@ export default function Wizard() {
 
             {/* ── Full-width Post Preview ── */}
             {!isMobile && (() => {
+              try {
               const varData = results?.variations?.[selectedVariation];
               if (!varData) return null;
               const previewPlatforms = (results?.platform === 'all'
@@ -2916,7 +2936,12 @@ export default function Wizard() {
                 hashtags: varData.hashtags || [],
                 content_type: results?.contentTypeSelection === 'static' ? 'static' : 'photo',
               };
-              const previewCaption = [varData.caption, varData.engagementQuestion].filter(Boolean).join('\n\n');
+              const fullPreviewCaption = [varData.caption, varData.engagementQuestion].filter(Boolean).join('\n\n');
+              const PREVIEW_CAP_MAX = 220;
+              const needsCaptionExpand = fullPreviewCaption.length > PREVIEW_CAP_MAX;
+              const previewCaption = (previewCaptionExpanded || !needsCaptionExpand)
+                ? fullPreviewCaption
+                : fullPreviewCaption.slice(0, PREVIEW_CAP_MAX);
               const getProfileForPlatform = (pid) => {
                 const acct = socialAccountsList.find(a => a.platform === pid);
                 return { name: acct?.account_name || acct?.username || 'Your Business', picture: acct?.profile_picture || null };
@@ -2970,8 +2995,25 @@ export default function Wizard() {
                       {ActiveMockup && <ActiveMockup post={previewPost} caption={previewCaption} profile={getProfileForPlatform(activePid)} />}
                     </div>
                   )}
+
+                  {/* See more / See less caption toggle */}
+                  {needsCaptionExpand && (
+                    <div style={{ marginTop: 12, textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewCaptionExpanded(v => !v)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: t.primary, padding: '4px 10px' }}
+                      >
+                        {previewCaptionExpanded ? 'See less ↑' : '…See more ↓'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
+              } catch (e) {
+                console.error('[Wizard] Post Preview render error:', e);
+                return null;
+              }
             })()}
 
             {/* ── Save as template modal ── */}

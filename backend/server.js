@@ -441,6 +441,7 @@ console.log('══════════════════════�
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS platform_post_ids JSONB`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS posted_at TIMESTAMP`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS last_metrics_sync TIMESTAMP`,
+    `ALTER TABLE posts ADD COLUMN IF NOT EXISTS platform_media_urls JSONB`,
     `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS account_username VARCHAR(255)`,
     `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS refresh_token TEXT`,
     `ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS connected_at TIMESTAMP DEFAULT NOW()`,

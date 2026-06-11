@@ -343,7 +343,8 @@ class SocialPublisher {
       }
 
       // ── Facebook Feed (default) ────────────────────────────────────────────
-      const effectiveMediaUrl = post.media_url || null;
+      // Prefer platform-specific card (1200×630 landscape) over the default portrait card
+      const effectiveMediaUrl = post.platform_media_urls?.facebook || post.media_url || null;
 
       if (effectiveMediaUrl && this._isVideoUrl(effectiveMediaUrl)) {
         const videoBody = { file_url: effectiveMediaUrl, description: caption, published: true, access_token: token };
@@ -401,11 +402,12 @@ class SocialPublisher {
     const igUserId = account.account_id;
     const token    = account.access_token;
     if (!igUserId) throw new Error('Instagram Business Account ID not stored — reconnect the account');
-    if (!post.media_url) throw new Error('Instagram requires an image or video URL');
+    if (!post.media_url && !post.platform_media_urls?.instagram) throw new Error('Instagram requires an image or video URL');
 
     const caption  = this.buildCaption(post, 'instagram');
     const format   = post.ig_post_format || 'feed';
-    const isVideo  = this._isVideoUrl(post.media_url);
+    const igMediaUrl = post.platform_media_urls?.instagram || post.media_url;
+    const isVideo  = this._isVideoUrl(igMediaUrl);
 
     const _igErr = (err) => {
       if (err.message?.startsWith('Instagram')) throw err;
@@ -421,10 +423,10 @@ class SocialPublisher {
       if (format === 'reel') {
         if (!isVideo) {
           console.warn('[SocialPublisher] IG Reel requested but no video URL — falling back to feed image post');
-          containerBody = { image_url: post.media_url, caption, access_token: token };
+          containerBody = { image_url: igMediaUrl, caption, access_token: token };
         } else {
           containerBody = {
-            video_url: post.media_url,
+            video_url: igMediaUrl,
             media_type: 'REELS',
             caption,
             share_to_feed: true,
@@ -434,16 +436,16 @@ class SocialPublisher {
       } else if (format === 'story') {
         // Stories don't support captions
         if (isVideo) {
-          containerBody = { video_url: post.media_url, media_type: 'STORIES', access_token: token };
+          containerBody = { video_url: igMediaUrl, media_type: 'STORIES', access_token: token };
         } else {
-          containerBody = { image_url: post.media_url, media_type: 'STORIES', access_token: token };
+          containerBody = { image_url: igMediaUrl, media_type: 'STORIES', access_token: token };
         }
       } else {
         // Feed (default)
         if (isVideo) {
-          containerBody = { video_url: post.media_url, media_type: 'VIDEO', caption, access_token: token };
+          containerBody = { video_url: igMediaUrl, media_type: 'VIDEO', caption, access_token: token };
         } else {
-          containerBody = { image_url: post.media_url, caption, access_token: token };
+          containerBody = { image_url: igMediaUrl, caption, access_token: token };
         }
       }
 

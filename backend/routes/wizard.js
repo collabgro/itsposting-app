@@ -1376,14 +1376,16 @@ Return ONLY valid JSON (no markdown, no backticks):
             // Fetch the raw photo buffer, composite branded overlays, upload 3 variants.
             // Each wizard variation (A/B/C) gets a different card template.
             let photoCardUrls = null;
+            let cardLineupIndex = null;
+            let cardTrigger = null;
             if (PhotoCardService && ImageResizer && parsed.cardOverlay && contentTypeForMedia === 'photo') {
               try {
                 const rawBuffer = await ImageResizer.fetchImageAsBuffer(imageResult.url);
                 // Normalise wizard content-type names to what PhotoCardService.resolveTemplateSet expects
                 const WIZARD_CARD_TRIGGER = { just_finished_job: 'job_finished', running_promo: 'promotion' };
-                const cardTrigger = WIZARD_CARD_TRIGGER[answers.contentType] || answers.contentType;
+                cardTrigger = WIZARD_CARD_TRIGGER[answers.contentType] || answers.contentType;
                 const fixedOverlay = validateAndFixCardOverlay(parsed.cardOverlay, session.customer);
-                const cardLineupIndex = PhotoCardService.getDesignFingerprint
+                cardLineupIndex = PhotoCardService.getDesignFingerprint
                   ? PhotoCardService.getDesignFingerprint(session.customer).lineupOffset % 3
                   : 0;
 
@@ -1451,8 +1453,8 @@ Return ONLY valid JSON (no markdown, no backticks):
             // Store photoCardUrls + raw photo URL on mediaVariants so they reach the response builder
             if (photoCardUrls) mediaVariants._photoCardUrls = photoCardUrls;
             if (rawPhotoUrl) mediaVariants._rawPhotoUrl = rawPhotoUrl;
-            if (typeof cardLineupIndex !== 'undefined') mediaVariants._cardLineupIndex = cardLineupIndex;
-            if (typeof cardTrigger !== 'undefined') mediaVariants._cardTrigger = cardTrigger;
+            if (cardLineupIndex !== null) mediaVariants._cardLineupIndex = cardLineupIndex;
+            if (cardTrigger) mediaVariants._cardTrigger = cardTrigger;
             // ── Image training data (fire-and-forget) ──────────────────────────
             const _imgPrompt = imagePromptForGen;
             const _imgUrl = mediaUrl;
