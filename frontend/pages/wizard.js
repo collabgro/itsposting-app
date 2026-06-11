@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import {
   IpCredits, IpFacebook, IpInstagram, IpGoogle,
   IpArrowLeft, IpArrowRight, IpRefresh, IpCopy,
-  IpCheck, IpEdit, IpSparkle, IpChevronRight, IpLinkedIn, IpTikTok,
+  IpCheck, IpCheckCircle, IpEdit, IpSparkle, IpChevronRight, IpLinkedIn, IpTikTok,
   IpVideo, IpUser, IpPlus,
 } from '../components/icons';
 import Icon from '../components/Icon';
