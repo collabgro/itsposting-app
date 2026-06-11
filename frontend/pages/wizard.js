@@ -620,6 +620,7 @@ export default function Wizard() {
   const [addToSetName, setAddToSetName] = useState('');
   const [videoProgress, setVideoProgress] = useState(0);
   const [calendarPlanId, setCalendarPlanId] = useState(null);
+  const [activeSlide, setActiveSlide] = useState(0);
 
   const loadingInterval = useRef(null);
 
@@ -924,7 +925,7 @@ export default function Wizard() {
     setStep(1); setContentType(null); setVideoType('services'); setTheme(null); setTone(null); setSelectedPlatforms([]);
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
     setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null); setSelectedPlatformTab('instagram_feed');
-    setSelectedVariation('A'); setSelectedCardStyle('A'); setActionLoading(false); setActionToast(null);
+    setSelectedVariation('A'); setSelectedCardStyle('A'); setActiveSlide(0); setActionLoading(false); setActionToast(null);
     setSvgCards(null); setActiveSvg(null); setCardEditOpen(false); setEditingOverlay(null);
     setShowScheduleModal(false); setScheduleDate(''); setIsEditing(false); setEditedCaption('');
     setSmartScheduleDismissed(false);
@@ -1087,6 +1088,7 @@ export default function Wizard() {
       setExtraCardsByPlatform({});
       setMoreDesignsModal(null);
       setSelectedCardStyle('A');
+      setActiveSlide(0);
       setPreviewCaptionExpanded(false);
       setSelectedVariation(genRes.recommended || 'A');
       if (genRes.photoCardUrls && genRes.cardLineupIndex !== null && genRes.cardLineupIndex !== undefined) {
@@ -2086,10 +2088,84 @@ export default function Wizard() {
                 )}
 
                 {/* Media display — aspect ratio tracks selected platform */}
-                <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, aspectRatio: ({ instagram_feed: '4/5', facebook_feed: '1/1', linkedin_feed: '1200/627', google_business: '4/3', instagram_square: '1/1' })[results.photoCardsByPlatform ? selectedPlatformTab : 'instagram_feed'] || '4/5', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, transition: 'aspect-ratio 250ms ease', boxShadow: `0 8px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
+                <div style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.08)' : t.border}`, background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, aspectRatio: results.contentTypeSelection === 'carousel' ? '1/1' : (({ instagram_feed: '4/5', facebook_feed: '1/1', linkedin_feed: '1200/627', google_business: '4/3', instagram_square: '1/1' })[results.photoCardsByPlatform ? selectedPlatformTab : 'instagram_feed'] || '4/5'), display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, transition: 'aspect-ratio 250ms ease', boxShadow: `0 8px 28px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.8'})` }}>
                   {results.mediaUrl && results.videoRendering !== true ? (
                     results.contentTypeSelection === 'video' ? (
                       <video src={results.mediaUrl} controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : results.contentTypeSelection === 'carousel' ? (
+                      (() => {
+                        const carouselSlides = results.mediaVariants?.slides || [];
+                        const slide = carouselSlides[activeSlide];
+                        const slideImg = slide?.imageUrl || results.mediaUrl;
+                        return (
+                          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                            <img src={slideImg} alt={`Slide ${activeSlide + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            {slide?.overlayText && (
+                              <div style={{
+                                position: 'absolute', bottom: 0, left: 0, right: 0,
+                                background: 'linear-gradient(transparent, rgba(0,0,0,0.72))',
+                                padding: '48px 18px 18px',
+                                color: '#fff', fontSize: 15, fontWeight: 700, textAlign: 'center',
+                                textShadow: '0 1px 5px rgba(0,0,0,0.6)', lineHeight: 1.3,
+                              }}>
+                                {slide.overlayText}
+                              </div>
+                            )}
+                            {carouselSlides.length > 1 && (
+                              <>
+                                {/* Slide counter badge */}
+                                <div style={{
+                                  position: 'absolute', top: 10, right: 10,
+                                  background: 'rgba(0,0,0,0.55)', borderRadius: 20,
+                                  padding: '3px 10px', fontSize: 11, fontWeight: 700, color: '#fff',
+                                  backdropFilter: 'blur(4px)',
+                                }}>
+                                  {activeSlide + 1} / {carouselSlides.length}
+                                </div>
+                                {/* Prev arrow */}
+                                {activeSlide > 0 && (
+                                  <button onClick={() => setActiveSlide(s => s - 1)} style={{
+                                    position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                                    background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%',
+                                    width: 36, height: 36, cursor: 'pointer', color: '#fff',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    backdropFilter: 'blur(4px)',
+                                  }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                                  </button>
+                                )}
+                                {/* Next arrow */}
+                                {activeSlide < carouselSlides.length - 1 && (
+                                  <button onClick={() => setActiveSlide(s => s + 1)} style={{
+                                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                                    background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%',
+                                    width: 36, height: 36, cursor: 'pointer', color: '#fff',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    backdropFilter: 'blur(4px)',
+                                  }}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                                  </button>
+                                )}
+                                {/* Dot indicators */}
+                                <div style={{
+                                  position: 'absolute', bottom: slide?.overlayText ? 50 : 12,
+                                  left: '50%', transform: 'translateX(-50%)',
+                                  display: 'flex', gap: 5, alignItems: 'center',
+                                }}>
+                                  {carouselSlides.map((_, i) => (
+                                    <button key={i} onClick={() => setActiveSlide(i)} style={{
+                                      width: i === activeSlide ? 18 : 6, height: 6,
+                                      borderRadius: 3, border: 'none', cursor: 'pointer', padding: 0,
+                                      background: i === activeSlide ? '#fff' : 'rgba(255,255,255,0.5)',
+                                      transition: 'all 150ms ease',
+                                    }} />
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()
                     ) : activeSvg && results.photoCardUrls && !extraPhotoCardUrls[selectedCardStyle] ? (
                       /* SVG live preview — browser renders directly, zero network latency.
                          Clicking a text element opens the editor and focuses the matching field. */
@@ -2285,6 +2361,60 @@ export default function Wizard() {
                   })()
                 )}
 
+                {/* ── Carousel Slide Thumbnails ── */}
+                {results.contentTypeSelection === 'carousel' && (results.mediaVariants?.slides || []).length > 1 && (
+                  (() => {
+                    const slides = results.mediaVariants.slides;
+                    return (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                          Slides ({slides.length})
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(slides.length, 5)}, 1fr)`, gap: 8 }}>
+                          {slides.map((slide, i) => {
+                            const isActive = i === activeSlide;
+                            return (
+                              <button key={i} type="button" onClick={() => setActiveSlide(i)} style={{
+                                position: 'relative', border: `2px solid ${isActive ? t.primary : 'transparent'}`,
+                                borderRadius: 10, overflow: 'hidden', cursor: 'pointer', padding: 0, background: 'none',
+                                transform: isActive ? 'scale(1.04)' : 'scale(1)',
+                                transition: 'all 160ms cubic-bezier(0.34,1.56,0.64,1)',
+                              }}>
+                                {slide.imageUrl ? (
+                                  <img src={slide.imageUrl} alt={`Slide ${i + 1}`} style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }} />
+                                ) : (
+                                  <div style={{ width: '100%', aspectRatio: '1/1', background: t.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <span style={{ fontSize: 10, color: t.textMuted }}>Slide {i + 1}</span>
+                                  </div>
+                                )}
+                                <div style={{
+                                  position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)',
+                                  background: isActive ? t.primary : 'rgba(0,0,0,0.60)',
+                                  color: '#fff', fontSize: 9, fontWeight: 800,
+                                  padding: '2px 7px', borderRadius: 20, whiteSpace: 'nowrap',
+                                  backdropFilter: 'blur(4px)',
+                                }}>
+                                  {i + 1}
+                                </div>
+                                {isActive && (
+                                  <div style={{
+                                    position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%',
+                                    background: t.primary, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  }}>
+                                    <svg width="10" height="8" viewBox="0 0 11 9" fill="none">
+                                      <path d="M1 4.5L4 7.5L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
+
                 {/* ── Platform Tabs — show when platform-native cards are available ── */}
                 {results.photoCardsByPlatform && Object.keys(results.photoCardsByPlatform).length > 1 && (
                   (() => {
@@ -2455,7 +2585,11 @@ export default function Wizard() {
                 {results.mediaUrl && results.contentTypeSelection !== 'video' && results.videoRendering !== true && (
                   <button
                     onClick={() => {
-                      const cardUrl = results.contentTypeSelection === 'photo' ? getCardUrl(selectedCardStyle) : null;
+                      const cardUrl = results.contentTypeSelection === 'photo'
+                        ? getCardUrl(selectedCardStyle)
+                        : results.contentTypeSelection === 'carousel'
+                        ? (results.mediaVariants?.slides?.[activeSlide]?.imageUrl || results.mediaUrl)
+                        : null;
                       router.push(`/templates/editor?addImage=${encodeURIComponent(cardUrl || results.mediaUrl)}&size=ig_portrait`);
                     }}
                     style={{
@@ -2557,7 +2691,7 @@ export default function Wizard() {
                 })()}
 
                 {/* Regenerate image button */}
-                {results.postId && results.contentTypeSelection !== 'video' && results.contentTypeSelection !== 'static' && results.contentTypeSelection !== 'branded_card' && (
+                {results.postId && results.contentTypeSelection !== 'video' && results.contentTypeSelection !== 'static' && results.contentTypeSelection !== 'branded_card' && results.contentTypeSelection !== 'carousel' && (
                   <button
                     onClick={async () => {
                       if (actionLoading) return;
