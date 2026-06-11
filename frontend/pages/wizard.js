@@ -572,6 +572,7 @@ export default function Wizard() {
   const [selectedCardStyle, setSelectedCardStyle] = useState('A');
   const [selectedPlatformTab, setSelectedPlatformTab] = useState('instagram_feed');
   const [extraPhotoCardUrls, setExtraPhotoCardUrls] = useState({});
+  const [extraCardsByPlatform, setExtraCardsByPlatform] = useState({});
   const [loadingMoreDesigns, setLoadingMoreDesigns] = useState(false);
   const [altLineupQueue, setAltLineupQueue] = useState([]);
   const [wizardPreviewPlatform, setWizardPreviewPlatform] = useState('all');
@@ -1082,6 +1083,9 @@ export default function Wizard() {
       const genRes = await apiPost('/api/wizard/generate', { wizardId });
       setResults(genRes);
       setExtraPhotoCardUrls({});
+      setExtraCardsByPlatform({});
+      setSelectedCardStyle('A');
+      setPreviewCaptionExpanded(false);
       setSelectedVariation(genRes.recommended || 'A');
       if (genRes.photoCardUrls && genRes.cardLineupIndex !== null && genRes.cardLineupIndex !== undefined) {
         const base = genRes.cardLineupIndex;
@@ -1140,7 +1144,14 @@ export default function Wizard() {
         const styleUrl = extraPhotoCardUrls[styleKey] || results.photoCardUrls?.[styleKey] || results.photoCardUrls?.[selectedVariation];
         if (styleUrl) patchData.mediaUrl = styleUrl;
         // Pass platform-specific card sizes so Facebook gets 1200×630 and Instagram gets 1080×1350
-        if (results.photoCardsByPlatform) {
+        const extraPlatformEntry = extraCardsByPlatform[styleKey];
+        if (extraPlatformEntry) {
+          const pmu = {};
+          if (extraPlatformEntry.facebook) pmu.facebook = extraPlatformEntry.facebook;
+          if (extraPlatformEntry.instagram) pmu.instagram = extraPlatformEntry.instagram;
+          if (extraPlatformEntry.google_business) pmu.google_business = extraPlatformEntry.google_business;
+          if (Object.keys(pmu).length > 0) patchData.platformMediaUrls = pmu;
+        } else if (results.photoCardsByPlatform) {
           const pmu = {};
           if (results.photoCardsByPlatform.facebook_feed?.[styleKey]) pmu.facebook = results.photoCardsByPlatform.facebook_feed[styleKey];
           if (results.photoCardsByPlatform.instagram_feed?.[styleKey]) pmu.instagram = results.photoCardsByPlatform.instagram_feed[styleKey];
@@ -1209,7 +1220,14 @@ export default function Wizard() {
       const schedStyleKey = selectedCardStyle;
       const scheduleStyleUrl = extraPhotoCardUrls[schedStyleKey] || results.photoCardUrls?.[schedStyleKey] || results.photoCardUrls?.[selectedVariation];
       if (scheduleStyleUrl) schedulePatch.mediaUrl = scheduleStyleUrl;
-      if (results.photoCardsByPlatform) {
+      const schedExtraPlatform = extraCardsByPlatform[schedStyleKey];
+      if (schedExtraPlatform) {
+        const pmu = {};
+        if (schedExtraPlatform.facebook) pmu.facebook = schedExtraPlatform.facebook;
+        if (schedExtraPlatform.instagram) pmu.instagram = schedExtraPlatform.instagram;
+        if (schedExtraPlatform.google_business) pmu.google_business = schedExtraPlatform.google_business;
+        if (Object.keys(pmu).length > 0) schedulePatch.platformMediaUrls = pmu;
+      } else if (results.photoCardsByPlatform) {
         const pmu = {};
         if (results.photoCardsByPlatform.facebook_feed?.[schedStyleKey]) pmu.facebook = results.photoCardsByPlatform.facebook_feed[schedStyleKey];
         if (results.photoCardsByPlatform.instagram_feed?.[schedStyleKey]) pmu.instagram = results.photoCardsByPlatform.instagram_feed[schedStyleKey];
@@ -1309,6 +1327,14 @@ export default function Wizard() {
         [keys[1]]: data.cards.B,
         [keys[2]]: data.cards.C,
       }));
+      if (data.cardsByPlatform) {
+        setExtraCardsByPlatform(prev => ({
+          ...prev,
+          [keys[0]]: { facebook: data.cardsByPlatform.facebook_feed?.A, instagram: data.cardsByPlatform.instagram_feed?.A, google_business: data.cardsByPlatform.google_business?.A },
+          [keys[1]]: { facebook: data.cardsByPlatform.facebook_feed?.B, instagram: data.cardsByPlatform.instagram_feed?.B, google_business: data.cardsByPlatform.google_business?.B },
+          [keys[2]]: { facebook: data.cardsByPlatform.facebook_feed?.C, instagram: data.cardsByPlatform.instagram_feed?.C, google_business: data.cardsByPlatform.google_business?.C },
+        }));
+      }
       setAltLineupQueue(remaining);
     } catch (err) {
       console.error('[Wizard] loadMoreDesigns failed:', err);
@@ -2063,9 +2089,13 @@ export default function Wizard() {
                     ) : (
                       <img
                         src={
-                          // Extra designs (D-I) don't have platform variants — use primary URL
-                          extraPhotoCardUrls[selectedCardStyle]
-                            // Platform-specific card takes priority for initial styles (A-C)
+                          // Platform-specific card for extra designs (D-I) — use per-platform URL if available
+                          (extraCardsByPlatform[selectedCardStyle] && (
+                            extraCardsByPlatform[selectedCardStyle][selectedPlatformTab === 'facebook_feed' ? 'facebook' : selectedPlatformTab === 'google_business' ? 'google_business' : 'instagram']
+                          ))
+                            // Fallback to primary extra design URL (no platform variant available)
+                            || extraPhotoCardUrls[selectedCardStyle]
+                            // Platform-specific card for initial styles (A-C)
                             || (results.photoCardsByPlatform?.[selectedPlatformTab]?.[selectedCardStyle])
                             || (results.photoCardsByPlatform?.[selectedPlatformTab]?.[selectedVariation])
                             || results.photoCardUrls?.[selectedCardStyle]

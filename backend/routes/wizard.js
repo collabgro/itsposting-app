@@ -2413,7 +2413,7 @@ Return ONLY valid JSON (no markdown, no backticks):
 
       const platformCards = await PhotoCardService.generatePhotoCardsForPlatforms(
         rawBuffer, cardOverlay, customer, wizardTrigger || null,
-        ['instagram_feed'],
+        ['instagram_feed', 'facebook_feed', 'google_business'],
         null,
         idx
       );
@@ -2421,16 +2421,30 @@ Return ONLY valid JSON (no markdown, no backticks):
       const igCards = platformCards.instagram_feed;
       if (!igCards) return res.status(500).json({ error: 'Card generation produced no output' });
 
+      const fbCards = platformCards.facebook_feed || igCards;
+      const gbCards = platformCards.google_business || igCards;
+
       const ts = Date.now();
       const cid = req.customerId;
-      const [urlA, urlB, urlC] = await Promise.all([
+      const [urlA, urlB, urlC, fbA, fbB, fbC, gbA, gbB, gbC] = await Promise.all([
         ImageResizer.uploadToCloudinary(igCards.A, `itsposting/${cid}/wizard-more-${ts}-A`),
         ImageResizer.uploadToCloudinary(igCards.B, `itsposting/${cid}/wizard-more-${ts}-B`),
         ImageResizer.uploadToCloudinary(igCards.C, `itsposting/${cid}/wizard-more-${ts}-C`),
+        ImageResizer.uploadToCloudinary(fbCards.A, `itsposting/${cid}/wizard-more-${ts}-fb-A`),
+        ImageResizer.uploadToCloudinary(fbCards.B, `itsposting/${cid}/wizard-more-${ts}-fb-B`),
+        ImageResizer.uploadToCloudinary(fbCards.C, `itsposting/${cid}/wizard-more-${ts}-fb-C`),
+        ImageResizer.uploadToCloudinary(gbCards.A, `itsposting/${cid}/wizard-more-${ts}-gb-A`),
+        ImageResizer.uploadToCloudinary(gbCards.B, `itsposting/${cid}/wizard-more-${ts}-gb-B`),
+        ImageResizer.uploadToCloudinary(gbCards.C, `itsposting/${cid}/wizard-more-${ts}-gb-C`),
       ]);
 
       res.json({
         cards: { A: urlA, B: urlB, C: urlC },
+        cardsByPlatform: {
+          instagram_feed: { A: urlA, B: urlB, C: urlC },
+          facebook_feed:  { A: fbA, B: fbB, C: fbC },
+          google_business: { A: gbA, B: gbB, C: gbC },
+        },
         lineupIndex: idx,
         hasMore: idx < 2,
       });
