@@ -1575,17 +1575,31 @@ async function buildTemplateJ(
 // 3 lineup options per trigger type. Customer's lineupOffset (from design seed)
 // picks which set of 3 templates they see — same trigger, different businesses
 // = different template combinations. Ensures no two customers look the same.
+//
+// CRITICAL RULE: The 3 lineups for each trigger must have ZERO template overlap.
+// All 9 templates used (3 lineups × 3 templates) must be completely distinct so
+// the "Load more designs" gallery shows genuinely different card layouts.
 const LINEUP_MAP = {
-  'job_finished':   [['A','I','H'], ['G','A','H'], ['H','J','A']],
-  'before_after':   [['A','G','I'], ['I','H','A'], ['G','A','J']],
-  'promotion':      [['D','G','B'], ['J','D','G'], ['B','G','D']],
-  'seasonal':       [['D','J','B'], ['G','D','A'], ['B','D','J']],
-  'got_review':     [['E','H','C'], ['E','G','C'], ['H','E','J']],
-  'share_tip':      [['F','G','B'], ['B','F','I'], ['G','F','H']],
-  'faq':            [['F','B','J'], ['G','F','B'], ['B','F','I']],
-  'team_spotlight': [['C','H','E'], ['H','G','E'], ['E','H','J']],
-  'community':      [['B','J','C'], ['G','B','I'], ['J','C','A']],
-  'milestone':      [['D','J','G'], ['G','D','H'], ['J','B','D']],
+  // 9 unique: A,H,J | G,I,C | D,B,F
+  'job_finished':   [['A','H','J'], ['G','I','C'], ['D','B','F']],
+  // 9 unique: A,G,H | I,J,C | D,B,F
+  'before_after':   [['A','G','H'], ['I','J','C'], ['D','B','F']],
+  // 9 unique: D,G,A | J,H,B | C,I,F
+  'promotion':      [['D','G','A'], ['J','H','B'], ['C','I','F']],
+  // 9 unique: D,A,J | G,H,B | C,I,F
+  'seasonal':       [['D','A','J'], ['G','H','B'], ['C','I','F']],
+  // 9 unique: E,H,G | C,J,I | A,D,B
+  'got_review':     [['E','H','G'], ['C','J','I'], ['A','D','B']],
+  // 9 unique: F,G,B | A,H,J | I,D,C
+  'share_tip':      [['F','G','B'], ['A','H','J'], ['I','D','C']],
+  // 9 unique: F,B,J | G,A,H | I,D,C
+  'faq':            [['F','B','J'], ['G','A','H'], ['I','D','C']],
+  // 9 unique: C,H,G | E,J,I | A,D,B
+  'team_spotlight': [['C','H','G'], ['E','J','I'], ['A','D','B']],
+  // 9 unique: B,J,G | A,I,H | D,C,F
+  'community':      [['B','J','G'], ['A','I','H'], ['D','C','F']],
+  // 9 unique: D,J,G | H,A,B | I,C,F
+  'milestone':      [['D','J','G'], ['H','A','B'], ['I','C','F']],
 };
 
 function resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride = null) {
