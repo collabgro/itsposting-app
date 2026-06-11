@@ -2097,11 +2097,18 @@ async function generatePhotoCardsForPlatforms(
   const fingerprint  = mergeDesignParams(getDesignFingerprint(customer), designParams);
   const logoBuffer   = await fetchLogoBuffer(customer?.logo_url);
 
-  // Resize photo to each unique dimension needed (deduplicated)
+  // Resize photo to each unique dimension needed (deduplicated).
+  // facebook_feed derives from instagram_feed via crop, so skip its separate resize.
   const dimsNeeded = new Map();
+  const needsIgForFb = platforms.includes('facebook_feed') && !platforms.includes('instagram_feed');
   for (const p of platforms) {
+    if (p === 'facebook_feed') continue; // no separate photo resize — derived from instagram
     const s = PLATFORM_SPECS[p];
     if (s) dimsNeeded.set(`${s.w}x${s.h}`, { w: s.w, h: s.h });
+  }
+  if (needsIgForFb) {
+    const ig = PLATFORM_SPECS['instagram_feed'];
+    dimsNeeded.set(`${ig.w}x${ig.h}`, { w: ig.w, h: ig.h });
   }
   const resizedMap = {};
   await Promise.all(Array.from(dimsNeeded.entries()).map(async ([key, dim]) => {
@@ -2110,31 +2117,41 @@ async function generatePhotoCardsForPlatforms(
 
   const result = {};
 
-  await Promise.all(platforms.map(async (platform) => {
-    const spec = PLATFORM_SPECS[platform];
-    if (!spec) return;
-    const photo = resizedMap[`${spec.w}x${spec.h}`];
-
-    if (platform === 'instagram_feed') {
+  // Instagram must run before facebook (facebook is a square crop of instagram)
+  if (platforms.includes('instagram_feed') || platforms.includes('facebook_feed')) {
+    const igSpec = PLATFORM_SPECS['instagram_feed'];
+    const igPhoto = resizedMap[`${igSpec.w}x${igSpec.h}`];
+    if (igPhoto) {
       const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride);
       const [bA, bB, bC] = await Promise.all([
-        TEMPLATE_BUILDERS[tA](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
-        TEMPLATE_BUILDERS[tB](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
-        TEMPLATE_BUILDERS[tC](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+        TEMPLATE_BUILDERS[tA](igPhoto, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+        TEMPLATE_BUILDERS[tB](igPhoto, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
+        TEMPLATE_BUILDERS[tC](igPhoto, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
       ]);
       result.instagram_feed = { A: bA, B: bB, C: bC };
+    }
+  }
 
-    } else if (platform === 'facebook_feed') {
-      // Square (1080×1080): reuse portrait templates — SVG clips at square boundary, key content stays
-      const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride);
-      const [bA, bB, bC] = await Promise.all([
-        TEMPLATE_BUILDERS[tA](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
-        TEMPLATE_BUILDERS[tB](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
-        TEMPLATE_BUILDERS[tC](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
-      ]);
-      result.facebook_feed = { A: bA, B: bB, C: bC };
+  await Promise.all(platforms.filter(p => p !== 'instagram_feed').map(async (platform) => {
+    const spec = PLATFORM_SPECS[platform];
+    if (!spec && platform !== 'facebook_feed') return;
 
-    } else if (platform === 'linkedin_feed') {
+    if (platform === 'facebook_feed') {
+      // Square 1080×1080: crop the portrait instagram card from the top (preserves logo + headline)
+      if (result.instagram_feed) {
+        const [bA, bB, bC] = await Promise.all([
+          sharp(result.instagram_feed.A).resize(1080, 1080, { fit: 'cover', position: 'top' }).jpeg({ quality: 85, mozjpeg: true }).toBuffer(),
+          sharp(result.instagram_feed.B).resize(1080, 1080, { fit: 'cover', position: 'top' }).jpeg({ quality: 85, mozjpeg: true }).toBuffer(),
+          sharp(result.instagram_feed.C).resize(1080, 1080, { fit: 'cover', position: 'top' }).jpeg({ quality: 85, mozjpeg: true }).toBuffer(),
+        ]);
+        result.facebook_feed = { A: bA, B: bB, C: bC };
+      }
+      return;
+    }
+
+    const photo = resizedMap[`${spec.w}x${spec.h}`];
+
+    if (platform === 'linkedin_feed') {
       const [bA, bB, bC] = await Promise.all([
         buildLandscapePanel(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
         buildLandscapeCinematic(photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, fingerprint),
