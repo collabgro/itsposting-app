@@ -2062,7 +2062,7 @@ export default function Wizard() {
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row-reverse', alignItems: 'flex-start' }}>
 
               {/* ── RIGHT (visually): Card image + platform preview — sticky ── */}
-              {results.contentTypeSelection !== 'static' && <div style={{ flex: isMobile ? '0 0 100%' : '0 0 400px', minWidth: isMobile ? 0 : 300, position: isMobile ? 'static' : 'sticky', top: 20, alignSelf: 'flex-start' }}>
+              {results.contentTypeSelection !== 'static' && <div style={{ flex: isMobile ? '0 0 100%' : 1, minWidth: isMobile ? 0 : 340, maxWidth: isMobile ? '100%' : '50%', position: isMobile ? 'static' : 'sticky', top: 20, alignSelf: 'flex-start' }}>
 
                 {/* Image/video failed banner */}
                 {results.imageFailed && (
