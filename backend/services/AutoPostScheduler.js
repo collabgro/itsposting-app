@@ -61,6 +61,20 @@ class AutoPostScheduler {
     );
 
     try {
+      // Load carousel slides so SocialPublisher can publish a true multi-image carousel
+      if (post.content_type === 'carousel') {
+        try {
+          const slidesRes = await this.pool.query(
+            `SELECT media_url FROM post_carousel_slides WHERE post_id = $1 ORDER BY slide_number`,
+            [post.id]
+          );
+          const slideUrls = slidesRes.rows.map(r => r.media_url).filter(Boolean);
+          if (slideUrls.length > 1) post.slides = slideUrls;
+        } catch (slideErr) {
+          console.warn(`[AutoPostScheduler] Could not load carousel slides for post ${post.id}:`, slideErr.message);
+        }
+      }
+
       let platformIds = [];
       try {
         if (post.platforms) {

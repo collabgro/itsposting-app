@@ -1199,6 +1199,18 @@ console.log('══════════════════════�
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS email_bounce_at TIMESTAMP`,
     `CREATE INDEX IF NOT EXISTS idx_customers_email_bounce
        ON customers(email_hard_bounced) WHERE email_hard_bounced = TRUE`,
+    // Carousel slide storage — must exist before wizard.js tries to INSERT slides
+    `CREATE TABLE IF NOT EXISTS post_carousel_slides (
+      id           SERIAL PRIMARY KEY,
+      post_id      INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      slide_number INTEGER NOT NULL,
+      media_url    TEXT,
+      caption      TEXT,
+      overlay_text TEXT,
+      created_at   TIMESTAMP DEFAULT NOW(),
+      UNIQUE(post_id, slide_number)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_carousel_post ON post_carousel_slides(post_id)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); }
