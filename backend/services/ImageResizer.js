@@ -11,7 +11,7 @@ cloudinary.config({
 });
 
 const PLATFORM_SPECS = {
-  facebook_feed:     { width: 1200, height: 630,  format: 'jpeg', quality: 85 },
+  facebook_feed:     { width: 1080, height: 1080, format: 'jpeg', quality: 85 },
   facebook_square:   { width: 1200, height: 1200, format: 'jpeg', quality: 85 },
   instagram_feed:    { width: 1080, height: 1350, format: 'jpeg', quality: 85 },
   instagram_square:  { width: 1080, height: 1080, format: 'jpeg', quality: 85 },
@@ -23,7 +23,7 @@ const PLATFORM_SPECS = {
 };
 
 const SAFE_ZONES = {
-  facebook_feed:     { topPercent: 5,  bottomPercent: 5,  leftPercent: 5,  rightPercent: 5  },
+  facebook_feed:     { topPercent: 8,  bottomPercent: 8,  leftPercent: 8,  rightPercent: 8  },
   facebook_square:   { topPercent: 5,  bottomPercent: 5,  leftPercent: 5,  rightPercent: 5  },
   instagram_feed:    { topPercent: 8,  bottomPercent: 15, leftPercent: 8,  rightPercent: 8  },
   instagram_square:  { topPercent: 8,  bottomPercent: 8,  leftPercent: 8,  rightPercent: 8  },

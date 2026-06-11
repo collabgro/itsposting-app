@@ -1323,12 +1323,29 @@ export default function Wizard() {
       const loadedCount = Object.keys(extraPhotoCardUrls).length;
       const keyGroups = [['D','E','F'], ['G','H','I']];
       const keys = keyGroups[Math.floor(loadedCount / 3)] || keyGroups[0];
-      // Pre-evaluate card URLs to avoid React deferring closure evaluation outside try/catch
+      // Pre-evaluate card URLs inside try/catch to prevent React deferred evaluation crash
       const cardA = data.cards?.A;
       const cardB = data.cards?.B;
       const cardC = data.cards?.C;
+      // Write all new cards into state immediately, then open the gallery
+      const newExtras = {};
+      const newByPlatform = {};
+      if (cardA) {
+        newExtras[keys[0]] = cardA;
+        if (data.cardsByPlatform) newByPlatform[keys[0]] = { facebook: data.cardsByPlatform.facebook_feed?.A, instagram: data.cardsByPlatform.instagram_feed?.A, google_business: data.cardsByPlatform.google_business?.A };
+      }
+      if (cardB) {
+        newExtras[keys[1]] = cardB;
+        if (data.cardsByPlatform) newByPlatform[keys[1]] = { facebook: data.cardsByPlatform.facebook_feed?.B, instagram: data.cardsByPlatform.instagram_feed?.B, google_business: data.cardsByPlatform.google_business?.B };
+      }
+      if (cardC) {
+        newExtras[keys[2]] = cardC;
+        if (data.cardsByPlatform) newByPlatform[keys[2]] = { facebook: data.cardsByPlatform.facebook_feed?.C, instagram: data.cardsByPlatform.instagram_feed?.C, google_business: data.cardsByPlatform.google_business?.C };
+      }
+      setExtraPhotoCardUrls(prev => ({ ...prev, ...newExtras }));
+      setExtraCardsByPlatform(prev => ({ ...prev, ...newByPlatform }));
       setAltLineupQueue(remaining);
-      setMoreDesignsModal({ cardA, cardB, cardC, cardsByPlatform: data.cardsByPlatform, keys });
+      setMoreDesignsModal(true);
     } catch (err) {
       console.error('[Wizard] loadMoreDesigns failed:', err);
       showToast('error', 'Failed to load more designs. Please try again.');
@@ -1337,23 +1354,8 @@ export default function Wizard() {
     }
   };
 
-  const selectMoreDesign = (letter) => {
-    if (!moreDesignsModal) return;
-    const { cardA, cardB, cardC, cardsByPlatform, keys } = moreDesignsModal;
-    const cardUrl = letter === 'A' ? cardA : letter === 'B' ? cardB : cardC;
-    const finalKey = letter === 'A' ? keys[0] : letter === 'B' ? keys[1] : keys[2];
-    setExtraPhotoCardUrls(prev => ({ ...prev, [finalKey]: cardUrl }));
-    if (cardsByPlatform) {
-      setExtraCardsByPlatform(prev => ({
-        ...prev,
-        [finalKey]: {
-          facebook: cardsByPlatform.facebook_feed?.[letter],
-          instagram: cardsByPlatform.instagram_feed?.[letter],
-          google_business: cardsByPlatform.google_business?.[letter],
-        },
-      }));
-    }
-    setSelectedCardStyle(finalKey);
+  const selectMoreDesign = (key) => {
+    setSelectedCardStyle(key);
     setActiveSvg(null);
     setMoreDesignsModal(null);
   };
@@ -2262,16 +2264,21 @@ export default function Wizard() {
                             )}
                           </button>
                         ) : styleKeys.length > 3 ? (
-                          <div style={{
-                            marginTop: 10, width: '100%', padding: '8px 14px',
-                            background: t.isDark ? 'rgba(255,255,255,0.03)' : t.input,
-                            border: `1px solid ${t.border}`, borderRadius: 10,
-                            color: t.textMuted, fontSize: 11, fontWeight: 600,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                          }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                            All {styleKeys.length} designs loaded
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setMoreDesignsModal(true)}
+                            style={{
+                              marginTop: 10, width: '100%', padding: '9px 14px',
+                              background: t.isDark ? 'rgba(124,92,252,0.10)' : 'rgba(124,92,252,0.06)',
+                              border: `1px solid ${t.isDark ? 'rgba(124,92,252,0.35)' : 'rgba(124,92,252,0.3)'}`,
+                              borderRadius: 10, cursor: 'pointer',
+                              color: t.primary, fontSize: 12, fontWeight: 700,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                            }}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                            Browse all {styleKeys.length} designs
+                          </button>
                         ) : null}
                       </div>
                     );
@@ -3182,47 +3189,57 @@ export default function Wizard() {
 
       </div>
 
-      {/* ── More Designs Preview Modal ── */}
-      {moreDesignsModal && (
-        <div
-          onClick={() => setMoreDesignsModal(null)}
-          style={{ position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-        >
+      {/* ── More Designs Gallery Modal ── */}
+      {moreDesignsModal && results && (() => {
+        const ALL_KEYS = ['A','B','C','D','E','F','G','H','I'];
+        const allUrls = { ...results.photoCardUrls, ...extraPhotoCardUrls };
+        const availableKeys = ALL_KEYS.filter(k => allUrls[k]);
+        const styleLabels = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
+        return (
           <div
-            onClick={e => e.stopPropagation()}
-            style={{ background: t.card, borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 720, boxShadow: '0 24px 80px rgba(0,0,0,0.5)', border: `1px solid ${t.border}` }}
+            onClick={() => setMoreDesignsModal(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 10002, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Pick a design</div>
-                <div style={{ fontSize: 13, color: t.textMuted, marginTop: 3 }}>Choose the one you like — it'll be set as your active card</div>
-              </div>
-              <button onClick={() => setMoreDesignsModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-              {[
-                { letter: 'A', url: moreDesignsModal.cardA, label: 'Option 1' },
-                { letter: 'B', url: moreDesignsModal.cardB, label: 'Option 2' },
-                { letter: 'C', url: moreDesignsModal.cardC, label: 'Option 3' },
-              ].map(({ letter, url, label }) => url && (
-                <div key={letter} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ borderRadius: 12, overflow: 'hidden', border: `2px solid ${t.border}`, aspectRatio: '4/5', background: t.input }}>
-                    <img src={url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  </div>
-                  <button
-                    onClick={() => selectMoreDesign(letter)}
-                    style={{ width: '100%', padding: '10px 0', background: 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.01em' }}
-                  >
-                    Select {label}
-                  </button>
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{ background: t.card, borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: availableKeys.length > 3 ? 900 : 720, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.5)', border: `1px solid ${t.border}` }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Pick a design</div>
+                  <div style={{ fontSize: 13, color: t.textMuted, marginTop: 3 }}>{availableKeys.length} designs available — choose the one you like</div>
                 </div>
-              ))}
+                <button onClick={() => setMoreDesignsModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                {availableKeys.map(key => {
+                  const url = allUrls[key];
+                  const isActive = selectedCardStyle === key;
+                  return (
+                    <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ borderRadius: 12, overflow: 'hidden', border: `2px solid ${isActive ? '#7C5CFC' : t.border}`, aspectRatio: '4/5', background: t.input, position: 'relative' }}>
+                        <img src={url} alt={styleLabels[key]} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        {isActive && (
+                          <div style={{ position: 'absolute', top: 8, right: 8, background: '#7C5CFC', borderRadius: 20, padding: '3px 9px', fontSize: 11, fontWeight: 700, color: '#fff' }}>Active</div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => selectMoreDesign(key)}
+                        style={{ width: '100%', padding: '10px 0', background: isActive ? 'rgba(124,92,252,0.12)' : 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', border: isActive ? '1.5px solid #7C5CFC' : 'none', borderRadius: 10, color: isActive ? '#7C5CFC' : '#fff', fontSize: 13, fontWeight: 700, cursor: isActive ? 'default' : 'pointer', letterSpacing: '0.01em' }}
+                        disabled={isActive}
+                      >
+                        {isActive ? '✓ Selected' : `Select ${styleLabels[key]}`}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Download Image Modal ── */}
       {downloadModal && results?.mediaUrl && (
