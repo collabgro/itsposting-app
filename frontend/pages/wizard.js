@@ -577,6 +577,7 @@ export default function Wizard() {
   const [loadingMoreDesigns, setLoadingMoreDesigns] = useState(false);
   const [altLineupQueue, setAltLineupQueue] = useState([]);
   const [moreDesignsModal, setMoreDesignsModal] = useState(null);
+  const [carouselDesignPreview, setCarouselDesignPreview] = useState(null); // 'A'|'B'|'C' — which design's slides to preview
   const [wizardPreviewPlatform, setWizardPreviewPlatform] = useState('all');
   const [previewCaptionExpanded, setPreviewCaptionExpanded] = useState(false);
 
@@ -927,7 +928,7 @@ export default function Wizard() {
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
     setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null); setSelectedPlatformTab('instagram_feed');
     setSelectedVariation('A'); setSelectedCardStyle('A'); setActiveSlide(0); setActionLoading(false); setActionToast(null);
-    setExtraCarouselDesigns({});
+    setExtraCarouselDesigns({}); setCarouselDesignPreview(null);
     setSvgCards(null); setActiveSvg(null); setCardEditOpen(false); setEditingOverlay(null);
     setShowScheduleModal(false); setScheduleDate(''); setIsEditing(false); setEditedCaption('');
     setSmartScheduleDismissed(false);
@@ -1090,11 +1091,12 @@ export default function Wizard() {
       setExtraCardsByPlatform({});
       setExtraCarouselDesigns({});
       setMoreDesignsModal(null);
+      setCarouselDesignPreview(null);
       setSelectedCardStyle('A');
       setActiveSlide(0);
       setPreviewCaptionExpanded(false);
       setSelectedVariation(genRes.recommended || 'A');
-      if (genRes.photoCardUrls && genRes.cardLineupIndex !== null && genRes.cardLineupIndex !== undefined) {
+      if ((genRes.photoCardUrls || genRes.carouselCardDesigns) && genRes.cardLineupIndex !== null && genRes.cardLineupIndex !== undefined) {
         const base = genRes.cardLineupIndex;
         setAltLineupQueue([(base + 1) % 3, (base + 2) % 3]);
       } else {
@@ -1150,14 +1152,17 @@ export default function Wizard() {
         const styleKey = selectedCardStyle;
 
         if (results.contentTypeSelection === 'carousel') {
-          // Send all slide URLs for the selected design so the backend saves true carousel slides
-          const selectedSlides = (extraCarouselDesigns[styleKey]?.length
-            ? extraCarouselDesigns[styleKey]
-            : results.carouselCardDesigns?.[styleKey]
-          )?.filter(Boolean) || [];
+          // Send all slide URLs for the selected design so the backend saves true carousel slides.
+          // Priority: extra loaded designs > carouselCardDesigns > raw NanoBanana fallback.
+          const rawFallback = (results.mediaVariants?.slides || []).map(s => s.imageUrl).filter(Boolean);
+          const selectedSlides = (
+            extraCarouselDesigns[styleKey]?.length ? extraCarouselDesigns[styleKey]
+            : results.carouselCardDesigns?.[styleKey]?.length ? results.carouselCardDesigns[styleKey]
+            : rawFallback
+          ).filter(Boolean);
           if (selectedSlides.length > 0) {
             patchData.carouselSlideUrls = selectedSlides;
-            patchData.mediaUrl = selectedSlides[0]; // first slide as the post thumbnail
+            patchData.mediaUrl = selectedSlides[0];
           }
         } else {
           const styleUrl = extraPhotoCardUrls[styleKey] || results.photoCardUrls?.[styleKey] || results.photoCardUrls?.[selectedVariation];
@@ -1240,10 +1245,12 @@ export default function Wizard() {
       const schedStyleKey = selectedCardStyle;
 
       if (results.contentTypeSelection === 'carousel') {
-        const selectedSlides = (extraCarouselDesigns[schedStyleKey]?.length
-          ? extraCarouselDesigns[schedStyleKey]
-          : results.carouselCardDesigns?.[schedStyleKey]
-        )?.filter(Boolean) || [];
+        const schedRawFallback = (results.mediaVariants?.slides || []).map(s => s.imageUrl).filter(Boolean);
+        const selectedSlides = (
+          extraCarouselDesigns[schedStyleKey]?.length ? extraCarouselDesigns[schedStyleKey]
+          : results.carouselCardDesigns?.[schedStyleKey]?.length ? results.carouselCardDesigns[schedStyleKey]
+          : schedRawFallback
+        ).filter(Boolean);
         if (selectedSlides.length > 0) {
           schedulePatch.carouselSlideUrls = selectedSlides;
           schedulePatch.mediaUrl = selectedSlides[0];
@@ -2311,12 +2318,23 @@ export default function Wizard() {
                     const allUrls = { ...results.photoCardUrls, ...carouselThumbs, ...extraPhotoCardUrls };
                     const styleKeys = ALL_STYLE_KEYS.filter(k => allUrls[k]);
                     if (styleKeys.length < 1) return null;
+                    const isCarouselPicker = results.contentTypeSelection === 'carousel';
+                    // For carousels: how many slides in each design?
+                    const getDesignSlides = (key) => {
+                      if (extraCarouselDesigns[key]?.length) return extraCarouselDesigns[key].filter(Boolean);
+                      if (results.carouselCardDesigns?.[key]?.length) return results.carouselCardDesigns[key].filter(Boolean);
+                      return [];
+                    };
                     return (
                       <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Card Design</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                          Card Design{isCarouselPicker ? ' — tap to preview all slides' : ''}
+                        </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                           {styleKeys.map(key => {
                             const isActive = selectedCardStyle === key;
+                            const isPreviewing = carouselDesignPreview === key;
+                            const designSlides = isCarouselPicker ? getDesignSlides(key) : [];
                             return (
                               <button
                                 key={key}
@@ -2325,6 +2343,9 @@ export default function Wizard() {
                                   setSelectedCardStyle(key);
                                   if (svgCards?.[key]) setActiveSvg(svgCards[key]);
                                   else if (extraPhotoCardUrls[key]) setActiveSvg(null);
+                                  if (isCarouselPicker) {
+                                    setCarouselDesignPreview(prev => prev === key ? null : key);
+                                  }
                                 }}
                                 style={{
                                   padding: 0, border: `2px solid ${isActive ? t.primary : t.border}`,
@@ -2340,6 +2361,18 @@ export default function Wizard() {
                                   alt={styleLabels[key]}
                                   style={{ width: '100%', aspectRatio: '4/5', objectFit: 'cover', display: 'block' }}
                                 />
+                                {/* Slide count badge for carousels */}
+                                {isCarouselPicker && designSlides.length > 1 && (
+                                  <div style={{
+                                    position: 'absolute', top: 6, left: 6,
+                                    background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
+                                    color: '#fff', fontSize: 9, fontWeight: 700,
+                                    padding: '2px 7px', borderRadius: 20,
+                                    letterSpacing: '0.02em',
+                                  }}>
+                                    {designSlides.length} slides
+                                  </div>
+                                )}
                                 <div style={{
                                   position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
                                   background: isActive ? t.primary : 'rgba(0,0,0,0.60)',
@@ -2365,6 +2398,41 @@ export default function Wizard() {
                             );
                           })}
                         </div>
+
+                        {/* ── Carousel slide preview — expands below the selected design card ── */}
+                        {isCarouselPicker && carouselDesignPreview && (() => {
+                          const previewSlides = getDesignSlides(carouselDesignPreview);
+                          if (previewSlides.length < 2) return null;
+                          return (
+                            <div style={{
+                              marginTop: 10, padding: '10px 12px',
+                              background: t.isDark ? 'rgba(124,92,252,0.06)' : 'rgba(124,92,252,0.04)',
+                              border: `1px solid ${t.primaryBorder}`,
+                              borderRadius: 12,
+                            }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: t.primary, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                                {styleLabels[carouselDesignPreview]} — all {previewSlides.length} slides
+                              </div>
+                              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+                                {previewSlides.map((url, si) => url && (
+                                  <div key={si} style={{ flexShrink: 0, position: 'relative' }}>
+                                    <img
+                                      src={url}
+                                      alt={`Slide ${si + 1}`}
+                                      style={{ width: 70, height: 88, objectFit: 'cover', borderRadius: 8, display: 'block' }}
+                                      onClick={() => { setActiveSlide(si); }}
+                                    />
+                                    <div style={{
+                                      position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)',
+                                      background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 8, fontWeight: 800,
+                                      padding: '1px 5px', borderRadius: 10, backdropFilter: 'blur(4px)',
+                                    }}>{si + 1}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {/* Load more / all loaded button */}
                         {altLineupQueue.length > 0 ? (

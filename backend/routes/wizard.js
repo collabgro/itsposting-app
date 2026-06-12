@@ -1377,6 +1377,33 @@ Return ONLY valid JSON (no markdown, no backticks):
             mediaUrl = slideResults[0]?.imageUrl || null;
             mediaVariants = { slides: slideResults };
 
+            // ── Baseline carouselCardDesigns (raw NanoBanana URLs) ────────────
+            // Set BEFORE the PhotoCardService attempt so _carouselCardDesigns is
+            // always populated — even when PhotoCardService throws. The branded
+            // card loop below REPLACES these entries for slides where it succeeds.
+            {
+              const _rawUrls = slideResults.map(s => s.imageUrl || null);
+              const WIZARD_CARD_TRIGGER_BASE = { just_finished_job: 'job_finished', running_promo: 'promotion' };
+              const _trigger = WIZARD_CARD_TRIGGER_BASE[answers.contentType] || answers.contentType || 'job_finished';
+              let _lineupIdx = 0;
+              try {
+                _lineupIdx = PhotoCardService?.getDesignFingerprint
+                  ? PhotoCardService.getDesignFingerprint(session.customer).lineupOffset % 3
+                  : 0;
+              } catch {}
+              mediaVariants._carouselCardDesigns = { A: [..._rawUrls], B: [..._rawUrls], C: [..._rawUrls] };
+              mediaVariants._photoCardUrls       = { A: _rawUrls[0]||null, B: _rawUrls[0]||null, C: _rawUrls[0]||null };
+              mediaVariants._rawSlideUrls        = _rawUrls.filter(Boolean);
+              mediaVariants._cardTrigger         = _trigger;
+              mediaVariants._cardLineupIndex     = _lineupIdx;
+              mediaVariants._slideOverlayTexts   = slideResults.map(s => s.overlayText || '');
+              mediaVariants._slideMetadata       = slideResults.map(s => ({
+                type: s.slideType || null,
+                bullets: Array.isArray(s.bullets) ? s.bullets : [],
+                subtext: s.subtext || '',
+              }));
+            }
+
             // ── Carousel Card Designs (3 branded templates × N slides) ─────────
             if (PhotoCardService && ImageResizer && slideResults.some(s => s.imageUrl)) {
               try {
