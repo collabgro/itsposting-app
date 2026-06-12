@@ -525,8 +525,8 @@ function buildDetailsObject(contentType, detailsText) {
 }
 
 // ── Inline API helpers (thin wrappers over the shared api instance) ──────────
-async function apiPost(path, body) {
-  const res = await api.post(path, body);
+async function apiPost(path, body, opts = {}) {
+  const res = await api.post(path, body, opts);
   return res.data;
 }
 
@@ -1084,7 +1084,7 @@ export default function Wizard() {
         await apiPost('/api/wizard/step', { wizardId, stepId: 'video_type', answers: { value: videoType } });
       }
 
-      const genRes = await apiPost('/api/wizard/generate', { wizardId });
+      const genRes = await apiPost('/api/wizard/generate', { wizardId }, { timeout: 300000 });
       setResults(genRes);
       setExtraPhotoCardUrls({});
       setExtraCardsByPlatform({});
