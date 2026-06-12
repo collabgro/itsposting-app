@@ -832,6 +832,9 @@ module.exports = (pool) => {
 
   // POST /api/wizard/generate
   router.post('/generate', authenticate, requireActiveAccount(pool), async (req, res) => {
+    // Carousel: 4 slides × image gen + 3 card designs + Cloudinary uploads can take 2-3 min
+    req.setTimeout(280000); // 280s — just under Railway's 5-min proxy limit
+    res.setTimeout(280000);
     let debugStage = 'start';
     try {
       const { wizardId } = req.body;
@@ -2553,6 +2556,8 @@ Return ONLY valid JSON (no markdown, no backticks):
 
   // POST /api/wizard/more-designs — generate 3 more card designs from an alternate template lineup
   router.post('/more-designs', authenticate, async (req, res) => {
+    req.setTimeout(280000);
+    res.setTimeout(280000);
     try {
       const { photoUrl, cardOverlay, wizardTrigger, lineupIndex,
               slideUrls, slideOverlayTexts, slideData } = req.body;

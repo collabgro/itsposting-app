@@ -275,19 +275,21 @@ export const templatesAPI = {
 export const wizardAPI = {
   start: (data) => api.post('/api/wizard/start', data),
   step: (data) => api.post('/api/wizard/step', data),
-  generate: (data) => api.post('/api/wizard/generate', data),
-  quick: (data) => api.post('/api/wizard/quick', data),
-  refresh: (data) => api.post('/api/wizard/refresh', data),
+  // Carousel: 4 slides × ~20s image gen + card designs + Cloudinary uploads = up to 3 min
+  // Video: HeyGen/Veo pipeline can also exceed 60s
+  generate: (data) => api.post('/api/wizard/generate', data, { timeout: 300000 }),
+  quick: (data) => api.post('/api/wizard/quick', data, { timeout: 180000 }),
+  refresh: (data) => api.post('/api/wizard/refresh', data, { timeout: 180000 }),
   getSteps: (industry, contentType) => api.get(`/api/wizard/steps/${industry}/${contentType}`),
-  bulkGenerate: (data) => api.post('/api/wizard/bulk-generate', data),
+  bulkGenerate: (data) => api.post('/api/wizard/bulk-generate', data, { timeout: 300000 }),
   bulkConfirm: (data) => api.post('/api/wizard/bulk-confirm', data),
   getStreamTicket: (postId) => api.post('/api/wizard/stream-ticket', { postId }),
-  planMonth: (data) => api.post('/api/wizard/plan-month', data),
+  planMonth: (data) => api.post('/api/wizard/plan-month', data, { timeout: 120000 }),
   downloadImage: (data) => api.post('/api/wizard/download-image', data, { responseType: 'blob' }),
   pollVideo: (postId) => api.get(`/api/wizard/video-poll/${postId}`),
   feedback: (data) => api.post('/api/wizard/feedback', data),
-  rerenderCard: (data) => api.post('/api/wizard/rerender-card', data),
-  moreDesigns: (data) => api.post('/api/wizard/more-designs', data),
+  rerenderCard: (data) => api.post('/api/wizard/rerender-card', data, { timeout: 120000 }),
+  moreDesigns: (data) => api.post('/api/wizard/more-designs', data, { timeout: 300000 }),
 };
 
 export const uploadAPI = {
