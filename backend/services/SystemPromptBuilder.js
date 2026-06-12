@@ -659,7 +659,7 @@ ${imageGuidance}
     {
       "slideNumber": 1,
       "slideType": "cover",
-      "overlayText": "Big hook headline max 6 words",
+      "overlayText": "3-4 word punch headline, NO asterisks or punctuation",
       "subtext": "One subtitle sentence explaining what is coming",
       "bullets": [],
       "description": "Visual description for slide 1 image (specific scene, action, lighting)"
@@ -667,7 +667,7 @@ ${imageGuidance}
     {
       "slideNumber": 2,
       "slideType": "body",
-      "overlayText": "Step 1 title max 5 words",
+      "overlayText": "3-4 word step title, no punctuation",
       "subtext": "One-line context max 12 words",
       "bullets": ["Short point one max 5 words", "Short point two max 5 words"],
       "description": "Visual description for slide 2 image"
@@ -675,7 +675,7 @@ ${imageGuidance}
     {
       "slideNumber": 3,
       "slideType": "body",
-      "overlayText": "Step 2 title max 5 words",
+      "overlayText": "3-4 word step title, no punctuation",
       "subtext": "One-line context max 12 words",
       "bullets": ["Short point one max 5 words", "Short point two max 5 words"],
       "description": "Visual description for slide 3 image"
@@ -683,7 +683,7 @@ ${imageGuidance}
     {
       "slideNumber": 4,
       "slideType": "cta",
-      "overlayText": "CTA question max 6 words",
+      "overlayText": "3-4 word call to action",
       "subtext": "Action nudge — book call visit today (max 10 words)",
       "bullets": [],
       "description": "Visual description for closing slide image — omit this slide if only 3 slides needed"

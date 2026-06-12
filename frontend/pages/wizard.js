@@ -2300,13 +2300,17 @@ export default function Wizard() {
                 </div>
 
                 {/* ── Card Style Picker — 3 template thumbnails (photo + carousel) ── */}
-                {(results.contentTypeSelection === 'photo' || results.contentTypeSelection === 'carousel') && results.photoCardUrls && (
+                {(results.contentTypeSelection === 'photo' || results.contentTypeSelection === 'carousel') && (results.photoCardUrls || results.carouselCardDesigns) && (
                   (() => {
                     const ALL_STYLE_KEYS = ['A','B','C','D','E','F','G','H','I'];
                     const styleLabels = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
-                    const allUrls = { ...results.photoCardUrls, ...extraPhotoCardUrls };
+                    // For carousels, use the first slide of each design as the thumbnail
+                    const carouselThumbs = results.contentTypeSelection === 'carousel'
+                      ? { A: results.carouselCardDesigns?.A?.[0], B: results.carouselCardDesigns?.B?.[0], C: results.carouselCardDesigns?.C?.[0] }
+                      : {};
+                    const allUrls = { ...results.photoCardUrls, ...carouselThumbs, ...extraPhotoCardUrls };
                     const styleKeys = ALL_STYLE_KEYS.filter(k => allUrls[k]);
-                    if (styleKeys.length < 2) return null;
+                    if (styleKeys.length < 1) return null;
                     return (
                       <div style={{ marginBottom: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Card Design</div>

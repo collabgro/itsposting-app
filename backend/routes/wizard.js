@@ -276,12 +276,14 @@ function validateAndFixCardOverlay(overlay, customer) {
     }).filter(Boolean).slice(0, 4);
   }
 
-  // Headline: max 6 words to prevent 4+ line wrap at large font size
+  // Headline: strip asterisks/markdown emphasis, then cap at 4 words.
+  // At font-size 80-96px, 5+ words wrap to 4+ lines and clutter the card.
   if (overlay.headline) {
+    overlay.headline = overlay.headline.replace(/\*/g, '').replace(/\s{2,}/g, ' ').trim();
     const words = overlay.headline.trim().split(/\s+/);
-    if (words.length > 6) {
-      overlay.headline = words.slice(0, 6).join(' ');
-      console.log('[Wizard][CardQA] headline trimmed to 6 words');
+    if (words.length > 4) {
+      overlay.headline = words.slice(0, 4).join(' ');
+      console.log('[Wizard][CardQA] headline trimmed to 4 words');
     }
   }
 
