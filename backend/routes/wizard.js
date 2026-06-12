@@ -1391,70 +1391,73 @@ Return ONLY valid JSON (no markdown, no backticks):
                   const slide = slideResults[si];
                   const rawBuffer = slideBuffers[si];
                   if (!rawBuffer) {
+                    // No buffer — use raw NanoBanana image as fallback for all 3 designs
                     carouselCardDesigns.A.push(slide.imageUrl || null);
                     carouselCardDesigns.B.push(slide.imageUrl || null);
                     carouselCardDesigns.C.push(slide.imageUrl || null);
                     continue;
                   }
 
-                  // Carousel slides get role-specific overlays (like a mini-article):
-                  // Cover  (slide 1)  — big headline + subtitle, "Swipe →" badge, no bullets/CTA
-                  // Body   (mid)      — step title + bullet points + context, progress badge
-                  // CTA    (last)     — closing question + action nudge, CTA button
-                  const isFirstSlide = si === 0;
-                  const isLastSlide = si === totalCarouselSlides - 1;
-                  const slideType = slide.slideType || (isFirstSlide ? 'cover' : isLastSlide ? 'cta' : 'body');
+                  // Wrap each slide in its own try/catch — one failed slide must not abort all card designs
+                  try {
+                    const isFirstSlide = si === 0;
+                    const isLastSlide = si === totalCarouselSlides - 1;
+                    const slideType = slide.slideType || (isFirstSlide ? 'cover' : isLastSlide ? 'cta' : 'body');
 
-                  const slideBadge = isFirstSlide
-                    ? 'Swipe →'    // "Swipe →" drives the swipe action
-                    : `${si + 1} of ${totalCarouselSlides}`;
+                    const slideBadge = isFirstSlide ? 'Swipe →' : `${si + 1} of ${totalCarouselSlides}`;
 
-                  // Cover: eye-catching headline + subtitle, no bullets
-                  // Body:  step title + 2-3 bullet services + brief context
-                  // CTA:   closing question + action nudge + CTA button
-                  let slideServices = [];
-                  let slideSubtext = '';
-                  let slideCta = '';
+                    let slideServices = [];
+                    let slideSubtext = '';
+                    let slideCta = '';
+                    if (slideType === 'cover') {
+                      slideSubtext = slide.subtext || '';
+                    } else if (slideType === 'body') {
+                      slideServices = Array.isArray(slide.bullets) ? slide.bullets : [];
+                      slideSubtext = slide.subtext || '';
+                    } else {
+                      slideSubtext = slide.subtext || '';
+                      slideCta = session.customer.phone ? 'Call Today' : 'Book Now';
+                    }
 
-                  if (slideType === 'cover') {
-                    slideSubtext = slide.subtext || '';
-                  } else if (slideType === 'body') {
-                    slideServices = Array.isArray(slide.bullets) ? slide.bullets : [];
-                    slideSubtext = slide.subtext || '';
-                  } else {
-                    // CTA slide
-                    slideSubtext = slide.subtext || '';
-                    slideCta = session.customer.phone ? 'Call Today' : 'Book Now';
+                    const slideCardOverlay = {
+                      headline: slide.overlayText || '',
+                      eyebrow: session.customer.business_name || '',
+                      services: slideServices,
+                      subtext: slideSubtext,
+                      cta: slideCta,
+                      badge: slideBadge,
+                      uppercase: true,
+                    };
+                    const fixedSlideOverlay = validateAndFixCardOverlay(slideCardOverlay, session.customer);
+
+                    // Use instagram_square (1080×1080) for carousel — native 1:1 aspect ratio
+                    const slideCards = await PhotoCardService.generatePhotoCardsForPlatforms(
+                      rawBuffer, fixedSlideOverlay, session.customer, carouselCardTrigger,
+                      ['instagram_square'], null, carouselLineupIndex
+                    );
+                    const squareCards = slideCards.instagram_square;
+                    if (!squareCards) {
+                      carouselCardDesigns.A.push(slide.imageUrl || null);
+                      carouselCardDesigns.B.push(slide.imageUrl || null);
+                      carouselCardDesigns.C.push(slide.imageUrl || null);
+                      continue;
+                    }
+
+                    const [urlA, urlB, urlC] = await Promise.all([
+                      ImageResizer.uploadToCloudinary(squareCards.A, `itsposting/${cid}/carousel-card-${ts}-s${si + 1}-A`),
+                      ImageResizer.uploadToCloudinary(squareCards.B, `itsposting/${cid}/carousel-card-${ts}-s${si + 1}-B`),
+                      ImageResizer.uploadToCloudinary(squareCards.C, `itsposting/${cid}/carousel-card-${ts}-s${si + 1}-C`),
+                    ]);
+                    carouselCardDesigns.A.push(urlA);
+                    carouselCardDesigns.B.push(urlB);
+                    carouselCardDesigns.C.push(urlC);
+                  } catch (slideCardErr) {
+                    // One slide failed — fall back to raw image so others are unaffected
+                    console.warn(`[Wizard] Carousel card failed for slide ${si + 1}:`, slideCardErr.message);
+                    carouselCardDesigns.A.push(slide.imageUrl || null);
+                    carouselCardDesigns.B.push(slide.imageUrl || null);
+                    carouselCardDesigns.C.push(slide.imageUrl || null);
                   }
-
-                  const slideCardOverlay = {
-                    headline: slide.overlayText || '',
-                    // Business name only — badge carries the slide context
-                    eyebrow: session.customer.business_name || '',
-                    services: slideServices,
-                    subtext: slideSubtext,
-                    cta: slideCta,
-                    badge: slideBadge,
-                    uppercase: true,
-                  };
-                  const fixedSlideOverlay = validateAndFixCardOverlay(slideCardOverlay, session.customer);
-
-                  // Use instagram_square (1080×1080) for carousel — native 1:1 aspect ratio
-                  const slideCards = await PhotoCardService.generatePhotoCardsForPlatforms(
-                    rawBuffer, fixedSlideOverlay, session.customer, carouselCardTrigger,
-                    ['instagram_square'], null, carouselLineupIndex
-                  );
-                  const squareCards = slideCards.instagram_square;
-                  if (!squareCards) { carouselCardDesigns.A.push(null); carouselCardDesigns.B.push(null); carouselCardDesigns.C.push(null); continue; }
-
-                  const [urlA, urlB, urlC] = await Promise.all([
-                    ImageResizer.uploadToCloudinary(squareCards.A, `itsposting/${cid}/carousel-card-${ts}-s${si + 1}-A`),
-                    ImageResizer.uploadToCloudinary(squareCards.B, `itsposting/${cid}/carousel-card-${ts}-s${si + 1}-B`),
-                    ImageResizer.uploadToCloudinary(squareCards.C, `itsposting/${cid}/carousel-card-${ts}-s${si + 1}-C`),
-                  ]);
-                  carouselCardDesigns.A.push(urlA);
-                  carouselCardDesigns.B.push(urlB);
-                  carouselCardDesigns.C.push(urlC);
                 }
 
                 // Save raw slide URLs and metadata BEFORE overwriting with card URLs
@@ -1487,7 +1490,7 @@ Return ONLY valid JSON (no markdown, no backticks):
                 mediaVariants._slideOverlayTexts    = slideOverlayTexts;
                 mediaVariants._slideMetadata        = slideMetadata;
               } catch (carouselCardErr) {
-                console.warn('[Wizard] Carousel card design generation failed (using raw photos):', carouselCardErr.message);
+                console.error('[Wizard] Carousel card design generation failed:', carouselCardErr.message, carouselCardErr.stack?.split('\n')[1]);
               }
             }
           } else {
@@ -1663,13 +1666,16 @@ Return ONLY valid JSON (no markdown, no backticks):
             console.warn('[Wizard] Could not save post_variations (table may not exist yet):', variationsErr.message);
           }
 
-          // Save carousel slides (design A as default — user can switch design before posting)
+          // Save carousel slides — use card designs (design A) if available, fall back to raw NanoBanana URLs.
+          // Without slides in post_carousel_slides, Instagram publishes as a single image instead of a carousel.
           if (answers.contentTypeSelection === 'carousel') {
             try {
               const designASlides = mediaVariants._carouselCardDesigns?.A || [];
-              if (designASlides.length > 0) {
-                for (let si = 0; si < designASlides.length; si++) {
-                  const slideUrl = designASlides[si];
+              const rawSlides = (mediaVariants.slides || []).map(s => s.imageUrl).filter(Boolean);
+              const slideUrls = designASlides.length > 0 ? designASlides : rawSlides;
+              if (slideUrls.length > 0) {
+                for (let si = 0; si < slideUrls.length; si++) {
+                  const slideUrl = slideUrls[si];
                   if (slideUrl) {
                     await pool.query(
                       `INSERT INTO post_carousel_slides (post_id, slide_number, media_url, caption)
@@ -1678,6 +1684,7 @@ Return ONLY valid JSON (no markdown, no backticks):
                     );
                   }
                 }
+                console.log(`[Wizard] Saved ${slideUrls.length} carousel slides (${designASlides.length > 0 ? 'card designs' : 'raw NanoBanana'}) for post ${savedPostId}`);
               }
             } catch (slidesErr) {
               console.warn('[Wizard] Could not save post_carousel_slides:', slidesErr.message);
