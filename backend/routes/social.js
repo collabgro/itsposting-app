@@ -1033,6 +1033,7 @@ module.exports = (pool) => {
       } else {
         res.end(JSON.stringify({ error: error.message || 'Publish failed' }));
       }
+    }
   });
 
   // ── GET /api/social/reviews ──────────────────────────────────────────────
