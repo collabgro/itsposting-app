@@ -276,14 +276,15 @@ function validateAndFixCardOverlay(overlay, customer) {
     }).filter(Boolean).slice(0, 4);
   }
 
-  // Headline: strip asterisks/markdown emphasis, then cap at 4 words.
-  // At font-size 80-96px, 5+ words wrap to 4+ lines and clutter the card.
+  // Headline: strip asterisks/markdown emphasis, cap at 6 words.
+  // Cap is 6 (not 4) so Claude's complete "4-7 word" phrases aren't cut into fragments.
+  // wrapText() in PhotoCardService handles line-breaking within the card layout.
   if (overlay.headline) {
     overlay.headline = overlay.headline.replace(/\*/g, '').replace(/\s{2,}/g, ' ').trim();
     const words = overlay.headline.trim().split(/\s+/);
-    if (words.length > 4) {
-      overlay.headline = words.slice(0, 4).join(' ');
-      console.log('[Wizard][CardQA] headline trimmed to 4 words');
+    if (words.length > 6) {
+      overlay.headline = words.slice(0, 6).join(' ');
+      console.log('[Wizard][CardQA] headline trimmed to 6 words');
     }
   }
 

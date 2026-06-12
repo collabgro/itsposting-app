@@ -646,7 +646,7 @@ ${imageGuidance}
 {
   "imagePrompt": "${isPhoto ? 'CRAFT THIS based on the PHOTO CARD DESIGN BRIEF above. Include: exact subject position for the CHOSEN template, cinematic editorial lighting, professional photography style. One paragraph, specific and vivid.' : 'A SINGLE shared image prompt for ALL 3 variations. Include: subject, setting, lighting, style, mood, composition.'}",${isPhoto ? `
   "cardOverlay": {
-    "headline": "4-7 word headline — punchy and specific to THIS business and post (e.g. Drain Cleared Fast, Storm Damage Fixed Right)",
+    "headline": "4-6 word COMPLETE headline — must make sense standalone, not a fragment. Good: 'Drain Cleared Same Day', 'Storm Damage Fixed Right', 'Frozen Pipes? We Fix That'. Bad: 'What You Need To', '5 Signs Your Roof'.",
     "eyebrow": "Small text above headline, hyper-local + trust signal (e.g. LICENSED PLUMBER · DALLAS TX). Max 6 words.",
     "subtext": "One supporting sentence, max 15 words. Plain language, benefit-focused. Not generic.",
     "cta": "2-4 word call-to-action (e.g. Call Today, Get Free Quote, Book Now)",
@@ -659,7 +659,7 @@ ${imageGuidance}
     {
       "slideNumber": 1,
       "slideType": "cover",
-      "overlayText": "3-4 word punch headline, NO asterisks or punctuation",
+      "overlayText": "3-5 word COMPLETE standalone headline — must make sense alone, not a sentence fragment. Good: 'Stop Pipe Leaks', '5 Roof Warning Signs', 'Free Estimate Today'. Bad: '5 Signs Your', 'How to Fix', 'What You Should'.",
       "subtext": "One subtitle sentence explaining what is coming",
       "bullets": [],
       "description": "Visual description for slide 1 image (specific scene, action, lighting)"
@@ -667,7 +667,7 @@ ${imageGuidance}
     {
       "slideNumber": 2,
       "slideType": "body",
-      "overlayText": "3-4 word step title, no punctuation",
+      "overlayText": "3-5 word COMPLETE topic title — must stand alone. Good: 'Check the Pressure', 'Look for Cracks', 'Turn Off the Valve'. Bad: 'What You Need', 'How to Check'.",
       "subtext": "One-line context max 12 words",
       "bullets": ["Short point one max 5 words", "Short point two max 5 words"],
       "description": "Visual description for slide 2 image"
@@ -675,7 +675,7 @@ ${imageGuidance}
     {
       "slideNumber": 3,
       "slideType": "body",
-      "overlayText": "3-4 word step title, no punctuation",
+      "overlayText": "3-5 word COMPLETE topic title — must stand alone. Good: 'Check the Pressure', 'Look for Cracks', 'Turn Off the Valve'. Bad: 'What You Need', 'How to Check'.",
       "subtext": "One-line context max 12 words",
       "bullets": ["Short point one max 5 words", "Short point two max 5 words"],
       "description": "Visual description for slide 3 image"
@@ -683,7 +683,7 @@ ${imageGuidance}
     {
       "slideNumber": 4,
       "slideType": "cta",
-      "overlayText": "3-4 word call to action",
+      "overlayText": "2-4 word COMPLETE call to action — must make sense alone. Good: 'Call Us Today', 'Book Free Quote', 'Get Your Estimate'. Bad: 'Call Us To', 'Book Your'.",
       "subtext": "Action nudge — book call visit today (max 10 words)",
       "bullets": [],
       "description": "Visual description for closing slide image — omit this slide if only 3 slides needed"
