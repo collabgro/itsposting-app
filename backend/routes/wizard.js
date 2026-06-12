@@ -1480,12 +1480,14 @@ Return ONLY valid JSON (no markdown, no backticks):
                     };
                     const fixedSlideOverlay = validateAndFixCardOverlay(slideCardOverlay, session.customer);
 
-                    // Use instagram_square (1080×1080) for carousel — native 1:1 aspect ratio
+                    // Use instagram_feed (1080×1350 portrait) — matches template W/H constants,
+                    // avoids Sharp error when compositing 1350px SVG onto 1080px square buffer.
+                    // Instagram and Facebook both accept portrait-ratio carousel slides.
                     const slideCards = await PhotoCardService.generatePhotoCardsForPlatforms(
                       rawBuffer, fixedSlideOverlay, session.customer, carouselCardTrigger,
-                      ['instagram_square'], null, carouselLineupIndex
+                      ['instagram_feed'], null, carouselLineupIndex
                     );
-                    const squareCards = slideCards.instagram_square;
+                    const squareCards = slideCards.instagram_feed;
                     if (!squareCards) {
                       carouselCardDesigns.A.push(slide.imageUrl || null);
                       carouselCardDesigns.B.push(slide.imageUrl || null);
@@ -2697,9 +2699,9 @@ Return ONLY valid JSON (no markdown, no backticks):
 
             const slideCards = await PhotoCardService.generatePhotoCardsForPlatforms(
               rawBuffer, slideCardOverlay, customer, wizardTrigger || null,
-              ['instagram_square'], null, idx
+              ['instagram_feed'], null, idx
             );
-            const squareCards = slideCards.instagram_square;
+            const squareCards = slideCards.instagram_feed;
             if (!squareCards) {
               carouselCardDesigns.A.push(rawUrl);
               carouselCardDesigns.B.push(rawUrl);
