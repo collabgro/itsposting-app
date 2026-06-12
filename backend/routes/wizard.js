@@ -2655,59 +2655,73 @@ Return ONLY valid JSON (no markdown, no backticks):
         for (let si = 0; si < slideUrls.length; si++) {
           const rawUrl = slideUrls[si];
           if (!rawUrl) {
-            carouselCardDesigns.A.push(null);
-            carouselCardDesigns.B.push(null);
-            carouselCardDesigns.C.push(null);
+            carouselCardDesigns.A.push(rawUrl || null);
+            carouselCardDesigns.B.push(rawUrl || null);
+            carouselCardDesigns.C.push(rawUrl || null);
             continue;
           }
-          const rawBuffer = await ImageResizer.fetchImageAsBuffer(rawUrl);
 
-          // Reproduce role-aware slide overlay (same logic as main generate endpoint)
-          const meta = metaArr[si] || {};
-          const isFirstSlide = si === 0;
-          const isLastSlide  = si === totalMoreSlides - 1;
-          const slideType = meta.type || (isFirstSlide ? 'cover' : isLastSlide ? 'cta' : 'body');
-          const slideBadge = isFirstSlide ? 'Swipe →' : `${si + 1} of ${totalMoreSlides}`;
+          try {
+            const rawBuffer = await ImageResizer.fetchImageAsBuffer(rawUrl);
 
-          let slideServices = [];
-          let slideSubtext  = '';
-          let slideCta      = '';
-          if (slideType === 'cover') {
-            slideSubtext = meta.subtext || '';
-          } else if (slideType === 'body') {
-            slideServices = Array.isArray(meta.bullets) ? meta.bullets : [];
-            slideSubtext  = meta.subtext || '';
-          } else {
-            slideSubtext = meta.subtext || '';
-            slideCta     = customer.phone ? 'Call Today' : 'Book Now';
+            // Reproduce role-aware slide overlay (same logic as main generate endpoint)
+            const meta = metaArr[si] || {};
+            const isFirstSlide = si === 0;
+            const isLastSlide  = si === totalMoreSlides - 1;
+            const slideType = meta.type || (isFirstSlide ? 'cover' : isLastSlide ? 'cta' : 'body');
+            const slideBadge = isFirstSlide ? 'Swipe →' : `${si + 1} of ${totalMoreSlides}`;
+
+            let slideServices = [];
+            let slideSubtext  = '';
+            let slideCta      = '';
+            if (slideType === 'cover') {
+              slideSubtext = meta.subtext || '';
+            } else if (slideType === 'body') {
+              slideServices = Array.isArray(meta.bullets) ? meta.bullets : [];
+              slideSubtext  = meta.subtext || '';
+            } else {
+              slideSubtext = meta.subtext || '';
+              slideCta     = customer.phone ? 'Call Today' : 'Book Now';
+            }
+
+            const slideCardOverlay = {
+              headline: overlayTexts[si] || '',
+              eyebrow: customer.business_name || '',
+              services: slideServices,
+              subtext: slideSubtext,
+              cta: slideCta,
+              badge: slideBadge,
+              uppercase: true,
+            };
+            validateAndFixCardOverlay(slideCardOverlay, customer);
+
+            const slideCards = await PhotoCardService.generatePhotoCardsForPlatforms(
+              rawBuffer, slideCardOverlay, customer, wizardTrigger || null,
+              ['instagram_square'], null, idx
+            );
+            const squareCards = slideCards.instagram_square;
+            if (!squareCards) {
+              carouselCardDesigns.A.push(rawUrl);
+              carouselCardDesigns.B.push(rawUrl);
+              carouselCardDesigns.C.push(rawUrl);
+              continue;
+            }
+
+            const [urlA, urlB, urlC] = await Promise.all([
+              ImageResizer.uploadToCloudinary(squareCards.A, `itsposting/${cid}/carousel-more-${ts}-s${si + 1}-A`),
+              ImageResizer.uploadToCloudinary(squareCards.B, `itsposting/${cid}/carousel-more-${ts}-s${si + 1}-B`),
+              ImageResizer.uploadToCloudinary(squareCards.C, `itsposting/${cid}/carousel-more-${ts}-s${si + 1}-C`),
+            ]);
+            carouselCardDesigns.A.push(urlA);
+            carouselCardDesigns.B.push(urlB);
+            carouselCardDesigns.C.push(urlC);
+          } catch (slideErr) {
+            console.warn(`[Wizard] more-designs slide ${si + 1} failed:`, slideErr.message);
+            // Fall back to raw NanaBanana image so one failed slide doesn't kill the whole request
+            carouselCardDesigns.A.push(rawUrl);
+            carouselCardDesigns.B.push(rawUrl);
+            carouselCardDesigns.C.push(rawUrl);
           }
-
-          const slideCardOverlay = {
-            headline: overlayTexts[si] || '',
-            eyebrow: customer.business_name || '',
-            services: slideServices,
-            subtext: slideSubtext,
-            cta: slideCta,
-            badge: slideBadge,
-            uppercase: true,
-          };
-          validateAndFixCardOverlay(slideCardOverlay, customer);
-
-          const slideCards = await PhotoCardService.generatePhotoCardsForPlatforms(
-            rawBuffer, slideCardOverlay, customer, wizardTrigger || null,
-            ['instagram_square'], null, idx
-          );
-          const squareCards = slideCards.instagram_square;
-          if (!squareCards) { carouselCardDesigns.A.push(null); carouselCardDesigns.B.push(null); carouselCardDesigns.C.push(null); continue; }
-
-          const [urlA, urlB, urlC] = await Promise.all([
-            ImageResizer.uploadToCloudinary(squareCards.A, `itsposting/${cid}/carousel-more-${ts}-s${si + 1}-A`),
-            ImageResizer.uploadToCloudinary(squareCards.B, `itsposting/${cid}/carousel-more-${ts}-s${si + 1}-B`),
-            ImageResizer.uploadToCloudinary(squareCards.C, `itsposting/${cid}/carousel-more-${ts}-s${si + 1}-C`),
-          ]);
-          carouselCardDesigns.A.push(urlA);
-          carouselCardDesigns.B.push(urlB);
-          carouselCardDesigns.C.push(urlC);
         }
 
         return res.json({
