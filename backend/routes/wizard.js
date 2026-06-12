@@ -1335,57 +1335,57 @@ Return ONLY valid JSON (no markdown, no backticks):
         try {
           if (contentTypeForMedia === 'carousel') {
             const rawSlideList = parsed.carouselSlides || parsed.variation_a?.slides || [];
-            // Smart cap by content type: educational/myth-busting gets up to 6, promotional stays at 3-4
+            // Cap slides to keep total generation time under 50s (Railway proxy limit).
+            // Staggered-parallel NanaBanana means 4 slides ≈ 14s, 6 would be 55s+ sequentially.
             const CAROUSEL_MAX_BY_TRIGGER = {
-              faq: 6, share_tip: 6, community: 6,          // educational — one slide per point
-              job_finished: 5, before_after: 5,             // showcase — tell the story
-              seasonal: 4, got_review: 4, team_spotlight: 4, // focused
-              promotion: 3, milestone: 3,                   // punchy
+              faq: 4, share_tip: 4, community: 4,            // educational
+              just_finished_job: 4, job_finished: 4, before_after: 4, // showcase
+              seasonal: 3, got_review: 3, team_spotlight: 3, behind_scenes: 3, // focused
+              running_promo: 3, promotion: 3, milestone: 3,  // punchy
             };
-            const slideMax = CAROUSEL_MAX_BY_TRIGGER[answers.contentType] || 5;
+            const slideMax = CAROUSEL_MAX_BY_TRIGGER[answers.contentType] || 3;
             const slideList = rawSlideList.slice(0, slideMax);
-            const slideResults = [];
-            for (let si = 0; si < slideList.length; si++) {
-              const slide = slideList[si];
-              // Wrap the description in a card-background directive so Gemini generates
-              // clean photo backgrounds — our PhotoCardService applies text overlays on top.
-              const rawDesc = slide.description || imagePromptForGen || '';
-              const slidePrompt = `Professional photograph for a social media card background. ${rawDesc}. Clean composition with subject clearly visible. CRITICAL: absolutely NO text, words, letters, numbers, captions, watermarks, logos, or graphical text overlays anywhere in the image. Pure clean photograph only.`;
-              // Small inter-slide delay (from slide 2 onward) to avoid Gemini rate limits on rapid sequential calls
-              if (si > 0) await new Promise(r => setTimeout(r, 800));
-              const slideStart = Date.now();
-              let slideImageUrl = null;
-              for (let attempt = 0; attempt < 2; attempt++) {
-                try {
-                  if (attempt > 0) {
-                    console.log(`[Wizard] Retrying slide ${slide.slideNumber} (attempt ${attempt + 1})...`);
-                    await new Promise(r => setTimeout(r, 1500));
+
+            // Staggered-parallel generation: slide N starts at N×700ms, all run concurrently.
+            // This reduces 4-slide NanaBanana time from ~50s sequential to ~15s.
+            const slidePromises = slideList.map((slide, si) =>
+              new Promise(resolve => setTimeout(resolve, si * 700)).then(async () => {
+                const rawDesc = slide.description || imagePromptForGen || '';
+                const slidePrompt = `Professional photograph for a social media card background. ${rawDesc}. Clean composition with subject clearly visible. CRITICAL: absolutely NO text, words, letters, numbers, captions, watermarks, logos, or graphical text overlays anywhere in the image. Pure clean photograph only.`;
+                const slideStart = Date.now();
+                let slideImageUrl = null;
+                for (let attempt = 0; attempt < 2; attempt++) {
+                  try {
+                    if (attempt > 0) {
+                      console.log(`[Wizard] Retrying slide ${slide.slideNumber} (attempt ${attempt + 1})...`);
+                      await new Promise(r => setTimeout(r, 1500));
+                    }
+                    const slideResult = await nanoBanana.generateFromPrompt(session.customer, slidePrompt, { aspectRatio: '1:1' });
+                    await validateMedia(slideResult.url);
+                    slideImageUrl = slideResult.url;
+                    const _slideUrl = slideResult.url;
+                    const _slideMs  = Date.now() - slideStart;
+                    const _slideModel = slideResult.model || 'gemini-2.5-flash-image';
+                    setImmediate(async () => {
+                      pool.query(
+                        `INSERT INTO image_training_data
+                           (post_id, customer_id, input_prompt, output_url, provider, industry,
+                            content_type, model_used, generation_time_ms, created_at)
+                         VALUES (NULL,$1,$2,$3,'nanobanana',$4,'carousel',$5,$6,NOW())`,
+                        [session.customerId, slidePrompt, _slideUrl,
+                         session.customer.industry, _slideModel, _slideMs]
+                      ).catch(e => console.warn('[Wizard] carousel slide training insert failed:', e.message));
+                    });
+                    break;
+                  } catch (slideErr) {
+                    console.warn(`[Wizard] Slide ${slide.slideNumber} attempt ${attempt + 1} failed:`, slideErr.message);
                   }
-                  const slideResult = await nanoBanana.generateFromPrompt(session.customer, slidePrompt, { aspectRatio: '1:1' });
-                  await validateMedia(slideResult.url);
-                  slideImageUrl = slideResult.url;
-                  // Log each carousel slide image — fire-and-forget
-                  const _slideUrl = slideResult.url;
-                  const _slideMs  = Date.now() - slideStart;
-                  const _slideModel = slideResult.model || 'gemini-2.5-flash-image';
-                  setImmediate(async () => {
-                    pool.query(
-                      `INSERT INTO image_training_data
-                         (post_id, customer_id, input_prompt, output_url, provider, industry,
-                          content_type, model_used, generation_time_ms, created_at)
-                       VALUES (NULL,$1,$2,$3,'nanobanana',$4,'carousel',$5,$6,NOW())`,
-                      [session.customerId, slidePrompt, _slideUrl,
-                       session.customer.industry, _slideModel, _slideMs]
-                    ).catch(e => console.warn('[Wizard] carousel slide training insert failed:', e.message));
-                  });
-                  break; // success — stop retrying
-                } catch (slideErr) {
-                  console.warn(`[Wizard] Slide ${slide.slideNumber} attempt ${attempt + 1} failed:`, slideErr.message);
                 }
-              }
-              slideResults.push({ ...slide, imageUrl: slideImageUrl });
-              console.log(`[Wizard] Slide ${slide.slideNumber}/${slideList.length}: ${slideImageUrl ? 'OK' : 'FAILED'}`);
-            }
+                console.log(`[Wizard] Slide ${slide.slideNumber}/${slideList.length}: ${slideImageUrl ? 'OK' : 'FAILED'}`);
+                return { ...slide, imageUrl: slideImageUrl };
+              })
+            );
+            const slideResults = await Promise.all(slidePromises);
             mediaUrl = slideResults[0]?.imageUrl || null;
             mediaVariants = { slides: slideResults };
 
