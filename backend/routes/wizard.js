@@ -1345,34 +1345,46 @@ Return ONLY valid JSON (no markdown, no backticks):
             const slideMax = CAROUSEL_MAX_BY_TRIGGER[answers.contentType] || 5;
             const slideList = rawSlideList.slice(0, slideMax);
             const slideResults = [];
-            for (const slide of slideList) {
+            for (let si = 0; si < slideList.length; si++) {
+              const slide = slideList[si];
               // Wrap the description in a card-background directive so Gemini generates
               // clean photo backgrounds — our PhotoCardService applies text overlays on top.
               const rawDesc = slide.description || imagePromptForGen || '';
               const slidePrompt = `Professional photograph for a social media card background. ${rawDesc}. Clean composition with subject clearly visible. CRITICAL: absolutely NO text, words, letters, numbers, captions, watermarks, logos, or graphical text overlays anywhere in the image. Pure clean photograph only.`;
+              // Small inter-slide delay (from slide 2 onward) to avoid Gemini rate limits on rapid sequential calls
+              if (si > 0) await new Promise(r => setTimeout(r, 800));
               const slideStart = Date.now();
-              try {
-                const slideResult = await nanoBanana.generateFromPrompt(session.customer, slidePrompt, { aspectRatio: '1:1' });
-                await validateMedia(slideResult.url);
-                slideResults.push({ ...slide, imageUrl: slideResult.url });
-                // Log each carousel slide image — fire-and-forget
-                const _slideUrl = slideResult.url;
-                const _slideMs  = Date.now() - slideStart;
-                const _slideModel = slideResult.model || 'gemini-2.5-flash-image';
-                setImmediate(async () => {
-                  pool.query(
-                    `INSERT INTO image_training_data
-                       (post_id, customer_id, input_prompt, output_url, provider, industry,
-                        content_type, model_used, generation_time_ms, created_at)
-                     VALUES (NULL,$1,$2,$3,'nanobanana',$4,'carousel',$5,$6,NOW())`,
-                    [session.customerId, slidePrompt, _slideUrl,
-                     session.customer.industry, _slideModel, _slideMs]
-                  ).catch(e => console.warn('[Wizard] carousel slide training insert failed:', e.message));
-                });
-              } catch (slideErr) {
-                console.warn(`[Wizard] Slide ${slide.slideNumber} image failed:`, slideErr.message);
-                slideResults.push({ ...slide, imageUrl: null });
+              let slideImageUrl = null;
+              for (let attempt = 0; attempt < 2; attempt++) {
+                try {
+                  if (attempt > 0) {
+                    console.log(`[Wizard] Retrying slide ${slide.slideNumber} (attempt ${attempt + 1})...`);
+                    await new Promise(r => setTimeout(r, 1500));
+                  }
+                  const slideResult = await nanoBanana.generateFromPrompt(session.customer, slidePrompt, { aspectRatio: '1:1' });
+                  await validateMedia(slideResult.url);
+                  slideImageUrl = slideResult.url;
+                  // Log each carousel slide image — fire-and-forget
+                  const _slideUrl = slideResult.url;
+                  const _slideMs  = Date.now() - slideStart;
+                  const _slideModel = slideResult.model || 'gemini-2.5-flash-image';
+                  setImmediate(async () => {
+                    pool.query(
+                      `INSERT INTO image_training_data
+                         (post_id, customer_id, input_prompt, output_url, provider, industry,
+                          content_type, model_used, generation_time_ms, created_at)
+                       VALUES (NULL,$1,$2,$3,'nanobanana',$4,'carousel',$5,$6,NOW())`,
+                      [session.customerId, slidePrompt, _slideUrl,
+                       session.customer.industry, _slideModel, _slideMs]
+                    ).catch(e => console.warn('[Wizard] carousel slide training insert failed:', e.message));
+                  });
+                  break; // success — stop retrying
+                } catch (slideErr) {
+                  console.warn(`[Wizard] Slide ${slide.slideNumber} attempt ${attempt + 1} failed:`, slideErr.message);
+                }
               }
+              slideResults.push({ ...slide, imageUrl: slideImageUrl });
+              console.log(`[Wizard] Slide ${slide.slideNumber}/${slideList.length}: ${slideImageUrl ? 'OK' : 'FAILED'}`);
             }
             mediaUrl = slideResults[0]?.imageUrl || null;
             mediaVariants = { slides: slideResults };
