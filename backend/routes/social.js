@@ -962,6 +962,12 @@ module.exports = (pool) => {
       // Mark as publishing
       await pool.query(`UPDATE posts SET status = 'posting', updated_at = NOW() WHERE id = $1`, [postId]);
 
+      // Flush HTTP headers immediately so Railway's reverse-proxy doesn't time out waiting for the
+      // first response byte. Instagram carousel posting can take 15-30s (4 items × wait loop).
+      // After flushHeaders() all subsequent writes use res.end() instead of res.json().
+      res.setHeader('Content-Type', 'application/json');
+      res.flushHeaders();
+
       const publisher = new SocialPublisher(pool);
       const { platformPostIds, accountLabels, errors } = accountIds?.length
         ? await publisher.publishToAccounts(post, accountIds)
@@ -979,10 +985,9 @@ module.exports = (pool) => {
           `UPDATE posts SET status = 'failed', error_message = $1, updated_at = NOW() WHERE id = $2`,
           [errors.map(e => `${e.platform}: ${e.message}`).join('; '), postId]
         );
-        // Notify the user their post failed
         const failedPlatforms = errors.map(e => e.platform).join(', ');
         setImmediate(() => notifier.postFailed(req.customerId, postId, failedPlatforms, errors[0]?.message));
-        return res.status(502).json({ success: false, errors });
+        return res.end(JSON.stringify({ success: false, errors }));
       }
 
       await pool.query(
@@ -1020,11 +1025,14 @@ module.exports = (pool) => {
         : succeeded.map(k => k.replace(/_\d+$/, '').replace(/_/g, ' ')).join(', ');
       setImmediate(() => notifier.postPublished(req.customerId, postId, publishedPlatforms));
 
-      res.json({ success: true, posted: succeeded, errors, platformPostIds });
+      res.end(JSON.stringify({ success: true, posted: succeeded, errors, platformPostIds }));
     } catch (error) {
-      console.error('[social/publish]', error.message);
-      res.status(500).json({ error: error.message });
-    }
+      console.error('[social/publish]', error.message, error.stack?.split('\n')[1]);
+      if (!res.headersSent) {
+        res.status(500).json({ error: error.message || 'Publish failed' });
+      } else {
+        res.end(JSON.stringify({ error: error.message || 'Publish failed' }));
+      }
   });
 
   // ── GET /api/social/reviews ──────────────────────────────────────────────

@@ -505,20 +505,19 @@ class SocialPublisher {
   async _postInstagramCarousel(igUserId, token, caption, slideUrls) {
     const slides = slideUrls.slice(0, 10); // Instagram hard cap: 10 items
 
-    // Step 1 — create an item container for every slide (is_carousel_item=true)
-    // then wait for each to reach FINISHED status before building the carousel container.
-    const itemIds = [];
-    for (const url of slides) {
-      const itemRes = await axios.post(
-        `https://graph.facebook.com/v18.0/${igUserId}/media`,
-        { image_url: url, is_carousel_item: true, access_token: token },
-        { timeout: 30000 }
-      );
-      const itemId = itemRes.data.id;
-      // Wait for item container to be FINISHED before moving on — required by Instagram API
-      await this._waitForIgContainer(igUserId, itemId, token, 30000);
-      itemIds.push(itemId);
-    }
+    // Step 1 — create ALL item containers in parallel (vs sequential saves ~3s × n_slides)
+    const itemIds = await Promise.all(
+      slides.map(url =>
+        axios.post(
+          `https://graph.facebook.com/v18.0/${igUserId}/media`,
+          { image_url: url, is_carousel_item: true, access_token: token },
+          { timeout: 30000 }
+        ).then(r => r.data.id)
+      )
+    );
+
+    // Step 2 — wait for ALL item containers in parallel (vs sequential saves ~5s × n_slides)
+    await Promise.all(itemIds.map(id => this._waitForIgContainer(igUserId, id, token, 25000)));
 
     // Step 2 — create the carousel container.
     // children must be an array of container IDs (not a comma-separated string).
