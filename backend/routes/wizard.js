@@ -1335,10 +1335,21 @@ Return ONLY valid JSON (no markdown, no backticks):
         try {
           if (contentTypeForMedia === 'carousel') {
             const rawSlideList = parsed.carouselSlides || parsed.variation_a?.slides || [];
-            const slideList = rawSlideList.slice(0, 4); // hard cap at 4 slides
+            // Smart cap by content type: educational/myth-busting gets up to 6, promotional stays at 3-4
+            const CAROUSEL_MAX_BY_TRIGGER = {
+              faq: 6, share_tip: 6, community: 6,          // educational — one slide per point
+              job_finished: 5, before_after: 5,             // showcase — tell the story
+              seasonal: 4, got_review: 4, team_spotlight: 4, // focused
+              promotion: 3, milestone: 3,                   // punchy
+            };
+            const slideMax = CAROUSEL_MAX_BY_TRIGGER[answers.contentType] || 5;
+            const slideList = rawSlideList.slice(0, slideMax);
             const slideResults = [];
             for (const slide of slideList) {
-              const slidePrompt = slide.description || imagePromptForGen;
+              // Wrap the description in a card-background directive so Gemini generates
+              // clean photo backgrounds — our PhotoCardService applies text overlays on top.
+              const rawDesc = slide.description || imagePromptForGen || '';
+              const slidePrompt = `Professional photograph for a social media card background. ${rawDesc}. Clean composition with subject clearly visible. CRITICAL: absolutely NO text, words, letters, numbers, captions, watermarks, logos, or graphical text overlays anywhere in the image. Pure clean photograph only.`;
               const slideStart = Date.now();
               try {
                 const slideResult = await nanoBanana.generateFromPrompt(session.customer, slidePrompt, { aspectRatio: '1:1' });

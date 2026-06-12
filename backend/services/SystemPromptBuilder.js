@@ -383,14 +383,41 @@ Keep: local focus tight — neighbourhood level, not just city`,
     const contentTypeRules = {
       static: 'Content format: TEXT CARD — write only the caption text. No image description needed.',
       photo: 'Content format: PHOTO POST — include an imagePrompt for each variation describing what the AI image should look like. Be specific: lighting, angle, subject, style.',
-      carousel: `Content format: CAROUSEL (maximum 4 slides)
-Each slide has a specific role — like a mini-article people swipe through:
+      carousel: `Content format: CAROUSEL — a swipeable mini-article. Research shows 5-6 slides get 3x more saves and shares than 3-4 slides. Build it right.
 
-SLIDE 1 (Cover/Hook): Big attention-grabbing headline (max 6 words) + ONE subtitle sentence. This is what makes people swipe. No bullet points.
-SLIDE 2–3 (Body steps): Each body slide has a short title (max 5 words) + 2-3 short bullet points (max 5 words each) + one brief context sentence. These deliver the value.
-LAST SLIDE (CTA Closer): A question or invitation (e.g. "Ready to fix that leak?") + one-line action nudge. This drives bookings and calls.
+SLIDE COUNT RULES (critical):
+- Myth-busting / FAQ / Educational tips: 6 slides — each myth or tip gets its own slide
+- Step-by-step guides / Job showcase: 5 slides — cover + 3 steps + CTA
+- Before & After / Testimonial: 4 slides — setup + before + after + result/CTA
+- Promotional / Seasonal offer: 3 slides — hook + offer + CTA
+- Default if unclear: 5 slides
 
-Use 3 slides for simple tips (cover + 1 body + CTA). Use 4 slides for step-by-step (cover + 2 body + CTA). NEVER more than 4 slides.`,
+SLIDE ROLES:
+
+SLIDE 1 — SCROLL-STOPPER (the hook)
+The single most important slide. Must create an "information gap" — tease a surprising fact, challenge a belief, or promise a specific useful outcome. Viewer must think "I need to swipe to find out."
+- Headline: 3-5 bold words (e.g. "You're Doing This Wrong", "Stop Paying Too Much", "This Costs You $400/Year")
+- Subtext: ONE sentence that widens the curiosity gap — do NOT reveal the answer yet
+- Image: bold, high-contrast, single subject — readable on a 4-inch screen in 0.5 seconds
+- NO bullet points on slide 1
+
+MID SLIDES — DELIVER THE VALUE (one idea per slide)
+Each body slide = exactly ONE tip, myth, step, or fact. Never two ideas on one slide.
+- Headline: 3-5 words naming the specific tip/myth/step
+- Bullets: 2-3 short punchy points (max 6 words each) — real, specific, trade-language
+- Subtext: one brief explanatory sentence — make the reader feel smarter
+- Image: shows the relevant work, tool, or scenario
+
+SECOND-TO-LAST SLIDE — SOFT CTA (mid-carousel nudge)
+A gentle "if this helped, save it" moment before the hard close.
+- Headline: "Save This Slide" or "Share With Someone Who Needs This"
+- Can also be a strong data point or stat that validates everything so far
+
+LAST SLIDE — HARD CTA (drive action)
+- Ask one specific action: call, book, or share with a friend
+- Frame: "Know someone dealing with [problem]? Send this to them" — shares beat follows
+- Include the business name naturally
+- NO generic "contact us" — be specific about the outcome they'll get`,
       video: `Content format: VIDEO SCRIPT
 Write a 20-30 second spoken script in addition to the post caption.
 Structure: Hook (0-3s) → Core message (4-20s) → CTA (21-30s)
@@ -659,36 +686,37 @@ ${imageGuidance}
     {
       "slideNumber": 1,
       "slideType": "cover",
-      "overlayText": "3-5 word COMPLETE standalone headline — must make sense alone, not a sentence fragment. Good: 'Stop Pipe Leaks', '5 Roof Warning Signs', 'Free Estimate Today'. Bad: '5 Signs Your', 'How to Fix', 'What You Should'.",
-      "subtext": "One subtitle sentence explaining what is coming",
+      "overlayText": "3-5 word scroll-stopping hook — creates curiosity gap, makes them NEED to swipe. Good: 'You Are Doing This Wrong', 'Stop Paying Too Much', 'This Costs $400 Yearly'. NOT a fragment. NOT generic.",
+      "subtext": "ONE sentence that widens the information gap — do NOT answer yet, tease what is coming",
       "bullets": [],
-      "description": "Visual description for slide 1 image (specific scene, action, lighting)"
+      "description": "High-contrast bold image — single subject clearly visible, dramatic lighting, readable at thumbnail size on mobile"
     },
     {
       "slideNumber": 2,
       "slideType": "body",
-      "overlayText": "3-5 word COMPLETE topic title — must stand alone. Good: 'Check the Pressure', 'Look for Cracks', 'Turn Off the Valve'. Bad: 'What You Need', 'How to Check'.",
-      "subtext": "One-line context max 12 words",
-      "bullets": ["Short point one max 5 words", "Short point two max 5 words"],
-      "description": "Visual description for slide 2 image"
+      "overlayText": "3-5 word COMPLETE topic title for this specific point — e.g. 'Myth: Wipes Are Safe', 'Sign One: Slow Drains', 'Step One: Turn Off Water'",
+      "subtext": "One clear sentence explaining this specific point — make the reader feel smarter, max 12 words",
+      "bullets": ["Specific real point max 6 words", "Specific real point max 6 words", "Optional third point max 6 words"],
+      "description": "Visual showing this specific tip or step in action — trade professional, real work environment"
     },
     {
       "slideNumber": 3,
       "slideType": "body",
-      "overlayText": "3-5 word COMPLETE topic title — must stand alone. Good: 'Check the Pressure', 'Look for Cracks', 'Turn Off the Valve'. Bad: 'What You Need', 'How to Check'.",
-      "subtext": "One-line context max 12 words",
-      "bullets": ["Short point one max 5 words", "Short point two max 5 words"],
-      "description": "Visual description for slide 3 image"
+      "overlayText": "3-5 word COMPLETE topic title for this specific point",
+      "subtext": "One clear sentence, max 12 words",
+      "bullets": ["Specific real point max 6 words", "Specific real point max 6 words"],
+      "description": "Visual for this specific point"
     },
     {
       "slideNumber": 4,
       "slideType": "cta",
-      "overlayText": "2-4 word COMPLETE call to action — must make sense alone. Good: 'Call Us Today', 'Book Free Quote', 'Get Your Estimate'. Bad: 'Call Us To', 'Book Your'.",
-      "subtext": "Action nudge — book call visit today (max 10 words)",
+      "overlayText": "2-4 word COMPLETE call to action. Good: 'Call Us Today', 'Book Free Quote', 'Save This Post'. NOT generic.",
+      "subtext": "Frame as: 'Know someone dealing with [problem]? Send this to them.' OR direct booking nudge — max 12 words",
       "bullets": [],
-      "description": "Visual description for closing slide image — omit this slide if only 3 slides needed"
+      "description": "Friendly professional shot — plumber/tech smiling, finished job, or branded vehicle. Inviting not salesy."
     }
-  ],` : ''}
+  ],
+  "carouselSlideCount": "How many slides you chose and why (e.g. '4 — promotion keeps it punchy' or '6 — myth-busting needs one slide per myth')",` : ''}
   "variation_a": {
     "caption": "Full caption text for variation A",
     "hashtags": ["tag1", "tag2", "tag3"],
