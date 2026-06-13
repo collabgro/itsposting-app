@@ -550,7 +550,9 @@ export default function Wizard() {
 
   const [step, setStep] = useState(1);            // 1–6, 'loading', 'results'
   const [contentType, setContentType] = useState(null); // Step 1
-  const [videoType, setVideoType] = useState('services'); // 'services' | 'avatar' (shown when contentType='video')
+  const [videoType, setVideoType] = useState('services'); // 'services' | 'avatar'
+  const [videoStyle, setVideoStyle] = useState('reel');   // 'reel' | 'cinematic'
+  const [musicMood, setMusicMood] = useState('auto');     // 'auto' | 'upbeat' | 'warm' | 'friendly' | 'energetic' | 'none'
   const [selectedFormat, setSelectedFormat] = useState(null); // Step 2
   const [formatTab, setFormatTab] = useState('Popular');
   const [hoveredFormat, setHoveredFormat] = useState(null);
@@ -932,7 +934,7 @@ export default function Wizard() {
   };
 
   const handleReset = () => {
-    setStep(1); setContentType(null); setVideoType('services'); setTheme(null); setTone(null); setSelectedPlatforms([]);
+    setStep(1); setContentType(null); setVideoType('services'); setVideoStyle('reel'); setTheme(null); setTone(null); setSelectedPlatforms([]);
     setDetails(''); setIncludeCTA(true); setResults(null); setError(null);
     setSelectedFormat(null); setFormatTab('Popular'); setHoveredFormat(null); setSelectedPlatformTab('instagram_feed');
     setSelectedVariation('A'); setSelectedCardStyle('A'); setActiveSlide(0); setActionLoading(false); setActionToast(null);
@@ -1091,6 +1093,8 @@ export default function Wizard() {
       }
       if (contentType === 'video') {
         await apiPost('/api/wizard/step', { wizardId, stepId: 'video_type', answers: { value: videoType } });
+        await apiPost('/api/wizard/step', { wizardId, stepId: 'video_style', answers: { value: videoStyle } });
+        await apiPost('/api/wizard/step', { wizardId, stepId: 'music_mood', answers: { value: musicMood } });
       }
 
       const genRes = await apiPost('/api/wizard/generate', { wizardId }, { timeout: 300000 });
@@ -1638,6 +1642,114 @@ export default function Wizard() {
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Video style picker — Animated Reel vs Cinematic AI */}
+            {contentType === 'video' && videoType === 'services' && (
+              <div style={{ marginBottom: 20, padding: '18px 20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                  Video style
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[
+                    {
+                      id: 'reel',
+                      label: '🎞️ Animated Reel',
+                      desc: '3 AI-generated images crossfaded with branded overlays and music. Ready in under 60 seconds.',
+                      tag: 'Recommended · Always works',
+                      tagColor: '#22c55e',
+                      note: null,
+                    },
+                    {
+                      id: 'cinematic',
+                      label: '🎬 Cinematic AI',
+                      desc: 'Real camera motion — AI generates true video footage of your work in action.',
+                      tag: 'Premium · Kling / Veo',
+                      tagColor: t.primary,
+                      note: 'Takes 3–8 min to render. Falls back to Animated Reel if not yet enabled on your account.',
+                    },
+                  ].map(vs => {
+                    const sel = videoStyle === vs.id;
+                    return (
+                      <button
+                        key={vs.id}
+                        onClick={() => setVideoStyle(vs.id)}
+                        style={{
+                          padding: '14px 16px',
+                          border: `2px solid ${sel ? t.primary : t.border}`,
+                          borderRadius: 12,
+                          background: sel ? `${t.primary}12` : 'transparent',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 150ms',
+                          position: 'relative',
+                        }}
+                      >
+                        <div style={{ display: 'inline-block', background: `${vs.tagColor}20`, color: vs.tagColor, fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 6, marginBottom: 8, letterSpacing: '0.04em' }}>
+                          {vs.tag}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: sel ? t.primary : t.text, marginBottom: 5 }}>{vs.label}</div>
+                        <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.5 }}>{vs.desc}</div>
+                        {vs.note && (
+                          <div style={{ marginTop: 8, fontSize: 10, color: t.textMuted, lineHeight: 1.5, borderTop: `1px solid ${t.border}`, paddingTop: 8 }}>
+                            ⏱ {vs.note}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Music mood picker — only for services video (not avatar, avatar has its own audio) */}
+            {contentType === 'video' && videoType === 'services' && (
+              <div style={{ marginBottom: 32, padding: '18px 20px', background: t.isDark ? 'rgba(15,15,24,0.72)' : t.card, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: `1px solid ${t.isDark ? 'rgba(255,255,255,0.07)' : t.border}`, borderRadius: 16, boxShadow: `${t.shadowSm}, inset 0 1px 0 rgba(255,255,255,${t.isDark ? '0.04' : '0.85'})` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+                  Background music
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {[
+                    { id: 'auto',      label: '🎵 Auto',      desc: 'AI picks based on your content' },
+                    { id: 'upbeat',    label: '🚀 Upbeat',    desc: 'Fast-paced, high energy' },
+                    { id: 'warm',      label: '☀️ Warm',      desc: 'Positive and inspiring' },
+                    { id: 'friendly',  label: '💡 Friendly',  desc: 'Light and informative' },
+                    { id: 'energetic', label: '⚡ Energetic',  desc: 'Urgent and driving' },
+                    { id: 'none',      label: '🔇 No music',  desc: 'Silent video' },
+                  ].map(m => {
+                    const sel = musicMood === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => setMusicMood(m.id)}
+                        title={m.desc}
+                        style={{
+                          padding: '7px 14px',
+                          border: `2px solid ${sel ? t.primary : t.border}`,
+                          borderRadius: 24,
+                          background: sel ? `${t.primary}15` : 'transparent',
+                          color: sel ? t.primary : t.textMuted,
+                          fontSize: 12,
+                          fontWeight: sel ? 700 : 500,
+                          cursor: 'pointer',
+                          transition: 'all 120ms',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >{m.label}</button>
+                    );
+                  })}
+                </div>
+                {musicMood !== 'none' && musicMood !== 'auto' && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: t.textMuted }}>
+                    {[
+                      { id: 'upbeat', desc: 'Best for: job reveals, team spotlights, promos' },
+                      { id: 'warm', desc: 'Best for: reviews, community, satisfied customers' },
+                      { id: 'friendly', desc: 'Best for: tips, FAQs, educational content' },
+                      { id: 'energetic', desc: 'Best for: seasonal urgency, limited offers' },
+                    ].find(m => m.id === musicMood)?.desc}
+                  </div>
+                )}
               </div>
             )}
 

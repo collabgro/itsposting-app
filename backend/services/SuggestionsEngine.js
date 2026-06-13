@@ -8,10 +8,11 @@ try { NotificationService = require('./NotificationService'); } catch { Notifica
 const CLAUDE_MODEL = 'claude-sonnet-4-6';
 
 const SUGGESTION_TYPES = {
-  SEASONAL:    'seasonal',
-  STREAK:      'streak',
-  CONTENT_GAP: 'content_gap',
-  MILESTONE:   'milestone',
+  SEASONAL:          'seasonal',
+  STREAK:            'streak',
+  CONTENT_GAP:       'content_gap',
+  MILESTONE:         'milestone',
+  PERFORMANCE_WINNER:'performance_winner',
 };
 
 const GAP_THRESHOLDS = {
@@ -29,6 +30,7 @@ const MAX_SUGGESTIONS_PER_RUN = 3;
 
 const TYPE_PRIORITY = [
   SUGGESTION_TYPES.STREAK,
+  SUGGESTION_TYPES.PERFORMANCE_WINNER, // "your before/after posts get 3x engagement — post another"
   SUGGESTION_TYPES.SEASONAL,
   SUGGESTION_TYPES.CONTENT_GAP,
   SUGGESTION_TYPES.MILESTONE,
@@ -115,6 +117,13 @@ class SuggestionsEngine {
       if (milestone) candidates.push(milestone);
     } catch (err) {
       console.error('[SuggestionsEngine] Milestone check failed:', err.message);
+    }
+
+    try {
+      const winner = await this._buildPerformanceWinnerSuggestion(customer);
+      if (winner) candidates.push(winner);
+    } catch (err) {
+      console.error('[SuggestionsEngine] Performance winner check failed:', err.message);
     }
 
     if (candidates.length === 0) return;
@@ -420,6 +429,102 @@ class SuggestionsEngine {
     }
 
     return null;
+  }
+
+  async _buildPerformanceWinnerSuggestion(customer) {
+    // Look at last 60 days of posted content with any engagement or performance data
+    const result = await this.pool.query(
+      `SELECT content_type, theme, performance_score, engagement_by_platform
+       FROM posts
+       WHERE customer_id = $1
+         AND status = 'posted'
+         AND created_at > NOW() - INTERVAL '60 days'
+       ORDER BY created_at DESC
+       LIMIT 25`,
+      [customer.id]
+    );
+
+    const posts = result.rows;
+    if (posts.length < 5) return null; // not enough data to make a meaningful comparison
+
+    // Score each post — prefer performance_score; fall back to summing engagement signals
+    const scoredPosts = posts.map(p => {
+      let score = p.performance_score || 0;
+      if (!score && p.engagement_by_platform) {
+        try {
+          const eng = typeof p.engagement_by_platform === 'string'
+            ? JSON.parse(p.engagement_by_platform)
+            : p.engagement_by_platform;
+          score = Object.values(eng).reduce((sum, platform) => {
+            return sum + (platform.likes || 0) + (platform.comments || 0) * 2 + (platform.shares || 0) * 3;
+          }, 0);
+        } catch { score = 0; }
+      }
+      return { type: p.content_type || p.theme || 'general', score };
+    }).filter(p => p.score > 0);
+
+    if (scoredPosts.length < 3) return null;
+
+    // Group by content type and calculate average score
+    const byType = {};
+    for (const { type, score } of scoredPosts) {
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(score);
+    }
+
+    // Need at least 2 types with data to compare
+    const typesWithData = Object.entries(byType)
+      .filter(([, scores]) => scores.length >= 2)
+      .map(([type, scores]) => ({
+        type,
+        avg: scores.reduce((s, v) => s + v, 0) / scores.length,
+        count: scores.length,
+      }))
+      .sort((a, b) => b.avg - a.avg);
+
+    if (typesWithData.length < 2) return null;
+
+    const best   = typesWithData[0];
+    const second = typesWithData[1];
+    const multiplier = best.avg / (second.avg || 1);
+
+    // Only fire when the winner is at least 30% ahead — ensures this is a real signal
+    if (multiplier < 1.30) return null;
+
+    const TYPE_LABELS = {
+      before_after:        'before & after',
+      customer_testimonial:'customer testimonial',
+      educational_tip:     'educational tip',
+      seasonal:            'seasonal',
+      project_showcase:    'project showcase',
+      photo:               'photo post',
+      static:              'text post',
+      video:               'video',
+      carousel:            'carousel',
+      team_spotlight:      'team spotlight',
+      faq:                 'FAQ',
+      promotion:           'promotion',
+      community:           'community',
+    };
+    const bestLabel = TYPE_LABELS[best.type] || best.type.replace(/_/g, ' ');
+    const multText  = multiplier >= 2
+      ? `${Math.round(multiplier)}×`
+      : `${(Math.round(multiplier * 10) / 10)}×`;
+
+    const referenceKey = `perf_winner_${best.type}_${getCurrentYear()}_${String(getCurrentMonth()).padStart(2, '0')}`;
+    const existing = await this._findExistingSuggestion(customer.id, referenceKey);
+    if (existing) return null;
+
+    return {
+      type:          SUGGESTION_TYPES.PERFORMANCE_WINNER,
+      reference_key: referenceKey,
+      title:         `Your ${bestLabel} posts get ${multText} more engagement — post another`,
+      reason:        `I noticed your ${bestLabel} posts consistently outperform everything else you've shared — ${multText} higher engagement on average. That's your audience telling you exactly what they want to see. Let's make another one while that momentum is there.`,
+      platform:      'instagram',
+      content_type:  best.type,
+      expires_at:    null,
+      _promptContext: { bestType: best.type, multiplier: multText, postCount: best.count },
+    };
   }
 
   async _generateCaption(customer, suggestion) {

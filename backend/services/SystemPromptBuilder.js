@@ -18,6 +18,116 @@
 
 const industryKnowledge = require('../data/industryKnowledge');
 
+// ── Real-world cost data injected into every warning/educational post ─────────
+// Source: industry repair/remediation averages. Tells Claude exactly what dollar
+// anchors to use so posts always answer "what does ignoring this actually cost?"
+const CONSEQUENCE_COSTS = {
+  plumbing: [
+    { problem: 'burst pipe (ignored slow leak or failed winterization)', cost: '$5,000–$70,000 in structural water damage depending on location and detection speed' },
+    { problem: 'collapsed drain line (ignored slow/recurring clog)', cost: '$3,000–$8,000 main line replacement vs. $150–$300 annual maintenance' },
+    { problem: 'water heater tank failure (no maintenance)', cost: '$800–$1,500 replacement + $2,000–$8,000 if tank floods before detected' },
+    { problem: 'sump pump failure during storm', cost: '$10,000–$100,000 in basement flooding depending on whether finished' },
+    { problem: 'tree root intrusion left untreated in sewer line', cost: '$1,500–$12,000 for rooter service or full pipe replacement' },
+    { problem: 'dripping faucet ignored for a year', cost: '$200–$400 wasted water + $800–$1,500 if valve seat damage spreads' },
+  ],
+  hvac: [
+    { problem: 'skipped annual tune-up leading to compressor failure', cost: '$1,500–$2,500 compressor replacement vs. $89–$150 tune-up' },
+    { problem: 'dirty filter cracking heat exchanger', cost: '$1,000–$3,500 repair + CO leak risk — a $20 filter every 90 days prevents it' },
+    { problem: 'refrigerant leak left until compressor burnout', cost: '$2,000–$5,000 vs. $200–$400 recharge-and-repair when caught early' },
+    { problem: 'ductwork leaking 25–30% of conditioned air', cost: '$400–$900/year in wasted energy bills — sealing pays for itself in 12 months' },
+    { problem: 'full system failure in peak summer', cost: '$8,000–$15,000 emergency replacement + emergency-rate premium on installation' },
+  ],
+  roofing: [
+    { problem: 'small leak left through one season', cost: '$300–$800 patch becomes $5,000–$25,000 in deck rot, attic mold, and interior damage' },
+    { problem: 'missing shingles after storm, not replaced', cost: '$200 shingle repair becomes $8,000–$40,000 in structural water damage' },
+    { problem: 'ice dam damage not addressed in spring', cost: '$5,000–$20,000 in interior water damage, insulation replacement, and structural rot' },
+    { problem: 'gutters blocked causing fascia rot and foundation water', cost: '$2,000–$10,000 in fascia, soffit, and foundation repair from $200 gutter cleaning' },
+    { problem: 'full roof replacement delayed 5+ years past life expectancy', cost: '$15,000–$45,000 replacement + avoidable interior damage during delay years' },
+  ],
+  electrical: [
+    { problem: 'outdated 100-amp panel not upgraded', cost: '$3,000–$8,000 panel upgrade vs. $20,000–$100,000+ house fire risk' },
+    { problem: 'aluminum wiring not addressed in older home', cost: '$8,000–$25,000 remediation vs. fire and insurance loss' },
+    { problem: 'burning smell from outlet ignored', cost: '$150–$300 repair becomes $10,000–$50,000 in fire damage' },
+    { problem: 'overloaded circuit tripping repeatedly, not fixed', cost: '$400–$700 circuit upgrade vs. $2,000–$15,000 electrical fire' },
+    { problem: 'missing GFCI outlets near water sources', cost: '$150 per outlet vs. $1M+ liability if electrocution occurs' },
+  ],
+  concrete: [
+    { problem: 'hairline driveway cracks left unrepaired', cost: '$150–$300 crack fill becomes $4,000–$12,000 full replacement in 3–5 years' },
+    { problem: 'foundation crack with water entry ignored', cost: '$500 seal becomes $10,000–$100,000 in structural repair if water enters basement' },
+    { problem: 'sunken concrete walkway trip hazard not lifted', cost: '$400–$800 mudjacking vs. $3,000–$8,000 lawsuit + full replacement' },
+    { problem: 'garage floor spalling left untreated', cost: '$1,500 coating becomes $6,000–$15,000 replacement when deterioration continues' },
+  ],
+  landscaping: [
+    { problem: 'drainage problem causing yard pooling near foundation', cost: '$500–$2,000 grading fix vs. $5,000–$20,000 foundation and basement damage' },
+    { problem: 'diseased or dead tree left standing near structure', cost: '$2,000–$8,000 preventive removal vs. $15,000–$100,000 emergency storm damage' },
+    { problem: 'tree roots growing toward foundation or plumbing', cost: '$500 root pruning vs. $10,000–$50,000 foundation and pipe damage' },
+    { problem: 'irrigation system left running inefficiently', cost: '$300–$600/year in wasted water bills — proper scheduling pays for itself in months' },
+  ],
+  painting: [
+    { problem: 'peeling exterior paint left through a second winter', cost: '$800–$2,000 repaint becomes $5,000–$15,000 when wood rot sets in underneath' },
+    { problem: 'bathroom moisture damage not repainted promptly', cost: '$300 repaint becomes $2,000–$8,000 mold remediation if left to spread' },
+    { problem: 'stucco cracks left unpainted and unsealed', cost: '$400 repair becomes $3,000–$12,000 when water infiltrates the structure' },
+    { problem: 'lead paint left unaddressed in pre-1978 home being sold', cost: '$1,000–$5,000 encapsulation vs. $10,000–$30,000 full abatement required at closing' },
+  ],
+  pest_control: [
+    { problem: 'termite infestation ignored for a full season', cost: '$3,000–$8,000 annual treatment vs. $10,000–$30,000 in structural wood repair' },
+    { problem: 'rodent entry points not sealed after first sighting', cost: '$200 seal-and-bait vs. $2,000–$10,000 in chewed wiring and contamination cleanup' },
+    { problem: 'bed bugs treated late after spreading to multiple rooms', cost: '$500 early treatment becomes $2,500–$5,000 whole-house heat treatment' },
+    { problem: 'carpenter ants in wall void left untreated', cost: '$150 early treatment becomes $3,000–$8,000 when structural wood is damaged' },
+  ],
+  general_contractor: [
+    { problem: 'roof leak that damages structural framing', cost: '$500 patch becomes $20,000–$80,000 in framing, insulation, and interior damage' },
+    { problem: 'foundation crack left past the hairline stage', cost: '$3,000 early repair becomes $20,000–$100,000 structural remediation' },
+    { problem: 'renovation delayed 3+ years — materials and labor inflation', cost: 'Every year of delay adds 8–12% in material costs on average since 2022' },
+    { problem: 'unpermitted addition discovered during home sale', cost: '$5,000–$30,000 retroactive fees, fines, and potential forced teardown' },
+  ],
+  cleaning: [
+    { problem: 'kitchen grease buildup reaching exhaust fan and ductwork', cost: '$200 professional clean vs. $10,000–$50,000 kitchen fire damage' },
+    { problem: 'carpets not professionally cleaned for 2+ years', cost: '$200–$400 cleaning vs. $3,000–$8,000 premature full replacement' },
+    { problem: 'bathroom tile grout mold left untreated', cost: '$150 professional clean becomes $2,000–$8,000 mold remediation' },
+    { problem: 'air ducts not cleaned for 5+ years', cost: '$400–$700 cleaning vs. $500–$1,200/year wasted HVAC efficiency + allergen health costs' },
+  ],
+  tree_service: [
+    { problem: 'dead tree left standing within strike distance of structure', cost: '$2,000–$8,000 removal vs. $15,000–$100,000 storm damage to home or vehicle' },
+    { problem: 'large branch over roof not trimmed before storm season', cost: '$300–$600 trim vs. $8,000–$25,000 roof and interior damage if branch falls' },
+    { problem: 'tree disease spreading to neighboring trees', cost: '$800–$2,500 treatment vs. $3,000–$10,000 per additional tree lost' },
+  ],
+  pressure_washing: [
+    { problem: 'oil stains left on concrete driveway', cost: '$150 pressure wash vs. $4,000–$12,000 driveway replacement when stain penetrates' },
+    { problem: 'mold and algae on wood deck left for 2+ seasons', cost: '$200–$400 cleaning vs. $3,000–$12,000 deck replacement' },
+    { problem: 'painted surfaces not washed before repainting', cost: '$200 wash prevents $1,500–$4,000 premature paint failure and recoat within 2 years' },
+  ],
+  pool_spa: [
+    { problem: 'chemistry imbalance left for 2+ weeks', cost: '$50–$150 chemical rebalance vs. $2,000–$8,000 plaster, liner, or equipment damage' },
+    { problem: 'crack in plaster or liner left through winter', cost: '$300–$800 patch vs. $8,000–$25,000 full replaster or liner replacement' },
+    { problem: 'pump or filter not serviced annually', cost: '$150–$300 service vs. $800–$2,500 premature equipment failure' },
+  ],
+  handyman: [
+    { problem: 'small roof flashing gap not sealed', cost: '$150 repair vs. $3,000–$15,000 water damage to interior and structure' },
+    { problem: 'door or window seal failure left in place', cost: '$50–$200 re-seal vs. $300–$600/year in energy loss + $2,000–$8,000 frame rot' },
+    { problem: 'cracked grout in shower left unaddressed', cost: '$100–$200 regrout vs. $2,000–$6,000 when water reaches substrate and subfloor' },
+  ],
+  flooring: [
+    { problem: 'water-damaged subfloor not replaced before new flooring install', cost: 'Skipping subfloor repair means $3,000–$10,000 reinstall when flooring buckles within 2 years' },
+    { problem: 'hardwood floors left unfinished or with worn finish', cost: '$800–$1,500 refinish vs. $6,000–$18,000 full replacement when moisture penetrates bare wood' },
+    { problem: 'tile grout cracking in high-traffic area', cost: '$200–$400 regrout vs. $3,000–$8,000 tile replacement when subfloor is compromised' },
+  ],
+  junk_removal: [
+    { problem: 'hazardous materials disposed of incorrectly', cost: '$200–$500 professional disposal vs. $1,000–$10,000 in EPA fines for improper disposal' },
+    { problem: 'hoarding situation left until estate sale', cost: '$2,000–$6,000 full cleanout vs. $500–$1,500 for regular annual junk removal' },
+  ],
+  solar: [
+    { problem: 'panels not cleaned annually in dusty climates', cost: '10–25% reduction in energy output — cleaning pays for itself in months' },
+    { problem: 'inverter fault alarm ignored', cost: '$200–$500 inverter repair vs. $2,000–$5,000 if panels are damaged without inverter protection' },
+    { problem: 'delaying solar install another year', cost: 'Average $1,200–$2,400/year in utility bills during the delay — plus incentive programs reducing annually' },
+  ],
+  gutter_cleaning: [
+    { problem: 'gutters blocked through fall and winter', cost: '$150–$250 cleaning vs. $2,000–$10,000 in fascia rot, ice dam damage, and foundation water' },
+    { problem: 'downspout disconnected from foundation drain', cost: '$50 reconnect vs. $5,000–$20,000 in basement flooding and foundation damage' },
+    { problem: 'gutter guards installed incorrectly trapping debris', cost: '$200–$400 correction vs. $800–$2,000 in overflow damage per rain season' },
+  ],
+};
+
 // Strip content that could break prompt structure or inject new sections.
 // Allows normal business text; removes === headers and control chars.
 function sanitizeField(val, maxLen = 120) {
@@ -218,6 +328,18 @@ You have deep knowledge of this industry. Use this to make every post feel speci
       k.contentThemes.forEach(theme => {
         expertise += `\n- ${theme.replace(/_/g, ' ')}`;
       });
+    }
+
+    // Inject real-world cost anchors so Claude always has dollar data available
+    const costs = CONSEQUENCE_COSTS[this.customer.industry] || CONSEQUENCE_COSTS.general_contractor || [];
+    if (costs.length > 0) {
+      expertise += `\n\n=== REAL COST ANCHORS — USE THESE IN WARNING / EDUCATIONAL POSTS ===
+These are real-world industry repair averages. When writing any post that warns about a risk, recommends maintenance, or explains why acting now beats waiting — include the matching cost anchor.
+State it as a fact the homeowner deserves to know. Never as a scare tactic.`;
+      costs.slice(0, 5).forEach(c => {
+        expertise += `\n• "${c.problem}": ${c.cost}`;
+      });
+      expertise += `\n\nRULE: Pick the cost anchor that matches this post's topic and weave it in naturally. "A burst pipe costs $5,000–$70,000 to remediate" is a fact that saves homeowners money. Say it plainly.`;
     }
 
     return expertise;
@@ -477,6 +599,43 @@ ItsPosting AI writing rules (non-negotiable):
 - NEVER use exclamation marks more than once per post
 - Every post ends with a single, specific engagement question — not a generic "What do you think?" but something that makes the reader check their own home or remember a real experience
 - The business owner should read it and say: "This sounds exactly like me talking to a customer I actually like"`;
+
+    voice += `
+
+=== THE 4 POWER RULES — WHAT MAKES A LOCAL SERVICE POST ACTUALLY CONVERT ===
+These rules are the difference between a post that gets scrolled past and one that generates calls.
+Apply all 4 to every post you write.
+
+POWER RULE 1 — THE SPECIFICITY NUMBER
+Every post must contain exactly ONE specific number that proves real expertise.
+Good: "$11,000 in water damage" / "fixed in 47 minutes" / "18 years repiping [city] homes" / "327 jobs this year"
+Bad: "expensive repairs" / "fast turnaround" / "years of experience" / "many satisfied customers"
+Specific numbers are the #1 trust signal that separates real businesses from generic content.
+The number can be a cost, timeframe, count, measurement, or year — but there must be one.
+
+POWER RULE 2 — THE STORY ANCHOR (required in at least ONE of the 3 variations)
+Variation A, B, or C must open with this exact structure:
+"I was at a house in [specific neighbourhood / suburb] on [day of week] when [specific thing happened]."
+Then: what was found → the consequence → the fix → the lesson for the reader.
+Example: "I was at a house in Frisco last Tuesday when the homeowner showed me their water heater. 14 years old. No maintenance. We checked the anode rod — completely dissolved. Three weeks later it would have flooded their utility room."
+This format stops the scroll because it sounds unmistakably human and local. No AI sounds like this.
+
+POWER RULE 3 — CONSEQUENCE BEFORE SOLUTION
+For ANY post that warns about risk, recommends maintenance, or explains why acting now is smarter:
+ALWAYS write the CONSEQUENCE + COST FIRST, then the solution.
+Wrong: "Here's how to maintain your drain so it doesn't clog."
+Right: "A collapsed main drain line costs $3,000–$8,000 to replace. The $150 annual maintenance call that prevents it takes 20 minutes."
+The homeowner must feel the pain before they value the fix. Cost anchor from Rule 1 belongs here.
+
+POWER RULE 4 — THE BINARY ENGAGEMENT QUESTION
+End every post with a question answerable in 1–3 words. Never open-ended.
+Do NOT ask: "What are your thoughts on home maintenance?"
+DO ask:
+- "Does every adult in your house know where the main water shutoff is? YES or NO below."
+- "When did you last have your [service] checked? Type the year."
+- "Have you ever dealt with this? Drop a 🙋 if yes."
+Binary or single-word-answer questions get 8–12× more comments than open-ended ones.
+Comments = algorithm reach = more homeowners seeing this post = more calls.`;
 
     if (this.wizardTone) {
       voice += `\n\nTone override: The customer selected "${this.wizardTone}" for this post — this overrides their profile default. Make the shift unmistakably intentional in the writing energy.`;

@@ -1,24 +1,30 @@
 /**
- * VeoService — Google Veo 3.1 Fast video generation
+ * VeoService — Google Veo 3.1 video generation
  *
  * Uses the same GOOGLE_AI_API_KEY as NanoBanana (no new credentials needed).
- * Model: veo-3.1-fast-generate-preview — 5-8 second clips, built for social media.
+ * Enable via VEO_ENABLED=true in Railway env vars.
  *
- * Pipeline: text prompt (+ optional key frame image from NanoBanana) → short video
- * Enable via VEO_ENABLED=true in .env (disabled by default — Preview API).
+ * MODEL STATUS (June 2026):
+ *   GA models (try first): veo-3.0-generate-001, veo-3.1-generate-001
+ *   Preview models (fallback): veo-3.1-fast-generate-preview, veo-3.1-generate-preview
+ *   Preview endpoints deprecated April 2, 2026 — GA deadline June 30, 2026.
+ *   If GA models return 404, check: https://ai.google.dev/api/generate-content#models
+ *   and update VEO_MODELS below with the current GA model IDs.
  *
- * Veo is still Preview. This service wraps it with graceful fallback:
- * VideoService.js catches any Veo error and falls back to HeyGen automatically.
+ * Pipeline: text prompt (+ optional key frame image from NanaBanana) → short video
+ * VideoService.js catches any Veo error and falls back to fal.ai automatically.
  */
 
 const axios = require('axios');
 const cloudinary = require('cloudinary').v2;
 
-// Gemini API model names only — Vertex AI model IDs (veo-X.X-generate-001) are NOT valid here
+// Try GA models first, then preview fallbacks.
+// If all 404: check https://ai.google.dev/api/generate-content#models for current names.
 const VEO_MODELS = [
-  'veo-3.1-fast-generate-preview',
-  'veo-3.1-generate-preview',
-  'veo-3.1-lite-generate-preview',
+  'veo-3.0-generate-001',          // GA — primary (standard quality, lower cost)
+  'veo-3.1-generate-001',          // GA — higher quality if available on this key
+  'veo-3.1-fast-generate-preview', // Preview fallback — may stop working June 30 2026
+  'veo-3.1-generate-preview',      // Preview fallback
 ];
 
 class VeoService {
