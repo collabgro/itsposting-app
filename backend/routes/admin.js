@@ -370,7 +370,7 @@ module.exports = (pool) => {
       if (!reason || reason.length < 3) return res.status(400).json({ error: 'Reason required (min 3 chars)' });
 
       await client.query('BEGIN');
-      const cur = await client.query('SELECT credits_balance, email, business_name FROM customers WHERE id = $1', [id]);
+      const cur = await client.query('SELECT credits_balance, email, business_name FROM customers WHERE id = $1 FOR UPDATE', [id]);
       if (cur.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Not found' }); }
 
       const newBalance = parseInt(cur.rows[0].credits_balance) + amount;

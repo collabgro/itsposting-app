@@ -88,12 +88,24 @@ module.exports = (pool) => {
             }
             if (customerResult?.rows?.length) {
               const customerId = customerResult.rows[0].id;
-              const newBalance = (customerResult.rows[0].credits_balance || 0) + creditPack.amount;
-              await pool.query(`UPDATE customers SET credits_balance=$1, updated_at=NOW() WHERE id=$2`, [newBalance, customerId]);
-              await pool.query(
-                `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description) VALUES ($1,'purchase',$2,$3,$4)`,
-                [customerId, creditPack.amount, newBalance, `Credit pack: ${creditPack.amount} credits ($${creditPack.price})`]
-              );
+              const packClient = await pool.connect();
+              let newBalance;
+              try {
+                await packClient.query('BEGIN');
+                const lockRow = await packClient.query('SELECT credits_balance FROM customers WHERE id=$1 FOR UPDATE', [customerId]);
+                newBalance = (lockRow.rows[0].credits_balance || 0) + creditPack.amount;
+                await packClient.query(`UPDATE customers SET credits_balance=$1, updated_at=NOW() WHERE id=$2`, [newBalance, customerId]);
+                await packClient.query(
+                  `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description) VALUES ($1,'purchase',$2,$3,$4)`,
+                  [customerId, creditPack.amount, newBalance, `Credit pack: ${creditPack.amount} credits ($${creditPack.price})`]
+                );
+                await packClient.query('COMMIT');
+              } catch (packErr) {
+                await packClient.query('ROLLBACK');
+                throw packErr;
+              } finally {
+                packClient.release();
+              }
               console.log(`[Whop] Credit pack ${creditPack.id} granted to customer ${customerId}`);
               // In-app notification
               new NotificationService(pool).creditPackPurchased(customerId, creditPack.amount, newBalance);
@@ -315,6 +327,7 @@ module.exports = (pool) => {
             const client = await pool.connect();
             try {
               await client.query('BEGIN');
+              const freshRow = await client.query('SELECT credits_balance FROM customers WHERE id=$1 FOR UPDATE', [req.customerId]);
               await client.query(
                 `UPDATE customers SET plan=$1, billing_cycle=$2, plan_expires_at=$3,
                    pending_downgrade_plan=NULL, pending_downgrade_cycle=NULL, updated_at=NOW()
@@ -322,7 +335,7 @@ module.exports = (pool) => {
                 [plan, cycle, expiresAt, req.customerId]
               );
               if (creditDelta > 0) {
-                const newBal = (cust.credits_balance || 0) + creditDelta;
+                const newBal = (freshRow.rows[0].credits_balance || 0) + creditDelta;
                 await client.query(`UPDATE customers SET credits_balance=$1 WHERE id=$2`, [newBal, req.customerId]);
                 await client.query(
                   `INSERT INTO credit_transactions (customer_id, transaction_type, amount, balance_after, description)

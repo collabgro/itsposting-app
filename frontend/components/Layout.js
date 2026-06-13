@@ -252,7 +252,9 @@ export default function Layout({ children, title, subtitle, action }) {
     const g = parseInt(_storedColor.slice(3, 5), 16) / 255;
     const b = parseInt(_storedColor.slice(5, 7), 16) / 255;
     const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    return (!t.isDark && L > 0.20) ? null : _storedColor;
+    if (!t.isDark && L > 0.20) return null; // too light against white sidebar
+    if (t.isDark && L > 0.50) return null;  // too light for white button text on dark bg
+    return _storedColor;
   })();
   const wlPrimary = _safeColor || t.primary;
   const { appName, aiName } = useBranding();

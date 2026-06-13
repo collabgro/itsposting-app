@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import axios from 'axios';
+import axios from 'axios'; // server-side only (getServerSideProps)
+import api from '../../lib/api';
 
 const INDUSTRIES = [
   { value: 'plumbing',          label: 'Plumbing' },
@@ -52,7 +53,7 @@ export default function JoinPage({ branding, handle }) {
     setLoading(true);
     setError('');
     try {
-      const { data } = await axios.post('/api/auth/register', {
+      const { data } = await api.post('/api/auth/register', {
         email:        form.email.trim().toLowerCase(),
         password:     form.password,
         businessName: form.businessName.trim(),
