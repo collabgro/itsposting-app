@@ -1086,6 +1086,10 @@ export default function Wizard() {
       }
 
       const genRes = await apiPost('/api/wizard/generate', { wizardId }, { timeout: 300000 });
+      // If video is still generating in the backend (background job), start the progress ring + polling
+      if (genRes.imageFailed && genRes.contentTypeSelection === 'video' && genRes.postId) {
+        genRes.videoRendering = true;
+      }
       setResults(genRes);
       setExtraPhotoCardUrls({});
       setExtraCardsByPlatform({});
