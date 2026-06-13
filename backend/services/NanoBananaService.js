@@ -57,7 +57,7 @@ class NanoBananaService {
       return {
         url: cloudinaryUrl,
         type: 'image',
-        model: 'gemini-2.5-flash-image',
+        model: 'gemini-3.1-flash-image',
         provider: 'nanobanana',
         prompt: enhancedPrompt,
       };
@@ -194,12 +194,12 @@ class NanoBananaService {
     const allErrors = [];
 
     // Gemini image models — use generateContent + responseModalities.
-    // Ordered: most stable / confirmed-working first.
+    // Names confirmed via GET /v1beta/models — these are the "Nano Banana" branded models.
     const geminiImageModels = [
-      'gemini-2.0-flash-preview-image-generation', // confirmed stable preview
-      'gemini-2.5-flash-preview-image-generation', // 2.5 preview variant
-      'gemini-2.5-flash-image',                    // 2.5 stable (if released)
-      'gemini-2.0-flash-image',                    // 2.0 stable fallback
+      'gemini-3.1-flash-image',         // Nano Banana 2 — latest, fastest
+      'gemini-3.1-flash-image-preview', // Nano Banana 2 preview
+      'gemini-3-pro-image',             // Nano Banana Pro — higher quality
+      'gemini-2.5-flash-image',         // Nano Banana — stable fallback
     ];
 
     for (const modelName of geminiImageModels) {
@@ -237,9 +237,9 @@ class NanoBananaService {
 
     // Imagen models — use generateImages endpoint (different API shape)
     const imagenModels = [
-      'imagen-4.0-fast-generate-001',
-      'imagen-4.0-generate-001',
-      'imagen-3.0-generate-001',  // Imagen 3 — stable, widely available
+      'imagen-4.0-fast-generate-001',   // Imagen 4 Fast — quickest
+      'imagen-4.0-generate-001',        // Imagen 4 — standard
+      'imagen-4.0-ultra-generate-001',  // Imagen 4 Ultra — highest quality
     ];
 
     for (const modelName of imagenModels) {
