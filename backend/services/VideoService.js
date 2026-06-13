@@ -1,18 +1,17 @@
 /**
  * VideoService — Abstraction layer for all video generation providers.
  *
- * Swapping video providers = change this file only. Routes and other services
- * always call VideoService.generate() and never touch individual providers directly.
- *
- * videoType: 'avatar'   → HeyGen (talking-head AI presenter)
- * videoType: 'services' → NanoBanana key frame + full cinematic fallback chain:
- *                         Veo 3.1 Fast (primary)
+ * Hard provider separation — never mix:
+ * videoType: 'avatar'   → HeyGen ONLY (talking-head AI presenter)
+ * videoType: 'services' → Cinematic pipeline ONLY (no HeyGen fallback):
+ *                         NanoBanana key frame image
+ *                           ↓
+ *                         Veo 3.1 Fast (primary — requires VEO_ENABLED=true)
  *                           ↓ fail
- *                         Runway Gen-4 (fallback #1)
+ *                         Runway Gen-4 (fallback #1 — requires RUNWAY_API_KEY)
  *                           ↓ fail
- *                         Pika 2.2 (fallback #2)
- *                           ↓ fail
- *                         HeyGen (final safety net — always available)
+ *                         Pika 2.2 (fallback #2 — requires PIKA_API_KEY)
+ *                           ↓ all fail → throw (do not fall back to HeyGen)
  */
 
 const HeyGenService = require('./HeyGenService');
@@ -76,11 +75,10 @@ class VideoService {
 
   /**
    * Try each cinematic provider in order, falling through on failure.
-   * Each provider gets a prompt optimized for its own generation style.
-   * HeyGen is the guaranteed final fallback — it always produces a result.
+   * Never falls back to HeyGen — services video = cinematic pipeline only.
+   * If all cinematic providers fail, throws so the caller can mark the post failed.
    */
   async _generateServicesVideo(customer, script, { keyFrameUrl, aspectRatio, durationSeconds, options }) {
-    const wizardTrigger = options?.wizardTrigger || null;
 
     // 1. Veo 3.1 Fast — needs a visual scene description, not a spoken script
     if (this.veo.isAvailable()) {
@@ -91,7 +89,7 @@ class VideoService {
         console.warn('[VideoService] Veo failed, trying Runway Gen-4:', veoErr.message);
       }
     } else {
-      console.log('[VideoService] Veo not enabled — skipping to Runway');
+      console.log('[VideoService] Veo not enabled (set VEO_ENABLED=true) — skipping to Runway');
     }
 
     // 2. Runway Gen-4 — image-to-video motion description (512 char limit)
@@ -112,15 +110,14 @@ class VideoService {
         const pikaPrompt = this._buildPikaPrompt(customer, script, keyFrameUrl);
         return await this.pika.generate(pikaPrompt, keyFrameUrl, { aspectRatio, durationSeconds });
       } catch (pikaErr) {
-        console.warn('[VideoService] Pika failed, final fallback to HeyGen:', pikaErr.message);
+        console.warn('[VideoService] Pika failed:', pikaErr.message);
       }
     } else {
-      console.log('[VideoService] Pika not configured — falling back to HeyGen');
+      console.log('[VideoService] Pika not configured');
     }
 
-    // 4. HeyGen — avatar speaks the script (no prompt transformation needed)
-    console.log('[VideoService] Using HeyGen as final fallback for services video');
-    return await this.heygen.generateFromScript(customer, script, options);
+    // All cinematic providers failed — do NOT fall back to HeyGen (wrong video type)
+    throw new Error('Services video: all cinematic providers failed. Enable VEO_ENABLED=true or configure RUNWAY_API_KEY / PIKA_API_KEY.');
   }
 
   /**
