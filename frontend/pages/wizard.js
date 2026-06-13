@@ -736,6 +736,47 @@ export default function Wizard() {
     if (ideaTheme) setTheme(ideaTheme);
     if (ideaDetails) setDetails(ideaDetails);
 
+    // Handle navigation from WeatherAlertBanner — pre-load weather-triggered post options
+    const weatherAlertRaw = sessionStorage.getItem('weatherAlertPost');
+    if (weatherAlertRaw) {
+      try {
+        const data = JSON.parse(weatherAlertRaw);
+        sessionStorage.removeItem('weatherAlertPost');
+
+        if (data.contentType === 'static') {
+          // Text Card: caption is already written — jump straight to results
+          const caption = data.caption || '';
+          const engQ    = data.engagementQuestion || '';
+          const fullCaption = engQ ? `${caption}\n\n${engQ}` : caption;
+          setResults({
+            contentTypeSelection: 'static',
+            variations: {
+              a: { caption: fullCaption, hashtags: data.hashtags || [], imagePrompt: '', engagementQuestion: engQ },
+              b: { caption: fullCaption, hashtags: data.hashtags || [], imagePrompt: '', engagementQuestion: engQ },
+              c: { caption: fullCaption, hashtags: data.hashtags || [], imagePrompt: '', engagementQuestion: engQ },
+            },
+            recommended: 'A',
+            fromWeatherAlert: true,
+          });
+          setContentType('static');
+          setSelectedPlatforms(['facebook','instagram','google_business','linkedin','tiktok']);
+          setStep('results');
+        } else {
+          // Photo or Video: pre-fill wizard so user taps Generate once
+          setContentType(data.contentType === 'video' ? 'video' : 'photo');
+          setTheme('seasonal');
+          setTone('urgent');
+          setDetails(data.wizardTopic || (data.caption || '').slice(0, 300));
+          if (data.contentType === 'video') {
+            setVideoStyle('reel');
+            setVideoType('services');
+          }
+          setSelectedPlatforms(['facebook','instagram','google_business','linkedin','tiktok']);
+          setStep(6); // jump to platform/Generate step — all other steps pre-filled
+        }
+      } catch (_) {}
+    }
+
     // Handle navigation from Content Calendar — pre-fill wizard + track planId to link back
     const prefillRaw = sessionStorage.getItem('wizard_prefill');
     if (prefillRaw) {

@@ -17,16 +17,24 @@ const SEVERITY_STYLE = {
   medium:   { bg: 'rgba(234,179,8,0.09)',   border: 'rgba(234,179,8,0.28)',   accent: '#eab308', pill: 'rgba(234,179,8,0.18)' },
 };
 
-function buildWizardUrl(alert, optionIndex, option) {
-  const params = new URLSearchParams({
-    source:      'weather_alert',
-    alertId:     alert.id,
-    optionIndex: optionIndex,
-    contentType: option.contentType,
-    topic:       option.wizardTopic || alert.headline || '',
-    prefill:     encodeURIComponent((option.previewText || '').slice(0, 120)),
-  });
-  return `/wizard?${params.toString()}`;
+function launchWizard(alert, optionIndex, option, router) {
+  // Store the full pre-generated option in sessionStorage — wizard reads this on mount
+  // and either jumps to results (text card) or pre-fills + jumps to Generate step (photo/video)
+  try {
+    sessionStorage.setItem('weatherAlertPost', JSON.stringify({
+      alertId:            alert.id,
+      optionIndex,
+      contentType:        option.contentType,
+      caption:            option.caption || '',
+      hashtags:           option.hashtags || [],
+      engagementQuestion: option.engagementQuestion || '',
+      wizardTopic:        option.wizardTopic || alert.headline || '',
+      imagePrompt:        option.imagePrompt || '',
+      videoScript:        option.videoScript || '',
+      previewText:        option.previewText || '',
+    }));
+  } catch (_) {}
+  router.push('/wizard');
 }
 
 export default function WeatherAlertBanner({ alert, onDismiss }) {
@@ -137,7 +145,7 @@ export default function WeatherAlertBanner({ alert, onDismiss }) {
                 transition:   'all 180ms ease',
                 cursor:       'pointer',
               }}
-              onClick={() => router.push(buildWizardUrl(alert, idx, option))}
+              onClick={() => launchWizard(alert, idx, option, router)}
             >
               {/* Content type badge */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -172,7 +180,7 @@ export default function WeatherAlertBanner({ alert, onDismiss }) {
 
               {/* Post Now button */}
               <button
-                onClick={e => { e.stopPropagation(); router.push(buildWizardUrl(alert, idx, option)); }}
+                onClick={e => { e.stopPropagation(); launchWizard(alert, idx, option, router); }}
                 style={{
                   background:   isHovered ? meta.color : 'transparent',
                   border:       `1.5px solid ${isHovered ? meta.color : `${meta.color}60`}`,
