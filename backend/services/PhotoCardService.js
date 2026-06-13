@@ -1974,26 +1974,27 @@ async function buildTemplateM(
 // the "Load more designs" gallery shows genuinely different card layouts.
 // 13 templates available (A-M). Each row: 3 lineups × 3 unique letters = 9 distinct designs.
 const LINEUP_MAP = {
-  // 9 unique: A,H,J | G,K,C | D,L,M
-  'job_finished':   [['A','H','J'], ['G','K','C'], ['D','L','M']],
-  // 9 unique: A,G,H | K,J,C | D,L,M
-  'before_after':   [['A','G','H'], ['K','J','C'], ['D','L','M']],
-  // 9 unique: D,G,A | J,H,K | L,M,F
-  'promotion':      [['D','G','A'], ['J','H','K'], ['L','M','F']],
-  // 9 unique: D,A,J | G,K,B | L,M,F
-  'seasonal':       [['D','A','J'], ['G','K','B'], ['L','M','F']],
-  // 9 unique: E,H,G | K,J,C | A,L,M
-  'got_review':     [['E','H','G'], ['K','J','C'], ['A','L','M']],
-  // 9 unique: F,G,B | K,H,J | I,L,M
-  'share_tip':      [['F','G','B'], ['K','H','J'], ['I','L','M']],
-  // 9 unique: F,B,J | G,K,H | I,L,M
-  'faq':            [['F','B','J'], ['G','K','H'], ['I','L','M']],
-  // 9 unique: C,H,G | E,K,I | A,L,M
-  'team_spotlight': [['C','H','G'], ['E','K','I'], ['A','L','M']],
+  // Bold-first: position [0] in each lineup is always the most dramatic template
+  // 9 unique: J,A,H | K,G,C | D,L,M
+  'job_finished':   [['J','A','H'], ['K','G','C'], ['D','L','M']],
+  // 9 unique: G,A,H | K,J,C | D,L,M
+  'before_after':   [['G','A','H'], ['K','J','C'], ['D','L','M']],
+  // 9 unique: D,G,A | K,J,H | M,L,F
+  'promotion':      [['D','G','A'], ['K','J','H'], ['M','L','F']],
+  // 9 unique: D,A,J | K,G,B | M,L,F
+  'seasonal':       [['D','A','J'], ['K','G','B'], ['M','L','F']],
+  // 9 unique: G,H,E | K,J,C | M,L,A
+  'got_review':     [['G','H','E'], ['K','J','C'], ['M','L','A']],
+  // 9 unique: B,G,F | K,H,J | M,L,I
+  'share_tip':      [['B','G','F'], ['K','H','J'], ['M','L','I']],
+  // 9 unique: B,F,J | K,G,H | M,L,I
+  'faq':            [['B','F','J'], ['K','G','H'], ['M','L','I']],
+  // 9 unique: G,H,C | K,E,I | M,L,A
+  'team_spotlight': [['G','H','C'], ['K','E','I'], ['M','L','A']],
   // 9 unique: B,J,G | K,I,H | D,L,M
   'community':      [['B','J','G'], ['K','I','H'], ['D','L','M']],
-  // 9 unique: D,J,G | K,A,B | I,L,M
-  'milestone':      [['D','J','G'], ['K','A','B'], ['I','L','M']],
+  // 9 unique: D,J,G | K,A,B | M,L,I
+  'milestone':      [['D','J','G'], ['K','A','B'], ['M','L','I']],
 };
 
 function resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride = null) {
