@@ -21,6 +21,25 @@ const NanoBananaService = require('./NanoBananaService');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
+// Maps content type → background music mood
+// Place royalty-free MP3s in backend/audio/{mood}.mp3
+// Source: pixabay.com/music — free for commercial use
+// Tracks to download:
+//   upbeat.mp3   → bright, fast-paced (job reveals, promos, team)
+//   warm.mp3     → positive, gentle  (reviews, community)
+//   friendly.mp3 → light, informative (tips, FAQs)
+//   energetic.mp3→ urgent, driving   (seasonal, promotions)
+const CONTENT_TYPE_MOOD = {
+  job_finished:   'upbeat',
+  got_review:     'warm',
+  share_tip:      'friendly',
+  promotion:      'energetic',
+  seasonal:       'energetic',
+  team_spotlight: 'upbeat',
+  faq:            'friendly',
+  community:      'warm',
+};
+
 // Industry-aware color palette for text bars
 const INDUSTRY_COLORS = {
   plumbing:           '#1565C0',
@@ -95,11 +114,17 @@ class VideoSlideService {
 
       console.log(`[VideoSlide] Generating 3 NanaBanana frames in parallel (${industry}, ${contentType})`);
 
-      // 3 parallel NanaBanana image calls — each takes ~8-20s, parallel = ~20s total
+      // 3 parallel NanaBanana calls — per-frame retry if one times out
       const frameResults = await Promise.all(
-        framePrompts.map((prompt) =>
-          this.nanoBanana.generateFromPrompt(customer, prompt, { aspectRatio })
-        )
+        framePrompts.map(async (prompt, i) => {
+          try {
+            return await this.nanoBanana.generateFromPrompt(customer, prompt, { aspectRatio });
+          } catch (firstErr) {
+            console.warn(`[VideoSlide] Frame ${i} failed (${firstErr.message}), retrying in 2s…`);
+            await new Promise(r => setTimeout(r, 2000));
+            return await this.nanoBanana.generateFromPrompt(customer, prompt, { aspectRatio });
+          }
+        })
       );
 
       // Download each image → Sharp resize + text bar overlay → save to temp file
@@ -110,9 +135,12 @@ class VideoSlideService {
         framePaths.push(framePath);
       }
 
-      // FFmpeg crossfade animation (3 slides × ~2s = 6s with 0.3s dissolves)
+      // Pick background music if available (backend/audio/{mood}.mp3)
+      const audioPath = this._pickAudioTrack(contentType);
+
+      // FFmpeg crossfade animation → 7s total with audio fade-out
       const outputPath = path.join(tmpDir, 'output.mp4');
-      await this._buildVideo(framePaths, outputPath, vW, vH);
+      await this._buildVideo(framePaths, outputPath, vW, vH, audioPath);
 
       // Upload final video to Cloudinary
       const url = await this._uploadToCloudinary(outputPath, customer.id);
@@ -395,32 +423,44 @@ class VideoSlideService {
   // ─── Video assembly ──────────────────────────────────────────────────────────
 
   /**
-   * Animate 3 image frames with FFmpeg crossfade transitions → 6s MP4.
+   * Animate 3 image frames with FFmpeg crossfade transitions + optional background music.
    *
-   * Each slide: 2.3s / last slide: 2.0s / transition: 0.3s dissolve
-   * Total = (2.3 + 2.3 + 2.0) - (2 × 0.3) = 6.0 seconds
+   * Timing: 2.3s / 2.3s / 3.0s (CTA slide holds longer) with 0.3s dissolves
+   * Total = (2.3 + 2.3 + 3.0) - (2 × 0.3) = 7.0 seconds
+   *
+   * Audio: if audioPath exists, mixed in at 40% volume with 1s fade-out at 6s.
+   * If no audio file found, produces a silent video (still works fine).
    */
-  _buildVideo(framePaths, outputPath, vW, vH) {
-    const slideDuration = 2.3;    // first and middle slides
-    const lastDuration = 2.0;     // last slide
-    const transitionDur = 0.3;    // crossfade duration
-    // xfade offset = cumulative hold time up to that transition
-    const holdPerSlide = slideDuration - transitionDur; // 2.0s
+  _buildVideo(framePaths, outputPath, vW, vH, audioPath = null) {
+    const slideDurations = [2.3, 2.3, 3.0];  // last slide holds 3s — CTA needs time
+    const transitionDur = 0.3;
+    // xfade offset = cumulative hold time before each transition
     const offsets = [
-      holdPerSlide,                    // offset for transition between slide 0→1
-      holdPerSlide + holdPerSlide,     // offset for transition between slide 1→2
+      slideDurations[0] - transitionDur,                                       // 2.0
+      slideDurations[0] - transitionDur + slideDurations[1] - transitionDur,  // 4.0
     ];
+
+    const hasAudio = audioPath && fs.existsSync(audioPath);
+    if (hasAudio) {
+      console.log(`[VideoSlide] Mixing audio: ${path.basename(audioPath)}`);
+    } else if (audioPath) {
+      console.log(`[VideoSlide] Audio file not found (${audioPath}) — silent video`);
+    }
 
     return new Promise((resolve, reject) => {
       const cmd = ffmpeg();
 
-      // Add inputs — each image loops for its duration
+      // Image inputs — each looped for its slide duration
       framePaths.forEach((p, i) => {
-        const t = i < framePaths.length - 1 ? slideDuration : lastDuration;
-        cmd.input(p).inputOptions(['-loop 1', `-t ${t}`, '-framerate 30']);
+        cmd.input(p).inputOptions(['-loop 1', `-t ${slideDurations[i]}`, '-framerate 30']);
       });
 
-      // Build filter_complex: scale each input, then chain xfade
+      // Audio input (optional)
+      if (hasAudio) {
+        cmd.input(audioPath);
+      }
+
+      // Build filter_complex: scale each frame, then xfade chain
       const filters = [];
 
       framePaths.forEach((_, i) => {
@@ -446,17 +486,31 @@ class VideoSlideService {
         prevLabel = outLabel;
       }
 
+      const outputOptions = [
+        '-map [out]',
+        '-c:v libx264',
+        '-preset fast',
+        '-crf 22',
+        '-pix_fmt yuv420p',
+        '-r 30',
+      ];
+
+      if (hasAudio) {
+        const audioInputIdx = framePaths.length; // audio is the last input
+        outputOptions.push(
+          `-map ${audioInputIdx}:a`,
+          '-c:a aac',
+          '-b:a 128k',
+          '-af afade=t=out:st=6.0:d=1.0,volume=0.40',  // fade out at 6s, 40% volume (music under visuals)
+          '-shortest',  // cut audio at video end (7s)
+        );
+      }
+
+      outputOptions.push('-y');
+
       cmd
         .complexFilter(filters)
-        .outputOptions([
-          '-map [out]',
-          '-c:v libx264',
-          '-preset fast',
-          '-crf 22',
-          '-pix_fmt yuv420p',
-          '-r 30',
-          '-y',
-        ])
+        .outputOptions(outputOptions)
         .output(outputPath);
 
       cmd
@@ -465,6 +519,17 @@ class VideoSlideService {
         .on('error', (err) => { console.error('[VideoSlide] FFmpeg error:', err.message); reject(err); })
         .run();
     });
+  }
+
+  /**
+   * Pick a background music track based on content type mood.
+   * Looks in backend/audio/{mood}.mp3 — returns null if not found (silent video).
+   */
+  _pickAudioTrack(contentType) {
+    const mood = CONTENT_TYPE_MOOD[contentType] || 'upbeat';
+    const audioDir = path.join(__dirname, '..', 'audio');
+    const trackPath = path.join(audioDir, `${mood}.mp3`);
+    return trackPath;  // _buildVideo checks fs.existsSync before using
   }
 
   // ─── Cloudinary upload ───────────────────────────────────────────────────────
