@@ -54,7 +54,7 @@ class VeoService {
 
     const aspectRatio = options.aspectRatio || '9:16';
     // Veo only accepts 4, 6, or 8 — map anything else to nearest valid value
-    const durationSeconds = this._clampDuration(options.durationSeconds || 8);
+    const durationSeconds = this._clampDuration(options.durationSeconds || 6);
 
     // Attach key frame image if provided (image-to-video mode)
     let imageBase64 = null;

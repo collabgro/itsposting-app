@@ -1944,7 +1944,7 @@ Return ONLY valid JSON (no markdown, no backticks):
               videoType: bgVideoType,
               imagePrompt: bgImagePrompt,
               aspectRatio: bgAspectRatio,
-              durationSeconds: 4,
+              durationSeconds: 6,
             });
             const videoGenMs = Date.now() - videoGenStart;
 
