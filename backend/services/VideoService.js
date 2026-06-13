@@ -19,6 +19,7 @@ const VeoService = require('./VeoService');
 const RunwayService = require('./RunwayService');
 const PikaService = require('./PikaService');
 const NanoBananaService = require('./NanoBananaService');
+const VideoSlideService = require('./VideoSlideService');
 const industryKnowledge = require('../data/industryKnowledge');
 
 class VideoService {
@@ -28,6 +29,7 @@ class VideoService {
     this.runway = new RunwayService();
     this.pika = new PikaService();
     this.nanoBanana = new NanoBananaService();
+    this.slideVideo = new VideoSlideService();
   }
 
   /**
@@ -95,10 +97,24 @@ class VideoService {
         console.warn('[VideoService] Veo failed, trying Runway Gen-4:', veoErr.message);
       }
     } else {
-      console.log('[VideoService] Veo not enabled (set VEO_ENABLED=true) — skipping to Runway');
+      console.log('[VideoService] Veo not enabled — using NanaBanana reel (set VEO_ENABLED=true for cinematic footage)');
     }
 
-    // 2. Runway Gen-4 — image-to-video motion description (512 char limit)
+    // 2. VideoSlideService — NanaBanana 3-frame reel + FFmpeg (PRIMARY non-Veo path)
+    // Always available when GOOGLE_AI_API_KEY is set. Generates in ~25-40s.
+    // Produces a 6-second branded animated reel: problem → work → result, with text bars.
+    if (this.slideVideo.isAvailable()) {
+      try {
+        console.log('[VideoService] NanaBanana reel path — generating 3-frame animated reel');
+        return await this.slideVideo.generate(customer, script, { contentType, aspectRatio });
+      } catch (slideErr) {
+        console.warn('[VideoService] NanaBanana reel failed, trying Runway Gen-4:', slideErr.message);
+      }
+    } else {
+      console.log('[VideoService] VideoSlideService not available (need GOOGLE_AI_API_KEY + CLOUDINARY) — trying Runway');
+    }
+
+    // 3. Runway Gen-4 — image-to-video motion description (512 char limit)
     if (this.runway.isAvailable()) {
       try {
         const runwayPrompt = this._buildRunwayPrompt(customer, script, keyFrameUrl);
@@ -110,7 +126,7 @@ class VideoService {
       console.log('[VideoService] Runway not configured — skipping to Pika');
     }
 
-    // 3. Pika 2.2 — social-first, energetic style (400 char limit)
+    // 4. Pika 2.2 — social-first, energetic style (400 char limit)
     if (this.pika.isAvailable()) {
       try {
         const pikaPrompt = this._buildPikaPrompt(customer, script, keyFrameUrl);
@@ -122,7 +138,7 @@ class VideoService {
       console.log('[VideoService] Pika not configured');
     }
 
-    throw new Error('Services video: all cinematic providers failed or unavailable. Enable VEO_ENABLED=true in Railway.');
+    throw new Error('All video providers failed. Check GOOGLE_AI_API_KEY (NanaBanana reel), RUNWAY_API_KEY, and PIKA_API_KEY in Railway env vars.');
   }
 
   /**

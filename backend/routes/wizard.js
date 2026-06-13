@@ -1901,14 +1901,15 @@ Return ONLY valid JSON (no markdown, no backticks):
       const videoServiceAvailable = VideoService && (
         isAvatarVideo
           ? !!process.env.HEYGEN_API_KEY
-          : (process.env.VEO_ENABLED === 'true' || process.env.RUNWAY_API_KEY || process.env.PIKA_API_KEY)
+          // NanaBanana reel (GOOGLE_AI_API_KEY) is the primary non-Veo path — no VEO_ENABLED needed
+          : (process.env.VEO_ENABLED === 'true' || process.env.GOOGLE_AI_API_KEY || process.env.RUNWAY_API_KEY || process.env.PIKA_API_KEY)
       );
 
       // If no provider is configured for the chosen video type, refund and return a clear error
       if (isVideoPost && !videoServiceAvailable && savedPostId) {
         try { await pool.query(`DELETE FROM posts WHERE id = $1`, [savedPostId]); } catch {}
         await _refundCredits(pool, billingId, savedPostId, creditCost);
-        const providerName = isAvatarVideo ? 'HeyGen (Avatar Video)' : 'Veo (Services Video)';
+        const providerName = isAvatarVideo ? 'HeyGen (Avatar Video)' : 'Video Generation';
         return res.json({
           success: true,
           videoProviderUnavailable: true,
