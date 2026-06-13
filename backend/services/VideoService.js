@@ -48,7 +48,7 @@ class VideoService {
       videoType = 'services',
       imagePrompt = null,
       aspectRatio = '9:16',
-      durationSeconds = 7,
+      durationSeconds = 8,
     } = options;
 
     // Path A: Avatar video → HeyGen (no fallback chain for avatar)

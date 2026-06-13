@@ -55,6 +55,8 @@ class VeoService {
     }
 
     const aspectRatio = options.aspectRatio || '9:16';
+    // Veo only accepts 4, 6, or 8 — map anything else to nearest valid value
+    const durationSeconds = String(this._clampDuration(options.durationSeconds || 8));
 
     // Attach key frame image if provided (image-to-video mode)
     let imageBase64 = null;
@@ -70,16 +72,16 @@ class VeoService {
     // Try each model in priority order — 404 = not available for this key, skip
     let lastError;
     for (const model of VEO_MODELS) {
-      console.log(`[Veo] Trying model: ${model}, aspect: ${aspectRatio}`);
+      console.log(`[Veo] Trying model: ${model}, aspect: ${aspectRatio}, duration: ${durationSeconds}s`);
 
-      // Build request body — Vertex AI-style instances/parameters format
+      // Build request body — Gemini API instances/parameters format
       const instance = { prompt };
       if (imageBase64) {
         instance.image = { bytesBase64Encoded: imageBase64, mimeType: 'image/jpeg' };
       }
       const requestBody = {
         instances: [instance],
-        parameters: { aspectRatio, sampleCount: 1 },
+        parameters: { aspectRatio, sampleCount: 1, durationSeconds },
       };
 
       // Submit generation job — returns a long-running operation
@@ -152,8 +154,9 @@ class VeoService {
         }
 
         if (data.done) {
-          // Extract video URI — try both response shapes
+          // Extract video URI — try all known response shapes across Veo API versions
           const videoUri =
+            data.response?.generatedVideos?.[0]?.video?.uri ||
             data.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri ||
             data.response?.generatedSamples?.[0]?.video?.uri ||
             data.response?.videos?.[0]?.uri;
@@ -188,7 +191,9 @@ class VeoService {
   }
 
   /**
-   * Upload a video URL to Cloudinary for permanent CDN storage.
+   * Upload a Veo video to Cloudinary for permanent CDN storage.
+   * Veo video URIs require the API key header to download — Cloudinary's
+   * URL-upload path can't pass that header, so we download the buffer first.
    */
   async _uploadToCloudinary(videoUrl) {
     if (!process.env.CLOUDINARY_CLOUD_NAME) {
@@ -196,15 +201,30 @@ class VeoService {
       return videoUrl;
     }
 
+    // Download the video buffer (Veo URIs require x-goog-api-key auth)
+    let videoBuffer;
+    try {
+      const dlResponse = await axios.get(videoUrl, {
+        headers: { 'x-goog-api-key': this.apiKey },
+        responseType: 'arraybuffer',
+        timeout: 120000,
+      });
+      videoBuffer = Buffer.from(dlResponse.data);
+      console.log(`[Veo] Video downloaded (${Math.round(videoBuffer.length / 1024)}KB), uploading to Cloudinary`);
+    } catch (dlErr) {
+      console.error('[Veo] Failed to download video buffer:', dlErr.message);
+      return videoUrl;
+    }
+
     const attempt = () => new Promise((resolve, reject) => {
-      cloudinary.uploader.upload(
-        videoUrl,
+      const uploadStream = cloudinary.uploader.upload_stream(
         { resource_type: 'video', folder: 'itsposting/veo', quality: 'auto:best' },
         (error, result) => {
           if (error) reject(error);
           else resolve(result.secure_url);
         }
       );
+      uploadStream.end(videoBuffer);
     });
 
     try {
@@ -219,6 +239,14 @@ class VeoService {
         return videoUrl;
       }
     }
+  }
+
+  // Veo only accepts 4, 6, or 8 seconds
+  _clampDuration(seconds) {
+    const n = Number(seconds) || 8;
+    if (n <= 4) return 4;
+    if (n <= 6) return 6;
+    return 8;
   }
 
   _sleep(ms) {
