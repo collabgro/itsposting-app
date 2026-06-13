@@ -2127,6 +2127,22 @@ export default function Wizard() {
               {/* ── RIGHT (visually): Card image + platform preview — sticky ── */}
               {results.contentTypeSelection !== 'static' && <div style={{ flex: isMobile ? '0 0 100%' : 1, minWidth: isMobile ? 0 : 340, maxWidth: isMobile ? '100%' : '50%', position: isMobile ? 'static' : 'sticky', top: 20, alignSelf: 'flex-start' }}>
 
+                {/* Video provider not configured — credits refunded, clear message */}
+                {results.videoProviderUnavailable && (
+                  <div style={{ padding: '14px 16px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 10, marginBottom: 12, fontSize: 13 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#D97706', fontWeight: 700, marginBottom: 6 }}>
+                      <Icon name="warning" size={14} color="#D97706" />
+                      Video generation is not available right now
+                    </div>
+                    <div style={{ color: '#D97706', opacity: 0.9, lineHeight: 1.6 }}>
+                      {results.videoProviderName} is not configured on this account. Your credits were not charged — try again soon or contact support.
+                    </div>
+                    <a href="mailto:support@itsposting.com" style={{ display: 'inline-block', marginTop: 8, padding: '6px 14px', background: '#D97706', color: '#fff', borderRadius: 7, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+                      Contact Support
+                    </a>
+                  </div>
+                )}
+
                 {/* Image generation fully failed — credits not charged, contact support */}
                 {results.imageGenerationFailed && (
                   <div style={{ padding: '14px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', borderRadius: 10, marginBottom: 12, fontSize: 13 }}>

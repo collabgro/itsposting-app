@@ -1897,7 +1897,28 @@ Return ONLY valid JSON (no markdown, no backticks):
       // VideoService routes to Veo (services video) or HeyGen (avatar video).
       // Either way: mark videoRendering=true, return captions now, generate in background,
       // and let /video-poll/:postId handle completion polling.
-      const videoServiceAvailable = VideoService && (process.env.HEYGEN_API_KEY || process.env.VEO_ENABLED === 'true' || process.env.RUNWAY_API_KEY || process.env.PIKA_API_KEY);
+      const isAvatarVideo = answers.videoType === 'avatar';
+      const videoServiceAvailable = VideoService && (
+        isAvatarVideo
+          ? !!process.env.HEYGEN_API_KEY
+          : (process.env.VEO_ENABLED === 'true' || process.env.RUNWAY_API_KEY || process.env.PIKA_API_KEY)
+      );
+
+      // If no provider is configured for the chosen video type, refund and return a clear error
+      if (isVideoPost && !videoServiceAvailable && savedPostId) {
+        try { await pool.query(`DELETE FROM posts WHERE id = $1`, [savedPostId]); } catch {}
+        await _refundCredits(pool, billingId, savedPostId, creditCost);
+        const providerName = isAvatarVideo ? 'HeyGen (Avatar Video)' : 'Veo (Services Video)';
+        return res.json({
+          success: true,
+          videoProviderUnavailable: true,
+          videoProviderName: providerName,
+          contentTypeSelection: 'video',
+          variations: transformedVariations,
+          hashtags: parsed.variation_a?.hashtags || [],
+        });
+      }
+
       if (videoServiceAvailable && isVideoPost && savedPostId) {
         videoRendering = true; // captions are ready immediately — video is on its way
 

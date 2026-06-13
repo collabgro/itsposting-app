@@ -119,10 +119,7 @@ class VideoService {
       console.log('[VideoService] Pika not configured');
     }
 
-    // Cinematic providers unavailable/failed — HeyGen as guaranteed fallback
-    // Customer always gets a video, never "No image"
-    console.log('[VideoService] Cinematic providers unavailable — falling back to HeyGen');
-    return await this.heygen.generateFromScript(customer, script, options);
+    throw new Error('Services video: all cinematic providers failed or unavailable. Enable VEO_ENABLED=true in Railway.');
   }
 
   /**
