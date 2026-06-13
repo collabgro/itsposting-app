@@ -3231,8 +3231,16 @@ Sentry.setupExpressErrorHandler(app);
 
 app.use((err, req, res, next) => {
   const errorId = Math.random().toString(36).substring(7);
-  console.error(JSON.stringify({ timestamp: new Date().toISOString(), level: 'error', errorId, message: err.message, method: req.method, path: req.path, userId: req.customerId || null, ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }) }));
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error', errorId });
+  try {
+    console.error('[GlobalError]', err?.message, err?.stack?.split('\n')[1]);
+  } catch (_) {}
+  if (res.headersSent) return;
+  const isDev = process.env.NODE_ENV !== 'production';
+  res.status(err?.status || 500).json({
+    error: err?.message || 'Internal server error',
+    errorId,
+    ...(isDev && { stack: err?.stack?.split('\n').slice(0, 4).join(' | ') }),
+  });
 });
 
 async function runTrialExpiry() {

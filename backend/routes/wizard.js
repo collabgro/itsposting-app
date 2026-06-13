@@ -152,7 +152,7 @@ async function autoSaveToMediaLibrary(pool, customerId, mediaUrl, contentType, w
     await pool.query(
       `INSERT INTO media_library
          (customer_id, cloudinary_public_id, url, thumbnail_url, file_name, file_type, mime_type,
-          file_size_bytes, width, height, folder, created_at)
+          file_size_bytes, width, height, folder, uploaded_at)
        VALUES ($1,$2,$3,$3,$4,$5,$6,0,$7,$8,'AI Generated',NOW())
        ON CONFLICT DO NOTHING`,
       [customerId, publicId, mediaUrl, fileName, fileType, mimeType, width || null, height || null]
