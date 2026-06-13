@@ -1763,6 +1763,27 @@ Return ONLY valid JSON (no markdown, no backticks):
         console.warn('[Wizard] Could not save post to database:', dbErr.message);
       }
 
+      // ── Guard: skip credit deduction on complete image failure ─────────────
+      // If the user paid for a photo/carousel and got zero images, don't charge them.
+      const allSlidesFailed = answers.contentTypeSelection === 'carousel' &&
+        Array.isArray(mediaVariants?.slides) && mediaVariants.slides.length > 0 &&
+        mediaVariants.slides.every(s => !s.imageUrl);
+      const photoFailed = answers.contentTypeSelection === 'photo' && imageFailed;
+      const imageGenerationFullyFailed = photoFailed || allSlidesFailed;
+
+      if (imageGenerationFullyFailed && savedPostId) {
+        // Remove the empty post so nothing hangs around
+        try { await pool.query(`DELETE FROM posts WHERE id = $1`, [savedPostId]); } catch {}
+        console.warn(`[Wizard] Image generation fully failed for ${answers.contentTypeSelection} — credits NOT deducted`);
+        return res.json({
+          success: true,
+          imageGenerationFailed: true,
+          imageFailedMessage: 'Image generation failed this time. Your credits were not charged. Please contact support@itsposting.com if this keeps happening.',
+          variations: transformedVariations,
+          slideGenErrors: mediaVariants?._slideGenErrors,
+        });
+      }
+
       // ── Deduct credits atomically after post is saved ────────────────────────
       let creditsRemaining = null;
       if (savedPostId) {

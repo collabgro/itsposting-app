@@ -2126,8 +2126,24 @@ export default function Wizard() {
               {/* ── RIGHT (visually): Card image + platform preview — sticky ── */}
               {results.contentTypeSelection !== 'static' && <div style={{ flex: isMobile ? '0 0 100%' : 1, minWidth: isMobile ? 0 : 340, maxWidth: isMobile ? '100%' : '50%', position: isMobile ? 'static' : 'sticky', top: 20, alignSelf: 'flex-start' }}>
 
+                {/* Image generation fully failed — credits not charged, contact support */}
+                {results.imageGenerationFailed && (
+                  <div style={{ padding: '14px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.35)', borderRadius: 10, marginBottom: 12, fontSize: 13 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#DC2626', fontWeight: 700, marginBottom: 6 }}>
+                      <Icon name="warning" size={14} color="#DC2626" />
+                      Image generation failed — no credits were charged
+                    </div>
+                    <div style={{ color: '#DC2626', opacity: 0.85, lineHeight: 1.5 }}>
+                      {results.imageFailedMessage || 'Something went wrong generating your image. Your credits were not deducted.'}
+                    </div>
+                    <a href="mailto:support@itsposting.com" style={{ display: 'inline-block', marginTop: 8, padding: '6px 14px', background: '#DC2626', color: '#fff', borderRadius: 7, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+                      Contact Support
+                    </a>
+                  </div>
+                )}
+
                 {/* Image/video failed banner */}
-                {results.imageFailed && (
+                {results.imageFailed && !results.imageGenerationFailed && (
                   <div style={{ padding: '12px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, marginBottom: 12, fontSize: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#D97706', marginBottom: results.contentTypeSelection === 'video' ? 8 : 0 }}>
                       <Icon name="warning" size={14} color="#D97706" />
