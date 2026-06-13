@@ -1944,7 +1944,8 @@ Return ONLY valid JSON (no markdown, no backticks):
               videoType: bgVideoType,
               imagePrompt: bgImagePrompt,
               aspectRatio: bgAspectRatio,
-              durationSeconds: 6,
+              durationSeconds: 4,
+              skipKeyFrame: true,
             });
             const videoGenMs = Date.now() - videoGenStart;
 
@@ -1980,7 +1981,7 @@ Return ONLY valid JSON (no markdown, no backticks):
             try {
               await pool.query(
                 `UPDATE posts SET status = 'video_failed', video_render_status = $2, updated_at = NOW() WHERE id = $1`,
-                [bgPostId, errMsg.substring(0, 200)]
+                [bgPostId, errMsg.substring(0, 500)]
               );
             } catch {}
             await _refundCredits(pool, bgBillingId, bgPostId, bgCreditCost);
@@ -2130,7 +2131,7 @@ Return ONLY valid JSON (no markdown, no backticks):
       // If media_url is still null, it's still processing. Give it up to 4 min from creation.
       if (!post.video_job_id) {
         const ageMs = Date.now() - new Date(post.created_at).getTime();
-        if (ageMs > 720_000) { // 12 min — Veo can take 7 min + setup time
+        if (ageMs > 1_200_000) { // 20 min — Veo polls for 15 min max
           return res.json({ status: 'failed', error: 'Video generation did not complete in time.' });
         }
         return res.json({ status: 'processing' });

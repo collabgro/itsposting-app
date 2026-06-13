@@ -209,6 +209,7 @@ console.log('══════════════════════�
     )`,
     `CREATE INDEX IF NOT EXISTS idx_notifications_customer ON notifications(customer_id, read)`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS video_render_status VARCHAR(20) DEFAULT 'none'`,
+    `ALTER TABLE posts ALTER COLUMN video_render_status TYPE TEXT`,
     `ALTER TABLE posts ADD COLUMN IF NOT EXISTS video_provider VARCHAR(50)`,
     // GEO Audit tables
     `CREATE TABLE IF NOT EXISTS geo_audits (

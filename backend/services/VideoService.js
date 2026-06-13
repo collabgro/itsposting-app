@@ -47,7 +47,8 @@ class VideoService {
       videoType = 'services',
       imagePrompt = null,
       aspectRatio = '9:16',
-      durationSeconds = 6,
+      durationSeconds = 4,
+      skipKeyFrame = false,
     } = options;
 
     // Path A: Avatar video → HeyGen (no fallback chain for avatar)
@@ -59,11 +60,10 @@ class VideoService {
     // Path B: Services/cinematic video
     console.log('[VideoService] Services video — NanoBanana key frame → Veo → Runway → Pika → HeyGen fallback');
 
-    // Only generate a NanoBanana key frame if a cinematic provider can use it.
-    // HeyGen (fallback) doesn't need a key frame — skip the API call if Veo/Runway/Pika are all off.
+    // Skip NanoBanana key frame when skipKeyFrame=true (text-to-video is faster for Veo)
     const anyCinematicAvailable = this.veo.isAvailable() || this.runway.isAvailable() || this.pika.isAvailable();
     let keyFrameUrl = null;
-    if (imagePrompt && anyCinematicAvailable) {
+    if (!skipKeyFrame && imagePrompt && anyCinematicAvailable) {
       try {
         const imgResult = await this.nanoBanana.generateFromPrompt(customer, imagePrompt, { aspectRatio });
         keyFrameUrl = imgResult.url;
@@ -71,6 +71,8 @@ class VideoService {
       } catch (imgErr) {
         console.warn('[VideoService] Key frame generation failed, proceeding without it:', imgErr.message);
       }
+    } else if (skipKeyFrame) {
+      console.log('[VideoService] Skipping NanoBanana key frame (text-to-video mode)');
     }
 
     return await this._generateServicesVideo(customer, script, { keyFrameUrl, aspectRatio, durationSeconds, options });

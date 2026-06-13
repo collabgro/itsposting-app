@@ -54,7 +54,7 @@ class VeoService {
 
     const aspectRatio = options.aspectRatio || '9:16';
     // Veo only accepts 4, 6, or 8 — map anything else to nearest valid value
-    const durationSeconds = this._clampDuration(options.durationSeconds || 6);
+    const durationSeconds = this._clampDuration(options.durationSeconds || 4);
 
     // Attach key frame image if provided (image-to-video mode)
     let imageBase64 = null;
@@ -133,9 +133,9 @@ class VeoService {
    * @param {string} operationName - Full operation path from the generate response
    * @param {number} maxAttempts - Max polling attempts (10s each = ~250s max)
    */
-  async _waitForOperation(operationName, maxAttempts = 42) {
+  async _waitForOperation(operationName, maxAttempts = 90) {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      await this._sleep(10000); // docs recommend 10s polling interval — 42 attempts = ~7 min max
+      await this._sleep(10000); // docs recommend 10s polling interval — 90 attempts = ~15 min max
 
       try {
         const response = await axios.get(
@@ -176,7 +176,7 @@ class VeoService {
       }
     }
 
-    throw new Error(`Veo generation timed out after ${maxAttempts * 10}s — video took too long to render`);
+    throw new Error(`Veo timed out after ${maxAttempts * 10}s`);
   }
 
   /**
@@ -243,7 +243,7 @@ class VeoService {
 
   // Veo only accepts 4, 6, or 8 seconds
   _clampDuration(seconds) {
-    const n = Number(seconds) || 8;
+    const n = Number(seconds) || 4;
     if (n <= 4) return 4;
     if (n <= 6) return 6;
     return 8;
