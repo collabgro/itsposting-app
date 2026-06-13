@@ -1975,9 +1975,13 @@ Return ONLY valid JSON (no markdown, no backticks):
               await _refundCredits(pool, bgBillingId, bgPostId, bgCreditCost);
             }
           } catch (err) {
-            console.error(`[Wizard BG] Video generation failed for post ${bgPostId}:`, err.message);
+            const errMsg = err.message || String(err);
+            console.error(`[Wizard BG] Video generation failed for post ${bgPostId}:`, errMsg);
             try {
-              await pool.query(`UPDATE posts SET status = 'video_failed', updated_at = NOW() WHERE id = $1`, [bgPostId]);
+              await pool.query(
+                `UPDATE posts SET status = 'video_failed', video_render_status = $2, updated_at = NOW() WHERE id = $1`,
+                [bgPostId, errMsg.substring(0, 200)]
+              );
             } catch {}
             await _refundCredits(pool, bgBillingId, bgPostId, bgCreditCost);
           }
@@ -2103,9 +2107,9 @@ Return ONLY valid JSON (no markdown, no backticks):
         return res.json({ status: 'completed', videoUrl: post.media_url });
       }
 
-      // Explicit failure
+      // Explicit failure — return actual error so frontend can display it
       if (post.status === 'video_failed') {
-        return res.json({ status: 'failed', error: 'Video generation failed. Credits have been refunded.' });
+        return res.json({ status: 'failed', error: post.video_render_status || 'Video generation failed. Credits have been refunded.' });
       }
 
       if (post.status === 'insufficient_credits') {
@@ -2152,6 +2156,32 @@ Return ONLY valid JSON (no markdown, no backticks):
       console.error('[Wizard] video-poll error:', err.message);
       return res.json({ status: 'processing' }); // don't error — just retry next poll
     }
+  });
+
+  // GET /api/wizard/debug-veo — test Veo API connectivity (admin only, no credits charged)
+  router.get('/debug-veo', authenticate, async (req, res) => {
+    if (!req.isAdmin) return res.status(403).json({ error: 'Admin only' });
+    const axios = require('axios');
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) return res.json({ error: 'GOOGLE_AI_API_KEY not set' });
+    if (process.env.VEO_ENABLED !== 'true') return res.json({ error: 'VEO_ENABLED is not true' });
+
+    const results = [];
+    const models = ['veo-3.1-fast-generate-preview', 'veo-3.0-generate-001', 'veo-2.0-generate-001'];
+    for (const model of models) {
+      try {
+        const resp = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning`,
+          { instances: [{ prompt: 'A plumber fixing a pipe, cinematic' }], parameters: { aspectRatio: '9:16', sampleCount: 1, durationSeconds: '4' } },
+          { headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, timeout: 15000 }
+        );
+        results.push({ model, status: 'submitted', operationName: resp.data?.name, rawResponse: resp.data });
+        break; // stop at first success
+      } catch (e) {
+        results.push({ model, status: 'error', httpStatus: e.response?.status, error: e.response?.data?.error || e.message });
+      }
+    }
+    res.json({ veoEnabled: true, apiKeySet: !!apiKey, results });
   });
 
   // POST /api/wizard/regenerate-image — regenerate image for an existing post (costs 1 credit)

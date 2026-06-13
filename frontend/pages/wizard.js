@@ -786,14 +786,14 @@ export default function Wizard() {
           return;
         }
         try {
-          const { status, videoUrl } = await apiGet(`/api/wizard/video-poll/${results.postId}`);
+          const { status, videoUrl, error: videoError } = await apiGet(`/api/wizard/video-poll/${results.postId}`);
           setVideoProgress(Math.min(95, pollCount * 3));
           if (status === 'completed' && videoUrl) {
             setVideoProgress(100);
             setResults(r => ({ ...r, mediaUrl: videoUrl, videoRendering: 'completed' }));
             clearInterval(pollInterval);
           } else if (status === 'failed') {
-            setResults(r => ({ ...r, videoRendering: 'failed', imageFailed: true }));
+            setResults(r => ({ ...r, videoRendering: 'failed', imageFailed: true, videoFailedReason: videoError || null }));
             clearInterval(pollInterval);
           }
         } catch { /* silent — retry next tick */ }
@@ -2169,7 +2169,9 @@ export default function Wizard() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#D97706', marginBottom: results.contentTypeSelection === 'video' ? 8 : 0 }}>
                       <Icon name="warning" size={14} color="#D97706" />
                       {results.contentTypeSelection === 'video'
-                        ? 'Your captions are ready. The video is still generating — check back in a few minutes to add it, or post the caption now.'
+                        ? (results.videoRendering === 'failed'
+                            ? `Video generation failed — credits refunded.${results.videoFailedReason ? ` Reason: ${results.videoFailedReason}` : ''}`
+                            : 'Your captions are ready. The video is still generating — check back in a few minutes to add it, or post the caption now.')
                         : 'Image generation failed — your caption is ready to post without an image.'}
                     </div>
                     {results.contentTypeSelection === 'video' && results.postId && (
