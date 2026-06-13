@@ -81,8 +81,8 @@ const LOADING_MESSAGES = {
   video: (ind, city, vType) => [
     `Reading what works for ${ind || 'your industry'} businesses${city ? ` in ${city}` : ''}...`,
     'Writing your video script...',
-    vType === 'avatar' ? 'Preparing AI avatar presenter...' : 'Generating key frame image...',
-    'Sending to video AI — this takes 1–2 minutes...',
+    vType === 'avatar' ? 'Preparing AI avatar presenter...' : 'Building cinematic video scenes...',
+    'Sending to Veo AI — video renders in 3–6 minutes...',
     'Video rendering in background — captions are ready now!',
   ],
 };
@@ -625,6 +625,7 @@ export default function Wizard() {
   const [activeSlide, setActiveSlide] = useState(0);
 
   const loadingInterval = useRef(null);
+  const videoStartRef = useRef(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -770,6 +771,7 @@ export default function Wizard() {
     if (!results?.postId) return;
 
     setVideoProgress(0);
+    videoStartRef.current = Date.now();
     let es = null;
     let pollInterval = null;
     let pollCount = 0;
@@ -787,7 +789,13 @@ export default function Wizard() {
         }
         try {
           const { status, videoUrl, error: videoError } = await apiGet(`/api/wizard/video-poll/${results.postId}`);
-          setVideoProgress(Math.min(95, pollCount * 3));
+          // Time-based progress — Veo takes 3-6 min, never show 95%+ until actually done
+          const elapsedSec = (Date.now() - (videoStartRef.current || Date.now())) / 1000;
+          const prog = elapsedSec < 30 ? Math.min(20, elapsedSec * 0.67)
+            : elapsedSec < 180 ? 20 + (elapsedSec - 30) * 0.37
+            : elapsedSec < 360 ? 75 + (elapsedSec - 180) * 0.094
+            : 92;
+          setVideoProgress(Math.round(prog));
           if (status === 'completed' && videoUrl) {
             setVideoProgress(100);
             setResults(r => ({ ...r, mediaUrl: videoUrl, videoRendering: 'completed' }));
@@ -2332,9 +2340,9 @@ export default function Wizard() {
                       </div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>
-                          {videoProgress < 30 ? 'Starting video generation...' : videoProgress < 70 ? 'Rendering your video...' : 'Almost done...'}
+                          {videoProgress < 20 ? 'Starting Veo AI...' : videoProgress < 50 ? 'Building your scenes...' : videoProgress < 80 ? 'Rendering video with audio...' : 'Finalizing your video...'}
                         </div>
-                        <div style={{ fontSize: 11, color: t.textMuted }}>Your video will appear here when ready</div>
+                        <div style={{ fontSize: 11, color: t.textMuted }}>Veo AI takes 3–6 min · your captions are ready to review</div>
                       </div>
                     </div>
                   ) : (
