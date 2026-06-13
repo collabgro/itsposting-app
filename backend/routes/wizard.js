@@ -1927,6 +1927,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         const bgScript = parsed.variation_a?.videoScript || transformedVariations.A.caption;
         const bgImagePrompt = parsed.variation_a?.imagePrompt || imagePromptForGen || '';
         const bgVideoType = answers.videoType;
+        const bgContentType = answers.contentType; // job_finished, got_review, share_tip, promotion, seasonal, etc.
         const bgAspectRatio = formatAspectRatio || '9:16';
         const bgBillingId = billingId;
         const bgCreditCost = creditCost;
@@ -1937,11 +1938,12 @@ Return ONLY valid JSON (no markdown, no backticks):
             if (bgPrefetch) await bgPrefetch;
 
             const videoSvc = new VideoService();
-            console.log(`[Wizard BG] Starting video generation for post ${bgPostId} (type: ${bgVideoType})`);
+            console.log(`[Wizard BG] Starting video generation for post ${bgPostId} (type: ${bgVideoType}, content: ${bgContentType})`);
 
             const videoGenStart = Date.now();
             const videoResult = await videoSvc.generate(bgCustomer, bgScript, {
               videoType: bgVideoType,
+              contentType: bgContentType,
               imagePrompt: bgImagePrompt,
               aspectRatio: bgAspectRatio,
               durationSeconds: 6,
