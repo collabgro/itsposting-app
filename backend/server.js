@@ -55,6 +55,7 @@ const competitorRoutes = require('./routes/competitor');
 const publicRoutes = require('./routes/public');
 const agencyRoutes = require('./routes/agency');
 const emailRoutes  = require('./routes/email');
+const weatherRoutes = require('./routes/weather');
 
 const GeoAuditService = require('./services/GeoAuditService');
 const AutoPostScheduler = require('./services/AutoPostScheduler');
@@ -1200,6 +1201,25 @@ console.log('══════════════════════�
     `ALTER TABLE customers ADD COLUMN IF NOT EXISTS email_bounce_at TIMESTAMP`,
     `CREATE INDEX IF NOT EXISTS idx_customers_email_bounce
        ON customers(email_hard_bounced) WHERE email_hard_bounced = TRUE`,
+    // ── Weather Alerts — morning PostCore weather-triggered post suggestions ──
+    `CREATE TABLE IF NOT EXISTS weather_alerts (
+      id              SERIAL PRIMARY KEY,
+      customer_id     INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      alert_date      DATE NOT NULL,
+      city            VARCHAR(150),
+      signal_type     VARCHAR(50),
+      signal_severity VARCHAR(20),
+      weather_summary TEXT,
+      post_options    JSONB NOT NULL DEFAULT '[]',
+      dismissed_at    TIMESTAMP,
+      used_at         TIMESTAMP,
+      used_option     INTEGER,
+      created_at      TIMESTAMP DEFAULT NOW(),
+      UNIQUE(customer_id, alert_date)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_weather_alerts_customer ON weather_alerts(customer_id, alert_date DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_weather_alerts_date ON weather_alerts(alert_date)`,
+
     // Carousel slide storage — must exist before wizard.js tries to INSERT slides
     `CREATE TABLE IF NOT EXISTS post_carousel_slides (
       id           SERIAL PRIMARY KEY,
@@ -3206,6 +3226,7 @@ app.use('/api/referrals', referralsRoutes(pool));
 app.use('/api/competitor', competitorRoutes(pool));
 app.use('/api/agency', agencyRoutes(pool));
 app.use('/api/email', emailRoutes(pool));
+app.use('/api/weather', weatherRoutes(pool));
 
 
 app.get('/health', async (req, res) => {
@@ -3328,6 +3349,17 @@ cron.schedule('0 9 * * *', async () => {
     if (rows.length > 0) console.log(`[Agency] Sent ${rows.length} credit alert notification(s)`);
   } catch (e) { console.error('[Agency] Credit alert cron failed:', e.message); }
 });
+
+// ── Weather Alerts — runs hourly, generates alerts for customers in 5:30-7:00am window ─
+const WeatherAlertService = require('./services/WeatherAlertService');
+const weatherAlertService = new WeatherAlertService(pool);
+cron.schedule('0 * * * *', async () => {
+  try {
+    const { processed, alerts } = await weatherAlertService.generateForAllDue();
+    if (processed > 0) console.log(`[WeatherAlert] Hourly run: ${alerts} alerts created for ${processed} customers`);
+  } catch (err) { console.error('[WeatherAlert] Hourly cron error:', err.message); }
+});
+console.log('⛅ WeatherAlertService cron scheduled (hourly — fires for customers in 5:30-7:00am local window)');
 
 const suggestionsEngine = new SuggestionsEngine(pool);
 cron.schedule('0 8 * * *', async () => {

@@ -12,10 +12,11 @@ import Layout from '../components/Layout';
 import { Button, SectionHeader, EmptyState, Spinner, Skeleton, ErrorCard, AnimatedNumber, ProgressRing, PulseIndicator } from '../components/ui';
 import { useTheme } from '../lib/theme';
 import { useBranding } from '../lib/branding';
-import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, calendarPlansAPI } from '../lib/api';
+import { postsAPI, intelligenceAPI, geoAPI, analyticsAPI, calendarPlansAPI, weatherAPI } from '../lib/api';
 import { format } from 'date-fns';
 import PostPreviewModal from '../components/PostPreviewModal';
 import { setMascotMood } from '../components/PostCoreMascot';
+import WeatherAlertBanner from '../components/WeatherAlertBanner';
 
 // Boot scroll-reveal — re-runs when mounted/loading changes so elements exist in DOM
 function useScrollReveal(deps = []) {
@@ -111,6 +112,7 @@ export default function Dashboard() {
   const [bestPostId,     setBestPostId]     = useState(null);
   const [weekPlans,      setWeekPlans]      = useState([]);
   const [isMobile,       setIsMobile]       = useState(false);
+  const [weatherAlert,   setWeatherAlert]   = useState(null);
 
   useScrollReveal([mounted, loading]);
 
@@ -133,6 +135,11 @@ export default function Dashboard() {
         .catch(() => {});
     };
     loadWeekPlans();
+
+    // Load weather alert — non-blocking, never-cache
+    weatherAPI.getMyAlert()
+      .then(r => { if (r.data?.alert) setWeatherAlert(r.data.alert); })
+      .catch(() => {});
 
     Promise.all([
       postsAPI.getAll({ limit: 50 }),
@@ -278,6 +285,17 @@ export default function Dashboard() {
           </div>
         }
       >
+
+        {/* ── Weather Alert — PostCore morning weather-triggered post suggestions ── */}
+        {weatherAlert && (
+          <WeatherAlertBanner
+            alert={weatherAlert}
+            onDismiss={() => {
+              setWeatherAlert(null);
+              weatherAPI.dismiss().catch(() => {});
+            }}
+          />
+        )}
 
         {/* ── 0. First-time user welcome banner ── */}
         {!loading && allPosts.length === 0 && (

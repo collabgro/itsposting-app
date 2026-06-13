@@ -633,4 +633,10 @@ export const agencyAPI = {
   testEmail:        ()              => api.post('/api/agency/email/test'),
 };
 
+export const weatherAPI = {
+  getMyAlert:    () => api.get('/api/weather/my-alert', { __noCache: true }),
+  dismiss:       () => api.post('/api/weather/dismiss'),
+  previewSignal: () => api.get('/api/weather/preview-signal', { __noCache: true }),
+};
+
 export default api;
