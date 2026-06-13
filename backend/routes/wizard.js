@@ -2159,8 +2159,25 @@ Return ONLY valid JSON (no markdown, no backticks):
   });
 
   // GET /api/wizard/debug-veo — test Veo API connectivity (admin only, no credits charged)
-  router.get('/debug-veo', authenticate, async (req, res) => {
-    if (!req.isAdmin) return res.status(403).json({ error: 'Admin only' });
+  // Accepts ?secret=ADMIN_SECRET as an alternative to Bearer token for direct browser access
+  router.get('/debug-veo', async (req, res) => {
+    const adminSecret = process.env.ADMIN_SECRET;
+    const querySecret = req.query.secret;
+    const isAdminSecret = adminSecret && querySecret === adminSecret;
+    if (!isAdminSecret) {
+      // Fall back to JWT auth
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Pass ?secret=ADMIN_SECRET or a Bearer token' });
+      }
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET, { algorithms: ['HS256'] });
+        if (!decoded.isAdmin) return res.status(403).json({ error: 'Admin only' });
+      } catch {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+    }
     const axios = require('axios');
     const apiKey = process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) return res.json({ error: 'GOOGLE_AI_API_KEY not set' });
