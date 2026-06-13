@@ -133,9 +133,9 @@ class VeoService {
    * @param {string} operationName - Full operation path from the generate response
    * @param {number} maxAttempts - Max polling attempts (10s each = ~250s max)
    */
-  async _waitForOperation(operationName, maxAttempts = 25) {
+  async _waitForOperation(operationName, maxAttempts = 42) {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      await this._sleep(10000); // docs recommend 10s polling interval
+      await this._sleep(10000); // docs recommend 10s polling interval — 42 attempts = ~7 min max
 
       try {
         const response = await axios.get(
@@ -176,7 +176,7 @@ class VeoService {
       }
     }
 
-    throw new Error(`Veo generation timed out after ${maxAttempts * 10}s`);
+    throw new Error(`Veo generation timed out after ${maxAttempts * 10}s — video took too long to render`);
   }
 
   /**
