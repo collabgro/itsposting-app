@@ -1925,7 +1925,7 @@ Return ONLY valid JSON (no markdown, no backticks):
               videoType: bgVideoType,
               imagePrompt: bgImagePrompt,
               aspectRatio: bgAspectRatio,
-              durationSeconds: 7,
+              durationSeconds: 8,
             });
             const videoGenMs = Date.now() - videoGenStart;
 
@@ -2103,7 +2103,7 @@ Return ONLY valid JSON (no markdown, no backticks):
       // If media_url is still null, it's still processing. Give it up to 4 min from creation.
       if (!post.video_job_id) {
         const ageMs = Date.now() - new Date(post.created_at).getTime();
-        if (ageMs > 240_000) {
+        if (ageMs > 480_000) { // 8 min — HeyGen can take 5-6 min under load
           return res.json({ status: 'failed', error: 'Video generation did not complete in time.' });
         }
         return res.json({ status: 'processing' });
@@ -3063,7 +3063,12 @@ One entry per post, in the same order as the dates listed.`;
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
-    const send = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+    // flush() forces compression middleware to send the chunk immediately — without this
+    // the compression buffer holds SSE events and the browser only ever sees 0%
+    const send = (data) => {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+      if (typeof res.flush === 'function') res.flush();
+    };
 
     // Track when job started for time-based progress estimate
     const startMs = Date.now();

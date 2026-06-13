@@ -2312,7 +2312,7 @@ export default function Wizard() {
                         <div style={{ fontSize: 13, fontWeight: 600, color: t.text, marginBottom: 4 }}>
                           {videoProgress < 30 ? 'Starting video generation...' : videoProgress < 70 ? 'Rendering your video...' : 'Almost done...'}
                         </div>
-                        <div style={{ fontSize: 11, color: t.textMuted }}>Caption is ready — you can post text now</div>
+                        <div style={{ fontSize: 11, color: t.textMuted }}>Your video will appear here when ready</div>
                       </div>
                     </div>
                   ) : (
