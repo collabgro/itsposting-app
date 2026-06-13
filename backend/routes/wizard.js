@@ -2799,8 +2799,8 @@ Return ONLY valid JSON (no markdown, no backticks):
         hasMore: idx < 2,
       });
     } catch (err) {
-      console.error('[Wizard] more-designs error:', err);
-      res.status(500).json({ error: 'Failed to load more designs. Please try again.' });
+      console.error('[Wizard] more-designs error:', err.message, err.stack?.split('\n').slice(0, 4).join(' | '));
+      res.status(500).json({ error: 'Failed to load more designs. Please try again.', errorDetail: err.message });
     }
   });
 

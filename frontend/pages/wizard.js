@@ -1409,7 +1409,8 @@ export default function Wizard() {
       setAltLineupQueue(remaining);
       setMoreDesignsModal(true);
     } catch (err) {
-      console.error('[Wizard] loadMoreDesigns failed:', err);
+      const detail = err.response?.data?.errorDetail || err.response?.data?.error || err.message;
+      console.error('[Wizard] loadMoreDesigns failed:', detail, err.response?.status);
       showToast('error', 'Failed to load more designs. Please try again.');
     } finally {
       setLoadingMoreDesigns(false);
