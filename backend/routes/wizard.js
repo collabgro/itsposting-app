@@ -2130,7 +2130,7 @@ Return ONLY valid JSON (no markdown, no backticks):
       // If media_url is still null, it's still processing. Give it up to 4 min from creation.
       if (!post.video_job_id) {
         const ageMs = Date.now() - new Date(post.created_at).getTime();
-        if (ageMs > 480_000) { // 8 min — HeyGen can take 5-6 min under load
+        if (ageMs > 720_000) { // 12 min — Veo can take 7 min + setup time
           return res.json({ status: 'failed', error: 'Video generation did not complete in time.' });
         }
         return res.json({ status: 'processing' });
