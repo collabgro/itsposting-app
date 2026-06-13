@@ -1897,12 +1897,7 @@ Return ONLY valid JSON (no markdown, no backticks):
       // VideoService routes to Veo (services video) or HeyGen (avatar video).
       // Either way: mark videoRendering=true, return captions now, generate in background,
       // and let /video-poll/:postId handle completion polling.
-      const isAvatarVideo = answers.videoType === 'avatar';
-      const videoServiceAvailable = VideoService && (
-        isAvatarVideo
-          ? !!process.env.HEYGEN_API_KEY                    // Avatar → HeyGen only
-          : (process.env.VEO_ENABLED === 'true' || process.env.RUNWAY_API_KEY || process.env.PIKA_API_KEY) // Services → cinematic only
-      );
+      const videoServiceAvailable = VideoService && (process.env.HEYGEN_API_KEY || process.env.VEO_ENABLED === 'true' || process.env.RUNWAY_API_KEY || process.env.PIKA_API_KEY);
       if (videoServiceAvailable && isVideoPost && savedPostId) {
         videoRendering = true; // captions are ready immediately — video is on its way
 

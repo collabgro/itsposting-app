@@ -57,17 +57,13 @@ class VideoService {
     }
 
     // Path B: Services/cinematic video
-    // Skip NanoBanana key frame entirely if no cinematic provider is available —
-    // avoids burning a Google API call for a key frame that will never be used.
+    console.log('[VideoService] Services video — NanoBanana key frame → Veo → Runway → Pika → HeyGen fallback');
+
+    // Only generate a NanoBanana key frame if a cinematic provider can use it.
+    // HeyGen (fallback) doesn't need a key frame — skip the API call if Veo/Runway/Pika are all off.
     const anyCinematicAvailable = this.veo.isAvailable() || this.runway.isAvailable() || this.pika.isAvailable();
-    if (!anyCinematicAvailable) {
-      throw new Error('Services video: no cinematic provider is enabled. Set VEO_ENABLED=true in Railway env vars.');
-    }
-
-    console.log('[VideoService] Services video — NanoBanana key frame → Veo → Runway → Pika');
-
     let keyFrameUrl = null;
-    if (imagePrompt) {
+    if (imagePrompt && anyCinematicAvailable) {
       try {
         const imgResult = await this.nanoBanana.generateFromPrompt(customer, imagePrompt, { aspectRatio });
         keyFrameUrl = imgResult.url;
@@ -123,8 +119,10 @@ class VideoService {
       console.log('[VideoService] Pika not configured');
     }
 
-    // All cinematic providers failed — do NOT fall back to HeyGen (wrong video type)
-    throw new Error('Services video: all cinematic providers failed. Enable VEO_ENABLED=true or configure RUNWAY_API_KEY / PIKA_API_KEY.');
+    // Cinematic providers unavailable/failed — HeyGen as guaranteed fallback
+    // Customer always gets a video, never "No image"
+    console.log('[VideoService] Cinematic providers unavailable — falling back to HeyGen');
+    return await this.heygen.generateFromScript(customer, script, options);
   }
 
   /**
