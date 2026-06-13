@@ -1354,6 +1354,7 @@ Return ONLY valid JSON (no markdown, no backticks):
                 const slidePrompt = `Professional photograph for a social media card background. ${rawDesc}. Clean composition with subject clearly visible. CRITICAL: absolutely NO text, words, letters, numbers, captions, watermarks, logos, or graphical text overlays anywhere in the image. Pure clean photograph only.`;
                 const slideStart = Date.now();
                 let slideImageUrl = null;
+                let slideLastError = null;
                 for (let attempt = 0; attempt < 2; attempt++) {
                   try {
                     if (attempt > 0) {
@@ -1378,16 +1379,21 @@ Return ONLY valid JSON (no markdown, no backticks):
                     });
                     break;
                   } catch (slideErr) {
-                    console.warn(`[Wizard] Slide ${slide.slideNumber} attempt ${attempt + 1} failed:`, slideErr.message);
+                    slideLastError = slideErr.message;
+                    console.error(`[Wizard] Slide ${slide.slideNumber} attempt ${attempt + 1} failed:`, slideErr.message);
                   }
                 }
-                console.log(`[Wizard] Slide ${slide.slideNumber}/${slideList.length}: ${slideImageUrl ? 'OK' : 'FAILED'}`);
-                return { ...slide, imageUrl: slideImageUrl };
+                console.log(`[Wizard] Slide ${slide.slideNumber}/${slideList.length}: ${slideImageUrl ? 'OK' : `FAILED (${slideLastError})`}`);
+                return { ...slide, imageUrl: slideImageUrl, _error: slideImageUrl ? undefined : slideLastError };
               })
             );
             const slideResults = await Promise.all(slidePromises);
             mediaUrl = slideResults[0]?.imageUrl || null;
-            mediaVariants = { slides: slideResults };
+            const slideGenErrors = slideResults.filter(s => s._error).map(s => `Slide ${s.slideNumber}: ${s._error}`);
+            if (slideGenErrors.length > 0) {
+              console.error('[Wizard] Slide generation errors:', slideGenErrors.join(' | '));
+            }
+            mediaVariants = { slides: slideResults, _slideGenErrors: slideGenErrors.length ? slideGenErrors : undefined };
 
             // ── Baseline carouselCardDesigns (raw NanoBanana URLs) ────────────
             // Set BEFORE the PhotoCardService attempt so _carouselCardDesigns is
@@ -1960,6 +1966,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         slideOverlayTexts: mediaVariants._slideOverlayTexts || null,
         slideMetadata: mediaVariants._slideMetadata || null,
         imageFailed,
+        slideGenErrors: mediaVariants._slideGenErrors || undefined,
         videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
         videoJobId,
         videoError,
@@ -3355,6 +3362,25 @@ Rules:
     } catch (err) {
       console.error('[Wizard] feedback error:', err.message);
       res.status(500).json({ error: 'Failed to save feedback' });
+    }
+  });
+
+  // GET /api/wizard/test-image — quick NanoBanana connectivity test (auth required)
+  // Returns the first model that works or the exact error from each model attempted.
+  // Use this to diagnose image generation issues without running a full wizard flow.
+  router.get('/test-image', authenticate, async (req, res) => {
+    if (!NanaBananaService) return res.json({ ok: false, error: 'NanoBananaService not loaded' });
+    if (!process.env.GOOGLE_AI_API_KEY) return res.json({ ok: false, error: 'GOOGLE_AI_API_KEY not set' });
+
+    const nb = new NanaBananaService();
+    try {
+      const result = await nb.generateFromPrompt(
+        { industry: 'plumbing', location: 'Test City, TX', business_name: 'Test Co' },
+        'plumber replacing a pipe under a kitchen sink, professional trade photograph, no text'
+      );
+      res.json({ ok: true, url: result.url, model: result.model });
+    } catch (err) {
+      res.json({ ok: false, error: err.message });
     }
   });
 

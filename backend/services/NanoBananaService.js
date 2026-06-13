@@ -188,12 +188,18 @@ class NanoBananaService {
     const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': this.apiKey };
     const params  = { key: this.apiKey };
 
-    // Gemini image models — use generateContent + responseModalities
+    // Per-model timeout: 12s is enough for a healthy API call.
+    // Keeps 4-slide parallel carousel generation well under Railway's 280s limit.
+    const MODEL_TIMEOUT = 12000;
+    const allErrors = [];
+
+    // Gemini image models — use generateContent + responseModalities.
+    // Ordered: most stable / confirmed-working first.
     const geminiImageModels = [
-      'gemini-3.1-flash-image',
-      'gemini-2.5-flash-image',
-      'gemini-3.1-flash-image-preview',
-      'gemini-3-pro-image',
+      'gemini-2.0-flash-preview-image-generation', // confirmed stable preview
+      'gemini-2.5-flash-preview-image-generation', // 2.5 preview variant
+      'gemini-2.5-flash-image',                    // 2.5 stable (if released)
+      'gemini-2.0-flash-image',                    // 2.0 stable fallback
     ];
 
     for (const modelName of geminiImageModels) {
@@ -202,7 +208,7 @@ class NanoBananaService {
           const response = await axios.post(
             `${BASE}/models/${modelName}:generateContent`,
             { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseModalities } },
-            { headers, params, timeout: 60000 }
+            { headers, params, timeout: MODEL_TIMEOUT }
           );
           const candidates = response.data?.candidates || [];
           for (const candidate of candidates) {
@@ -214,21 +220,26 @@ class NanoBananaService {
             }
           }
           const reason = candidates[0]?.finishReason;
-          console.warn(`[NanoBanana] ${modelName} [${responseModalities}] no image, finishReason: ${reason}`);
+          const msg = `${modelName} no image (finishReason: ${reason})`;
+          console.warn(`[NanoBanana] ${msg}`);
+          allErrors.push(msg);
           break; // no error but no image — skip other modality for this model
         } catch (err) {
           const status = err.response?.status;
           const detail = err.response?.data?.error?.message || err.message;
-          console.warn(`[NanoBanana] ${modelName} [${responseModalities}] ${status || 'err'}: ${detail}`);
-          break; // any error — skip other modality, try next model
+          const msg = `${modelName} ${status || 'err'}: ${detail}`;
+          console.warn(`[NanoBanana] ${msg}`);
+          allErrors.push(msg);
+          break; // any error — break inner loop, try next model
         }
       }
     }
 
-    // Imagen 4 models — use generateImages endpoint (different API shape)
+    // Imagen models — use generateImages endpoint (different API shape)
     const imagenModels = [
       'imagen-4.0-fast-generate-001',
       'imagen-4.0-generate-001',
+      'imagen-3.0-generate-001',  // Imagen 3 — stable, widely available
     ];
 
     for (const modelName of imagenModels) {
@@ -236,22 +247,26 @@ class NanoBananaService {
         const response = await axios.post(
           `${BASE}/models/${modelName}:generateImages`,
           { prompt, config: { numberOfImages: 1 } },
-          { headers, params, timeout: 60000 }
+          { headers, params, timeout: MODEL_TIMEOUT }
         );
         const imageBytes = response.data?.generatedImages?.[0]?.image?.imageBytes;
         if (imageBytes) {
-          console.log(`[NanoBanana] ✓ ${modelName} (Imagen 4)`);
+          console.log(`[NanoBanana] ✓ ${modelName} (Imagen)`);
           return imageBytes;
         }
-        console.warn(`[NanoBanana] ${modelName} returned no imageBytes`);
+        const msg = `${modelName} returned no imageBytes`;
+        console.warn(`[NanoBanana] ${msg}`);
+        allErrors.push(msg);
       } catch (err) {
         const status = err.response?.status;
         const detail = err.response?.data?.error?.message || err.message;
-        console.warn(`[NanoBanana] ${modelName} ${status || 'err'}: ${detail}`);
+        const msg = `${modelName} ${status || 'err'}: ${detail}`;
+        console.warn(`[NanoBanana] ${msg}`);
+        allErrors.push(msg);
       }
     }
 
-    throw new Error('All image generation models failed — check GOOGLE_AI_API_KEY in Railway env vars');
+    throw new Error(`All image models failed: ${allErrors.slice(0, 3).join(' | ')}`);
   }
 
   /**
