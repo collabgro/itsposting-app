@@ -14,13 +14,11 @@
 const axios = require('axios');
 const cloudinary = require('cloudinary').v2;
 
-// Models in priority order — preview models first, stable fallbacks last
+// Gemini API model names only — Vertex AI model IDs (veo-X.X-generate-001) are NOT valid here
 const VEO_MODELS = [
   'veo-3.1-fast-generate-preview',
   'veo-3.1-generate-preview',
-  'veo-3.0-fast-generate-001',
-  'veo-3.0-generate-001',
-  'veo-2.0-generate-001',
+  'veo-3.1-lite-generate-preview',
 ];
 
 class VeoService {
@@ -74,14 +72,16 @@ class VeoService {
     for (const model of VEO_MODELS) {
       console.log(`[Veo] Trying model: ${model}, aspect: ${aspectRatio}, duration: ${durationSeconds}s`);
 
-      // Build request body — Gemini API instances/parameters format
+      // Build request body — Gemini API format (NOT Vertex AI format)
+      // Image: inlineData.data (not bytesBase64Encoded)
+      // Parameters: no sampleCount (not a valid Gemini API param)
       const instance = { prompt };
       if (imageBase64) {
-        instance.image = { bytesBase64Encoded: imageBase64, mimeType: 'image/jpeg' };
+        instance.image = { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } };
       }
       const requestBody = {
         instances: [instance],
-        parameters: { aspectRatio, sampleCount: 1, durationSeconds },
+        parameters: { aspectRatio, durationSeconds, resolution: '720p' },
       };
 
       // Submit generation job — returns a long-running operation

@@ -2167,12 +2167,12 @@ Return ONLY valid JSON (no markdown, no backticks):
     if (process.env.VEO_ENABLED !== 'true') return res.json({ error: 'VEO_ENABLED is not true' });
 
     const results = [];
-    const models = ['veo-3.1-fast-generate-preview', 'veo-3.0-generate-001', 'veo-2.0-generate-001'];
+    const models = ['veo-3.1-fast-generate-preview', 'veo-3.1-generate-preview', 'veo-3.1-lite-generate-preview'];
     for (const model of models) {
       try {
         const resp = await axios.post(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning`,
-          { instances: [{ prompt: 'A plumber fixing a pipe, cinematic' }], parameters: { aspectRatio: '9:16', sampleCount: 1, durationSeconds: '4' } },
+          { instances: [{ prompt: 'A plumber fixing a pipe, cinematic' }], parameters: { aspectRatio: '9:16', durationSeconds: '4', resolution: '720p' } },
           { headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, timeout: 15000 }
         );
         results.push({ model, status: 'submitted', operationName: resp.data?.name, rawResponse: resp.data });
