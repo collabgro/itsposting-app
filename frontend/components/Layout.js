@@ -257,6 +257,17 @@ export default function Layout({ children, title, subtitle, action }) {
     return _storedColor;
   })();
   const wlPrimary = _safeColor || t.primary;
+  // Lighten wlPrimary by ~25% (mix toward white) for gradient start
+  const _btnGradStart = (() => {
+    if (!/^#[0-9A-Fa-f]{6}$/i.test(wlPrimary)) return wlPrimary;
+    const r = parseInt(wlPrimary.slice(1,3), 16);
+    const g = parseInt(wlPrimary.slice(3,5), 16);
+    const b = parseInt(wlPrimary.slice(5,7), 16);
+    const lr = Math.min(255, Math.round(r + (255-r) * 0.25));
+    const lg = Math.min(255, Math.round(g + (255-g) * 0.25));
+    const lb = Math.min(255, Math.round(b + (255-b) * 0.25));
+    return `#${lr.toString(16).padStart(2,'0')}${lg.toString(16).padStart(2,'0')}${lb.toString(16).padStart(2,'0')}`;
+  })();
   const { appName, aiName } = useBranding();
 
   // Always show Workspaces nav — members need it to manage their memberships
@@ -637,25 +648,34 @@ export default function Layout({ children, title, subtitle, action }) {
               className="btn-shimmer"
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 8, padding: '13px 14px',
-                background: wlPrimary,
-                border: 'none', borderRadius: 14, color: '#fff',
-                transition: 'transform 180ms cubic-bezier(0.34,1.56,0.64,1), filter 180ms ease', cursor: 'pointer',
-                filter: 'brightness(1)',
-                letterSpacing: '-0.01em',
+                gap: 8, padding: '13px 16px',
+                background: `linear-gradient(135deg, ${_btnGradStart}, ${wlPrimary})`,
+                border: '1px solid rgba(255,255,255,0.18)',
+                borderRadius: 14, color: '#fff',
+                fontSize: 14, fontWeight: 700, letterSpacing: '-0.02em',
+                boxShadow: `0 4px 18px ${wlPrimary}50, inset 0 1px 0 rgba(255,255,255,0.15)`,
+                textShadow: '0 1px 2px rgba(0,0,0,0.15)',
+                transition: 'transform 180ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 180ms ease',
+                cursor: 'pointer',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.filter = 'brightness(1.12)';
+                e.currentTarget.style.boxShadow = `0 8px 28px ${wlPrimary}66, inset 0 1px 0 rgba(255,255,255,0.2)`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.filter = 'brightness(1)';
+                e.currentTarget.style.boxShadow = `0 4px 18px ${wlPrimary}50, inset 0 1px 0 rgba(255,255,255,0.15)`;
               }}
               onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(0.97)'; }}
               onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(-2px) scale(1)'; }}
             >
-              <IpSparkle size={16} />
+              {/* Magic wand — IpWand paths in white */}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                <line x1="4" y1="20" x2="15" y2="9" stroke="rgba(255,255,255,0.92)" strokeWidth="2.5" strokeLinecap="round" />
+                <path d="M17.5 2l.9 2.5L21 5.5l-2.6.8-.9 2.7-.9-2.7L14 5.5l2.6-.8z" fill="rgba(255,255,255,0.96)" />
+                <circle cx="9" cy="5" r="1" fill="rgba(255,255,255,0.72)" />
+                <circle cx="19" cy="14" r="0.75" fill="rgba(255,255,255,0.58)" />
+              </svg>
               Create new post
             </button>
           </div>
