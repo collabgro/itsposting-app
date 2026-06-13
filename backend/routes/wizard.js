@@ -2665,7 +2665,7 @@ Return ONLY valid JSON (no markdown, no backticks):
       }
 
       const customerResult = await pool.query(
-        `SELECT id, business_name, city, industry, location, phone, brand_colors, logo_url FROM customers WHERE id = $1`,
+        `SELECT id, business_name, industry, location, phone, brand_colors, logo_url FROM customers WHERE id = $1`,
         [req.customerId]
       );
       const customer = customerResult.rows[0];
