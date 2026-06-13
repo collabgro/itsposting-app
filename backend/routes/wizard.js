@@ -2173,7 +2173,7 @@ Return ONLY valid JSON (no markdown, no backticks):
       try {
         const resp = await axios.post(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning`,
-          { instances: [{ prompt: 'A plumber fixing a pipe, cinematic' }], parameters: { aspectRatio: '9:16', durationSeconds: '4', resolution: '720p' } },
+          { instances: [{ prompt: 'A plumber fixing a pipe, cinematic' }], parameters: { aspectRatio: '9:16', durationSeconds: 4, resolution: '720p' } },
           { headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, timeout: 15000 }
         );
         results.push({ model, status: 'submitted', operationName: resp.data?.name, rawResponse: resp.data });
