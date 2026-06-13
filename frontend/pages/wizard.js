@@ -2172,7 +2172,7 @@ export default function Wizard() {
                         ? 'Your captions are ready. The video is still generating — check back in a few minutes to add it, or post the caption now.'
                         : 'Image generation failed — your caption is ready to post without an image.'}
                     </div>
-                    {results.contentTypeSelection === 'video' && (
+                    {results.contentTypeSelection === 'video' && results.postId && (
                       <button
                         onClick={handlePostNow}
                         disabled={actionLoading}
