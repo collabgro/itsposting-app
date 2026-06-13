@@ -1163,14 +1163,12 @@ Return ONLY valid JSON (no markdown, no backticks):
 
       console.log(`[Wizard] Generating posts for customer ${session.customerId}, content type: ${answers.contentType}`);
 
-      // For video posts: prefetch HeyGen voice/avatar IDs in parallel with Claude.
-      // Only needed for avatar video or when Veo is not enabled (fallback path uses HeyGen).
+      // For avatar video only: prefetch HeyGen voice/avatar IDs in parallel with Claude.
+      // Services video never uses HeyGen — skip prefetch entirely to avoid wasting API calls.
       // The fetches take ~8s each; Claude takes ~10-15s — so by the time Claude finishes
       // the IDs are already cached and createVideo() returns in <15s instead of ~31s.
       let heyGenPrefetch = null;
-      const willUseHeyGen = isVideoPost && (
-        answers.videoType === 'avatar' || process.env.VEO_ENABLED !== 'true'
-      );
+      const willUseHeyGen = isVideoPost && answers.videoType === 'avatar';
       if (HeyGenService && process.env.HEYGEN_API_KEY && willUseHeyGen) {
         const prefetcher = new HeyGenService();
         heyGenPrefetch = Promise.allSettled([

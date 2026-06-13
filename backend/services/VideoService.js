@@ -56,8 +56,15 @@ class VideoService {
       return await this.heygen.generateFromScript(customer, script, options);
     }
 
-    // Path B: Services/cinematic video — generate NanoBanana key frame, then try providers in order
-    console.log('[VideoService] Services video — NanoBanana key frame → Veo → Runway → Pika → HeyGen');
+    // Path B: Services/cinematic video
+    // Skip NanoBanana key frame entirely if no cinematic provider is available —
+    // avoids burning a Google API call for a key frame that will never be used.
+    const anyCinematicAvailable = this.veo.isAvailable() || this.runway.isAvailable() || this.pika.isAvailable();
+    if (!anyCinematicAvailable) {
+      throw new Error('Services video: no cinematic provider is enabled. Set VEO_ENABLED=true in Railway env vars.');
+    }
+
+    console.log('[VideoService] Services video — NanoBanana key frame → Veo → Runway → Pika');
 
     let keyFrameUrl = null;
     if (imagePrompt) {
