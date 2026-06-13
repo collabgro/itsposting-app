@@ -47,7 +47,7 @@ class VideoService {
       videoType = 'services',
       imagePrompt = null,
       aspectRatio = '9:16',
-      durationSeconds = 4,
+      durationSeconds = 6,
       skipKeyFrame = false,
     } = options;
 
@@ -125,56 +125,130 @@ class VideoService {
   }
 
   /**
-   * Veo prompt — cinematic scene description language.
-   * Veo generates FROM SCRATCH using the text prompt. It needs visual scene
-   * description, not a spoken script. Camera language, movement, mood.
-   * Keep under 400 chars for best Veo results.
+   * Veo prompt — 3-act story structure with audio.
+   *
+   * Format follows Veo 3.1 best practices:
+   *   [timestamp] Visual description. SFX: sounds. Ambient: music.
+   *   A narrator says: short phrase.
+   *
+   * Act 1 (00:00-00:02): The problem / before state — hook the viewer
+   * Act 2 (00:02-00:04): The professional doing the work — credibility
+   * Act 3 (00:04-00:06): The result + business name voiceover — conversion
+   *
+   * This mirrors what high-performing local business videos actually do on
+   * Instagram Reels and TikTok: show the ugly before, the skilled fix,
+   * and the satisfying after — in under 8 seconds.
    */
   _buildVeoPrompt(customer, script, imagePrompt) {
     const industry = customer.industry || 'general_contractor';
-    const iv = (industryKnowledge[industry] || {}).imageVisuals || {};
-    const rawScene = (imagePrompt || script || '').replace(/\n/g, ' ').trim();
-    const scene = rawScene.length > 120 ? rawScene.substring(0, 120).replace(/,?\s*\w+$/, '') : rawScene;
-    const season = this._getCurrentSeason();
-    const seasonalNote = iv.seasonalVisuals?.[season] || '';
+    const biz = (customer.business_name || 'local expert').substring(0, 30);
+    const loc = (customer.location || 'your area').substring(0, 25);
 
-    const cinemaStyles = {
-      plumbing:           'licensed plumber working under kitchen sink, copper pipes, headlamp light, hands-on craftsmanship, slow documentary zoom, authentic residential job site',
-      hvac:               'HVAC technician servicing outdoor condenser unit, gauges attached, natural daylight, slow reveal camera movement, authentic trade documentary',
-      roofing:            'roofing crew installing shingles on residential roof, aerial perspective, natural sunlight, camera slowly pans across the work, dramatic sky',
-      concrete:           'concrete crew screeding fresh pour on residential driveway, crew teamwork visible, outdoor light, slow pull-back camera revealing scale of job',
-      landscaping:        'landscaping crew transforming residential yard, before/after slow reveal, natural daylight, aerial perspective over property',
-      electrical:         'licensed electrician working on electrical panel, focused close-up of hands and wiring, warm utility lighting, slow cinematic push-in',
-      painting:           'professional painter rolling bright color onto wall, before/after room transformation, natural interior light, smooth camera slide',
-      pest_control:       'pest control technician inspecting residential foundation, close-up of evidence and treatment, slow tracking shot',
-      general_contractor: 'renovation crew at residential job site, skilled craftsmanship, construction progress, natural light, slow reveal camera',
-      cleaning:           'professional cleaning team transforming grimy kitchen to spotless, before/after reveal, natural interior light, smooth dolly shot',
-      tree_service:       'arborist crew removing large tree from residential property, bucket truck extended, dramatic scale, natural daylight',
-      pressure_washing:   'pressure washing driveway half-cleaned vs grimy — satisfying reveal stripe, outdoor light, slow camera tracks the clean line',
-      pool_spa:           'pool technician restoring green murky pool to crystal blue, dramatic color transformation, natural sunlight on water',
-      handyman:           'handyman completing precise repair work in residential home, before/after detail reveal, natural lighting',
-      flooring:           'flooring team laying hardwood planks row by row, wide room shot, natural interior light, satisfying installation progress',
-      junk_removal:       'junk removal crew clearing overloaded garage, dramatic before to empty clean space transformation, fast-cut documentary style',
-      solar:              'solar installation crew mounting panels on residential roof, staggered installation in progress, panel rows expanding across roof, natural full-sun lighting, drone perspective revealing growing system',
-      gutter_cleaning:    'technician cleaning gutters on residential home, ladder against fascia, debris removal in progress, water flowing clear from downspout, natural daylight slow reveal',
+    // 3-act definitions per industry: before → work → after + audio
+    const acts = {
+      plumbing: {
+        a1: 'Close-up of a dripping faucet under a kitchen sink, water staining the cabinet. SFX: persistent drip.',
+        a2: 'Tracking shot of licensed plumber\'s confident hands tightening copper pipe fitting with wrench, headlamp light.',
+        a3: `Kitchen sink running perfectly clear, gleaming cabinet. A narrator says: ${biz} — plumbing done right. SFX: water flowing cleanly. Ambient: upbeat professional music.`,
+      },
+      hvac: {
+        a1: 'Indoor thermostat showing high temperature, homeowner uncomfortably fanning themselves. SFX: struggling AC unit.',
+        a2: 'HVAC technician attaching manifold gauges to outdoor condenser, systematic diagnosis in natural daylight.',
+        a3: `Cool air flowing from vents, homeowner smiling with relief. A narrator says: ${biz} — stay comfortable year-round. Ambient: relieved upbeat music.`,
+      },
+      roofing: {
+        a1: 'Aerial shot of damaged roof — missing shingles, visible water damage, worn underlayment.',
+        a2: 'Roofing crew in steady rhythm installing new shingles, silhouetted against bright sky. SFX: rhythmic nail gun.',
+        a3: `Pristine new roof gleaming in sunlight, crew giving thumbs up. A narrator says: ${biz} — roofs built to last. Ambient: triumphant upbeat music.`,
+      },
+      concrete: {
+        a1: 'Wide shot of cracked, heaved driveway — hazardous surface, weeds in cracks.',
+        a2: 'Concrete crew screeding fresh pour across driveway, teamwork and precision, smooth motion.',
+        a3: `Flawless new concrete driveway gleaming, smooth finish. A narrator says: ${biz} in ${loc}. Ambient: confident upbeat music. SFX: satisfying quiet.`,
+      },
+      landscaping: {
+        a1: 'Overgrown neglected yard — tangled weeds, patchy lawn, poor curb appeal.',
+        a2: 'Landscaping crew mowing, edging, and planting in sync under bright daylight, transformation in progress.',
+        a3: `Immaculate lawn and garden, stunning curb appeal. A narrator says: ${biz} transforms yards in ${loc}. Ambient: cheerful upbeat music.`,
+      },
+      electrical: {
+        a1: 'Outdated electrical panel with visible hazards, homeowner looking concerned. SFX: flickering power hum.',
+        a2: 'Licensed electrician making precise confident connections inside panel, close-up of expert hands at work.',
+        a3: `Modern upgraded panel, safe and reliable. A narrator says: ${biz} — certified electrical. Ambient: reassuring confident music.`,
+      },
+      painting: {
+        a1: 'Dull peeling walls in tired dated room — before state, natural interior light.',
+        a2: 'Professional painter rolling vibrant color onto wall in smooth even strokes, visible transformation happening.',
+        a3: `Stunning transformed room with rich flawless color. A narrator says: ${biz} transforms spaces. SFX: satisfied exhale. Ambient: uplifting music.`,
+      },
+      pest_control: {
+        a1: 'Signs of pest infestation in home — homeowner discovering problem, concerned expression.',
+        a2: 'Pest control technician conducting thorough inspection and professional treatment, systematic and confident.',
+        a3: `Clean protected home, family relaxing comfortably. A narrator says: ${biz} — your home protected. Ambient: safe reassuring music.`,
+      },
+      general_contractor: {
+        a1: 'Dated worn room before renovation — old finishes, tired design waiting for transformation.',
+        a2: 'Renovation crew working with skilled craftsmanship, tools and teamwork, progress visible.',
+        a3: `Stunning finished renovation — incredible transformation. A narrator says: ${biz} builds ${loc} right. Ambient: triumphant reveal music.`,
+      },
+      cleaning: {
+        a1: 'Grimy kitchen — dirty surfaces, grease-covered stove, dull floors before the team arrives.',
+        a2: 'Professional cleaning team working efficiently surface by surface, transformation visible. SFX: squeaky clean sounds.',
+        a3: `Spotless gleaming kitchen — truly immaculate. A narrator says: ${biz} — spotless guaranteed. Ambient: cheerful satisfying music.`,
+      },
+      tree_service: {
+        a1: 'Large dead tree dangerously close to home, homeowner worried. SFX: wind through dead branches.',
+        a2: 'Arborist crew with bucket truck, controlled professional removal, safety ropes and teamwork.',
+        a3: `Clear safe yard, tree gone. A narrator says: ${biz} — safe expert tree removal in ${loc}. Ambient: relief upbeat music.`,
+      },
+      pressure_washing: {
+        a1: 'Half of driveway black with grime, other half freshly cleaned — dramatic contrast visible.',
+        a2: 'Pressure washer wand revealing bright clean stripe across dark grimy surface, tracking shot follows clean line.',
+        a3: `Fully restored bright driveway — incredible contrast. A narrator says: ${biz} in ${loc}. SFX: water rushing. Ambient: satisfying upbeat music.`,
+      },
+      pool_spa: {
+        a1: 'Murky green pool — uninviting, algae-covered, homeowner shaking head.',
+        a2: 'Pool technician adding treatment, brushing walls, water gradually clarifying. SFX: gentle water movement.',
+        a3: `Crystal clear blue pool sparkling in sunlight. A narrator says: ${biz} restores your pool in ${loc}. Ambient: refreshing upbeat music.`,
+      },
+      handyman: {
+        a1: 'Broken fixture or damaged item in home — clear problem, homeowner frustrated.',
+        a2: 'Handyman making precise repair with professional tools, focused and skilled. Close-up of expert hands.',
+        a3: `Perfect repair complete. A narrator says: ${biz} — no job too small in ${loc}. Ambient: satisfied upbeat music.`,
+      },
+      flooring: {
+        a1: 'Old worn carpet or cracked tile floors — dated and tired looking.',
+        a2: 'Flooring team laying beautiful hardwood planks row by row, satisfying installation progress.',
+        a3: `Stunning new floor transformation — full room reveal. A narrator says: ${biz} floors ${loc} homes. Ambient: uplifting reveal music.`,
+      },
+      junk_removal: {
+        a1: 'Overloaded garage packed floor to ceiling — complete chaos, no space to move.',
+        a2: 'Junk removal crew rapidly clearing items, fast documentary cuts, space emerging fast.',
+        a3: `Completely empty clean garage — dramatic transformation. A narrator says: ${biz} clears ${loc}. SFX: quiet empty space. Ambient: triumphant music.`,
+      },
+      solar: {
+        a1: 'Empty residential roof from drone view — untapped potential under full sunlight.',
+        a2: 'Solar installation crew mounting panels in expanding rows, aerial view reveals growing system.',
+        a3: `Complete solar array gleaming in full sun. A narrator says: ${biz} powers ${loc} homes. Ambient: inspiring upbeat music.`,
+      },
+      gutter_cleaning: {
+        a1: 'Clogged gutters overflowing during rain — leaves and debris, water damage risk visible.',
+        a2: 'Technician scooping debris from gutters on ladder, debris clearing, tracking shot along roofline.',
+        a3: `Clean gutters with water flowing freely. A narrator says: ${biz} — gutters cleared right. Ambient: clean refreshing music.`,
+      },
     };
 
-    const style = cinemaStyles[industry] || `local service professional working at residential job site, documentary cinematic style`;
-
-    // Enrich from industryKnowledge imageVisuals — makes Veo prompt specific to this trade
-    const moodNote = iv.moodAndLighting || '';
-    const paletteNote = iv.colorPalette ? `natural color palette: ${iv.colorPalette}` : '';
-    const keyElement = iv.keyElements?.[0] || '';
-
-    const prompt = [scene, style, keyElement, moodNote, paletteNote, seasonalNote].filter(Boolean).join('. ');
-    const finalPrompt = `${prompt}. Authentic documentary style. No text overlays. ${aspectRatioCue(customer)}.`.substring(0, 480);
-
-    console.log(`[VideoService] Veo prompt for ${industry} (${finalPrompt.length} chars)`);
-    return finalPrompt;
-
-    function aspectRatioCue(c) {
-      return '9:16 vertical framing for social media';
+    const a = acts[industry];
+    if (a) {
+      const prompt = `[00:00-00:02] ${a.a1}\n[00:02-00:04] ${a.a2}\n[00:04-00:06] ${a.a3}\n9:16 vertical framing for social media Reels. Cinematic documentary quality. No subtitles. No text overlays.`;
+      console.log(`[VideoService] Veo 3-act prompt for ${industry} (${prompt.length} chars)`);
+      return prompt.substring(0, 900);
     }
+
+    // Generic fallback
+    const fallback = `[00:00-00:02] Homeowner facing a service problem at their home, clearly in need of professional help. SFX: ambient problem sounds.\n[00:02-00:04] Skilled local service professional arriving and confidently solving the problem with expert tools.\n[00:04-00:06] Problem solved, satisfied homeowner. A narrator says: ${biz} in ${loc} — quality you can trust. Ambient: upbeat professional music.\n9:16 vertical framing. Cinematic quality. No subtitles.`;
+    console.log(`[VideoService] Veo fallback prompt for ${industry}`);
+    return fallback.substring(0, 900);
   }
 
   /**
