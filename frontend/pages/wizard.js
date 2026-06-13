@@ -2337,8 +2337,10 @@ export default function Wizard() {
                     </div>
                   ) : (
                     <div style={{ textAlign: 'center', padding: 24, color: t.textMuted }}>
-                      <Icon name="image" size={48} color={t.textMuted} />
-                      <div style={{ fontSize: 12, marginTop: 8 }}>No image</div>
+                      <Icon name={results.contentTypeSelection === 'video' ? 'video' : 'image'} size={48} color={t.textMuted} />
+                      <div style={{ fontSize: 12, marginTop: 8 }}>
+                        {results.contentTypeSelection === 'video' ? 'Video will appear here when ready' : 'No image'}
+                      </div>
                     </div>
                   )}
                 </div>
