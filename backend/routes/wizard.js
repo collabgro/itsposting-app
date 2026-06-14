@@ -1405,7 +1405,7 @@ Return ONLY valid JSON (no markdown, no backticks):
               let _lineupIdx = 0;
               try {
                 _lineupIdx = PhotoCardService?.getDesignFingerprint
-                  ? PhotoCardService.getDesignFingerprint(session.customer).lineupOffset % 3
+                  ? PhotoCardService.getDesignFingerprint(session.customer).lineupOffset % 4
                   : 0;
               } catch {}
               mediaVariants._carouselCardDesigns = { A: [..._rawUrls], B: [..._rawUrls], C: [..._rawUrls] };
@@ -1427,7 +1427,7 @@ Return ONLY valid JSON (no markdown, no backticks):
                 const WIZARD_CARD_TRIGGER = { just_finished_job: 'job_finished', running_promo: 'promotion' };
                 const carouselCardTrigger = WIZARD_CARD_TRIGGER[answers.contentType] || answers.contentType || 'job_finished';
                 const carouselLineupIndex = PhotoCardService.getDesignFingerprint
-                  ? PhotoCardService.getDesignFingerprint(session.customer).lineupOffset % 3
+                  ? PhotoCardService.getDesignFingerprint(session.customer).lineupOffset % 4
                   : 0;
 
                 // Fetch all raw slide buffers in parallel
@@ -1578,7 +1578,7 @@ Return ONLY valid JSON (no markdown, no backticks):
                 cardTrigger = WIZARD_CARD_TRIGGER[answers.contentType] || answers.contentType;
                 const fixedOverlay = validateAndFixCardOverlay(parsed.cardOverlay, session.customer);
                 cardLineupIndex = PhotoCardService.getDesignFingerprint
-                  ? PhotoCardService.getDesignFingerprint(session.customer).lineupOffset % 3
+                  ? PhotoCardService.getDesignFingerprint(session.customer).lineupOffset % 4
                   : 0;
 
                 // Generate platform-native cards — only for the format(s) the customer chose.
@@ -2416,7 +2416,7 @@ Return ONLY valid JSON (no markdown, no backticks):
 
           if (PhotoCardService?.getDesignFingerprint) {
             const fp = PhotoCardService.getDesignFingerprint(customer);
-            quickCardLineupIndex = fp.lineupOffset % 3;
+            quickCardLineupIndex = fp.lineupOffset % 4;
           }
 
           // Photo card overlays — platform-native generation
