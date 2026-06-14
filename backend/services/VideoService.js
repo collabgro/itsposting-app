@@ -418,7 +418,7 @@ class VideoService {
         roofing:          'Roofer continues nailing shingles in steady rhythm. Safety vest catches wind. Camera slowly pulls back revealing more of the new roof. Sky bright.',
         concrete:         'Crew continues screeding fresh concrete pour. Wet surface glistens. Screed board slides smoothly across form. Camera pulls back to show the full pour.',
         landscaping:      'Landscaper rakes mulch into garden bed. Mulch scatters naturally. Nearby grass sways gently in breeze. Camera slowly rises to reveal full yard.',
-        electrical:       'Electrician's hands route wires through panel with precision. Headlamp beam moves slightly. Camera slowly pushes in on the clean wire connections.',
+        electrical:       "Electrician's hands route wires through panel with precision. Headlamp beam moves slightly. Camera slowly pushes in on the clean wire connections.",
         painting:         'Painter roller sweeps vibrant color across wall in smooth even strokes. Paint sheen glistens under natural light. Camera tracks right following the roller.',
         cleaning:         'Cleaning team member wipes surface to reveal gleaming shine. Reflection appears on the surface. Camera slowly pulls back showing the full transformation.',
         general_contractor:'Crew member frames wall — hammer strikes nail rhythmically. Wood settles into place. Sawdust drifts. Camera pulls back revealing the emerging renovation.',
