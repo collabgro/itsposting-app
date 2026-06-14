@@ -354,11 +354,12 @@ function computeDesignSeedB(customerId, businessName) {
 
 function getDesignFingerprintB(customer) {
   const seed = computeDesignSeedB(customer?.id, customer?.business_name);
+  // Use >>> (unsigned right shift) so large seeds (>2^31) never produce negative values
   return {
-    colorRole:    (seed >> 18) % 2,
-    decorDensity: (seed >> 15) % 3,
-    lineupOffset: (seed >> 3) % 4,  // 0, 1, 2, or 3
-    bgPattern:    (seed >> 6) % 4,  // 0=none 1=diagonals 2=dots 3=rings
+    colorRole:    (seed >>> 18) % 2,
+    decorDensity: (seed >>> 15) % 3,
+    lineupOffset: (seed >>> 3) % 4,
+    bgPattern:    (seed >>> 6) % 4,
   };
 }
 

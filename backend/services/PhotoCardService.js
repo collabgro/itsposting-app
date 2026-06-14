@@ -173,19 +173,14 @@ function computeDesignSeed(customerId, businessName) {
 
 function getDesignFingerprint(customer) {
   const seed = computeDesignSeed(customer?.id, customer?.business_name);
+  // Use >>> (unsigned right shift) so large seeds (>2^31) never produce negative values
   return {
-    // Swap primary/secondary color roles — same template, completely different feel
-    colorRole:        (seed >> 18) % 2,           // 0=normal, 1=swapped
-    // Card/overlay opacity variation
-    overlayOpacity:   0.82 + ((seed >> 12) % 3) * 0.05, // 0.82 | 0.87 | 0.92
-    // Decoration density for accent elements
-    decorDensity:     (seed >> 15) % 3,            // 0=minimal, 1=standard, 2=rich
-    // Typography weight variation
-    typographyWeight: (seed >> 9) % 2,             // 0=900 heavy, 1=800 bold
-    // Which of 4 template lineups this customer sees for each trigger type
-    lineupOffset:     (seed >> 3) % 4,             // 0, 1, 2, or 3
-    // Background micro-texture: 0=none 1=diagonal-lines 2=dot-grid 3=concentric-rings
-    bgPattern:        (seed >> 6) % 4,
+    colorRole:        (seed >>> 18) % 2,
+    overlayOpacity:   0.82 + ((seed >>> 12) % 3) * 0.05,
+    decorDensity:     (seed >>> 15) % 3,
+    typographyWeight: (seed >>> 9) % 2,
+    lineupOffset:     (seed >>> 3) % 4,
+    bgPattern:        (seed >>> 6) % 4,
   };
 }
 
