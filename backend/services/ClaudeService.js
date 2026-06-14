@@ -244,22 +244,38 @@ Current month urgency: ${seasonal.urgencyTopic || 'quality service year-round'}
 Top homeowner pain points: ${painPoints || 'cost, reliability, timing'}
 Proven hook starters for this industry: ${hooks || 'Did you know... | X signs you need... | Never do this if...'}`;
 
+    // Research-backed slide count rules (Buffer 2026 — 52M+ posts):
+    // 5-6 slides → 3× more saves than 3-4 slides. Each swipe = 1 engagement signal.
+    // Slide 1 must create an "information gap" — viewer must swipe to resolve curiosity.
     const userPrompt = `You are writing a high-engagement Instagram carousel for a LOCAL ${customer.industry || 'home service'} business.
 
 ${industryCtx}
 
 Customer's topic: "${prompt}"
 
+SLIDE COUNT — choose based on content type:
+- Educational / Myth-busting / Tips: 6 slides — each tip or myth gets its own slide (6 slides → 3× more saves, Buffer 2026)
+- Step-by-step / Job showcase: 5 slides — cover + 3 steps + CTA
+- Before & After / Testimonial: 4 slides — setup → before → after → result + CTA
+- Promotional / Seasonal offer: 3 slides — hook + offer + CTA
+Return EXACTLY that many slides — no more, no fewer.
+
+SLIDE 1 — THE INFORMATION GAP (most important):
+Create a "curiosity gap" that forces the swipe. Options:
+• Challenge a belief: "You're cleaning your gutters wrong."
+• Tease a number: "5 signs your roof is failing right now."
+• Surprising claim: "This $5 fix stops a $2,000 leak."
+Slide 1 overlay_text MUST end with "SWIPE ➜"
+
 MANDATORY RULES:
-1. Follow the proven 5-arc: Hook → Problem → Solution → Result → CTA
-2. Slide 1 overlay_text MUST end with "SWIPE ➜" (12% engagement lift, Buffer research)
-3. overlay_text: max 8 words — bold, readable in under 1 second on a phone
-4. slide_count: you choose 3 (quick tip), 5 (standard), or 6 (deep dive) based on topic depth; return exactly that many slides
-5. image_prompt: vivid, industry-specific, photorealistic scene — NOT generic
-   GOOD: "A licensed HVAC technician in branded blue uniform replacing a rusted condenser coil on a rooftop AC unit, golden afternoon light, suburban neighbourhood in background"
-   BAD:  "An HVAC worker doing maintenance"
-6. main_caption: Instagram style — strong hook as FIRST LINE (appears before 'more'), value body, engagement question at end, 10-14 hashtags (mix of local + niche + broad)
-7. Caption must feel HYPER-LOCAL — mention their city/neighbourhood naturally, not forced
+1. overlay_text: max 8 words per slide — bold, readable on a 4-inch screen in under 1 second
+2. Each slide has ONE clear message — never cram 2 ideas into one slide
+3. image_prompt: vivid, industry-specific, photorealistic — NOT generic
+   GOOD: "Licensed HVAC technician in branded blue uniform replacing rusted condenser coil on rooftop AC unit, golden afternoon light, suburban neighbourhood in background"
+   BAD: "HVAC worker doing maintenance"
+4. main_caption: Instagram style — hook as FIRST LINE (visible before 'more'), value body, engagement question at end, 10-14 hashtags (3 broad + 5 niche + 4 local + 2 brand)
+5. Caption must feel HYPER-LOCAL — mention their city/neighbourhood naturally, not forced
+6. CTA slide (always last): clear single action — phone call, website visit, or DM — never multiple options
 
 Return ONLY valid JSON (no markdown fences):
 {
@@ -271,36 +287,36 @@ Return ONLY valid JSON (no markdown fences):
       "slide_number": 1,
       "arc_role": "Hook",
       "title": "short internal title",
-      "overlay_text": "Pain-point question or bold claim  SWIPE ➜",
-      "image_prompt": "Vivid scene of the homeowner problem — relatable suburban setting, photorealistic"
+      "overlay_text": "Curiosity-gap statement or question  SWIPE ➜",
+      "image_prompt": "Vivid scene of the homeowner problem — relatable suburban setting, photorealistic, no text"
     },
     {
       "slide_number": 2,
       "arc_role": "Problem",
       "title": "short internal title",
       "overlay_text": "The painful reality (≤8 words)",
-      "image_prompt": "Close-up of the problem: damage, failure, or frustration — realistic, not staged"
+      "image_prompt": "Close-up of the problem: damage, failure, or frustration — realistic, not staged, no text"
     },
     {
       "slide_number": 3,
       "arc_role": "Solution",
       "title": "short internal title",
       "overlay_text": "The fix, plain language (≤8 words)",
-      "image_prompt": "Professional tradesperson actively solving the problem, quality tools visible, branded uniform"
+      "image_prompt": "Professional tradesperson actively solving the problem, quality tools visible, branded uniform, no text"
     },
     {
       "slide_number": 4,
-      "arc_role": "Result/Proof",
+      "arc_role": "Result",
       "title": "short internal title",
       "overlay_text": "The outcome in 6 words or fewer",
-      "image_prompt": "Beautiful finished result or satisfied homeowner reaction — warm, natural lighting"
+      "image_prompt": "Beautiful finished result or satisfied homeowner — warm natural lighting, no text"
     },
     {
       "slide_number": 5,
       "arc_role": "CTA",
       "title": "short internal title",
       "overlay_text": "Free quote. Call us today.",
-      "image_prompt": "Friendly business owner or small team in branded uniform, approachable smile, phone or clipboard in hand"
+      "image_prompt": "Friendly business owner or small team in branded uniform, approachable smile, phone or clipboard, no text"
     }
   ]
 }`;

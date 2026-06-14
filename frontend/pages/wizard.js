@@ -103,8 +103,8 @@ const FORMAT_TO_RESULT_TAB = {
   'gb-45':        'google_business',
   'li-post':      'linkedin_feed',
   'li-video':     'linkedin_feed',
-  'tt-video':     'instagram_feed',
-  'tt-story':     'instagram_feed',
+  'tt-video':     'video_feed',
+  'tt-story':     'video_feed',
 };
 
 // Reach/engagement hints shown on each format card (from Buffer 2026 research)
@@ -179,9 +179,10 @@ const RECOMMENDED_FORMATS = {
     { id: 'li-post',   platform: 'linkedin',  label: 'LinkedIn Post',   sublabel: '1200 × 1200 · 1:1',  width: 1200, height: 1200 },
   ],
   video: [
-    { id: 'ig-reel',   platform: 'instagram', label: 'Instagram Reel',  sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
-    { id: 'tt-video',  platform: 'tiktok',    label: 'TikTok Video',    sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
-    { id: 'fb-story',  platform: 'facebook',  label: 'Facebook Story',  sublabel: '1080 × 1920 · 9:16', width: 1080, height: 1920 },
+    { id: 'ig-reel',  platform: 'instagram', label: 'Instagram Reel',  sublabel: '1080 × 1920 · 9:16 · Best reach', width: 1080, height: 1920 },
+    { id: 'tt-video', platform: 'tiktok',    label: 'TikTok Video',    sublabel: '1080 × 1920 · 9:16 · ~3× organic reach', width: 1080, height: 1920 },
+    { id: 'fb-story', platform: 'facebook',  label: 'Facebook Story',  sublabel: '1080 × 1920 · 9:16 · Full-screen', width: 1080, height: 1920 },
+    { id: 'li-video', platform: 'linkedin',  label: 'LinkedIn Video',  sublabel: '1080 × 1920 · 9:16 · B2B reach', width: 1080, height: 1920 },
   ],
   branded_card: [
     UNIVERSAL_FMT,
@@ -579,6 +580,9 @@ export default function Wizard() {
   const [loadingMoreDesigns, setLoadingMoreDesigns] = useState(false);
   const [altLineupQueue, setAltLineupQueue] = useState([]);
   const [moreDesignsModal, setMoreDesignsModal] = useState(null);
+  // templateNames/categories accumulate across initial gen + "load more" calls — no extra API cost
+  const [cardTemplateNames, setCardTemplateNames] = useState({});       // { A: 'Side Fade', B: 'Angular Bold', ... }
+  const [cardTemplateCategories, setCardTemplateCategories] = useState({}); // { A: 'Cinematic', ... }
   const [carouselDesignPreview, setCarouselDesignPreview] = useState(null); // 'A'|'B'|'C' — which design's slides to preview
   const [wizardPreviewPlatform, setWizardPreviewPlatform] = useState('all');
   const [previewCaptionExpanded, setPreviewCaptionExpanded] = useState(false);
@@ -1153,9 +1157,17 @@ export default function Wizard() {
       setActiveSlide(0);
       setPreviewCaptionExpanded(false);
       setSelectedVariation(genRes.recommended || 'A');
+
+      // Seed template names from initial A/B/C cards (free — from backend in-memory lookup)
+      const initNames = genRes.templateNames || {};
+      const initCats  = genRes.templateCategories || {};
+      setCardTemplateNames(initNames);
+      setCardTemplateCategories(initCats);
+
       if ((genRes.photoCardUrls || genRes.carouselCardDesigns) && genRes.cardLineupIndex !== null && genRes.cardLineupIndex !== undefined) {
         const base = genRes.cardLineupIndex;
-        setAltLineupQueue([(base + 1) % 3, (base + 2) % 3]);
+        const remaining = [(base + 1) % 3, (base + 2) % 3];
+        setAltLineupQueue(remaining);
       } else {
         setAltLineupQueue([]);
       }
@@ -1436,6 +1448,13 @@ export default function Wizard() {
         if (data.carouselDesigns?.C) { newDesigns[keys[2]] = data.carouselDesigns.C; newThumbs[keys[2]] = data.cards?.C; }
         setExtraCarouselDesigns(prev => ({ ...prev, ...newDesigns }));
         setExtraPhotoCardUrls(prev => ({ ...prev, ...newThumbs }));
+        // Merge incoming template names into the accumulated map (keys D/E/F or G/H/I)
+        if (data.templateNames) {
+          const nameMap = { [keys[0]]: data.templateNames.A, [keys[1]]: data.templateNames.B, [keys[2]]: data.templateNames.C };
+          const catMap  = { [keys[0]]: data.templateCategories?.A, [keys[1]]: data.templateCategories?.B, [keys[2]]: data.templateCategories?.C };
+          setCardTemplateNames(prev => ({ ...prev, ...nameMap }));
+          setCardTemplateCategories(prev => ({ ...prev, ...catMap }));
+        }
       } else {
         const { data } = await wizardAPI.moreDesigns({
           photoUrl: results.rawPhotoUrl,
@@ -1462,6 +1481,13 @@ export default function Wizard() {
         }
         setExtraPhotoCardUrls(prev => ({ ...prev, ...newExtras }));
         setExtraCardsByPlatform(prev => ({ ...prev, ...newByPlatform }));
+        // Merge incoming template names into the accumulated map
+        if (data.templateNames) {
+          const nameMap = { [keys[0]]: data.templateNames.A, [keys[1]]: data.templateNames.B, [keys[2]]: data.templateNames.C };
+          const catMap  = { [keys[0]]: data.templateCategories?.A, [keys[1]]: data.templateCategories?.B, [keys[2]]: data.templateCategories?.C };
+          setCardTemplateNames(prev => ({ ...prev, ...nameMap }));
+          setCardTemplateCategories(prev => ({ ...prev, ...catMap }));
+        }
       }
       setAltLineupQueue(remaining);
       setMoreDesignsModal(true);
@@ -2512,7 +2538,17 @@ export default function Wizard() {
                 {(results.contentTypeSelection === 'photo' || results.contentTypeSelection === 'carousel') && (results.photoCardUrls || results.carouselCardDesigns) && (
                   (() => {
                     const ALL_STYLE_KEYS = ['A','B','C','D','E','F','G','H','I'];
-                    const styleLabels = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
+                    // Descriptive template names from backend TEMPLATE_META (no API cost — in-memory lookup)
+                    // Falls back to generic label only if backend hasn't sent names yet
+                    const fallbackLabels = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
+                    const styleLabels = ALL_STYLE_KEYS.reduce((acc, k) => {
+                      acc[k] = cardTemplateNames[k] || fallbackLabels[k];
+                      return acc;
+                    }, {});
+                    const styleCategories = ALL_STYLE_KEYS.reduce((acc, k) => {
+                      acc[k] = cardTemplateCategories[k] || '';
+                      return acc;
+                    }, {});
                     // For carousels, use the first slide of each design as the thumbnail
                     const carouselThumbs = results.contentTypeSelection === 'carousel'
                       ? { A: results.carouselCardDesigns?.A?.[0], B: results.carouselCardDesigns?.B?.[0], C: results.carouselCardDesigns?.C?.[0] }
@@ -2577,12 +2613,19 @@ export default function Wizard() {
                                 )}
                                 <div style={{
                                   position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
-                                  background: isActive ? t.primary : 'rgba(0,0,0,0.60)',
+                                  background: isActive ? t.primary : 'rgba(0,0,0,0.68)',
                                   color: '#fff', fontSize: 9, fontWeight: 800,
-                                  padding: '3px 8px', borderRadius: 20, whiteSpace: 'nowrap',
-                                  letterSpacing: '0.04em', backdropFilter: 'blur(6px)',
+                                  padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap',
+                                  letterSpacing: '0.04em', backdropFilter: 'blur(8px)',
+                                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                                  maxWidth: '90%', overflow: 'hidden', textOverflow: 'ellipsis',
                                 }}>
-                                  {styleLabels[key]}
+                                  <span>{styleLabels[key]}</span>
+                                  {styleCategories[key] && (
+                                    <span style={{ fontSize: 7, fontWeight: 500, opacity: 0.8, letterSpacing: '0.06em' }}>
+                                      {styleCategories[key].toUpperCase()}
+                                    </span>
+                                  )}
                                 </div>
                                 {isActive && (
                                   <div style={{
@@ -2613,7 +2656,7 @@ export default function Wizard() {
                               borderRadius: 12,
                             }}>
                               <div style={{ fontSize: 10, fontWeight: 700, color: t.primary, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                                {styleLabels[carouselDesignPreview]} — all {previewSlides.length} slides
+                                {styleLabels[carouselDesignPreview]}{styleCategories[carouselDesignPreview] ? ` · ${styleCategories[carouselDesignPreview]}` : ''} — all {previewSlides.length} slides
                               </div>
                               <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
                                 {previewSlides.map((url, si) => url && (
@@ -3661,7 +3704,9 @@ export default function Wizard() {
         const ALL_KEYS = ['A','B','C','D','E','F','G','H','I'];
         const allUrls = { ...results.photoCardUrls, ...extraPhotoCardUrls };
         const availableKeys = ALL_KEYS.filter(k => allUrls[k]);
-        const styleLabels = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
+        const fallbackGallery = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9' };
+        const galleryNames = ALL_KEYS.reduce((acc, k) => { acc[k] = cardTemplateNames[k] || fallbackGallery[k]; return acc; }, {});
+        const galleryCats  = ALL_KEYS.reduce((acc, k) => { acc[k] = cardTemplateCategories[k] || ''; return acc; }, {});
         return (
           <div
             onClick={() => setMoreDesignsModal(null)}
@@ -3674,7 +3719,7 @@ export default function Wizard() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 800, color: t.text }}>Pick a design</div>
-                  <div style={{ fontSize: 13, color: t.textMuted, marginTop: 3 }}>{availableKeys.length} designs available — choose the one you like</div>
+                  <div style={{ fontSize: 13, color: t.textMuted, marginTop: 3 }}>{availableKeys.length} unique designs — all using your brand colors, zero extra credits</div>
                 </div>
                 <button onClick={() => setMoreDesignsModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: t.textMuted, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -3684,20 +3729,28 @@ export default function Wizard() {
                 {availableKeys.map(key => {
                   const url = allUrls[key];
                   const isActive = selectedCardStyle === key;
+                  const tName = galleryNames[key];
+                  const tCat  = galleryCats[key];
                   return (
-                    <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div style={{ borderRadius: 12, overflow: 'hidden', border: `2px solid ${isActive ? '#7C5CFC' : t.border}`, aspectRatio: '4/5', background: t.input, position: 'relative' }}>
-                        <img src={url} alt={styleLabels[key]} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        <img src={url} alt={tName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        {tCat && (
+                          <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.68)', backdropFilter: 'blur(6px)', borderRadius: 20, padding: '3px 9px', fontSize: 9, fontWeight: 700, color: '#fff', letterSpacing: '0.06em' }}>
+                            {tCat.toUpperCase()}
+                          </div>
+                        )}
                         {isActive && (
                           <div style={{ position: 'absolute', top: 8, right: 8, background: '#7C5CFC', borderRadius: 20, padding: '3px 9px', fontSize: 11, fontWeight: 700, color: '#fff' }}>Active</div>
                         )}
                       </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: t.text, textAlign: 'center', paddingX: 2 }}>{tName}</div>
                       <button
                         onClick={() => selectMoreDesign(key)}
                         style={{ width: '100%', padding: '10px 0', background: isActive ? 'rgba(124,92,252,0.12)' : 'linear-gradient(135deg, #7C5CFC, #5B3FF0)', border: isActive ? '1.5px solid #7C5CFC' : 'none', borderRadius: 10, color: isActive ? '#7C5CFC' : '#fff', fontSize: 13, fontWeight: 700, cursor: isActive ? 'default' : 'pointer', letterSpacing: '0.01em' }}
                         disabled={isActive}
                       >
-                        {isActive ? '✓ Selected' : `Select ${styleLabels[key]}`}
+                        {isActive ? '✓ Selected' : `Use ${tName}`}
                       </button>
                     </div>
                   );

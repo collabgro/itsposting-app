@@ -207,8 +207,8 @@ class SystemPromptBuilder {
 
     // Assign deterministic storytelling angle per customer (never changes for same customer)
     this.storyAngle = this.customerId != null
-      ? POST_ANGLES[this.customerId % POST_ANGLES.length]
-      : null;
+      ? POST_ANGLES[Math.abs(this.customerId) % POST_ANGLES.length]
+      : POST_ANGLES[0]; // safe fallback when customerId is null/undefined
   }
 
   // ── Main build method ─────────────────────────────────────────────────────
@@ -261,8 +261,14 @@ Visual style: ${sanitizeField(c.visual_style, 80) || 'modern and clean'}`;
     }
 
     if (c.brand_colors) {
-      const colors = Array.isArray(c.brand_colors) ? c.brand_colors.join(', ') : c.brand_colors;
-      if (colors) ctx += `\n\nBrand colors: ${colors} — reference these in image prompts where relevant.`;
+      const colors = Array.isArray(c.brand_colors) ? c.brand_colors.filter(Boolean).join(', ') : c.brand_colors;
+      if (colors && colors.trim()) {
+        ctx += `\n\nBrand colors: ${colors} — reference these in image prompts where relevant.`;
+      } else {
+        ctx += `\n\nBrand colors: Not set — use professional industry-standard colors that suit ${c.industry || 'home services'}.`;
+      }
+    } else {
+      ctx += `\n\nBrand colors: Not set — use professional industry-standard colors that suit ${c.industry || 'home services'}.`;
     }
 
     return ctx;

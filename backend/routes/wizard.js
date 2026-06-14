@@ -1639,6 +1639,7 @@ Return ONLY valid JSON (no markdown, no backticks):
                 mediaVariants._svgCards = { A: svgA, B: svgB, C: svgC };
               } catch (svgErr) {
                 console.warn('[Wizard] SVG card generation failed (non-fatal):', svgErr.message);
+                mediaVariants._svgCardsError = svgErr.message;
               }
             }
 
@@ -1909,7 +1910,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         isAvatarVideo
           ? !!process.env.HEYGEN_API_KEY
           // NanaBanana reel (GOOGLE_AI_API_KEY) is the primary non-Veo path — no VEO_ENABLED needed
-          : (process.env.VEO_ENABLED === 'true' || process.env.GOOGLE_AI_API_KEY || process.env.RUNWAY_API_KEY || process.env.PIKA_API_KEY)
+          : (process.env.VEO_ENABLED === 'true' || process.env.GOOGLE_AI_API_KEY || process.env.FAL_API_KEY || process.env.PIKA_API_KEY)
       );
 
       // If no provider is configured for the chosen video type, refund and return a clear error
@@ -2023,10 +2024,11 @@ Return ONLY valid JSON (no markdown, no backticks):
         templateNames: mediaVariants._templateMeta?.names || null,
         templateCategories: mediaVariants._templateMeta?.categories || null,
         templateLetters: mediaVariants._templateMeta?.letters || null,
-        carouselCardDesigns: mediaVariants._carouselCardDesigns || null,
-        rawSlideUrls: mediaVariants._rawSlideUrls || null,
-        slideOverlayTexts: mediaVariants._slideOverlayTexts || null,
-        slideMetadata: mediaVariants._slideMetadata || null,
+        carouselCardDesigns: mediaVariants._carouselCardDesigns || (answers.contentTypeSelection === 'carousel' ? { A: [], B: [], C: [] } : null),
+        rawSlideUrls: mediaVariants._rawSlideUrls || (answers.contentTypeSelection === 'carousel' ? [] : null),
+        slideOverlayTexts: mediaVariants._slideOverlayTexts || (answers.contentTypeSelection === 'carousel' ? [] : null),
+        slideMetadata: mediaVariants._slideMetadata || (answers.contentTypeSelection === 'carousel' ? [] : null),
+        svgCardsError: mediaVariants._svgCardsError || null,
         imageFailed,
         slideGenErrors: mediaVariants._slideGenErrors || undefined,
         videoRendering,   // true when HeyGen was kicked off — frontend polls /video-poll/:postId
@@ -2072,7 +2074,7 @@ Return ONLY valid JSON (no markdown, no backticks):
       }
 
       if (!HeyGenService) {
-        return res.json({ status: 'failed', videoUrl: null });
+        return res.json({ status: 'failed', videoUrl: null, error: 'Video service unavailable on this server' });
       }
 
       const heyGen = new HeyGenService();
@@ -2603,7 +2605,18 @@ Return ONLY valid JSON (no markdown, no backticks):
 
       const rawText = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
       const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(cleaned);
+      let parsed;
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch (parseErr) {
+        // Claude returned invalid JSON — refund the credit already deducted
+        await pool.query(
+          'UPDATE customers SET credits_balance = credits_balance + 1 WHERE id = $1',
+          [refreshBillingId]
+        ).catch(() => {});
+        console.error('[Wizard/Refresh] JSON parse failed — credit refunded:', parseErr.message, '| raw:', cleaned.slice(0, 200));
+        return res.status(502).json({ error: 'Refresh failed — your credit has been refunded. Please try again.' });
+      }
 
       let refreshedCaption = parsed.caption || '';
 
@@ -2662,6 +2675,10 @@ Return ONLY valid JSON (no markdown, no backticks):
     try {
       const { photoUrl, cardOverlay, wizardTrigger: rerenderTrigger } = req.body;
       if (!photoUrl || !cardOverlay) return res.status(400).json({ error: 'photoUrl and cardOverlay required' });
+      const VALID_TRIGGERS = ['job_finished','got_review','share_tip','promotion','seasonal','team_spotlight','community','faq','before_after','milestone'];
+      if (rerenderTrigger && !VALID_TRIGGERS.includes(rerenderTrigger)) {
+        return res.status(400).json({ error: 'Invalid wizardTrigger value.' });
+      }
 
       const customerResult = await pool.query(
         `SELECT id, business_name, industry, location, phone, brand_colors, logo_url FROM customers WHERE id = $1`,
