@@ -2140,7 +2140,8 @@ Return ONLY valid JSON (no markdown, no backticks):
       const videoServiceAvailableForPoll =
         (HeyGenService && process.env.HEYGEN_API_KEY) ||
         process.env.VEO_ENABLED === 'true' ||
-        process.env.RUNWAY_API_KEY ||
+        process.env.GOOGLE_AI_API_KEY ||
+        process.env.FAL_API_KEY ||
         process.env.PIKA_API_KEY;
       if (!videoServiceAvailableForPoll) {
         return res.json({ status: 'failed', error: 'Video service unavailable.' });
