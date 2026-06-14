@@ -996,7 +996,7 @@ Rules for all 3 variations:
 - Variation A is for Facebook, B for Instagram, C for Google Business (even if platform = 'all')
 - imagePrompt MUST work for ALL three variations — it is shared and generated once (saves cost)
 - NEVER output the same hashtag set for multiple variations${isCarousel ? `
-- Carousel: Include 3-4 slides. slideType must be "cover" (slide 1), "body" (middle), or "cta" (last). Cover has big headline + subtext, no bullets. Body has short title + 2-3 bullets + subtext. CTA has hook question + action nudge, no bullets. NEVER more than 4 slides.` : ''}
+- Carousel slide count: follow the SLIDE COUNT RULES above (3–6 slides based on topic). slideType must be "cover" (slide 1), "body" (middle), or "cta" (last). Cover has bold 3-5 word headline + one curiosity-gap subtext, no bullets. Body has short title + 2-3 bullets + subtext. CTA has hook question + single action nudge, no bullets.` : ''}
 
 CRITICAL JSON SAFETY RULES (violations cause parse errors):
 - Do NOT put quotation marks inside string values — write: John said it was amazing. NOT: John said "it was amazing."
