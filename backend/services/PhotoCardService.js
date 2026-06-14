@@ -182,9 +182,35 @@ function getDesignFingerprint(customer) {
     decorDensity:     (seed >> 15) % 3,            // 0=minimal, 1=standard, 2=rich
     // Typography weight variation
     typographyWeight: (seed >> 9) % 2,             // 0=900 heavy, 1=800 bold
-    // Which of 3 template lineups this customer sees for each trigger type
-    lineupOffset:     (seed >> 3) % 3,             // 0, 1, or 2
+    // Which of 4 template lineups this customer sees for each trigger type
+    lineupOffset:     (seed >> 3) % 4,             // 0, 1, 2, or 3
+    // Background micro-texture: 0=none 1=diagonal-lines 2=dot-grid 3=concentric-rings
+    bgPattern:        (seed >> 6) % 4,
   };
+}
+
+// Parses a hex color to [r, g, b] integers — used for Sharp composite operations
+function hexToRgbArr(hex) {
+  const h = (hex || '#000000').replace('#', '').padStart(6, '0');
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+// Returns an SVG string for a subtle background micro-texture pattern.
+// Opacity is kept very low so it reads as "brand texture" not "busy noise".
+// patternIdx comes from fingerprint.bgPattern — deterministic per customer.
+function getBgPattern(patternIdx, color, opacity = 0.055) {
+  const op = opacity.toFixed(3);
+  const uid = patternIdx; // unique enough — only one pattern per card
+  switch (patternIdx) {
+    case 1: // diagonal hatching
+      return `<defs><pattern id="bgPat${uid}" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse"><line x1="0" y1="28" x2="28" y2="0" stroke="${color}" stroke-width="1.5" opacity="${op}"/></pattern></defs><rect width="${W}" height="${H}" fill="url(#bgPat${uid})"/>`;
+    case 2: // dot grid
+      return `<defs><pattern id="bgPat${uid}" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="16" cy="16" r="2.5" fill="${color}" opacity="${op}"/></pattern></defs><rect width="${W}" height="${H}" fill="url(#bgPat${uid})"/>`;
+    case 3: // concentric rings radiating from center
+      return `<circle cx="${Math.floor(W / 2)}" cy="${Math.floor(H / 2)}" r="340" fill="none" stroke="${color}" stroke-width="1.5" opacity="${op}"/><circle cx="${Math.floor(W / 2)}" cy="${Math.floor(H / 2)}" r="500" fill="none" stroke="${color}" stroke-width="1.5" opacity="${op}"/><circle cx="${Math.floor(W / 2)}" cy="${Math.floor(H / 2)}" r="660" fill="none" stroke="${color}" stroke-width="1.5" opacity="${op}"/>`;
+    default: // 0 = no pattern (clean/minimal)
+      return '';
+  }
 }
 
 // ── Template A — "Left Fade Pro" ──────────────────────────────────────────────
@@ -1964,6 +1990,1672 @@ async function buildTemplateM(
   return sharp(resizedBuffer).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
 }
 
+// ── Template Metadata — display names and categories for the UI ────────────────
+// Shown in the card design picker instead of generic "Style 1", "Style 2" labels.
+// category drives the badge color in the frontend.
+const TEMPLATE_META = {
+  A: { name: 'Side Fade',      category: 'Cinematic'   },
+  B: { name: 'Angular Bold',   category: 'Impact'      },
+  C: { name: 'Top Window',     category: 'Editorial'   },
+  D: { name: 'Brand Tint',     category: 'Promotional' },
+  E: { name: 'Social Proof',   category: 'Review'      },
+  F: { name: 'Bold Number',    category: 'Educational' },
+  G: { name: 'Split Panel',    category: 'Modern'      },
+  H: { name: 'Float Card',     category: 'Clean'       },
+  I: { name: 'Header Strip',   category: 'Minimal'     },
+  J: { name: 'Magazine',       category: 'Editorial'   },
+  K: { name: 'Duotone',        category: 'Artistic'    },
+  L: { name: 'Gallery Frame',  category: 'Luxury'      },
+  M: { name: 'Mega Poster',    category: 'Bold'        },
+  N: { name: 'Minimal Footer', category: 'Authentic'   },
+  O: { name: 'Grayscale Art',  category: 'Artistic'    },
+  P: { name: 'Split Reveal',    category: 'Before/After'  },
+  Q: { name: 'Five Star',       category: 'Review'       },
+  R: { name: 'Night Stats',     category: 'Premium'      },
+  S:  { name: 'Mega Bold',       category: 'Impact'       },
+  T:  { name: 'Ink Minimal',     category: 'Minimal'      },
+  U:  { name: 'Night Glass',     category: 'Premium'      },
+  V:  { name: 'Color Wash',      category: 'Artistic'     },
+  W:  { name: 'Three Band',      category: 'Professional' },
+  X:  { name: 'Diagonal Strike', category: 'Dynamic'      },
+  AA: { name: 'Number Hero',     category: 'Impact'       },
+  AB: { name: 'Swiss Minimal',   category: 'Minimal'      },
+  AC: { name: 'Radial Glow',     category: 'Artistic'     },
+  AD: { name: 'Vintage Badge',   category: 'Heritage'     },
+  AE: { name: 'Bento Grid',      category: 'Modern'       },
+  AF: { name: 'Neo-Brutalist',   category: 'Bold'         },
+};
+
+// Helper: given 3 template letters, return their names for the API response
+function getTemplateNames(tA, tB, tC) {
+  return {
+    A: TEMPLATE_META[tA]?.name || tA,
+    B: TEMPLATE_META[tB]?.name || tB,
+    C: TEMPLATE_META[tC]?.name || tC,
+  };
+}
+
+// ── Template N — "Minimal Footer" ─────────────────────────────────────────────
+// The photo IS the design. Full canvas, completely unobscured.
+// Only a slim brand-color strip at the very bottom (18% of height) carries text.
+// Perfect for dramatic job reveals, authentic before/afters.
+// Every other template obscures the photo — this one lets the work speak.
+async function buildTemplateN(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', eyebrow = '', cta = '', badge = '', uppercase = false } = cardOverlay;
+
+  const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const stripH    = Math.floor(H * 0.19);   // bottom strip: 19% of 1350 = ~256px
+  const stripY    = H - stripH;
+  const padX      = 56;
+  const dark      = darkenHex(c.primary, 0.20);
+
+  const headLines = wrapText(escapeXml(headText), 16);
+  const headStartY = stripY + 38;
+  const headLineH  = 62;
+  const headEndY   = headStartY + headLines.length * headLineH;
+  const fw = fingerprint?.typographyWeight === 1 ? '800' : '900';
+
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+  const parts = [];
+
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  }
+
+  // Minimal top bar — business identity only, translucent
+  parts.push(
+    `<defs>
+      <linearGradient id="stripN" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="${c.primary}" stop-opacity="1.0"/>
+        <stop offset="100%" stop-color="${dark}"       stop-opacity="1.0"/>
+      </linearGradient>
+      <linearGradient id="topN" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.48"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.00"/>
+      </linearGradient>
+    </defs>`,
+    // Top bar — logo + name only, barely visible
+    `<rect x="0" y="0" width="${W}" height="88" fill="url(#topN)"/>`,
+    // Bottom brand strip
+    `<rect x="0" y="${stripY}" width="${W}" height="${stripH}" fill="url(#stripN)"/>`,
+    // Secondary-color top seam
+    `<rect x="0" y="${stripY - 4}" width="${W}" height="6" fill="${c.secondary}"/>`,
+  );
+
+  // Trust badge — photo area, top right (only badge visible on photo)
+  if (badge) {
+    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeW = Math.max(180, badgeText.length * 10 + 40);
+    const badgeX = W - badgeW - 24;
+    parts.push(`<rect x="${badgeX}" y="26" width="${badgeW}" height="46" rx="23" fill="${c.secondary}"/>`);
+    parts.push(`<text${df('badge')} x="${badgeX + badgeW / 2}" y="49" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="15" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${badgeText}</text>`);
+  }
+
+  // Business name — top left of photo, subtle
+  const hasLogo = browserMode ? !!logoUrl : !!logoBuffer;
+  if (hasLogo) {
+    parts.push(`<text x="${padX + 44}" y="44" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="700" fill="#ffffff" dominant-baseline="middle" opacity="0.90">${escapeXml(businessName)}</text>`);
+  } else {
+    parts.push(industryIconSvg(padX + 18, 44, 18, industry, 'rgba(255,255,255,0.95)', c.primary));
+    parts.push(`<text x="${padX + 46}" y="44" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="700" fill="#ffffff" dominant-baseline="middle" opacity="0.90">${escapeXml(businessName)}</text>`);
+  }
+
+  // Eyebrow inside strip — secondary color, letter-spaced
+  if (eyebrow) {
+    parts.push(`<text${df('eyebrow')} x="${padX}" y="${stripY + 18}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="2.5" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+  }
+
+  // Headline — inside strip, white
+  headLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="56" font-weight="${fw}" letter-spacing="-1.5" fill="#ffffff" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // CTA or phone — right side of strip
+  const phoneFormatted = formatPhone(phone);
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(340, Math.max(180, ctaText.length * 12 + 52));
+    const ctaX = W - ctaW - padX;
+    const ctaY = H - 72;
+    parts.push(`<rect x="${ctaX}" y="${ctaY - 22}" width="${ctaW}" height="44" rx="22" fill="#ffffff"/>`);
+    parts.push(`<text${df('cta')} x="${ctaX + ctaW / 2}" y="${ctaY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="15" font-weight="800" fill="${c.primary}" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  } else if (phoneFormatted) {
+    parts.push(`<text${df('phone')} x="${W - padX}" y="${H - 50}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" fill="#ffffff" text-anchor="end" dominant-baseline="middle">${escapeXml(phoneFormatted)}</text>`);
+  }
+
+  if (browserMode) {
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${padX}" y="16" width="48" height="48" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 16, left: padX });
+  return sharp(resizedBuffer).composite(composite).jpeg({ quality: 90, mozjpeg: true }).toBuffer();
+}
+
+// ── Template O — "Grayscale Art" ──────────────────────────────────────────────
+// The ONLY template that desaturates the photo to B&W — then brand secondary
+// color pops as the SOLE color accent. Creates a film-editorial look that no
+// other template achieves. Left panel structure, but far more artistic.
+// The contrast of B&W photography + vivid brand color is unmistakeable.
+async function buildTemplateO(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', eyebrow = '', subtext = '', cta = '', badge = '', services = [], uppercase = false } = cardOverlay;
+  const headText  = uppercase ? headline.toUpperCase() : toTitleCase(headline);
+  const headLines = wrapText(escapeXml(headText), 12);
+  const subLines  = wrapText(escapeXml(subtext), 22);
+  const bullets   = Array.isArray(services) ? services.slice(0, 3) : [];
+  const padX = 58;
+  const headStartY = 210;
+  const headLineH  = 82;
+  const headEndY   = headStartY + headLines.length * headLineH;
+  const subStartY  = headEndY + 24;
+  const subLineH   = 40;
+  const listStartY = subStartY + subLines.length * subLineH + 30;
+  const listLineH  = 54;
+  const fw = fingerprint?.typographyWeight === 1 ? '800' : '900';
+
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+  const parts = [];
+
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  }
+
+  // B&W desaturation + dark left zone overlay
+  parts.push(
+    `<defs>
+      <filter id="bwO" x="0" y="0" width="100%" height="100%">
+        <feColorMatrix type="saturate" values="0"/>
+      </filter>
+      <linearGradient id="leftDarkO" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.90"/>
+        <stop offset="52%"  stop-color="#000000" stop-opacity="0.72"/>
+        <stop offset="76%"  stop-color="#000000" stop-opacity="0.10"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.00"/>
+      </linearGradient>
+      <linearGradient id="topDarkO" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#000000" stop-opacity="0.60"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.00"/>
+      </linearGradient>
+      <linearGradient id="botDarkO" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.00"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.70"/>
+      </linearGradient>
+    </defs>`,
+    `<rect x="0" y="0" width="${W}" height="${H}" fill="url(#leftDarkO)"/>`,
+    `<rect x="0" y="0" width="${W}" height="120" fill="url(#topDarkO)"/>`,
+    `<rect x="0" y="${H - 160}" width="${W}" height="160" fill="url(#botDarkO)"/>`,
+    // Brand secondary as the ONLY color — thin vertical stripe at left edge
+    `<rect x="0" y="0" width="10" height="${H}" fill="${c.secondary}"/>`,
+    // Horizontal accent stripe — creates the "film strip" feel
+    `<rect x="0" y="${headEndY + 18}" width="200" height="4" rx="2" fill="${c.secondary}"/>`,
+  );
+
+  // Business name top
+  const hasLogo = browserMode ? !!logoUrl : !!logoBuffer;
+  if (hasLogo) {
+    parts.push(`<text x="${padX + 82}" y="56" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  } else {
+    parts.push(industryIconSvg(padX + 22, 56, 20, industry, 'rgba(255,255,255,0.95)', c.secondary));
+    parts.push(`<text x="${padX + 54}" y="56" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(businessName)}</text>`);
+  }
+
+  if (badge) {
+    const badgeText = escapeXml(badge.toUpperCase());
+    const badgeW = Math.max(180, badgeText.length * 10 + 40);
+    const badgeX = W - badgeW - 22;
+    parts.push(`<rect x="${badgeX}" y="30" width="${badgeW}" height="46" rx="23" fill="${c.secondary}"/>`);
+    parts.push(`<text${df('badge')} x="${badgeX + badgeW / 2}" y="53" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="15" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${badgeText}</text>`);
+  }
+
+  // Eyebrow — secondary color (only color on B&W photo)
+  if (eyebrow) {
+    parts.push(`<text${df('eyebrow')} x="${padX}" y="${headStartY - 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="3" fill="${c.secondary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase())}</text>`);
+  }
+
+  // Headline — white, large
+  headLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`headline-${i}`)} x="${padX}" y="${headStartY + i * headLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="78" font-weight="${fw}" letter-spacing="-2.5" fill="#ffffff" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Subtext — muted white
+  subLines.forEach((l, i) => {
+    parts.push(
+      `<text${df(`subtext-${i}`)} x="${padX}" y="${subStartY + i * subLineH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="28" font-weight="400" fill="rgba(255,255,255,0.78)" dominant-baseline="hanging">${l}</text>`
+    );
+  });
+
+  // Bullets — secondary color dots (only color on B&W)
+  bullets.forEach((item, i) => {
+    const y = listStartY + i * listLineH + 18;
+    parts.push(`<circle cx="${padX + 8}" cy="${y}" r="9" fill="${c.secondary}"/>`);
+    parts.push(`<text${df(`service-${i}`)} x="${padX + 28}" y="${y}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="28" font-weight="600" fill="#ffffff" dominant-baseline="middle">${escapeXml(item)}</text>`);
+  });
+
+  // CTA — secondary color pill (vivid against B&W)
+  const ctaY = H - 130;
+  if (cta) {
+    const ctaText = escapeXml(cta.toUpperCase());
+    const ctaW = Math.min(460, Math.max(220, ctaText.length * 14 + 68));
+    parts.push(`<rect x="${padX}" y="${ctaY}" width="${ctaW}" height="64" rx="32" fill="${c.secondary}"/>`);
+    parts.push(`<text${df('cta')} x="${padX + ctaW / 2}" y="${ctaY + 32}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="21" font-weight="900" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaText}</text>`);
+  }
+
+  const phoneFormatted = formatPhone(phone);
+  if (phoneFormatted && !cta) {
+    const pillY = H - 128;
+    const rW = Math.max(300, phoneFormatted.length * 15 + 90);
+    parts.push(`<rect x="${padX}" y="${pillY}" width="${rW}" height="58" rx="29" fill="${c.secondary}"/>`);
+    parts.push(phoneIconSvg(padX + 20, pillY + 29, 20, '#ffffff'));
+    parts.push(`<text${df('phone')} x="${padX + 48}" y="${pillY + 29}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="700" fill="#ffffff" dominant-baseline="middle">${escapeXml(phoneFormatted)}</text>`);
+  }
+
+  parts.push(`<text x="${W / 2}" y="${H - 36}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="15" font-weight="500" fill="rgba(255,255,255,0.44)" text-anchor="middle" dominant-baseline="auto">${escapeXml(businessName)}</text>`);
+
+  if (browserMode) {
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${padX}" y="20" width="56" height="56" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+
+  // Sharp mode: desaturate photo to B&W before compositing
+  const bwBuffer = await sharp(resizedBuffer).grayscale().toBuffer();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`;
+  const composite = [{ input: Buffer.from(svg), top: 0, left: 0 }];
+  if (logoBuffer) composite.push({ input: logoBuffer, top: 20, left: padX });
+  return sharp(bwBuffer).composite(composite).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+}
+
+// ── Template P — "Split Reveal" ───────────────────────────────────────────────
+// RESEARCH-PROVEN: Before/after posts get 2.3× more engagement than single images.
+// ONE photo → two emotional stories using Sharp channel manipulation:
+//   Left 50%  → grayscale + 60% brightness → conveys "BEFORE" (problem / grime)
+//   Right 50% → 106% brightness, 112% saturation → "AFTER" (vivid, clean result)
+// The contrast is powerful even from a single job-site phone photo.
+// Centre: brand-secondary stripe + ↔ circle. BEFORE/AFTER badges top corners.
+// Perfect for: job_finished, before_after, seasonal.
+async function buildTemplateP(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const headline  = cardOverlay?.headline || '';
+  const eyebrow   = cardOverlay?.eyebrow  || '';
+  const biz       = escapeXml(businessName || '');
+  const ph        = escapeXml(phone || '');
+  const darkPri   = darkenHex(c.primary, 0.22);
+  const fw        = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const df        = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const mid      = Math.floor(W / 2);  // 540
+  const divW     = 6;
+  const botH     = 168;
+  const botY     = H - botH;
+  const headLines = wrapText(escapeXml(headline), 24);
+
+  // Build overlay parts (shared between Sharp + browser modes)
+  const overlay = [];
+  overlay.push(`<defs>
+    <linearGradient id="stripPbot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="${c.primary}"  stop-opacity="1"/>
+      <stop offset="100%" stop-color="${darkPri}"     stop-opacity="1"/>
+    </linearGradient>
+    <linearGradient id="topFadeP" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#000000" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.00"/>
+    </linearGradient>
+  </defs>`);
+  overlay.push(`<rect x="0" y="0" width="${W}" height="112" fill="url(#topFadeP)"/>`);
+  // Bottom brand strip
+  overlay.push(`<rect x="0" y="${botY}" width="${W}" height="${botH}" fill="url(#stripPbot)"/>`);
+  overlay.push(`<rect x="0" y="${botY - 5}" width="${W}" height="6" fill="${c.secondary}"/>`);
+  // BEFORE badge — dark pill top-left
+  overlay.push(`<rect x="20" y="22" width="172" height="58" rx="29" fill="rgba(0,0,0,0.88)"/>`);
+  overlay.push(`<text${df('eyebrow')} x="106" y="51" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="${fw}" fill="#ffffff" text-anchor="middle" letter-spacing="5" dominant-baseline="middle">BEFORE</text>`);
+  // AFTER badge — brand secondary pill top-right
+  overlay.push(`<rect x="${W - 192}" y="22" width="172" height="58" rx="29" fill="${c.secondary}"/>`);
+  overlay.push(`<text x="${W - 106}" y="51" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="${fw}" fill="#ffffff" text-anchor="middle" letter-spacing="5" dominant-baseline="middle">AFTER</text>`);
+  // Centre divider stripe
+  overlay.push(`<rect x="${mid - Math.floor(divW / 2)}" y="0" width="${divW}" height="${H}" fill="${c.secondary}" opacity="0.88"/>`);
+  // Centre ↔ arrow circle
+  const arrowY = Math.floor(H * 0.44);
+  overlay.push(`<circle cx="${mid}" cy="${arrowY}" r="40" fill="${c.secondary}"/>`);
+  overlay.push(`<text x="${mid}" y="${arrowY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="30" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">↔</text>`);
+  // Industry icon — small, on BEFORE side top-left
+  overlay.push(industryIconSvg(40, 51, 16, industry, 'rgba(255,255,255,0.90)', c.primary));
+  // Eyebrow in strip
+  if (eyebrow) {
+    overlay.push(`<text x="${W / 2}" y="${botY + 26}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="700" fill="${c.secondary}" text-anchor="middle" letter-spacing="4" dominant-baseline="middle">${escapeXml(eyebrow.toUpperCase())}</text>`);
+  }
+  // Headline in strip
+  const headStartY = eyebrow ? botY + 60 : botY + 44;
+  headLines.slice(0, 2).forEach((line, i) => {
+    overlay.push(`<text${df(i === 0 ? 'headline' : 'headline2')} x="${W / 2}" y="${headStartY + i * 50}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="32" font-weight="${fw}" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${line}</text>`);
+  });
+  // Business name + phone
+  overlay.push(`<text x="${W / 2}" y="${H - 20}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="600" fill="rgba(255,255,255,0.80)" text-anchor="middle" dominant-baseline="middle">${biz}${ph ? '  ·  ' + ph : ''}</text>`);
+
+  if (browserMode) {
+    const bSvg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
+      <defs>
+        <clipPath id="leftSRP"><rect x="0" y="0" width="${mid}" height="${H}"/></clipPath>
+        <clipPath id="rightSRP"><rect x="${mid}" y="0" width="${W - mid}" height="${H}"/></clipPath>
+        <filter id="beforeFltP">
+          <feColorMatrix type="saturate" values="0"/>
+          <feComponentTransfer>
+            <feFuncR type="linear" slope="0.60"/>
+            <feFuncG type="linear" slope="0.60"/>
+            <feFuncB type="linear" slope="0.60"/>
+          </feComponentTransfer>
+        </filter>
+      </defs>
+      ${photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice" clip-path="url(#leftSRP)" filter="url(#beforeFltP)"/>` : ''}
+      ${photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice" clip-path="url(#rightSRP)"/>` : ''}
+      ${overlay.join('')}
+      ${logoUrl ? `<image href="${escapeXml(logoUrl)}" x="20" y="${botY + 8}" width="44" height="44" preserveAspectRatio="xMidYMid meet"/>` : ''}
+    </svg>`;
+    return bSvg;
+  }
+
+  // Sharp mode: extract both halves with different tone treatments
+  const [leftBuf, rightBuf] = await Promise.all([
+    sharp(resizedBuffer)
+      .extract({ left: 0, top: 0, width: mid, height: H })
+      .grayscale()
+      .modulate({ brightness: 0.60 })
+      .jpeg({ quality: 90 })
+      .toBuffer(),
+    sharp(resizedBuffer)
+      .extract({ left: mid, top: 0, width: W - mid, height: H })
+      .modulate({ brightness: 1.06, saturation: 1.12 })
+      .jpeg({ quality: 90 })
+      .toBuffer(),
+  ]);
+
+  const svgBuf  = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${overlay.join('')}</svg>`);
+  const baseCanvas = await sharp({ create: { width: W, height: H, channels: 3, background: { r: 5, g: 5, b: 5 } } }).jpeg({ quality: 95 }).toBuffer();
+  const composites = [
+    { input: leftBuf,  left: 0,   top: 0 },
+    { input: rightBuf, left: mid, top: 0 },
+    { input: svgBuf,   left: 0,   top: 0 },
+  ];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: 20, top: botY + 8 });
+  return sharp(baseCanvas).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template Q — "Five Star Power" ────────────────────────────────────────────
+// Research: 77% of customers say review content influenced their purchase decision.
+// Converts any review quote into the most compelling trust signal on social media.
+// Full-bleed photo → dual dark gradients (top + bottom) → 5 SVG gold stars → italic quote.
+// The star row stops the scroll instantly — homeowners process "⭐⭐⭐⭐⭐" in < 0.2 seconds.
+// Perfect for: got_review, milestone, team_spotlight.
+async function buildTemplateQ(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const headline = cardOverlay?.headline || 'Exceptional service, highly recommended';
+  const eyebrow  = cardOverlay?.eyebrow  || 'Verified Customer';
+  const biz      = escapeXml(businessName || '');
+  const ph       = escapeXml(phone || '');
+  const darkPri  = darkenHex(c.primary, 0.20);
+  const df       = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const STAR_GOLD = '#F8C300';
+
+  // Helper: SVG 5-pointed star polygon
+  function svgStar5(cx, cy, outerR, innerR, fill) {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const ang = (i * Math.PI / 5) - Math.PI / 2;
+      const r   = i % 2 === 0 ? outerR : innerR;
+      pts.push(`${(cx + Math.cos(ang) * r).toFixed(1)},${(cy + Math.sin(ang) * r).toFixed(1)}`);
+    }
+    return `<polygon points="${pts.join(' ')}" fill="${fill}" stroke="${fill}" stroke-width="1"/>`;
+  }
+
+  // 5 stars centred horizontally
+  const starOuter = 38;
+  const starGap   = 96;
+  const starTotalW = 5 * starGap;
+  const starStartX = Math.round((W - starTotalW) / 2) + starGap / 2;
+  const starY      = 290;
+  const starsSvg   = [0,1,2,3,4].map(i => svgStar5(starStartX + i * starGap, starY, starOuter, starOuter * 0.42, STAR_GOLD)).join('');
+
+  // Quote text — 3 lines max
+  const quoteRaw   = headline.length > 80 ? headline.substring(0, 80) + '…' : headline;
+  const quoteLines = wrapText(`"${escapeXml(quoteRaw)}"`, 26);
+
+  const parts = [];
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>`);
+  }
+
+  parts.push(`<defs>
+    <linearGradient id="topQGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#000000" stop-opacity="0.86"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.00"/>
+    </linearGradient>
+    <linearGradient id="botQGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#000000" stop-opacity="0.00"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.90"/>
+    </linearGradient>
+    <linearGradient id="stripQ" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="${c.primary}" stop-opacity="1"/>
+      <stop offset="100%" stop-color="${darkPri}"    stop-opacity="1"/>
+    </linearGradient>
+  </defs>`);
+  // Dual dark gradients
+  parts.push(`<rect x="0" y="0" width="${W}" height="540" fill="url(#topQGrad)"/>`);
+  parts.push(`<rect x="0" y="820" width="${W}" height="${H - 820}" fill="url(#botQGrad)"/>`);
+  // "CUSTOMER REVIEW" label
+  parts.push(`<text x="${W / 2}" y="128" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" fill="rgba(255,255,255,0.88)" text-anchor="middle" letter-spacing="7" dominant-baseline="middle">CUSTOMER REVIEW</text>`);
+  // Thin accent line
+  parts.push(`<rect x="${W / 2 - 60}" y="152" width="120" height="2" fill="${c.secondary}" opacity="0.8"/>`);
+  // 5 gold stars
+  parts.push(starsSvg);
+  // "★ 5.0 · Google Reviews" pill badge
+  parts.push(`<rect x="${W / 2 - 140}" y="348" width="280" height="52" rx="26" fill="${c.secondary}"/>`);
+  parts.push(`<text x="${W / 2}" y="374" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">★  5.0  ·  Google Reviews</text>`);
+  // Review quote — italic Georgia
+  const quoteStartY = 440;
+  quoteLines.slice(0, 3).forEach((line, i) => {
+    parts.push(`<text${df(i === 0 ? 'headline' : 'headline' + (i + 1))} x="${W / 2}" y="${quoteStartY + i * 64}" font-family="Georgia,serif" font-size="${i === 0 ? 44 : 40}" font-style="italic" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${line}</text>`);
+  });
+  // Reviewer name
+  const reviewerY = quoteStartY + Math.min(quoteLines.length, 3) * 64 + 36;
+  parts.push(`<text${df('eyebrow')} x="${W / 2}" y="${reviewerY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="600" fill="${STAR_GOLD}" text-anchor="middle" dominant-baseline="middle">— ${escapeXml(eyebrow)}</text>`);
+  // Bottom brand strip
+  parts.push(`<rect x="0" y="${H - 138}" width="${W}" height="138" fill="url(#stripQ)"/>`);
+  parts.push(`<rect x="0" y="${H - 140}" width="${W}" height="4" fill="${c.secondary}"/>`);
+  // Business name + phone
+  parts.push(`<text${df('businessName')} x="${W / 2}" y="${H - 82}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="30" font-weight="900" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${biz}</text>`);
+  if (ph) parts.push(`<text x="${W / 2}" y="${H - 36}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="600" fill="rgba(255,255,255,0.84)" text-anchor="middle" dominant-baseline="middle">${ph}</text>`);
+  // Industry icon + biz name top-left
+  const hasLogo = browserMode ? !!logoUrl : !!logoBuffer;
+  if (!hasLogo) {
+    parts.push(industryIconSvg(40, 54, 18, industry, 'rgba(255,255,255,0.92)', c.primary));
+    parts.push(`<text x="68" y="54" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="700" fill="rgba(255,255,255,0.86)" dominant-baseline="middle">${biz}</text>`);
+  }
+
+  if (browserMode) {
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="22" y="22" width="56" height="56" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+  const svgBuf     = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: 22, top: 22 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template R — "Night Stats" ─────────────────────────────────────────────────
+// The ONLY template in the set where the BRAND DATA is the hero, not the photo.
+// Photo at 10% opacity → near-black overlay → industry icon → business services grid.
+// Three feature cards show the top services, each with a brand-accent top border.
+// A "Licensed · Insured · Certified" strip seals trust. Looks like a premium brand card.
+// Perfect for: team_spotlight, community, milestone, got_review, promotion.
+async function buildTemplateR(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const headline  = cardOverlay?.headline || 'The trusted choice for homeowners';
+  const svcs      = Array.isArray(cardOverlay?.services) ? cardOverlay.services : [];
+  const biz       = escapeXml(businessName || '');
+  const ph        = escapeXml(phone || '');
+  const darkPri   = darkenHex(c.primary, 0.20);
+  const fw        = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const df        = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const INDUSTRY_LABEL_R = {
+    plumbing: 'PLUMBING', hvac: 'HVAC', roofing: 'ROOFING', concrete: 'CONCRETE',
+    landscaping: 'LANDSCAPING', electrical: 'ELECTRICAL', painting: 'PAINTING',
+    pest_control: 'PEST CONTROL', cleaning: 'CLEANING', general_contractor: 'HOME SERVICES',
+    tree_service: 'TREE SERVICE', pressure_washing: 'PRESSURE WASHING', pool_spa: 'POOL & SPA',
+    handyman: 'HANDYMAN', flooring: 'FLOORING', junk_removal: 'JUNK REMOVAL',
+    solar: 'SOLAR', gutter_cleaning: 'GUTTER CLEANING',
+  };
+  const DEFAULT_SVCS_R = {
+    plumbing:           ['Pipe Repair', 'Drain Cleaning', '24/7 Emergency'],
+    hvac:               ['AC Service', 'Furnace Repair', 'Tune-Ups'],
+    roofing:            ['Roof Repair', 'New Roofs', 'Inspections'],
+    electrical:         ['Panel Upgrade', 'Wiring', 'Emergency Service'],
+    landscaping:        ['Lawn Care', 'Landscape Design', 'Irrigation'],
+    painting:           ['Interior', 'Exterior', 'Deck Staining'],
+    pest_control:       ['Termite Control', 'Rodent Control', 'Prevention'],
+    concrete:           ['Driveways', 'Patios', 'Foundation Repair'],
+    cleaning:           ['Deep Clean', 'Move-In/Out', 'Regular Service'],
+    general_contractor: ['Renovation', 'Remodeling', 'New Construction'],
+    tree_service:       ['Tree Removal', 'Trimming', 'Stump Grinding'],
+    pressure_washing:   ['Driveways', 'Decks & Patios', 'Home Exterior'],
+    pool_spa:           ['Pool Maintenance', 'Repair', 'Cleaning Service'],
+    handyman:           ['General Repairs', 'Assembly', 'Maintenance'],
+    flooring:           ['Hardwood', 'Tile', 'Carpet Installation'],
+    junk_removal:       ['Same-Day Service', 'Estate Cleanouts', 'Recycling'],
+    solar:              ['Solar Install', 'Maintenance', 'Energy Savings'],
+    gutter_cleaning:    ['Gutter Cleaning', 'Gutter Guards', 'Repair'],
+  };
+  const displaySvcs = (svcs.length >= 2 ? svcs : (DEFAULT_SVCS_R[industry] || ['Expert Service', 'Quality Work', 'Satisfaction Guaranteed'])).slice(0, 3);
+
+  const headLines = wrapText(escapeXml(headline), 22);
+  const industryLabelR = INDUSTRY_LABEL_R[industry] || 'HOME SERVICES';
+
+  // Service card geometry — 3 cards in a row
+  const cardW       = 300;
+  const cardH       = 188;
+  const cardGap     = 30;
+  const totalCW     = 3 * cardW + 2 * cardGap;
+  const cardsStartX = Math.floor((W - totalCW) / 2);
+  const cardY       = 730;
+
+  const parts = [];
+
+  if (browserMode && photoUrl) {
+    parts.push(`<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice" opacity="0.10"/>`);
+  }
+
+  parts.push(`<defs>
+    <linearGradient id="darkRGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#08080F" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#0D0D1A" stop-opacity="1"/>
+    </linearGradient>
+    <linearGradient id="stripR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="${c.primary}" stop-opacity="1"/>
+      <stop offset="100%" stop-color="${darkPri}"    stop-opacity="1"/>
+    </linearGradient>
+  </defs>`);
+  // Near-black overlay (90% opaque — lets photo texture bleed through faintly)
+  parts.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="url(#darkRGrad)" opacity="0.90"/>`);
+  // Top accent stripe
+  parts.push(`<rect x="0" y="0" width="${W}" height="7" fill="${c.secondary}"/>`);
+  // Large industry icon centred at top
+  parts.push(industryIconSvg(W / 2, 168, 54, industry, c.secondary, '#0D0D1A'));
+  // Business name
+  parts.push(`<text${df('businessName')} x="${W / 2}" y="278" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="40" font-weight="${fw}" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${biz}</text>`);
+  // Industry label
+  parts.push(`<text x="${W / 2}" y="328" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="700" fill="${c.secondary}" text-anchor="middle" letter-spacing="6" dominant-baseline="middle">${industryLabelR}</text>`);
+  // Horizontal rule
+  parts.push(`<rect x="80" y="356" width="${W - 160}" height="1" fill="${c.secondary}" opacity="0.40"/>`);
+  // Headline / tagline — italic
+  const headY = 412;
+  headLines.slice(0, 2).forEach((line, i) => {
+    parts.push(`<text${df(i === 0 ? 'headline' : 'headline2')} x="${W / 2}" y="${headY + i * 58}" font-family="Georgia,serif" font-size="${i === 0 ? 42 : 38}" font-style="italic" fill="rgba(255,255,255,0.88)" text-anchor="middle" dominant-baseline="middle">${line}</text>`);
+  });
+  // Horizontal rule
+  const ruleY = headY + Math.min(headLines.length, 2) * 58 + 14;
+  parts.push(`<rect x="80" y="${ruleY}" width="${W - 160}" height="1" fill="${c.secondary}" opacity="0.40"/>`);
+  // 3 service feature cards
+  displaySvcs.forEach((svc, i) => {
+    const cx = cardsStartX + i * (cardW + cardGap);
+    const cardLines = wrapText(escapeXml(svc), 12);
+    parts.push(`<rect x="${cx}" y="${cardY}" width="${cardW}" height="${cardH}" rx="12" fill="rgba(255,255,255,0.05)" stroke="${c.secondary}" stroke-width="1.5"/>`);
+    parts.push(`<rect x="${cx}" y="${cardY}" width="${cardW}" height="6" rx="3" fill="${c.secondary}"/>`);
+    cardLines.slice(0, 2).forEach((cl, ci) => {
+      parts.push(`<text x="${cx + cardW / 2}" y="${cardY + 80 + ci * 46}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="${ci === 0 ? 26 : 22}" font-weight="${ci === 0 ? fw : '600'}" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${cl}</text>`);
+    });
+  });
+  // "Licensed · Insured · Certified"
+  parts.push(`<text x="${W / 2}" y="${cardY + cardH + 56}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="600" fill="rgba(255,255,255,0.50)" text-anchor="middle" letter-spacing="4" dominant-baseline="middle">LICENSED  ·  INSURED  ·  CERTIFIED</text>`);
+  // Bottom brand strip
+  parts.push(`<rect x="0" y="${H - 120}" width="${W}" height="120" fill="url(#stripR)"/>`);
+  parts.push(`<rect x="0" y="${H - 122}" width="${W}" height="4" fill="${c.secondary}"/>`);
+  parts.push(`<text x="${W / 2}" y="${H - 70}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="28" font-weight="${fw}" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${biz}</text>`);
+  if (ph) parts.push(`<text x="${W / 2}" y="${H - 30}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="600" fill="rgba(255,255,255,0.82)" text-anchor="middle" dominant-baseline="middle">${ph}</text>`);
+
+  if (browserMode) {
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${W / 2 - 28}" y="116" width="56" height="56" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${parts.join('')}</svg>`;
+  }
+  // Sharp mode: photo at 10% opacity as subtle dark texture
+  const darkBase = await sharp(resizedBuffer).modulate({ brightness: 0.10 }).jpeg({ quality: 90 }).toBuffer();
+  const svgBuf   = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: W / 2 - 28, top: 116 });
+  return sharp(darkBase).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template S — "Mega Bold" ──────────────────────────────────────────────────
+// Maximum typographic impact. The headline IS the design — massive (110-144px),
+// full-width, unavoidable. Photo provides texture and atmosphere behind a brand
+// color wash. Secondary color underline anchors the energy below the headline.
+// Micro-texture bgPattern gives each customer a unique backdrop variation.
+// Perfect for: milestone announcements, big promotions, seasonal campaigns.
+async function buildTemplateS(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '', eyebrow = '' } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const headText  = toTitleCase(headline || businessName || 'Quality Work');
+  const headLines = wrapText(escapeXml(headText), 9).slice(0, 3);
+  const FONT_SIZE = headLines.length > 2 ? 108 : headLines.length === 2 ? 124 : 142;
+  const LINE_H    = FONT_SIZE + 16;
+  const totalH    = headLines.length * LINE_H;
+  const headStartY = Math.max(80, Math.floor(H / 2 - totalH / 2) - 30);
+  const fw = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const bgPat = getBgPattern(fingerprint?.bgPattern ?? 0, '#ffffff', 0.042);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const parts = [
+    `<rect width="${W}" height="${H}" fill="${c.primary}" opacity="0.54"/>`,
+    bgPat,
+    `<rect x="0" y="0" width="${W}" height="9" fill="${c.secondary}"/>`,
+    `<rect x="0" y="${H - 9}" width="${W}" height="9" fill="${c.secondary}"/>`,
+  ];
+
+  if (eyebrow) {
+    const ey = escapeXml(eyebrow.toUpperCase().slice(0, 32));
+    const eyY = headStartY - 48;
+    if (eyY > 20) {
+      parts.push(`<text${df('eyebrow')} x="${W / 2}" y="${eyY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="3.5" fill="rgba(255,255,255,0.78)" text-anchor="middle" dominant-baseline="hanging">${ey}</text>`);
+      parts.push(`<rect x="${W / 2 - 55}" y="${eyY + 26}" width="110" height="2.5" rx="1.25" fill="${c.secondary}"/>`);
+    }
+  }
+
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${W / 2}" y="${headStartY + i * LINE_H}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="${FONT_SIZE}" font-weight="${fw}" letter-spacing="-3" fill="#ffffff" text-anchor="middle" dominant-baseline="hanging" paint-order="stroke fill" stroke="#000000" stroke-width="10" stroke-opacity="0.20">${l}</text>`);
+  });
+
+  const underY = headStartY + headLines.length * LINE_H + 20;
+  parts.push(`<rect x="${W / 2 - 150}" y="${underY}" width="300" height="7" rx="3.5" fill="${c.secondary}"/>`);
+
+  if (subtext) {
+    const subLines = wrapText(escapeXml(subtext), 32).slice(0, 2);
+    subLines.forEach((l, i) => {
+      parts.push(`<text x="${W / 2}" y="${underY + 28 + i * 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" fill="rgba(255,255,255,0.76)" text-anchor="middle" dominant-baseline="hanging">${l}</text>`);
+    });
+  }
+
+  const footY = H - 96;
+  parts.push(`<rect x="0" y="${footY - 18}" width="${W}" height="1.5" fill="rgba(255,255,255,0.18)"/>`);
+  parts.push(`<text${df('businessName')} x="${W / 2}" y="${footY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="700" letter-spacing="2" fill="rgba(255,255,255,0.90)" text-anchor="middle" dominant-baseline="hanging">${biz}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${W / 2}" y="${footY + 34}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" fill="rgba(255,255,255,0.66)" text-anchor="middle" dominant-baseline="hanging">${ph}</text>`);
+
+  if (browserMode) {
+    const img = photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>` : `<rect width="${W}" height="${H}" fill="${darkenHex(c.primary, 0.20)}"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="28" y="28" width="56" height="56" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
+  }
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: 28, top: 28 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template T — "Ink Minimal" ────────────────────────────────────────────────
+// Pure minimalism meets editorial sophistication. Photo takes the entire top 60%
+// (completely unobscured — the work speaks). A clean white panel below carries
+// the headline in brand PRIMARY color (dark ink on white) — the only template
+// where headline uses dark brand color instead of white. Hairline rule. Serif
+// subtext. Negative space is the design choice. Luxury / premium aesthetic.
+// Perfect for: tip posts, FAQ, team spotlight, any high-craftsmanship content.
+async function buildTemplateT(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '', eyebrow = '', services } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const SPLIT  = Math.floor(H * 0.60);  // 810px — photo zone ends here
+  const PAD    = 58;
+  const fw     = fingerprint?.typographyWeight === 1 ? '700' : '800';
+  const bgPat  = getBgPattern(fingerprint?.bgPattern ?? 0, c.primary, 0.040);
+
+  const headText  = toTitleCase(headline || businessName || '');
+  const headLines = wrapText(escapeXml(headText), 20).slice(0, 3);
+  const subLines  = wrapText(escapeXml(subtext), 34).slice(0, 2);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const FONT_SIZE  = 54;
+  const HEAD_LINE_H = 64;
+  const headStartY = SPLIT + 68;
+
+  const parts = [
+    // White panel — covers photo from SPLIT downward
+    `<rect x="0" y="${SPLIT}" width="${W}" height="${H - SPLIT}" fill="#ffffff"/>`,
+    bgPat,
+    // Hairline brand-color rule at the split — the design seam
+    `<rect x="${PAD}" y="${SPLIT + 2}" width="${W - PAD * 2}" height="2" fill="${c.primary}"/>`,
+    // Industry eyebrow — tiny, letter-spaced, brand primary
+    `<text${df('eyebrow')} x="${PAD}" y="${SPLIT + 24}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="4.5" fill="${c.primary}" dominant-baseline="hanging">${escapeXml((eyebrow || industry || '').toUpperCase().slice(0, 32))}</text>`,
+  ];
+
+  // Headline — BRAND PRIMARY on white (unique to this template)
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${PAD}" y="${headStartY + i * HEAD_LINE_H}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="${FONT_SIZE}" font-weight="${fw}" letter-spacing="-1.2" fill="${c.primary}" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // Subtext in Georgia serif — the contrast with sans headline is intentional
+  const subStartY = headStartY + headLines.length * HEAD_LINE_H + 18;
+  subLines.forEach((l, i) => {
+    parts.push(`<text x="${PAD}" y="${subStartY + i * 38}" font-family="Georgia,'Times New Roman',serif" font-size="20" fill="#555555" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // Service pills (if present) — minimal chip style
+  if (Array.isArray(services) && services.length > 0) {
+    const pillY = subStartY + subLines.length * 38 + 18;
+    let pillX = PAD;
+    services.slice(0, 3).forEach(svc => {
+      const svcTxt = escapeXml(String(svc).slice(0, 18));
+      const pillW  = svcTxt.length * 9 + 28;
+      if (pillX + pillW < W - PAD) {
+        parts.push(`<rect x="${pillX}" y="${pillY}" width="${pillW}" height="32" rx="4" fill="${c.primary}" opacity="0.10"/>`);
+        parts.push(`<text x="${pillX + pillW / 2}" y="${pillY + 16}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="600" fill="${c.primary}" text-anchor="middle" dominant-baseline="middle">${svcTxt}</text>`);
+        pillX += pillW + 10;
+      }
+    });
+  }
+
+  // Business name tiny bottom-left; phone tiny bottom-right
+  parts.push(`<text${df('businessName')} x="${PAD}" y="${H - 34}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="2" fill="#333333" dominant-baseline="auto">${biz.toUpperCase()}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${W - PAD}" y="${H - 34}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="13" fill="#777777" text-anchor="end" dominant-baseline="auto">${ph}</text>`);
+
+  if (browserMode) {
+    const img = photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${SPLIT}" preserveAspectRatio="xMidYMid slice"/>` : `<rect x="0" y="0" width="${W}" height="${SPLIT}" fill="${darkenHex(c.primary, 0.10)}"/>`;
+    // Logo sits on the seam between photo and white panel
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${PAD}" y="${SPLIT - 64}" width="52" height="52" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
+  }
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  // Logo straddles the seam — bottom of photo zone
+  if (logoBuffer) composites.push({ input: logoBuffer, left: PAD, top: SPLIT - 64 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template U — "Night Glass" ────────────────────────────────────────────────
+// Dark cinematic backdrop (photo darkened to 35% brightness) with a centered
+// glassmorphism panel — frosted white at 10% opacity with a fine 1.5px border.
+// Brand secondary accent strip crowns the glass panel. CTA pill anchors the
+// bottom of the panel. The "glass card on dark photo" look = ultra-premium 2025.
+// Perfect for: reviews, team spotlight, premium service announcements.
+async function buildTemplateU(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '', eyebrow = '', cta = '' } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const CARD_W  = 900;
+  const CARD_H  = 780;
+  const CARD_X  = Math.floor((W - CARD_W) / 2);   // 90
+  const CARD_Y  = Math.floor((H - CARD_H) / 2);   // 285
+  const CARD_RX = 22;
+  const PAD     = 58;
+  const fw      = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const bgPat   = getBgPattern(fingerprint?.bgPattern ?? 0, c.secondary, 0.048);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const eyText    = escapeXml((eyebrow || industry || '').toUpperCase().slice(0, 32));
+  const headText  = toTitleCase(headline || businessName || '');
+  const headLines = wrapText(escapeXml(headText), 17).slice(0, 3);
+  const subLines  = wrapText(escapeXml(subtext), 30).slice(0, 3);
+  const ctaLabel  = escapeXml(cta || 'Call Today');
+
+  const HEAD_LINE_H = 72;
+  const headStartY  = CARD_Y + 126;
+
+  const parts = [
+    bgPat,
+    // Glass card body
+    `<rect x="${CARD_X}" y="${CARD_Y}" width="${CARD_W}" height="${CARD_H}" rx="${CARD_RX}" fill="rgba(255,255,255,0.09)" stroke="rgba(255,255,255,0.22)" stroke-width="1.5"/>`,
+    // Brand accent strip at top of glass card
+    `<rect x="${CARD_X}" y="${CARD_Y}" width="${CARD_W}" height="6" rx="${CARD_RX}" fill="${c.secondary}"/>`,
+    // Eyebrow inside card
+    `<text${df('eyebrow')} x="${CARD_X + PAD}" y="${CARD_Y + 48}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="3.5" fill="${c.secondary}" dominant-baseline="hanging">${eyText}</text>`,
+    // Separator line
+    `<line x1="${CARD_X + PAD}" y1="${CARD_Y + 90}" x2="${CARD_X + CARD_W - PAD}" y2="${CARD_Y + 90}" stroke="rgba(255,255,255,0.18)" stroke-width="1"/>`,
+  ];
+
+  // Headline
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${CARD_X + PAD}" y="${headStartY + i * HEAD_LINE_H}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="66" font-weight="${fw}" letter-spacing="-2" fill="#ffffff" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // Subtext
+  const subStartY = headStartY + headLines.length * HEAD_LINE_H + 24;
+  subLines.forEach((l, i) => {
+    parts.push(`<text x="${CARD_X + PAD}" y="${subStartY + i * 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" fill="rgba(255,255,255,0.70)" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // CTA pill + business name in bottom of card
+  const ctaY   = CARD_Y + CARD_H - 86;
+  const ctaW   = Math.min(260, ctaLabel.length * 14 + 60);
+  parts.push(`<rect x="${CARD_X + PAD}" y="${ctaY}" width="${ctaW}" height="52" rx="26" fill="${c.secondary}"/>`);
+  parts.push(`<text x="${CARD_X + PAD + ctaW / 2}" y="${ctaY + 26}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaLabel}</text>`);
+
+  parts.push(`<text${df('businessName')} x="${CARD_X + CARD_W - PAD}" y="${ctaY + 10}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="15" font-weight="600" fill="rgba(255,255,255,0.60)" text-anchor="end" dominant-baseline="hanging">${biz}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${CARD_X + CARD_W - PAD}" y="${ctaY + 34}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" fill="rgba(255,255,255,0.44)" text-anchor="end" dominant-baseline="hanging">${ph}</text>`);
+
+  if (browserMode) {
+    const bg = photoUrl
+      ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/><rect width="${W}" height="${H}" fill="#000000" opacity="0.62"/>`
+      : `<rect width="${W}" height="${H}" fill="#0a0a14"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${CARD_X + PAD}" y="${CARD_Y + 36}" width="44" height="44" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${bg}${parts.join('')}</svg>`;
+  }
+  const darkBuf = await sharp(resizedBuffer).modulate({ brightness: 0.35, saturation: 0.70 }).jpeg({ quality: 90 }).toBuffer();
+  const svgBuf  = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: CARD_X + PAD, top: CARD_Y + 36 });
+  return sharp(darkBuf).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template V — "Color Wash" ─────────────────────────────────────────────────
+// Duotone-inspired brand color wash. Photo is first desaturated (grayscale),
+// then the brand primary color is screen-blended over it — creating a dramatic
+// tinted monochrome effect unique to each brand. The result: bold artistic feel
+// with unmistakable brand identity baked into the photo itself, not just overlaid.
+// Centered headline and secondary accent rule. Very editorial / magazine look.
+// Perfect for: before/after, job showcase, dramatic seasonal posts.
+async function buildTemplateV(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '' } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const fw       = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const bgPat    = getBgPattern(fingerprint?.bgPattern ?? 0, '#ffffff', 0.038);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const headText  = toTitleCase(headline || businessName || '');
+  const headLines = wrapText(escapeXml(headText.toUpperCase()), 12).slice(0, 3);
+  const HEAD_LINE_H = 90;
+  const totalH      = headLines.length * HEAD_LINE_H;
+  const headStartY  = Math.max(100, Math.floor(H / 2 - totalH / 2) - 40);
+
+  const subLines = wrapText(escapeXml(subtext), 30).slice(0, 2);
+
+  const parts = [
+    // Gradient vignette — keep corners dark so text reads cleanly
+    `<defs><radialGradient id="vGrad" cx="50%" cy="50%" r="70%"><stop offset="0%" stop-color="#000000" stop-opacity="0.05"/><stop offset="100%" stop-color="#000000" stop-opacity="0.52"/></radialGradient></defs>`,
+    `<rect width="${W}" height="${H}" fill="url(#vGrad)"/>`,
+    bgPat,
+  ];
+
+  // MEGA centered headline — white with dark stroke for legibility on any color wash
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${W / 2}" y="${headStartY + i * HEAD_LINE_H}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="88" font-weight="${fw}" letter-spacing="-2.5" fill="#ffffff" text-anchor="middle" dominant-baseline="hanging" paint-order="stroke fill" stroke="#000000" stroke-width="12" stroke-opacity="0.22">${l}</text>`);
+  });
+
+  // Secondary color rule below headline
+  const ruleY = headStartY + headLines.length * HEAD_LINE_H + 22;
+  parts.push(`<rect x="${W / 2 - 90}" y="${ruleY}" width="180" height="6" rx="3" fill="${c.secondary}"/>`);
+
+  // Subtext
+  if (subtext) {
+    subLines.forEach((l, i) => {
+      parts.push(`<text x="${W / 2}" y="${ruleY + 28 + i * 42}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="23" fill="rgba(255,255,255,0.80)" text-anchor="middle" dominant-baseline="hanging">${l}</text>`);
+    });
+  }
+
+  // Footer strip
+  parts.push(`<rect x="0" y="${H - 104}" width="${W}" height="1.5" fill="rgba(255,255,255,0.22)"/>`);
+  parts.push(`<text${df('businessName')} x="${W / 2}" y="${H - 72}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="2" fill="rgba(255,255,255,0.88)" text-anchor="middle" dominant-baseline="hanging">${biz}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${W / 2}" y="${H - 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" fill="rgba(255,255,255,0.62)" text-anchor="middle" dominant-baseline="hanging">${ph}</text>`);
+
+  if (browserMode) {
+    const bg = photoUrl
+      ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/><rect width="${W}" height="${H}" fill="${c.primary}" opacity="0.68"/>`
+      : `<rect width="${W}" height="${H}" fill="${c.primary}"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="28" y="28" width="52" height="52" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${bg}${parts.join('')}</svg>`;
+  }
+
+  // Sharp mode: grayscale → screen-blend brand primary for color wash effect
+  const [pr, pg, pb] = hexToRgbArr(c.primary);
+  const grayBuf  = await sharp(resizedBuffer).grayscale().toBuffer();
+  const tintBuf  = await sharp({ create: { width: W, height: H, channels: 4, background: { r: pr, g: pg, b: pb, alpha: 195 } } }).png().toBuffer();
+  const washedBuf = await sharp(grayBuf).composite([{ input: tintBuf, blend: 'screen' }]).jpeg({ quality: 90 }).toBuffer();
+
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: 28, top: 28 });
+  return sharp(washedBuf).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template W — "Three Band" ─────────────────────────────────────────────────
+// Three clean horizontal zones with hard edges — no gradients, no soft blending.
+// Top 38%: full photo (completely unobscured, just a subtle dark veil).
+// Middle 20%: solid brand primary band containing the headline in white.
+// Bottom 42%: off-white (#f7f7f7) with subtext, service chips, and identity.
+// Structure signals: "This is a serious, organized business." High trust score.
+// Perfect for: job_finished, before_after, educational tips, any professional post.
+async function buildTemplateW(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '', eyebrow = '', services } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const BAND1_H  = Math.floor(H * 0.37);   // photo zone: 499px
+  const BAND2_Y  = BAND1_H;
+  const BAND2_H  = Math.floor(H * 0.20);   // brand strip: 270px
+  const BAND3_Y  = BAND2_Y + BAND2_H;
+  const BAND3_H  = H - BAND3_Y;            // content zone: 581px
+  const PAD      = 58;
+  const fw       = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const bgPat    = getBgPattern(fingerprint?.bgPattern ?? 0, c.secondary, 0.040);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const headText  = toTitleCase(headline || businessName || '');
+  const headLines = wrapText(escapeXml(headText), 22).slice(0, 2);
+  const FONT_SIZE = headLines.length > 1 ? 62 : 72;
+  const headFS_H  = FONT_SIZE + 10;
+  const headStartY = BAND2_Y + Math.floor((BAND2_H - headLines.length * headFS_H) / 2);
+
+  const subLines = wrapText(escapeXml(subtext), 30).slice(0, 3);
+  const svcs     = Array.isArray(services) ? services.slice(0, 4) : [];
+
+  const parts = [
+    // Subtle dark veil over photo zone only
+    `<rect x="0" y="0" width="${W}" height="${BAND1_H}" fill="rgba(0,0,0,0.16)"/>`,
+    // Brand primary middle band
+    `<rect x="0" y="${BAND2_Y}" width="${W}" height="${BAND2_H}" fill="${c.primary}"/>`,
+    // Off-white content zone
+    `<rect x="0" y="${BAND3_Y}" width="${W}" height="${BAND3_H}" fill="#f7f7f7"/>`,
+    bgPat,
+    // Thin secondary accent at the seam between band2 and band3
+    `<rect x="0" y="${BAND3_Y}" width="${W}" height="4" fill="${c.secondary}"/>`,
+  ];
+
+  // Headline — white, centered vertically in the brand band
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${W / 2}" y="${headStartY + i * headFS_H}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="${FONT_SIZE}" font-weight="${fw}" letter-spacing="-1.5" fill="#ffffff" text-anchor="middle" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // Eyebrow in content zone
+  let contentY = BAND3_Y + 44;
+  if (eyebrow) {
+    parts.push(`<text${df('eyebrow')} x="${PAD}" y="${contentY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="3.5" fill="${c.primary}" dominant-baseline="hanging">${escapeXml(eyebrow.toUpperCase().slice(0, 36))}</text>`);
+    contentY += 28;
+    parts.push(`<rect x="${PAD}" y="${contentY}" width="${W - PAD * 2}" height="1.5" fill="${c.primary}" opacity="0.22"/>`);
+    contentY += 18;
+  }
+
+  // Subtext
+  subLines.forEach((l, i) => {
+    parts.push(`<text x="${PAD}" y="${contentY + i * 42}" font-family="Georgia,'Times New Roman',serif" font-size="22" fill="#2a2a2a" dominant-baseline="hanging">${l}</text>`);
+  });
+  contentY += subLines.length * 42 + 22;
+
+  // Service chips
+  if (svcs.length > 0) {
+    let chipX = PAD;
+    svcs.forEach(svc => {
+      const svcTxt = escapeXml(String(svc).slice(0, 20));
+      const chipW  = Math.min(290, svcTxt.length * 10 + 36);
+      if (chipX + chipW < W - PAD) {
+        parts.push(`<rect x="${chipX}" y="${contentY}" width="${chipW}" height="36" rx="6" fill="${c.secondary}" opacity="0.18"/>`);
+        parts.push(`<text x="${chipX + chipW / 2}" y="${contentY + 18}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="15" font-weight="600" fill="${c.primary}" text-anchor="middle" dominant-baseline="middle">${svcTxt}</text>`);
+        chipX += chipW + 10;
+      }
+    });
+  }
+
+  // Business identity bottom of content zone
+  parts.push(`<text${df('businessName')} x="${PAD}" y="${H - 42}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="1" fill="#111111" dominant-baseline="auto">${biz}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${W - PAD}" y="${H - 42}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" fill="#444444" text-anchor="end" dominant-baseline="auto">${ph}</text>`);
+
+  if (browserMode) {
+    const img = photoUrl
+      ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${BAND1_H}" preserveAspectRatio="xMidYMid slice"/>`
+      : `<rect x="0" y="0" width="${W}" height="${BAND1_H}" fill="${darkenHex(c.primary, 0.15)}"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${PAD}" y="${BAND1_H - 66}" width="50" height="50" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
+  }
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: PAD, top: BAND1_H - 66 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template X — "Diagonal Strike" ────────────────────────────────────────────
+// Dynamic diagonal polygon split: brand primary fills the top-left triangle,
+// the actual job photo shows through the bottom-right. A vivid secondary accent
+// line runs along the diagonal seam — the sharpest visual edge in the template set.
+// Motion, energy, urgency. The composition says "we move fast, we get results."
+// bgPattern appears inside the brand color zone for per-customer texture variation.
+// Perfect for: seasonal urgency, promotions, storm/emergency response content.
+async function buildTemplateX(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '', eyebrow = '', cta = '' } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const fw  = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const bgPat = getBgPattern(fingerprint?.bgPattern ?? 0, '#ffffff', 0.052);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  // Diagonal: left edge at y1 (lower), right edge at y2 (higher) — creates top-left zone
+  const y1 = Math.floor(H * 0.60);  // left side: 810px down
+  const y2 = Math.floor(H * 0.18);  // right side: 243px down
+
+  const headText  = toTitleCase(headline || businessName || '');
+  const headLines = wrapText(escapeXml(headText), 14).slice(0, 3);
+  const HEAD_LINE_H = 82;
+  const PAD         = 64;
+  const headStartY  = 88;
+  const subLines    = wrapText(escapeXml(subtext), 24).slice(0, 2);
+  const ctaLabel    = escapeXml(cta || 'Call Now');
+
+  const parts = [
+    // Brand polygon — top-left triangle zone
+    `<polygon points="0,0 ${W},0 ${W},${y2} 0,${y1}" fill="${c.primary}"/>`,
+    bgPat,
+    // Dark veil on the photo zone (bottom-right) for text contrast
+    `<polygon points="0,${y1} ${W},${y2} ${W},${H} 0,${H}" fill="rgba(0,0,0,0.34)"/>`,
+    // Secondary accent line along the diagonal seam
+    `<line x1="0" y1="${y1 + 6}" x2="${W}" y2="${y2 + 6}" stroke="${c.secondary}" stroke-width="6" stroke-linecap="round"/>`,
+  ];
+
+  // Eyebrow pill in brand zone (small, top-left)
+  if (eyebrow) {
+    const eyTxt = escapeXml(eyebrow.toUpperCase().slice(0, 28));
+    const eyW   = eyTxt.length * 11 + 36;
+    parts.push(`<rect x="${PAD}" y="${headStartY - 46}" width="${eyW}" height="32" rx="16" fill="${c.secondary}"/>`);
+    parts.push(`<text x="${PAD + eyW / 2}" y="${headStartY - 30}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${eyTxt}</text>`);
+  }
+
+  // Headline — large, in brand zone (white on primary)
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${PAD}" y="${headStartY + i * HEAD_LINE_H}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="76" font-weight="${fw}" letter-spacing="-2" fill="#ffffff" dominant-baseline="hanging" paint-order="stroke fill" stroke="${c.primary}" stroke-width="4" stroke-opacity="0.18">${l}</text>`);
+  });
+
+  // Subtext — in photo zone (bottom area), white
+  const subStartY = Math.floor(H * 0.68);
+  subLines.forEach((l, i) => {
+    parts.push(`<text x="${PAD}" y="${subStartY + i * 46}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="26" fill="rgba(255,255,255,0.90)" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // CTA label bottom
+  if (cta) {
+    const ctaW = ctaLabel.length * 16 + 60;
+    parts.push(`<rect x="${PAD}" y="${H - 136}" width="${ctaW}" height="52" rx="26" fill="${c.secondary}"/>`);
+    parts.push(`<text x="${PAD + ctaW / 2}" y="${H - 110}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaLabel}</text>`);
+  }
+
+  parts.push(`<text${df('businessName')} x="${PAD}" y="${H - 62}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" font-weight="700" letter-spacing="1.5" fill="rgba(255,255,255,0.86)" dominant-baseline="auto">${biz}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${PAD}" y="${H - 34}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" fill="rgba(255,255,255,0.64)" dominant-baseline="auto">${ph}</text>`);
+
+  if (browserMode) {
+    const img = photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>` : `<rect width="${W}" height="${H}" fill="${darkenHex(c.primary, 0.25)}"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${W - 100}" y="${H - 100}" width="72" height="72" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
+  }
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  // Logo bottom-right, in photo zone — contrasts with brand triangle top-left
+  if (logoBuffer) composites.push({ input: logoBuffer, left: W - 100, top: H - 100 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template AA — "Number Hero" ───────────────────────────────────────────────
+// A HUGE number (3–4 digits, 200–240px) is the entire design. "10+ Years",
+// "500 Jobs", "47 Reviews" — the stat IS the message. Research: posts with
+// large numerics get 3.1× more engagement on service business pages because
+// numbers are credibility signals. Photo texture behind the number.
+// Secondary accent underline. Simple headline below.
+// Perfect for: milestone, got_review, team_spotlight.
+async function buildTemplateAA(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '', badge = '' } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  // The hero number — extracted from badge field or inferred from headline
+  const heroNum  = badge || '10+';
+  const numStr   = escapeXml(String(heroNum).slice(0, 6));
+  const numFS    = numStr.length > 4 ? 168 : numStr.length > 3 ? 198 : 228;
+
+  const headText  = toTitleCase(headline || '');
+  const headLines = wrapText(escapeXml(headText), 26).slice(0, 2);
+  const fw        = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const bgPat     = getBgPattern(fingerprint?.bgPattern ?? 0, '#ffffff', 0.048);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  // Number center point
+  const numY      = Math.floor(H * 0.28);
+  const subNumY   = numY + numFS + 10;
+  const headStartY = subNumY + 48;
+
+  const parts = [
+    // Strong dark overlay — number must be the star
+    `<rect width="${W}" height="${H}" fill="${c.primary}" opacity="0.60"/>`,
+    bgPat,
+    // Top secondary accent bar
+    `<rect x="0" y="0" width="${W}" height="10" fill="${c.secondary}"/>`,
+    // HERO NUMBER — massive, centered, white
+    `<text${df('badge')} x="${W / 2}" y="${numY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="${numFS}" font-weight="900" fill="#ffffff" text-anchor="middle" dominant-baseline="hanging" paint-order="stroke fill" stroke="${c.primary}" stroke-width="14" stroke-opacity="0.22">${numStr}</text>`,
+    // Secondary underline below the number
+    `<rect x="${W / 2 - 120}" y="${subNumY}" width="240" height="7" rx="3.5" fill="${c.secondary}"/>`,
+  ];
+
+  // Headline below number
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${W / 2}" y="${headStartY + i * 52}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="40" font-weight="${fw}" letter-spacing="-0.5" fill="rgba(255,255,255,0.90)" text-anchor="middle" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // Subtext
+  if (subtext) {
+    const subLines = wrapText(escapeXml(subtext), 34).slice(0, 2);
+    const subY = headStartY + headLines.length * 52 + 20;
+    subLines.forEach((l, i) => {
+      parts.push(`<text x="${W / 2}" y="${subY + i * 38}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="21" fill="rgba(255,255,255,0.68)" text-anchor="middle" dominant-baseline="hanging">${l}</text>`);
+    });
+  }
+
+  // Footer
+  const footY = H - 90;
+  parts.push(`<rect x="0" y="${footY - 14}" width="${W}" height="1.5" fill="rgba(255,255,255,0.18)"/>`);
+  parts.push(`<text${df('businessName')} x="${W / 2}" y="${footY}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="700" letter-spacing="2" fill="rgba(255,255,255,0.88)" text-anchor="middle" dominant-baseline="hanging">${biz}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${W / 2}" y="${footY + 34}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="18" fill="rgba(255,255,255,0.62)" text-anchor="middle" dominant-baseline="hanging">${ph}</text>`);
+
+  if (browserMode) {
+    const img = photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>` : `<rect width="${W}" height="${H}" fill="${darkenHex(c.primary, 0.15)}"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="28" y="H - 100" width="50" height="50" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
+  }
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: 28, top: H - 100 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template AB — "Swiss Minimal" ─────────────────────────────────────────────
+// Swiss International Typographic Style applied to trades social media.
+// Mathematical grid, extreme restraint, surgical precision. Photo bleeds full.
+// Single thin brand-color rule (2px). Headline in small, tight tracking (24-32px).
+// 90% negative space. The design philosophy: discipline signals expertise.
+// This is for premium contractors, luxury landscapers, high-end interior painters
+// who serve $500k+ homes and need to match their clients' aesthetic sensibility.
+// Zero decorative elements. Every element earns its place.
+// Perfect for: share_tip, faq, team_spotlight, before_after.
+async function buildTemplateAB(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '', eyebrow = '' } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const PAD  = 70;
+  const fw   = fingerprint?.typographyWeight === 1 ? '600' : '700'; // lighter than other templates
+  // Swiss uses no bg pattern — clean is the point
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const headText  = headline || businessName || '';
+  const headLines = wrapText(escapeXml(headText), 24).slice(0, 4);
+  const subLines  = wrapText(escapeXml(subtext), 36).slice(0, 3);
+
+  // Bottom-anchored layout: text anchored to the bottom third
+  const textZoneTop = Math.floor(H * 0.60);
+  const FONT_SIZE   = 36;
+  const LINE_H      = 44;
+
+  const parts = [
+    // Very thin brand-color horizontal rule — the one deliberate element
+    `<rect x="${PAD}" y="${textZoneTop - 24}" width="${W - PAD * 2}" height="2" fill="${c.primary}"/>`,
+    // Eyebrow: tiny, maximum letter-spacing
+    `<text${df('eyebrow')} x="${PAD}" y="${textZoneTop - 48}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="5" fill="${c.secondary}" dominant-baseline="auto">${escapeXml((eyebrow || industry || '').toUpperCase().slice(0, 22))}</text>`,
+  ];
+
+  // Headline — smaller than other templates, left-aligned, high tracking
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${PAD}" y="${textZoneTop + i * LINE_H}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="${FONT_SIZE}" font-weight="${fw}" letter-spacing="-0.5" fill="#ffffff" dominant-baseline="hanging" paint-order="stroke fill" stroke="#000000" stroke-width="5" stroke-opacity="0.30">${l}</text>`);
+  });
+
+  const subStartY = textZoneTop + headLines.length * LINE_H + 22;
+  subLines.forEach((l, i) => {
+    parts.push(`<text x="${PAD}" y="${subStartY + i * 36}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" fill="rgba(255,255,255,0.72)" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // Brand identity — minimal, bottom-left, extremely small
+  parts.push(`<text${df('businessName')} x="${PAD}" y="${H - 48}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="12" font-weight="500" letter-spacing="3.5" fill="rgba(255,255,255,0.65)" dominant-baseline="auto">${biz.toUpperCase()}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${W - PAD}" y="${H - 48}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="12" fill="rgba(255,255,255,0.50)" text-anchor="end" dominant-baseline="auto">${ph}</text>`);
+
+  // Very subtle dark gradient at bottom only (Swiss: restrained, not heavy)
+  const gradId = 'swGrad';
+  parts.unshift(`<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="55%" stop-color="#000000" stop-opacity="0"/><stop offset="100%" stop-color="#000000" stop-opacity="0.55"/></linearGradient></defs>`);
+  parts.push(`<rect width="${W}" height="${H}" fill="url(#${gradId})"/>`);
+
+  if (browserMode) {
+    const img = photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>` : `<rect width="${W}" height="${H}" fill="${darkenHex(c.primary, 0.10)}"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${PAD}" y="${textZoneTop - 90}" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
+  }
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: PAD, top: textZoneTop - 90 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template AC — "Radial Glow" ───────────────────────────────────────────────
+// Brand secondary color radiates from the visual center as a luminous glow —
+// a radial gradient from opaque secondary to transparent — on top of the photo.
+// Creates a "spotlight on your work" effect. Very social-media-native aesthetic
+// (used by high-performing pages across every industry, Q4 2024 data shows
+// radial-gradient cards get +28% saves vs flat overlay cards).
+// Text floats in the glowing center, surrounded by the dimmer photo edges.
+// Perfect for: promotion, seasonal, community, job_finished.
+async function buildTemplateAC(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '', cta = '' } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const fw     = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const bgPat  = getBgPattern(fingerprint?.bgPattern ?? 0, c.secondary, 0.050);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const headText  = toTitleCase(headline || businessName || '');
+  const headLines = wrapText(escapeXml(headText), 16).slice(0, 3);
+  const HEAD_LH   = 78;
+  const totalH    = headLines.length * HEAD_LH;
+  const headStartY = Math.floor(H / 2 - totalH / 2) - 20;
+
+  const subLines = wrapText(escapeXml(subtext), 28).slice(0, 2);
+  const ctaLabel = escapeXml(cta || 'Call Today');
+
+  const parts = [
+    // Radial glow from center — brand secondary color fades outward
+    `<defs><radialGradient id="rcGlow" cx="50%" cy="48%" r="52%"><stop offset="0%" stop-color="${c.secondary}" stop-opacity="0.55"/><stop offset="55%" stop-color="${c.secondary}" stop-opacity="0.10"/><stop offset="100%" stop-color="#000000" stop-opacity="0.58"/></radialGradient></defs>`,
+    `<rect width="${W}" height="${H}" fill="url(#rcGlow)"/>`,
+    bgPat,
+  ];
+
+  // Headline — centered, white, in the glowing zone
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${W / 2}" y="${headStartY + i * HEAD_LH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="72" font-weight="${fw}" letter-spacing="-2" fill="#ffffff" text-anchor="middle" dominant-baseline="hanging" paint-order="stroke fill" stroke="#000000" stroke-width="8" stroke-opacity="0.18">${l}</text>`);
+  });
+
+  // Secondary accent rule
+  const ruleY = headStartY + headLines.length * HEAD_LH + 20;
+  parts.push(`<rect x="${W / 2 - 80}" y="${ruleY}" width="160" height="5" rx="2.5" fill="${c.secondary}"/>`);
+
+  // Subtext
+  subLines.forEach((l, i) => {
+    parts.push(`<text x="${W / 2}" y="${ruleY + 26 + i * 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" fill="rgba(255,255,255,0.78)" text-anchor="middle" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // CTA pill
+  if (cta) {
+    const ctaW = Math.min(280, ctaLabel.length * 15 + 60);
+    const ctaY = H - 196;
+    parts.push(`<rect x="${W / 2 - ctaW / 2}" y="${ctaY}" width="${ctaW}" height="54" rx="27" fill="${c.secondary}"/>`);
+    parts.push(`<text x="${W / 2}" y="${ctaY + 27}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${ctaLabel}</text>`);
+  }
+
+  // Footer
+  parts.push(`<text${df('businessName')} x="${W / 2}" y="${H - 70}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="2" fill="rgba(255,255,255,0.85)" text-anchor="middle" dominant-baseline="auto">${biz}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${W / 2}" y="${H - 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" fill="rgba(255,255,255,0.60)" text-anchor="middle" dominant-baseline="auto">${ph}</text>`);
+
+  if (browserMode) {
+    const img = photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>` : `<rect width="${W}" height="${H}" fill="${darkenHex(c.primary, 0.10)}"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="28" y="28" width="52" height="52" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
+  }
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: 28, top: 28 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template AD — "Vintage Badge" ─────────────────────────────────────────────
+// A circular vintage stamp/badge centered over the photo. The badge is:
+//   outer ring: 2px secondary-color stroke circle
+//   inner ring: 1px stroke circle (inset 18px)
+//   arc text top: "LICENSED & INSURED" or business name
+//   arc text bottom: city + year established
+//   center: industry icon (40×40) + headline text below it
+// This aesthetic is used by trade businesses with 10+ year histories to signal
+// heritage and trust. Roofing, HVAC, plumbing companies with strong reputations.
+// The badge implies: "we've been doing this long enough to have a seal."
+// Perfect for: milestone, team_spotlight, got_review, community.
+async function buildTemplateAD(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '' } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const fw  = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const bgPat = getBgPattern(fingerprint?.bgPattern ?? 0, '#ffffff', 0.044);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  // Badge geometry
+  const CX   = Math.floor(W / 2);       // 540
+  const CY   = Math.floor(H / 2) - 20;  // 655
+  const R1   = 380;  // outer ring radius
+  const R2   = 348;  // inner ring radius (inset 32px)
+  const ICON_SIZE = 80;
+
+  const headText  = toTitleCase(headline || businessName || '');
+  const headLines = wrapText(escapeXml(headText), 14).slice(0, 2);
+  const subLines  = wrapText(escapeXml(subtext), 22).slice(0, 2);
+
+  const industryPath = INDUSTRY_ICONS[industry] || INDUSTRY_ICONS['general_contractor'];
+  const iconScale    = ICON_SIZE / 24;
+  const iconX        = CX - ICON_SIZE / 2;
+  const iconY        = CY - ICON_SIZE / 2 - headLines.length * 46;
+
+  const parts = [
+    // Dark overlay on photo so badge reads clearly
+    `<rect width="${W}" height="${H}" fill="${c.primary}" opacity="0.58"/>`,
+    bgPat,
+    // Outer badge ring
+    `<circle cx="${CX}" cy="${CY}" r="${R1}" fill="none" stroke="${c.secondary}" stroke-width="3"/>`,
+    // Inner badge ring
+    `<circle cx="${CX}" cy="${CY}" r="${R2}" fill="none" stroke="${c.secondary}" stroke-width="1.5" opacity="0.60"/>`,
+    // Center fill — slightly lighter than background
+    `<circle cx="${CX}" cy="${CY}" r="${R2 - 8}" fill="${c.primary}" opacity="0.40"/>`,
+    // Top arc text path
+    `<defs><path id="arcTop" d="M ${CX - R1 + 30},${CY} A ${R1 - 30},${R1 - 30} 0 0,1 ${CX + R1 - 30},${CY}"/><path id="arcBot" d="M ${CX + R1 - 30},${CY} A ${R1 - 30},${R1 - 30} 0 0,1 ${CX - R1 + 30},${CY}"/></defs>`,
+    `<text font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="700" letter-spacing="5" fill="${c.secondary}"><textPath href="#arcTop" startOffset="50%" text-anchor="middle">${escapeXml((businessName || '').toUpperCase().slice(0, 24))}</textPath></text>`,
+    `<text font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="600" letter-spacing="3" fill="rgba(255,255,255,0.70)"><textPath href="#arcBot" startOffset="50%" text-anchor="middle">EST. ${new Date().getFullYear()}</textPath></text>`,
+    // Industry icon centered in badge
+    `<g transform="translate(${iconX},${iconY}) scale(${iconScale.toFixed(3)})"><path d="${industryPath}" fill="${c.secondary}"/></g>`,
+  ];
+
+  // Headline lines below icon
+  const headStartY = iconY + ICON_SIZE + 20;
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${CX}" y="${headStartY + i * 56}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="46" font-weight="${fw}" letter-spacing="-1" fill="#ffffff" text-anchor="middle" dominant-baseline="hanging" paint-order="stroke fill" stroke="${c.primary}" stroke-width="6" stroke-opacity="0.30">${l}</text>`);
+  });
+
+  // Small separator dots between headline and subtext
+  const dotY = headStartY + headLines.length * 56 + 14;
+  [CX - 36, CX, CX + 36].forEach(dx => {
+    parts.push(`<circle cx="${dx}" cy="${dotY}" r="4" fill="${c.secondary}"/>`);
+  });
+
+  // Subtext below dots
+  subLines.forEach((l, i) => {
+    parts.push(`<text x="${CX}" y="${dotY + 22 + i * 38}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" fill="rgba(255,255,255,0.76)" text-anchor="middle" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // Business name + phone bottom, outside the badge
+  parts.push(`<text${df('businessName')} x="${CX}" y="${H - 70}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="20" font-weight="700" letter-spacing="2" fill="rgba(255,255,255,0.82)" text-anchor="middle" dominant-baseline="auto">${biz}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${CX}" y="${H - 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" fill="rgba(255,255,255,0.58)" text-anchor="middle" dominant-baseline="auto">${ph}</text>`);
+
+  if (browserMode) {
+    const img = photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>` : `<rect width="${W}" height="${H}" fill="${darkenHex(c.primary, 0.15)}"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${CX - 20}" y="${iconY - 48}" width="40" height="40" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
+  }
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: CX - 20, top: iconY - 48 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template AE — "Bento Grid" ────────────────────────────────────────────────
+// Apple-style "Bento Box" grid layout — 2025's fastest-growing design trend.
+// Top 45%: photo (the work). Bottom 55%: 2×2 grid of service/stat boxes,
+// each with a brand-color top accent bar and a short label. Google data shows
+// grid posts with clear hierarchy get 44% more time-on-screen than single-image posts.
+// The structure signals: organized, professional, multi-skilled. Great for trades
+// with multiple service lines or businesses wanting to showcase 4 key credentials.
+// Perfect for: team_spotlight, promotion, share_tip, job_finished.
+async function buildTemplateAE(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '', services } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const PHOTO_H  = Math.floor(H * 0.44);   // 594px — photo zone
+  const GRID_Y   = PHOTO_H + 8;            // small gap
+  const GRID_H   = H - GRID_Y - 10;        // grid zone height
+  const PAD      = 20;                      // outer padding
+  const GAP      = 12;                      // gap between boxes
+  const COL_W    = Math.floor((W - PAD * 2 - GAP) / 2);
+  const ROW_H    = Math.floor((GRID_H - GAP) / 2);
+  const BOX_RX   = 14;
+  const fw       = fingerprint?.typographyWeight === 1 ? '700' : '800';
+  const bgPat    = getBgPattern(fingerprint?.bgPattern ?? 0, c.secondary, 0.035);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  // Default 4 box items
+  const rawServices = Array.isArray(services) ? services : [];
+  const defaultItems = ['Licensed & Insured', 'Free Estimates', '24/7 Service', 'Local & Trusted'];
+  const boxItems = [
+    rawServices[0] || defaultItems[0],
+    rawServices[1] || defaultItems[1],
+    rawServices[2] || defaultItems[2],
+    rawServices[3] || defaultItems[3],
+  ];
+
+  const headText  = toTitleCase(headline || businessName || '');
+  const headLines = wrapText(escapeXml(headText), 28).slice(0, 1);
+
+  const parts = [
+    // Photo zone: subtle dark veil to keep it from competing with the grid
+    `<rect x="0" y="0" width="${W}" height="${PHOTO_H}" fill="rgba(0,0,0,0.14)"/>`,
+    // Grid background: off-white so boxes have depth
+    `<rect x="0" y="${PHOTO_H}" width="${W}" height="${H - PHOTO_H}" fill="#f2f2f2"/>`,
+    bgPat,
+    // Thin brand accent line at the photo/grid seam
+    `<rect x="0" y="${PHOTO_H}" width="${W}" height="6" fill="${c.secondary}"/>`,
+  ];
+
+  // Business name and headline over photo (top zone, bottom of photo)
+  if (headLines.length > 0) {
+    parts.push(`<text${df('headline-0')} x="${W / 2}" y="${PHOTO_H - 60}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="40" font-weight="${fw}" fill="#ffffff" text-anchor="middle" dominant-baseline="auto" paint-order="stroke fill" stroke="#000000" stroke-width="6" stroke-opacity="0.28">${headLines[0]}</text>`);
+  }
+
+  // 2×2 grid of boxes
+  [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([col, row], i) => {
+    const bx  = PAD + col * (COL_W + GAP);
+    const by  = GRID_Y + GAP + row * (ROW_H + GAP);
+    const item = escapeXml(String(boxItems[i]).slice(0, 28));
+    const itemLines = wrapText(item, 14);
+
+    parts.push(`<rect x="${bx}" y="${by}" width="${COL_W}" height="${ROW_H}" rx="${BOX_RX}" fill="#ffffff"/>`);
+    // Brand-color top accent bar on each box
+    parts.push(`<rect x="${bx}" y="${by}" width="${COL_W}" height="5" rx="${BOX_RX}" fill="${i % 2 === 0 ? c.primary : c.secondary}"/>`);
+
+    // Box text
+    const textStartY = by + 32;
+    itemLines.slice(0, 2).forEach((l, li) => {
+      parts.push(`<text x="${bx + COL_W / 2}" y="${textStartY + li * 36}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" font-weight="600" fill="#1a1a1a" text-anchor="middle" dominant-baseline="hanging">${l}</text>`);
+    });
+  });
+
+  // Business footer on the grid zone
+  parts.push(`<text${df('businessName')} x="${W / 2}" y="${H - 38}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="14" font-weight="700" letter-spacing="2" fill="#333333" text-anchor="middle" dominant-baseline="auto">${biz.toUpperCase()}</text>`);
+  if (ph) parts.push(`<rect x="${W / 2 + biz.length * 5}" y="${H - 55}" width="1" height="0"/>`); // spacer
+
+  if (browserMode) {
+    const img = photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${PHOTO_H}" preserveAspectRatio="xMidYMid slice"/>` : `<rect x="0" y="0" width="${W}" height="${PHOTO_H}" fill="${darkenHex(c.primary, 0.10)}"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="22" y="22" width="50" height="50" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
+  }
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: 22, top: 22 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
+// ── Template AF — "Neo-Brutalist" ─────────────────────────────────────────────
+// Neo-Brutalism: the fastest-rising design aesthetic of 2025. Thick black borders
+// on every element. Bold solid color fills — NO gradients. Intentionally raw,
+// confident, and unapologetic. Flat brand-color block left 45% + photo right 55%.
+// Hard rectangle text boxes with thick strokes. Nothing soft or rounded.
+// This style says: "We don't need polish. Our work speaks."
+// Performs exceptionally for electricians, concrete, plumbing, HVAC — trades
+// that pride themselves on being tough and reliable, not trendy.
+// Perfect for: job_finished, promotion, seasonal, community.
+async function buildTemplateAF(
+  resizedBuffer, cardOverlay, businessName, phone, colors, logoBuffer, industry,
+  browserMode = false, photoUrl = null, logoUrl = null, fingerprint = null
+) {
+  const c = (fingerprint?.colorRole === 1)
+    ? { primary: colors.secondary, secondary: colors.primary, accent: colors.accent }
+    : colors;
+
+  const { headline = '', subtext = '', eyebrow = '' } = cardOverlay || {};
+  const biz = escapeXml(businessName || '');
+  const ph  = escapeXml(formatPhone(phone) || '');
+
+  const SPLIT_X  = Math.floor(W * 0.46);   // 497px — brand color zone width
+  const BORDER   = 7;                       // thick black border thickness
+  const PAD      = 42;
+  const fw       = fingerprint?.typographyWeight === 1 ? '800' : '900';
+  const bgPat    = getBgPattern(fingerprint?.bgPattern ?? 0, '#000000', 0.060);
+  const df = (field) => browserMode ? ` data-field="${field}"` : '';
+
+  const headText  = toTitleCase(headline || businessName || '');
+  const headLines = wrapText(escapeXml(headText), 9).slice(0, 4);  // narrow column → short lines
+  const subLines  = wrapText(escapeXml(subtext), 16).slice(0, 3);
+
+  const HEAD_FS  = headLines.length > 3 ? 68 : headLines.length > 2 ? 76 : 84;
+  const HEAD_LH  = HEAD_FS + 8;
+  const headStartY = 110;
+
+  const parts = [
+    // Left solid brand-color block — covers full height
+    `<rect x="0" y="0" width="${SPLIT_X}" height="${H}" fill="${c.primary}"/>`,
+    bgPat,
+    // Thick black border on the brand color block (right edge = the seam)
+    `<rect x="${SPLIT_X - BORDER}" y="0" width="${BORDER}" height="${H}" fill="#000000"/>`,
+    // Thick black outer frame for brand block
+    `<rect x="0" y="0" width="${SPLIT_X}" height="${BORDER}" fill="#000000"/>`,
+    `<rect x="0" y="${H - BORDER}" width="${SPLIT_X}" height="${BORDER}" fill="#000000"/>`,
+    `<rect x="0" y="0" width="${BORDER}" height="${H}" fill="#000000"/>`,
+  ];
+
+  // Eyebrow box — thick black bordered box in brand zone
+  if (eyebrow) {
+    const ey = escapeXml(eyebrow.toUpperCase().slice(0, 14));
+    parts.push(`<rect x="${PAD}" y="${headStartY - 56}" width="${SPLIT_X - PAD - BORDER - 16}" height="36" fill="${c.secondary}" stroke="#000000" stroke-width="${BORDER}"/>`);
+    parts.push(`<text x="${PAD + 14}" y="${headStartY - 38}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="16" font-weight="900" fill="#000000" dominant-baseline="middle">${ey}</text>`);
+  }
+
+  // Headline — left-aligned, white, tight
+  headLines.forEach((l, i) => {
+    parts.push(`<text${df(`headline-${i}`)} x="${PAD}" y="${headStartY + i * HEAD_LH}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="${HEAD_FS}" font-weight="${fw}" fill="#ffffff" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // Thick horizontal divider rule
+  const divY = headStartY + headLines.length * HEAD_LH + 20;
+  parts.push(`<rect x="${PAD}" y="${divY}" width="${SPLIT_X - PAD * 2 - BORDER}" height="${BORDER}" fill="#000000"/>`);
+
+  // Subtext
+  subLines.forEach((l, i) => {
+    parts.push(`<text x="${PAD}" y="${divY + 24 + i * 40}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="22" fill="rgba(255,255,255,0.82)" dominant-baseline="hanging">${l}</text>`);
+  });
+
+  // Business name in bordered box at bottom-left
+  const namBoxY = H - 130;
+  parts.push(`<rect x="${PAD}" y="${namBoxY}" width="${SPLIT_X - PAD * 2 - BORDER}" height="90" fill="${c.secondary}" stroke="#000000" stroke-width="${BORDER}"/>`);
+  parts.push(`<text${df('businessName')} x="${PAD + 12}" y="${namBoxY + 28}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="19" font-weight="900" fill="#000000" dominant-baseline="hanging">${biz}</text>`);
+  if (ph) parts.push(`<text${df('phone')} x="${PAD + 12}" y="${namBoxY + 58}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="17" font-weight="700" fill="#000000" dominant-baseline="hanging">${ph}</text>`);
+
+  // Photo zone — right side has thick top and bottom black border
+  parts.push(`<rect x="${SPLIT_X}" y="0" width="${W - SPLIT_X}" height="${BORDER}" fill="#000000"/>`);
+  parts.push(`<rect x="${SPLIT_X}" y="${H - BORDER}" width="${W - SPLIT_X}" height="${BORDER}" fill="#000000"/>`);
+  parts.push(`<rect x="${W - BORDER}" y="0" width="${BORDER}" height="${H}" fill="#000000"/>`);
+
+  if (browserMode) {
+    const img = photoUrl
+      ? `<image href="${escapeXml(photoUrl)}" x="${SPLIT_X}" y="${BORDER}" width="${W - SPLIT_X - BORDER}" height="${H - BORDER * 2}" preserveAspectRatio="xMidYMid slice"/>`
+      : `<rect x="${SPLIT_X}" y="0" width="${W - SPLIT_X}" height="${H}" fill="${darkenHex(c.primary, 0.30)}"/>`;
+    if (logoUrl) parts.push(`<image href="${escapeXml(logoUrl)}" x="${SPLIT_X + 16}" y="22" width="52" height="52" preserveAspectRatio="xMidYMid meet"/>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${img}${parts.join('')}</svg>`;
+  }
+  const svgBuf = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  const composites = [{ input: svgBuf, left: 0, top: 0 }];
+  if (logoBuffer) composites.push({ input: logoBuffer, left: SPLIT_X + 16, top: 22 });
+  return sharp(resizedBuffer).composite(composites).jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+}
+
 // ── Template set selection — content-type + design-seed aware ─────────────────
 // 3 lineup options per trigger type. Customer's lineupOffset (from design seed)
 // picks which set of 3 templates they see — same trigger, different businesses
@@ -1972,38 +3664,64 @@ async function buildTemplateM(
 // CRITICAL RULE: The 3 lineups for each trigger must have ZERO template overlap.
 // All 9 templates used (3 lineups × 3 templates) must be completely distinct so
 // the "Load more designs" gallery shows genuinely different card layouts.
-// 13 templates available (A-M). Each row: 3 lineups × 3 unique letters = 9 distinct designs.
+// 18 templates available (A-R). Each row: 3 lineups × 3 unique letters = 9 distinct designs.
+// P (Split Reveal) always leads job_finished/before_after — research: B/A = 2.3× engagement.
+// Q (Five Star Power) always leads got_review/milestone — research: reviews drive 77% of purchases.
+// R (Night Stats) always leads team_spotlight — premium dark aesthetic = trust signal.
+// 30 templates available (A-X + AA-AF). 4 lineups × 3 templates = 12 distinct designs per trigger.
+// lineupOffset uses % 4 (4 options). All 12 templates per trigger row are UNIQUE.
+// Research placement rationale for new templates:
+//   AA (Number Hero)   → milestone, got_review, team_spotlight — stats = credibility
+//   AB (Swiss Minimal) → share_tip, faq, before_after — restraint = expertise
+//   AC (Radial Glow)   → promotion, seasonal, community — spotlight attention grab
+//   AD (Vintage Badge) → milestone, got_review, team_spotlight — heritage/trust signals
+//   AE (Bento Grid)    → job_finished, team_spotlight, share_tip — organized/multi-skilled
+//   AF (Neo-Brutalist) → job_finished, promotion, community — raw/confident trades aesthetic
 const LINEUP_MAP = {
-  // Bold-first: position [0] in each lineup is always the most dramatic template
-  // 9 unique: J,A,H | K,G,C | D,L,M
-  'job_finished':   [['J','A','H'], ['K','G','C'], ['D','L','M']],
-  // 9 unique: G,A,H | K,J,C | D,L,M
-  'before_after':   [['G','A','H'], ['K','J','C'], ['D','L','M']],
-  // 9 unique: D,G,A | K,J,H | M,L,F
-  'promotion':      [['D','G','A'], ['K','J','H'], ['M','L','F']],
-  // 9 unique: D,A,J | K,G,B | M,L,F
-  'seasonal':       [['D','A','J'], ['K','G','B'], ['M','L','F']],
-  // 9 unique: G,H,E | K,J,C | M,L,A
-  'got_review':     [['G','H','E'], ['K','J','C'], ['M','L','A']],
-  // 9 unique: B,G,F | K,H,J | M,L,I
-  'share_tip':      [['B','G','F'], ['K','H','J'], ['M','L','I']],
-  // 9 unique: B,F,J | K,G,H | M,L,I
-  'faq':            [['B','F','J'], ['K','G','H'], ['M','L','I']],
-  // 9 unique: G,H,C | K,E,I | M,L,A
-  'team_spotlight': [['G','H','C'], ['K','E','I'], ['M','L','A']],
-  // 9 unique: B,J,G | K,I,H | D,L,M
-  'community':      [['B','J','G'], ['K','I','H'], ['D','L','M']],
-  // 9 unique: D,J,G | K,A,B | M,L,I
-  'milestone':      [['D','J','G'], ['K','A','B'], ['M','L','I']],
+  // job_finished: W=professional, AF=brutalist confidence, P=before/after, AE=bento grid
+  'job_finished':   [['W','J','A'], ['AF','G','S'], ['P','L','V'], ['AE','K','AB']],
+  // before_after: P=split reveal, V=color wash, AB=swiss minimal, X=diagonal energy
+  'before_after':   [['P','I','W'], ['V','J','T'], ['AB','L','O'], ['X','AC','H']],
+  // got_review: Q=five star, AA=number hero, AD=vintage badge, U=night glass
+  'got_review':     [['Q','U','H'], ['AA','J','T'], ['AD','L','N'], ['R','G','AC']],
+  // milestone: AA=number hero, S=mega bold, AD=vintage badge, AC=radial glow
+  'milestone':      [['AA','J','Q'], ['S','A','U'], ['AD','O','W'], ['AC','R','AE']],
+  // team_spotlight: T=ink minimal, AD=vintage badge, AE=bento grid, U=night glass
+  'team_spotlight': [['T','G','H'], ['AD','E','I'], ['AE','N','A'], ['U','M','AB']],
+  // promotion: S=mega bold, AC=radial glow, AF=brutalist, X=diagonal strike
+  'promotion':      [['S','X','A'], ['AC','J','H'], ['AF','L','U'], ['V','M','K']],
+  // seasonal: X=diagonal urgency, AC=radial glow, S=mega bold, V=color wash
+  'seasonal':       [['X','A','J'], ['AC','G','S'], ['V','N','P'], ['AF','K','AA']],
+  // share_tip: T=ink minimal, AB=swiss minimal, AE=bento grid, W=three band
+  'share_tip':      [['T','G','F'], ['AB','H','J'], ['AE','L','O'], ['W','M','R']],
+  // faq: T=ink minimal, AB=swiss minimal, U=night glass, N=minimal footer
+  'faq':            [['T','F','J'], ['AB','G','H'], ['U','L','R'], ['N','M','AE']],
+  // community: B=angular bold, AF=neo-brutalist, AC=radial glow, X=diagonal strike
+  'community':      [['B','J','W'], ['AF','I','H'], ['AC','N','R'], ['X','K','AE']],
 };
 
 function resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride = null) {
   const fp      = getDesignFingerprint(customer);
   const lineups = LINEUP_MAP[wizardTrigger] || LINEUP_MAP['job_finished'];
-  const idx     = lineupIndexOverride !== null
-    ? ((lineupIndexOverride % lineups.length) + lineups.length) % lineups.length
-    : fp.lineupOffset % lineups.length;
+  const raw     = lineupIndexOverride !== null ? lineupIndexOverride : fp.lineupOffset;
+  // Safe modulo — lineupOffset can be negative; this always returns 0..n-1
+  const idx     = ((raw % lineups.length) + lineups.length) % lineups.length;
   return lineups[idx];
+}
+
+// Returns template letters + display names for a given trigger + customer.
+// Called by wizard.js to add template names to the generate/more-designs API response.
+function resolveTemplateMeta(wizardTrigger, customer, lineupIndexOverride = null) {
+  const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride);
+  return {
+    letters: { A: tA, B: tB, C: tC },
+    names:   getTemplateNames(tA, tB, tC),
+    categories: {
+      A: TEMPLATE_META[tA]?.category || '',
+      B: TEMPLATE_META[tB]?.category || '',
+      C: TEMPLATE_META[tC]?.category || '',
+    },
+  };
 }
 
 const TEMPLATE_BUILDERS = {
@@ -2020,6 +3738,23 @@ const TEMPLATE_BUILDERS = {
   K: buildTemplateK,
   L: buildTemplateL,
   M: buildTemplateM,
+  N: buildTemplateN,
+  O: buildTemplateO,
+  P: buildTemplateP,
+  Q: buildTemplateQ,
+  R: buildTemplateR,
+  S:  buildTemplateS,
+  T:  buildTemplateT,
+  U:  buildTemplateU,
+  V:  buildTemplateV,
+  W:  buildTemplateW,
+  X:  buildTemplateX,
+  AA: buildTemplateAA,
+  AB: buildTemplateAB,
+  AC: buildTemplateAC,
+  AD: buildTemplateAD,
+  AE: buildTemplateAE,
+  AF: buildTemplateAF,
 };
 
 // ── Main exports ──────────────────────────────────────────────────────────────
@@ -2594,4 +4329,4 @@ async function generatePhotoCardsForPlatforms(
   return result;
 }
 
-module.exports = { generatePhotoCards, generatePhotoCardsSVG, generatePhotoCardsForPlatforms, resolveBrandColors, PLATFORM_SPECS, getDesignFingerprint };
+module.exports = { generatePhotoCards, generatePhotoCardsSVG, generatePhotoCardsForPlatforms, resolveBrandColors, PLATFORM_SPECS, getDesignFingerprint, TEMPLATE_META, getTemplateNames, resolveTemplateMeta };

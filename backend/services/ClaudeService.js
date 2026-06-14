@@ -216,9 +216,20 @@ class ClaudeService {
     }
   }
 
-  // ── Plan a 5-slide carousel ───────────────────────────────────────────────
+  // ── Plan a carousel with the proven Hook→Problem→Solution→Result→CTA arc ────
+  // Research (Buffer 2026, 52M+ posts): Carousels get +109% more engagement than Reels.
+  // "SWIPE ➜" on slide 1 lifts completion 12%. Variable 3/5/6 slide count auto-set
+  // by Claude based on topic depth. Each image_prompt is vivid + industry-specific
+  // so NanaBanana generates relevant imagery rather than generic stock-style scenes.
   async planCarousel(customer, prompt, counterAnswers = {}) {
     if (!this.client) throw new Error('Claude not configured');
+
+    const industryKnowledge = require('../data/industryKnowledge');
+    const knowledge  = industryKnowledge[customer.industry] || industryKnowledge.general_contractor || {};
+    const currMonth  = new Date().getMonth() + 1;
+    const seasonal   = knowledge.seasonalContent?.[currMonth] || {};
+    const painPoints = (knowledge.customerPainPoints || []).slice(0, 3).join('; ');
+    const hooks      = (knowledge.hookFormulas || []).slice(0, 3).join(' | ');
 
     const builder = new SystemPromptBuilder(customer, {
       platform: 'instagram',
@@ -228,25 +239,76 @@ class ClaudeService {
     });
     const { systemPrompt } = builder.build();
 
-    const userPrompt = `Create a 5-slide carousel post about: ${prompt}
+    const industryCtx = `Industry: ${customer.industry || 'home services'} · Location: ${customer.city || 'local area'}
+Current month urgency: ${seasonal.urgencyTopic || 'quality service year-round'}
+Top homeowner pain points: ${painPoints || 'cost, reliability, timing'}
+Proven hook starters for this industry: ${hooks || 'Did you know... | X signs you need... | Never do this if...'}`;
 
-Return ONLY valid JSON:
+    const userPrompt = `You are writing a high-engagement Instagram carousel for a LOCAL ${customer.industry || 'home service'} business.
+
+${industryCtx}
+
+Customer's topic: "${prompt}"
+
+MANDATORY RULES:
+1. Follow the proven 5-arc: Hook → Problem → Solution → Result → CTA
+2. Slide 1 overlay_text MUST end with "SWIPE ➜" (12% engagement lift, Buffer research)
+3. overlay_text: max 8 words — bold, readable in under 1 second on a phone
+4. slide_count: you choose 3 (quick tip), 5 (standard), or 6 (deep dive) based on topic depth; return exactly that many slides
+5. image_prompt: vivid, industry-specific, photorealistic scene — NOT generic
+   GOOD: "A licensed HVAC technician in branded blue uniform replacing a rusted condenser coil on a rooftop AC unit, golden afternoon light, suburban neighbourhood in background"
+   BAD:  "An HVAC worker doing maintenance"
+6. main_caption: Instagram style — strong hook as FIRST LINE (appears before 'more'), value body, engagement question at end, 10-14 hashtags (mix of local + niche + broad)
+7. Caption must feel HYPER-LOCAL — mention their city/neighbourhood naturally, not forced
+
+Return ONLY valid JSON (no markdown fences):
 {
-  "main_caption": "the post caption",
-  "hashtags": ["tag1", "tag2"],
+  "main_caption": "Full Instagram caption with hashtags",
+  "hashtags": ["tag1","tag2"],
+  "slide_count": 5,
   "slides": [
-    { "slide_number": 1, "title": "Hook", "overlay_text": "max 8 words", "image_prompt": "description" },
-    { "slide_number": 2, "title": "Point 1", "overlay_text": "max 8 words", "image_prompt": "description" },
-    { "slide_number": 3, "title": "Point 2", "overlay_text": "max 8 words", "image_prompt": "description" },
-    { "slide_number": 4, "title": "Point 3", "overlay_text": "max 8 words", "image_prompt": "description" },
-    { "slide_number": 5, "title": "CTA", "overlay_text": "max 8 words", "image_prompt": "description" }
+    {
+      "slide_number": 1,
+      "arc_role": "Hook",
+      "title": "short internal title",
+      "overlay_text": "Pain-point question or bold claim  SWIPE ➜",
+      "image_prompt": "Vivid scene of the homeowner problem — relatable suburban setting, photorealistic"
+    },
+    {
+      "slide_number": 2,
+      "arc_role": "Problem",
+      "title": "short internal title",
+      "overlay_text": "The painful reality (≤8 words)",
+      "image_prompt": "Close-up of the problem: damage, failure, or frustration — realistic, not staged"
+    },
+    {
+      "slide_number": 3,
+      "arc_role": "Solution",
+      "title": "short internal title",
+      "overlay_text": "The fix, plain language (≤8 words)",
+      "image_prompt": "Professional tradesperson actively solving the problem, quality tools visible, branded uniform"
+    },
+    {
+      "slide_number": 4,
+      "arc_role": "Result/Proof",
+      "title": "short internal title",
+      "overlay_text": "The outcome in 6 words or fewer",
+      "image_prompt": "Beautiful finished result or satisfied homeowner reaction — warm, natural lighting"
+    },
+    {
+      "slide_number": 5,
+      "arc_role": "CTA",
+      "title": "short internal title",
+      "overlay_text": "Free quote. Call us today.",
+      "image_prompt": "Friendly business owner or small team in branded uniform, approachable smile, phone or clipboard in hand"
+    }
   ]
 }`;
 
     try {
       const response = await this.client.messages.create({
         model: this.model,
-        max_tokens: 2000,
+        max_tokens: 2500,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       });
