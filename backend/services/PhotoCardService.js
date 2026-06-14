@@ -3285,9 +3285,12 @@ async function buildTemplateAB(
   if (ph) parts.push(`<text${df('phone')} x="${W - PAD}" y="${H - 48}" font-family="'Liberation Sans','DejaVu Sans',Arial,sans-serif" font-size="12" fill="rgba(255,255,255,0.50)" text-anchor="end" dominant-baseline="auto">${ph}</text>`);
 
   // Very subtle dark gradient at bottom only (Swiss: restrained, not heavy)
+  // Both defs and gradRect must unshift to stay BEFORE text elements in SVG document order
   const gradId = 'swGrad';
-  parts.unshift(`<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="55%" stop-color="#000000" stop-opacity="0"/><stop offset="100%" stop-color="#000000" stop-opacity="0.55"/></linearGradient></defs>`);
-  parts.push(`<rect width="${W}" height="${H}" fill="url(#${gradId})"/>`);
+  parts.unshift(
+    `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="55%" stop-color="#000000" stop-opacity="0"/><stop offset="100%" stop-color="#000000" stop-opacity="0.55"/></linearGradient></defs>`,
+    `<rect width="${W}" height="${H}" fill="url(#${gradId})"/>`
+  );
 
   if (browserMode) {
     const img = photoUrl ? `<image href="${escapeXml(photoUrl)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>` : `<rect width="${W}" height="${H}" fill="${darkenHex(c.primary, 0.10)}"/>`;
