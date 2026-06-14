@@ -104,10 +104,15 @@ Image gen:    NanoBanana (Google Gemini 2.5 Flash Image) — default
               Sharp.js for image processing (backend/services/ImageResizer.js)
 Video gen:    Two separate pipelines:
               1. Avatar/talking-head: HeyGen API (HeyGenService.js)
-              2. Cinematic/job footage (PLANNED — see VIDEO CONTENT PIPELINE section):
-                 NanoBanana 2 key frame → Veo 3.1 Fast (primary) →
-                 Runway Gen-4 (fallback #1) → Pika 2.2 (fallback #2)
-              VeoService.js, VideoService.js, VideoComposer.js all exist for pipeline #2
+              2. Cinematic/job footage — two customer-selectable styles:
+                 a) Animated Reel (default, fast, ~free):
+                    NanoBanana 3 images → FFmpeg xfade → branded Reel (VideoSlideService.js)
+                 b) Cinematic AI (true video motion, premium):
+                    NanoBanana key frame → Veo 3.1 (VEO_ENABLED=true, GOOGLE_AI_API_KEY) →
+                    fal.ai: Kling 3.0 → Wan 2.5 → Luma Ray-2 (FAL_API_KEY) →
+                    Pika 2.2 (PIKA_API_KEY) → Animated Reel fallback
+              VeoService.js, FalService.js, VideoService.js, VideoComposer.js exist for pipeline #2
+              NOTE: RunwayService.js kept but NOT in the chain — Runway went Enterprise-only Jan 2026
 Timezone:     Luxon (backend), Intl.DateTimeFormat (frontend)
 Payments:     Whop (NOT Stripe — unavailable in Pakistan)
 Email:        Resend SDK
@@ -449,9 +454,9 @@ HEYGEN_WEBHOOK_SECRET           # HMAC secret for verifying HeyGen webhook paylo
 HEYGEN_VOICE_ID                 # Optional — pre-configured HeyGen voice ID (auto-fetched if not set)
 HEYGEN_AVATAR_ID                # Optional — pre-configured HeyGen avatar ID (auto-fetched if not set)
 HEYGEN_TEST_MODE=false          # Set true to generate watermarked test videos (saves HeyGen credits)
-VEO_API_KEY                     # Veo cinematic video generation (pipeline #2)
-RUNWAY_API_KEY                  # Runway Gen-4 fallback video
-PIKA_API_KEY                    # Pika 2.2 fallback video
+VEO_API_KEY                     # Veo cinematic video generation (uses GOOGLE_AI_API_KEY, enable via VEO_ENABLED=true)
+FAL_API_KEY                     # fal.ai gateway — Kling 3.0, Wan 2.5, Luma Ray-2 (replaces Runway; $20 free credits at fal.ai)
+PIKA_API_KEY                    # Pika 2.2 fallback video ($0.05/s, Pro plan $8/mo required for API)
 
 # Webhooks & Social
 FACEBOOK_APP_SECRET             # Facebook webhook HMAC signature verification (X-Hub-Signature-256)

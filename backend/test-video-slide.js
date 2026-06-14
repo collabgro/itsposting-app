@@ -33,9 +33,12 @@ const CONTENT_TYPES = [
   'community',
 ];
 
+// CLI: node test-video-slide.js [--all] [--mood=upbeat|warm|friendly|energetic|none|auto]
+const moodArg = (process.argv.find(a => a.startsWith('--mood=')) || '').replace('--mood=', '') || 'auto';
+
 async function runTest(contentType) {
   console.log(`\n${'─'.repeat(60)}`);
-  console.log(`Testing: ${contentType}`);
+  console.log(`Testing: ${contentType}  |  music: ${moodArg}`);
   console.log('─'.repeat(60));
 
   const start = Date.now();
@@ -43,6 +46,7 @@ async function runTest(contentType) {
     const result = await service.generate(customer, 'Test caption script', {
       contentType,
       aspectRatio: '9:16',
+      musicMood: moodArg,
     });
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     console.log(`✅ SUCCESS (${elapsed}s)`);

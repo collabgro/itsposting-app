@@ -90,13 +90,14 @@ class VideoSlideService {
   }
 
   /**
-   * Generate a 6-second branded animated Reel from 3 NanoBanana images.
+   * Generate a 7-second branded animated Reel from 3 NanoBanana images.
    * @param {Object} customer - Customer DB record
    * @param {string} script - Claude-generated caption (used as context for prompts)
-   * @param {Object} options - { contentType, aspectRatio }
+   * @param {Object} options - { contentType, aspectRatio, musicMood }
+   *   musicMood: 'auto' (default) | 'upbeat' | 'warm' | 'friendly' | 'energetic' | 'none'
    */
   async generate(customer, script, options = {}) {
-    const { contentType = 'job_finished', aspectRatio = '9:16' } = options;
+    const { contentType = 'job_finished', aspectRatio = '9:16', musicMood = 'auto' } = options;
 
     const tmpDir = path.join(os.tmpdir(), `vsvc_${Date.now()}_${customer.id || 0}`);
     fs.mkdirSync(tmpDir, { recursive: true });
@@ -135,8 +136,8 @@ class VideoSlideService {
         framePaths.push(framePath);
       }
 
-      // Pick background music if available (backend/audio/{mood}.mp3)
-      const audioPath = this._pickAudioTrack(contentType);
+      // Pick background music — respects customer's musicMood choice
+      const audioPath = this._pickAudioTrack(contentType, musicMood);
 
       // FFmpeg crossfade animation → 7s total with audio fade-out
       const outputPath = path.join(tmpDir, 'output.mp4');
@@ -522,14 +523,44 @@ class VideoSlideService {
   }
 
   /**
-   * Pick a background music track based on content type mood.
-   * Looks in backend/audio/{mood}.mp3 — returns null if not found (silent video).
+   * Pick a background music track.
+   *
+   * musicMood: 'none' → silent | 'auto' → infer from contentType | explicit mood name
+   *
+   * Resolution order (most to least specific):
+   *   1. backend/audio/{mood}/  subdirectory — picks a random track (supports N tracks per mood)
+   *   2. backend/audio/{mood}.mp3 — single flat file (backwards-compatible with existing tracks)
+   *   3. null → _buildVideo produces a silent video
+   *
+   * To add more tracks: drop MP3s into backend/audio/{mood}/ — no code change needed.
+   * Valid moods: upbeat | warm | friendly | energetic (expandable — just add a new folder)
    */
-  _pickAudioTrack(contentType) {
-    const mood = CONTENT_TYPE_MOOD[contentType] || 'upbeat';
+  _pickAudioTrack(contentType, musicMood = 'auto') {
+    if (musicMood === 'none') return null;
+
+    const mood = musicMood === 'auto'
+      ? (CONTENT_TYPE_MOOD[contentType] || 'upbeat')
+      : musicMood;
+
     const audioDir = path.join(__dirname, '..', 'audio');
-    const trackPath = path.join(audioDir, `${mood}.mp3`);
-    return trackPath;  // _buildVideo checks fs.existsSync before using
+
+    // 1. Try subdirectory (scalable — multiple tracks, random pick)
+    const moodDir = path.join(audioDir, mood);
+    if (fs.existsSync(moodDir) && fs.statSync(moodDir).isDirectory()) {
+      const tracks = fs.readdirSync(moodDir).filter(f => /\.(mp3|m4a|aac|wav)$/i.test(f));
+      if (tracks.length > 0) {
+        const pick = tracks[Math.floor(Math.random() * tracks.length)];
+        console.log(`[VideoSlide] Music: ${mood}/${pick} (${tracks.length} track(s) available)`);
+        return path.join(moodDir, pick);
+      }
+    }
+
+    // 2. Fallback to flat file (upbeat.mp3, warm.mp3, etc.)
+    const flatPath = path.join(audioDir, `${mood}.mp3`);
+    if (fs.existsSync(flatPath)) {
+      console.log(`[VideoSlide] Music: ${mood}.mp3`);
+    }
+    return flatPath; // _buildVideo checks fs.existsSync before using
   }
 
   // ─── Cloudinary upload ───────────────────────────────────────────────────────

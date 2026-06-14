@@ -3,20 +3,30 @@
  *
  * Hard provider separation — never mix:
  * videoType: 'avatar'   → HeyGen ONLY (talking-head AI presenter)
- * videoType: 'services' → Cinematic pipeline ONLY (no HeyGen fallback):
- *                         NanoBanana key frame image
- *                           ↓
- *                         Veo 3.1 Fast (primary — requires VEO_ENABLED=true)
- *                           ↓ fail
- *                         Runway Gen-4 (fallback #1 — requires RUNWAY_API_KEY)
- *                           ↓ fail
- *                         Pika 2.2 (fallback #2 — requires PIKA_API_KEY)
- *                           ↓ all fail → throw (do not fall back to HeyGen)
+ * videoType: 'services' → Cinematic pipeline (two modes via videoStyle):
+ *
+ *   videoStyle: 'reel' (DEFAULT — fast, always available)
+ *     NanaBanana 3-frame animated reel (VideoSlideService + FFmpeg)
+ *     Cost: ~$0 extra beyond image gen. Speed: 25-40s.
+ *
+ *   videoStyle: 'cinematic' (TRUE AI VIDEO — real camera motion)
+ *     NanoBanana key frame image
+ *       ↓
+ *     Veo 3.1 Lite (primary — requires VEO_ENABLED=true, uses GOOGLE_AI_API_KEY)
+ *       ↓ fail / not enabled
+ *     FalService: Kling 3.0 → Wan 2.5 → Luma Ray-2 (requires FAL_API_KEY)
+ *       ↓ fail
+ *     Pika 2.2 (requires PIKA_API_KEY)
+ *       ↓ all fail
+ *     VideoSlideService (animated reel fallback — always available)
+ *
+ * NOTE: RunwayService is kept but removed from the chain — Runway API went
+ * Enterprise-only in January 2026. Use FalService instead.
  */
 
 const HeyGenService = require('./HeyGenService');
 const VeoService = require('./VeoService');
-const RunwayService = require('./RunwayService');
+const FalService = require('./FalService');
 const PikaService = require('./PikaService');
 const NanoBananaService = require('./NanoBananaService');
 const VideoSlideService = require('./VideoSlideService');
@@ -26,7 +36,7 @@ class VideoService {
   constructor() {
     this.heygen = new HeyGenService();
     this.veo = new VeoService();
-    this.runway = new RunwayService();
+    this.fal = new FalService();
     this.pika = new PikaService();
     this.nanoBanana = new NanoBananaService();
     this.slideVideo = new VideoSlideService();
@@ -47,11 +57,13 @@ class VideoService {
   async generate(customer, script, options = {}) {
     const {
       videoType = 'services',
-      contentType = null,  // wizard step 1 choice: job_finished, got_review, share_tip, promotion, seasonal, etc.
+      videoStyle = 'reel',   // 'reel' (animated slideshow, fast) | 'cinematic' (true AI video)
+      contentType = null,
       imagePrompt = null,
       aspectRatio = '9:16',
       durationSeconds = 6,
       skipKeyFrame = false,
+      musicMood = 'auto',
     } = options;
 
     // Path A: Avatar video → HeyGen (no fallback chain for avatar)
@@ -60,11 +72,16 @@ class VideoService {
       return await this.heygen.generateFromScript(customer, script, options);
     }
 
-    // Path B: Services/cinematic video
-    console.log('[VideoService] Services video — NanoBanana key frame → Veo → Runway → Pika → HeyGen fallback');
+    // Path B1: Animated Reel — NanaBanana 3-frame slideshow (fast, always available, ~free)
+    if (videoStyle === 'reel') {
+      console.log('[VideoService] Reel style — NanaBanana animated reel (VideoSlideService)');
+      return await this.slideVideo.generate(customer, script, { contentType, aspectRatio, musicMood });
+    }
 
-    // Skip NanoBanana key frame when skipKeyFrame=true (text-to-video is faster for Veo)
-    const anyCinematicAvailable = this.veo.isAvailable() || this.runway.isAvailable() || this.pika.isAvailable();
+    // Path B2: Cinematic AI — true video generation with real camera motion
+    console.log('[VideoService] Cinematic style — Veo → fal.ai (Kling/Wan/Luma) → Pika → Reel fallback');
+
+    const anyCinematicAvailable = this.veo.isAvailable() || this.fal.isAvailable() || this.pika.isAvailable();
     let keyFrameUrl = null;
     if (!skipKeyFrame && imagePrompt && anyCinematicAvailable) {
       try {
@@ -75,70 +92,66 @@ class VideoService {
         console.warn('[VideoService] Key frame generation failed, proceeding without it:', imgErr.message);
       }
     } else if (skipKeyFrame) {
-      console.log('[VideoService] Skipping NanoBanana key frame (text-to-video mode)');
+      console.log('[VideoService] Skipping NanaBanana key frame (text-to-video mode)');
     }
 
-    return await this._generateServicesVideo(customer, script, { keyFrameUrl, aspectRatio, durationSeconds, contentType, options });
+    return await this._generateCinematicVideo(customer, script, { keyFrameUrl, aspectRatio, durationSeconds, contentType, musicMood, options });
   }
 
   /**
    * Try each cinematic provider in order, falling through on failure.
-   * Never falls back to HeyGen — services video = cinematic pipeline only.
-   * If all cinematic providers fail, throws so the caller can mark the post failed.
+   * Falls back to VideoSlideService (animated reel) if all true-video providers fail.
    */
-  async _generateServicesVideo(customer, script, { keyFrameUrl, aspectRatio, durationSeconds, contentType, options }) {
+  async _generateCinematicVideo(customer, script, { keyFrameUrl, aspectRatio, durationSeconds, contentType, musicMood, options }) {
 
-    // 1. Veo 3.1 Fast — needs a visual scene description, not a spoken script
+    // 1. Veo 3.1 Lite — Google's video model, same GOOGLE_AI_API_KEY as NanaBanana
+    //    Enable with VEO_ENABLED=true. Costs ~$0.05-0.15/s. Fastest true AI video.
     if (this.veo.isAvailable()) {
       try {
         const veoPrompt = this._buildVeoPrompt(customer, script, keyFrameUrl, contentType);
         return await this.veo.generate(veoPrompt, keyFrameUrl, { aspectRatio, durationSeconds });
       } catch (veoErr) {
-        console.warn('[VideoService] Veo failed, trying Runway Gen-4:', veoErr.message);
+        console.warn('[VideoService] Veo failed, trying fal.ai:', veoErr.message);
       }
     } else {
-      console.log('[VideoService] Veo not enabled — using NanaBanana reel (set VEO_ENABLED=true for cinematic footage)');
+      console.log('[VideoService] Veo not enabled (set VEO_ENABLED=true) — trying fal.ai');
     }
 
-    // 2. VideoSlideService — NanaBanana 3-frame reel + FFmpeg (PRIMARY non-Veo path)
-    // Always available when GOOGLE_AI_API_KEY is set. Generates in ~25-40s.
-    // Produces a 6-second branded animated reel: problem → work → result, with text bars.
-    if (this.slideVideo.isAvailable()) {
+    // 2. fal.ai — Kling 3.0 → Wan 2.5 → Luma Ray-2 (internal cascade in FalService)
+    //    Best quality for local service businesses. Kling excels at realistic human motion.
+    //    ~$0.25-0.42 per 5s clip. Set FAL_API_KEY (free $20 credits at fal.ai).
+    if (this.fal.isAvailable()) {
       try {
-        console.log('[VideoService] NanaBanana reel path — generating 3-frame animated reel');
-        return await this.slideVideo.generate(customer, script, { contentType, aspectRatio });
-      } catch (slideErr) {
-        console.warn('[VideoService] NanaBanana reel failed, trying Runway Gen-4:', slideErr.message);
+        const falPrompt = this._buildFalPrompt(customer, script, keyFrameUrl, contentType);
+        return await this.fal.generate(falPrompt, keyFrameUrl, { aspectRatio, durationSeconds });
+      } catch (falErr) {
+        console.warn('[VideoService] fal.ai failed, trying Pika:', falErr.message);
       }
     } else {
-      console.log('[VideoService] VideoSlideService not available (need GOOGLE_AI_API_KEY + CLOUDINARY) — trying Runway');
+      console.log('[VideoService] fal.ai not configured (set FAL_API_KEY) — trying Pika');
     }
 
-    // 3. Runway Gen-4 — image-to-video motion description (512 char limit)
-    if (this.runway.isAvailable()) {
-      try {
-        const runwayPrompt = this._buildRunwayPrompt(customer, script, keyFrameUrl);
-        return await this.runway.generate(runwayPrompt, keyFrameUrl, { aspectRatio, durationSeconds });
-      } catch (runwayErr) {
-        console.warn('[VideoService] Runway failed, trying Pika 2.2:', runwayErr.message);
-      }
-    } else {
-      console.log('[VideoService] Runway not configured — skipping to Pika');
-    }
-
-    // 4. Pika 2.2 — social-first, energetic style (400 char limit)
+    // 3. Pika 2.2 — social-first video, affordable fallback ($0.05/s)
     if (this.pika.isAvailable()) {
       try {
         const pikaPrompt = this._buildPikaPrompt(customer, script, keyFrameUrl);
         return await this.pika.generate(pikaPrompt, keyFrameUrl, { aspectRatio, durationSeconds });
       } catch (pikaErr) {
-        console.warn('[VideoService] Pika failed:', pikaErr.message);
+        console.warn('[VideoService] Pika failed, falling back to animated reel:', pikaErr.message);
       }
     } else {
-      console.log('[VideoService] Pika not configured');
+      console.log('[VideoService] Pika not configured — falling back to animated reel');
     }
 
-    throw new Error('All video providers failed. Check GOOGLE_AI_API_KEY (NanaBanana reel), RUNWAY_API_KEY, and PIKA_API_KEY in Railway env vars.');
+    // 4. VideoSlideService — last resort for cinematic mode (NanaBanana reel + FFmpeg)
+    //    Never fails as long as GOOGLE_AI_API_KEY is set. Customer gets a reel instead
+    //    of true cinematic video but still gets quality branded content.
+    if (this.slideVideo.isAvailable()) {
+      console.log('[VideoService] All cinematic providers failed — falling back to NanaBanana animated reel');
+      return await this.slideVideo.generate(customer, script, { contentType, aspectRatio, musicMood });
+    }
+
+    throw new Error('All video providers failed. Check GOOGLE_AI_API_KEY, FAL_API_KEY, and PIKA_API_KEY in Railway env vars.');
   }
 
   /**
@@ -384,6 +397,50 @@ class VideoService {
 
     const prompt = socialStyles[industry] || `Local service transformation in ${loc}. Professional result. Real job footage. Trusted community business.`;
     return prompt.substring(0, 400);
+  }
+
+  /**
+   * fal.ai / Kling prompt — image-to-video motion description.
+   * Kling excels at realistic human motion on a key frame image.
+   * The prompt describes WHAT MOVES in the scene (not the scene itself — that's the image).
+   * Hard 500 char limit per FalService.buildInput().
+   */
+  _buildFalPrompt(customer, script, imageUrl, contentType) {
+    const industry = customer.industry || 'general_contractor';
+    const ct = contentType || 'job_finished';
+
+    // Motion descriptions optimised for Kling image-to-video
+    // Focus on: specific body part motion, camera move, ambient elements
+    const motionByType = {
+      job_finished: {
+        plumbing:         "Plumber's gloved hands tighten pipe fitting with confident wrist rotation. Copper gleams under headlamp. Camera slowly pushes forward. Water begins flowing cleanly. Authentic job site feel.",
+        hvac:             'HVAC technician adjusts manifold gauge dial with precise finger movement. Condenser fan spins in background. Camera gently pans right. Natural outdoor light shifts.',
+        roofing:          'Roofer continues nailing shingles in steady rhythm. Safety vest catches wind. Camera slowly pulls back revealing more of the new roof. Sky bright.',
+        concrete:         'Crew continues screeding fresh concrete pour. Wet surface glistens. Screed board slides smoothly across form. Camera pulls back to show the full pour.',
+        landscaping:      'Landscaper rakes mulch into garden bed. Mulch scatters naturally. Nearby grass sways gently in breeze. Camera slowly rises to reveal full yard.',
+        electrical:       'Electrician's hands route wires through panel with precision. Headlamp beam moves slightly. Camera slowly pushes in on the clean wire connections.',
+        painting:         'Painter roller sweeps vibrant color across wall in smooth even strokes. Paint sheen glistens under natural light. Camera tracks right following the roller.',
+        cleaning:         'Cleaning team member wipes surface to reveal gleaming shine. Reflection appears on the surface. Camera slowly pulls back showing the full transformation.',
+        general_contractor:'Crew member frames wall — hammer strikes nail rhythmically. Wood settles into place. Sawdust drifts. Camera pulls back revealing the emerging renovation.',
+        pressure_washing:  'Pressure washer wand tracks across surface. Clean bright stripe expands revealing dramatic before/after contrast in same frame. Water spray catches light.',
+        flooring:          'Flooring installer clicks plank into place. Row by row the floor expands. Camera slowly pulls back. Natural light plays across the new surface.',
+      },
+      got_review: {
+        default: 'Homeowner smiles and nods with genuine satisfaction. Camera slowly zooms in on the happy expression. Warm ambient light. Soft focus background.',
+      },
+      share_tip: {
+        default: 'Expert professional points to specific detail with confident hand gesture. Camera follows pointing finger to the key detail. Natural educational energy.',
+      },
+      promotion: {
+        default: 'Professional in uniform makes direct eye contact with camera, gestures toward offer. Energetic confident body language. Camera slowly pushes in.',
+      },
+    };
+
+    const industryMotions = motionByType[ct] || motionByType.job_finished;
+    const motion = industryMotions?.[industry] || industryMotions?.default
+      || `${industry.replace('_', ' ')} professional continues working methodically. Subtle natural motion. Camera drifts gently. Authentic documentary feel.`;
+
+    return motion.substring(0, 500);
   }
 
   _getCurrentSeason() {
