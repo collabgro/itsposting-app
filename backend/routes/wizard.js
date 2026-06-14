@@ -1647,6 +1647,12 @@ Return ONLY valid JSON (no markdown, no backticks):
             if (rawPhotoUrl) mediaVariants._rawPhotoUrl = rawPhotoUrl;
             if (cardLineupIndex !== null) mediaVariants._cardLineupIndex = cardLineupIndex;
             if (cardTrigger) mediaVariants._cardTrigger = cardTrigger;
+            // Store template metadata (names + categories) for the frontend card picker
+            if (PhotoCardService?.resolveTemplateMeta && cardTrigger) {
+              try {
+                mediaVariants._templateMeta = PhotoCardService.resolveTemplateMeta(cardTrigger, session.customer, cardLineupIndex);
+              } catch {}
+            }
             // ── Image training data (fire-and-forget) ──────────────────────────
             const _imgPrompt = imagePromptForGen;
             const _imgUrl = mediaUrl;
@@ -2014,6 +2020,9 @@ Return ONLY valid JSON (no markdown, no backticks):
         svgCards: mediaVariants._svgCards || null,
         cardLineupIndex: mediaVariants._cardLineupIndex ?? null,
         cardTrigger: mediaVariants._cardTrigger || null,
+        templateNames: mediaVariants._templateMeta?.names || null,
+        templateCategories: mediaVariants._templateMeta?.categories || null,
+        templateLetters: mediaVariants._templateMeta?.letters || null,
         carouselCardDesigns: mediaVariants._carouselCardDesigns || null,
         rawSlideUrls: mediaVariants._rawSlideUrls || null,
         slideOverlayTexts: mediaVariants._slideOverlayTexts || null,
@@ -2852,6 +2861,14 @@ Return ONLY valid JSON (no markdown, no backticks):
         ImageResizer.uploadToCloudinary(gbCards.C, `itsposting/${cid}/wizard-more-${ts}-gb-C`),
       ]);
 
+      // Template metadata — zero API cost lookup from in-memory TEMPLATE_META
+      let moreTemplateMeta = null;
+      try {
+        if (PhotoCardService?.resolveTemplateMeta) {
+          moreTemplateMeta = PhotoCardService.resolveTemplateMeta(wizardTrigger || 'job_finished', customer, idx);
+        }
+      } catch {}
+
       res.json({
         cards: { A: urlA, B: urlB, C: urlC },
         cardsByPlatform: {
@@ -2861,6 +2878,9 @@ Return ONLY valid JSON (no markdown, no backticks):
         },
         lineupIndex: idx,
         hasMore: idx < 2,
+        templateNames: moreTemplateMeta?.names || null,
+        templateCategories: moreTemplateMeta?.categories || null,
+        templateLetters: moreTemplateMeta?.letters || null,
       });
     } catch (err) {
       console.error('[Wizard] more-designs error:', err.message, err.stack?.split('\n').slice(0, 4).join(' | '));
