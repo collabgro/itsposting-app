@@ -1220,6 +1220,18 @@ console.log('══════════════════════�
     `CREATE INDEX IF NOT EXISTS idx_weather_alerts_customer ON weather_alerts(customer_id, alert_date DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_weather_alerts_date ON weather_alerts(alert_date)`,
 
+    // ── Weather Alert Pools — reusable variation sets (city+industry+signal → 6 sets) ──
+    // One Claude call per city/industry/signal combo; reused for 7 days across customers and mornings.
+    `CREATE TABLE IF NOT EXISTS weather_alert_pools (
+      id              SERIAL PRIMARY KEY,
+      cache_key       VARCHAR(200) UNIQUE NOT NULL,
+      pools           JSONB NOT NULL,
+      signal_headline TEXT,
+      expires_at      TIMESTAMP NOT NULL,
+      created_at      TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_weather_alert_pools_key ON weather_alert_pools(cache_key, expires_at)`,
+
     // Carousel slide storage — must exist before wizard.js tries to INSERT slides
     `CREATE TABLE IF NOT EXISTS post_carousel_slides (
       id           SERIAL PRIMARY KEY,

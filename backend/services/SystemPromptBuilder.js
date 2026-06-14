@@ -128,6 +128,42 @@ const CONSEQUENCE_COSTS = {
   ],
 };
 
+// 6 structural storytelling angles — assigned per customer by (customerId % 6).
+// Every business in the same city/industry posting about the same topic gets a
+// DIFFERENT structural approach, so no two posts sound like they came from the same tool.
+const POST_ANGLES = [
+  {
+    id: 'story_opener',
+    label: 'STORY OPENER',
+    mandate: `Structure every variation as a first-person job story. Open with: "I was at a [specific location type] in [neighbourhood] on [day] when [something specific happened]." Then: what was found → the consequence → the fix → the lesson for the reader. This humanises the business and stops the scroll because it sounds unmistakably like a real person who was there — no AI writes this way.`,
+  },
+  {
+    id: 'consequence_first',
+    label: 'CONSEQUENCE FIRST',
+    mandate: `Lead every variation with the WORST-CASE COST of ignoring this problem. State the dollar damage BEFORE offering any solution. Structure: "A [problem] costs $X–$Y to fix. Here's what causes it — and the $Z fix that prevents it." The homeowner must feel the financial pain before they value the solution. The cost anchor is your first sentence.`,
+  },
+  {
+    id: 'expert_checklist',
+    label: 'EXPERT CHECKLIST',
+    mandate: `Structure every variation as a numbered expert checklist. Open with: "[Number] things every [city] homeowner should [check/know/do] right now:" → numbered items, each with a real trade detail → end with a direct action. Checklists drive saves and shares because people screenshot them to send to their spouse or neighbour.`,
+  },
+  {
+    id: 'myth_buster',
+    label: 'MYTH BUSTER',
+    mandate: `Open every variation by naming and destroying a common myth. Structure: "Most [city] homeowners believe [wrong belief]. Here's the truth:" → the real fact (with a specific number or trade detail) → why the myth is dangerous → what to do instead. Myth-busting posts drive comments because people tag friends who believe the same myth.`,
+  },
+  {
+    id: 'behind_scenes',
+    label: 'BEHIND THE SCENES',
+    mandate: `Take the reader inside a real moment from the job. Structure: describe the scene as it actually happened → what was discovered and why it mattered → the craft or decision-making involved → the outcome for the homeowner. Write as if narrating a time-lapse video of the work. Authenticity is the entire hook — no selling, just showing.`,
+  },
+  {
+    id: 'community_anchor',
+    label: 'COMMUNITY ANCHOR',
+    mandate: `Open every variation with a hyper-local reference that only someone who lives in this city would recognise. Name a specific neighbourhood, a known local seasonal pattern, or a common local housing type. Structure: local reference → the problem or tip → expert insight → soft CTA. Creates a "this post was written for ME specifically" feeling that drives saves and shares within the local community.`,
+  },
+];
+
 // Strip content that could break prompt structure or inject new sections.
 // Allows normal business text; removes === headers and control chars.
 function sanitizeField(val, maxLen = 120) {
@@ -158,12 +194,21 @@ class SystemPromptBuilder {
     this.businessKnowledge = options.businessKnowledge || [];
     this.wizardTone = options.wizardTone || null;
 
+    // Customer ID drives angle + cost + hook rotation — ensures every business gets
+    // a structurally different post from others in the same city/industry.
+    this.customerId = options.customerId || customer.id || null;
+
     // Resolve industry knowledge — fall back to general_contractor if unknown
     this.knowledge = industryKnowledge[customer.industry] || industryKnowledge.general_contractor || {};
 
     // Current month (1–12) for seasonal context
     this.currentMonth = new Date().getMonth() + 1;
     this.seasonal = this.knowledge.seasonalContent?.[this.currentMonth] || null;
+
+    // Assign deterministic storytelling angle per customer (never changes for same customer)
+    this.storyAngle = this.customerId != null
+      ? POST_ANGLES[this.customerId % POST_ANGLES.length]
+      : null;
   }
 
   // ── Main build method ─────────────────────────────────────────────────────
@@ -310,10 +355,22 @@ You have deep knowledge of this industry. Use this to make every post feel speci
 
     if (k.hookFormulas?.length > 0) {
       const loc = this.customer.location || 'your city';
-      expertise += `\n\nProven hook formulas for this industry — use a DIFFERENT one for each variation (A, B, C must each have a completely different opening energy):`;
-      k.hookFormulas.slice(0, 6).forEach((h, i) => {
-        expertise += `\n${i + 1}. "${h.replace(/\[city\]/g, loc)}"`;
-      });
+      const hooks = k.hookFormulas;
+      expertise += `\n\nProven hook formulas for this industry:`;
+      if (this.customerId != null && hooks.length > 0) {
+        const primaryIdx = this.customerId % hooks.length;
+        expertise += `\nASSIGNED STARTING HOOK for Variation A (use this exact structure, adapted to your topic):`;
+        expertise += `\n→ "${hooks[primaryIdx].replace(/\[city\]/g, loc)}"`;
+        expertise += `\n\nAdditional hooks for Variations B and C — choose two DIFFERENT ones:`;
+        hooks.filter((_, i) => i !== primaryIdx).slice(0, 5).forEach((h, i) => {
+          expertise += `\n${i + 1}. "${h.replace(/\[city\]/g, loc)}"`;
+        });
+      } else {
+        expertise += ` — use a DIFFERENT one for each variation (A, B, C must each have a completely different opening energy):`;
+        hooks.slice(0, 6).forEach((h, i) => {
+          expertise += `\n${i + 1}. "${h.replace(/\[city\]/g, loc)}"`;
+        });
+      }
       expertise += `\nAdapt these hooks to the specific details provided — don't copy them word for word.`;
     }
 
@@ -330,16 +387,29 @@ You have deep knowledge of this industry. Use this to make every post feel speci
       });
     }
 
-    // Inject real-world cost anchors so Claude always has dollar data available
+    // Inject real-world cost anchors so Claude always has dollar data available.
+    // Rotate the PRIMARY anchor by customerId — 10 plumbers in Dallas each get a
+    // different lead dollar figure so their warning posts never open identically.
     const costs = CONSEQUENCE_COSTS[this.customer.industry] || CONSEQUENCE_COSTS.general_contractor || [];
     if (costs.length > 0) {
       expertise += `\n\n=== REAL COST ANCHORS — USE THESE IN WARNING / EDUCATIONAL POSTS ===
 These are real-world industry repair averages. When writing any post that warns about a risk, recommends maintenance, or explains why acting now beats waiting — include the matching cost anchor.
 State it as a fact the homeowner deserves to know. Never as a scare tactic.`;
-      costs.slice(0, 5).forEach(c => {
-        expertise += `\n• "${c.problem}": ${c.cost}`;
-      });
-      expertise += `\n\nRULE: Pick the cost anchor that matches this post's topic and weave it in naturally. "A burst pipe costs $5,000–$70,000 to remediate" is a fact that saves homeowners money. Say it plainly.`;
+      if (this.customerId != null) {
+        const primaryIdx = this.customerId % costs.length;
+        const primaryCost = costs[primaryIdx];
+        expertise += `\n\nPRIMARY cost anchor for this business (use this as your main dollar figure — it makes warning posts unique across businesses in the same area):`;
+        expertise += `\n★ "${primaryCost.problem}": ${primaryCost.cost}`;
+        expertise += `\n\nSupporting anchors (use if post topic matches):`;
+        costs.filter((_, i) => i !== primaryIdx).slice(0, 3).forEach(c => {
+          expertise += `\n• "${c.problem}": ${c.cost}`;
+        });
+      } else {
+        costs.slice(0, 5).forEach(c => {
+          expertise += `\n• "${c.problem}": ${c.cost}`;
+        });
+      }
+      expertise += `\n\nRULE: Weave the PRIMARY cost anchor into the post naturally. "A burst pipe costs $5,000–$70,000 to remediate" is a fact that saves homeowners money. Say it plainly.`;
     }
 
     return expertise;
@@ -636,6 +706,25 @@ DO ask:
 - "Have you ever dealt with this? Drop a 🙋 if yes."
 Binary or single-word-answer questions get 8–12× more comments than open-ended ones.
 Comments = algorithm reach = more homeowners seeing this post = more calls.`;
+
+    // Hard structural mandate — unique per customer, applied to ALL 3 variations.
+    // This is the primary uniqueness guarantee: 10 businesses in the same city/industry
+    // posting on the same day WILL produce structurally different posts because each
+    // has a different assigned angle that Claude must follow.
+    if (this.storyAngle) {
+      const loc = sanitizeField(this.customer.location, 80) || 'your city';
+      const industry = sanitizeField(this.customer.industry, 60) || 'home services';
+      voice += `
+
+=== STRUCTURAL MANDATE — APPLIES TO ALL 3 VARIATIONS (NON-NEGOTIABLE) ===
+ASSIGNED ANGLE: ${this.storyAngle.label}
+
+${this.storyAngle.mandate}
+
+WHY THIS MATTERS: Multiple ${industry} businesses in ${loc} may generate posts about similar topics using ItsPosting on the same day. Each business is permanently assigned a different structural angle (STORY OPENER, CONSEQUENCE FIRST, EXPERT CHECKLIST, MYTH BUSTER, BEHIND THE SCENES, COMMUNITY ANCHOR). This is how every business sounds like it has a completely different human writing for them — not a shared tool.
+
+YOUR MANDATE: All 3 variations (A, B, and C) must open using the ${this.storyAngle.label} structure. You MAY vary the specific story, number, or scenario between variations — but the structural opening must always match this angle. Do not default to a generic intro. Do not mix angles between variations.`;
+    }
 
     if (this.wizardTone) {
       voice += `\n\nTone override: The customer selected "${this.wizardTone}" for this post — this overrides their profile default. Make the shift unmistakably intentional in the writing energy.`;

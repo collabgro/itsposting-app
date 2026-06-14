@@ -790,8 +790,8 @@ module.exports = (pool) => {
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
-      // video_type and selected_format are frontend-only meta steps — store but don't advance step counter
-      if (stepId === 'video_type' || stepId === 'selected_format') {
+      // Meta steps — store in session but don't advance step counter
+      if (stepId === 'video_type' || stepId === 'selected_format' || stepId === 'music_mood' || stepId === 'video_style') {
         session.answers[stepId] = answers;
         await saveSession(wizardId, session);
         return res.json({
@@ -1157,6 +1157,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         counterAnswers: answers.details,
         businessKnowledge,
         wizardTone: answers.tone,
+        customerId: session.customerId,
       });
 
       const { systemPrompt, userPrompt } = builder.build();
@@ -1928,8 +1929,10 @@ Return ONLY valid JSON (no markdown, no backticks):
         const bgScript = parsed.variation_a?.videoScript || transformedVariations.A.caption;
         const bgImagePrompt = parsed.variation_a?.imagePrompt || imagePromptForGen || '';
         const bgVideoType = answers.videoType;
-        const bgContentType = answers.contentType; // job_finished, got_review, share_tip, promotion, seasonal, etc.
+        const bgVideoStyle = answers.video_style?.value || answers.videoStyle || 'reel'; // 'reel' | 'cinematic'
+        const bgContentType = answers.contentType;
         const bgAspectRatio = formatAspectRatio || '9:16';
+        const bgMusicMood = answers.music_mood?.value || answers.musicMood || 'auto';
         const bgBillingId = billingId;
         const bgCreditCost = creditCost;
         const bgPrefetch = heyGenPrefetch;
@@ -1939,16 +1942,18 @@ Return ONLY valid JSON (no markdown, no backticks):
             if (bgPrefetch) await bgPrefetch;
 
             const videoSvc = new VideoService();
-            console.log(`[Wizard BG] Starting video generation for post ${bgPostId} (type: ${bgVideoType}, content: ${bgContentType})`);
+            console.log(`[Wizard BG] Starting video generation for post ${bgPostId} (type: ${bgVideoType}, content: ${bgContentType}, music: ${bgMusicMood})`);
 
             const videoGenStart = Date.now();
             const videoResult = await videoSvc.generate(bgCustomer, bgScript, {
               videoType: bgVideoType,
+              videoStyle: bgVideoStyle,
               contentType: bgContentType,
               imagePrompt: bgImagePrompt,
               aspectRatio: bgAspectRatio,
               durationSeconds: 6,
-              skipKeyFrame: true,
+              skipKeyFrame: bgVideoStyle === 'reel', // reel uses NanaBanana internally; cinematic needs the key frame
+              musicMood: bgMusicMood,
             });
             const videoGenMs = Date.now() - videoGenStart;
 
@@ -2320,6 +2325,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         contentType,
         wizardTrigger: quickTrigger,
         counterAnswers: { job_description: description.trim() },
+        customerId: req.customerId,
       });
       const { systemPrompt, userPrompt } = builder.build();
 
@@ -2960,6 +2966,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         wizardTrigger: 'finished_job',
         businessKnowledge: knowledgeRes.rows,
         wizardTone: tone,
+        customerId: req.customerId,
       });
       const { systemPrompt } = builder.build();
 

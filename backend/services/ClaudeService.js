@@ -60,6 +60,7 @@ class ClaudeService {
       wizardTrigger,
       counterAnswers,
       businessKnowledge,
+      customerId,
     });
 
     const { systemPrompt, userPrompt } = builder.build();
@@ -167,6 +168,7 @@ class ClaudeService {
       wizardTrigger,                  // activates content-type rules + industry content angles
       counterAnswers: { custom: prompt },
       businessKnowledge,
+      customerId: customer.id,
     });
     const { systemPrompt, userPrompt } = builder.build(); // 3-variation format from section 6
 
@@ -222,6 +224,7 @@ class ClaudeService {
       platform: 'instagram',
       contentType: 'carousel',
       counterAnswers,
+      customerId: customer.id,
     });
     const { systemPrompt } = builder.build();
 
@@ -266,7 +269,7 @@ Return ONLY valid JSON:
     const seasonal = knowledge.seasonalContent?.[currentMonth] || null;
     const tradeTerms = knowledge.tradeTerminology?.slice(0, 8).join(', ') || '';
     const hookFormula = knowledge.hookFormulas?.[Math.floor(Math.random() * Math.min(5, knowledge.hookFormulas?.length || 1))] || '';
-    const builder = new SystemPromptBuilder(customer, { platform: 'all', contentType: 'video' });
+    const builder = new SystemPromptBuilder(customer, { platform: 'all', contentType: 'video', customerId: customer.id });
     const { systemPrompt } = builder.build();
 
     // Industry-specific voice guidance injected into the system prompt
