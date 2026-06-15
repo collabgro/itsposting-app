@@ -2926,23 +2926,41 @@ Return ONLY valid JSON (no markdown, no backticks):
   });
 
   // POST /api/wizard/more-designs — generate 3 more card designs from an alternate template lineup
+  // Accepts either lineupIndex (0-3, LINEUP_MAP based) or templateLetters (['C','D','E'], direct override)
   router.post('/more-designs', authenticate, async (req, res) => {
     req.setTimeout(280000);
     res.setTimeout(280000);
     try {
       const { photoUrl, cardOverlay, wizardTrigger, lineupIndex,
-              slideUrls, slideOverlayTexts, slideData } = req.body;
-      const isCarouselMode = Array.isArray(slideUrls) && slideUrls.length > 0;
+              slideUrls, slideOverlayTexts, slideData,
+              templateLetters } = req.body;
+      const isCarouselMode  = Array.isArray(slideUrls) && slideUrls.length > 0;
+      const isDirectMode    = Array.isArray(templateLetters) && templateLetters.length > 0;
 
-      if (!isCarouselMode && (!photoUrl || !cardOverlay)) {
-        return res.status(400).json({ error: 'photoUrl, cardOverlay, and lineupIndex are required' });
+      if (!isCarouselMode && !isDirectMode && (!photoUrl || !cardOverlay)) {
+        return res.status(400).json({ error: 'photoUrl and cardOverlay are required' });
       }
-      if (lineupIndex === undefined || lineupIndex === null) {
-        return res.status(400).json({ error: 'lineupIndex is required' });
+
+      // Direct template mode: validate letters exist in TEMPLATE_META
+      let directLetters = null;
+      if (isDirectMode) {
+        const valid = PhotoCardService?.ALL_TEMPLATE_LETTERS || [];
+        directLetters = templateLetters.slice(0, 3).map(l => (valid.includes(l) ? l : null)).filter(Boolean);
+        if (directLetters.length === 0) return res.status(400).json({ error: 'No valid template letters provided' });
+        // Pad to 3 if fewer than 3 valid letters (last run may have < 3 remaining)
+        while (directLetters.length < 3) directLetters.push(directLetters[directLetters.length - 1]);
       }
-      const idx = parseInt(lineupIndex, 10);
-      if (isNaN(idx) || idx < 0 || idx > 2) {
-        return res.status(400).json({ error: 'lineupIndex must be 0, 1, or 2' });
+
+      // Lineup mode: validate lineupIndex
+      let idx = 0;
+      if (!isDirectMode) {
+        if (lineupIndex === undefined || lineupIndex === null) {
+          return res.status(400).json({ error: 'lineupIndex is required when templateLetters is not provided' });
+        }
+        idx = parseInt(lineupIndex, 10);
+        if (isNaN(idx) || idx < 0 || idx > 3) {
+          return res.status(400).json({ error: 'lineupIndex must be 0–3' });
+        }
       }
 
       const customerResult = await pool.query(
@@ -3040,7 +3058,7 @@ Return ONLY valid JSON (no markdown, no backticks):
         });
       }
 
-      // ── Photo mode (original behaviour) ─────────────────────────────────────
+      // ── Photo mode ───────────────────────────────────────────────────────────
       validateAndFixCardOverlay(cardOverlay, customer);
       const rawBuffer = await ImageResizer.fetchImageAsBuffer(photoUrl);
 
@@ -3048,7 +3066,8 @@ Return ONLY valid JSON (no markdown, no backticks):
         rawBuffer, cardOverlay, customer, wizardTrigger || null,
         ['instagram_feed', 'facebook_feed', 'google_business'],
         null,
-        idx
+        isDirectMode ? null : idx,
+        isDirectMode ? directLetters : null
       );
 
       const igCards = platformCards.instagram_feed;
@@ -3057,22 +3076,25 @@ Return ONLY valid JSON (no markdown, no backticks):
       const fbCards = platformCards.facebook_feed || igCards;
       const gbCards = platformCards.google_business || igCards;
 
+      const suffix = isDirectMode ? `ext-${directLetters.join('-')}-${ts}` : `more-${ts}`;
       const [urlA, urlB, urlC, fbA, fbB, fbC, gbA, gbB, gbC] = await Promise.all([
-        ImageResizer.uploadToCloudinary(igCards.A, `itsposting/${cid}/wizard-more-${ts}-A`),
-        ImageResizer.uploadToCloudinary(igCards.B, `itsposting/${cid}/wizard-more-${ts}-B`),
-        ImageResizer.uploadToCloudinary(igCards.C, `itsposting/${cid}/wizard-more-${ts}-C`),
-        ImageResizer.uploadToCloudinary(fbCards.A, `itsposting/${cid}/wizard-more-${ts}-fb-A`),
-        ImageResizer.uploadToCloudinary(fbCards.B, `itsposting/${cid}/wizard-more-${ts}-fb-B`),
-        ImageResizer.uploadToCloudinary(fbCards.C, `itsposting/${cid}/wizard-more-${ts}-fb-C`),
-        ImageResizer.uploadToCloudinary(gbCards.A, `itsposting/${cid}/wizard-more-${ts}-gb-A`),
-        ImageResizer.uploadToCloudinary(gbCards.B, `itsposting/${cid}/wizard-more-${ts}-gb-B`),
-        ImageResizer.uploadToCloudinary(gbCards.C, `itsposting/${cid}/wizard-more-${ts}-gb-C`),
+        ImageResizer.uploadToCloudinary(igCards.A, `itsposting/${cid}/wizard-${suffix}-A`),
+        ImageResizer.uploadToCloudinary(igCards.B, `itsposting/${cid}/wizard-${suffix}-B`),
+        ImageResizer.uploadToCloudinary(igCards.C, `itsposting/${cid}/wizard-${suffix}-C`),
+        ImageResizer.uploadToCloudinary(fbCards.A, `itsposting/${cid}/wizard-${suffix}-fb-A`),
+        ImageResizer.uploadToCloudinary(fbCards.B, `itsposting/${cid}/wizard-${suffix}-fb-B`),
+        ImageResizer.uploadToCloudinary(fbCards.C, `itsposting/${cid}/wizard-${suffix}-fb-C`),
+        ImageResizer.uploadToCloudinary(gbCards.A, `itsposting/${cid}/wizard-${suffix}-gb-A`),
+        ImageResizer.uploadToCloudinary(gbCards.B, `itsposting/${cid}/wizard-${suffix}-gb-B`),
+        ImageResizer.uploadToCloudinary(gbCards.C, `itsposting/${cid}/wizard-${suffix}-gb-C`),
       ]);
 
       // Template metadata — zero API cost lookup from in-memory TEMPLATE_META
       let moreTemplateMeta = null;
       try {
-        if (PhotoCardService?.resolveTemplateMeta) {
+        if (isDirectMode && PhotoCardService?.getTemplateMetaForLetters) {
+          moreTemplateMeta = PhotoCardService.getTemplateMetaForLetters(directLetters);
+        } else if (PhotoCardService?.resolveTemplateMeta) {
           moreTemplateMeta = PhotoCardService.resolveTemplateMeta(wizardTrigger || 'job_finished', customer, idx);
         }
       } catch {}
@@ -3080,15 +3102,16 @@ Return ONLY valid JSON (no markdown, no backticks):
       res.json({
         cards: { A: urlA, B: urlB, C: urlC },
         cardsByPlatform: {
-          instagram_feed: { A: urlA, B: urlB, C: urlC },
-          facebook_feed:  { A: fbA, B: fbB, C: fbC },
+          instagram_feed:  { A: urlA, B: urlB, C: urlC },
+          facebook_feed:   { A: fbA, B: fbB, C: fbC },
           google_business: { A: gbA, B: gbB, C: gbC },
         },
-        lineupIndex: idx,
-        hasMore: idx < 2,
-        templateNames: moreTemplateMeta?.names || null,
+        lineupIndex: isDirectMode ? null : idx,
+        hasMore: isDirectMode ? false : idx < 3,
+        isDirectMode,
+        templateNames:      moreTemplateMeta?.names      || null,
         templateCategories: moreTemplateMeta?.categories || null,
-        templateLetters: moreTemplateMeta?.letters || null,
+        templateLetters:    moreTemplateMeta?.letters    || null,
       });
     } catch (err) {
       console.error('[Wizard] more-designs error:', err.message, err.stack?.split('\n').slice(0, 4).join(' | '));

@@ -14,6 +14,9 @@ import { useBranding } from '../lib/branding';
 import api, { customerAPI, socialAPI, analyticsAPI, postsAPI, templatesAPI, wizardAPI, calendarPlansAPI } from '../lib/api';
 import { CHAR_LIMITS, MOCKUP_MAP, PLATFORM_META } from '../components/PostMockups';
 
+// All 32 template letters in PhotoCardService — used to compute extended "browse all" queue
+const ALL_TEMPLATE_LETTERS = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','AA','AB','AC','AD','AE','AF'];
+
 // ── Step 1: Content Type Selection ──────────────────────────────────────────
 const CONTENT_TYPES = [
   { id: 'static',   icon: 'text_post',  label: 'Text Post',  desc: 'Text-only post, no image', credits: 1 },
@@ -587,6 +590,14 @@ export default function Wizard() {
   // templateNames/categories accumulate across initial gen + "load more" calls — no extra API cost
   const [cardTemplateNames, setCardTemplateNames] = useState({});       // { A: 'Side Fade', B: 'Angular Bold', ... }
   const [cardTemplateCategories, setCardTemplateCategories] = useState({}); // { A: 'Cinematic', ... }
+  const [cardTemplateLettersMap, setCardTemplateLettersMap] = useState({}); // slotKey → actual template letter { A: 'W', B: 'J', ... }
+  // Extended styles: all 32 templates beyond the 12 lineup-based ones
+  // Keys are prefixed template letters: 't_C', 't_D', 't_E' etc (to avoid collision with slot keys A-L)
+  const [extendedStyleUrls, setExtendedStyleUrls] = useState({});
+  const [extendedStyleNames, setExtendedStyleNames] = useState({});
+  const [extendedStyleCats, setExtendedStyleCats] = useState({});
+  const [loadingExtended, setLoadingExtended] = useState(false);
+  const [extendedQueue, setExtendedQueue] = useState([]); // [[letter1,letter2,letter3], ...]
   const [carouselDesignPreview, setCarouselDesignPreview] = useState(null); // 'A'|'B'|'C' — which design's slides to preview
   const [wizardPreviewPlatform, setWizardPreviewPlatform] = useState('all');
   const [previewCaptionExpanded, setPreviewCaptionExpanded] = useState(false);
@@ -928,6 +939,28 @@ export default function Wizard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moreDesignsModal, altLineupQueue.length, loadingMoreDesigns]);
 
+  // After all 4 lineup batches are loaded, compute the extended queue (templates not yet shown)
+  useEffect(() => {
+    if (altLineupQueue.length !== 0) return;                  // lineups still loading
+    if (loadingMoreDesigns) return;                            // mid-load
+    const usedLetters = new Set(Object.values(cardTemplateLettersMap).filter(Boolean));
+    if (usedLetters.size === 0) return;                       // no letters tracked yet
+    const remaining = ALL_TEMPLATE_LETTERS.filter(l => !usedLetters.has(l));
+    if (remaining.length === 0) return;
+    const batches = [];
+    for (let i = 0; i < remaining.length; i += 3) batches.push(remaining.slice(i, i + 3));
+    setExtendedQueue(batches);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [altLineupQueue.length, loadingMoreDesigns, Object.keys(cardTemplateLettersMap).length]);
+
+  // Auto-load extended batches when modal is open and extended queue has items
+  useEffect(() => {
+    if (moreDesignsModal && extendedQueue.length > 0 && !loadingExtended) {
+      loadExtendedBatch();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moreDesignsModal, extendedQueue.length, loadingExtended]);
+
   const canProceed = () => {
     if (step === 1) return !!contentType;
     if (step === 2) return true; // format is optional — Skip sets Universal
@@ -1210,12 +1243,20 @@ export default function Wizard() {
       setActiveSlide(0);
       setPreviewCaptionExpanded(false);
       setSelectedVariation(genRes.recommended || 'A');
+      // Reset extended styles on new generation
+      setExtendedStyleUrls({});
+      setExtendedStyleNames({});
+      setExtendedStyleCats({});
+      setExtendedQueue([]);
+      setLoadingExtended(false);
 
       // Seed template names from initial A/B/C cards (free — from backend in-memory lookup)
-      const initNames = genRes.templateNames || {};
-      const initCats  = genRes.templateCategories || {};
+      const initNames   = genRes.templateNames      || {};
+      const initCats    = genRes.templateCategories  || {};
+      const initLetters = genRes.templateLetters     || {};
       setCardTemplateNames(initNames);
       setCardTemplateCategories(initCats);
+      setCardTemplateLettersMap({ A: initLetters.A, B: initLetters.B, C: initLetters.C });
 
       if ((genRes.photoCardUrls || genRes.carouselCardDesigns) && genRes.cardLineupIndex !== null && genRes.cardLineupIndex !== undefined) {
         const base = genRes.cardLineupIndex;
@@ -1287,7 +1328,7 @@ export default function Wizard() {
             patchData.mediaUrl = selectedSlides[0];
           }
         } else {
-          const styleUrl = extraPhotoCardUrls[styleKey] || results.photoCardUrls?.[styleKey] || results.photoCardUrls?.[selectedVariation];
+          const styleUrl = extendedStyleUrls[styleKey] || extraPhotoCardUrls[styleKey] || results.photoCardUrls?.[styleKey] || results.photoCardUrls?.[selectedVariation];
           if (styleUrl) patchData.mediaUrl = styleUrl;
           // Pass platform-specific card sizes so Facebook gets 1200×630 and Instagram gets 1080×1350
           const extraPlatformEntry = extraCardsByPlatform[styleKey];
@@ -1378,7 +1419,7 @@ export default function Wizard() {
           schedulePatch.mediaUrl = selectedSlides[0];
         }
       } else {
-        const scheduleStyleUrl = extraPhotoCardUrls[schedStyleKey] || results.photoCardUrls?.[schedStyleKey] || results.photoCardUrls?.[selectedVariation];
+        const scheduleStyleUrl = extendedStyleUrls[schedStyleKey] || extraPhotoCardUrls[schedStyleKey] || results.photoCardUrls?.[schedStyleKey] || results.photoCardUrls?.[selectedVariation];
         if (scheduleStyleUrl) schedulePatch.mediaUrl = scheduleStyleUrl;
         const schedExtraPlatform = extraCardsByPlatform[schedStyleKey];
         if (schedExtraPlatform) {
@@ -1441,7 +1482,7 @@ export default function Wizard() {
     if (!results?.mediaUrl) return;
     setDownloading(true);
     try {
-      const activeMediaUrl = extraPhotoCardUrls[selectedCardStyle] || results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation] || results.mediaUrl;
+      const activeMediaUrl = extendedStyleUrls[selectedCardStyle] || extraPhotoCardUrls[selectedCardStyle] || results.photoCardUrls?.[selectedCardStyle] || results.photoCardUrls?.[selectedVariation] || results.mediaUrl;
       const res = await wizardAPI.downloadImage({
         mediaUrl: activeMediaUrl,
         postId: results.postId,
@@ -1501,12 +1542,14 @@ export default function Wizard() {
         if (data.carouselDesigns?.C) { newDesigns[keys[2]] = data.carouselDesigns.C; newThumbs[keys[2]] = data.cards?.C; }
         setExtraCarouselDesigns(prev => ({ ...prev, ...newDesigns }));
         setExtraPhotoCardUrls(prev => ({ ...prev, ...newThumbs }));
-        // Merge incoming template names into the accumulated map (keys D/E/F or G/H/I)
+        // Merge incoming template names + letters into the accumulated maps
         if (data.templateNames) {
-          const nameMap = { [keys[0]]: data.templateNames.A, [keys[1]]: data.templateNames.B, [keys[2]]: data.templateNames.C };
-          const catMap  = { [keys[0]]: data.templateCategories?.A, [keys[1]]: data.templateCategories?.B, [keys[2]]: data.templateCategories?.C };
+          const nameMap    = { [keys[0]]: data.templateNames.A,      [keys[1]]: data.templateNames.B,      [keys[2]]: data.templateNames.C };
+          const catMap     = { [keys[0]]: data.templateCategories?.A, [keys[1]]: data.templateCategories?.B, [keys[2]]: data.templateCategories?.C };
+          const lettersMap = { [keys[0]]: data.templateLetters?.A,    [keys[1]]: data.templateLetters?.B,    [keys[2]]: data.templateLetters?.C };
           setCardTemplateNames(prev => ({ ...prev, ...nameMap }));
           setCardTemplateCategories(prev => ({ ...prev, ...catMap }));
+          setCardTemplateLettersMap(prev => ({ ...prev, ...lettersMap }));
         }
       } else {
         const { data } = await wizardAPI.moreDesigns({
@@ -1534,12 +1577,14 @@ export default function Wizard() {
         }
         setExtraPhotoCardUrls(prev => ({ ...prev, ...newExtras }));
         setExtraCardsByPlatform(prev => ({ ...prev, ...newByPlatform }));
-        // Merge incoming template names into the accumulated map
+        // Merge incoming template names + letters into the accumulated maps
         if (data.templateNames) {
-          const nameMap = { [keys[0]]: data.templateNames.A, [keys[1]]: data.templateNames.B, [keys[2]]: data.templateNames.C };
-          const catMap  = { [keys[0]]: data.templateCategories?.A, [keys[1]]: data.templateCategories?.B, [keys[2]]: data.templateCategories?.C };
+          const nameMap    = { [keys[0]]: data.templateNames.A,      [keys[1]]: data.templateNames.B,      [keys[2]]: data.templateNames.C };
+          const catMap     = { [keys[0]]: data.templateCategories?.A, [keys[1]]: data.templateCategories?.B, [keys[2]]: data.templateCategories?.C };
+          const lettersMap = { [keys[0]]: data.templateLetters?.A,    [keys[1]]: data.templateLetters?.B,    [keys[2]]: data.templateLetters?.C };
           setCardTemplateNames(prev => ({ ...prev, ...nameMap }));
           setCardTemplateCategories(prev => ({ ...prev, ...catMap }));
+          setCardTemplateLettersMap(prev => ({ ...prev, ...lettersMap }));
         }
       }
       setAltLineupQueue(remaining);
@@ -1557,6 +1602,40 @@ export default function Wizard() {
     setSelectedCardStyle(key);
     setActiveSvg(null);
     setMoreDesignsModal(null);
+  };
+
+  // Load one batch of extended templates (direct letter mode — bypasses LINEUP_MAP)
+  const loadExtendedBatch = async () => {
+    if (loadingExtended || extendedQueue.length === 0) return;
+    if (!results?.rawPhotoUrl) return;
+    setLoadingExtended(true);
+    const [batch, ...remaining] = extendedQueue;
+    try {
+      const { data } = await wizardAPI.moreDesigns({
+        photoUrl: results.rawPhotoUrl,
+        cardOverlay: results.cardOverlay,
+        wizardTrigger: results.cardTrigger,
+        templateLetters: batch,
+      });
+      const newUrls = {}, newNames = {}, newCats = {};
+      batch.forEach((letter, i) => {
+        const key = ['A','B','C'][i];
+        if (data.cards?.[key]) {
+          newUrls[`t_${letter}`]  = data.cards[key];
+          newNames[`t_${letter}`] = data.templateNames?.[key]  || letter;
+          newCats[`t_${letter}`]  = data.templateCategories?.[key] || '';
+        }
+      });
+      setExtendedStyleUrls(prev  => ({ ...prev, ...newUrls  }));
+      setExtendedStyleNames(prev => ({ ...prev, ...newNames }));
+      setExtendedStyleCats(prev  => ({ ...prev, ...newCats  }));
+      setExtendedQueue(remaining);
+    } catch (err) {
+      console.error('[Wizard] loadExtendedBatch failed:', err.message);
+      setExtendedQueue(remaining); // skip failed batch, try next
+    } finally {
+      setLoadingExtended(false);
+    }
   };
 
   const totalSteps = formatSkipsPlatformStep ? 5 : 6;
@@ -2557,7 +2636,7 @@ export default function Wizard() {
                           </div>
                         );
                       })()
-                    ) : activeSvg && results.photoCardUrls && !extraPhotoCardUrls[selectedCardStyle] ? (
+                    ) : activeSvg && results.photoCardUrls && !extraPhotoCardUrls[selectedCardStyle] && !extendedStyleUrls[selectedCardStyle] ? (
                       /* SVG live preview — browser renders directly, zero network latency.
                          Clicking a text element opens the editor and focuses the matching field. */
                       <div
@@ -2572,10 +2651,12 @@ export default function Wizard() {
                     ) : (
                       <img
                         src={
-                          // Platform-specific card for extra designs (D-I) — use per-platform URL if available
-                          (extraCardsByPlatform[selectedCardStyle] && (
-                            extraCardsByPlatform[selectedCardStyle][selectedPlatformTab === 'facebook_feed' ? 'facebook' : selectedPlatformTab === 'google_business' ? 'google_business' : 'instagram']
-                          ))
+                          // Extended style (t_C, t_D etc.) — Instagram-sized, no platform variants
+                          extendedStyleUrls[selectedCardStyle]
+                            // Platform-specific card for extra lineup designs (D-L)
+                            || (extraCardsByPlatform[selectedCardStyle] && (
+                              extraCardsByPlatform[selectedCardStyle][selectedPlatformTab === 'facebook_feed' ? 'facebook' : selectedPlatformTab === 'google_business' ? 'google_business' : 'instagram']
+                            ))
                             // Fallback to primary extra design URL (no platform variant available)
                             || extraPhotoCardUrls[selectedCardStyle]
                             // Platform-specific card for initial styles (A-C)
@@ -3787,8 +3868,13 @@ export default function Wizard() {
         const fallbackGallery = { A:'Style 1',B:'Style 2',C:'Style 3',D:'Style 4',E:'Style 5',F:'Style 6',G:'Style 7',H:'Style 8',I:'Style 9',J:'Style 10',K:'Style 11',L:'Style 12' };
         const galleryNames = ALL_KEYS.reduce((acc, k) => { acc[k] = cardTemplateNames[k] || fallbackGallery[k]; return acc; }, {});
         const galleryCats  = ALL_KEYS.reduce((acc, k) => { acc[k] = cardTemplateCategories[k] || ''; return acc; }, {});
-        const selectedName = galleryNames[selectedCardStyle] || 'Your design';
-        const totalDesigns = availableKeys.length + (altLineupQueue.length * 3);
+        const selectedInLineup   = availableKeys.includes(selectedCardStyle);
+        const selectedInExtended = selectedCardStyle?.startsWith('t_') && extendedStyleUrls[selectedCardStyle];
+        const selectedName = selectedInLineup
+          ? (galleryNames[selectedCardStyle] || 'Your design')
+          : selectedInExtended
+          ? (extendedStyleNames[selectedCardStyle] || 'Your design')
+          : null;
         return (
           <div
             onClick={() => setMoreDesignsModal(null)}
@@ -3803,13 +3889,13 @@ export default function Wizard() {
                 <div>
                   <div style={{ fontSize: 19, fontWeight: 800, color: t.text, letterSpacing: '-0.02em' }}>Pick a card style</div>
                   <div style={{ fontSize: 13, color: t.textMuted, marginTop: 3 }}>
-                    {loadingMoreDesigns
-                      ? `Loading more styles…`
-                      : `${availableKeys.length} styles — all use your brand colors, zero extra credits`}
+                    {(loadingMoreDesigns || loadingExtended)
+                      ? `Loading styles…`
+                      : `${availableKeys.length + Object.keys(extendedStyleUrls).length} of ${ALL_TEMPLATE_LETTERS.length} styles — your brand colors, zero extra credits`}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {selectedCardStyle && availableKeys.includes(selectedCardStyle) && (
+                  {selectedName && (
                     <div style={{ fontSize: 12, fontWeight: 700, color: t.primary, background: `${t.primary}15`, border: `1px solid ${t.primary}30`, borderRadius: 20, padding: '4px 12px' }}>
                       {selectedName} selected
                     </div>
@@ -3822,9 +3908,14 @@ export default function Wizard() {
 
               {/* Scrollable grid */}
               <div style={{ overflowY: 'auto', padding: '20px 26px 24px', flexGrow: 1 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
 
-                  {/* Loaded design cards */}
+                {/* ── Section 1: Curated lineup (12 designs, trigger-matched) ── */}
+                {availableKeys.length > 0 && (
+                  <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: 12 }}>
+                    Recommended for your content type
+                  </div>
+                )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
                   {availableKeys.map(key => {
                     const url = allUrls[key];
                     const isActive = selectedCardStyle === key;
@@ -3845,7 +3936,6 @@ export default function Wizard() {
                           transform: isActive ? 'scale(1.02)' : 'scale(1)',
                         }}
                       >
-                        {/* Card image */}
                         <div style={{ position: 'relative', aspectRatio: '4/5' }}>
                           <img src={url} alt={tName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                           {tCat && (
@@ -3861,17 +3951,9 @@ export default function Wizard() {
                             </div>
                           )}
                         </div>
-
-                        {/* Card footer */}
                         <div style={{ padding: '10px 12px 12px', background: t.card, borderTop: `1px solid ${t.border}` }}>
                           <div style={{ fontSize: 13, fontWeight: 800, color: t.text, marginBottom: 6, letterSpacing: '-0.01em' }}>{tName}</div>
-                          <div style={{
-                            width: '100%', padding: '8px 0', textAlign: 'center',
-                            background: isActive ? `${t.primary}15` : t.primary,
-                            border: isActive ? `1.5px solid ${t.primary}` : 'none',
-                            borderRadius: 8, color: isActive ? t.primary : '#fff',
-                            fontSize: 12, fontWeight: 700,
-                          }}>
+                          <div style={{ width: '100%', padding: '8px 0', textAlign: 'center', background: isActive ? `${t.primary}15` : t.primary, border: isActive ? `1.5px solid ${t.primary}` : 'none', borderRadius: 8, color: isActive ? t.primary : '#fff', fontSize: 12, fontWeight: 700 }}>
                             {isActive ? '✓ Currently using' : 'Use this style'}
                           </div>
                         </div>
@@ -3879,8 +3961,8 @@ export default function Wizard() {
                     );
                   })}
 
-                  {/* Skeleton cards while loading */}
-                  {Array.from({ length: skeletonCount }).map((_, i) => (
+                  {/* Skeletons while lineup batches are loading */}
+                  {skeletonCount > 0 && Array.from({ length: skeletonCount }).map((_, i) => (
                     <div key={`skel-${i}`} style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.input }}>
                       <div style={{ aspectRatio: '4/5', background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', animation: 'pulse 1.4s ease-in-out infinite' }} />
                       <div style={{ padding: '10px 12px 12px', background: t.card, borderTop: `1px solid ${t.border}` }}>
@@ -3891,10 +3973,79 @@ export default function Wizard() {
                   ))}
                 </div>
 
-                {/* "All loaded" notice */}
-                {!loadingMoreDesigns && altLineupQueue.length === 0 && availableKeys.length > 0 && (
-                  <div style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: t.textMuted }}>
-                    All {availableKeys.length} styles shown — tap any to switch, zero extra credits
+                {/* ── Section 2: All other templates ── */}
+                {(Object.keys(extendedStyleUrls).length > 0 || loadingExtended || extendedQueue.length > 0) && (
+                  <>
+                    <div style={{ margin: '28px 0 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ flex: 1, height: 1, background: t.border }} />
+                      <div style={{ fontSize: 10, fontWeight: 700, color: t.textMuted, textTransform: 'uppercase', letterSpacing: '0.10em', whiteSpace: 'nowrap' }}>
+                        All styles ({Object.keys(extendedStyleUrls).length + availableKeys.length} of {ALL_TEMPLATE_LETTERS.length})
+                      </div>
+                      <div style={{ flex: 1, height: 1, background: t.border }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                      {Object.entries(extendedStyleUrls).map(([extKey, url]) => {
+                        const isActive = selectedCardStyle === extKey;
+                        const tName = extendedStyleNames[extKey] || extKey.replace('t_', '');
+                        const tCat  = extendedStyleCats[extKey]  || '';
+                        return (
+                          <div
+                            key={extKey}
+                            onClick={() => !isActive && selectMoreDesign(extKey)}
+                            style={{
+                              display: 'flex', flexDirection: 'column', gap: 0,
+                              borderRadius: 16, overflow: 'hidden',
+                              border: `2px solid ${isActive ? t.primary : t.border}`,
+                              boxShadow: isActive ? `0 0 0 3px ${t.primary}25, 0 8px 24px rgba(0,0,0,0.18)` : '0 2px 10px rgba(0,0,0,0.10)',
+                              cursor: isActive ? 'default' : 'pointer',
+                              transition: 'all 180ms cubic-bezier(0.34,1.56,0.64,1)',
+                              background: t.input,
+                              transform: isActive ? 'scale(1.02)' : 'scale(1)',
+                            }}
+                          >
+                            <div style={{ position: 'relative', aspectRatio: '4/5' }}>
+                              <img src={url} alt={tName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                              {tCat && (
+                                <div style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(8px)', borderRadius: 20, padding: '3px 10px', fontSize: 9, fontWeight: 700, color: '#fff', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                                  {tCat}
+                                </div>
+                              )}
+                              {isActive && (
+                                <div style={{ position: 'absolute', inset: 0, background: `${t.primary}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <div style={{ background: t.primary, borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.3)' }}>
+                                    <svg width="16" height="13" viewBox="0 0 16 13" fill="none"><path d="M1.5 6.5L5.5 10.5L14.5 1.5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ padding: '10px 12px 12px', background: t.card, borderTop: `1px solid ${t.border}` }}>
+                              <div style={{ fontSize: 13, fontWeight: 800, color: t.text, marginBottom: 6, letterSpacing: '-0.01em' }}>{tName}</div>
+                              <div style={{ width: '100%', padding: '8px 0', textAlign: 'center', background: isActive ? `${t.primary}15` : t.primary, border: isActive ? `1.5px solid ${t.primary}` : 'none', borderRadius: 8, color: isActive ? t.primary : '#fff', fontSize: 12, fontWeight: 700 }}>
+                                {isActive ? '✓ Currently using' : 'Use this style'}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Skeleton cards while extended batches load */}
+                      {loadingExtended && Array.from({ length: 3 }).map((_, i) => (
+                        <div key={`ext-skel-${i}`} style={{ borderRadius: 16, overflow: 'hidden', border: `1px solid ${t.border}`, background: t.input }}>
+                          <div style={{ aspectRatio: '4/5', background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', animation: 'pulse 1.4s ease-in-out infinite' }} />
+                          <div style={{ padding: '10px 12px 12px', background: t.card, borderTop: `1px solid ${t.border}` }}>
+                            <div style={{ height: 14, width: '65%', borderRadius: 6, background: t.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', marginBottom: 8 }} />
+                            <div style={{ height: 30, borderRadius: 8, background: t.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* "All loaded" footer notice */}
+                {!loadingMoreDesigns && !loadingExtended && altLineupQueue.length === 0 && extendedQueue.length === 0 && (availableKeys.length + Object.keys(extendedStyleUrls).length) > 0 && (
+                  <div style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: t.textMuted }}>
+                    All {availableKeys.length + Object.keys(extendedStyleUrls).length} styles loaded — tap any to switch instantly, zero extra credits
                   </div>
                 )}
               </div>

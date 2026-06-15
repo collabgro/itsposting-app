@@ -4233,7 +4233,8 @@ async function generatePhotoCardsForPlatforms(
   wizardTrigger = null,
   platforms = ['instagram_feed', 'facebook_feed', 'google_business'],
   designParams = null,
-  lineupIndexOverride = null
+  lineupIndexOverride = null,
+  templateLettersOverride = null
 ) {
   const colors       = resolveBrandColors(customer);
   const businessName = customer?.business_name || '';
@@ -4262,12 +4263,20 @@ async function generatePhotoCardsForPlatforms(
 
   const result = {};
 
+  // Resolve which 3 templates to use — explicit override wins over lineup logic
+  const _resolveTemplates = () => {
+    if (templateLettersOverride && templateLettersOverride.length === 3) {
+      return templateLettersOverride.map(l => (TEMPLATE_BUILDERS[l] ? l : 'A'));
+    }
+    return resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride);
+  };
+
   // Instagram must run before facebook (facebook is a square crop of instagram)
   if (platforms.includes('instagram_feed') || platforms.includes('facebook_feed')) {
     const igSpec = PLATFORM_SPECS['instagram_feed'];
     const igPhoto = resizedMap[`${igSpec.w}x${igSpec.h}`];
     if (igPhoto) {
-      const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride);
+      const [tA, tB, tC] = _resolveTemplates();
       const [bA, bB, bC] = await Promise.all([
         TEMPLATE_BUILDERS[tA](igPhoto, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
         TEMPLATE_BUILDERS[tB](igPhoto, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
@@ -4314,7 +4323,7 @@ async function generatePhotoCardsForPlatforms(
 
     } else if (platform === 'instagram_square') {
       // Square: use portrait templates with square-cropped photo
-      const [tA, tB, tC] = resolveTemplateSet(wizardTrigger, customer, lineupIndexOverride);
+      const [tA, tB, tC] = _resolveTemplates();
       const [bA, bB, bC] = await Promise.all([
         TEMPLATE_BUILDERS[tA](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
         TEMPLATE_BUILDERS[tB](photo, cardOverlay, businessName, phone, colors, logoBuffer, industry, false, null, null, fingerprint),
@@ -4327,4 +4336,18 @@ async function generatePhotoCardsForPlatforms(
   return result;
 }
 
-module.exports = { generatePhotoCards, generatePhotoCardsSVG, generatePhotoCardsForPlatforms, resolveBrandColors, PLATFORM_SPECS, getDesignFingerprint, TEMPLATE_META, getTemplateNames, resolveTemplateMeta };
+// Returns names + categories for an arbitrary array of template letters (for extended browse)
+function getTemplateMetaForLetters(letters) {
+  const names = {}, categories = {};
+  (letters || []).forEach((l, i) => {
+    const key = String.fromCharCode(65 + i); // A, B, C
+    names[key]      = TEMPLATE_META[l]?.name     || l;
+    categories[key] = TEMPLATE_META[l]?.category || '';
+  });
+  return { names, categories, letters: Object.fromEntries(letters.map((l, i) => [String.fromCharCode(65 + i), l])) };
+}
+
+// All 32 template letters in display order
+const ALL_TEMPLATE_LETTERS = Object.keys(TEMPLATE_META);
+
+module.exports = { generatePhotoCards, generatePhotoCardsSVG, generatePhotoCardsForPlatforms, resolveBrandColors, PLATFORM_SPECS, getDesignFingerprint, TEMPLATE_META, ALL_TEMPLATE_LETTERS, getTemplateNames, resolveTemplateMeta, getTemplateMetaForLetters };
